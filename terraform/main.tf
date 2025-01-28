@@ -1,13 +1,7 @@
-variable "resource_suffic" {
-  description = "Suffix to append to all resources"
-  type        = string
-  default     = "prod"
-}
-
 locals {
   project       = var.project_id
-  service_name  = "cosyne-service"
-  database_name = "test-database-users"
+  service_name  = "${var.resource_suffix}-cosyne-service"
+  database_name = "users"
 }
 
 # TODO: Add resources for Terraform to manage
@@ -24,24 +18,23 @@ resource "google_spanner_database" "default" {
   deletion_protection = false
 }
 
-resource "google_cloud_run_v2_service" "deployment" {
-  name                = local.service_name
-  location            = "us-central1"
-  project             = var.project_id
-  deletion_protection = false
-  template {
-    containers {
-      image = "gcr.io/${var.project_id}/cosyne:latest"
-    }
-  }
-  traffic {
-    percent = 100
+# Push an image to Google Container Registry
+# NOTE: We can automate the process if we have the vmassign repo combined with this repo
+# Google Artifact Registry
+resource "google_artifact_registry_repository" "repo" {
+  format        = "DOCKER"
+  location      = "us-central1"
+  repository_id = "flask-app-repo"
+}
+
+resource "null_resource" "docker_build_and_push" {
+  provisioner "local-exec" {
+    command = <<EOT
+      gcloud auth configure-docker
+      docker build -t us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest ../
+      docker push us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest
+    EOT
   }
 }
 
-data "google_iam_policy" "noauth" {
-  binding {
-    role    = "roles/run.invoker"
-    members = ["allUsers"]
-  }
-}
+# Deployment using Cloud Run
