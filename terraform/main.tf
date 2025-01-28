@@ -27,14 +27,45 @@ resource "google_artifact_registry_repository" "repo" {
   repository_id = "flask-app-repo"
 }
 
-resource "null_resource" "docker_build_and_push" {
-  provisioner "local-exec" {
-    command = <<EOT
-      gcloud auth configure-docker
-      docker build -t us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest ../
-      docker push us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest
-    EOT
+# resource "null_resource" "docker_build_and_push" {
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       gcloud auth configure-docker
+#       docker build -t us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest ../
+#       docker push us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest
+#     EOT
+#   }
+# }
+
+# Deployment using Cloud Run
+resource "google_cloud_run_service" "flask_service" {
+  name     = "flask-service"
+  location = "us-central1"
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${google_artifact_registry_repository.repo.name}/flask-app:latest"
+
+        resources {
+          limits = {
+            memory = "256Mi"
+            cpu    = "1"
+          }
+        }
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
   }
 }
 
-# Deployment using Cloud Run
+resource "google_cloud_run_service_iam_member" "invoker" {
+  service  = google_cloud_run_service.flask_service.name
+  location = google_cloud_run_service.flask_service.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
