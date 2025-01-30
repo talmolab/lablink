@@ -18,6 +18,6 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --role="roles/iam.roleAdmin"
 
 # Generate a key for the service account
-gcloud iam service-accounts keys create service-account-admin-key.json \
+gcloud iam service-accounts keys create terraform/service-account-admin-key.json \
     --iam-account="service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
     --project="${PROJECT_ID}"

@@ -210,6 +210,7 @@ terraform/terraform.rc
 
 # Ignore credentials file (any json file that starts with "vmassign-dev-")
 terraform/vmassign-dev-*.json
+terraform/service-account-*.json
 
 # ignore DS_Store files
 .DS_Store
