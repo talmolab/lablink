@@ -17,6 +17,16 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/iam.roleAdmin"
 
+# Grant database admin roles
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/spanner.admin"
+
+# Grant cloud run deployment roles
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/run.developer"
+
 # Generate a key for the service account
 gcloud iam service-accounts keys create terraform/service-account-admin-key.json \
     --iam-account="service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
