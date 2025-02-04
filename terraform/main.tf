@@ -1,51 +1,61 @@
 locals {
-  project       = var.project_id
   service_name  = "${var.resource_suffix}-cosyne-service"
-  database_name = "users"
+  database_name = "users-${var.resource_suffix}"
+  is_test       = var.resource_suffix == "test"
+  is_staging    = var.resource_suffix == "staging"
+  is_production = var.resource_suffix == "prod"
 }
 
-# TODO: Add resources for Terraform to manage
+# Service Account Creation for spanner instance
+resource "google_service_account" "spanner_admin_account" {
+  account_id   = "spanner-admin"
+  display_name = "Spanner Admin Service Account"
+}
 
-# TODO: Parameterize testing/development values
+# Instance Creation
+resource "google_spanner_instance" "database_instance" {
+  name             = "vmassign-${var.resource_suffix}"
+  display_name     = "Assign Instance ${var.resource_suffix}"
+  config           = "regional-us-west1"
+  processing_units = 1000
+}
 
-# Create Spanner Database in the specific instance
+
+# Database Creation
 resource "google_spanner_database" "default" {
-  name     = local.database_name
-  instance = "vmassign-dev"
+  name     = "users"
+  instance = google_spanner_instance.database_instance.name
   ddl = [
     "CREATE TABLE Users (Hostname STRING(1024) NOT NULL, Pin STRING(1024), CrdCmd STRING(1024), UserEmail STRING(1024), inUse BOOL,) PRIMARY KEY (Hostname)"
   ]
   deletion_protection = false
 }
 
-# Push an image to Google Container Registry
-# NOTE: We can automate the process if we have the vmassign repo combined with this repo
-# Google Artifact Registry
-resource "google_artifact_registry_repository" "repo" {
-  format        = "DOCKER"
-  location      = "us-central1"
-  repository_id = "flask-app-repo"
+# Grant permissions to the new service account for Spanner
+resource "google_spanner_database_iam_member" "spanner_permissions" {
+  project  = var.project_id
+  instance = google_spanner_instance.database_instance.name
+  database = google_spanner_database.default.name
+  role     = "roles/spanner.databaseAdmin"
+  member   = "serviceAccount:${google_service_account.spanner_admin_account.email}"
 }
 
-# resource "null_resource" "docker_build_and_push" {
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       gcloud auth configure-docker
-#       docker build -t us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest ../
-#       docker push us-central1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.name}/flask-app:latest
-#     EOT
-#   }
-# }
+# Service Account Creation for spanner instance
+resource "google_service_account" "cloud_run_admin" {
+  account_id   = "cloud-run-admin"
+  display_name = "Cloud Run Admin Service Account"
+}
 
-# Deployment using Cloud Run
+# Deploy the web app
 resource "google_cloud_run_service" "flask_service" {
+  # count    = local.is_production || local.is_production || local.is_test ? 1 : 0
   name     = "flask-service"
   location = "us-central1"
 
   template {
     spec {
       containers {
-        image = "gcr.io/${google_artifact_registry_repository.repo.name}/flask-app:latest"
+        image = "us-central1-docker.pkg.dev/vmassign-dev/flask-app-repo/flask-app:latest"
 
         resources {
           limits = {
@@ -63,9 +73,19 @@ resource "google_cloud_run_service" "flask_service" {
   }
 }
 
+# Grant access to all users as an invoker
 resource "google_cloud_run_service_iam_member" "invoker" {
+  # count    = local.is_production ? 1 : 0
   service  = google_cloud_run_service.flask_service.name
   location = google_cloud_run_service.flask_service.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# Grant permissions to the new service account for Spanner
+resource "google_cloud_run_service_iam_member" "cloud_run_permission" {
+  project = var.project_id
+  service = google_cloud_run_service.flask_service.name
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.cloud_run_admin.email}"
 }
