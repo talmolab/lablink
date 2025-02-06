@@ -1,6 +1,11 @@
 # Project ID as an argument
 PROJECT_ID=$1
 
+if [ -z "$PROJECT_ID" ]; then
+    echo "Project ID is required."
+    exit 1
+fi
+
 # Create the service account
 gcloud iam service-accounts create service-account-admin \
     --description="Service account to create and manage other service accounts" \
