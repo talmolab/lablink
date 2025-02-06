@@ -1,21 +1,31 @@
 #!/bin/bash
-SHA=$1
 
 # Exit on any error
 set -e
 
 # Variables
 PROJECT_ID="vmassign-dev"
-SERVICE_ACCOUNT_NAME="serviceAccount:service-account-admin"
+SERVICE_ACCOUNT_NAME="service-account-admin"
 SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "Deleting IAM bindings for service account: $SERVICE_ACCOUNT_EMAIL"
 
-gcloud projects get-iam-policy $PROJECT_ID --flatten="bindings[].members" --format="table(bindings.role,bindings.members)" --filter="bindings.members:$SERVICE_ACCOUNT_EMAIL"
+gcloud projects get-iam-policy $PROJECT_ID \
+  --flatten="bindings[].members" \
+  --format="table(bindings.role)" \
+  --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT_EMAIL"
 
 # Get the IAM roles assigned to the service account
-IAM_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID --format=json | jq -r \
-    '.bindings[] | select(.members[]? == "serviceAccount:'"$SHA"'") | .role')
+IAM_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID \
+  --flatten="bindings[].members" \
+  --format="table(bindings.role)" \
+  --filter="bindings.members:$SERVICE_ACCOUNT_EMAIL")
+
+echo "IAM roles assigned to $SERVICE_ACCOUNT_EMAIL: $IAM_ROLES"
+
+# Remove ROLE column header from the output
+IAM_ROLES=$(echo "$IAM_ROLES" | sed '1d')
+
 
 # Revoke IAM roles assigned to the service account
 if [ -z "$IAM_ROLES" ]; then
@@ -26,15 +36,14 @@ else
         echo "Removing IAM role: $ROLE"
         gcloud projects remove-iam-policy-binding $PROJECT_ID \
             --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
-            --role="$ROLE" \
-            --quiet || echo "Failed to remove role $ROLE, it may have already been removed."
+            --role="$ROLE"
     done
 fi
 
 
 # Delete the service account
 echo "Deleting service account: $SERVICE_ACCOUNT_EMAIL"
-gcloud iam service-accounts delete $SHA --quiet
+gcloud iam service-accounts delete $SERVICE_ACCOUNT_EMAIL --quiet
 
 
 # Check if the service account still exists before deleting
