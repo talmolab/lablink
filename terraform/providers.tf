@@ -10,5 +10,5 @@ terraform {
 provider "google" {
   project     = "vmassign-dev"
   region      = "us-west1"
-  credentials = "./vmassign-dev-2818ad83c3ff.json"
+  credentials = "./service-account-admin-key.json"
 }
