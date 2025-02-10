@@ -32,6 +32,14 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/run.developer"
 
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/artifactregistry.reader"
+
 # Generate a key for the service account
 gcloud iam service-accounts keys create terraform/service-account-admin-key.json \
     --iam-account="service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \

@@ -16,7 +16,7 @@ resource "google_service_account" "spanner_admin_account" {
 resource "google_spanner_instance" "database_instance" {
   name             = "vmassign-${var.resource_suffix}"
   display_name     = "Assign Instance ${var.resource_suffix}"
-  config           = "regional-us-west1"
+  config           = "regional-us-central1"
   processing_units = 1000
 }
 
@@ -47,22 +47,14 @@ resource "google_service_account" "cloud_run_admin" {
 }
 
 # Deploy the web app
-resource "google_cloud_run_service" "flask_service" {
-  # count    = local.is_production || local.is_production || local.is_test ? 1 : 0
-  name     = "flask-service"
+resource "google_cloud_run_service" "lablink_assign" {
+  name     = "lablink-assign"
   location = "us-central1"
 
   template {
     spec {
       containers {
-        image = "us-central1-docker.pkg.dev/vmassign-dev/flask-app-repo/flask-app:latest"
-
-        resources {
-          limits = {
-            memory = "256Mi"
-            cpu    = "1"
-          }
-        }
+        image = "us-central1-docker.pkg.dev/vmassign-dev/ghcr/talmolab/lablink-assign:latest"
       }
     }
   }
@@ -76,16 +68,21 @@ resource "google_cloud_run_service" "flask_service" {
 # Grant access to all users as an invoker
 resource "google_cloud_run_service_iam_member" "invoker" {
   # count    = local.is_production ? 1 : 0
-  service  = google_cloud_run_service.flask_service.name
-  location = google_cloud_run_service.flask_service.location
+  service  = google_cloud_run_service.lablink_assign.name
+  location = google_cloud_run_service.lablink_assign.location
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 # Grant permissions to the new service account for Spanner
 resource "google_cloud_run_service_iam_member" "cloud_run_permission" {
-  project = var.project_id
-  service = google_cloud_run_service.flask_service.name
-  role    = "roles/run.developer"
-  member  = "serviceAccount:${google_service_account.cloud_run_admin.email}"
+  project  = var.project_id
+  service  = google_cloud_run_service.lablink_assign.name
+  location = "us-central1"
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.cloud_run_admin.email}"
+}
+
+output "cloud_run_url" {
+  value = google_cloud_run_service.lablink_assign.status[0].url
 }
