@@ -30,12 +30,14 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
 # Grant cloud run deployment roles
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
-    --role="roles/run.developer"
+    --role="roles/run.admin"
 
+# Grant cloud run deployment roles
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/iam.serviceAccountUser"
 
+# Grant cloud run deployment roles
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:service-account-admin@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/artifactregistry.reader"
