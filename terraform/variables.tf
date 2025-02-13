@@ -13,5 +13,5 @@ variable "project_id" {
 variable "resource_suffix" {
   description = "Suffix to append to all resources"
   type        = string
-  default     = "prod"
+  default     = "test"
 }
