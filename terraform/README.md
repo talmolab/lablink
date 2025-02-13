@@ -2,8 +2,7 @@
 
 ## Overview
 This directory contains the Terraform configuration files for the Lablink project. The Terraform configuration files are used to create the infrastructure for the Lablink project. The infrastructure creates the following resources:
-
-- A virtual machine (VM) instance in Google Cloud Platform (GCP) with SLEAP installed.
+ 
 - A database instance in Google Spanner for VM assignment.
 - A Cloud Run service for the Lablink API.
 
@@ -41,7 +40,13 @@ cd terraform
 terraform init
 ```
 
-After initializing the Terraform configuration files, you can run the following command to create the infrastructure:
+After initializing the Terraform configuration files, you can run the following command to check what the resources will be created:
+
+```bash
+terraform plan
+```
+
+To create the infrastructure, you can run the following command:
 
 ```bash
 terraform apply
