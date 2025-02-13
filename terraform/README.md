@@ -4,15 +4,14 @@
 This directory contains the Terraform configuration files for the Lablink project. The Terraform configuration files are used to create the infrastructure for the Lablink project. The infrastructure creates the following resources:
  
 - A database instance in Google Spanner for VM assignment.
-- A Cloud Run service for the Lablink API.
+- A Cloud Run service for the VM assignment.
+- A service account for each resource in the VM assignment infrastructure.
 
 ## Prerequisites
 
 Before you can use the Terraform configuration files, running Terraform commands, you need to install Terraform. You can install Terraform by following the instructions in the [Terraform documentation](https://learn.hashicorp.com/tutorials/terraform/install-cli).
 
 Also, you need to have a Google Cloud Platform (GCP) account and a project in GCP. You can create a GCP account and a project in the [Google Cloud Platform Official Website](https://cloud.google.com/gcp).
-
-After creating a GCP account and a project, you need to create a service account in GCP and download the service account key. You can create a service account by following the instructions in the [GCP Service Accounts documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). After creating the service account, you need to download the service account key in JSON format. You can download the service account key by following the instructions in the [GCP Keys documentation](https://cloud.google.com/iam/docs/creating-managing-service-account-keys).
 
 ## Configuration
 
@@ -33,10 +32,18 @@ git clone https://github.com/talmolab/lablink.git
 
 ## Usage
 
-To use the Terraform configuration files, you need to run this command to initialize the Terraform configuration files:
+After creating a GCP account and a project, you need to create a service account in GCP and download the service account key. You can create a service account linked to the Terraform configuration files by running the following command:
 
 ```bash
 cd terraform
+bash create_service_account.sh
+```
+
+This will create a service account in GCP and download the service account key to the `terraform` directory.
+
+To use the Terraform configuration files, you need to run this command to initialize the Terraform configuration files:
+
+```bash
 terraform init
 ```
 
@@ -47,7 +54,6 @@ terraform plan
 ```
 
 To create the infrastructure, you can run the following command:
-
 ```bash
 terraform apply
 ```
