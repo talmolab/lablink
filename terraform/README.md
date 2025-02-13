@@ -35,7 +35,6 @@ git clone https://github.com/talmolab/lablink.git
 After creating a GCP account and a project, you need to create a service account in GCP and download the service account key. You can create a service account linked to the Terraform configuration files by running the following command:
 
 ```bash
-cd terraform
 bash create_service_account.sh
 ```
 
@@ -44,6 +43,7 @@ This will create a service account in GCP and download the service account key t
 To use the Terraform configuration files, you need to run this command to initialize the Terraform configuration files:
 
 ```bash
+cd terraform
 terraform init
 ```
 
