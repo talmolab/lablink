@@ -63,3 +63,12 @@ RUN chmod +x /scripts/install_uv.sh
 
 # Run script during build to install Miniforge
 RUN bash /scripts/install_uv.sh
+
+# Install Node Version Manager (nvm)
+COPY install_nvm.sh /scripts/install_nvm.sh
+
+# Make script executable
+RUN chmod +x /scripts/install_nvm.sh
+
+# Run script during build to install nvm
+RUN bash /scripts/install_nvm.sh
