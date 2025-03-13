@@ -54,3 +54,12 @@ RUN chmod +x /scripts/install_miniforge.sh
 
 # Run script during build to install Miniforge
 RUN bash /scripts/install_miniforge.sh
+
+# Copy install script into container
+COPY install_uv.sh /scripts/install_uv.sh
+
+# Make script executable
+RUN chmod +x /scripts/install_uv.sh
+
+# Run script during build to install Miniforge
+RUN bash /scripts/install_uv.sh

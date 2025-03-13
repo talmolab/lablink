@@ -18,3 +18,5 @@ README.md
 .gitignore
 terraform/*
 .devcontainer/*
+
+scripts/*

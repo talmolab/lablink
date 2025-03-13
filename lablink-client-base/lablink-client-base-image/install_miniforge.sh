@@ -26,8 +26,11 @@ source "$HOME/.bashrc" || source "$HOME/.profile"
 echo "Disabling auto-activation of base environment..."
 conda config --set auto_activate_base false
 
-# Cleanup installer file
-rm -f "${INSTALLER}"
+# Verify Miniforge installation
+echo "Verifying Miniforge installation..."
+which conda && conda --version || echo "ERROR: Miniforge is not found in PATH"
+echo "PATH is set to: $PATH"
+conda env list
 
 echo "Miniforge and Mamba are set up successfully!"
 exec "$@"
