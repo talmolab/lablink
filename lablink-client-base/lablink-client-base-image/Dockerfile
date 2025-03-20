@@ -1,6 +1,10 @@
 # Base image with GPU support
 FROM nvidia/cuda:11.6.1-cudnn8-devel-ubuntu20.04
 
+# https://askubuntu.com/questions/1402167/must-specify-the-user-name-option-when-running-as-root-chrome-remote-desktop
+# Must be a non-root user to run Chrome Remote Desktop
+ARG USERNAME="client"
+
 # Set non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -72,3 +76,34 @@ RUN chmod +x /scripts/install_nvm.sh
 
 # Run script during build to install nvm
 RUN bash /scripts/install_nvm.sh
+
+# Install Chrome Remote Desktop
+RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
+    # Add the Chrome Remote Desktop repository
+    echo "deb [arch=amd64] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" > /etc/apt/sources.list.d/chrome-remote-desktop.list && \
+    # Update package lists and install Chrome Remote Desktop
+    apt-get update && apt-get install --assume-yes chrome-remote-desktop && \
+    # Clean up to reduce image size
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Configure Chrome Remote Desktop to use Xfce by default
+RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session
+
+# Because there is no display connected to your instance, disable the display manager service on your instance
+RUN systemctl disable lightdm.service
+
+# Create the user USERNAME
+RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} && \
+    chmod 0440 /etc/sudoers.d/${USERNAME} && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
+
+# Add USERNAME to the chrome-remote-desktop group
+RUN usermod -aG chrome-remote-desktop ${USERNAME}
+
+# Switch to non-root user for Google Chrome Remote Desktop to work.
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
+
+# Entrypoint included since opening terminal is needed to authorize connect of the remote computer to your Google Chrome account. 
+ENTRYPOINT [ "/bin/bash" ]
