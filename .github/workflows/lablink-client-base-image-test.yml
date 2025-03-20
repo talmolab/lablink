@@ -60,5 +60,6 @@ jobs:
           # Tags all include "-test" to differentiate from production images
           tags: |
             ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-test
-            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-nvidia-cuda-11.3.1-cudnn8-runtime-ubuntu20.04-test
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04-test
             ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-${{ steps.get_sha.outputs.sha }}-test
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3-test
