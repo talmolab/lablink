@@ -37,6 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # XFCE4 desktop environment for lightweight graphical interface
     xfce4 \
     desktop-base \
+    xfce4-terminal \
+    xfce4-goodies \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
