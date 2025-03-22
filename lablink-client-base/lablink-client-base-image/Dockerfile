@@ -19,6 +19,12 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 # Default python3 is 3.8 in ubuntu 20.04 https://wiki.ubuntu.com/FocalFossa/ReleaseNotes#Python3_by_default
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libgl1-mesa-glx \
+    libglapi-mesa \
+    libegl-mesa0 \
+    libegl1 \
+    libopengl0 \
+    libglib2.0-0 \
     libfontconfig1 \
     libgssapi-krb5-2 \
     libdbus-1-3 \
@@ -34,7 +40,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
-    xbase-clients \
     xvfb \
     # Miscellaneous dependencies
     # Provides process management utilities
@@ -46,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Enables secure communication and package verification
     gnupg2 \             
     # Allows running commands as root
-    sudo && \               
+    sudo && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -86,7 +91,7 @@ RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /
     # Clean up to reduce image size
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Configure Chrome Remote Desktop to use Xfce by default
+# Configure Chrome Remote Desktop to use Gnome by default
 RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session
 
 # Because there is no display connected to your instance, disable the display manager service on your instance
