@@ -15,6 +15,6 @@
       }
     },
     "postCreateCommand": "echo 'Devcontainer ready for use!'",
-    "remoteUser": "root"
+    "remoteUser": "client"
   }
   

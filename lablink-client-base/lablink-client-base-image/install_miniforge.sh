@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e  # Exit on error
 
 # Define Miniforge installer filename manually to avoid `uname` inconsistencies
 INSTALLER="Miniforge3-Linux-x86_64.sh"
