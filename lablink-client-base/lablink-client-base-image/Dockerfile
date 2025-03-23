@@ -51,38 +51,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Supports session management and terminal multiplexers
     libutempter0 \  
     # Enables secure communication and package verification
-    gnupg2 \             
+    gnupg2 \
+    # For Chrome Browser
+    fonts-liberation \
+    libasound2 \
+    wget \
+    xdg-utils \
     # Allows running commands as root
     sudo && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Copy install script into container
-COPY install_miniforge.sh /scripts/install_miniforge.sh
 
-# Make script executable
-RUN chmod +x /scripts/install_miniforge.sh
+# Create scripts directory with miniforge, uv, and nvm installation scripts
+COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
 
-# Run script during build to install Miniforge
-RUN bash /scripts/install_miniforge.sh
-
-# Copy install script into container
-COPY install_uv.sh /scripts/install_uv.sh
-
-# Make script executable
-RUN chmod +x /scripts/install_uv.sh
-
-# Run script during build to install Miniforge
-RUN bash /scripts/install_uv.sh
-
-# Install Node Version Manager (nvm)
-COPY install_nvm.sh /scripts/install_nvm.sh
-
-# Make script executable
-RUN chmod +x /scripts/install_nvm.sh
-
-# Run script during build to install nvm
-RUN bash /scripts/install_nvm.sh
+# Make scripts executable and run them
+RUN chmod +x /scripts/*.sh && \
+    /scripts/install_miniforge.sh && \
+    /scripts/install_uv.sh && \
+    /scripts/install_nvm.sh
 
 # Install Chrome Remote Desktop
 RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
@@ -98,6 +86,11 @@ RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-de
 
 # Because there is no display connected to your instance, disable the display manager service on your instance
 RUN systemctl disable lightdm.service
+
+# Install Chrome browser
+RUN curl -L -o google-chrome-stable_current_amd64.deb \
+    https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
