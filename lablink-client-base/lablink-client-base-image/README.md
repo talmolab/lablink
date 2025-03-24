@@ -32,9 +32,9 @@ nvidia-smi
 
 **Notes:**
 
-- -it ensures that you get an interactive terminal. The i stands for interactive, and t allocates a pseudo-TTY, which is what allows you to interact with the bash shell inside the container.
-- The -v or --volume option mounts the specified directory with the same level of access as the directory has on the host.
-- The --rm flag in a docker run command automatically removes the container when it stops. This is useful for running temporary or one-time containers without cluttering your Docker environment with stopped containers.
+- `-it` ensures that you get an interactive terminal. The `i` stands for interactive, and `t` allocates a pseudo-TTY, which is what allows you to interact with the bash shell inside the container.
+- The `-v` or `--volume` option mounts the specified directory with the same level of access as the directory has on the host.
+- The `--rm` flag in a docker run command automatically removes the container when it stops. This is useful for running temporary or one-time containers without cluttering your Docker environment with stopped containers.
 
 
 ## Connecting to Chrome Remote Desktop
