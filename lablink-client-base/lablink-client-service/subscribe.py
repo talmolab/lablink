@@ -14,13 +14,15 @@ def main():
         table_name="lablink_client_test",
     )
 
-    # Get the column names from the database
-    column_names = database.get_column_names()
-    print("Column names:", column_names)
-
     # Listen for notifications on the specified channel
-    channel = "message_channel"
-    database.listen_for_notifications(channel)
+    # channel = "message_channel"
+    # database.listen_for_notifications(channel)
+
+    # Get the unassigned VMs from the database
+    assigned_vms = database.get_assigned_vms()
+    print("Assigned VMs:", assigned_vms)
+
+    print("Exist: ", database.vm_exists("vm-test-2"))
 
 
 if __name__ == "__main__":

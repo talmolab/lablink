@@ -124,3 +124,51 @@ class PostgresqlDtabase:
         finally:
             self.cursor.close()
             self.conn.close()
+
+    def get_unassigned_vms(self):
+        """Get the VMs that are not assigned to any command.
+
+        Returns:
+            list: A list of VMs that are not assigned to any command.
+        """
+        query = f"SELECT hostname FROM {self.table_name} WHERE crd_command IS NULL"
+        try:
+            self.cursor.execute(query)
+            return [row[0] for row in self.cursor.fetchall()]
+        except Exception as e:
+            # Optionally log the error or re-raise
+            print(f"Error retrieving unassigned VMs: {e}")
+            return []
+
+    def vm_exists(self, hostname):
+        """Check if a VM with the given hostname exists in the table.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            bool: True if the VM exists, False otherwise.
+        """
+        query = f"SELECT EXISTS (SELECT 1 FROM {self.table_name} WHERE hostname = %s)"
+        self.cursor.execute(query, (hostname,))
+        return self.cursor.fetchone()[0]
+
+    def get_assigned_vms(self):
+        """Get the VMs that are assigned to a command.
+
+        Returns:
+            list: A list of VMs that are assigned to a command.
+        """
+        query = f"SELECT hostname FROM {self.table_name} WHERE crd_command IS NOT NULL"
+        try:
+            self.cursor.execute(query)
+            return [row[0] for row in self.cursor.fetchall()]
+        except Exception as e:
+            # Optionally log the error or re-raise
+            print(f"Error retrieving assigned VMs: {e}")
+
+    def __del__(self):
+        """Close the database connection when the object is deleted."""
+        self.cursor.close()
+        self.conn.close()
+        print("Database connection closed.")
