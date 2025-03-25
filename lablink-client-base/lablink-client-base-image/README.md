@@ -42,9 +42,9 @@ nvidia-smi
 This guide explains how to connect to the Chrome Remote Desktop server running in the container to access the desktop environment.
 
 ### Prerequisites
-1. Google Account: You need a Google account to use Chrome Remote Desktop.
-2. Chrome Browser: You need to have the Chrome browser installed on your local machine.
-3. Docker Setup:
+1. **Google Account**: You need a Google account to use Chrome Remote Desktop.
+2. **Chrome Browser**: You need to have the Chrome browser installed on your local machine.
+3. **Docker Setup**:
    - Ensure Docker is installed and running on your system.
 
 ### Steps to Connect
