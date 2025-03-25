@@ -1,0 +1,20 @@
+ {
+    "name": "Lablink Client Base",
+    "build": {
+      "context": "..",
+      "dockerfile": "../Dockerfile"
+    },
+    "runArgs": [
+      "--gpus=all"
+    ],
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "terminal.integrated.defaultProfile.linux": "bash"
+        }
+      }
+    },
+    "postCreateCommand": "echo 'Devcontainer ready for use!'",
+    "remoteUser": "client"
+  }
+  

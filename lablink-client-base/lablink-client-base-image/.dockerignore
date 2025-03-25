@@ -1,0 +1,22 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environments
+env/
+venv/
+
+# Ignore version control and logs
+.git/
+*.log
+
+# Ignore Docker build artifacts
+docker/*.tmp
+
+README.md
+.gitignore
+terraform/*
+.devcontainer/*
+
+scripts/*

@@ -1,0 +1,65 @@
+name: Build and Push lablink-client-base-image (Test Workflow)
+
+# Run on push to branches other than main for lablink-client-base
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - lablink-client-base/lablink-client-base-image/** # Only run on changes to lablink-client-base
+      - .github/workflows/lablink-client-base-image-test.yml # Only run on changes to this workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Only build on Ubuntu for now since Docker is not available on macOS runners
+    strategy:
+      matrix:
+        platform: [linux/amd64] # Only build amd64 for now
+      max-parallel: 2 # Build both architectures in parallel (if more than one)
+    outputs:
+      git_sha: ${{ steps.get_sha.outputs.sha }}
+      sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}
+    steps:
+      - name: Checkout code
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v4
+
+      - name: Get Git SHA
+        id: get_sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Debug Git SHA
+        run: echo "Git SHA ${{ steps.get_sha.outputs.sha }}"
+
+      # Generate a sanitized platform string with slashes replaced by dashes
+      - name: Sanitize platform name
+        id: sanitize_platform
+        run: |
+          sanitized_platform="${{ matrix.platform }}" # Copy platform value
+          sanitized_platform="${sanitized_platform/\//-}" # Replace / with -
+          echo "sanitized_platform=$sanitized_platform" >> $GITHUB_OUTPUT
+
+      # Step 4: Set up Docker Buildx for multi-architecture builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container # Use a container driver for Buildx (default)
+
+      # Step 5: Authenticate to GitHub Container Registry
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        # https://github.com/docker/build-push-action
+        uses: docker/build-push-action@v6
+        with:
+          context: ./lablink-client-base/lablink-client-base-image # Build context wrt the root of the repository
+          file: ./lablink-client-base/lablink-client-base-image/Dockerfile # Path to Dockerfile wrt the root of the repository
+          platforms: ${{ matrix.platform }}
+          push: true # Push the image to Docker Hub
+          # Tags all include "-test" to differentiate from production images
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-test
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04-test
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-${{ steps.get_sha.outputs.sha }}-test
+            ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3-test
