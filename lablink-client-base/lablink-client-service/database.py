@@ -29,6 +29,8 @@ class PostgresqlDtabase:
             host=host,
             port=port,
         )
+        # LISTEN requires a non-transactional connection
+        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
     def get_column_names(self, table_name=None):
@@ -113,8 +115,10 @@ class PostgresqlDtabase:
                 else:
                     self.conn.poll()  # Process any pending notifications
                     while self.conn.notifies:
-                        notify = self.conn.notifies.pop()
-                        print(f"Received notification: {notify.payload}")
+                        notify = self.conn.notifies.pop(0)
+                        print(
+                            f"Received notification: {notify.payload} from channel {notify.channel}"
+                        )
         except KeyboardInterrupt:
             print("Exiting...")
         finally:
