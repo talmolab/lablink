@@ -1,11 +1,9 @@
-import psycopg2
-import select
 from database import PostgresqlDatabase
 
 
 def main():
     # Connect to the PostgreSQL database
-    database = PostgresqlDtabase(
+    database = PostgresqlDatabase(
         dbname="lablink--test",
         user="postgres",
         password="031011",

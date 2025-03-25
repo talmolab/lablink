@@ -1,5 +1,13 @@
-import psycopg2
 import select
+
+try:
+    import psycopg2
+except ImportError as e:
+    print(
+        "psycopg2 is not installed in the development environment. "
+        "Please install it using `pip install psycopg2`"
+    )
+    raise e
 
 
 class PostgresqlDatabase:
