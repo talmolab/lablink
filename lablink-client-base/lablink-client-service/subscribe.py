@@ -22,6 +22,10 @@ def main():
 
     print("Exist: ", database.vm_exists("vm-test-2"))
 
+    # Get the command assigned to a VM
+    crd_command = database.get_crd_command("vm-test-2")
+    print("CRD Command:", crd_command)
+
 
 if __name__ == "__main__":
     main()

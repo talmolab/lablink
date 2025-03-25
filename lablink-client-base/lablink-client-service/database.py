@@ -131,6 +131,19 @@ class PostgresqlDatabase:
             self.cursor.close()
             self.conn.close()
 
+    def get_crd_command(self, hostname):
+        """Get the command assigned to a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            str: The command assigned to the VM.
+        """
+        query = f"SELECT crd_command FROM {self.table_name} WHERE hostname = %s"
+        self.cursor.execute(query, (hostname,))
+        return self.cursor.fetchone()[0]
+
     def get_unassigned_vms(self):
         """Get the VMs that are not assigned to any command.
 
