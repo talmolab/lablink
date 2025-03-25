@@ -18,9 +18,6 @@ def main():
     column_names = database.get_column_names()
     print("Column names:", column_names)
 
-    # Insert a new VM into the database
-    database.insert_vm("vm-test-2")
-
     # Listen for notifications on the specified channel
     channel = "message_channel"
     database.listen_for_notifications(channel)
