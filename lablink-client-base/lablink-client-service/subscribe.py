@@ -1,6 +1,6 @@
 import psycopg2
 import select
-from database import PostgresqlDtabase
+from database import PostgresqlDatabase
 
 
 def main():

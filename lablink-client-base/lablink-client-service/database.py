@@ -2,7 +2,7 @@ import psycopg2
 import select
 
 
-class PostgresqlDtabase:
+class PostgresqlDatabase:
     def __init__(self, dbname, user, password, host, port, table_name):
         """Initialize the database connection.
 
@@ -29,7 +29,8 @@ class PostgresqlDtabase:
             host=host,
             port=port,
         )
-        # LISTEN requires a non-transactional connection
+
+        # Set the isolation level to autocommit so that each SQL command is immediately executed
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
@@ -62,18 +63,15 @@ class PostgresqlDtabase:
         values = []
 
         for col in column_names:
+            # Find the column that corresponds to the hostname and set its value
             if col == "hostname":
                 values.append(hostname)
             else:
-                values.append(None)  # NULL in SQL
+                values.append(None)
 
+        # Construct the SQL query
         columns = ", ".join(column_names)
         placeholders = ", ".join(["%s" for _ in column_names])
-
-        print(f"Column names: {column_names}")
-        print(f"Values: {values}")
-        print(f"Columns: {columns}")
-        print(f"Placeholders: {placeholders}")
 
         sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
         self.cursor.execute(sql, values)
@@ -136,7 +134,6 @@ class PostgresqlDtabase:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
         except Exception as e:
-            # Optionally log the error or re-raise
             print(f"Error retrieving unassigned VMs: {e}")
             return []
 
@@ -164,8 +161,24 @@ class PostgresqlDtabase:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
         except Exception as e:
-            # Optionally log the error or re-raise
             print(f"Error retrieving assigned VMs: {e}")
+
+    @classmethod
+    def load_database(cls, dbname, user, password, host, port, table_name):
+        """Loads an existing database from PostgreSQL.
+
+        Args:
+            dbname (str): The name of the database.
+            user (str): The username to connect to the database.
+            password (str): The password for the user.
+            host (str): The host where the database is located.
+            port (int): The port number for the database connection.
+            table_name (str): The name of the table to interact with.
+
+        Returns:
+            PostgresqlDtabase: An instance of the PostgresqlDtabase class.
+        """
+        return cls(dbname, user, password, host, port, table_name)
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
