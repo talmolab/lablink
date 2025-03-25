@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - lablink-client-base-image/** # Only run on changes to lablink-client-base-image
+      - lablink-client-base/lablink-client-base-image/** # Only run on changes to lablink-client-base-image
       - .github/workflows/lablink-client-base-image_production.yml # Only run on changes to this workflow
 
 jobs:
