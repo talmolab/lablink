@@ -1,5 +1,7 @@
 """Module that tests the imports of the package."""
 
+import pytest
+
 
 def test_import():
     try:
