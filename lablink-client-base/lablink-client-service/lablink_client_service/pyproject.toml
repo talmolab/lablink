@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lablink-client-service"
+version = "0.1.0"
+authors = [
+  { name="Amitha Attapu", email="amithaattapu0509@gmail.com" },
+  { name="Andrew Park", email="hep003@ucsd.edu" },
+]
+description = "Lablink Client Service that will be installed in the lablink-client-base-image"
+readme = "README.md"
+require-python = ">=3.8"
+dependencies = [
+    "psycopg2",
+]
+keywords = ["vm", "docker", "postgres", "tutorial"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+]
+
+[project.optional-dependencies]
+dev = ["toml", "twine", "build", "pytest", "black"]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink"
+Issues = "https://github.com/talmolab/lablink/issues"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lablink_client_service*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
