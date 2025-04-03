@@ -3,7 +3,7 @@ name: Deploy Docker Image on AWS
 on:
   push:
     branches:
-      - /**  # Change this if using a different branch
+      - "*"  # Change this if using a different branch
 
 jobs:
   deploy:
