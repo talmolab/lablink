@@ -3,10 +3,10 @@ name: Deploy Docker Image on AWS
 on:
   push:
     branches:
-      - "**"  # Runs on all branches
+      - "**" # Runs on all branches
 
 permissions:
-  id-token: write   # Required for OIDC
+  id-token: write # Required for OIDC
   contents: read
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
         id: apply
         run: terraform apply -auto-approve
         working-directory: lablink-allocator
-        continue-on-error: true  # Allow failure to move on to cleanup
+        continue-on-error: true # Allow failure to move on to cleanup
 
       - name: Get EC2 Public IP and write to config
         id: get_ip
@@ -59,4 +59,3 @@ jobs:
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve
         working-directory: lablink-allocator
-
