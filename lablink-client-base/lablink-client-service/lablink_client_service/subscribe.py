@@ -1,4 +1,4 @@
-from database import PostgresqlDatabase
+from lablink_client_service.database import PostgresqlDatabase
 
 
 def main():
