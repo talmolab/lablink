@@ -1,0 +1,61 @@
+name: Deploy Docker Image on AWS
+
+on:
+  push:
+    branches:
+      - main  # Change this if using a different branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up AWS CLI with initial credentials
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      # Step 3: Assume IAM role for GitHub Actions
+      - name: Assume IAM role for GitHub Actions
+        run: |
+          aws sts assume-role --role-arn arn:aws:iam::711387140753:role/githubactions-lablink-772f16100220 --role-session-name GitHubActionsSession > temp_creds.json
+          echo "AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' temp_creds.json)" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' temp_creds.json)" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' temp_creds.json)" >> $GITHUB_ENV
+
+      # Step 4: Install Terraform
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.6  # Adjust this if needed
+
+      # Step 5: Initialize Terraform inside lablink-allocator
+      - name: Initialize Terraform
+        run: terraform init
+        working-directory: lablink-allocator
+
+      # Step 6: Validate Terraform configuration (optional, but good practice)
+      - name: Validate Terraform
+        run: terraform validate
+        working-directory: lablink-allocator
+
+      # Step 7: Plan Terraform deployment (optional, useful for debugging)
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: lablink-allocator
+
+      # Step 8: Apply Terraform (deploy Docker on EC2)
+      - name: Apply Terraform
+        run: terraform apply -auto-approve
+        working-directory: lablink-allocator
+
+      # Optional: Cleanup temporary credentials file
+      - name: Cleanup temp credentials
+        run: rm -f temp_creds.json
