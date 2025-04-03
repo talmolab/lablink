@@ -9,7 +9,7 @@ on:
       - .github/workflows/lablink-allocator-terraform.yml # Only run on changes to this workflow
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
