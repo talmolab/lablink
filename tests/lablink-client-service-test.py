@@ -2,7 +2,9 @@
 
 
 def test_import():
-    import lablink_client_service
-
-    from lablink_client_service import subscribe
-    from lablink_client_service import database
+    try:
+        import lablink_client_service
+        from lablink_client_service import subscribe
+        from lablink_client_service import database
+    except ImportError as e:
+        pytest.fail(f"Import failed: {e}")
