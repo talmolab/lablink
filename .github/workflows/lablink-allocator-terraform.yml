@@ -1,4 +1,4 @@
-name: Terraform Deploy
+name: Deploy Docker Image on AWS
 
 on:
   push:

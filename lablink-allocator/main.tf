@@ -1,5 +1,5 @@
 provider "aws" {
-  region     = "us-west-2" # Change this to your preferred region
+  region = "us-west-2" # Change this to your preferred region
 
   # Replace with your AWS credentials when testing in local
   # access_key = "access_key"
@@ -28,7 +28,7 @@ resource "aws_security_group" "allow_http" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
 
@@ -40,7 +40,7 @@ resource "aws_security_group" "allow_http" {
   }
 
   lifecycle {
-    prevent_destroy = true  
+    prevent_destroy = true
   }
 }
 
