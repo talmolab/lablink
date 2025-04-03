@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "*"  # Change this if using a different branch
+    paths:
+      - lablink-allocator/** # Only run on changes to lablink-allocator
+      - .github/workflows/lablink-allocator-terraform.yml # Only run on changes to this workflow
 
 jobs:
   deploy:
