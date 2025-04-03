@@ -100,6 +100,25 @@ def launch():
 # def admin_panel():
 #     vms_ = vms.query.all()
 #     return render_template('admin.html', vms=vms)
+    # Find an available VM
+    available_vm = VM.query.filter_by(InUse=False).first()
+
+    if not available_vm:
+        return jsonify({"error": "No available VM"}), 404
+
+    # Update the VM record
+    available_vm.UserEmail = email
+    available_vm.CrdCommand = crd_command
+    available_vm.InUse = True
+
+    db.session.commit()
+
+    return jsonify({"message": "VM assigned", "host": available_vm.HostName})
+
+@app.route('/admin', methods=['GET'])
+def admin_panel():
+    vms = VM.query.all()
+    return render_template('admin.html', vms=vms)
 
 
 if __name__ == '__main__':
