@@ -36,3 +36,10 @@ CREATE TRIGGER trigger_crd_command_insert_or_update
 AFTER INSERT OR UPDATE OF CrdCommand ON vm_requests
 FOR EACH ROW
 EXECUTE FUNCTION notify_crd_command_update();
+
+INSERT INTO vm_requests (HostName, Pin, CrdCommand, UserEmail, InUse) 
+VALUES
+('host1', '', '', '', FALSE),
+('host2', '', '', '', FALSE),
+('host3', '', '', '', FALSE),
+('host4', '', '', '', FALSE);
