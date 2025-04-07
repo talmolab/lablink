@@ -103,21 +103,29 @@ def launch():
     # Find an available VM
     available_vm = VM.query.filter_by(InUse=False).first()
 
-    if not available_vm:
+    # debugging
+    all_vms = vm_requests.query.all()
+    for vm in all_vms:
+      print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+
+    # Find an available VM
+    available_vm = vm_requests.query.filter_by(inuse=False).first()
+
+    if not all_vms:
         return jsonify({"error": "No available VM"}), 404
 
     # Update the VM record
-    available_vm.UserEmail = email
-    available_vm.CrdCommand = crd_command
-    available_vm.InUse = True
+    available_vm.useremail = email
+    available_vm.crdcommand = crd_command
+    available_vm.inuse = True
 
     db.session.commit()
 
-    return jsonify({"message": "VM assigned", "host": available_vm.HostName})
+    return jsonify({"message": "VM assigned", "host": available_vm.hostname})
 
 @app.route('/admin', methods=['GET'])
 def admin_panel():
-    vms = VM.query.all()
+    vms = vm_requests.query.all()
     return render_template('admin.html', vms=vms)
 
 
