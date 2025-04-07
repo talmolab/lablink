@@ -6,6 +6,8 @@ GRANT ALL PRIVILEGES ON DATABASE lablink_db TO lablink;
 
 \c lablink_db;
 
+SET ROLE lablink;
+
 CREATE TABLE IF NOT EXISTS vm_requests (
     HostName VARCHAR(1024) PRIMARY KEY,
     Pin VARCHAR(1024) NOT NULL,
@@ -28,3 +30,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger to call notify function when CrdCommand is inserted or updated
+CREATE TRIGGER trigger_crd_command_insert_or_update
+AFTER INSERT OR UPDATE OF CrdCommand ON vm_requests
+FOR EACH ROW
+EXECUTE FUNCTION notify_crd_command_update();
