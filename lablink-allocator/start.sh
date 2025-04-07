@@ -1,10 +1,10 @@
 #!/bin/bash
-# su postgres -c "initdb -D /var/lib/postgresql/data"
-
-# # Start PostgreSQL service
-# su postgres -c "/usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/data"
 
 export POSTGRES_HOST_AUTH_METHOD=trust
+
+PG_HBA_CONF="/etc/postgresql/15/main/pg_hba.conf"
+echo "Adding host entry to pg_hba.conf..."
+echo "host    all             all             0.0.0.0/0            md5" >> $PG_HBA_CONF
 
 service postgresql start
 
