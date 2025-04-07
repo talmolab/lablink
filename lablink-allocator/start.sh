@@ -6,7 +6,7 @@ PG_HBA_CONF="/etc/postgresql/15/main/pg_hba.conf"
 echo "Adding host entry to pg_hba.conf..."
 echo "host    all             all             0.0.0.0/0            md5" >> $PG_HBA_CONF
 
-service postgresql start
+service postgresql restart  
 
 # Wait for PostgreSQL to be ready
 until pg_isready -U postgres; do
