@@ -34,7 +34,6 @@ jobs:
 
       - name: Set permissions for the private key
         run: chmod 600 ~/ec2-key.pem
-
       - name: Terraform Init
         run: terraform init
         working-directory: lablink-allocator
