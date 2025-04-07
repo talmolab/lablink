@@ -116,8 +116,8 @@ class PostgresqlDatabase:
         try:
             while True:
                 # Wait for notifications
-                if select.select([self.conn], [], [], 5) == ([], [], []):
-                    print("No notifications received in the last 5 seconds.")
+                if select.select([self.conn], [], [], 10) == ([], [], []):
+                    print("No notifications received in the last 10 seconds.")
                 else:
                     self.conn.poll()  # Process any pending notifications
                     while self.conn.notifies:

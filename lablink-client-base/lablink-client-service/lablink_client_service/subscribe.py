@@ -4,16 +4,16 @@ from lablink_client_service.database import PostgresqlDatabase
 def main():
     # Connect to the PostgreSQL database
     database = PostgresqlDatabase(
-        dbname="lablink--test",
-        user="postgres",
-        password="031011",
-        host="localhost",
+        dbname="lablink_db",
+        user="lablink",
+        password="lablink",
+        host="44.246.165.162",
         port=5432,
-        table_name="lablink_client_test",
+        table_name="vm_requests",
     )
 
     # Listen for notifications on the specified channel
-    channel = "message_channel"
+    channel = "vm_updates"
     database.listen_for_notifications(channel)
 
     # Get the unassigned VMs from the database
