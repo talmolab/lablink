@@ -1,3 +1,5 @@
+ALTER SYSTEM SET listen_addresses = '*';
+
 DROP USER IF EXISTS lablink;
 CREATE USER lablink WITH ENCRYPTED PASSWORD 'lablink';
 ALTER USER lablink WITH LOGIN;
@@ -7,6 +9,7 @@ GRANT ALL PRIVILEGES ON DATABASE lablink_db TO lablink;
 \c lablink_db;
 
 SET ROLE lablink;
+
 
 CREATE TABLE IF NOT EXISTS vm_requests (
     HostName VARCHAR(1024) PRIMARY KEY,
