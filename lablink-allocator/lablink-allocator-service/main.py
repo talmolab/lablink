@@ -9,12 +9,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-class VM(db.Model):
-    HostName = db.Column(db.String(1024), primary_key=True)
-    Pin = db.Column(db.String(1024), nullable=False)
-    CrdCommand = db.Column(db.String(1024), nullable=False)
-    UserEmail = db.Column(db.String(1024), nullable=False)
-    InUse = db.Column(db.Boolean, default=False)
+class vm_requests(db.Model):
+    hostname = db.Column(db.String(1024), primary_key=True)
+    pin = db.Column(db.String(1024), nullable=False)
+    crdcommand = db.Column(db.String(1024), nullable=False)
+    useremail = db.Column(db.String(1024), nullable=False)
+    inuse = db.Column(db.Boolean, default=False)
 
 
 def notify_participants():
@@ -37,24 +37,30 @@ def submit_vm_details():
     if not email or not crd_command:
         return jsonify({"error": "Email and CRD Command are required"}), 400
 
-    # Find an available VM
-    available_vm = VM.query.filter_by(InUse=False).first()
 
-    if not available_vm:
+    # debugging
+    all_vms = vm_requests.query.all()
+    for vm in all_vms:
+      print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+
+    # Find an available VM
+    available_vm = vm_requests.query.filter_by(inuse=False).first()
+
+    if not all_vms:
         return jsonify({"error": "No available VM"}), 404
 
     # Update the VM record
-    available_vm.UserEmail = email
-    available_vm.CrdCommand = crd_command
-    available_vm.InUse = True
+    available_vm.useremail = email
+    available_vm.crdcommand = crd_command
+    available_vm.inuse = True
 
     db.session.commit()
 
-    return jsonify({"message": "VM assigned", "host": available_vm.HostName})
+    return jsonify({"message": "VM assigned", "host": available_vm.hostname})
 
 @app.route('/admin', methods=['GET'])
 def admin_panel():
-    vms = VM.query.all()
+    vms = vm_requests.query.all()
     return render_template('admin.html', vms=vms)
 
 
