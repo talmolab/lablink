@@ -34,7 +34,7 @@ jobs:
 
       - name: Set permissions for the private key
         run: chmod 600 ~/ec2-key.pem
-        
+
       - name: Terraform Init
         run: terraform init
         working-directory: lablink-allocator
@@ -44,6 +44,13 @@ jobs:
         working-directory: lablink-allocator
 
       - name: Terraform Apply
+        id: apply
         run: terraform apply -auto-approve
+        working-directory: lablink-allocator
+        continue-on-error: true  # Allow failure to move on to cleanup
+
+      - name: Terraform Destroy on Failure
+        if: steps.apply.outcome == 'failure'
+        run: terraform destroy -auto-approve
         working-directory: lablink-allocator
 
