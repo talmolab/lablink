@@ -8,7 +8,7 @@ provider "aws" {
 }
 
 resource "aws_security_group" "allow_http" {
-  name = "allow-5000-5432"
+  name = "allows-5000-5432"
 
   ingress {
     from_port   = 5000
