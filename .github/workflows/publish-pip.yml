@@ -10,25 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-        - name: Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-        - name: Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-            python-version: "3.9"
+          python-version: "3.9"
 
-        - name: Download artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-            name: lablink-client-service-dist
-            path: dist/
+          name: lablink-client-service-dist
+          path: dist/
 
-        - name: Verify artifact
+      - name: Verify artifact
         run: |
           ls package/
 
-        - name: Publish Package
+      - name: Publish Package
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TUTORIAL_PYPI_API_TOKEN }}
