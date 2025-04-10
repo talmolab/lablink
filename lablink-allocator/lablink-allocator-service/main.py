@@ -52,6 +52,7 @@ def submit_vm_details():
     # Update the VM record
     available_vm.useremail = email
     available_vm.crdcommand = crd_command
+    available_vm.pin = "123456"
     available_vm.inuse = True
 
     db.session.commit()
