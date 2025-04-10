@@ -30,6 +30,10 @@ resource "aws_security_group" "allow_http" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  lifecycle {
+    prevent_destroy = true  
+  }
 }
 
 resource "aws_instance" "docker_server" {
