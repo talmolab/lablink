@@ -27,7 +27,8 @@ BEGIN
         'vm_updates',
         json_build_object(
             'HostName', NEW.HostName,
-            'CrdCommand', NEW.CrdCommand
+            'CrdCommand', NEW.CrdCommand,
+            'Pin', NEW.Pin
         )::text
     );
     RETURN NEW;
