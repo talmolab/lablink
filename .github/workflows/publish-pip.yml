@@ -1,0 +1,36 @@
+name: Publish on Release
+# This workflow will only work if an artifact named "lablink-client-dist" is uploaded to the repository
+# Run this workflow after testing using the "build-and-test-pip.yml" workflow
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    run-on: ubuntu-latest
+
+    steps:
+        - name: Checkout code
+        uses: actions/checkout@v4
+
+        - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: "3.9"
+
+        - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+            name: lablink-client-service-dist
+            path: dist/
+
+        - name: Verify artifact
+        run: |
+          ls package/
+
+        - name: Publish Package
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TUTORIAL_PYPI_API_TOKEN }}
+        run: |
+          twine upload dist/*
