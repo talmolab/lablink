@@ -7,7 +7,7 @@ def main():
         dbname="lablink_db",
         user="lablink",
         password="lablink",
-        host="34.216.204.84",
+        host="",
         port=5432,
         table_name="vm_requests",
     )
