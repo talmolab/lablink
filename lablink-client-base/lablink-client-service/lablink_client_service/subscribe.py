@@ -7,24 +7,19 @@ def main():
         dbname="lablink_db",
         user="lablink",
         password="lablink",
-        host="localhost",
+        host="34.216.204.84",
         port=5432,
         table_name="vm_requests",
     )
 
+    # Step 1: Add itself to the database
+
+    # Step 2: Listen to the message and send back if message is received
     # Listen for notifications on the specified channel
     channel = "vm_updates"
     database.listen_for_notifications(channel)
 
-    # Get the unassigned VMs from the database
-    # assigned_vms = database.get_assigned_vms()
-    # print("Assigned VMs:", assigned_vms)
-
-    # print("Exist: ", database.vm_exists("vm-test-2"))
-
-    # # Get the command assigned to a VM
-    # crd_command = database.get_crd_command("vm-test-2")
-    # print("CRD Command:", crd_command)
+    # Step 3: Use the CRD command to connect to CRD
 
 
 if __name__ == "__main__":

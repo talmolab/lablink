@@ -86,23 +86,6 @@ class PostgresqlDatabase:
         self.conn.commit()
         print(f"Inserted data: {values}")
 
-    def assign_vm(self, hostname, crd_command):
-        """Assign a VM to a command.
-
-        Args:
-            hostname (str): The hostname of the VM.
-            crd_command (str): The command to assign to the VM.
-        """
-        # Placeholder for the actual implementation
-        print(f"Assigning VM '{hostname}' to command '{crd_command}'...")
-
-        # Implement the logic to assign the VM to the command
-        column_name = "crd_command"
-        sql = f"UPDATE {self.table_name} SET {column_name} = %s WHERE hostname = %s;"
-        self.cursor.execute(sql, (crd_command, hostname))
-        self.conn.commit()
-        print(f"Assigned VM '{hostname}' to command '{crd_command}'.")
-
     def listen_for_notifications(self, channel):
         """Listen for notifications on a specific channel.
 
@@ -140,7 +123,7 @@ class PostgresqlDatabase:
         Returns:
             str: The command assigned to the VM.
         """
-        query = f"SELECT crd_command FROM {self.table_name} WHERE hostname = %s"
+        query = f"SELECT crdcommand FROM {self.table_name} WHERE hostname = %s"
         self.cursor.execute(query, (hostname,))
         return self.cursor.fetchone()[0]
 
@@ -150,7 +133,7 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are not assigned to any command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE crd_command IS NULL"
+        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NULL"
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
@@ -177,7 +160,7 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are assigned to a command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE crd_command IS NOT NULL"
+        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NOT NULL"
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
