@@ -1,4 +1,5 @@
 from lablink_client_service.database import PostgresqlDatabase
+import socket
 
 
 def main():
@@ -7,12 +8,13 @@ def main():
         dbname="lablink_db",
         user="lablink",
         password="lablink",
-        host="",
+        host="34.216.204.84",
         port=5432,
         table_name="vm_requests",
     )
 
     # Step 1: Add itself to the database
+    database.insert_vm(hostname=socket.gethostname())
 
     # Step 2: Listen to the message and send back if message is received
     # Listen for notifications on the specified channel
