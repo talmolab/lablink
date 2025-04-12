@@ -123,6 +123,10 @@ class PostgresqlDatabase:
         Returns:
             str: The command assigned to the VM.
         """
+        if not self.vm_exists(hostname):
+            print(f"VM with hostname '{hostname}' does not exist.")
+            return None
+
         query = f"SELECT crdcommand FROM {self.table_name} WHERE hostname = %s"
         self.cursor.execute(query, (hostname,))
         return self.cursor.fetchone()[0]
