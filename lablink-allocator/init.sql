@@ -13,10 +13,10 @@ SET ROLE lablink;
 
 CREATE TABLE IF NOT EXISTS vm_requests (
     HostName VARCHAR(1024) PRIMARY KEY,
-    Pin VARCHAR(1024) NOT NULL,
-    CrdCommand VARCHAR(1024) NOT NULL,
-    UserEmail VARCHAR(1024) NOT NULL,
-    InUse BOOLEAN DEFAULT FALSE
+    Pin VARCHAR(1024),
+    CrdCommand VARCHAR(1024),
+    UserEmail VARCHAR(1024),
+    InUse BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Function to send notification on CrdCommand update
