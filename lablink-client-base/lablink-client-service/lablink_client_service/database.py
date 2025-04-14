@@ -1,4 +1,5 @@
 import select
+from lablink_client_service import connect_crd
 
 try:
     import psycopg2
@@ -108,6 +109,8 @@ class PostgresqlDatabase:
                         print(
                             f"Received notification: {notify.payload} from channel {notify.channel}"
                         )
+                        # Call the CRD command to connect to the VM
+                        connect_crd.connect_to_crd(notify.payload)
         except KeyboardInterrupt:
             print("Exiting...")
         finally:

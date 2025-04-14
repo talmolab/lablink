@@ -8,7 +8,7 @@ def main():
         dbname="lablink_db",
         user="lablink",
         password="lablink",
-        host="34.216.204.84",
+        host="",
         port=5432,
         table_name="vm_requests",
     )
@@ -17,11 +17,9 @@ def main():
     database.insert_vm(hostname=socket.gethostname())
 
     # Step 2: Listen to the message and send back if message is received
-    # Listen for notifications on the specified channel
+    # When a message is received, the callback function will be called (connect to CRD)
     channel = "vm_updates"
     database.listen_for_notifications(channel)
-
-    # Step 3: Use the CRD command to connect to CRD
 
 
 if __name__ == "__main__":
