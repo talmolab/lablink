@@ -11,10 +11,10 @@ db = SQLAlchemy(app)
 
 class vm_requests(db.Model):
     hostname = db.Column(db.String(1024), primary_key=True)
-    pin = db.Column(db.String(1024), nullable=False)
-    crdcommand = db.Column(db.String(1024), nullable=False)
-    useremail = db.Column(db.String(1024), nullable=False)
-    inuse = db.Column(db.Boolean, default=False)
+    pin = db.Column(db.String(1024), nullable=True)
+    crdcommand = db.Column(db.String(1024), nullable=True)
+    useremail = db.Column(db.String(1024), nullable=True)
+    inuse = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
 
 
 def notify_participants():
