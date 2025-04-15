@@ -75,6 +75,8 @@ class PostgresqlDatabase:
             # Find the column that corresponds to the hostname and set its value
             if col == "hostname":
                 values.append(hostname)
+            elif col == "inuse":
+                values.append(False)
             else:
                 values.append(None)
 
