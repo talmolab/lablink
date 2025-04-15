@@ -90,7 +90,7 @@ def test_insert_vm(mock_db_connection):
 
     db.insert_vm("test-hostname")
 
-    expected_values = ["test-hostname", None, None, None, None]
+    expected_values = ["test-hostname", None, None, None, False]
 
     print(f"Expected values: {expected_values}")
     # Check if the cursor.execute was called with the expected SQL command
