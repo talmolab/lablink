@@ -72,14 +72,21 @@ def connect_to_crd(command=None, pin=None):
     # Parse the command line arguments
     command = reconstruct_command(command)
 
+    # input the pin code with verification
+    input_pin = pin + "\n"
+    input_pin_verification = input_pin + input_pin
+
     # Execute the command
     result = subprocess.run(
         command,
-        input=pin,
+        input=input_pin_verification,
         shell=True,
         capture_output=True,
         text=True,
     )
+
+    # Check the result
+    print(f"Output:\n {result.stdout}")
 
     if result.stderr:
         print(f"Error: {result.stderr}")
