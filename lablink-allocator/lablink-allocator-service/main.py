@@ -9,7 +9,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-class vm_requests(db.Model):
+class vms(db.Model):
     hostname = db.Column(db.String(1024), primary_key=True)
     pin = db.Column(db.String(1024), nullable=True)
     crdcommand = db.Column(db.String(1024), nullable=True)
@@ -39,12 +39,12 @@ def submit_vm_details():
 
 
     # debugging
-    all_vms = vm_requests.query.all()
+    all_vms = vms.query.all()
     for vm in all_vms:
       print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
 
     # Find an available VM
-    available_vm = vm_requests.query.filter_by(inuse=False).first()
+    available_vm = vms.query.filter_by(inuse=False).first()
 
     if not all_vms:
         return jsonify({"error": "No available VM"}), 404
@@ -59,10 +59,10 @@ def submit_vm_details():
 
     return jsonify({"message": "VM assigned", "host": available_vm.hostname})
 
-@app.route('/admin', methods=['GET'])
-def admin_panel():
-    vms = vm_requests.query.all()
-    return render_template('admin.html', vms=vms)
+# @app.route('/admin', methods=['GET'])
+# def admin_panel():
+#     vms_ = vms.query.all()
+#     return render_template('admin.html', vms=vms)
 
 
 if __name__ == '__main__':
