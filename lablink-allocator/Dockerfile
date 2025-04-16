@@ -24,6 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
 
+COPY generate_init_sql.py /app
+COPY db_config.py /app
+RUN python generate-init-sql.py
+
 # Copy the database initialization script
 COPY init.sql /app/init.sql
 

@@ -1,17 +1,19 @@
+from db_config import DB_NAME, DB_USER, DB_PASSWORD, VM_TABLE
+
+template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
 
-DROP USER IF EXISTS lablink;
-CREATE USER lablink WITH ENCRYPTED PASSWORD 'lablink';
-ALTER USER lablink WITH LOGIN;
-CREATE DATABASE lablink_db OWNER lablink;
-GRANT ALL PRIVILEGES ON DATABASE lablink_db TO lablink;
+DROP USER IF EXISTS {DB_USER};
+CREATE USER {DB_USER} WITH ENCRYPTED PASSWORD '{DB_PASSWORD}';
+ALTER USER {DB_USER} WITH LOGIN;
+CREATE DATABASE {DB_NAME} OWNER {DB_USER};
+GRANT ALL PRIVILEGES ON DATABASE {DB_NAME} TO {DB_USER};
 
-\c lablink_db;
+\\c {DB_NAME};
 
-SET ROLE lablink;
+SET ROLE {DB_USER};
 
-
-CREATE TABLE IF NOT EXISTS vm_requests (
+CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     HostName VARCHAR(1024) PRIMARY KEY,
     Pin VARCHAR(1024),
     CrdCommand VARCHAR(1024),
@@ -19,12 +21,11 @@ CREATE TABLE IF NOT EXISTS vm_requests (
     InUse BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Function to send notification on CrdCommand update
 CREATE OR REPLACE FUNCTION notify_crd_command_update()
 RETURNS TRIGGER AS $$
 BEGIN
     PERFORM pg_notify(
-        'vm_updates',
+        {MESSAGE_CHANNEL},
         json_build_object(
             'HostName', NEW.HostName,
             'CrdCommand', NEW.CrdCommand,
@@ -35,15 +36,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to call notify function when CrdCommand is inserted or updated
 CREATE TRIGGER trigger_crd_command_insert_or_update
 AFTER INSERT OR UPDATE OF CrdCommand ON vm_requests
 FOR EACH ROW
 EXECUTE FUNCTION notify_crd_command_update();
 
-INSERT INTO vm_requests (HostName, Pin, CrdCommand, UserEmail, InUse) 
+INSERT INTO {VM_TABLE} (HostName, Pin, CrdCommand, UserEmail, InUse) 
 VALUES
 ('host1', '', '', '', FALSE),
 ('host2', '', '', '', FALSE),
 ('host3', '', '', '', FALSE),
 ('host4', '', '', '', FALSE);
+"""
+
+with open("init.sql", "w") as f:
+    f.write(template)
