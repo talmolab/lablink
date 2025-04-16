@@ -1,5 +1,7 @@
 import select
 from lablink_client_service import connect_crd
+import json
+import socket
 
 try:
     import psycopg2
@@ -71,6 +73,8 @@ class PostgresqlDatabase:
 
         values = []
 
+        print(f"Column names: {column_names}")
+
         for col in column_names:
             # Find the column that corresponds to the hostname and set its value
             if col == "hostname":
@@ -103,7 +107,7 @@ class PostgresqlDatabase:
             while True:
                 # Wait for notifications
                 if select.select([self.conn], [], [], 10) == ([], [], []):
-                    print("No notifications received in the last 10 seconds.")
+                    continue
                 else:
                     self.conn.poll()  # Process any pending notifications
                     while self.conn.notifies:
@@ -111,8 +115,37 @@ class PostgresqlDatabase:
                         print(
                             f"Received notification: {notify.payload} from channel {notify.channel}"
                         )
-                        # Call the CRD command to connect to the VM
-                        connect_crd.connect_to_crd(notify.payload)
+                        # Parse the JSON payload
+                        try:
+                            payload_data = json.loads(notify.payload)
+                            print(f"Payload data: {payload_data}")
+                            hostname = payload_data.get("HostName")
+                            pin = payload_data.get("Pin")
+                            command = payload_data.get("CrdCommand")
+
+                            if hostname is None or pin is None or command is None:
+                                print("Invalid payload data. Missing required fields.")
+                                continue
+
+                            # Check if the hostname matches the current hostname
+                            current_hostname = socket.gethostname()
+                            if hostname != current_hostname:
+                                print(
+                                    f"Hostname '{hostname}' does not match the current hostname '{current_hostname}'."
+                                )
+                                continue
+
+                            connect_crd.connect_to_crd(
+                                pin=pin,
+                                command=command,
+                            )
+
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON payload: {e}")
+                            continue
+                        except Exception as e:
+                            print(f"Error processing notification: {e}")
+                            continue
         except KeyboardInterrupt:
             print("Exiting...")
         finally:

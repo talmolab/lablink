@@ -20,11 +20,11 @@ def main():
         password=password,
         host=host,
         port=5432,
-        table_name="vm_requests",
+        table_name="vms",
     )
 
     # Insert the hostname to the database
-    database.insert_vm(hostname=socket.gethostname())
+    # database.insert_vm(hostname=socket.gethostname())
 
     # Listen to the message and send back if message is received
     # When a message is received, the callback function will be called (connect to CRD)
