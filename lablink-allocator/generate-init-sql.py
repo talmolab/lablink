@@ -37,7 +37,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_crd_command_insert_or_update
-AFTER INSERT OR UPDATE OF CrdCommand ON vm_requests
+AFTER INSERT OR UPDATE OF CrdCommand ON {VM_TABLE}
 FOR EACH ROW
 EXECUTE FUNCTION notify_crd_command_update();
 
