@@ -14,7 +14,20 @@ except ImportError as e:
 
 
 class PostgresqlDatabase:
-    def __init__(self, dbname, user, password, host, port, table_name):
+    """Class to interact with a PostgreSQL database.
+    This class provides methods to connect to the database, insert data,
+    retrieve data, and listen for notifications.
+    """
+
+    def __init__(
+        self,
+        dbname: str,
+        user: str,
+        password: str,
+        host: str,
+        port: int,
+        table_name: str,
+    ):
         """Initialize the database connection.
 
         Args:
