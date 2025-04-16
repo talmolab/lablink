@@ -109,7 +109,7 @@ def launch():
       print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
 
     # Find an available VM
-    available_vm = vm_requests.query.filter_by(inuse=False).first()
+    available_vm = vms.query.filter_by(inuse=False).first()
 
     if not all_vms:
         return jsonify({"error": "No available VM"}), 404
@@ -124,10 +124,10 @@ def launch():
 
     return jsonify({"message": "VM assigned", "host": available_vm.hostname})
 
-@app.route('/admin', methods=['GET'])
-def admin_panel():
-    vms = vm_requests.query.all()
-    return render_template('admin.html', vms=vms)
+# @app.route('/admin', methods=['GET'])
+# def admin_panel():
+#     vms_ = vms.query.all()
+#     return render_template('admin.html', vms=vms)
 
 
 if __name__ == '__main__':
