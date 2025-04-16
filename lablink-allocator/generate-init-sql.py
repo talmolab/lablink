@@ -1,4 +1,4 @@
-from db_config import DB_NAME, DB_USER, DB_PASSWORD, VM_TABLE
+from db_config import DB_NAME, DB_USER, DB_PASSWORD, VM_TABLE, MESSAGE_CHANNEL
 
 template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
@@ -49,5 +49,5 @@ VALUES
 ('host4', '', '', '', FALSE);
 """
 
-with open("init.sql", "w") as f:
+with open("/app/init.sql", "w") as f:
     f.write(template)
