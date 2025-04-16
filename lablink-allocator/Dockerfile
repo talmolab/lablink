@@ -15,27 +15,27 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy application files
-COPY lablink-allocator-service /app
+COPY lablink-allocator/lablink-allocator-service /app
 
-COPY requirements.txt /app/
+COPY lablink-allocator/requirements.txt /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
 
-COPY generate_init_sql.py /app
+COPY lablink-allocator/generate-init-sql.py /app
 COPY db_config.py /app
 RUN python generate-init-sql.py
 
 # Copy the database initialization script
-COPY init.sql /app/init.sql
+#COPY init.sql /app/init.sql
 
 # Expose ports for Flask and PostgreSQL
 EXPOSE 5000 5432
 
 # Copy and set permissions for startup script
-COPY start.sh /app/start.sh
+COPY lablink-allocator/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 # Set the entrypoint script
