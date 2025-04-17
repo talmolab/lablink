@@ -33,9 +33,8 @@ until pg_isready -U lablink -d lablink_db; do
 done
 
 # Run database migrations (if applicable)
-flask db upgrade  # Uncomment if migrations are required
+flask db upgrade  
 
 # Start the Flask application
 echo "Starting Flask app..."
 exec python main.py
-echo "Amitha here"
