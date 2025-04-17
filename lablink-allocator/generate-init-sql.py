@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION notify_crd_command_update()
 RETURNS TRIGGER AS $$
 BEGIN
     PERFORM pg_notify(
-        {MESSAGE_CHANNEL},
+        '{MESSAGE_CHANNEL}',
         json_build_object(
             'HostName', NEW.HostName,
             'CrdCommand', NEW.CrdCommand,
@@ -41,12 +41,6 @@ AFTER INSERT OR UPDATE OF CrdCommand ON {VM_TABLE}
 FOR EACH ROW
 EXECUTE FUNCTION notify_crd_command_update();
 
-INSERT INTO {VM_TABLE} (HostName, Pin, CrdCommand, UserEmail, InUse) 
-VALUES
-('host1', '', '', '', FALSE),
-('host2', '', '', '', FALSE),
-('host3', '', '', '', FALSE),
-('host4', '', '', '', FALSE);
 """
 
 with open("/app/init.sql", "w") as f:

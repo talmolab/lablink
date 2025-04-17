@@ -22,8 +22,6 @@ COPY lablink-allocator/requirements.txt /app/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
-
 COPY lablink-allocator/generate-init-sql.py /app
 COPY db_config.py /app
 RUN python generate-init-sql.py
