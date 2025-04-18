@@ -26,9 +26,6 @@ COPY lablink-allocator/generate-init-sql.py /app
 COPY db_config.py /app
 RUN python generate-init-sql.py
 
-# Copy the database initialization script
-#COPY init.sql /app/init.sql
-
 # Expose ports for Flask and PostgreSQL
 EXPOSE 5000 5432
 
