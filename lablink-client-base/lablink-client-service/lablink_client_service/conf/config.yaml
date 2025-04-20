@@ -1,0 +1,7 @@
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "lablink"
+  host: ""
+  port: 5432
+  table_name: "vms"

@@ -2,25 +2,24 @@ from lablink_client_service.database import PostgresqlDatabase
 import socket
 import os
 from dotenv import load_dotenv
+import hydra
+from omegaconf import DictConfig, OmegaConf
+from lablink_client_service.conf.structured_config import Config
 
 
-def main():
-    load_dotenv()
-
-    host = os.getenv("DB_HOST")
-    password = os.getenv("DB_PASSWORD")
-
-    if not all([host, password]):
-        raise ValueError("Missing required environment variables.")
+@hydra.main(version_base=None, config_name="config")
+def main(cfg: Config) -> None:
+    print("Starting the lablink client service...")
+    print(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
     # Connect to the PostgreSQL database
     database = PostgresqlDatabase(
-        dbname="lablink_db",
-        user="lablink",
-        password=password,
-        host=host,
-        port=5432,
-        table_name="vms",
+        dbname=cfg.db.dbname,
+        user=cfg.db.user,
+        password=cfg.db.password,
+        host=cfg.db.host,
+        port=cfg.db.port,
+        table_name=cfg.db.table_name,
     )
 
     # Insert the hostname to the database
