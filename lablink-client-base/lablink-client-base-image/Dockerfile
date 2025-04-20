@@ -100,7 +100,7 @@ WORKDIR /home/${USERNAME}
 COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
 
 # Make scripts executable and run them
-RUN chmod +x /scripts/*.sh && \
+RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_miniforge.sh && \
     /scripts/install_uv.sh && \
     /scripts/install_nvm.sh
