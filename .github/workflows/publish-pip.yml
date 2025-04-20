@@ -1,5 +1,5 @@
 name: Publish on Release
-# This workflow will only work if an artifact named "lablink-client-dist" is uploaded to the repository
+# This workflow will only work if an artifact named "lablink-client-service-dist" is uploaded to the repository
 # Run this workflow after testing using the "build-and-test-pip.yml" workflow
 on:
   release:
