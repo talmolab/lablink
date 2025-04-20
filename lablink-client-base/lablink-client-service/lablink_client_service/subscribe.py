@@ -1,7 +1,6 @@
 from lablink_client_service.database import PostgresqlDatabase
 import socket
 import os
-from dotenv import load_dotenv
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from lablink_client_service.conf.structured_config import Config
