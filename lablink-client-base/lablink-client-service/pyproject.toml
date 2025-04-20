@@ -3,6 +3,10 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools", "wheel"]
 
 [project]
+authors = [
+  {name = "Amitha Attapu", email = "amithaattapu0509@gmail.com"},
+  {name = "Andrew Park", email = "hep003@ucsd.edu"},
+]
 dependencies = [
   "psycopg2>=2.9",
   "requests>=2.31.0,<3.0.0",
@@ -44,9 +48,6 @@ Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
 
 [tool.setuptools.packages.find]
-authors = [
-  {name = "Amitha Attapu", email = "amithaattapu0509@gmail.com"},
-  {name = "Andrew Park", email = "hep003@ucsd.edu"},
-]
+
 include = ["lablink_client_service*"]
 where = ["."]
