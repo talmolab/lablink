@@ -33,6 +33,3 @@ def main(cfg: Config) -> None:
 
 if __name__ == "__main__":
     main()
-else:
-    print("This script is not intended to be imported as a module.")
-    exit(1)
