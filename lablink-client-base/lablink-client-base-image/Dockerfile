@@ -63,15 +63,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
-# Create scripts directory with miniforge, uv, and nvm installation scripts
-COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
-
-# Make scripts executable and run them
-RUN chmod +x /scripts/*.sh && \
-    /scripts/install_miniforge.sh && \
-    /scripts/install_uv.sh && \
-    /scripts/install_nvm.sh
-
 # Install Chrome Remote Desktop
 RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
     # Add the Chrome Remote Desktop repository
@@ -104,6 +95,15 @@ RUN usermod -aG chrome-remote-desktop ${USERNAME}
 # Switch to non-root user for Google Chrome Remote Desktop to work.
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
+
+# Create scripts directory with miniforge, uv, and nvm installation scripts
+COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
+
+# Make scripts executable and run them
+RUN chmod +x /scripts/*.sh && \
+    /scripts/install_miniforge.sh && \
+    /scripts/install_uv.sh && \
+    /scripts/install_nvm.sh
 
 # Entrypoint included since opening terminal is needed to authorize connect of the remote computer to your Google Chrome account. 
 ENTRYPOINT [ "/bin/bash" ]
