@@ -48,6 +48,8 @@ Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
 
 [tool.setuptools.packages.find]
-
 include = ["lablink_client_service*"]
 where = ["."]
+
+[project.scripts]
+subscribe = "lablink_client_service.subscribe:main"
