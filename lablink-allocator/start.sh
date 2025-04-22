@@ -2,9 +2,6 @@
 
 export POSTGRES_HOST_AUTH_METHOD=trust
 
-PG_HBA_CONF="/etc/postgresql/15/main/pg_hba.conf"
-echo "Adding host entry to pg_hba.conf..."
-echo "host    all             all             0.0.0.0/0            md5" >> $PG_HBA_CONF
 
 pg_ctlcluster 15 main restart
 
