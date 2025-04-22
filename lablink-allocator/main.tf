@@ -8,7 +8,7 @@ provider "aws" {
 }
 
 resource "aws_security_group" "allow_http" {
-  name = "allows-5000-5432"
+  name = "allows-5000-5432-22"
 
   ingress {
     from_port   = 5000
@@ -24,6 +24,14 @@ resource "aws_security_group" "allow_http" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  
+  }
+
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -36,7 +44,7 @@ resource "aws_security_group" "allow_http" {
   }
 }
 
-resource "aws_instance" "docker_server" {
+resource "aws_instance" "lablink_allocator_server" {
   ami             = "ami-00c257e12d6828491" # us-west-2 ubuntu id
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.allow_http.name]
@@ -54,11 +62,11 @@ resource "aws_instance" "docker_server" {
               EOF
 
   tags = {
-    Name = "docker-server"
+    Name = "lablink_allocator_server"
   }
 }
 
 output "ec2_public_ip" {
-  value = aws_instance.docker_server.public_ip
+  value = aws_instance.lablink_allocator_server.public_ip
 }
 
