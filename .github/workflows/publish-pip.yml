@@ -5,6 +5,10 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -29,8 +33,5 @@ jobs:
           ls package/
 
       - name: Publish Package
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TUTORIAL_PYPI_API_TOKEN }}
         run: |
-          twine upload dist/*
+          twine upload --non-interactive dist/*
