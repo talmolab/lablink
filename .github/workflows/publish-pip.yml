@@ -38,4 +38,4 @@ jobs:
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          package-dir: lablink-client-base/lablink-client-service/dist
+          packages-dir: lablink-client-base/lablink-client-service/dist
