@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lablink-client-service-dist
-          path: lablink-client-base/lablink-client-service/dist/
+          path: dist/
           retention-days: 1
 
   tests:
