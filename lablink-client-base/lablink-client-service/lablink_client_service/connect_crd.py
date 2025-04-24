@@ -90,14 +90,3 @@ def connect_to_crd(command=None, pin=None):
 
     if result.stderr:
         print(f"Error: {result.stderr}")
-
-
-def main():
-    command = 'DISPLAY= /opt/google/chrome-remote-desktop/start-host --code="4/0Ab_5qlnSKyjJbghN0ETaYmgxMQ_YFZcbBvmng-Z2QQcGRPGp6HjmJbWEwelZ3pFf6mmCwA" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$(hostname)'
-    printed = reconstruct_command(command=command)
-    print("Reconstructed: ", printed)
-    connect_to_crd(command=printed, pin="123456")
-
-
-if __name__ == "__main__":
-    main()
