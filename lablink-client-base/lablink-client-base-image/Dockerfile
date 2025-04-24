@@ -106,8 +106,7 @@ RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_nvm.sh
 
 # Activate conda environment and install additional packages
-RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install --extra-index-url https://test.pypi.org/simple/ lablink-client-service
-
+RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install lablink-client-service
 
 # Entrypoint included since opening terminal is needed to authorize connect of the remote computer to your Google Chrome account. 
 ENTRYPOINT [ "/bin/bash" ]
