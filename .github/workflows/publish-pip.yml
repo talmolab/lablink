@@ -1,37 +1,34 @@
-name: Publish on Release
-# This workflow will only work if an artifact named "lablink-client-service-dist" is uploaded to the repository
-# Run this workflow after testing using the "build-and-test-pip.yml" workflow
+name: Upload Python Package to PyPI when a Release is Created
+
 on:
   release:
-    types: [published]
-
-permissions:
-  id-token: write
-  contents: read
+    types: [created]
 
 jobs:
-  publish:
+  pypi-publish:
+    name: Publish release to PyPI
     runs-on: ubuntu-latest
-
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lablink-client-service
+    permissions:
+      id-token: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: lablink-client-service-dist
-          path: dist/
-
-      - name: Verify artifact
+          python-version: "3.x"
+      - name: Install dependencies
+        working-directory: lablink-client-base/lablink-client-service
         run: |
-          ls package/
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
 
-      - name: Publish Package
+      - name: Build package
+        working-directory: lablink-client-base/lablink-client-service
         run: |
-          twine upload --non-interactive dist/*
+          python -m build
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
