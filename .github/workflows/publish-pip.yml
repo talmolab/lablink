@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   publish:
+    name: Publish release to PyPI
     runs-on: ubuntu-latest
 
     steps:
@@ -22,15 +23,17 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: lablink-client-service-dist
-          path: dist/
-
-      - name: Verify artifact
+      - name: Install dependencies
+        working-directory: lablink-client-base/lablink-client-service
         run: |
-          ls package/
+          python -m pip install --upgrade pip
+          pip install --editable .[dev]
+
+      - name: Build package
+        working-directory: lablink-client-base/lablink-client-service
+        run: |
+          python -m build
+          twine check dist/*
 
       - name: Publish Package
         run: |
