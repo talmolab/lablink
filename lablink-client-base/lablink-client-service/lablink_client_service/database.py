@@ -86,8 +86,6 @@ class PostgresqlDatabase:
 
         values = []
 
-        print(f"Column names: {column_names}")
-
         for col in column_names:
             # Find the column that corresponds to the hostname and set its value
             if col == "hostname":
