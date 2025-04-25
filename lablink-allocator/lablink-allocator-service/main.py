@@ -1,7 +1,7 @@
-# lablink_allocator_service/main.py
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
+import subprocess
 import os
 
 app = Flask(__name__)
@@ -27,6 +27,19 @@ def notify_participants():
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@app.route('/admin/create')
+def create_instances():
+    return render_template('create-instances.html')
+
+@app.route('/admin')
+def admin():
+    return render_template('admin.html')
+
+@app.route('/admin/instances')
+def view_instances():
+    instances = vms.query.all()
+    return render_template('instances.html', instances=instances)
 
 @app.route("/request_vm", methods=["POST"])
 def submit_vm_details():
@@ -58,6 +71,30 @@ def submit_vm_details():
     db.session.commit()
 
     return jsonify({"message": "VM assigned", "host": available_vm.hostname})
+
+@app.route("/launch", methods=["POST"])
+def launch():
+    num_vms = request.form.get("num_vms")
+    terraform_dir = "terraform/"  # adjust this if your TF files are elsewhere
+
+    try:
+        # Init Terraform (optional if already initialized)
+        subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
+
+        # Apply with the new number of instances
+        apply_cmd = [
+            "terraform", "apply",
+            "-auto-approve",
+            f"-var=instance_count={num_vms}"
+        ]
+
+        result = subprocess.run(apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True)
+
+        return render_template("dashboard.html", output=result.stdout)
+
+    except subprocess.CalledProcessError as e:
+        return render_template("dashboard.html", error=e.stderr or e.stdout)
+
 
 # @app.route('/admin', methods=['GET'])
 # def admin_panel():
