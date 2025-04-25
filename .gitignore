@@ -216,4 +216,4 @@ terraform/service-account-*.json
 .DS_Store
 
 # ignore output for Hydra
-lablink-client-base/lablink-client-service/outputs
+outputs
