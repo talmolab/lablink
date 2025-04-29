@@ -108,5 +108,12 @@ RUN sudo chmod +x /scripts/*.sh && \
 # Activate conda environment and install client service package
 RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install lablink-client-service
 
+# Copy the startup script
+COPY start.sh /home/${USERNAME}/start.sh
+RUN chmod +x /home/${USERNAME}/start.sh
+
 # Entrypoint included since opening terminal is needed to authorize connect of the remote computer to your Google Chrome account. 
-ENTRYPOINT [ "/bin/bash" ]
+# ENTRYPOINT [ "/bin/bash" ]
+
+# Run the startup script
+CMD ["/home/client/start.sh"]
