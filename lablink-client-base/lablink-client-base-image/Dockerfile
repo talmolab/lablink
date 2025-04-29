@@ -110,7 +110,7 @@ RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install lablink-clien
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
-RUN chmod +x /home/${USERNAME}/start.sh
+RUN sudo chmod +x /home/${USERNAME}/start.sh
 
 # Entrypoint included since opening terminal is needed to authorize connect of the remote computer to your Google Chrome account. 
 # ENTRYPOINT [ "/bin/bash" ]
