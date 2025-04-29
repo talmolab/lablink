@@ -150,6 +150,9 @@ class PostgresqlDatabase:
                                 pin=pin,
                                 command=command,
                             )
+                            
+                            print("Chrome Remote Desktop connected successfully. Exiting listener loop.")
+                            return
 
                         except json.JSONDecodeError as e:
                             print(f"Error decoding JSON payload: {e}")
