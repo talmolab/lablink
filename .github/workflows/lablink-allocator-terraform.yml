@@ -54,12 +54,6 @@ jobs:
           EC2_IP=$(terraform output -raw ec2_public_ip)
           echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
 
-      - name: Get EC2 Public IP and write to config
-        id: get_ip
-        run: |
-          EC2_IP=$(terraform output -raw ec2_public_ip)
-          echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
-
       - name: Terraform Destroy on Failure
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve
