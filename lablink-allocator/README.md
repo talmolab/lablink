@@ -154,6 +154,6 @@ docker run -d -p 5000:5000 -p 5432:5432 ghcr.io/talmolab/lablink-allocator-image
 To build locally for testing, use the command:
 
 ```bash
-docker build --no-cache -t lablink-allocator ./lablink-allocator
+docker build --no-cache -t lablink-allocator -f .\lablink-allocator\Dockerfile .
 docker run -d -p 5000:5000 -p 5432:5432 --name lablink-allocator lablink-allocator
 ```
