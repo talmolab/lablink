@@ -11,16 +11,16 @@ until pg_isready -U postgres; do
     sleep 2
 done
 
+# Run the init.sql script as the postgres superuser
+echo "Running init.sql..."
+until pg_isready -U postgres; do sleep 1; done
+su postgres -c "psql -d postgres -f /app/init.sql"
+
 # Set listen_addresses = '*'
 echo "Configuring PostgreSQL to listen on all addresses..."
 su postgres -c "psql -d postgres -c \"ALTER SYSTEM SET listen_addresses = '*';\""
 
 sudo pg_ctlcluster 15 main restart
-
-# Run the init.sql script as the postgres superuser
-echo "Running init.sql..."
-until pg_isready -U postgres; do sleep 1; done
-su postgres -c "psql -d postgres -f /app/init.sql"
 
 # Check if the psql command was successful
 if [ $? -eq 0 ]; then
