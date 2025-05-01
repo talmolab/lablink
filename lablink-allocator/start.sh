@@ -20,7 +20,7 @@ su postgres -c "psql -d postgres -f /app/init.sql"
 echo "Configuring PostgreSQL to listen on all addresses..."
 su postgres -c "psql -d postgres -c \"ALTER SYSTEM SET listen_addresses = '*';\""
 
-sudo pg_ctlcluster 15 main restart
+pg_ctlcluster 15 main restart
 
 # Check if the psql command was successful
 if [ $? -eq 0 ]; then
