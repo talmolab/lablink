@@ -106,11 +106,11 @@ docker pull ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
 then
 
 ```bash
-docker run --gpus all -it ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
+docker run --gpus all -e DB_HOST=<db-host> -it ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
 ```
 
 To build locally for testing you can use the command:
 ```bash
-docker build --no-cache -t sleap-crd ./lablink-client-base/lablink-client-base-image
-docker run --gpus all -it --rm --name sleap-crd sleap-crd
+docker build --no-cache -t client-base-crd ./lablink-client-base/lablink-client-base-image
+docker run --gpus all -it --rm --name client-base-crd client-base-crd
 ```
