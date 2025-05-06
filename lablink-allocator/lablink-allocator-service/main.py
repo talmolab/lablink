@@ -108,40 +108,6 @@ def launch():
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
 
-    # @app.route('/admin', methods=['GET'])
-    # def admin_panel():
-    #     vms_ = vms.query.all()
-    #     return render_template('admin.html', vms=vms)
-    # Find an available VM
-    available_vm = VM.query.filter_by(InUse=False).first()
-
-    # debugging
-    all_vms = vm_requests.query.all()
-    for vm in all_vms:
-        print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
-
-    # Find an available VM
-    available_vm = vms.query.filter_by(inuse=False).first()
-
-    if not all_vms:
-        return jsonify({"error": "No available VM"}), 404
-
-    # Update the VM record
-    available_vm.useremail = email
-    available_vm.crdcommand = crd_command
-    available_vm.pin = "123456"
-    available_vm.inuse = True
-
-    db.session.commit()
-
-    return jsonify({"message": "VM assigned", "host": available_vm.hostname})
-
-
-# @app.route('/admin', methods=['GET'])
-# def admin_panel():
-#     vms_ = vms.query.all()
-#     return render_template('admin.html', vms=vms)
-
 
 if __name__ == "__main__":
     with app.app_context():
