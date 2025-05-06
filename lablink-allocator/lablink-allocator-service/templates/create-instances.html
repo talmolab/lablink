@@ -12,25 +12,27 @@
     <h1 class="mb-4">VM Allocator Dashboard</h1>
 
     <!-- Form to request VMs -->
-    <form method="POST" action="/launch">
+    <form method="POST" action="/launch" onsubmit="return handleSubmit();">
       <div class="mb-3">
         <label for="num_vms" class="form-label">Number of VMs to Launch</label>
         <input type="number" class="form-control" id="num_vms" name="num_vms" min="1" required>
       </div>
-      <button type="submit" class="btn btn-primary">Launch VMs</button>
+      <button id="launch-btn" type="submit" class="btn btn-primary">Launch VMs</button>
+      <div id="loading-message" class="mt-2 text-muted" style="display: none;">
+        Launching VMs... please wait.
+      </div>
     </form>
-
-    <!-- Output / logs -->
-    {% if output %}
-      <div class="mt-4">
-        <h4>Terraform Output:</h4>
-        <pre style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.5rem;">{{ output }}</pre>
-      </div>
-    {% elif error %}
-      <div class="mt-4 alert alert-danger">
-        <strong>Error:</strong> {{ error }}
-      </div>
-    {% endif %}
   </div>
+  <script>
+    function handleSubmit() {
+      const button = document.getElementById("launch-btn");
+      const message = document.getElementById("loading-message");
+      button.disabled = true;
+      button.style.cursor = "not-allowed";
+      button.innerText = "Launching...";
+      message.style.display = "block";
+      return true;
+    }
+  </script>
 </body>
 </html>

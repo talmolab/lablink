@@ -49,6 +49,11 @@ def view_instances():
     return render_template("instances.html", instances=instances)
 
 
+@app.route('/admin/instances/delete')
+def delete_instances():
+    instances = vms.query.all()
+    return render_template('delete-instances.html', instances=instances)
+
 @app.route("/request_vm", methods=["POST"])
 def submit_vm_details():
     data = request.form  # If you're sending JSON, use request.json instead
@@ -108,6 +113,20 @@ def launch():
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
 
+@app.route("/destroy", methods=["POST"])
+def destroy():
+    terraform_dir = "terraform/"
+    try:
+        # Destroy Terraform resources
+        apply_cmd = [
+            "terraform", "destroy",
+            "-auto-approve"
+        ]
+        result = subprocess.run(apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True)
+        
+        return render_template("dashboard.html", output=result.stdout)
+    except subprocess.CalledProcessError as e:
+        return render_template("dashboard.html", error=e.stderr or e.stdout)
 
 if __name__ == "__main__":
     with app.app_context():

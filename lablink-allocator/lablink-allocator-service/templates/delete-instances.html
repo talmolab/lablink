@@ -1,0 +1,59 @@
+<!-- templates/delete.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Delete All Instances</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 50px;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+    .warning {
+      color: #a00;
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #a71d2a;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Delete All LabLink Instances</h1>
+  <p class="warning">This action will remove <strong>all VMs</strong> created via Terraform.</p>
+
+  <form action="/destroy" method="POST" onsubmit="return handleSubmit();">
+    <button id="destroy-btn" type="submit" onclick="return confirm('Are you sure you want to delete all instances?')">
+      Run terraform destroy
+    </button>
+    <div id="loading-message" class="mt-2 text-muted" style="display: none;">
+        Destroying VMs... please wait.
+      </div>
+  </form>
+
+  <script>
+    function handleSubmit() {
+      const button = document.getElementById("destroy-btn");
+      const message = document.getElementById("loading-message");
+      button.disabled = true;
+      button.style.cursor = "not-allowed";
+      button.innerText = "Destroying...";
+      message.style.display = "block";
+      return true;
+    }
+  </script>
+</body>
+</html>
