@@ -5,41 +5,49 @@ import subprocess
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://lablink:lablink@localhost:5432/lablink_db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", "postgresql://lablink:lablink@localhost:5432/lablink_db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
 
 class vms(db.Model):
     hostname = db.Column(db.String(1024), primary_key=True)
     pin = db.Column(db.String(1024), nullable=True)
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
-    inuse = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+    inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
 
 
 def notify_participants():
     """Trigger function to notify participant VMs."""
-    conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cursor = conn.cursor()
     cursor.execute("LISTEN vm_updates;")
     conn.commit()
 
-@app.route('/')
+
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/admin/create')
+
+@app.route("/admin/create")
 def create_instances():
-    return render_template('create-instances.html')
+    return render_template("create-instances.html")
 
-@app.route('/admin')
+
+@app.route("/admin")
 def admin():
-    return render_template('admin.html')
+    return render_template("admin.html")
 
-@app.route('/admin/instances')
+
+@app.route("/admin/instances")
 def view_instances():
     instances = vms.query.all()
-    return render_template('instances.html', instances=instances)
+    return render_template("instances.html", instances=instances)
+
 
 @app.route("/request_vm", methods=["POST"])
 def submit_vm_details():
@@ -50,11 +58,10 @@ def submit_vm_details():
     if not email or not crd_command:
         return jsonify({"error": "Email and CRD Command are required"}), 400
 
-
     # debugging
     all_vms = vms.query.all()
     for vm in all_vms:
-      print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+        print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
 
     # Find an available VM
     available_vm = vms.query.filter_by(inuse=False).first()
@@ -70,7 +77,10 @@ def submit_vm_details():
 
     db.session.commit()
 
-    return jsonify({"message": "VM assigned", "host": available_vm.hostname})
+    return render_template(
+        "success.html", host=available_vm.hostname, pin=available_vm.pin
+    )
+
 
 @app.route("/launch", methods=["POST"])
 def launch():
@@ -83,30 +93,32 @@ def launch():
 
         # Apply with the new number of instances
         apply_cmd = [
-            "terraform", "apply",
+            "terraform",
+            "apply",
             "-auto-approve",
-            f"-var=instance_count={num_vms}"
+            f"-var=instance_count={num_vms}",
         ]
 
-        result = subprocess.run(apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
+        )
 
         return render_template("dashboard.html", output=result.stdout)
 
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
 
-
-# @app.route('/admin', methods=['GET'])
-# def admin_panel():
-#     vms_ = vms.query.all()
-#     return render_template('admin.html', vms=vms)
+    # @app.route('/admin', methods=['GET'])
+    # def admin_panel():
+    #     vms_ = vms.query.all()
+    #     return render_template('admin.html', vms=vms)
     # Find an available VM
     available_vm = VM.query.filter_by(InUse=False).first()
 
     # debugging
     all_vms = vm_requests.query.all()
     for vm in all_vms:
-      print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+        print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
 
     # Find an available VM
     available_vm = vms.query.filter_by(inuse=False).first()
@@ -124,13 +136,14 @@ def launch():
 
     return jsonify({"message": "VM assigned", "host": available_vm.hostname})
 
+
 # @app.route('/admin', methods=['GET'])
 # def admin_panel():
 #     vms_ = vms.query.all()
 #     return render_template('admin.html', vms=vms)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=5000)
