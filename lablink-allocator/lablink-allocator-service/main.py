@@ -42,6 +42,27 @@ def create_instances():
 def admin():
     return render_template("admin.html")
 
+@app.route("/admin/set-aws-credentials", methods=["POST"])
+def set_aws_credentials():
+    aws_access_key = request.form.get("aws_access_key_id", "").strip()
+    aws_secret_key = request.form.get("aws_secret_access_key", "").strip()
+    aws_token = request.form.get("aws_token", "").strip()
+
+    if not aws_access_key or not aws_secret_key:
+        return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
+
+    # Save the credentials to a file or environment variable
+    terraform_dir = "terraform/"  
+    
+    with open(os.path.join(terraform_dir, "terraform.tfvars"), "w") as f:
+        f.write(f'aws_access_key = "{aws_access_key}"\n')
+        f.write(f'aws_secret_key = "{aws_secret_key}"\n')
+        f.write(f'aws_session_token = "{aws_token}"\n')
+        
+    
+
+    return jsonify({"message": "AWS credentials set successfully"}), 200
+
 
 @app.route("/admin/instances")
 def view_instances():
@@ -101,6 +122,7 @@ def launch():
             "terraform",
             "apply",
             "-auto-approve",
+            "-var-file=terraform.tfvars",
             f"-var=instance_count={num_vms}",
         ]
 
