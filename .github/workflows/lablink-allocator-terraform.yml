@@ -1,0 +1,60 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches:
+      - "**" # Runs on all branches
+
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7
+          aws-region: us-west-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Store private key for EC2
+        run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
+        shell: bash
+
+      - name: Set permissions for the private key
+        run: chmod 600 ~/ec2-key.pem
+      - name: Terraform Init
+        run: terraform init
+        working-directory: lablink-allocator
+
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: lablink-allocator
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve
+        working-directory: lablink-allocator
+        continue-on-error: true # Allow failure to move on to cleanup
+
+      - name: Get EC2 Public IP and write to config
+        id: get_ip
+        run: |
+          EC2_IP=$(terraform output -raw ec2_public_ip)
+          echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
+
+      - name: Terraform Destroy on Failure
+        if: steps.apply.outcome == 'failure'
+        run: terraform destroy -auto-approve
+        working-directory: lablink-allocator
