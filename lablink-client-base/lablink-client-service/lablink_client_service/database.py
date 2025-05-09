@@ -150,9 +150,11 @@ class PostgresqlDatabase:
                                 pin=pin,
                                 command=command,
                             )
-                            
-                            print("Chrome Remote Desktop connected successfully. Exiting listener loop.")
-                            break
+
+                            print(
+                                "Chrome Remote Desktop connected successfully. Exiting listener loop."
+                            )
+                            return
 
                         except json.JSONDecodeError as e:
                             print(f"Error decoding JSON payload: {e}")
@@ -163,6 +165,7 @@ class PostgresqlDatabase:
         except KeyboardInterrupt:
             print("Exiting...")
         finally:
+            print("Closing database connection...")
             self.cursor.close()
             self.conn.close()
 
