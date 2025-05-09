@@ -39,11 +39,6 @@ jobs:
           sanitized_platform="${sanitized_platform/\//-}" # Replace / with -
           echo "sanitized_platform=$sanitized_platform" >> $GITHUB_OUTPUT
 
-      # Gets the current date in YYYY-MM-DD format
-      - name: Get current date
-        id: get_date
-        run: echo "current_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
       # Set up Docker Buildx for multi-architecture builds
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,4 +61,5 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:latest
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.get_sha.outputs.sha }}
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-latest
-            ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.get_date.outputs.current_date }}
+            ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-terraform-1.4.6
+            ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-postgres-15
