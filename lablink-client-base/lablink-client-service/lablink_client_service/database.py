@@ -2,11 +2,16 @@ import select
 from lablink_client_service import connect_crd
 import json
 import socket
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 try:
     import psycopg2
 except ImportError as e:
-    print(
+    logger.error(
         "psycopg2 is not installed in the development environment. "
         "Please install it using `pip install psycopg2`"
     )
@@ -102,7 +107,7 @@ class PostgresqlDatabase:
         sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
         self.cursor.execute(sql, values)
         self.conn.commit()
-        print(f"Inserted data: {values}")
+        logger.debug(f"Inserted data: {values}")
 
     def listen_for_notifications(self, channel):
         """Listen for notifications on a specific channel.
@@ -111,7 +116,7 @@ class PostgresqlDatabase:
             channel (str): The name of the notification channel.
         """
         self.cursor.execute(f"LISTEN {channel};")
-        print(f"Listening for notifications on '{channel}'...")
+        logger.debug(f"Listening for notifications on '{channel}'...")
 
         # Infinite loop to wait for notifications
         try:
@@ -123,25 +128,27 @@ class PostgresqlDatabase:
                     self.conn.poll()  # Process any pending notifications
                     while self.conn.notifies:
                         notify = self.conn.notifies.pop(0)
-                        print(
+                        logger.debug(
                             f"Received notification: {notify.payload} from channel {notify.channel}"
                         )
                         # Parse the JSON payload
                         try:
                             payload_data = json.loads(notify.payload)
-                            print(f"Payload data: {payload_data}")
+                            logger.debug(f"Payload data: {payload_data}")
                             hostname = payload_data.get("HostName")
                             pin = payload_data.get("Pin")
                             command = payload_data.get("CrdCommand")
 
                             if hostname is None or pin is None or command is None:
-                                print("Invalid payload data. Missing required fields.")
+                                logger.error(
+                                    "Invalid payload data. Missing required fields."
+                                )
                                 continue
 
                             # Check if the hostname matches the current hostname
                             current_hostname = socket.gethostname()
                             if hostname != current_hostname:
-                                print(
+                                logger.debug(
                                     f"Hostname '{hostname}' does not match the current hostname '{current_hostname}'."
                                 )
                                 continue
@@ -150,19 +157,22 @@ class PostgresqlDatabase:
                                 pin=pin,
                                 command=command,
                             )
-                            
-                            print("Chrome Remote Desktop connected successfully. Exiting listener loop.")
-                            break
+
+                            logger.debug(
+                                "Chrome Remote Desktop connected successfully. Exiting listener loop."
+                            )
+                            return
 
                         except json.JSONDecodeError as e:
-                            print(f"Error decoding JSON payload: {e}")
+                            logger.error(f"Error decoding JSON payload: {e}")
                             continue
                         except Exception as e:
-                            print(f"Error processing notification: {e}")
+                            logger.error(f"Error processing notification: {e}")
                             continue
         except KeyboardInterrupt:
-            print("Exiting...")
+            logger.debug("Exiting...")
         finally:
+            logger.debug("Closing database connection...")
             self.cursor.close()
             self.conn.close()
 
@@ -176,7 +186,7 @@ class PostgresqlDatabase:
             str: The command assigned to the VM.
         """
         if not self.vm_exists(hostname):
-            print(f"VM with hostname '{hostname}' does not exist.")
+            logger.error(f"VM with hostname '{hostname}' does not exist.")
             return None
 
         query = f"SELECT crdcommand FROM {self.table_name} WHERE hostname = %s"
@@ -194,7 +204,7 @@ class PostgresqlDatabase:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
         except Exception as e:
-            print(f"Error retrieving unassigned VMs: {e}")
+            logger.error(f"Error retrieving unassigned VMs: {e}")
             return []
 
     def vm_exists(self, hostname):
@@ -221,7 +231,7 @@ class PostgresqlDatabase:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
         except Exception as e:
-            print(f"Error retrieving assigned VMs: {e}")
+            logger.error(f"Error retrieving assigned VMs: {e}")
 
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
@@ -244,4 +254,4 @@ class PostgresqlDatabase:
         """Close the database connection when the object is deleted."""
         self.cursor.close()
         self.conn.close()
-        print("Database connection closed.")
+        logger.debug("Database connection closed.")

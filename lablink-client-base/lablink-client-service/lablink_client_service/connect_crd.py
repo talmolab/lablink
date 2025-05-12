@@ -1,5 +1,10 @@
 import argparse
 import subprocess
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def create_parser():
@@ -59,11 +64,11 @@ def reconstruct_command(command: str = None):
     parser = create_parser()
     args, _ = parser.parse_known_args(args=arg_to_parse)
 
-    print(vars(args))
+    logger.debug(vars(args))
 
     # Construct the command to be executed
     command = construct_command(args)
-    print(f"Command to be executed: {command}")
+    logger.debug(f"Command to be executed: {command}")
 
     return command
 
@@ -86,7 +91,7 @@ def connect_to_crd(command=None, pin=None):
     )
 
     # Check the result
-    print(f"Output:\n {result.stdout}")
+    logger.debug(f"Output:\n {result.stdout}")
 
     if result.stderr:
-        print(f"Error: {result.stderr}")
+        logger.error(f"Error: {result.stderr}")

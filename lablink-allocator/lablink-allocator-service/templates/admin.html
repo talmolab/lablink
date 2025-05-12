@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LabLink Admin Panel</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #eef2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .panel {
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 40px 30px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    h2, h3 {
+      margin-top: 0;
+      text-align: center;
+      color: #333;
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .button-group button {
+      padding: 14px 24px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .button-group button:hover {
+      background-color: #0056b3;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    input[type="submit"] {
+      padding: 12px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #218838;
+    }
+
+    @media (max-width: 600px) {
+      .panel {
+        padding: 30px 20px;
+      }
+
+      .button-group button,
+      input[type="submit"] {
+        font-size: 15px;
+        padding: 12px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>LabLink Admin Panel</h2>
+
+    <div class="button-group">
+      <button onclick="location.href='/admin/instances'">View Current Instances</button>
+      <button onclick="location.href='/admin/create'">Create New VM Instance</button>
+      <button onclick="location.href='/admin/instances/delete'">Delete Instances</button>
+    </div>
+
+    <h3>Set AWS Credentials</h3>
+    <form method="POST" action="/admin/set-aws-credentials">
+      <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
+      <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
+      <input type="password" name="aws_token" placeholder="Token" required />
+      <input type="submit" value="Submit" />
+    </form>
+  </div>
+</body>
+</html>

@@ -3,13 +3,24 @@ import socket
 import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import logging
 from lablink_client_service.conf.structured_config import Config
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
-    print("Starting the lablink client service...")
-    print(f"Configuration: {OmegaConf.to_yaml(cfg)}")
+    logger.debug("Starting the lablink client service...")
+    logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
     # Connect to the PostgreSQL database
     database = PostgresqlDatabase(
