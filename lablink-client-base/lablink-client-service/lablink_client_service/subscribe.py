@@ -1,46 +1,29 @@
-from lablink_client_service.database import PostgresqlDatabase
 import socket
-import os
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 import logging
 import requests
 from lablink_client_service.conf.structured_config import Config
+from lablink_client_service.connect_crd import connect_crd
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
+    format="%(asctime)s %(name)s: %(message)s",
+    datefmt="%H:%M",
 )
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+url = "http://localhost:5000/vm_startup"
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
-    # Connect to the PostgreSQL database
-    # database = PostgresqlDatabase(
-    #     dbname=cfg.db.dbname,
-    #     user=cfg.db.user,
-    #     password=cfg.db.password,
-    #     host=cfg.db.host,
-    #     port=cfg.db.port,
-    #     table_name=cfg.db.table_name,
-    # )
-
-    # Insert the hostname to the database
-    # database.insert_vm(hostname=socket.gethostname())
-
-    # Listen to the message and send back if message is received
-    # When a message is received, the callback function will be called (connect to CRD)
-    # channel = "vm_updates"
-    # database.listen_for_notifications(channel)
-
+    # Define hostname for the client
     hostname = socket.gethostname()
     logger.debug(f"Hostname: {hostname}")
 
@@ -57,7 +40,10 @@ def main(cfg: Config) -> None:
             pin = data["pin"]
             logger.debug(f"Command received: {command}")
             logger.debug(f"Pin received: {pin}")
+            
             # Execute the command
+            connect_crd(pin=pin, command=command)
+            logger.debug("Command executed successfully.")
         else:
             logger.error("Received error response from server.")
             logger.error(f"Error message: {data.get('message')}")

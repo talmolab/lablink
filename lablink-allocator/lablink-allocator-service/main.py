@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import subprocess
 import os
+from database import PostgresqlDatabase
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -10,6 +11,15 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
+database = PostgresqlDatabase(
+    dbname="lablink_db",
+    user="lablink",
+    password="lablink",
+    host="localhost",
+    port=5432,
+    table_name="vms",
+)
 
 
 class vms(db.Model):
@@ -149,6 +159,21 @@ def destroy():
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
+
+@app.route("/vm_startup", methods=["POST"])
+def vm_startup():
+    data = request.get_json()
+    hostname = data.get("hostname")
+
+    if not hostname:
+        return jsonify({"error": "Hostname are required."}), 400
+
+    # Add to the database
+    print (f"Adding VM {hostname} to database...")
+    database.insert_vm(hostname)
+    
+    result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+    return jsonify(result), 200
 
 if __name__ == "__main__":
     with app.app_context():
