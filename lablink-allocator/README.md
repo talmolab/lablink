@@ -13,7 +13,7 @@ Lablink has folowing componenets:
 
 
 - main.tf (in root directory) - For allocator-image EC2 server creation
-         -- Creates a security group for EC2, exposing ports 5000(flask port), 5432(postgre port), 22(SSH port)
+         -- Creates a security group for EC2, exposing ports 5000(flask port), 22(SSH port)
          -- Creates ec2 instance, with allocator test image 
 
 - generate-init-sql.py  - This file contains python script to generate init.sql file, after importing config.
@@ -49,7 +49,7 @@ Lablink has folowing componenets:
 Current issues/workarounds:
   - terraform/main.tf - We have currently tested this locally, that is by giving the AWS credentials from access keys in AWS(in main.tf file).
   - When creating both allocator instance or VM instance, we can't modify the same instance the next time from terraform. We need to delete the EC2 instances first. Once they are sucessfully deleted, we need to delete the security group, associated with instances.
-  - allocator EC2 creation - Once allocator EC2 is created, in order to allow client access postgre sql at 5432 port, Right now it is requiring us to manually restart the server every time. Tried multiple ways, but oculdn't debug and achieve it through code
+  - allocator EC2 creation - Once allocator EC2 is created, in order to allow client access postgre sql, Right now it is requiring us to manually restart the server every time. Tried multiple ways, but oculdn't debug and achieve it through code
        Following are the steps to restart the postgre server:
          - ssh -i "sleap-lablink.pem" ubuntu@00.00.00.01 (Replace with the EC2 public IP)
          - sudo docker ps
@@ -80,10 +80,10 @@ docker pull ghcr.io/talmolab/lablink-allocator-image:latest
 To run the LabLink Allocator service locally, use the following command:
 
 ```bash
-docker run -d -p 5000:5000 -p 5432:5432 ghcr.io/talmolab/lablink-allocator-image:latest
+docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:latest
 ```
 
-This will expose the Flask application on port `5000` and the PostgreSQL database on port `5432`.
+This will expose the Flask application on port `5000`.
 
 ### Endpoints
 - **Home Page**: Accessible at `http://localhost:5000/`. Displays a form for submitting VM details.
@@ -97,15 +97,6 @@ curl -X POST http://localhost:5000/request_vm \
   -d "email=user@example.com" \
   -d "crd_command=example_command"
 ```
-
-## Connecting to the Database
-The PostgreSQL database is exposed on port `5432`. You can connect to it using any PostgreSQL client with the following credentials:
-
-- **Host**: `localhost`
-- **Port**: `5432`
-- **Database**: `lablink_db`
-- **User**: `lablink`
-- **Password**: `lablink`
 
 ## Deployment with Terraform
 The LabLink Allocator can be deployed to AWS using the Terraform configuration provided in the `terraform` directory. Follow these steps:
@@ -148,12 +139,12 @@ docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
 Then:
 
 ```bash
-docker run -d -p 5000:5000 -p 5432:5432 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
 ```
 
 To build locally for testing, use the command:
 
 ```bash
 docker build --no-cache -t lablink-allocator -f .\lablink-allocator\Dockerfile .
-docker run -d -p 5000:5000 -p 5432:5432 --name lablink-allocator lablink-allocator
+docker run -d -p 5000:5000 --name lablink-allocator lablink-allocator
 ```
