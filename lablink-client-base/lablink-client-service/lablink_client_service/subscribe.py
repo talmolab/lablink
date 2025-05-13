@@ -4,7 +4,7 @@ from omegaconf import OmegaConf
 import logging
 import requests
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.connect_crd import connect_crd
+from lablink_client_service.connect_crd import connect_to_crd
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -42,7 +42,7 @@ def main(cfg: Config) -> None:
             logger.debug(f"Pin received: {pin}")
             
             # Execute the command
-            connect_crd(pin=pin, command=command)
+            connect_to_crd(pin=pin, command=command)
             logger.debug("Command executed successfully.")
         else:
             logger.error("Received error response from server.")
