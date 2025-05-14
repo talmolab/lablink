@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import subprocess
 import os
+from get_cofig import get_config
+from omegaconf import OmegaConf
 from database import PostgresqlDatabase
 
 app = Flask(__name__)
@@ -12,13 +14,17 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+# Load the configuration
+cfg = get_config()
+
+# Initialize the database connection
 database = PostgresqlDatabase(
-    dbname="lablink_db",
-    user="lablink",
-    password="lablink",
-    host="localhost",
-    port=5432,
-    table_name="vms",
+    dbname=cfg.db.dbname,
+    user=cfg.db.user,
+    password=cfg.db.password,
+    host=cfg.db.host,
+    port=cfg.db.port,
+    table_name=cfg.db.table_name,
 )
 
 
