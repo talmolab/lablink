@@ -16,12 +16,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-url = "http://localhost:5000/vm_startup"
-
-@hydra.main(version_base=None, config_name="config")
+@hydra.main(version_base=None, config_name="config", config_path="conf")
 def main(cfg: Config) -> None:
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
+    
+    # Define the URL for the POST request
+    url = f"http://{cfg.allocator.host}:{cfg.allocator.port}/vm_startup"
+    logger.debug(f"URL: {url}")
 
     # Define hostname for the client
     hostname = socket.gethostname()
