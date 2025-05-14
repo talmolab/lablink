@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-@hydra.main(version_base=None, config_name="config", config_path="conf")
+@hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
