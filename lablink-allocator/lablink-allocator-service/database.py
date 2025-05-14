@@ -173,10 +173,6 @@ class PostgresqlDatabase:
                             continue
         except KeyboardInterrupt:
             logger.debug("Exiting...")
-        finally:
-            logger.debug("Closing database connection...")
-            self.cursor.close()
-            self.conn.close()
 
     def get_crd_command(self, hostname):
         """Get the command assigned to a VM.
