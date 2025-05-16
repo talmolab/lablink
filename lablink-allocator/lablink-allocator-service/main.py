@@ -3,6 +3,9 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import subprocess
 import os
+from get_cofig import get_config
+from omegaconf import OmegaConf
+from database import PostgresqlDatabase
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -10,6 +13,19 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
+# Load the configuration
+cfg = get_config()
+
+# Initialize the database connection
+database = PostgresqlDatabase(
+    dbname=cfg.db.dbname,
+    user=cfg.db.user,
+    password=cfg.db.password,
+    host=cfg.db.host,
+    port=cfg.db.port,
+    table_name=cfg.db.table_name,
+)
 
 
 class vms(db.Model):
@@ -149,6 +165,21 @@ def destroy():
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
+
+@app.route("/vm_startup", methods=["POST"])
+def vm_startup():
+    data = request.get_json()
+    hostname = data.get("hostname")
+
+    if not hostname:
+        return jsonify({"error": "Hostname are required."}), 400
+
+    # Add to the database
+    print (f"Adding VM {hostname} to database...")
+    database.insert_vm(hostname)
+    
+    result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+    return jsonify(result), 200
 
 if __name__ == "__main__":
     with app.app_context():

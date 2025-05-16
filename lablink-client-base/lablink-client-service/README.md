@@ -47,14 +47,10 @@ python -m lablink_client_service.subscribe
 The configuration can be overridden by passing a different config file path as an argument to the script. For example:
 
 ```bash
-python -m lablink_client_service.subscribe db.dbname=<db-name> db.host=<db-host> db.port=<db-port> db.user=<db-user> db.password=<db-password> db.table_name=<db-table-name>
+python -m lablink_client_service.subscribe allocator.host=<your_allocator_host> allocator.port=<your_allocator_port>
 ```
 
-- `db.dbname`: The name of the PostgreSQL database to connect to.
-- `db.host`: The host of the database.
-- `db.port`: The port of the database.
-- `db.user`: The user to connect to the database.
-- `db.password`: The password to connect to the database.
-- `db.table_name`: The name of the table to use in the database.
+- `allocator.host`: The hostname of the allocator server.
+- `allocator.port`: The port of the allocator server.
 
 You can also fix the configuration by modifying the `config.yaml` file in the `lablink_client_service` directory. The script will automatically load the configuration from this file.

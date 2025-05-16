@@ -1,7 +1,3 @@
-db:
-  dbname: "lablink_db"
-  user: "lablink"
-  password: "lablink"
+allocator:
   host: "localhost"
-  port: 5432
-  table_name: "vms"
+  port: 5000

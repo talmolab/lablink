@@ -38,8 +38,8 @@ COPY lablink-allocator/generate-init-sql.py /app
 COPY db_config.py /app
 RUN python generate-init-sql.py
 
-# Expose ports for Flask and PostgreSQL
-EXPOSE 5000 5432
+# Expose ports for Flask
+EXPOSE 5000
 
 # Copy and set permissions for startup script
 COPY lablink-allocator/start.sh /app/start.sh

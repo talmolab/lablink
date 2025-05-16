@@ -8,18 +8,11 @@ provider "aws" {
 }
 
 resource "aws_security_group" "allow_http" {
-  name = "allows-5000-5432-22"
+  name = "allows-5000-22"
 
   ingress {
     from_port   = 5000
     to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -58,7 +51,7 @@ resource "aws_instance" "lablink_allocator_server" {
               systemctl enable docker
               docker login ghcr.io -u USERNAME -p GITHUB_TOKEN
               docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              docker run -d -p 5000:5000 -p 5432:5432 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+              docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               EOF
 
   tags = {
