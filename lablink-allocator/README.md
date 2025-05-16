@@ -38,7 +38,17 @@ Lablink has folowing componenets:
         -- /admin - Renders admin page with two options, create instances or view instances
         -- /admin/instances - Renders view instances, containing a table of existing instances
         -- /launch - called from /create page. Using subprocess and terraform creates VM instances. Takes instance_count as input. this runs the 'terraform/main.tf' file.
-
+        -- /admin/set-aws-credentials - Sets the AWS credentials for terraform to use. It takes in the access key and secret key as input. It creates a file called 'aws_credentials' in the terraform directory, which is used by terraform to create instances.
+         -- /admin/instances - Displays the existing vms in a table
+         -- /admin/destroy - Destroys the existing instances. It runs the 'terraform destroy' command using subprocess. It also deletes the security group created by terraform.
+         -- /vm_startup - This is a POST method that takes in hostname as input. It listens for the message of database changeto be received from the database.
+      -> Configurations in the structured_config.py file:
+        - `db.dbname`: The name of the database to connect to.
+        - `db.user`: The username for the database connection.
+        - `db.password`: The password for the database connection.
+        - `db.host`: The host address of the database.
+        - `db.port`: The port number for the database connection.
+        - `db.table_name`: The name of the table to query for VM assignments.
    -> templates/index.html - Takes email and crd command as input and submits to /request_vm
 
    -> templates/create-instances.html - Takes in no of instances count and submits to /launch
