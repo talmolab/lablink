@@ -6,6 +6,8 @@ import os
 from get_cofig import get_config
 from database import PostgresqlDatabase
 import requests
+import threading
+from queue import Queue
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -180,19 +182,24 @@ def vm_startup():
 
     if not hostname:
         return jsonify({"error": "Hostname are required."}), 400
-
-    try:
-        # Add to the database
-        print (f"Adding VM {hostname} to database...")
-        database.insert_vm(hostname)
-        
-        result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
-        return jsonify(result), 200
     
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    result_queue = Queue()
+    
+    def task():
+        result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+        result_queue.put(result)
+        
+    t = threading.Thread(target=task)
+    t.start()
+    t.join(timeout=10)
+    
+    if not result_queue.empty():
+        result = result_queue.get()
+        return jsonify(result), 200
+    else:
+        return jsonify({"status": "timeout", "message": "No response received."}), 504
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, threaded=True)
