@@ -8,6 +8,7 @@ from database import PostgresqlDatabase
 import requests
 import threading
 from queue import Queue
+import logging
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -29,6 +30,14 @@ database = PostgresqlDatabase(
     table_name=cfg.db.table_name,
 )
 
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class vms(db.Model):
     hostname = db.Column(db.String(1024), primary_key=True)
@@ -187,13 +196,13 @@ def vm_startup():
     
     def task():
         try:
-            print("Starting VM startup process...")
+            logger.debug("Starting VM startup process...")
             database.insert_vm(hostname=hostname)
-            print("Waiting for VM startup notification...")
+            logger.debug("Waiting for VM startup notification...")
             result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
             result_queue.put(result)
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
             result_queue.put({"status": "error", "message": str(e)})
     
     t = threading.Thread(target=task)
