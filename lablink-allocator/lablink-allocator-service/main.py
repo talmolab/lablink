@@ -181,12 +181,16 @@ def vm_startup():
     if not hostname:
         return jsonify({"error": "Hostname are required."}), 400
 
-    # Add to the database
-    print (f"Adding VM {hostname} to database...")
-    database.insert_vm(hostname)
+    try:
+        # Add to the database
+        print (f"Adding VM {hostname} to database...")
+        database.insert_vm(hostname)
+        
+        result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+        return jsonify(result), 200
     
-    result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
-    return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     with app.app_context():

@@ -86,7 +86,9 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              docker run -d -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
+              echo ${var.allocator_ip}
+
+              docker run -dit -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
