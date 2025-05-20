@@ -186,18 +186,22 @@ def vm_startup():
     result_queue = Queue()
     
     def task():
-        result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
-        result_queue.put(result)
-        
+        try:
+            print("Starting VM startup process...")
+            database.insert_vm(hostname=hostname)
+            print("Waiting for VM startup notification...")
+            result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+            result_queue.put(result)
+        except Exception as e:
+            print(f"Error: {e}")
+            result_queue.put({"status": "error", "message": str(e)})
+    
     t = threading.Thread(target=task)
     t.start()
-    t.join(timeout=10)
+    t.join()
     
-    if not result_queue.empty():
-        result = result_queue.get()
-        return jsonify(result), 200
-    else:
-        return jsonify({"status": "timeout", "message": "No response received."}), 504
+    result = result_queue.get()
+    return jsonify(result), 200 if result.get("status") == "success" else 500
 
 if __name__ == "__main__":
     with app.app_context():
