@@ -135,6 +135,10 @@ def launch():
         
         # Fetch the IP address of the allocator
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
+        
+        # Write the IP address to the terraform.tfvars file
+        with open(os.path.join(terraform_dir, "terraform.tfvars"), "a") as f:
+            f.write(f'allocator_ip = "{allocator_ip}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -143,7 +147,6 @@ def launch():
             "-auto-approve",
             "-var-file=terraform.tfvars",
             f"-var=instance_count={num_vms}",
-            f"-var=allocator_ip={allocator_ip}",
         ]
 
         result = subprocess.run(

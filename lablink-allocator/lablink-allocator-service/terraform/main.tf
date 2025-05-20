@@ -78,14 +78,6 @@ resource "aws_instance" "lablink_vm" {
               apt install -y docker.io
               systemctl start docker
               systemctl enable docker
-              echo "" | docker login ghcr.io -u "" --password-stdin
-              if [ $? -ne 0 ]; then
-                  echo "Docker login failed!" >&2
-                  exit 1
-              else
-                  echo "Docker login succeeded."
-              fi
-
               docker pull ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
               if [ $? -ne 0 ]; then
                   echo "Docker image pull failed!" >&2
@@ -94,7 +86,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              docker run -d -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
+              docker run -d -e ALLOCATOR_HOST=${allocator_ip} ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
