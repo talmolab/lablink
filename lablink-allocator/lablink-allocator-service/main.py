@@ -4,8 +4,8 @@ import psycopg2
 import subprocess
 import os
 from get_cofig import get_config
-from omegaconf import OmegaConf
 from database import PostgresqlDatabase
+import requests
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -132,6 +132,9 @@ def launch():
     try:
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
+        
+        # Fetch the IP address of the allocator
+        allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -140,6 +143,7 @@ def launch():
             "-auto-approve",
             "-var-file=terraform.tfvars",
             f"-var=instance_count={num_vms}",
+            f"-var=allocator_ip={allocator_ip}",
         ]
 
         result = subprocess.run(

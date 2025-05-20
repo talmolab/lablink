@@ -28,6 +28,12 @@ variable "aws_session_token" {
   sensitive = true
 }
 
+variable "allocator_ip" {
+  type = string
+  description = "IP address of the allocator server"
+  sensitive = true
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -80,7 +86,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker login succeeded."
               fi
 
-              docker pull ghcr.io/talmolab/lablink-client-base-image:latest
+              docker pull ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
               if [ $? -ne 0 ]; then
                   echo "Docker image pull failed!" >&2
                   exit 1
@@ -88,7 +94,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              docker run -d ghcr.io/talmolab/lablink-client-base-image:latest
+              docker run -d -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
