@@ -9,6 +9,7 @@ import requests
 import threading
 from queue import Queue
 import logging
+import time
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -205,10 +206,15 @@ def vm_startup():
             logger.error(f"Error: {e}")
             result_queue.put({"status": "error", "message": str(e)})
     
-    t = threading.Thread(target=task)
-    t.start()
-    t.join()
+    # Start the task in a separate thread
+    logger.debug("Starting VM startup thread...")
+    t = threading.Thread(target=task, daemon=True).start()
+    logger.debug(f"Handling request in thread: {threading.get_ident()}")
     
+    while result_queue.empty():
+        time.sleep(0.1)
+    
+    logger.debug("VM startup process completed.")
     result = result_queue.get()
     return jsonify(result), 200 if result.get("status") == "success" else 500
 
