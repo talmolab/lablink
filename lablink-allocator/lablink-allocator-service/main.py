@@ -6,10 +6,7 @@ import os
 from get_cofig import get_config
 from database import PostgresqlDatabase
 import requests
-import threading
-from queue import Queue
 import logging
-import time
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -39,6 +36,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 class vms(db.Model):
     hostname = db.Column(db.String(1024), primary_key=True)
@@ -70,6 +68,7 @@ def create_instances():
 def admin():
     return render_template("admin.html")
 
+
 @app.route("/admin/set-aws-credentials", methods=["POST"])
 def set_aws_credentials():
     aws_access_key = request.form.get("aws_access_key_id", "").strip()
@@ -80,14 +79,12 @@ def set_aws_credentials():
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
 
     # Save the credentials to a file or environment variable
-    terraform_dir = "terraform/"  
-    
+    terraform_dir = "terraform/"
+
     with open(os.path.join(terraform_dir, "terraform.tfvars"), "w") as f:
         f.write(f'aws_access_key = "{aws_access_key}"\n')
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
-        
-    
 
     return jsonify({"message": "AWS credentials set successfully"}), 200
 
@@ -98,10 +95,11 @@ def view_instances():
     return render_template("instances.html", instances=instances)
 
 
-@app.route('/admin/instances/delete')
+@app.route("/admin/instances/delete")
 def delete_instances():
     instances = vms.query.all()
-    return render_template('delete-instances.html', instances=instances)
+    return render_template("delete-instances.html", instances=instances)
+
 
 @app.route("/request_vm", methods=["POST"])
 def submit_vm_details():
@@ -144,10 +142,10 @@ def launch():
     try:
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
-        
+
         # Fetch the IP address of the allocator
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
-        
+
         # Write the IP address to the terraform.tfvars file
         with open(os.path.join(terraform_dir, "terraform.tfvars"), "a") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
@@ -170,20 +168,21 @@ def launch():
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
 
+
 @app.route("/destroy", methods=["POST"])
 def destroy():
     terraform_dir = "terraform/"
     try:
         # Destroy Terraform resources
-        apply_cmd = [
-            "terraform", "destroy",
-            "-auto-approve"
-        ]
-        result = subprocess.run(apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True)
-        
+        apply_cmd = ["terraform", "destroy", "-auto-approve"]
+        result = subprocess.run(
+            apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
+        )
+
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
+
 
 @app.route("/vm_startup", methods=["POST"])
 def vm_startup():
@@ -192,31 +191,16 @@ def vm_startup():
 
     if not hostname:
         return jsonify({"error": "Hostname are required."}), 400
-    
-    result_queue = Queue()
-    
-    def task():
-        try:
-            logger.debug("Starting VM startup process...")
-            database.insert_vm(hostname=hostname)
-            logger.debug("Waiting for VM startup notification...")
-            result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
-            result_queue.put(result)
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            result_queue.put({"status": "error", "message": str(e)})
-    
-    # Start the task in a separate thread
-    logger.debug("Starting VM startup thread...")
-    t = threading.Thread(target=task, daemon=True).start()
-    logger.debug(f"Handling request in thread: {threading.get_ident()}")
-    
-    while result_queue.empty():
-        time.sleep(0.1)
-    
-    logger.debug("VM startup process completed.")
-    result = result_queue.get()
-    return jsonify(result), 200 if result.get("status") == "success" else 500
+
+    # Add to the database
+    logger.debug(f"Adding VM {hostname} to database...")
+    database.insert_vm(hostname=hostname)
+    result = database.listen_for_notifications(
+        channel="vm_updates", target_hostname=hostname
+    )
+
+    return jsonify(result), 200
+
 
 if __name__ == "__main__":
     with app.app_context():
