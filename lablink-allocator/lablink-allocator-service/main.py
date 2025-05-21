@@ -147,7 +147,7 @@ def launch():
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
         # Write the IP address to the terraform.tfvars file
-        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "a") as f:
+        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
 
         # Apply with the new number of instances
