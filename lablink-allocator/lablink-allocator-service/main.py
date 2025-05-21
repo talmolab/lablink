@@ -175,7 +175,10 @@ def destroy():
     terraform_dir = "terraform/"
     try:
         # Destroy Terraform resources
-        apply_cmd = ["terraform", "destroy", "-auto-approve"]
+        apply_cmd = ["terraform", "destroy", "-auto-approve", 
+                "-var-file=terraform.runtime.tfvars", 
+                "-var-file=terraform.credentials.tfvars"
+            ]
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
         )
