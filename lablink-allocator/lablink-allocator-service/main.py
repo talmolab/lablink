@@ -81,7 +81,7 @@ def set_aws_credentials():
     # Save the credentials to a file or environment variable
     terraform_dir = "terraform/"
 
-    with open(os.path.join(terraform_dir, "terraform.tfvars"), "w") as f:
+    with open(os.path.join(terraform_dir, "terraform.credentials.tfvars"), "w") as f:
         f.write(f'aws_access_key = "{aws_access_key}"\n')
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
@@ -147,7 +147,7 @@ def launch():
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
         # Write the IP address to the terraform.tfvars file
-        with open(os.path.join(terraform_dir, "terraform.tfvars"), "a") as f:
+        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "a") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
 
         # Apply with the new number of instances
@@ -155,7 +155,8 @@ def launch():
             "terraform",
             "apply",
             "-auto-approve",
-            "-var-file=terraform.tfvars",
+            "-var-file=terraform.runtime.tfvars",
+            "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={num_vms}",
         ]
 
