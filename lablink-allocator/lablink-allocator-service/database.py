@@ -1,6 +1,7 @@
 import select
 import json
 import logging
+import psycopg2
 
 # Set up logging
 logging.basicConfig(
@@ -107,10 +108,14 @@ class PostgresqlDatabase:
         columns = ", ".join(column_names)
         placeholders = ", ".join(["%s" for _ in column_names])
 
-        sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
-        self.cursor.execute(sql, values)
-        self.conn.commit()
-        logger.debug(f"Inserted data: {values}")
+        try:
+            sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
+            self.cursor.execute(sql, values)
+            self.conn.commit()
+            logger.debug(f"Inserted data: {values}")
+        except Exception as e:
+            logger.error(f"Error inserting data: {e}")
+            self.conn.rollback()
 
     def listen_for_notifications(self, channel, target_hostname):
         """Listen for notifications on a specific channel.
@@ -119,19 +124,32 @@ class PostgresqlDatabase:
             channel (str): The name of the notification channel.
             target_hostname (str): The hostname of the VM to connect to.
         """
-        self.cursor.execute(f"LISTEN {channel};")
-        logger.debug(f"Listening for notifications on '{channel}'...")
+        
+        # Create a new connection to listen for notifications in order to avoid blocking the main connection
+        logger.debug(f"Creating new connection to listen for notifications...")
+        listen_conn = psycopg2.connect(
+            dbname=self.dbname,
+            user=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+        )
+        listen_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        listen_cursor = listen_conn.cursor()
 
         # Infinite loop to wait for notifications
         try:
+            listen_cursor.execute(f"LISTEN {channel};")
+            logger.debug(f"Listening for notifications on '{channel}'...")
+
             while True:
                 # Wait for notifications
-                if select.select([self.conn], [], [], 10) == ([], [], []):
+                if select.select([listen_conn], [], [], 10) == ([], [], []):
                     continue
                 else:
-                    self.conn.poll()  # Process any pending notifications
-                    while self.conn.notifies:
-                        notify = self.conn.notifies.pop(0)
+                    listen_conn.poll()  # Process any pending notifications
+                    while listen_conn.notifies:
+                        notify = listen_conn.notifies.pop(0)
                         logger.debug(
                             f"Received notification: {notify.payload} from channel {notify.channel}"
                         )
@@ -171,8 +189,11 @@ class PostgresqlDatabase:
                         except Exception as e:
                             logger.error(f"Error processing notification: {e}")
                             continue
-        except KeyboardInterrupt:
-            logger.debug("Exiting...")
+        finally:
+            # Close the listener connection
+            listen_cursor.close()
+            listen_conn.close()
+            logger.debug("Listener connection closed.")
 
     def get_crd_command(self, hostname):
         """Get the command assigned to a VM.
