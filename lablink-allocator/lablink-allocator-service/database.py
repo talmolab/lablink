@@ -107,10 +107,14 @@ class PostgresqlDatabase:
         columns = ", ".join(column_names)
         placeholders = ", ".join(["%s" for _ in column_names])
 
-        sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
-        self.cursor.execute(sql, values)
-        self.conn.commit()
-        logger.debug(f"Inserted data: {values}")
+        try:
+            sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
+            self.cursor.execute(sql, values)
+            self.conn.commit()
+            logger.debug(f"Inserted data: {values}")
+        except Exception as e:
+            logger.error(f"Error inserting data: {e}")
+            self.conn.rollback()
 
     def listen_for_notifications(self, channel, target_hostname):
         """Listen for notifications on a specific channel.
