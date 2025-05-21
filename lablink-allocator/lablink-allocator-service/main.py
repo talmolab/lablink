@@ -4,8 +4,9 @@ import psycopg2
 import subprocess
 import os
 from get_cofig import get_config
-from omegaconf import OmegaConf
 from database import PostgresqlDatabase
+import requests
+import logging
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
@@ -26,6 +27,15 @@ database = PostgresqlDatabase(
     port=cfg.db.port,
     table_name=cfg.db.table_name,
 )
+
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class vms(db.Model):
@@ -58,6 +68,7 @@ def create_instances():
 def admin():
     return render_template("admin.html")
 
+
 @app.route("/admin/set-aws-credentials", methods=["POST"])
 def set_aws_credentials():
     aws_access_key = request.form.get("aws_access_key_id", "").strip()
@@ -68,14 +79,12 @@ def set_aws_credentials():
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
 
     # Save the credentials to a file or environment variable
-    terraform_dir = "terraform/"  
-    
+    terraform_dir = "terraform/"
+
     with open(os.path.join(terraform_dir, "terraform.tfvars"), "w") as f:
         f.write(f'aws_access_key = "{aws_access_key}"\n')
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
-        
-    
 
     return jsonify({"message": "AWS credentials set successfully"}), 200
 
@@ -86,10 +95,11 @@ def view_instances():
     return render_template("instances.html", instances=instances)
 
 
-@app.route('/admin/instances/delete')
+@app.route("/admin/instances/delete")
 def delete_instances():
     instances = vms.query.all()
-    return render_template('delete-instances.html', instances=instances)
+    return render_template("delete-instances.html", instances=instances)
+
 
 @app.route("/request_vm", methods=["POST"])
 def submit_vm_details():
@@ -133,6 +143,13 @@ def launch():
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
 
+        # Fetch the IP address of the allocator
+        allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
+
+        # Write the IP address to the terraform.tfvars file
+        with open(os.path.join(terraform_dir, "terraform.tfvars"), "a") as f:
+            f.write(f'allocator_ip = "{allocator_ip}"\n')
+
         # Apply with the new number of instances
         apply_cmd = [
             "terraform",
@@ -151,20 +168,21 @@ def launch():
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
 
+
 @app.route("/destroy", methods=["POST"])
 def destroy():
     terraform_dir = "terraform/"
     try:
         # Destroy Terraform resources
-        apply_cmd = [
-            "terraform", "destroy",
-            "-auto-approve"
-        ]
-        result = subprocess.run(apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True)
-        
+        apply_cmd = ["terraform", "destroy", "-auto-approve"]
+        result = subprocess.run(
+            apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
+        )
+
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
+
 
 @app.route("/vm_startup", methods=["POST"])
 def vm_startup():
@@ -175,13 +193,16 @@ def vm_startup():
         return jsonify({"error": "Hostname are required."}), 400
 
     # Add to the database
-    print (f"Adding VM {hostname} to database...")
-    database.insert_vm(hostname)
-    
-    result = database.listen_for_notifications(channel="vm_updates", target_hostname=hostname)
+    logger.debug(f"Adding VM {hostname} to database...")
+    database.insert_vm(hostname=hostname)
+    result = database.listen_for_notifications(
+        channel="vm_updates", target_hostname=hostname
+    )
+
     return jsonify(result), 200
+
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, threaded=True)
