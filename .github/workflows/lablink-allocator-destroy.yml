@@ -40,7 +40,7 @@ jobs:
           terraform_version: 1.6.6
 
       - name: Download Terraform State
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: terraform-state
           path: lablink-allocator/
