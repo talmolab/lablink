@@ -1,0 +1,48 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: "Type 'yes' to confirm destruction"
+        required: true
+        default: "no"
+
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
+jobs:
+  destroy:
+    if: github.event.inputs.confirm_destroy == 'yes'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7
+          aws-region: us-west-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Store private key for EC2
+        run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
+        shell: bash
+
+      - name: Set permissions for the private key
+        run: chmod 600 ~/ec2-key.pem
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: lablink-allocator
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
+        working-directory: lablink-allocator
