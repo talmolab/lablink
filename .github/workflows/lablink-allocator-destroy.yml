@@ -49,7 +49,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-state
-          path: lablink-allocator/terraform.tfstate
+          path: lablink-allocator
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
