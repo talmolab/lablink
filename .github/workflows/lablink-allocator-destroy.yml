@@ -1,6 +1,13 @@
 name: Terraform Destroy
 
 on:
+  workflow_run:
+    workflows: ["Terraform Deploy"]
+    types:
+      - completed
+    branches:
+      - "**" # Runs on all branches
+
   workflow_dispatch:
     inputs:
       confirm_destroy:
@@ -44,12 +51,6 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: lablink-allocator
-
-      - name: Download Terraform State
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: lablink-allocator
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
