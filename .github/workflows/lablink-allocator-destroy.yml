@@ -45,6 +45,12 @@ jobs:
         run: terraform init
         working-directory: lablink-allocator
 
+      - name: Download Terraform State
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-state
+          path: lablink-allocator/terraform.tfstate
+
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
         working-directory: lablink-allocator
