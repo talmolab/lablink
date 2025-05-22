@@ -5,8 +5,6 @@ on:
     workflows: ["Terraform Deploy"]
     types:
       - completed
-    branches:
-      - "**" # Runs on all branches
 
   workflow_dispatch:
     inputs:
@@ -40,6 +38,12 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.6
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-state
+          path: lablink-allocator/
 
       - name: Store private key for EC2
         run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
