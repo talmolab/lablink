@@ -38,6 +38,13 @@ jobs:
         run: terraform init
         working-directory: lablink-allocator
 
+      - name: Terraform Format
+        run: terraform fmt -check
+        working-directory: lablink-allocator
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: lablink-allocator
+
       - name: Terraform Plan
         run: terraform plan
         working-directory: lablink-allocator
