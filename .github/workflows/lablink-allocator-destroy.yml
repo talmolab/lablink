@@ -1,16 +1,21 @@
-name: Terraform Deploy
+name: Terraform Destroy
 
 on:
-  push:
-    branches:
-      - "**" # Runs on all branches
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: "Type 'yes' to confirm destruction"
+        required: true
+        default: "no"
+        type: string
 
 permissions:
   id-token: write # Required for OIDC
   contents: read
 
 jobs:
-  terraform:
+  destroy:
+    if: github.event.inputs.confirm_destroy == 'yes'
     runs-on: ubuntu-latest
 
     steps:
@@ -34,34 +39,11 @@ jobs:
 
       - name: Set permissions for the private key
         run: chmod 600 ~/ec2-key.pem
+
       - name: Terraform Init
         run: terraform init
         working-directory: lablink-allocator
 
-      - name: Terraform Format
-        run: terraform fmt -check
-        working-directory: lablink-allocator
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: lablink-allocator
-
-      - name: Terraform Plan
-        run: terraform plan
-        working-directory: lablink-allocator
-
-      - name: Terraform Apply
-        id: apply
-        run: terraform apply -auto-approve
-        working-directory: lablink-allocator
-        continue-on-error: true # Allow failure to move on to cleanup
-
-      - name: Get EC2 Public IP and write to config
-        id: get_ip
-        run: |
-          EC2_IP=$(terraform output -raw ec2_public_ip)
-          echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
-
-      - name: Terraform Destroy on Failure
-        if: steps.apply.outcome == 'failure'
+      - name: Terraform Destroy
         run: terraform destroy -auto-approve
         working-directory: lablink-allocator
