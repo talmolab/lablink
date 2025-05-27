@@ -13,7 +13,12 @@
     <div class="container d-flex justify-content-center align-items-center min-vh-100">
       <div class="card shadow p-4" style="width: 100%; max-width: 500px;">
         <h2 class="text-center mb-4">Welcome to LabLink!</h2>
-        <form action="/request_vm" method="post">
+        {% if error %}
+          <div class="alert alert-danger text-center" role="alert">
+            {{ error }}
+          </div>
+        {% endif %}
+        <form action="/api/request_vm" method="post">
           <div class="mb-3">
             <label for="email" class="form-label">Email</label>
             <input
@@ -44,6 +49,5 @@
         </form>
       </div>
     </div>
-  
   </body>
 </html>

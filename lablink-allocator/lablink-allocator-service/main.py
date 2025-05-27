@@ -18,6 +18,9 @@ db = SQLAlchemy(app)
 # Load the configuration
 cfg = get_config()
 
+# PIN
+PIN = "123456"
+
 # Initialize the database connection
 database = PostgresqlDatabase(
     dbname=cfg.db.dbname,
@@ -46,6 +49,26 @@ class vms(db.Model):
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
 
 
+def check_crd_input(crd_command: str) -> bool:
+    """Check if the CRD command is valid.
+
+    Args:
+        crd_command (string): The CRD command to check.
+
+    Returns:
+        bool: True if the command is valid, False otherwise.
+    """
+    if crd_command is None:
+        logger.error("CRD command is None.")
+        return False
+
+    elif "--code" not in crd_command:
+        logger.error("Invalid CRD command: --code not found.")
+        return False
+
+    return True
+
+
 def notify_participants():
     """Trigger function to notify participant VMs."""
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -69,7 +92,7 @@ def admin():
     return render_template("admin.html")
 
 
-@app.route("/admin/set-aws-credentials", methods=["POST"])
+@app.route("/api/admin/set-aws-credentials", methods=["POST"])
 def set_aws_credentials():
     aws_access_key = request.form.get("aws_access_key_id", "").strip()
     aws_secret_key = request.form.get("aws_secret_access_key", "").strip()
@@ -101,19 +124,30 @@ def delete_instances():
     return render_template("delete-instances.html", instances=instances)
 
 
-@app.route("/request_vm", methods=["POST"])
+@app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
     data = request.form  # If you're sending JSON, use request.json instead
     email = data.get("email")
     crd_command = data.get("crd_command")
 
     if not email or not crd_command:
-        return jsonify({"error": "Email and CRD Command are required"}), 400
+        return render_template(
+            "index.html", error="Email and CRD command are required."
+        )
 
+    # Check if the CRD command is valid
+    if not check_crd_input(crd_command=crd_command):
+        logger.error("Invalid CRD command: --code not found.")
+        return render_template(
+            "index.html",
+            error="Invalid CRD command. Please ensure it contains --code. Please ask your instructor for help.",
+        )
+
+    # TODO: Put these operations in the database class
     # debugging
     all_vms = vms.query.all()
     for vm in all_vms:
-        print(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+        logger.debug(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
 
     # Find an available VM
     available_vm = vms.query.filter_by(inuse=False).first()
@@ -124,7 +158,7 @@ def submit_vm_details():
     # Update the VM record
     available_vm.useremail = email
     available_vm.crdcommand = crd_command
-    available_vm.pin = "123456"
+    available_vm.pin = PIN
     available_vm.inuse = True
 
     db.session.commit()
@@ -134,7 +168,7 @@ def submit_vm_details():
     )
 
 
-@app.route("/launch", methods=["POST"])
+@app.route("/api/launch", methods=["POST"])
 def launch():
     num_vms = request.form.get("num_vms")
     terraform_dir = "terraform/"  # adjust this if your TF files are elsewhere
@@ -175,10 +209,13 @@ def destroy():
     terraform_dir = "terraform/"
     try:
         # Destroy Terraform resources
-        apply_cmd = ["terraform", "destroy", "-auto-approve", 
-                "-var-file=terraform.runtime.tfvars", 
-                "-var-file=terraform.credentials.tfvars"
-            ]
+        apply_cmd = [
+            "terraform",
+            "destroy",
+            "-auto-approve",
+            "-var-file=terraform.runtime.tfvars",
+            "-var-file=terraform.credentials.tfvars",
+        ]
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
         )
