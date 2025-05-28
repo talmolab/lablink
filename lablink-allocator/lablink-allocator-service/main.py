@@ -140,14 +140,16 @@ def submit_vm_details():
         logger.error("Invalid CRD command: --code not found.")
         return render_template(
             "index.html",
-            error="Invalid CRD command. Please ensure it contains --code. Please ask your instructor for help.",
+            error="Invalid CRD command received. Please ask your instructor for help.",
         )
 
     # TODO: Put these operations in the database class
     # debugging
     all_vms = vms.query.all()
     for vm in all_vms:
-        logger.debug(vm.hostname, vm.pin, vm.crdcommand, vm.useremail, vm.inuse)
+        logger.debug(
+            f"VM details: hostname={vm.hostname}, pin={vm.pin}, crd_command={vm.crdcommand}, user_email={vm.useremail}, in_use={vm.inuse}"
+        )
 
     # Find an available VM
     available_vm = vms.query.filter_by(inuse=False).first()
