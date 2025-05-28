@@ -11,8 +11,7 @@
   <div class="container mt-5">
     <h1 class="mb-4">VM Allocator Dashboard</h1>
 
-    <!-- Form to request VMs -->
-    <form method="POST" action="/launch" onsubmit="return handleSubmit();">
+    <form method="POST" action="/api/launch" onsubmit="return handleSubmit();">
       <div class="mb-3">
         <label for="num_vms" class="form-label">Number of VMs to Launch</label>
         <input type="number" class="form-control" id="num_vms" name="num_vms" min="1" required>

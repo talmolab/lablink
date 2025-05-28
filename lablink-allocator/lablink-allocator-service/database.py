@@ -124,7 +124,7 @@ class PostgresqlDatabase:
             channel (str): The name of the notification channel.
             target_hostname (str): The hostname of the VM to connect to.
         """
-        
+
         # Create a new connection to listen for notifications in order to avoid blocking the main connection
         logger.debug(f"Creating new connection to listen for notifications...")
         listen_conn = psycopg2.connect(
@@ -251,6 +251,28 @@ class PostgresqlDatabase:
             return [row[0] for row in self.cursor.fetchall()]
         except Exception as e:
             logger.error(f"Error retrieving assigned VMs: {e}")
+
+    def get_vm_details(self, email: str) -> list:
+        """Get VM details based on the email provided.
+
+        Args:
+            email (str): The email of the user.
+
+        Returns:
+            dict: A dictionary containing VM details.
+        """
+        query = f"SELECT * FROM {self.table_name} WHERE useremail = %s"
+        self.cursor.execute(query, (email,))
+        row = self.cursor.fetchone()
+        if row:
+            hostname, pin, crdcommand, _, _ = row
+            return [
+                hostname,
+                pin,
+                crdcommand,
+            ]
+        else:
+            raise ValueError(f"No VM found for email in the database: {email}")
 
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
