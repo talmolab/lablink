@@ -20,9 +20,9 @@ docker pull ghcr.io/talmolab/lablink-client-base-image:latest
 ```
 
 ## Usage
-Then, to run the image with GPU interactively, 
+Then, to run the image with GPU interactively with the desired allocator host, you can use the following command:
 ```bash
-docker run --gpus all -it ghcr.io/talmolab/lablink-client-base-image:latest
+docker run -e ALLOCATOR_HOST=<allocator_host> --gpus all -it ghcr.io/talmolab/lablink-client-base-image:latest
 ```
 
 In the container, you can run GPU commands like
@@ -35,60 +35,8 @@ nvidia-smi
 - `-it` ensures that you get an interactive terminal. The `i` stands for interactive, and `t` allocates a pseudo-TTY, which is what allows you to interact with the bash shell inside the container.
 - The `-v` or `--volume` option mounts the specified directory with the same level of access as the directory has on the host.
 - The `--rm` flag in a docker run command automatically removes the container when it stops. This is useful for running temporary or one-time containers without cluttering your Docker environment with stopped containers.
-
-
-## Connecting to Chrome Remote Desktop
-
-This guide explains how to connect to the Chrome Remote Desktop server running in the container to access the desktop environment.
-
-### Prerequisites
-1. **Google Account**: You need a Google account to use Chrome Remote Desktop.
-2. **Chrome Browser**: You need to have the Chrome browser installed on your local machine.
-3. **Docker Setup**:
-   - Ensure Docker is installed and running on your system.
-
-### Steps to Connect
-
-### 1. Start the Docker Container
-
-Start the Docker container with the Chrome Remote Desktop server running in it.
-
-```bash
-docker run --rm -it --gpus=all <your-container-name>
-```
-
-### 2. Connect to the Chrome Remote Desktop
-
-1. On your local machine, go to [https://remotedesktop.google.com/access](https://remotedesktop.google.com/access) in your Chrome browser.
-
-2. Sign in with your Google account.
-
-3. Then, click "Set up via SSH" on the left and follow the provided steps.
-- This will provide the command in this form: 
-  ```bash
-  DISPLAY= /opt/google/chrome-remote-desktop/start-host \
-    --code="4/xxxxxxxxxxxxxxxxxxxxxxxx" \
-    --redirect-url="https://remotedesktop.google.com/_/oauthredirect" \
-    --name=$(hostname)
-  ```
-
-1. Run the provided command in your remote machine's terminal with Docker container running. Make sure to refresh the website. 
-
-2. When prompted, enter 6-digit PIN. This number will be used for additional authorization when you connect later.
-
-### 3. Run Chrome Remote Desktop
-
-1. Go to [https://remotedesktop.google.com/access](https://remotedesktop.google.com/access) in your Chrome browser.
-
-2. Sign in with your Google account.
-
-3. Then, click "Remote Access" to check the status of your remote desktop (make sure to refresh the page).
-
-4. If you see the status as "Online", click on the remote desktop to connect and enter the 6-digit PIN you set earlier.
-
-### 4. Access the GUI
-
-Once connected to the remote machine, open a terminal and type the Nvidia commands like `nvidia-smi`. The GUI should be displayed in your chrome remote desktop display environment on your local machine.
+- The `--gpus all` flag is used to enable GPU support in the container, allowing you to run GPU-accelerated applications.
+- The `-e` flag is used to set environment variables in the container. In this case, it sets the `ALLOCATOR_HOST` variable to the specified host address.
 
 ## Build
 To build and push via automated CI, just push changes to a branch.
@@ -106,11 +54,13 @@ docker pull ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
 then
 
 ```bash
-docker run --gpus all -e DB_HOST=<db-host> -it ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
+docker run --gpus all -e ALLOCATOR_HOST=<allocator-host> -it ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test
 ```
 
 To build locally for testing you can use the command:
 ```bash
 docker build --no-cache -t client-base-crd ./lablink-client-base/lablink-client-base-image
-docker run --gpus all -it --rm --name client-base-crd client-base-crd
+docker run --gpus all -e ALLOCATOR_HOST=<allocator-host> -it --rm --name client-base-crd client-base-crd
 ```
+
+> Note: The local machine must have the NVIDIA Container Toolkit installed to use the `--gpus all` flag.
