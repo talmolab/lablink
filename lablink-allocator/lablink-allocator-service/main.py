@@ -18,8 +18,8 @@ db = SQLAlchemy(app)
 # Load the configuration
 cfg = get_config()
 
-# PIN
 PIN = "123456"
+MESSAGE_CHANNEL = cfg.db.message_channel
 
 # Initialize the database connection
 database = PostgresqlDatabase(
@@ -239,7 +239,7 @@ def vm_startup():
     logger.debug(f"Adding VM {hostname} to database...")
     database.insert_vm(hostname=hostname)
     result = database.listen_for_notifications(
-        channel="vm_updates", target_hostname=hostname
+        channel=MESSAGE_CHANNEL, target_hostname=hostname
     )
 
     return jsonify(result), 200

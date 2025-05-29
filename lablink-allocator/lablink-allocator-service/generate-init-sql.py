@@ -1,4 +1,15 @@
-from db_config import DB_NAME, DB_USER, DB_PASSWORD, VM_TABLE, MESSAGE_CHANNEL
+from omegaconf import OmegaConf
+
+config = OmegaConf.load("conf/config.yaml")
+
+# Load database configuration from config.yaml
+DB_NAME = config.db.dbname
+DB_USER = config.db.user
+DB_PASSWORD = config.db.password
+DB_HOST = config.db.host
+DB_PORT = config.db.port
+VM_TABLE = config.db.table_name
+MESSAGE_CHANNEL = config.db.message_channel
 
 template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
