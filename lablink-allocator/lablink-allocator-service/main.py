@@ -126,48 +126,44 @@ def delete_instances():
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
-    data = request.form  # If you're sending JSON, use request.json instead
-    email = data.get("email")
-    crd_command = data.get("crd_command")
+    try:
+        data = request.form  # If you're sending JSON, use request.json instead
+        email = data.get("email")
+        crd_command = data.get("crd_command")
 
-    if not email or not crd_command:
-        return render_template(
-            "index.html", error="Email and CRD command are required."
-        )
+        if not email or not crd_command:
+            return render_template(
+                "index.html", error="Email and CRD command are required."
+            )
 
-    # Check if the CRD command is valid
-    if not check_crd_input(crd_command=crd_command):
-        logger.error("Invalid CRD command: --code not found.")
+        # Check if the CRD command is valid
+        if not check_crd_input(crd_command=crd_command):
+            logger.error("Invalid CRD command: --code not found.")
+            return render_template(
+                "index.html",
+                error="Invalid CRD command received. Please ask your instructor for help.",
+            )
+
+        # Check if there are any available VMs
+        if len(database.get_unassigned_vms()) == 0:
+            logger.error("No available VMs found.")
+            return render_template(
+                "index.html",
+                error="No available VMs. Please try again later. Please ask your instructor for help",
+            )
+
+        # Assign the VM
+        database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
+
+        # Display success message
+        assigned_vm = database.get_vm_details(email=email)
+        return render_template("success.html", host=assigned_vm[0], pin=assigned_vm[1])
+    except Exception as e:
+        logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
             "index.html",
-            error="Invalid CRD command received. Please ask your instructor for help.",
+            error="An unexpected error occurred while processing your request. Please ask your instructor for help.",
         )
-
-    # TODO: Put these operations in the database class
-    # debugging
-    all_vms = vms.query.all()
-    for vm in all_vms:
-        logger.debug(
-            f"VM details: hostname={vm.hostname}, pin={vm.pin}, crd_command={vm.crdcommand}, user_email={vm.useremail}, in_use={vm.inuse}"
-        )
-
-    # Find an available VM
-    available_vm = vms.query.filter_by(inuse=False).first()
-
-    if not all_vms:
-        return jsonify({"error": "No available VM"}), 404
-
-    # Update the VM record
-    available_vm.useremail = email
-    available_vm.crdcommand = crd_command
-    available_vm.pin = PIN
-    available_vm.inuse = True
-
-    db.session.commit()
-
-    return render_template(
-        "success.html", host=available_vm.hostname, pin=available_vm.pin
-    )
 
 
 @app.route("/api/launch", methods=["POST"])
@@ -196,6 +192,7 @@ def launch():
             f"-var=instance_count={num_vms}",
         ]
 
+        # Run the Terraform apply command
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
         )
