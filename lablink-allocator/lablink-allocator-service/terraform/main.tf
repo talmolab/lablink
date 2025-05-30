@@ -63,7 +63,7 @@ resource "aws_security_group" "lablink_sg_" {
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
-  instance_type          = "t2.micro"
+  instance_type          = "g4dn.xlarge"
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = "sleap-lablink" # Replace with your EC2 key pair
 
@@ -88,7 +88,7 @@ resource "aws_instance" "lablink_vm" {
 
               echo ${var.allocator_ip}
 
-              docker run -dit -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
+              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
