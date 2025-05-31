@@ -67,7 +67,7 @@ class PostgresqlDatabase:
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
-    def get_column_names(self, table_name=None):
+    def get_column_names(self, table_name=None) -> list:
         """Get the column names of a table.
 
         Args:
@@ -85,7 +85,7 @@ class PostgresqlDatabase:
         )
         return [row[0] for row in self.cursor.fetchall()]
 
-    def insert_vm(self, hostname):
+    def insert_vm(self, hostname) -> None:
         """Insert a new row into the table.
 
         Args:
@@ -117,12 +117,19 @@ class PostgresqlDatabase:
             logger.error(f"Error inserting data: {e}")
             self.conn.rollback()
 
-    def listen_for_notifications(self, channel, target_hostname):
+    def listen_for_notifications(self, channel, target_hostname) -> dict:
         """Listen for notifications on a specific channel.
 
         Args:
             channel (str): The name of the notification channel.
             target_hostname (str): The hostname of the VM to connect to.
+
+        Returns:
+            dict: A dictionary containing the status, pin, and command if the connection is successful.
+
+        Raises:
+            psycopg2.Error: If there is an error connecting to the database or listening for notifications.
+            json.JSONDecodeError: If there is an error decoding the JSON payload from the notification.
         """
 
         # Create a new connection to listen for notifications in order to avoid blocking the main connection
@@ -195,7 +202,7 @@ class PostgresqlDatabase:
             listen_conn.close()
             logger.debug("Listener connection closed.")
 
-    def get_crd_command(self, hostname):
+    def get_crd_command(self, hostname) -> str:
         """Get the command assigned to a VM.
 
         Args:
@@ -212,7 +219,7 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (hostname,))
         return self.cursor.fetchone()[0]
 
-    def get_unassigned_vms(self):
+    def get_unassigned_vms(self) -> list:
         """Get the VMs that are not assigned to any command.
 
         Returns:
@@ -226,7 +233,7 @@ class PostgresqlDatabase:
             logger.error(f"Error retrieving unassigned VMs: {e}")
             return []
 
-    def vm_exists(self, hostname):
+    def vm_exists(self, hostname) -> bool:
         """Check if a VM with the given hostname exists in the table.
 
         Args:
@@ -239,7 +246,7 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (hostname,))
         return self.cursor.fetchone()[0]
 
-    def get_assigned_vms(self):
+    def get_assigned_vms(self) -> list:
         """Get the VMs that are assigned to a command.
 
         Returns:
@@ -259,7 +266,7 @@ class PostgresqlDatabase:
             email (str): The email of the user.
 
         Returns:
-            dict: A dictionary containing VM details.
+            list: A list containing the hostname, pin, and CRD command of the VM assigned to the user.
         """
         query = f"SELECT * FROM {self.table_name} WHERE useremail = %s"
         self.cursor.execute(query, (email,))
@@ -273,6 +280,48 @@ class PostgresqlDatabase:
             ]
         else:
             raise ValueError(f"No VM found for email in the database: {email}")
+
+    def assign_vm(self, email, crd_command, pin) -> None:
+        """Assign a VM to a user.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            email (str): The email of the user.
+            crd_command (str): The CRD command to assign.
+            pin (str): The PIN for the VM.
+        """
+        # Gets the first available VM that is not in use
+        hostname = self.get_first_available_vm()
+
+        # Check if a VM is available
+        if not hostname:
+            logger.error("No available VMs found to assign.")
+            raise ValueError("No available VMs to assign.")
+
+        # SQL query to update the VM record with the user's email, CRD command, and pin
+        query = f"""
+        UPDATE {self.table_name}
+        SET useremail = %s, crdcommand = %s, pin = %s, inuse = TRUE
+        WHERE hostname = %s;
+        """
+        try:
+            self.cursor.execute(query, (email, crd_command, pin, hostname))
+            self.conn.commit()
+            logger.debug(f"Assigned VM '{hostname}' to user '{email}'.")
+        except Exception as e:
+            logger.error(f"Error assigning VM: {e}")
+            self.conn.rollback()
+
+    def get_first_available_vm(self) -> str:
+        """Get the first available VM that is not in use.
+
+        Returns:
+            str: The hostname of the first available VM.
+        """
+        query = f"SELECT hostname FROM {self.table_name} WHERE inuse = FALSE LIMIT 1"
+        self.cursor.execute(query)
+        row = self.cursor.fetchone()
+        return row[0] if row else None
 
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
