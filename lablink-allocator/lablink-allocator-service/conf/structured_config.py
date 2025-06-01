@@ -16,8 +16,15 @@ class DatabaseConfig:
 
 
 @dataclass
+class AppDConfig:
+    admin_user: str = field(default="admin")
+    admin_password: str = field(default="admin_password")
+
+
+@dataclass
 class Config:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
+    app: AppDConfig = field(default_factory=AppDConfig)
 
 
 cs = ConfigStore.instance()
