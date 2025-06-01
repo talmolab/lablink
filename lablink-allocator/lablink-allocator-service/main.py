@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify, render_template
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import subprocess
@@ -9,6 +11,7 @@ import requests
 import logging
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "postgresql://lablink:lablink@localhost:5432/lablink_db"
 )
@@ -18,8 +21,10 @@ db = SQLAlchemy(app)
 # Load the configuration
 cfg = get_config()
 
+# Initialize variables
 PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
+users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 
 # Initialize the database connection
 database = PostgresqlDatabase(
@@ -47,6 +52,12 @@ class vms(db.Model):
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in users and check_password_hash(users.get(username), password):
+        return username
 
 
 def check_crd_input(crd_command: str) -> bool:
@@ -83,16 +94,19 @@ def home():
 
 
 @app.route("/admin/create")
+@auth.login_required
 def create_instances():
     return render_template("create-instances.html")
 
 
 @app.route("/admin")
+@auth.login_required
 def admin():
     return render_template("admin.html")
 
 
 @app.route("/api/admin/set-aws-credentials", methods=["POST"])
+@auth.login_required
 def set_aws_credentials():
     aws_access_key = request.form.get("aws_access_key_id", "").strip()
     aws_secret_key = request.form.get("aws_secret_access_key", "").strip()
@@ -113,12 +127,14 @@ def set_aws_credentials():
 
 
 @app.route("/admin/instances")
+@auth.login_required
 def view_instances():
     instances = vms.query.all()
     return render_template("instances.html", instances=instances)
 
 
 @app.route("/admin/instances/delete")
+@auth.login_required
 def delete_instances():
     instances = vms.query.all()
     return render_template("delete-instances.html", instances=instances)
@@ -131,6 +147,7 @@ def submit_vm_details():
         email = data.get("email")
         crd_command = data.get("crd_command")
 
+        # If email or crd_command is not provided, return an error
         if not email or not crd_command:
             return render_template(
                 "index.html", error="Email and CRD command are required."
@@ -167,6 +184,7 @@ def submit_vm_details():
 
 
 @app.route("/api/launch", methods=["POST"])
+@auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
     terraform_dir = "terraform/"  # adjust this if your TF files are elsewhere
@@ -204,6 +222,7 @@ def launch():
 
 
 @app.route("/destroy", methods=["POST"])
+@auth.login_required
 def destroy():
     terraform_dir = "terraform/"
     try:
