@@ -56,7 +56,16 @@ class vms(db.Model):
 
 @auth.verify_password
 def verify_password(username, password):
+    """Verify the username and password against the stored users.
+    Args:
+        username (str): The username to verify.
+        password (str): The password to verify.
+    Returns:
+        str: The username if the credentials are valid, None otherwise.
+    """
+    logger.debug(f"Verifying user: {username}")
     if username in users and check_password_hash(users.get(username), password):
+        logger.debug(f"User {username} verified successfully.")
         return username
 
 
