@@ -15,6 +15,15 @@
       <div class="mb-3">
         <label for="num_vms" class="form-label">Number of VMs to Launch</label>
         <input type="number" class="form-control" id="num_vms" name="num_vms" min="1" required>
+        <label for="vm_type" class="form-label mt-3">VM Instance Machine Type</label>
+        <div class="form-text">
+          View more details on <a href="https://aws.amazon.com/ec2/instance-types/" target="_blank">AWS EC2 Instance Types</a>.
+          <br>
+          Example: <code>t2.micro</code>, <code>t3.medium</code>, etc.
+        </div>
+        <input type="text" class="form-control" id="vm_type" name="vm_type" required>
+        <div id="vm-validation-message" class="form-text mt-1">
+        </div>
       </div>
       <button id="launch-btn" type="submit" class="btn btn-primary">Launch VMs</button>
       <div id="loading-message" class="mt-2 text-muted" style="display: none;">
@@ -23,6 +32,26 @@
     </form>
   </div>
   <script>
+    let availableInstanceTypes = [];
+    // Fetch instance types from server on load
+    window.addEventListener("DOMContentLoaded", () => {
+      fetch("/api/available_instance_types")
+        .then((res) => res.json())
+        .then((data) => {
+          availableInstanceTypes = data.instance_types || [];
+          const datalist = document.getElementById("vm-types");
+          datalist.innerHTML = "";
+          for (const type of availableInstanceTypes) {
+            const option = document.createElement("option");
+            option.value = type;
+            datalist.appendChild(option);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load instance types", err);
+        });
+    });
+
     function handleSubmit() {
       const button = document.getElementById("launch-btn");
       const message = document.getElementById("loading-message");
