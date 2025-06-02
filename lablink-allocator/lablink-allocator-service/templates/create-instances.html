@@ -22,10 +22,11 @@
           Example: <code>t2.micro</code>, <code>t3.medium</code>, etc.
         </div>
         <input type="text" class="form-control" id="vm_type" name="vm_type" required>
+        <datalist id="vm-types"></datalist>
         <div id="vm-validation-message" class="form-text mt-1">
         </div>
       </div>
-      <button id="launch-btn" type="submit" class="btn btn-primary">Launch VMs</button>
+      <button id="launch-btn" type="submit" class="btn btn-primary" disabled>Launch VMs</button>
       <div id="loading-message" class="mt-2 text-muted" style="display: none;">
         Launching VMs... please wait.
       </div>
@@ -33,6 +34,23 @@
   </div>
   <script>
     let availableInstanceTypes = [];
+
+    function validateForm() {
+      const numVMs = document.getElementById("num_vms").value.trim();
+      const vmType = document.getElementById("vm_type").value.trim();
+      const isValidVMType = availableInstanceTypes.includes(vmType);
+      const launchBtn = document.getElementById("launch-btn");
+
+      const shouldEnable =
+        numVMs !== "" &&
+        !isNaN(numVMs) &&
+        Number(numVMs) > 0 &&
+        vmType !== "" &&
+        isValidVMType;
+
+      launchBtn.disabled = !shouldEnable;
+    }
+
     // Fetch instance types from server on load
     window.addEventListener("DOMContentLoaded", () => {
       fetch("/api/available_instance_types")
@@ -46,12 +64,14 @@
             option.value = type;
             datalist.appendChild(option);
           }
+          validateForm();
         })
         .catch(err => {
           console.error("Failed to load instance types", err);
         });
     });
 
+    document.getElementById("num_vms").addEventListener("input", validateForm);
     document.getElementById("vm_type").addEventListener("input", () => {
       const val = document.getElementById("vm_type").value.trim();
       const msg = document.getElementById("vm-validation-message");
@@ -70,8 +90,9 @@
         msg.classList.remove("text-success");
         msg.classList.add("text-danger");
       }
+      validateForm();
     });
-    
+
     function handleSubmit() {
       const button = document.getElementById("launch-btn");
       const message = document.getElementById("loading-message");
