@@ -4,11 +4,6 @@ from conf.structured_config import Config
 import logging
 
 # Setup logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -19,5 +14,5 @@ def get_config() -> Config:
     """
     with initialize(config_path="conf"):
         cfg = compose(config_name="config")
-        print(OmegaConf.to_yaml(cfg))
+        logger.debug(OmegaConf.to_yaml(cfg))
         return cfg
