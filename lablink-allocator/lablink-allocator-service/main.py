@@ -126,7 +126,7 @@ def validate_machine_type(machine_type):
     Returns:
         bool: True if the machine type is valid, False otherwise.
     """
-    machine_type = request.form.get("machine_type", "").strip()
+    logger.debug("Validating machine type...")
 
     if not machine_type:
         return jsonify({"error": "Machine type is required"}), 400

@@ -52,6 +52,26 @@
         });
     });
 
+    document.getElementById("vm_type").addEventListener("input", () => {
+      const val = document.getElementById("vm_type").value.trim();
+      const msg = document.getElementById("vm-validation-message");
+
+      if (val === "") {
+        msg.innerText = "";
+        return;
+      }
+
+      if (availableInstanceTypes.includes(val)) {
+        msg.innerText = `"${val}" is a valid instance type.`;
+        msg.classList.remove("text-danger");
+        msg.classList.add("text-success");
+      } else {
+        msg.innerText = `"${val}" is not recognized.`;
+        msg.classList.remove("text-success");
+        msg.classList.add("text-danger");
+      }
+    });
+    
     function handleSubmit() {
       const button = document.getElementById("launch-btn");
       const message = document.getElementById("loading-message");
