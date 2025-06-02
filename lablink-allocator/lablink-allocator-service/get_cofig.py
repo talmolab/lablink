@@ -11,7 +11,12 @@ def get_config() -> Config:
     """
     Load the configuration file using Hydra and return it as a dictionary.
     """
-    with initialize(config_path="conf"):
+    with initialize(config_path="../config"):
         cfg = compose(config_name="config")
         logger.debug(OmegaConf.to_yaml(cfg))
         return cfg
+
+
+if __name__ == "__main__":
+    config = get_config()
+    print(config)
