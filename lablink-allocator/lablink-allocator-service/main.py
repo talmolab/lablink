@@ -149,7 +149,6 @@ def home():
 
 @app.route("/api/available_instance_types", methods=["GET"])
 def available_instance_types():
-    """API endpoint to get all available EC2 instance types."""
     try:
         instance_types = get_all_instance_types()
         return jsonify({"instance_types": instance_types}), 200
