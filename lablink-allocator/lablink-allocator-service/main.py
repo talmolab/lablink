@@ -210,6 +210,7 @@ def submit_vm_details():
 @auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
+    vm_type = request.form.get("vm_type")
     terraform_dir = "terraform/"
 
     try:
@@ -222,6 +223,7 @@ def launch():
         # Write the IP address to the terraform.tfvars file
         with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
+            f.write(f'instance_type = "{vm_type}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [

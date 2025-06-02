@@ -34,6 +34,12 @@ variable "allocator_ip" {
   sensitive   = true
 }
 
+variable "machine_type" {
+  type        = string
+  description = "Type of the machine to be created"
+  default     = "g4dn.xlarge"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -63,7 +69,7 @@ resource "aws_security_group" "lablink_sg_" {
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
-  instance_type          = "g4dn.xlarge"
+  instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = "sleap-lablink" # Replace with your EC2 key pair
 
