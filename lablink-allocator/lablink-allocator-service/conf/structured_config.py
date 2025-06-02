@@ -1,7 +1,8 @@
 """This module defines the database configuration structure for the LabLink Allocator Service."""
 
-from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass, field
+
+from hydra.core.config_store import ConfigStore
 
 
 @dataclass
