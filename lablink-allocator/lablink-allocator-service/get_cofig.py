@@ -1,6 +1,10 @@
 from hydra import initialize, compose
 from omegaconf import OmegaConf
 from conf.structured_config import Config
+import logging
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 def get_config() -> Config:
@@ -9,5 +13,5 @@ def get_config() -> Config:
     """
     with initialize(config_path="conf"):
         cfg = compose(config_name="config")
-        print(OmegaConf.to_yaml(cfg))
+        logger.debug(OmegaConf.to_yaml(cfg))
         return cfg

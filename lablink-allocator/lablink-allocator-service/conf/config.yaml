@@ -6,3 +6,7 @@ db:
   port: 5432
   table_name: "vms"
   message_channel: "vm_updates"
+
+app:
+  admin_user: "admin"
+  admin_password: "IwanttoSLEAP"
