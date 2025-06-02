@@ -7,9 +7,9 @@ import subprocess
 import os
 from get_config import get_config
 from database import PostgresqlDatabase
+from utils.available_instances import get_all_instance_types
 import requests
 import logging
-import boto3
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -88,58 +88,12 @@ def check_crd_input(crd_command: str) -> bool:
     return True
 
 
-def get_all_instance_types(region="us-west-2"):
-    """Fetch all available EC2 instance types in a given AWS region.
-    Args:
-        region (str): The AWS region to query for instance types. Default is 'us-west-2'.
-    Returns:
-        list: A list of available EC2 instance types in the specified region.
-    """
-    logger.debug(f"Fetching all EC2 instance types in region: {region}")
-    ec2 = boto3.client(
-        "ec2",
-        region_name=region,
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
-    )
-    instance_types = []
-    paginator = ec2.get_paginator("describe_instance_types")
-    for page in paginator.paginate():
-        for itype in page["InstanceTypes"]:
-            instance_types.append(itype["InstanceType"])
-    return instance_types
-
-
 def notify_participants():
     """Trigger function to notify participant VMs."""
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cursor = conn.cursor()
     cursor.execute("LISTEN vm_updates;")
     conn.commit()
-
-
-def validate_machine_type(machine_type):
-    """Validate the provided machine type against available instance types.
-    Args:
-        machine_type (str): The machine type to validate.
-    Returns:
-        bool: True if the machine type is valid, False otherwise.
-    """
-    logger.debug("Validating machine type...")
-
-    if not machine_type:
-        return jsonify({"error": "Machine type is required"}), 400
-
-    # Fetch all available instance types
-    instance_types = get_all_instance_types()
-
-    # Check if the provided machine type is in the list of available instance types
-    if machine_type not in instance_types:
-        logger.error(f"Invalid machine type: {machine_type}")
-        return False
-    logger.debug(f"Machine type {machine_type} is valid.")
-    return True
 
 
 @app.route("/")
@@ -256,20 +210,7 @@ def submit_vm_details():
 @auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
-    terraform_dir = "terraform/"  # adjust this if your TF files are elsewhere
-
-    if request.form.get("vm_type") is None:
-        return render_template(
-            "create-instances.html", error="Machine type is required."
-        )
-
-    # Validate the number of VMs
-    machine_type = request.form.get("vm_type").strip()
-    if not validate_machine_type(machine_type):
-        return render_template(
-            "create-instances.html",
-            error="Invalid machine type selected. Please select a valid machine type from the list: https://aws.amazon.com/ec2/instance-types/.",
-        )
+    terraform_dir = "terraform/"
 
     try:
         # Init Terraform (optional if already initialized)
