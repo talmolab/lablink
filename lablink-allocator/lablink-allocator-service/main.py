@@ -147,9 +147,9 @@ def set_aws_credentials():
         f.write(f'aws_session_token = "{aws_token}"\n')
 
     # also set the environment variables
-    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
-    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
-    os.environ["AWS_SESSION_TOKEN"] = aws_token
+    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key  # public identifier
+    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key  # secret key
+    os.environ["AWS_SESSION_TOKEN"] = aws_token  # session token
 
     return jsonify({"message": "AWS credentials set successfully"}), 200
 
