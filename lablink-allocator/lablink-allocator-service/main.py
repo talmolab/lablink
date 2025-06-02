@@ -1,3 +1,6 @@
+import os
+import logging
+import subprocess
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,8 +11,6 @@ import os
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
-import requests
-import logging
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
