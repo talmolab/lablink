@@ -1,14 +1,15 @@
 import os
 import logging
 import subprocess
+
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-import subprocess
-import os
-from get_config import get_config
+import requests
+
+from get_cofig import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 
