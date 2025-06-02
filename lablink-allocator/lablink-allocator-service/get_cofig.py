@@ -15,8 +15,3 @@ def get_config() -> Config:
         cfg = compose(config_name="config")
         logger.debug(OmegaConf.to_yaml(cfg))
         return cfg
-
-
-if __name__ == "__main__":
-    config = get_config()
-    print(config)
