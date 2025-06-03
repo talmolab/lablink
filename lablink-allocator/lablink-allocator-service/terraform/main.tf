@@ -37,7 +37,7 @@ variable "allocator_ip" {
 variable "machine_type" {
   type        = string
   description = "Type of the machine to be created"
-  default     = "g4dn.xlarge"
+  default     = "t2.medium"
 }
 
 resource "aws_security_group" "lablink_sg_" {
