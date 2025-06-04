@@ -247,7 +247,7 @@ def destroy():
             "terraform",
             "destroy",
             "-auto-approve",
-            # "-var-file=terraform.runtime.tfvars",
+            "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
         ]
         result = subprocess.run(
