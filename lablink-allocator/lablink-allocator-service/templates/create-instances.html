@@ -15,14 +15,6 @@
       <div class="mb-3">
         <label for="num_vms" class="form-label">Number of VMs to Launch</label>
         <input type="number" class="form-control" id="num_vms" name="num_vms" min="1" required>
-        <label for="vm_type" class="form-label mt-3">VM Instance Machine Type</label>
-        <div class="form-text">
-          View more details on <a href="https://aws.amazon.com/ec2/instance-types/" target="_blank">AWS EC2 Instance Types</a>.
-          <br>
-          Example: <code>t2.micro</code>, <code>t3.medium</code>, etc.
-        </div>
-        <input type="text" class="form-control" id="vm_type" name="vm_type" list="vm-types" required>
-        <datalist id="vm-types"></datalist>
         <div id="vm-validation-message" class="form-text mt-1">
         </div>
       </div>
@@ -37,61 +29,17 @@
 
     function validateForm() {
       const numVMs = document.getElementById("num_vms").value.trim();
-      const vmType = document.getElementById("vm_type").value.trim();
-      const isValidVMType = availableInstanceTypes.includes(vmType);
       const launchBtn = document.getElementById("launch-btn");
 
       const shouldEnable =
         numVMs !== "" &&
         !isNaN(numVMs) &&
-        Number(numVMs) > 0 &&
-        vmType !== "" &&
-        isValidVMType;
+        Number(numVMs) > 0
 
       launchBtn.disabled = !shouldEnable;
     }
 
-    // Fetch instance types from server on load
-    window.addEventListener("DOMContentLoaded", () => {
-      fetch("/api/available_instance_types")
-        .then((res) => res.json())
-        .then((data) => {
-          availableInstanceTypes = data.instance_types || [];
-          const datalist = document.getElementById("vm-types");
-          datalist.innerHTML = "";
-          for (const type of availableInstanceTypes) {
-            const option = document.createElement("option");
-            option.value = type;
-            datalist.appendChild(option);
-          }
-          validateForm();
-        })
-        .catch(err => {
-          console.error("Failed to load instance types", err);
-        });
-    });
-
     document.getElementById("num_vms").addEventListener("input", validateForm);
-    document.getElementById("vm_type").addEventListener("input", () => {
-      const val = document.getElementById("vm_type").value.trim();
-      const msg = document.getElementById("vm-validation-message");
-
-      if (val === "") {
-        msg.innerText = "";
-        return;
-      }
-
-      if (availableInstanceTypes.includes(val)) {
-        msg.innerText = `"${val}" is a valid instance type.`;
-        msg.classList.remove("text-danger");
-        msg.classList.add("text-success");
-      } else {
-        msg.innerText = `"${val}" is not recognized.`;
-        msg.classList.remove("text-success");
-        msg.classList.add("text-danger");
-      }
-      validateForm();
-    });
 
     function handleSubmit() {
       const button = document.getElementById("launch-btn");

@@ -24,6 +24,14 @@ db = SQLAlchemy(app)
 # Load the configuration
 cfg = get_config()
 
+# Check if the machine type is valid
+valid_types = get_all_instance_types()
+if cfg.machine.machine_type not in valid_types:
+    raise ValueError(
+        f"Invalid machine type '{cfg.machine.machine_type}'. "
+        f"Available types: {', '.join(valid_types)}"
+    )
+
 # Initialize variables
 PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
@@ -101,20 +109,6 @@ def notify_participants():
 @app.route("/")
 def home():
     return render_template("index.html")
-
-
-@app.route("/api/available_instance_types", methods=["GET"])
-def available_instance_types():
-    """Fetch all available AWS EC2 instance types.
-    Returns:
-        JSON response containing a list of available instance types.
-    """
-    try:
-        instance_types = get_all_instance_types()
-        return jsonify({"instance_types": instance_types}), 200
-    except Exception as e:
-        logger.error(f"Error fetching instance types: {e}")
-        return jsonify({"error": "Failed to fetch instance types"}), 500
 
 
 @app.route("/admin/create")
@@ -216,7 +210,6 @@ def submit_vm_details():
 @auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
-    vm_type = request.form.get("vm_type")
     terraform_dir = "terraform/"
 
     try:
@@ -227,18 +220,19 @@ def launch():
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
         # Write the IP address to the terraform.tfvars file
-        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
-            f.write(f'allocator_ip = "{allocator_ip}"\n')
-            f.write(f'machine_type = "{vm_type}"\n')
+        # with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
+        #     f.write(f'allocator_ip = "{allocator_ip}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
             "terraform",
             "apply",
             "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
+            # "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={num_vms}",
+            f"-var=machine_type={cfg.machine.machine_type}",
+            f"-var=allocator_ip={allocator_ip}",
         ]
 
         # Run the Terraform apply command
@@ -262,7 +256,7 @@ def destroy():
             "terraform",
             "destroy",
             "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
+            # "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
         ]
         result = subprocess.run(

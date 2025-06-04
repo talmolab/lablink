@@ -81,9 +81,27 @@ resource "aws_instance" "lablink_vm" {
   user_data = <<-EOF
               #!/bin/bash
               apt update -y
+              apt upgrade -y
+
+              apt install -y build-essential dkms curl
+
+              curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
+              distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
+              curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list
+              
+              apt update -y
+
+              apt install -y nvidia-driver-515
+
               apt install -y docker.io
               systemctl start docker
               systemctl enable docker
+
+              apt install -y nvidia-docker2
+              systemctl restart docker
+
+              nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
+
               docker pull ghcr.io/talmolab/lablink-client-base-image:latest
               if [ $? -ne 0 ]; then
                   echo "Docker image pull failed!" >&2
@@ -92,9 +110,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              echo ${var.allocator_ip}
-
-              docker run -dit -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
+              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1

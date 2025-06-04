@@ -7,6 +7,9 @@ db:
   table_name: "vms"
   message_channel: "vm_updates"
 
+machine:
+  machine_type: "g4dn.xlarge"
+
 app:
   admin_user: "admin"
   admin_password: "IwanttoSLEAP"
