@@ -323,6 +323,17 @@ class PostgresqlDatabase:
         row = self.cursor.fetchone()
         return row[0] if row else None
 
+    def clear_database(self) -> None:
+        """Delete all VMs from the table."""
+        query = f"DELETE FROM {self.table_name};"
+        try:
+            self.cursor.execute(query)
+            self.conn.commit()
+            logger.debug("All VMs deleted from the table.")
+        except Exception as e:
+            logger.error(f"Error deleting VMs: {e}")
+            self.conn.rollback()
+
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
         """Loads an existing database from PostgreSQL.

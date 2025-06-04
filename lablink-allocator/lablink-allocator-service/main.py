@@ -245,6 +245,11 @@ def destroy():
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
         )
 
+        # Clear the database
+        logger.debug("Clearing the database...")
+        database.clear_database()
+        logger.debug("Database cl   eared successfully.")
+
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
         return render_template("dashboard.html", error=e.stderr or e.stdout)
