@@ -248,7 +248,7 @@ def destroy():
         # Clear the database
         logger.debug("Clearing the database...")
         database.clear_database()
-        logger.debug("Database cl   eared successfully.")
+        logger.debug("Database cleared successfully.")
 
         return render_template("dashboard.html", output=result.stdout)
     except subprocess.CalledProcessError as e:
