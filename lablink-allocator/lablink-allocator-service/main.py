@@ -24,14 +24,6 @@ db = SQLAlchemy(app)
 # Load the configuration
 cfg = get_config()
 
-# Check if the machine type is valid
-valid_types = get_all_instance_types()
-if cfg.machine.machine_type not in valid_types:
-    raise ValueError(
-        f"Invalid machine type '{cfg.machine.machine_type}'. "
-        f"Available types: {', '.join(valid_types)}"
-    )
-
 # Initialize variables
 PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
