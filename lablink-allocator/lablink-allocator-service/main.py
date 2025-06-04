@@ -212,19 +212,18 @@ def launch():
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
         # Write the IP address to the terraform.tfvars file
-        # with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
-        #     f.write(f'allocator_ip = "{allocator_ip}"\n')
+        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
+            f.write(f'allocator_ip = "{allocator_ip}"\n')
+            f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
             "terraform",
             "apply",
             "-auto-approve",
-            # "-var-file=terraform.runtime.tfvars",
+            "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={num_vms}",
-            f"-var=machine_type={cfg.machine.machine_type}",
-            f"-var=allocator_ip={allocator_ip}",
         ]
 
         # Run the Terraform apply command
