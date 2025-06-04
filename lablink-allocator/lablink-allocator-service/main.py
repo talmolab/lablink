@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import subprocess
 import os
-from get_cofig import get_config
+from get_config import get_config
 from database import PostgresqlDatabase
 import requests
 import logging
