@@ -85,19 +85,18 @@ resource "aws_instance" "lablink_vm" {
 
               apt install -y build-essential dkms curl
 
-              curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
-              distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
-              curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list
-              
-              apt update -y
+              curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey |sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+              && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
+              && sudo apt-get update -y
 
-              apt install -y nvidia-driver-515
+              sudo apt-get install -y nvidia-container-toolkit
 
               apt install -y docker.io
               systemctl start docker
               systemctl enable docker
 
-              apt install -y nvidia-docker2
+              sudo nvidia-ctk runtime configure --runtime=docker
+
               systemctl restart docker
 
               nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
