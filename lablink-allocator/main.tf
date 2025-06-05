@@ -46,8 +46,8 @@ resource "aws_instance" "lablink_allocator_server" {
               systemctl start docker
               systemctl enable docker
               docker login ghcr.io -u USERNAME -p GITHUB_TOKEN
-              docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+              docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest
+              docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest
               EOF
 
   tags = {
