@@ -2,7 +2,7 @@ import os
 import logging
 import subprocess
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -90,6 +90,27 @@ def check_crd_input(crd_command: str) -> bool:
     return True
 
 
+def get_vm_details(email: str) -> dict:
+    """Get the VM details for a given email.
+
+    Args:
+        email (str): The email of the user.
+
+    Returns:
+        dict: A dictionary containing the hostname and pin of the VM.
+    """
+    try:
+        hostname, pin, crd_command = database.get_vm_details(email=email)
+    except Exception as e:
+        return {"error": str(e)}
+
+    return {
+        "hostname": hostname,
+        "pin": pin,
+        "crd_command": crd_command,
+    }
+
+
 def notify_participants():
     """Trigger function to notify participant VMs."""
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -162,34 +183,52 @@ def submit_vm_details():
         email = data.get("email")
         crd_command = data.get("crd_command")
 
+        # Store email in session for later use
+        session["email"] = email
+
         # If email or crd_command is not provided, return an error
         if not email or not crd_command:
             return render_template(
                 "index.html", error="Email and CRD command are required."
             )
 
-        # Check if the CRD command is valid
-        if not check_crd_input(crd_command=crd_command):
-            logger.error("Invalid CRD command: --code not found.")
+        # Check if the email is already assigned a VM
+        response = get_vm_details(email=email)
+
+        # If the user does not have a VM assigned, assign one
+        if "error" in response:
+            logger.error(f"User {email} has no VM assigned.")
+
+            # Check if the CRD command is valid
+            if not check_crd_input(crd_command=crd_command):
+                logger.error("Invalid CRD command: --code not found.")
+                return render_template(
+                    "index.html",
+                    error="Invalid CRD command received. Please ask your instructor for help.",
+                )
+
+            # Check if there are any available VMs
+            if len(database.get_unassigned_vms()) == 0:
+                logger.error("No available VMs found.")
+                return render_template(
+                    "index.html",
+                    error="No available VMs. Please try again later. Please ask your instructor for help",
+                )
+
+            # Assign the VM
+            database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
+
+            # Display success message
+            assigned_vm = database.get_vm_details(email=email)
             return render_template(
-                "index.html",
-                error="Invalid CRD command received. Please ask your instructor for help.",
+                "success.html", host=assigned_vm[0], pin=assigned_vm[1]
             )
-
-        # Check if there are any available VMs
-        if len(database.get_unassigned_vms()) == 0:
-            logger.error("No available VMs found.")
+        # If the user already has a VM assigned, return the details
+        else:
+            logger.info(f"User {email} already has a VM assigned.")
             return render_template(
-                "index.html",
-                error="No available VMs. Please try again later. Please ask your instructor for help",
+                "success.html", host=response["hostname"], pin=response["pin"]
             )
-
-        # Assign the VM
-        database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
-
-        # Display success message
-        assigned_vm = database.get_vm_details(email=email)
-        return render_template("success.html", host=assigned_vm[0], pin=assigned_vm[1])
     except Exception as e:
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
