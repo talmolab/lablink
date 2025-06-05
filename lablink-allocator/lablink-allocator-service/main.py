@@ -14,6 +14,7 @@ from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 
 app = Flask(__name__)
+app.secret_key = "super secret key"
 auth = HTTPBasicAuth()
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "postgresql://lablink:lablink@localhost:5432/lablink_db"
