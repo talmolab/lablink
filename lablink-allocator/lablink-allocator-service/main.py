@@ -9,7 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 import requests
 
-from get_cofig import get_config
+from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 
