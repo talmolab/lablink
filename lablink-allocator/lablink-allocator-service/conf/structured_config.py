@@ -1,7 +1,8 @@
 """This module defines the database configuration structure for the LabLink Allocator Service."""
 
-from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass, field
+
+from hydra.core.config_store import ConfigStore
 
 
 @dataclass
@@ -22,8 +23,14 @@ class AppConfig:
 
 
 @dataclass
+class MachineConfig:
+    machine_type: str = field(default="g4dn.xlarge")
+
+
+@dataclass
 class Config:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
+    machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)
 
 

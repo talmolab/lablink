@@ -15,14 +15,32 @@
       <div class="mb-3">
         <label for="num_vms" class="form-label">Number of VMs to Launch</label>
         <input type="number" class="form-control" id="num_vms" name="num_vms" min="1" required>
+        <div id="vm-validation-message" class="form-text mt-1">
+        </div>
       </div>
-      <button id="launch-btn" type="submit" class="btn btn-primary">Launch VMs</button>
+      <button id="launch-btn" type="submit" class="btn btn-primary" disabled>Launch VMs</button>
       <div id="loading-message" class="mt-2 text-muted" style="display: none;">
         Launching VMs... please wait.
       </div>
     </form>
   </div>
   <script>
+    let availableInstanceTypes = [];
+
+    function validateForm() {
+      const numVMs = document.getElementById("num_vms").value.trim();
+      const launchBtn = document.getElementById("launch-btn");
+
+      const shouldEnable =
+        numVMs !== "" &&
+        !isNaN(numVMs) &&
+        Number(numVMs) > 0
+
+      launchBtn.disabled = !shouldEnable;
+    }
+
+    document.getElementById("num_vms").addEventListener("input", validateForm);
+
     function handleSubmit() {
       const button = document.getElementById("launch-btn");
       const message = document.getElementById("loading-message");

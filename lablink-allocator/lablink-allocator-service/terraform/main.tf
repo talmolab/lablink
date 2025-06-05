@@ -34,6 +34,12 @@ variable "allocator_ip" {
   sensitive   = true
 }
 
+variable "machine_type" {
+  type        = string
+  description = "Type of the machine to be created"
+  default     = "t2.medium"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -63,7 +69,7 @@ resource "aws_security_group" "lablink_sg_" {
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
-  instance_type          = "g4dn.xlarge"
+  instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = "sleap-lablink" # Replace with your EC2 key pair
 
@@ -75,9 +81,28 @@ resource "aws_instance" "lablink_vm" {
   user_data = <<-EOF
               #!/bin/bash
               apt update -y
+              apt upgrade -y
+
+              apt install -y build-essential dkms curl
+
+              apt install -y nvidia-driver-515
+
               apt install -y docker.io
               systemctl start docker
               systemctl enable docker
+
+              curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey |sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+              && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
+              && sudo apt-get update -y
+
+              sudo apt-get install -y nvidia-container-toolkit
+
+              sudo nvidia-ctk runtime configure --runtime=docker
+
+              systemctl restart docker
+
+              nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
+
               docker pull ghcr.io/talmolab/lablink-client-base-image:latest
               if [ $? -ne 0 ]; then
                   echo "Docker image pull failed!" >&2
@@ -86,9 +111,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              echo ${var.allocator_ip}
-
-              docker run -dit -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
+              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1

@@ -1,6 +1,7 @@
 import select
 import json
 import logging
+
 import psycopg2
 
 # Set up logging

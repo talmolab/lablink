@@ -1,7 +1,9 @@
+import logging
+
 from hydra import initialize, compose
 from omegaconf import OmegaConf
+
 from conf.structured_config import Config
-import logging
 
 # Setup logging
 logger = logging.getLogger(__name__)

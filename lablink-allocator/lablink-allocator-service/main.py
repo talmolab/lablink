@@ -1,14 +1,17 @@
+import os
+import logging
+import subprocess
+
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-import subprocess
-import os
-from get_config import get_config
-from database import PostgresqlDatabase
 import requests
-import logging
+
+from get_cofig import get_config
+from database import PostgresqlDatabase
+from utils.available_instances import get_all_instance_types
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -130,6 +133,11 @@ def set_aws_credentials():
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
 
+    # also set the environment variables
+    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key  # public identifier
+    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key  # secret key
+    os.environ["AWS_SESSION_TOKEN"] = aws_token  # session token
+
     return jsonify({"message": "AWS credentials set successfully"}), 200
 
 
@@ -194,7 +202,7 @@ def submit_vm_details():
 @auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
-    terraform_dir = "terraform/"  # adjust this if your TF files are elsewhere
+    terraform_dir = "terraform/"
 
     try:
         # Init Terraform (optional if already initialized)
@@ -206,6 +214,7 @@ def launch():
         # Write the IP address to the terraform.tfvars file
         with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
+            f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
