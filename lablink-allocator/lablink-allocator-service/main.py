@@ -211,6 +211,9 @@ def launch():
         # Fetch the IP address of the allocator
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
+        logger.debug(f"Machine type: {cfg.machine.machine_type}")
+        logger.debug(f"Image name: {cfg.machine.image}")
+
         # Write the IP address to the terraform.tfvars file
         with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
