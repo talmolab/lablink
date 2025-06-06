@@ -9,8 +9,7 @@ db:
 
 machine:
   machine_type: "g4dn.xlarge"
-  repository: "https://github.com/talmolab/cosyne-tutorial-data.git"
-  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64-test"
+  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64"
 
 app:
   admin_user: "admin"
