@@ -220,7 +220,7 @@ def launch():
             f.write(f'allocator_ip = "{allocator_ip}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
-            f.write(f'repository = "{cfg.machine.repository}"\n')
+            f.write(f'github_repo = "{cfg.machine.repository}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
