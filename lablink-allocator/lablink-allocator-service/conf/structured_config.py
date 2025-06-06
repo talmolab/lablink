@@ -25,6 +25,8 @@ class AppConfig:
 @dataclass
 class MachineConfig:
     machine_type: str = field(default="g4dn.xlarge")
+    repository: str = field(default="")
+    image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
 
 
 @dataclass
