@@ -40,6 +40,11 @@ variable "machine_type" {
   default     = "t2.medium"
 }
 
+variable "image_name" {
+  type        = string
+  description = "VM Image Name to be used as client base image"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -103,7 +108,7 @@ resource "aws_instance" "lablink_vm" {
 
               nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
 
-              docker pull ghcr.io/talmolab/lablink-client-base-image:latest
+              docker pull ${var.image_name}
               if [ $? -ne 0 ]; then
                   echo "Docker image pull failed!" >&2
                   exit 1
@@ -111,7 +116,7 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ghcr.io/talmolab/lablink-client-base-image:latest
+              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
