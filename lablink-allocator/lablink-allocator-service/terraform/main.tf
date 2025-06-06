@@ -45,7 +45,7 @@ variable "image_name" {
   description = "VM Image Name to be used as client base image"
 }
 
-variable "github_repo" {
+variable "repository" {
   type        = string
   description = "GitHub repository URL for the Data Repository"
 }
@@ -121,12 +121,14 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              export TUTORIAL_REPO_TO_CLONE=${var.github_repo}
+              export TUTORIAL_REPO_TO_CLONE=${var.repository}
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
+                  echo "No repository specified, starting container without cloning."
                   docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else
-                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.github_repo} ${var.image_name}
+                  echo "Cloning repository: $TUTORIAL_REPO_TO_CLONE"
+                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
               fi
 
               if [ $? -ne 0 ]; then
