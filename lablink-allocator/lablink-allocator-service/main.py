@@ -1,6 +1,7 @@
 import os
 import logging
 import subprocess
+from pathlib import Path
 
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
@@ -126,9 +127,10 @@ def set_aws_credentials():
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
 
     # Save the credentials to a file or environment variable
-    terraform_dir = "terraform/"
+    terraform_dir = Path("terraform")
+    credential_file = terraform_dir / "terraform.credentials.tfvars"
 
-    with open(os.path.join(terraform_dir, "terraform.credentials.tfvars"), "w") as f:
+    with credential_file.open("w") as f:
         f.write(f'aws_access_key = "{aws_access_key}"\n')
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
@@ -202,7 +204,8 @@ def submit_vm_details():
 @auth.login_required
 def launch():
     num_vms = request.form.get("num_vms")
-    terraform_dir = "terraform/"
+    terraform_dir = Path("terraform")
+    runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
     try:
         # Init Terraform (optional if already initialized)
@@ -211,10 +214,16 @@ def launch():
         # Fetch the IP address of the allocator
         allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
 
+        logger.debug(f"Machine type: {cfg.machine.machine_type}")
+        logger.debug(f"Image name: {cfg.machine.image}")
+        logger.debug(f"GitHub repository: {cfg.machine.repository}")
+
         # Write the IP address to the terraform.tfvars file
-        with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
+        with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
+            f.write(f'image_name = "{cfg.machine.image}"\n')
+            f.write(f'repository = "{cfg.machine.repository}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -240,7 +249,7 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
-    terraform_dir = "terraform/"
+    terraform_dir = Path("terraform")
     try:
         # Destroy Terraform resources
         apply_cmd = [

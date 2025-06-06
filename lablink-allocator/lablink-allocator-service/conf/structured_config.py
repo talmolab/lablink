@@ -1,6 +1,7 @@
 """This module defines the database configuration structure for the LabLink Allocator Service."""
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 from hydra.core.config_store import ConfigStore
 
@@ -25,6 +26,8 @@ class AppConfig:
 @dataclass
 class MachineConfig:
     machine_type: str = field(default="g4dn.xlarge")
+    repository: Optional[str] = field(default=None)
+    image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
 
 
 @dataclass
