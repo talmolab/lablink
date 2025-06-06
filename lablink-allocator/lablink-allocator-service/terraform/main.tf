@@ -45,6 +45,11 @@ variable "image_name" {
   description = "VM Image Name to be used as client base image"
 }
 
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository URL for the Data Repository"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -116,7 +121,14 @@ resource "aws_instance" "lablink_vm" {
                   echo "Docker image pulled successfully."
               fi
 
-              docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+              export TUTORIAL_REPO_TO_CLONE=${var.github_repo}
+
+              if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
+                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+              else
+                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.github_repo} ${var.image_name}
+              fi
+
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1

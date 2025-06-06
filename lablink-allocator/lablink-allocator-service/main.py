@@ -213,12 +213,14 @@ def launch():
 
         logger.debug(f"Machine type: {cfg.machine.machine_type}")
         logger.debug(f"Image name: {cfg.machine.image}")
+        logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
         # Write the IP address to the terraform.tfvars file
         with open(os.path.join(terraform_dir, "terraform.runtime.tfvars"), "w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
+            f.write(f'repository = "{cfg.machine.repository}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
