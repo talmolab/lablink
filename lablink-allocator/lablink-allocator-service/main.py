@@ -2,8 +2,10 @@ import os
 import logging
 import subprocess
 from pathlib import Path
+import tempfile
+import shutil
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -13,6 +15,7 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
+from utils.analytics_utils import get_instance_ips, get_ssh_key_pairs
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -289,6 +292,44 @@ def vm_startup():
     )
 
     return jsonify(result), 200
+
+
+@app.route("/api/download-analytics", methods=["GET"])
+def download_all_data():
+    try:
+        instance_ips = get_instance_ips(terraform_dir="terraform")
+        key_path = get_ssh_key_pairs(terraform_dir="terraform")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for i, ip in enumerate(instance_ips):
+                # Make temporary directory for each VM
+                logger.debug(f"Downloading data from VM {i + 1} at {ip}...")
+                vm_dir = Path(temp_dir) / f"vm_{i + 1}"
+                vm_dir.mkdir(parents=True, exist_ok=True)
+
+                scp_cmd = [
+                    "scp",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-i",
+                    key_path,
+                    f"ubuntu@{ip}:'/home/client/**/*.slp'",  # adjust if your .slp files are in specific folders
+                    vm_dir,
+                ]
+
+                # Run the SCP command to copy files
+                subprocess.run(" ".join(scp_cmd), shell=True, check=True)
+                logger.debug(f"Data downloaded to {vm_dir}")
+
+            # Create a zip file of the downloaded data
+            zip_path = Path(temp_dir) / "lablink_data.zip"
+            shutil.make_archive(zip_path.stem, "zip", temp_dir)
+
+            return send_file(zip_path, as_attachment=True)
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error downloading data: {e}")
+        return jsonify({"error": "Failed to download data from VMs."}), 500
 
 
 if __name__ == "__main__":
