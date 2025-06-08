@@ -50,6 +50,17 @@ variable "repository" {
   description = "GitHub repository URL for the Data Repository"
 }
 
+output "vm_public_ips" {
+  value       = [for instance in aws_instance.lablink_vm : instance.public_ip]
+  description = "Public IPs of the created VM instances"
+}
+
+output "lablink_private_key_pem" {
+  description = "Private key used to access EC2 instances"
+  value       = tls_private_key.lablink_key.private_key_pem
+  sensitive   = true
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_"
   description = "Allow SSH and Docker ports"
@@ -76,12 +87,22 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "sleap-lablink"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
-  key_name               = "sleap-lablink" # Replace with your EC2 key pair
+  key_name               = aws_key_pair.lablink_key_pair.key_name
 
   root_block_device {
     volume_size = 30
