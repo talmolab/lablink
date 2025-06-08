@@ -18,8 +18,9 @@ def get_instance_ips(terraform_dir: str) -> list:
     Returns:
         list: A list of public IP addresses of the instances.
     """
+    terraform_dir = Path(terraform_dir)
     result = subprocess.run(
-        ["terraform", "output", "-json", "lablink_vm_public_ips"],
+        ["terraform", "output", "-json", "vm_public_ips"],
         cwd=terraform_dir,
         capture_output=True,
         text=True,
@@ -42,9 +43,13 @@ def get_ssh_key_pairs(terraform_dir: str) -> str:
     Args:
         terraform_dir (str): The directory where the Terraform configuration is located.
 
+    Raises:
+        RuntimeError: Error running terraform output command.
+
     Returns:
         str: The path to the SSH private key file.
     """
+    terraform_dir = Path(terraform_dir)
     result = subprocess.run(
         ["terraform", "output", "-json", "lablink_private_key_pem"],
         cwd=terraform_dir,
@@ -52,6 +57,8 @@ def get_ssh_key_pairs(terraform_dir: str) -> str:
         text=True,
         check=True,
     )
+    if result.returncode != 0:
+        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     key_path = "/tmp/lablink_key.pem"
     with open(key_path, "w") as f:
         f.write(result.stdout)
