@@ -313,8 +313,8 @@ def download_all_data():
                     "StrictHostKeyChecking=no",
                     "-i",
                     key_path,
-                    f"ubuntu@{ip}:'/home/client/**/*.slp'",  # adjust if your .slp files are in specific folders
-                    vm_dir,
+                    f"ubuntu@{ip}:'/home/client/Desktop/**/*.slp'",  # adjust if your .slp files are in specific folders
+                    vm_dir.as_posix(),
                 ]
 
                 # Run the SCP command to copy files
