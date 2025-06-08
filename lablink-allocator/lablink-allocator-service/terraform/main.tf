@@ -93,7 +93,7 @@ resource "tls_private_key" "lablink_key" {
 }
 
 resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "sleap-lablink"
+  key_name   = "lablink_key_pair_client"
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
