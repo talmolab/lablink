@@ -51,7 +51,7 @@ def get_ssh_key_pairs(terraform_dir: str) -> str:
     """
     terraform_dir = Path(terraform_dir)
     result = subprocess.run(
-        ["terraform", "output", "-json", "lablink_private_key_pem"],
+        ["terraform", "output", "-raw", "lablink_private_key_pem"],
         cwd=terraform_dir,
         capture_output=True,
         text=True,
