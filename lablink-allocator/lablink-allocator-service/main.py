@@ -282,6 +282,7 @@ def destroy():
 
 
 @app.route("/vm_startup", methods=["POST"])
+@auth.login_required
 def vm_startup():
     data = request.get_json()
     hostname = data.get("hostname")
@@ -342,7 +343,7 @@ def download_all_data():
             # Create a zip file of the downloaded data
             zip_base = Path(temp_dir) / "lablink_client_data"
             logger.debug(f"Creating zip archive at {zip_base}...")
-            shutil.make_archive(zip_base, "zip", temp_dir)
+            shutil.make_archive(zip_base, "zip", root_dir=temp_dir, base_dir=".")
 
             zip_file = zip_base.with_suffix(".zip")
             logger.debug(f"Zip archive created successfully at {zip_file}.")
