@@ -3,7 +3,6 @@ import logging
 import subprocess
 from pathlib import Path
 import tempfile
-import shutil
 from zipfile import ZipFile
 
 from flask import Flask, request, jsonify, render_template, send_file
@@ -18,7 +17,7 @@ from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 from utils.scp import (
     get_instance_ips,
-    get_ssh_key_pairs,
+    get_ssh_private_key,
     extract_slp_from_docker,
     scp_slp_files_to_local,
     find_slp_files_in_container,
@@ -306,7 +305,7 @@ def vm_startup():
 def download_all_data():
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
-        key_path = get_ssh_key_pairs(terraform_dir="terraform")
+        key_path = get_ssh_private_key(terraform_dir="terraform")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for i, ip in enumerate(instance_ips):

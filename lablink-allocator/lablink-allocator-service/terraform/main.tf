@@ -144,7 +144,7 @@ resource "aws_instance" "lablink_vm" {
 
               export TUTORIAL_REPO_TO_CLONE=${var.repository}
 
-              if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
+              if [ -z "$TUTORIAL_REPO_TO_CLONE" ] ||  [ "$TUTORIAL_REPO_TO_CLONE" = "None" ]; then
                   echo "No repository specified, starting container without cloning."
                   docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else
