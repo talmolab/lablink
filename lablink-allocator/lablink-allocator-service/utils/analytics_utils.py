@@ -91,3 +91,18 @@ def extract_slp_from_docker(ip: str, key_path: str):
     ]
 
     subprocess.run(ssh_cmd, check=True)
+
+
+def has_slp_files(ip: str, key_path: str) -> bool:
+    """Check if the target VM has .slp files in /home/ubuntu/slp_files."""
+    ssh_cmd = [
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-i",
+        key_path,
+        f"ubuntu@{ip}",
+        "sh -c 'ls /home/ubuntu/slp_files/*.slp 1>/dev/null 2>/dev/null && echo exists || echo missing'",
+    ]
+    result = subprocess.run(ssh_cmd, capture_output=True, text=True)
+    return result.stdout.strip() == "exists"

@@ -19,6 +19,7 @@ from utils.analytics_utils import (
     get_instance_ips,
     get_ssh_key_pairs,
     extract_slp_from_docker,
+    has_slp_files,
 )
 
 app = Flask(__name__)
@@ -330,9 +331,13 @@ def download_all_data():
                     vm_dir.as_posix(),
                 ]
 
-                # Run the SCP command to copy only .slp files from the VM
-                subprocess.run(" ".join(scp_cmd), shell=True, check=True)
-                logger.debug(f"Data downloaded to {vm_dir}")
+                if has_slp_files(ip, key_path):
+                    logger.debug(f"Copying .slp files from {ip} to {vm_dir}")
+                    # Run the SCP command to copy only .slp files from the VM
+                    subprocess.run(" ".join(scp_cmd), shell=True, check=True)
+                    logger.debug(f"Data downloaded to {vm_dir}")
+                else:
+                    logger.info(f"No .slp files found on VM {ip}. Skipping...")
 
             # Create a zip file of the downloaded data
             zip_path = Path(temp_dir) / "lablink_data.zip"
