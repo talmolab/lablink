@@ -40,7 +40,7 @@ def get_instance_ips(terraform_dir: str) -> list:
     return output
 
 
-def get_ssh_key_pairs(terraform_dir: str) -> str:
+def get_ssh_private_key(terraform_dir: str) -> str:
     """Get the SSH private key used for connecting to the instances.
 
     Args:
@@ -167,7 +167,7 @@ def scp_slp_files_to_local(ip: str, key_path: str, local_dir: str, vm_dir: str) 
     if has_slp_files(ip, key_path):
         logger.debug(f"Copying .slp files from {ip} to {vm_dir}")
         # Run the SCP command to copy only .slp files from the VM
-        subprocess.run(" ".join(scp_cmd), shell=True, check=True)
+        subprocess.run(scp_cmd, check=True)
         logger.debug(f"Data downloaded to {vm_dir}")
     else:
         logger.info(f"No .slp files found on VM {ip}. Skipping...")
