@@ -75,9 +75,9 @@ def extract_slp_from_docker(ip: str, key_path: str):
         key_path (str): The path to the SSH private key file for connecting to the instance.
     """
     cmd = (
-        "cid=$(docker ps -q | head -n1) && "
+        "cid=$(sudo docker ps -q | head -n1) && "
         "mkdir -p /home/ubuntu/slp_files && "
-        "docker cp $cid:/home/client/Desktop/. /home/ubuntu/slp_files 2>/dev/null || echo 'No files copied'"
+        "sudo docker cp $cid:/home/client/Desktop/. /home/ubuntu/slp_files 2>/dev/null || echo 'No files copied'"
     )
 
     ssh_cmd = [
