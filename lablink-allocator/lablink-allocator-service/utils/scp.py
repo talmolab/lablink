@@ -79,7 +79,7 @@ def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
     """
     cmd = (
         "cid=$(sudo docker ps -q | head -n1) && "
-        "sudo docker exec $cid find /home/client/Desktop -name '*.slp'"
+        "sudo docker exec $cid find /home/client/Desktop -name '*.slp' -not -path '*/models/*' -not -path '*/predictions/*'"
     )
     ssh_cmd = [
         "ssh",
@@ -108,12 +108,6 @@ def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> Non
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file for connecting to the instance.
     """
-    cmd = (
-        "cid=$(sudo docker ps -q | head -n1) && "
-        "mkdir -p /home/ubuntu/slp_files && "
-        "sudo docker cp $cid:/home/client/Desktop/. /home/ubuntu/slp_files 2>/dev/null || echo 'No files copied'"
-    )
-
     for file in slp_files:
         filename = Path(file).name
         cmd = (
