@@ -64,3 +64,30 @@ def get_ssh_key_pairs(terraform_dir: str) -> str:
         f.write(result.stdout)
     os.chmod(key_path, 0o400)
     return key_path
+
+
+def extract_slp_from_docker(ip: str, key_path: str):
+    """
+    SSH into the EC2 VM and extract .slp files from the running container to the EC2 host filesystem.
+
+    Args:
+        ip (str): The public IP address of the EC2 instance.
+        key_path (str): The path to the SSH private key file for connecting to the instance.
+    """
+    cmd = (
+        "cid=$(docker ps -q | head -n1) && "
+        "mkdir -p /home/ubuntu/slp_files && "
+        "docker cp $cid:/home/client/Desktop/. /home/ubuntu/slp_files 2>/dev/null || echo 'No files copied'"
+    )
+
+    ssh_cmd = [
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-i",
+        key_path,
+        f"ubuntu@{ip}",
+        cmd,
+    ]
+
+    subprocess.run(ssh_cmd, check=True)
