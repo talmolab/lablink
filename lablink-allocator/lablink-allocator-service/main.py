@@ -15,7 +15,11 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
-from utils.analytics_utils import get_instance_ips, get_ssh_key_pairs
+from utils.analytics_utils import (
+    get_instance_ips,
+    get_ssh_key_pairs,
+    extract_slp_from_docker,
+)
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -307,17 +311,26 @@ def download_all_data():
                 vm_dir = Path(temp_dir) / f"vm_{i + 1}"
                 vm_dir.mkdir(parents=True, exist_ok=True)
 
+                logger.info(f"Extracting .slp files from container on {ip}...")
+
+                # Extract files from the Docker container
+                try:
+                    extract_slp_from_docker(ip=ip, key_path=key_path)
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Error extracting .slp files from {ip}: {e}")
+                    continue
+
                 scp_cmd = [
                     "scp",
                     "-o",
                     "StrictHostKeyChecking=no",
                     "-i",
                     key_path,
-                    f"ubuntu@{ip}:'/home/client/Desktop/**/*.slp'",  # adjust if your .slp files are in specific folders
+                    f"ubuntu@{ip}:'/home/ubuntu/slp_files/**/*.slp'",
                     vm_dir.as_posix(),
                 ]
 
-                # Run the SCP command to copy files
+                # Run the SCP command to copy only .slp files from the VM
                 subprocess.run(" ".join(scp_cmd), shell=True, check=True)
                 logger.debug(f"Data downloaded to {vm_dir}")
 
