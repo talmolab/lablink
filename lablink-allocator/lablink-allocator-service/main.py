@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 import shutil
+from zipfile import ZipFile
 
 from flask import Flask, request, jsonify, render_template, send_file
 from flask_httpauth import HTTPBasicAuth
@@ -15,11 +16,12 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
-from utils.analytics_utils import (
+from utils.scp import (
     get_instance_ips,
     get_ssh_key_pairs,
     extract_slp_from_docker,
-    has_slp_files,
+    scp_slp_files_to_local,
+    find_slp_files_in_container,
 )
 
 app = Flask(__name__)
@@ -316,37 +318,44 @@ def download_all_data():
                 logger.info(f"Extracting .slp files from container on {ip}...")
 
                 # Extract files from the Docker container and copy them to /home/ubuntu/slp_files in the allocator VM
-                try:
-                    extract_slp_from_docker(ip=ip, key_path=key_path)
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"Error extracting .slp files from {ip}: {e}")
+                slp_files = find_slp_files_in_container(ip=ip, key_path=key_path)
+                if len(slp_files) == 0:
+                    logger.warning(f"No .slp files found in container on {ip}.")
                     continue
-
-                scp_cmd = [
-                    "scp",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-i",
-                    key_path,
-                    f"ubuntu@{ip}:'/home/ubuntu/slp_files/*.slp'",
-                    vm_dir.as_posix(),
-                ]
-
-                if has_slp_files(ip, key_path):
-                    logger.debug(f"Copying .slp files from {ip} to {vm_dir}")
-                    # Run the SCP command to copy only .slp files from the VM
-                    subprocess.run(" ".join(scp_cmd), shell=True, check=True)
-                    logger.debug(f"Data downloaded to {vm_dir}")
                 else:
-                    logger.info(f"No .slp files found on VM {ip}. Skipping...")
+                    logger.debug(
+                        f"Found {len(slp_files)} .slp files in container on {ip}."
+                    )
+                    extract_slp_from_docker(
+                        ip=ip,
+                        key_path=key_path,
+                        slp_files=slp_files,
+                    )
+                logger.debug(f"Copying .slp files from {ip} to {vm_dir}...")
 
+                # Copy the extracted .slp files to the allocator VM's local directory
+                scp_slp_files_to_local(
+                    ip=ip,
+                    key_path=key_path,
+                    local_dir=vm_dir.as_posix(),
+                    vm_dir=vm_dir,
+                )
+
+            logger.debug(f"All .slp files copied to {temp_dir}.")
             # Create a zip file of the downloaded data
-            zip_base = Path(temp_dir) / "lablink_client_data"
-            logger.debug(f"Creating zip archive at {zip_base}...")
-            shutil.make_archive(zip_base, "zip", root_dir=temp_dir, base_dir=".")
+            zip_file = Path(tempfile.gettempdir()) / "lablink_data.zip"
 
-            zip_file = zip_base.with_suffix(".zip")
-            logger.debug(f"Zip archive created successfully at {zip_file}.")
+            with ZipFile(zip_file, "w") as archive:
+                for vm_dir in Path(temp_dir).iterdir():
+                    if vm_dir.is_dir():
+                        logger.debug(f"Zipping data for VM: {vm_dir.name}")
+                        for slp_file in vm_dir.glob("*.slp"):
+                            logger.debug(f"Adding {slp_file.name} to zip archive.")
+                            # Add with relative path inside zip
+                            archive.write(
+                                slp_file, arcname=f"{vm_dir.name}/{slp_file.name}"
+                            )
+            logger.debug("All data downloaded and zipped successfully.")
             return send_file(zip_file, as_attachment=True)
 
     except subprocess.CalledProcessError as e:
