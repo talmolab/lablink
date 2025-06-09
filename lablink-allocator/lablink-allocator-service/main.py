@@ -313,7 +313,7 @@ def download_all_data():
 
                 logger.info(f"Extracting .slp files from container on {ip}...")
 
-                # Extract files from the Docker container
+                # Extract files from the Docker container and copy them to /home/ubuntu/slp_files in the allocator VM
                 try:
                     extract_slp_from_docker(ip=ip, key_path=key_path)
                 except subprocess.CalledProcessError as e:
@@ -326,7 +326,7 @@ def download_all_data():
                     "StrictHostKeyChecking=no",
                     "-i",
                     key_path,
-                    f"ubuntu@{ip}:'/home/ubuntu/slp_files/**/*.slp'",
+                    f"ubuntu@{ip}:'/home/ubuntu/slp_files/*.slp'",
                     vm_dir.as_posix(),
                 ]
 
