@@ -340,10 +340,13 @@ def download_all_data():
                     logger.info(f"No .slp files found on VM {ip}. Skipping...")
 
             # Create a zip file of the downloaded data
-            zip_path = Path(temp_dir) / "lablink_data.zip"
-            shutil.make_archive(zip_path.stem, "zip", temp_dir)
+            zip_base = Path(temp_dir) / "lablink_client_data"
+            logger.debug(f"Creating zip archive at {zip_base}...")
+            shutil.make_archive(zip_base, "zip", temp_dir)
 
-            return send_file(zip_path, as_attachment=True)
+            zip_file = zip_base.with_suffix(".zip")
+            logger.debug(f"Zip archive created successfully at {zip_file}.")
+            return send_file(zip_file, as_attachment=True)
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error downloading data: {e}")
