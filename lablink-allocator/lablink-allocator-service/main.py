@@ -282,7 +282,6 @@ def destroy():
 
 
 @app.route("/vm_startup", methods=["POST"])
-@auth.login_required
 def vm_startup():
     data = request.get_json()
     hostname = data.get("hostname")
@@ -301,6 +300,7 @@ def vm_startup():
 
 
 @app.route("/api/download-analytics", methods=["GET"])
+@auth.login_required
 def download_all_data():
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
