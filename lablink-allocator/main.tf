@@ -1,18 +1,13 @@
 provider "aws" {
   region = "us-west-2" # Change this to your preferred region
-
-  # Replace with your AWS credentials when testing in local
-  # access_key = "access_key"
-  # secret_key = "secret_key"
-  # token      = "token"
 }
 
 resource "aws_security_group" "allow_http" {
-  name = "allows-5000-22"
+  name = "allows-80-22"
 
   ingress {
-    from_port   = 5000
-    to_port     = 5000
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -47,7 +42,7 @@ resource "aws_instance" "lablink_allocator_server" {
               systemctl enable docker
               docker login ghcr.io -u USERNAME -p GITHUB_TOKEN
               docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+              docker run -d -p 80:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               EOF
 
   tags = {
