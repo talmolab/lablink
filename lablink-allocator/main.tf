@@ -1,3 +1,10 @@
+variable "resource_suffix" {
+    description = "Suffix to append to all resources"
+    type        = string
+    default     = "prod"
+}
+
+
 provider "aws" {
   region = "us-west-2" # Change this to your preferred region
 }
