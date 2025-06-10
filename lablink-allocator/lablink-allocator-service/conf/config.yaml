@@ -9,7 +9,7 @@ db:
 
 machine:
   machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64"
+  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64-test"
 
 app:
   admin_user: "admin"
