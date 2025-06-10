@@ -45,7 +45,14 @@ resource "aws_instance" "lablink_allocator_server" {
   }
 }
 
+resource "aws_eip" "lablink_allocator_ip" {}
+
+resource "aws_eip_association" "lablink_allocator_ip_assoc" {
+  instance_id   = aws_instance.lablink_allocator_server.id
+  allocation_id = aws_eip.lablink_allocator_ip.id
+}
+
 output "ec2_public_ip" {
-  value = aws_instance.lablink_allocator_server.public_ip
+  value = aws_eip.lablink_allocator_ip.public_ip
 }
 
