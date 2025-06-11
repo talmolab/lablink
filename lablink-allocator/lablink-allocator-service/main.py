@@ -351,7 +351,7 @@ def download_all_data():
                 for vm_dir in Path(temp_dir).iterdir():
                     if vm_dir.is_dir():
                         logger.debug(f"Zipping data for VM: {vm_dir.name}")
-                        for slp_file in vm_dir.glob("*.slp"):
+                        for slp_file in vm_dir.rglob("*.slp"):
                             logger.debug(f"Adding {slp_file.name} to zip archive.")
                             # Add with relative path inside zip
                             archive.write(

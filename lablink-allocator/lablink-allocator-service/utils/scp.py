@@ -158,6 +158,7 @@ def scp_slp_files_to_local(ip: str, key_path: str, local_dir: str, vm_dir: str) 
     """
     scp_cmd = [
         "scp",
+        "-r",
         "-o",
         "StrictHostKeyChecking=no",
         "-i",
