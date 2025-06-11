@@ -62,9 +62,22 @@
     function handleSubmit() {
       const button = document.getElementById("destroy-btn");
       const message = document.getElementById("loading-message");
+      const extractBtn = document.getElementById("extract-btn");
+
+      // Hide extract-related messages
+      document.getElementById("extract-loading").classList.add("d-none");
+      document.getElementById("extract-success").classList.add("d-none");
+      document.getElementById("extract-error").classList.add("d-none");
+
+      // Show loading message
       button.disabled = true;
       button.innerText = "Destroying...";
       message.classList.remove("d-none");
+
+      // Disable extract button
+      extractBtn.disabled = true;
+      extractBtn.classList.add("disabled");
+
       return true;
     }
 
@@ -77,14 +90,17 @@
       const success = document.getElementById("extract-success");
       const error = document.getElementById("extract-error");
 
+      // Disable buttons and show loading state
       btn.disabled = true;
       btn.innerText = "Extracting...";
       btn.classList.add("disabled");
+      success.classList.add("d-none");
+      error.classList.add("d-none");
+
+      // Disable destroy button
       destroyBtn.disabled = true;
       destroyBtn.classList.add("disabled");
       loading.classList.remove("d-none");
-      success.classList.add("d-none");
-      error.classList.add("d-none");
 
       window.location.href = "/api/scp-client";
 
