@@ -391,7 +391,7 @@ def download_all_data():
 @app.route("/api/unassigned_vms_count", methods=["GET"])
 def get_instance_counts():
     """Get the counts of all instance types."""
-    instance_counts = get_all_instance_types()
+    instance_counts = len(database.get_unassigned_vms())
     return jsonify(instance_counts), 200
 
 
