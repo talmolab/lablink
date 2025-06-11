@@ -394,7 +394,7 @@ def download_all_data():
 def get_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
-    return jsonify(instance_counts), 200
+    return jsonify(count=instance_counts), 200
 
 
 if __name__ == "__main__":
