@@ -300,7 +300,7 @@ def vm_startup():
     return jsonify(result), 200
 
 
-@app.route("/api/download-analytics", methods=["GET"])
+@app.route("/api/scp-client", methods=["GET"])
 @auth.login_required
 def download_all_data():
     try:

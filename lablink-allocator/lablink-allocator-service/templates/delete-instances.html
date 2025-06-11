@@ -25,6 +25,9 @@
       border-radius: 8px;
       cursor: pointer;
     }
+    button.extract {
+      background-color: #007bff;
+    }
     button:hover {
       background-color: #a71d2a;
     }
@@ -44,6 +47,21 @@
       </div>
   </form>
 
+  <form id="extract-form">
+    <button id="extract-btn" type="submit" class="extract">
+      Extract and Download .slp Files
+    </button>
+    <div id="extract-loading" style="display: none; margin-top: 10px; color: gray;">
+      Extracting .slp files from VMs... please wait.
+    </div>
+    <div id="extract-success" style="display: none; margin-top: 10px; color: green;">
+      Download complete.
+    </div>
+    <div id="extract-error" style="display: none; margin-top: 10px; color: red;">
+      Extraction failed.
+    </div>
+  </form>
+
   <script>
     function handleSubmit() {
       const button = document.getElementById("destroy-btn");
@@ -54,6 +72,45 @@
       message.style.display = "block";
       return true;
     }
+
+    document.getElementById("extract-form").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById("extract-btn");
+      const loading = document.getElementById("extract-loading");
+      const success = document.getElementById("extract-success");
+      const error = document.getElementById("extract-error");
+
+      btn.disabled = true;
+      btn.innerText = "Extracting...";
+      btn.style.cursor = "not-allowed";
+      loading.style.display = "block";
+      success.style.display = "none";
+      error.style.display = "none";
+
+      try {
+        const response = await fetch("/api/scp-client", {
+          method: "POST"
+        });
+
+        loading.style.display = "none";
+
+        if (response.ok) {
+          success.style.display = "block";
+          btn.innerText = "Extract .slp Files from Clients' VMs";
+          btn.disabled = false;
+          btn.style.cursor = "pointer";
+        } else {
+          throw new Error("Extraction failed.");
+        }
+      } catch (err) {
+        loading.style.display = "none";
+        error.style.display = "block";
+        btn.innerText = "Extract .slp Files";
+        btn.disabled = false;
+        btn.style.cursor = "pointer";
+      }
+    });
   </script>
 </body>
 </html>
