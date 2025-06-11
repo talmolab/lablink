@@ -3,10 +3,18 @@ name: Terraform Deploy
 on:
   push:
     branches:
-      - "**" # Runs on all branches
+      - test
+      - main
+
+  workflow_dispatch:  # Manual trigger for dev
+    inputs:
+      environment:
+        description: 'Environment to deploy (must be "dev")'
+        required: true
+        default: dev
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write
   contents: read
 
 jobs:
@@ -34,34 +42,57 @@ jobs:
 
       - name: Set permissions for the private key
         run: chmod 600 ~/ec2-key.pem
-      - name: Terraform Init
-        run: terraform init
-        working-directory: lablink-allocator
+
+      - name: Determine Environment
+        id: setenv
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "test" ]; then
+            echo "env=test" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported branch or manual input"
+            exit 1
+          fi
+
+      - name: Terraform Init (with optional backend config)
+        run: |
+          cd lablink-allocator
+          if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
+            terraform init
+          else
+            terraform init -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl
+          fi
 
       - name: Terraform Format
         run: terraform fmt -check
         working-directory: lablink-allocator
+
       - name: Terraform Validate
         run: terraform validate
         working-directory: lablink-allocator
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -var="resource_suffix=${{ steps.setenv.outputs.env }}"
         working-directory: lablink-allocator
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
         working-directory: lablink-allocator
-        continue-on-error: true # Allow failure to move on to cleanup
+        continue-on-error: true
 
       - name: Get EC2 Public IP and write to config
         id: get_ip
         run: |
           EC2_IP=$(terraform output -raw ec2_public_ip)
           echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
+        working-directory: lablink-allocator
 
       - name: Terraform Destroy on Failure
         if: steps.apply.outcome == 'failure'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
         working-directory: lablink-allocator
+

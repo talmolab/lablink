@@ -4,13 +4,12 @@ variable "resource_suffix" {
   default     = "prod"
 }
 
-
 provider "aws" {
-  region = "us-west-2" # Change this to your preferred region
+  region = "us-west-2"
 }
 
 resource "aws_security_group" "allow_http" {
-  name = "allows-80-22"
+  name = "allow_http_${var.resource_suffix}"
 
   ingress {
     from_port   = 80
@@ -26,12 +25,15 @@ resource "aws_security_group" "allow_http" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "allow_http_${var.resource_suffix}"
   }
 }
 
@@ -39,7 +41,7 @@ resource "aws_instance" "lablink_allocator_server" {
   ami             = "ami-0e096562a04af2d8b"
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.allow_http.name]
-  key_name        = "sleap-lablink" # Replace with your EC2 key pair
+  key_name        = "sleap-lablink"
 
   user_data = <<-EOF
               #!/bin/bash
@@ -48,11 +50,16 @@ resource "aws_instance" "lablink_allocator_server" {
               EOF
 
   tags = {
-    Name = "lablink_allocator_server"
+    Name        = "lablink_allocator_server_${var.resource_suffix}"
+    Environment = var.resource_suffix
   }
 }
 
-resource "aws_eip" "lablink_allocator_ip" {}
+resource "aws_eip" "lablink_allocator_ip" {
+  tags = {
+    Name = "lablink_allocator_ip_${var.resource_suffix}"
+  }
+}
 
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
