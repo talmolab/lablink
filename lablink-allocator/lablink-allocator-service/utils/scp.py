@@ -167,6 +167,7 @@ def rsync_slp_files_to_local(
         "**.slp",
         "--exclude",
         "*",
+        "-e",
         f"ssh -o StrictHostKeyChecking=no -i {key_path}",
         f"ubuntu@{ip}:/home/ubuntu/slp_files/",
         f"{local_dir}/",
