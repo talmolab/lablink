@@ -148,7 +148,9 @@ def has_slp_files(ip: str, key_path: str) -> bool:
     return result.stdout.strip() == "exists"
 
 
-def scp_slp_files_to_local(ip: str, key_path: str, local_dir: str, vm_dir: str) -> None:
+def rsync_slp_files_to_local(
+    ip: str, key_path: str, local_dir: str, vm_dir: str
+) -> None:
     """Copy .slp files from the target VM to the local directory.
     Args:
         ip (str): The public IP address of the EC2 instance.
@@ -156,21 +158,27 @@ def scp_slp_files_to_local(ip: str, key_path: str, local_dir: str, vm_dir: str) 
         local_dir (str): The local directory where the .slp files will be copied.
         vm_dir (str): The directory on the VM where the .slp files are stored.
     """
-    scp_cmd = [
-        "scp",
-        "-r",
+    cmd = [
+        "rsync",
+        "-avz",
         "-o",
         "StrictHostKeyChecking=no",
         "-i",
         key_path,
         f"ubuntu@{ip}:/home/ubuntu/slp_files/",
         local_dir,
+        "--include",
+        "*/",
+        "--include",
+        "*.slp",
+        "--exclude",
+        "*",
     ]
 
     if has_slp_files(ip, key_path):
         logger.debug(f"Copying .slp files from {ip} to {vm_dir}")
         # Run the SCP command to copy only .slp files from the VM
-        subprocess.run(scp_cmd, check=True)
+        subprocess.run(cmd, check=True)
         logger.debug(f"Data downloaded to {vm_dir}")
     else:
         logger.info(f"No .slp files found on VM {ip}. Skipping...")

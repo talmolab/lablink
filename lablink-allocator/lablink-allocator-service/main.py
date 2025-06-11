@@ -19,7 +19,7 @@ from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
-    scp_slp_files_to_local,
+    rsync_slp_files_to_local,
     find_slp_files_in_container,
 )
 
@@ -336,7 +336,7 @@ def download_all_data():
                 logger.debug(f"Copying .slp files from {ip} to {vm_dir}...")
 
                 # Copy the extracted .slp files to the allocator VM's local directory
-                scp_slp_files_to_local(
+                rsync_slp_files_to_local(
                     ip=ip,
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
