@@ -161,18 +161,16 @@ def rsync_slp_files_to_local(
     cmd = [
         "rsync",
         "-avz",
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-i",
-        key_path,
-        f"ubuntu@{ip}:/home/ubuntu/slp_files/",
-        local_dir,
         "--include",
         "*/",
         "--include",
         "*.slp",
         "--exclude",
         "*",
+        "-e",
+        f"ssh -o StrictHostKeyChecking=no -i {key_path}",
+        f"ubuntu@{ip}:/home/ubuntu/slp_files/",
+        f"{local_dir}/",
     ]
 
     if has_slp_files(ip, key_path):
