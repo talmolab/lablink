@@ -303,6 +303,9 @@ def vm_startup():
 @app.route("/api/scp-client", methods=["GET"])
 @auth.login_required
 def download_all_data():
+    if database.get_row_count() == 0:
+        logger.warning("No VMs found in the database.")
+        return jsonify({"error": "No VMs found in the database."}), 404
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
