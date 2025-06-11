@@ -355,7 +355,7 @@ def download_all_data():
                             logger.debug(f"Adding {slp_file.name} to zip archive.")
                             # Add with relative path inside zip
                             archive.write(
-                                slp_file, arcname=f"{vm_dir.name}/{slp_file.name}"
+                                slp_file, arcname=slp_file.relative_to(temp_dir)
                             )
             logger.debug("All data downloaded and zipped successfully.")
             return send_file(zip_file, as_attachment=True)
