@@ -388,6 +388,13 @@ def download_all_data():
         return jsonify({"error": "Failed to download data from VMs."}), 500
 
 
+@app.route("/api/unassigned_vms_count", methods=["GET"])
+def get_instance_counts():
+    """Get the counts of all instance types."""
+    instance_counts = get_all_instance_types()
+    return jsonify(instance_counts), 200
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
