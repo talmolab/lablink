@@ -8,6 +8,18 @@ provider "aws" {
   region = "us-west-2"
 }
 
+# Generate a new private key
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Register the public key with AWS
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink-key-${var.resource_suffix}"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
 resource "aws_security_group" "allow_http" {
   name = "allow_http_${var.resource_suffix}"
 
@@ -41,7 +53,7 @@ resource "aws_instance" "lablink_allocator_server" {
   ami             = "ami-0e096562a04af2d8b"
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.allow_http.name]
-  key_name        = "sleap-lablink"
+  key_name        = aws_key_pair.lablink_key_pair.key_name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -70,3 +82,12 @@ output "ec2_public_ip" {
   value = aws_eip.lablink_allocator_ip.public_ip
 }
 
+output "private_key_pem" {
+  value     = tls_private_key.lablink_key.private_key_pem
+  sensitive = true
+}
+
+output "ec2_key_name" {
+  value       = aws_key_pair.lablink_key_pair.key_name
+  description = "The name of the EC2 key used for the allocator"
+}
