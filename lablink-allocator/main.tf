@@ -38,6 +38,7 @@ resource "aws_instance" "lablink_allocator_server" {
               #!/bin/bash
               apt update -y
               apt install -y docker.io
+              apt install -y rsync
               systemctl start docker
               systemctl enable docker
               docker login ghcr.io -u USERNAME -p GITHUB_TOKEN
