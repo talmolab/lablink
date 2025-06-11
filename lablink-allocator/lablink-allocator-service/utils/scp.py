@@ -163,7 +163,7 @@ def scp_slp_files_to_local(ip: str, key_path: str, local_dir: str, vm_dir: str) 
         "StrictHostKeyChecking=no",
         "-i",
         key_path,
-        f"ubuntu@{ip}:/home/ubuntu/slp_files/*.slp",
+        f"ubuntu@{ip}:/home/ubuntu/slp_files/",
         local_dir,
     ]
 
