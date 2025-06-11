@@ -66,8 +66,19 @@ output "lablink_private_key_pem" {
   sensitive   = true
 }
 
+variable "key_name" {
+  type        = string
+  description = "EC2 key name to use for instances"
+}
+
+variable "resource_suffix" {
+  type        = string
+  default     = "client"
+  description = "Suffix to ensure uniqueness"
+}
+
 resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_sg_"
+  name        = "lablink_sg_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
 
   ingress {
@@ -107,7 +118,7 @@ resource "aws_instance" "lablink_vm" {
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
-  key_name               = aws_key_pair.lablink_key_pair.key_name
+  key_name               = var.key_name
 
   root_block_device {
     volume_size = 40
