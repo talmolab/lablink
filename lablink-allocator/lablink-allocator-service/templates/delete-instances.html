@@ -72,6 +72,7 @@
       e.preventDefault();
 
       const btn = document.getElementById("extract-btn");
+      const destroyBtn = document.getElementById("destroy-btn");
       const loading = document.getElementById("extract-loading");
       const success = document.getElementById("extract-success");
       const error = document.getElementById("extract-error");
@@ -79,29 +80,22 @@
       btn.disabled = true;
       btn.innerText = "Extracting...";
       btn.classList.add("disabled");
+      destroyBtn.disabled = true;
+      destroyBtn.classList.add("disabled");
       loading.classList.remove("d-none");
       success.classList.add("d-none");
       error.classList.add("d-none");
 
-      try {
-        const response = await fetch("/api/scp-client", {
-          method: "GET"
-        });
+      window.location.href = "/api/scp-client";
 
+      setTimeout(() => {
         loading.classList.add("d-none");
-
-        if (response.ok) {
-          success.classList.remove("d-none");
-        } else {
-          throw new Error("Extraction failed.");
-        }
-      } catch (err) {
-        error.classList.remove("d-none");
-      } finally {
         btn.disabled = false;
         btn.innerText = "Extract and Download .slp Files";
         btn.classList.remove("disabled");
-      }
+        destroyBtn.disabled = false;
+        destroyBtn.classList.remove("disabled");
+      }, 10000);
     });
   </script>
 </body>
