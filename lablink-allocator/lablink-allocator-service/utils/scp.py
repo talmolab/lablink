@@ -102,11 +102,16 @@ def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
 
 def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> None:
     """
-    SSH into the EC2 VM and extract .slp files from the running container to the EC2 host filesystem.
+    SSH into the EC2 VM and extract .slp files from the running container to the EC2 host file system
+    under /home/ubuntu/slp_files.
 
     Args:
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file for connecting to the instance.
+        slp_files (list[str]): A list of .slp file paths to extract from the container.
+
+    Raises:
+        subprocess.CalledProcessError: If the SSH command fails.
     """
     for file in slp_files:
         rel_path = file.replace("/home/client/Desktop/", "")
@@ -134,7 +139,12 @@ def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> Non
 
 
 def has_slp_files(ip: str, key_path: str) -> bool:
-    """Check if the target VM has .slp files in /home/ubuntu/slp_files."""
+    """Check if the target VM has .slp files in /home/ubuntu/slp_files.
+
+    Args:
+        ip (str): The public IP address of the EC2 instance.
+        key_path (str): The path to the SSH private key file for connecting to the instance.
+    """
     ssh_cmd = [
         "ssh",
         "-o",
@@ -148,15 +158,12 @@ def has_slp_files(ip: str, key_path: str) -> bool:
     return result.stdout.strip() == "exists"
 
 
-def rsync_slp_files_to_local(
-    ip: str, key_path: str, local_dir: str, vm_dir: str
-) -> None:
-    """Copy .slp files from the target VM to the local directory.
+def rsync_slp_files_to_allocator(ip: str, key_path: str, local_dir: str) -> None:
+    """Copy .slp files from the target VM's file system to the allocator's docker container.
     Args:
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file for connecting to the instance.
         local_dir (str): The local directory where the .slp files will be copied.
-        vm_dir (str): The directory on the VM where the .slp files are stored.
     """
     cmd = [
         "rsync",
@@ -174,9 +181,9 @@ def rsync_slp_files_to_local(
     ]
 
     if has_slp_files(ip, key_path):
-        logger.debug(f"Copying .slp files from {ip} to {vm_dir}")
+        logger.debug(f"Copying .slp files from {ip} to {local_dir}")
         # Run the SCP command to copy only .slp files from the VM
         subprocess.run(cmd, check=True)
-        logger.debug(f"Data downloaded to {vm_dir}")
+        logger.debug(f"Data downloaded to {local_dir}")
     else:
         logger.info(f"No .slp files found on VM {ip}. Skipping...")

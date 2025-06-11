@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 from zipfile import ZipFile
+from datetime import datetime
 
 from flask import Flask, request, jsonify, render_template, send_file
 from flask_httpauth import HTTPBasicAuth
@@ -19,7 +20,7 @@ from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
-    rsync_slp_files_to_local,
+    rsync_slp_files_to_allocator,
     find_slp_files_in_container,
 )
 
@@ -319,8 +320,10 @@ def download_all_data():
 
                 logger.info(f"Extracting .slp files from container on {ip}...")
 
-                # Extract files from the Docker container and copy them to /home/ubuntu/slp_files in the allocator VM
+                # Find slp files from the Docker container
                 slp_files = find_slp_files_in_container(ip=ip, key_path=key_path)
+
+                # If no .slp files are found, log a warning and continue to the next VM
                 if len(slp_files) == 0:
                     logger.warning(f"No .slp files found in container on {ip}.")
                     continue
@@ -328,6 +331,7 @@ def download_all_data():
                     logger.debug(
                         f"Found {len(slp_files)} .slp files in container on {ip}."
                     )
+                    # Extract .slp files from the Docker container
                     extract_slp_from_docker(
                         ip=ip,
                         key_path=key_path,
@@ -335,17 +339,18 @@ def download_all_data():
                     )
                 logger.debug(f"Copying .slp files from {ip} to {vm_dir}...")
 
-                # Copy the extracted .slp files to the allocator VM's local directory
-                rsync_slp_files_to_local(
+                # Copy the extracted .slp files to the allocator container's local directory
+                rsync_slp_files_to_allocator(
                     ip=ip,
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
-                    vm_dir=vm_dir,
                 )
 
             logger.debug(f"All .slp files copied to {temp_dir}.")
-            # Create a zip file of the downloaded data
-            zip_file = Path(tempfile.gettempdir()) / "lablink_data.zip"
+
+            # Create a zip file of the downloaded data with a timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            zip_file = Path(tempfile.gettempdir()) / f"lablink_data{timestamp}.zip"
 
             with ZipFile(zip_file, "w") as archive:
                 for vm_dir in Path(temp_dir).iterdir():
@@ -358,6 +363,8 @@ def download_all_data():
                                 slp_file, arcname=slp_file.relative_to(temp_dir)
                             )
             logger.debug("All data downloaded and zipped successfully.")
+
+            # Send the zip file as a response
             return send_file(zip_file, as_attachment=True)
 
     except subprocess.CalledProcessError as e:
