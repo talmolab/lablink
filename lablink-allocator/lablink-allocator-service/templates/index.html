@@ -53,6 +53,8 @@
   </body>
   <script>
     let currentCount = 0;
+    const submitBtn = document.querySelector('button[type="submit"]');
+
     document.addEventListener("DOMContentLoaded", function() {
       function updateUnassignedVmsCount() {
         fetch('/api/unassigned_vms_count')
@@ -60,7 +62,7 @@
           .then(data => {
             currentCount = data.count || 0;
             document.getElementById('unassigned_vms_count').textContent = currentCount;
-            document.getElementById('vms_available').style.display = currentCount > 0 ? 'block' : 'none';
+            submitBtn.disabled = currentCount === 0;
           }).catch(error => {
             console.error('Error fetching unassigned VMs count:', error);
             document.getElementById('vms_available').textContent = "Error fetching VM count";
@@ -70,15 +72,5 @@
       updateUnassignedVmsCount(); // Initial call to set the count on page load
       setInterval(updateUnassignedVmsCount, 5000); // Update every 5 seconds
     });
-
-    document.querySelector('form').addEventListener('submit', function(e) {
-      if (currentCount === 0) {
-        e.preventDefault();
-        alert("No available VMs at the moment. Please try again later.");
-      }
-    });
-
-    const submitBtn = document.querySelector('button[type="submit"]');
-    submitBtn.disabled = currentCount === 0;
   </script>
 </html>
