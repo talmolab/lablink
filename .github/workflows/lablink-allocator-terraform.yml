@@ -36,13 +36,6 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Store private key for EC2
-        run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
-        shell: bash
-
-      - name: Set permissions for the private key
-        run: chmod 600 ~/ec2-key.pem
-
       - name: Determine Environment
         id: setenv
         run: |
@@ -84,12 +77,18 @@ jobs:
         working-directory: lablink-allocator
         continue-on-error: true
 
-      - name: Get EC2 Public IP and write to config
-        id: get_ip
+      - name: Extract SSH key from Terraform output
+        if: steps.apply.outcome == 'success'
         run: |
+          cd lablink-allocator
+          terraform output -raw private_key_pem > ~/lablink-key.pem
+          chmod 600 ~/lablink-key.pem
+
+      - name: Output EC2 IP
+        run: |
+          cd lablink-allocator
           EC2_IP=$(terraform output -raw ec2_public_ip)
           echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
-        working-directory: lablink-allocator
 
       - name: Terraform Destroy on Failure
         if: steps.apply.outcome == 'failure'
