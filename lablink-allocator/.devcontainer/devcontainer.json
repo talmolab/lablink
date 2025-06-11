@@ -8,12 +8,8 @@
 		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 		"dockerfile": "../Dockerfile"
 	},
-	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-		"ghcr.io/devcontainers/features/python:1": {}
-	},
-	
-	"forwardPorts": [5000, 5432]
+
+	"forwardPorts": [5000]
 	  
 
 	
