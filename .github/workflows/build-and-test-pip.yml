@@ -3,6 +3,9 @@ name: Build and Test Client Service
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - lablink-client-base/lablink-client-service/**
+      - .github/workflows/build-and-test-pip.yml
 
 permissions:
   id-token: write
