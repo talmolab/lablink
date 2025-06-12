@@ -279,6 +279,8 @@ def launch():
             f"-var=instance_count={num_vms}",
         ]
 
+        logger.debug(f"Running command: {' '.join(apply_cmd)}")
+
         # Run the Terraform apply command
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
