@@ -187,8 +187,6 @@ def rsync_slp_files_to_allocator(ip: str, key_path: str, local_dir: str) -> None
         logger.debug(f"Copying .slp files from {ip} to {local_dir}")
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            if result.stderr:
-                logger.warning(f"Rsync stderr:\n{result.stderr}")
             logger.info(f"Rsync stdout:\n{result.stdout}")
             logger.debug(f"Data downloaded to {local_dir}")
         except subprocess.CalledProcessError as e:

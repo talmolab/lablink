@@ -6,7 +6,14 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    send_file,
+    after_this_request,
+)
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -364,7 +371,16 @@ def download_all_data():
                             )
             logger.debug("All data downloaded and zipped successfully.")
 
-            # Send the zip file as a response
+            # Send the zip file as a response and remove it after the request
+            @after_this_request
+            def remove_zip_file(response):
+                try:
+                    os.remove(zip_file)
+                    logger.debug(f"Removed zip file: {zip_file}")
+                except Exception as e:
+                    logger.error(f"Error removing zip file: {e}")
+                return response
+
             return send_file(zip_file, as_attachment=True)
 
     except subprocess.CalledProcessError as e:
