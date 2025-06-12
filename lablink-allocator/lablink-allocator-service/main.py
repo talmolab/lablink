@@ -48,6 +48,8 @@ PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
+key_name = os.getenv("ALLOCATOR_KEY_NAME")
 
 # Initialize the database connection
 database = PostgresqlDatabase(
