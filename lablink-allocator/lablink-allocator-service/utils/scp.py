@@ -71,6 +71,7 @@ def get_ssh_private_key(terraform_dir: str) -> str:
 
 def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
     """SSH into the EC2 VM and find all .slp files in the running Docker container.
+
     Args:
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file for connecting to the instance.
@@ -160,11 +161,13 @@ def has_slp_files(ip: str, key_path: str) -> bool:
 
 def rsync_slp_files_to_allocator(ip: str, key_path: str, local_dir: str) -> None:
     """Copy .slp files from the target VM's file system to the allocator's docker container.
+
     Args:
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file for connecting to the instance.
         local_dir (str): The local directory where the .slp files will be copied.
     """
+    logger.debug(f"Copying the .slp files from VM {ip} to allocator...")
     cmd = [
         "rsync",
         "-avz",
@@ -182,8 +185,15 @@ def rsync_slp_files_to_allocator(ip: str, key_path: str, local_dir: str) -> None
 
     if has_slp_files(ip, key_path):
         logger.debug(f"Copying .slp files from {ip} to {local_dir}")
-        # Run the SCP command to copy only .slp files from the VM
-        subprocess.run(cmd, check=True)
-        logger.debug(f"Data downloaded to {local_dir}")
+        try:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            if result.stderr:
+                logger.warning(f"Rsync stderr:\n{result.stderr}")
+            logger.info(f"Rsync stdout:\n{result.stdout}")
+            logger.debug(f"Data downloaded to {local_dir}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error copying .slp files from {ip}: {e}")
+            logger.error("Rsync stderr:\n" + e.stderr)
+            raise
     else:
         logger.info(f"No .slp files found on VM {ip}. Skipping...")

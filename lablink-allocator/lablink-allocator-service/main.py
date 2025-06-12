@@ -337,7 +337,7 @@ def download_all_data():
                         key_path=key_path,
                         slp_files=slp_files,
                     )
-                logger.debug(f"Copying .slp files from {ip} to {vm_dir}...")
+                logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
                 # Copy the extracted .slp files to the allocator container's local directory
                 rsync_slp_files_to_allocator(
@@ -346,7 +346,7 @@ def download_all_data():
                     local_dir=vm_dir.as_posix(),
                 )
 
-            logger.debug(f"All .slp files copied to {temp_dir}.")
+            logger.info(f"All .slp files copied to {temp_dir}.")
 
             # Create a zip file of the downloaded data with a timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
