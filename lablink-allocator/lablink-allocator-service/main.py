@@ -2,8 +2,18 @@ import os
 import logging
 import subprocess
 from pathlib import Path
+import tempfile
+from zipfile import ZipFile
+from datetime import datetime
 
-from flask import Flask, request, jsonify, render_template
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    send_file,
+    after_this_request,
+)
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -13,6 +23,13 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
+from utils.scp import (
+    get_instance_ips,
+    get_ssh_private_key,
+    extract_slp_from_docker,
+    rsync_slp_files_to_allocator,
+    find_slp_files_in_container,
+)
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -289,6 +306,86 @@ def vm_startup():
     )
 
     return jsonify(result), 200
+
+
+@app.route("/api/scp-client", methods=["GET"])
+@auth.login_required
+def download_all_data():
+    if database.get_row_count() == 0:
+        logger.warning("No VMs found in the database.")
+        return jsonify({"error": "No VMs found in the database."}), 404
+    try:
+        instance_ips = get_instance_ips(terraform_dir="terraform")
+        key_path = get_ssh_private_key(terraform_dir="terraform")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for i, ip in enumerate(instance_ips):
+                # Make temporary directory for each VM
+                logger.debug(f"Downloading data from VM {i + 1} at {ip}...")
+                vm_dir = Path(temp_dir) / f"vm_{i + 1}"
+                vm_dir.mkdir(parents=True, exist_ok=True)
+
+                logger.info(f"Extracting .slp files from container on {ip}...")
+
+                # Find slp files from the Docker container
+                slp_files = find_slp_files_in_container(ip=ip, key_path=key_path)
+
+                # If no .slp files are found, log a warning and continue to the next VM
+                if len(slp_files) == 0:
+                    logger.warning(f"No .slp files found in container on {ip}.")
+                    continue
+                else:
+                    logger.debug(
+                        f"Found {len(slp_files)} .slp files in container on {ip}."
+                    )
+                    # Extract .slp files from the Docker container
+                    extract_slp_from_docker(
+                        ip=ip,
+                        key_path=key_path,
+                        slp_files=slp_files,
+                    )
+                logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
+
+                # Copy the extracted .slp files to the allocator container's local directory
+                rsync_slp_files_to_allocator(
+                    ip=ip,
+                    key_path=key_path,
+                    local_dir=vm_dir.as_posix(),
+                )
+
+            logger.info(f"All .slp files copied to {temp_dir}.")
+
+            # Create a zip file of the downloaded data with a timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            zip_file = Path(tempfile.gettempdir()) / f"lablink_data{timestamp}.zip"
+
+            with ZipFile(zip_file, "w") as archive:
+                for vm_dir in Path(temp_dir).iterdir():
+                    if vm_dir.is_dir():
+                        logger.debug(f"Zipping data for VM: {vm_dir.name}")
+                        for slp_file in vm_dir.rglob("*.slp"):
+                            logger.debug(f"Adding {slp_file.name} to zip archive.")
+                            # Add with relative path inside zip
+                            archive.write(
+                                slp_file, arcname=slp_file.relative_to(temp_dir)
+                            )
+            logger.debug("All data downloaded and zipped successfully.")
+
+            # Send the zip file as a response and remove it after the request
+            @after_this_request
+            def remove_zip_file(response):
+                try:
+                    os.remove(zip_file)
+                    logger.debug(f"Removed zip file: {zip_file}")
+                except Exception as e:
+                    logger.error(f"Error removing zip file: {e}")
+                return response
+
+            return send_file(zip_file, as_attachment=True)
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error downloading data: {e}")
+        return jsonify({"error": "Failed to download data from VMs."}), 500
 
 
 if __name__ == "__main__":

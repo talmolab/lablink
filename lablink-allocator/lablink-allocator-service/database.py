@@ -68,6 +68,15 @@ class PostgresqlDatabase:
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
+    def get_row_count(self) -> int:
+        """Get the number of rows in the table.
+
+        Returns:
+            int: The number of rows in the table.
+        """
+        self.cursor.execute(f"SELECT COUNT(*) FROM {self.table_name};")
+        return self.cursor.fetchone()[0]
+
     def get_column_names(self, table_name=None) -> list:
         """Get the column names of a table.
 
