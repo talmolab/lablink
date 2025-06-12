@@ -58,7 +58,10 @@ resource "aws_instance" "lablink_allocator_server" {
   user_data = <<-EOF
               #!/bin/bash
               docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              docker run -d -p 80:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+              docker run -d -p 80:5000 \
+                -e ALLOCATOR_PUBLIC_IP=${aws_eip.lablink_allocator_ip.public_ip} \
+                -e ALLOCATOR_KEY_NAME=${aws_key_pair.lablink_key_pair.key_name} \
+                ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               EOF
 
   tags = {
