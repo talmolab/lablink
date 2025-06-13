@@ -50,7 +50,7 @@ variable "repository" {
   description = "GitHub repository URL for the Data Repository"
 }
 
-variable "client_vm_ami" {
+variable "client_ami_id" {
   type        = string
   description = "AMI ID for the client VM"
 }
@@ -104,7 +104,7 @@ resource "aws_key_pair" "lablink_key_pair" {
 
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
-  ami                    = var.client_vm_ami
+  ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
