@@ -5,42 +5,49 @@ provider "aws" {
   token      = var.aws_session_token
 }
 
-# -----------------------------
-# VARIABLES
-# -----------------------------
+variable "instance_count" {
+  type    = number
+  default = 1
+}
 
 variable "aws_access_key" {
-  description = "AWS Access Key"
   type        = string
+  description = "AWS Access Key"
   sensitive   = true
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Key"
   type        = string
+  description = "AWS Secret Key"
   sensitive   = true
 }
 
 variable "aws_session_token" {
-  description = "AWS Session Token"
   type        = string
+  description = "AWS Session Token"
   sensitive   = true
 }
 
 variable "allocator_ip" {
-  description = "IP address of the allocator server"
   type        = string
+  description = "IP address of the allocator server"
   sensitive   = true
 }
 
-variable "image_name" {
-  description = "Docker image to run in the client VM"
+variable "machine_type" {
   type        = string
+  description = "Type of the machine to be created"
+  default     = "t2.medium"
+}
+
+variable "image_name" {
+  type        = string
+  description = "VM Image Name to be used as client base image"
 }
 
 variable "repository" {
-  description = "Optional GitHub repository to clone inside the container"
   type        = string
+  description = "GitHub repository URL for the Data Repository"
 }
 
 variable "client_ami_id" {
@@ -56,46 +63,28 @@ output "lablink_private_key_pem" {
 }
 
 variable "key_name" {
-  description = "Name of pre-existing EC2 key pair to enable SSH access"
   type        = string
-}
-
-variable "machine_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t2.medium"
-}
-
-variable "instance_count" {
-  description = "Number of client VMs to launch"
-  type        = number
-  default     = 1
+  description = "EC2 key name to use for instances"
 }
 
 variable "resource_suffix" {
-  description = "Suffix to append to resource names"
   type        = string
   default     = "client"
+  description = "Suffix to ensure uniqueness"
 }
 
-# -----------------------------
-# SECURITY GROUP
-# -----------------------------
-
-resource "aws_security_group" "lablink_client_sg" {
+resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_sg_${var.resource_suffix}"
-  description = "Allow SSH and HTTP"
+  description = "Allow SSH and Docker ports"
 
   ingress {
-    description = "Allow SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] # You can restrict to your IP
   }
 
   ingress {
-    description = "Allow HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -103,7 +92,6 @@ resource "aws_security_group" "lablink_client_sg" {
   }
 
   egress {
-    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -111,16 +99,22 @@ resource "aws_security_group" "lablink_client_sg" {
   }
 }
 
-# -----------------------------
-# EC2 INSTANCES
-# -----------------------------
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink_key_pair_client"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
 
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
+  vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.lablink_client_sg.id]
 
   root_block_device {
     volume_size = 40
@@ -130,16 +124,29 @@ resource "aws_instance" "lablink_vm" {
   user_data = <<-EOF
               #!/bin/bash
 
-              docker pull ${var.image_name} || (echo "Docker pull failed" && exit 1)
-
-              export TUTORIAL_REPO_TO_CLONE="${var.repository}"
-
-              if [ -z "$TUTORIAL_REPO_TO_CLONE" ] || [ "$TUTORIAL_REPO_TO_CLONE" = "None" ]; then
-                echo "Starting container without repo..."
-                docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+              docker pull ${var.image_name}
+              if [ $? -ne 0 ]; then
+                  echo "Docker image pull failed!" >&2
+                  exit 1
               else
-                echo "Starting container with repo: $TUTORIAL_REPO_TO_CLONE"
-                docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
+                  echo "Docker image pulled successfully."
+              fi
+
+              export TUTORIAL_REPO_TO_CLONE=${var.repository}
+
+              if [ -z "$TUTORIAL_REPO_TO_CLONE" ] ||  [ "$TUTORIAL_REPO_TO_CLONE" = "None" ]; then
+                  echo "No repository specified, starting container without cloning."
+                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+              else
+                  echo "Cloning repository: $TUTORIAL_REPO_TO_CLONE"
+                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
+              fi
+
+              if [ $? -ne 0 ]; then
+                  echo "Docker run failed!" >&2
+                  exit 1
+              else
+                  echo "Docker container started."
               fi
               EOF
 
@@ -148,24 +155,12 @@ resource "aws_instance" "lablink_vm" {
   }
 }
 
-# -----------------------------
-# OUTPUTS
-# -----------------------------
-
 output "vm_instance_ids" {
-  description = "EC2 instance IDs"
+  description = "List of EC2 instance IDs created"
   value       = aws_instance.lablink_vm[*].id
 }
 
 output "vm_public_ips" {
-  description = "Public IPs of EC2 instances"
+  description = "List of public IPs assigned to the VMs"
   value       = aws_instance.lablink_vm[*].public_ip
-}
-
-output "ssh_commands" {
-  description = "SSH commands to access each instance"
-  value = [
-    for ip in aws_instance.lablink_vm[*].public_ip :
-    "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${ip}"
-  ]
 }
