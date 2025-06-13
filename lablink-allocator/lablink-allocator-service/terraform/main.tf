@@ -116,36 +116,8 @@ resource "aws_instance" "lablink_vm" {
 
   user_data = <<-EOF
               #!/bin/bash
-              apt update -y
-              apt upgrade -y
-
-              apt install -y build-essential dkms curl
-
-              apt install -y nvidia-driver-515
-
-              apt install -y docker.io
-              systemctl start docker
-              systemctl enable docker
-
-              curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey |sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-              && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
-              && sudo apt-get update -y
-
-              sudo apt-get install -y nvidia-container-toolkit
-
-              sudo nvidia-ctk runtime configure --runtime=docker
-
-              systemctl restart docker
-
-              nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
 
               docker pull ${var.image_name}
-              if [ $? -ne 0 ]; then
-                  echo "Docker image pull failed!" >&2
-                  exit 1
-              else
-                  echo "Docker image pulled successfully."
-              fi
 
               export TUTORIAL_REPO_TO_CLONE=${var.repository}
 

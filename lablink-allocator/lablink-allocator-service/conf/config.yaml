@@ -10,6 +10,7 @@ db:
 machine:
   machine_type: "g4dn.xlarge"
   image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64"
+  ami_id: "ami-0601752c11b394251"
 
 app:
   admin_user: "admin"
