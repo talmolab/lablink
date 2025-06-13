@@ -84,6 +84,11 @@ resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   allocation_id = data.aws_eip.lablink_allocator_ip.id
 }
 
+# Define the FQDN based on the resource suffix
+locals {
+  fqdn = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
+}
+
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
@@ -100,6 +105,12 @@ output "ec2_key_name" {
 output "private_key_pem" {
   value     = tls_private_key.lablink_key.private_key_pem
   sensitive = true
+}
+
+# Output the FQDN for the allocator
+output "allocator_fqdn" {
+  value       = local.fqdn
+  description = "The subdomain associated with the allocator EIP"
 }
 
 
