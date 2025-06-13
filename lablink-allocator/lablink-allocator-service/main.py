@@ -7,14 +7,7 @@ from zipfile import ZipFile
 from datetime import datetime
 import re
 
-from flask import (
-    Flask,
-    request,
-    jsonify,
-    render_template,
-    send_file,
-    after_this_request,
-)
+from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -24,13 +17,6 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
-from utils.scp import (
-    get_instance_ips,
-    get_ssh_private_key,
-    extract_slp_from_docker,
-    rsync_slp_files_to_allocator,
-    find_slp_files_in_container,
-)
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()

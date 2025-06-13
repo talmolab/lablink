@@ -99,16 +99,6 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
-resource "tls_private_key" "lablink_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "lablink_key_pair_client"
-  public_key = tls_private_key.lablink_key.public_key_openssh
-}
-
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
@@ -134,7 +124,7 @@ resource "aws_instance" "lablink_vm" {
 
               export TUTORIAL_REPO_TO_CLONE=${var.repository}
 
-              if [ -z "$TUTORIAL_REPO_TO_CLONE" ] ||  [ "$TUTORIAL_REPO_TO_CLONE" = "None" ]; then
+              if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo "No repository specified, starting container without cloning."
                   docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else

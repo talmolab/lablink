@@ -8,8 +8,6 @@ ENV DATABASE_URL=postgresql://lablink:lablink@localhost:5432/lablink_db
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     postgresql postgresql-contrib \
-    rsync \
-    openssh-client \
     libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
