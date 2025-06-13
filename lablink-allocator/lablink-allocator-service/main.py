@@ -36,7 +36,8 @@ users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "prod")  # default fallback
+ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
+
 
 
 # Initialize the database connection
