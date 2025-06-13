@@ -50,6 +50,11 @@ variable "repository" {
   description = "GitHub repository URL for the Data Repository"
 }
 
+variable "client_vm_ami" {
+  type        = string
+  description = "AMI ID for the client VM"
+}
+
 output "vm_public_ips" {
   value       = [for instance in aws_instance.lablink_vm : instance.public_ip]
   description = "Public IPs of the created VM instances"
@@ -99,7 +104,7 @@ resource "aws_key_pair" "lablink_key_pair" {
 
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
-  ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
+  ami                    = var.client_vm_ami
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
