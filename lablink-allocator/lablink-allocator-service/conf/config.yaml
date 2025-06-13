@@ -11,6 +11,7 @@ machine:
   machine_type: "g4dn.xlarge"
   image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64"
   ami_id: "ami-067cc81f948e50e06"
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
 
 app:
   admin_user: "admin"
