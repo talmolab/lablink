@@ -74,7 +74,7 @@ variable "resource_suffix" {
 }
 
 resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_sg_${var.resource_suffix}"
+  name        = "lablink_allocator_service_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
 
   ingress {
