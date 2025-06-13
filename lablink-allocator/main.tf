@@ -59,6 +59,7 @@ resource "aws_instance" "lablink_allocator_server" {
               #!/bin/bash
               docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               docker run -d -p 80:5000 \
+                -e ENVIRONMENT=${var.resource_suffix} \
                 -e ALLOCATOR_PUBLIC_IP=${data.aws_eip.lablink_allocator_ip.public_ip} \
                 -e ALLOCATOR_KEY_NAME=${aws_key_pair.lablink_key_pair.key_name} \
                 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test

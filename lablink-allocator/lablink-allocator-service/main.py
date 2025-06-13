@@ -36,6 +36,8 @@ users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "prod")  # default fallback
+
 
 # Initialize the database connection
 database = PostgresqlDatabase(
@@ -245,6 +247,7 @@ def launch():
 
         logger.debug(f"Allocator IP: {allocator_ip}")
         logger.debug(f"Key Name: {key_name}")
+        logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
@@ -254,6 +257,7 @@ def launch():
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
             f.write(f'key_name = "{key_name}"\n')
+            f.write(f'environment = "{ENVIRONMENT}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
