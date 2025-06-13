@@ -88,21 +88,40 @@ jobs:
         working-directory: lablink-allocator
         continue-on-error: true
 
-      - name: Extract SSH key from Terraform output
+      - name: Save PEM Key to Artifact
         if: steps.apply.outcome == 'success'
         run: |
           cd lablink-allocator
-          terraform output -raw private_key_pem > ~/lablink-key.pem
-          chmod 600 ~/lablink-key.pem
+          terraform output -raw private_key_pem > lablink-key.pem
+          chmod 600 lablink-key.pem
+          mkdir -p artifact-output
+          mv lablink-key.pem artifact-output/
+
+      - name: Upload PEM Artifact
+        if: steps.apply.outcome == 'success'
+        uses: actions/upload-artifact@v3
+        with:
+          name: lablink-key-${{ steps.setenv.outputs.env }}
+          path: artifact-output/lablink-key.pem
+          retention-days: 1
 
       - name: Output EC2 IP
+        if: steps.apply.outcome == 'success'
         run: |
           cd lablink-allocator
           EC2_IP=$(terraform output -raw ec2_public_ip)
+          echo "EC2 Public IP: $EC2_IP"
           echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
+
 
       - name: Terraform Destroy on Failure
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
         working-directory: lablink-allocator
 
+      - name: Deployment Summary
+        if: steps.apply.outcome == 'success'
+        run: |
+          echo "✅ Deployment succeeded!"
+          echo "Environment: ${{ steps.setenv.outputs.env }}"
+          jq -r .DB_HOST lablink-allocator/postgre_ip.json
