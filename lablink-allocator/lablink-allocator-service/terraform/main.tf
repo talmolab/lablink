@@ -111,7 +111,7 @@ resource "aws_instance" "lablink_vm" {
 
   root_block_device {
     volume_size = 40
-    volume_type = "gp2"
+    volume_type = "gp3"
   }
 
   user_data = <<-EOF
