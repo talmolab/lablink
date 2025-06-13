@@ -29,18 +29,13 @@ resource "aws_security_group" "allow_http" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami             = "ami-00c257e12d6828491" # us-west-2 ubuntu id
+  ami             = "ami-0e096562a04af2d8b"
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.allow_http.name]
   key_name        = "sleap-lablink" # Replace with your EC2 key pair
 
   user_data = <<-EOF
               #!/bin/bash
-              apt update -y
-              apt install -y docker.io
-              systemctl start docker
-              systemctl enable docker
-              docker login ghcr.io -u USERNAME -p GITHUB_TOKEN
               docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               docker run -d -p 80:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               EOF
