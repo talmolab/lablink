@@ -25,7 +25,6 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 from utils.scp import (
-    get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
