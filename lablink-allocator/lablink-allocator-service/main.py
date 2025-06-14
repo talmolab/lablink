@@ -295,9 +295,15 @@ def destroy():
         database.clear_database()
         logger.debug("Database cleared successfully.")
 
-        return render_template("dashboard.html", output=result.stdout)
+        # Format the output to remove ANSI escape codes
+        clean_output = ANSI_ESCAPE.sub("", result.stdout)
+
+        return render_template("dashboard.html", output=clean_output)
     except subprocess.CalledProcessError as e:
-        return render_template("dashboard.html", error=e.stderr or e.stdout)
+        logger.error(f"Error during Terraform destroy: {e}")
+        error_output = e.stderr or e.stdout
+        clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        return render_template("dashboard.html", error=clean_output)
 
 
 @app.route("/vm_startup", methods=["POST"])
