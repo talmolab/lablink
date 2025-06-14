@@ -13,6 +13,7 @@
     <div class="container d-flex justify-content-center align-items-center min-vh-100">
       <div class="card shadow p-4" style="width: 100%; max-width: 500px;">
         <h2 class="text-center mb-4">Welcome to LabLink!</h2>
+        <p id="vms_available" class="text-center"> <span id="unassigned_vms_count"></span> VMs are available for assignment</p>
         {% if error %}
           <div class="alert alert-danger text-center" role="alert">
             {{ error }}
@@ -50,4 +51,24 @@
       </div>
     </div>
   </body>
+  <script>
+    let currentCount = 0;
+
+    document.addEventListener("DOMContentLoaded", function() {
+      function updateUnassignedVmsCount() {
+        fetch('/api/unassigned_vms_count')
+          .then(response => response.json())
+          .then(data => {
+            currentCount = data.count || 0;
+            document.getElementById('unassigned_vms_count').textContent = currentCount;
+          }).catch(error => {
+            console.error('Error fetching unassigned VMs count:', error);
+            document.getElementById('vms_available').textContent = "Error fetching VM count";
+          });
+      }
+
+      updateUnassignedVmsCount(); // Initial call to set the count on page load
+      setInterval(updateUnassignedVmsCount, 5000); // Update every 5 seconds
+    });
+  </script>
 </html>
