@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from zipfile import ZipFile
 from datetime import datetime
+import re
 
 from flask import (
     Flask,
@@ -46,6 +47,7 @@ cfg = get_config()
 PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Initialize the database connection
 database = PostgresqlDatabase(
@@ -259,10 +261,16 @@ def launch():
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
         )
 
-        return render_template("dashboard.html", output=result.stdout)
+        # Format the output to remove ANSI escape codes
+        clean_output = ANSI_ESCAPE.sub("", result.stdout)
+
+        return render_template("dashboard.html", output=clean_output)
 
     except subprocess.CalledProcessError as e:
-        return render_template("dashboard.html", error=e.stderr or e.stdout)
+        logger.error(f"Error during Terraform apply: {e}")
+        error_output = e.stderr or e.stdout
+        clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        return render_template("dashboard.html", error=clean_output)
 
 
 @app.route("/destroy", methods=["POST"])
