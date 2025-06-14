@@ -55,13 +55,6 @@ variable "client_ami_id" {
   description = "AMI ID for the client VM"
 }
 
-
-output "lablink_private_key_pem" {
-  description = "Private key used to access EC2 instances"
-  value       = tls_private_key.lablink_key.private_key_pem
-  sensitive   = true
-}
-
 variable "key_name" {
   type        = string
   description = "EC2 key name to use for instances"
@@ -145,6 +138,16 @@ resource "aws_instance" "lablink_vm" {
   }
 }
 
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink_key_pair_client"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
 output "vm_instance_ids" {
   description = "List of EC2 instance IDs created"
   value       = aws_instance.lablink_vm[*].id
@@ -153,4 +156,10 @@ output "vm_instance_ids" {
 output "vm_public_ips" {
   description = "List of public IPs assigned to the VMs"
   value       = aws_instance.lablink_vm[*].public_ip
+}
+
+output "lablink_private_key_pem" {
+  description = "Private key used to access EC2 instances"
+  value       = tls_private_key.lablink_key.private_key_pem
+  sensitive   = true
 }
