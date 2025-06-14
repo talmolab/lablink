@@ -7,7 +7,14 @@ from zipfile import ZipFile
 from datetime import datetime
 import re
 
-from flask import Flask, request, jsonify, render_template
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    send_file,
+    after_this_request,
+)
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -17,6 +24,13 @@ import requests
 from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
+from utils.scp import (
+    get_instance_ips,
+    get_ssh_private_key,
+    extract_slp_from_docker,
+    rsync_slp_files_to_allocator,
+    find_slp_files_in_container,
+)
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -37,7 +51,6 @@ ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
-
 
 
 # Initialize the database connection
@@ -259,7 +272,6 @@ def launch():
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
             f.write(f'key_name = "{key_name}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
-
 
         # Apply with the new number of instances
         apply_cmd = [
