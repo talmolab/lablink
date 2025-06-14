@@ -233,6 +233,7 @@ def launch():
 
         logger.debug(f"Machine type: {cfg.machine.machine_type}")
         logger.debug(f"Image name: {cfg.machine.image}")
+        logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
         # Write the IP address to the terraform.tfvars file
@@ -241,6 +242,7 @@ def launch():
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
+            f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
