@@ -36,8 +36,8 @@ resource "aws_instance" "lablink_allocator_server" {
 
   user_data = <<-EOF
               #!/bin/bash
-              docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64
-              docker run -d -p 80:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64
+              docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
+              docker run -d -p 80:5000 ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
               EOF
 
   tags = {
