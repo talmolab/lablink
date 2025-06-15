@@ -159,7 +159,7 @@ def set_aws_credentials():
     os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key  # secret key
     os.environ["AWS_SESSION_TOKEN"] = aws_token  # session token
 
-    return jsonify({"message": "AWS credentials set successfully"}), 200
+    return render_template("admin.html", message="AWS credentials set successfully.")
 
 
 @app.route("/admin/instances")
