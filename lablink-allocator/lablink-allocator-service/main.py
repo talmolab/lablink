@@ -242,6 +242,17 @@ def launch():
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
+    # Check if the credentials file exists
+    credentials_file = terraform_dir / "terraform.credentials.tfvars"
+    if not credentials_file.exists():
+        logger.error(
+            "AWS credentials file not found. Please set AWS credentials first."
+        )
+        return render_template(
+            "dashboard.html",
+            credential_error="AWS credentials file not found.",
+        )
+
     try:
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
