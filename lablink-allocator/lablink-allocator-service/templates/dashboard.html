@@ -14,6 +14,11 @@
                 <h4 class="alert-heading">Terraform Script Ran Successfully!</h4>
                 <pre class="mb-0">{{ output }}</pre>
             </div>
+        {% elif credential_error %}
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">AWS Credentials Error</h4>
+                <p>AWS credentials file not found. Please set AWS credentials first in the <a href="/admin">Admin Panel</a>.</p>
+            </div>
         {% elif error %}
             <div class="alert alert-danger" role="alert">
                 <h4 class="alert-heading">Terraform Script Failed</h4>
