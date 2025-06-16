@@ -63,3 +63,16 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-latest
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-terraform-1.4.6
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-postgres-15
+
+      - name: Trigger Terraform Deploy
+        if: github.ref_name == 'main'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: deploy-prod-image
+          client-payload: >-
+            {
+              "environment": "prod",
+              "image_tag": "linux-amd64-${{ steps.get_sha.outputs.sha }}"
+            }

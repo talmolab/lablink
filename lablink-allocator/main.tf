@@ -49,6 +49,12 @@ resource "aws_security_group" "allow_http" {
   }
 }
 
+variable "allocator_image_tag" {
+  description = "Docker image tag for the lablink allocator"
+  type        = string
+  default     = "linux-amd64-latest-test"
+}
+
 resource "aws_instance" "lablink_allocator_server" {
   ami             = "ami-0e096562a04af2d8b"
   instance_type   = "t2.micro"
@@ -56,14 +62,15 @@ resource "aws_instance" "lablink_allocator_server" {
   key_name        = aws_key_pair.lablink_key_pair.key_name
 
   user_data = <<-EOF
-              #!/bin/bash
-              docker pull ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              docker run -d -p 80:5000 \
-                -e ENVIRONMENT=${var.resource_suffix} \
-                -e ALLOCATOR_PUBLIC_IP=${data.aws_eip.lablink_allocator_ip.public_ip} \
-                -e ALLOCATOR_KEY_NAME=${aws_key_pair.lablink_key_pair.key_name} \
-                ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test
-              EOF
+    #!/bin/bash
+    IMAGE="ghcr.io/talmolab/lablink-allocator-image:${var.allocator_image_tag}"
+    docker pull $IMAGE
+    docker run -d -p 80:5000 \
+      -e ENVIRONMENT=${var.resource_suffix} \
+      -e ALLOCATOR_PUBLIC_IP=${data.aws_eip.lablink_allocator_ip.public_ip} \
+      -e ALLOCATOR_KEY_NAME=${aws_key_pair.lablink_key_pair.key_name} \
+      $IMAGE
+  EOF
 
   tags = {
     Name        = "lablink_allocator_server_${var.resource_suffix}"

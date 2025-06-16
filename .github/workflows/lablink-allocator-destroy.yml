@@ -8,9 +8,18 @@ on:
         required: true
         default: "no"
         type: string
+      environment:
+        description: "Environment to destroy (dev, test, prod)"
+        required: true
+        default: "dev"
+        type: string
+      allocator_image_tag:
+        description: "Docker image tag used in deployment (required for prod)"
+        required: false
+        type: string
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write
   contents: read
 
 jobs:
@@ -33,17 +42,31 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Store private key for EC2
-        run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
-        shell: bash
-
-      - name: Set permissions for the private key
-        run: chmod 600 ~/ec2-key.pem
+      - name: Validate and determine image tag
+        id: resolve_image_tag
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
+            if [ -z "${{ github.event.inputs.allocator_image_tag }}" ]; then
+              echo "Error: allocator_image_tag must be provided for prod destruction"
+              exit 1
+            fi
+            echo "tag=${{ github.event.inputs.allocator_image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=linux-amd64-latest-test" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Terraform Init
-        run: terraform init
         working-directory: lablink-allocator
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
+            terraform init
+          else
+            terraform init -backend-config=backend-${{ github.event.inputs.environment }}.hcl
+          fi
 
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve
         working-directory: lablink-allocator
+        run: |
+          terraform destroy -auto-approve \
+            -var="resource_suffix=${{ github.event.inputs.environment }}" \
+            -var="allocator_image_tag=${{ steps.resolve_image_tag.outputs.tag }}"
