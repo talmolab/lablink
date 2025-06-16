@@ -8,9 +8,18 @@ on:
         required: true
         default: "no"
         type: string
+      environment:
+        description: "Environment to destroy (dev, test, prod)"
+        required: true
+        default: "dev"
+        type: string
+      allocator_image_tag:
+        description: "Docker image tag used in deployment (required for prod)"
+        required: false
+        type: string
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write
   contents: read
 
 jobs:
