@@ -55,11 +55,6 @@ variable "client_ami_id" {
   description = "AMI ID for the client VM"
 }
 
-variable "key_name" {
-  type        = string
-  description = "EC2 key name to use for instances"
-}
-
 variable "resource_suffix" {
   type        = string
   default     = "client"
@@ -67,7 +62,7 @@ variable "resource_suffix" {
 }
 
 resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_allocator_service_${var.resource_suffix}"
+  name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
 
   ingress {
@@ -97,8 +92,7 @@ resource "aws_instance" "lablink_vm" {
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
-  key_name               = var.key_name
-
+  key_name               = aws_key_pair.lablink_key_pair.key_name
   root_block_device {
     volume_size = 40
     volume_type = "gp3"
@@ -134,7 +128,7 @@ resource "aws_instance" "lablink_vm" {
               EOF
 
   tags = {
-    Name = "lablink-vm-${count.index + 1}"
+    Name = "lablink-vm-${var.resource_suffix}-${count.index + 1}"
   }
 }
 
@@ -144,7 +138,7 @@ resource "tls_private_key" "lablink_key" {
 }
 
 resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "lablink_key_pair_client"
+  key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
