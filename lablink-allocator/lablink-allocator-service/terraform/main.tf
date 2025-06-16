@@ -50,8 +50,19 @@ variable "repository" {
   description = "GitHub repository URL for the Data Repository"
 }
 
+variable "client_ami_id" {
+  type        = string
+  description = "AMI ID for the client VM"
+}
+
+variable "resource_suffix" {
+  type        = string
+  default     = "client"
+  description = "Suffix to ensure uniqueness"
+}
+
 resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_sg_"
+  name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
 
   ingress {
@@ -78,40 +89,17 @@ resource "aws_security_group" "lablink_sg_" {
 
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
-  ami                    = "ami-00c257e12d6828491" # Ubuntu 20.04 for us-west-2
+  ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
-  key_name               = "sleap-lablink" # Replace with your EC2 key pair
-
+  key_name               = aws_key_pair.lablink_key_pair.key_name
   root_block_device {
-    volume_size = 30
-    volume_type = "gp2"
+    volume_size = 40
+    volume_type = "gp3"
   }
 
   user_data = <<-EOF
               #!/bin/bash
-              apt update -y
-              apt upgrade -y
-
-              apt install -y build-essential dkms curl
-
-              apt install -y nvidia-driver-515
-
-              apt install -y docker.io
-              systemctl start docker
-              systemctl enable docker
-
-              curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey |sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-              && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
-              && sudo apt-get update -y
-
-              sudo apt-get install -y nvidia-container-toolkit
-
-              sudo nvidia-ctk runtime configure --runtime=docker
-
-              systemctl restart docker
-
-              nvidia-smi || echo "nvidia-smi failed, GPU may not be present"
 
               docker pull ${var.image_name}
               if [ $? -ne 0 ]; then
@@ -140,6 +128,32 @@ resource "aws_instance" "lablink_vm" {
               EOF
 
   tags = {
-    Name = "lablink-vm-${count.index + 1}"
+    Name = "lablink-vm-${var.resource_suffix}-${count.index + 1}"
   }
+}
+
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink_key_pair_client_${var.resource_suffix}"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
+output "vm_instance_ids" {
+  description = "List of EC2 instance IDs created"
+  value       = aws_instance.lablink_vm[*].id
+}
+
+output "vm_public_ips" {
+  description = "List of public IPs assigned to the VMs"
+  value       = aws_instance.lablink_vm[*].public_ip
+}
+
+output "lablink_private_key_pem" {
+  description = "Private key used to access EC2 instances"
+  value       = tls_private_key.lablink_key.private_key_pem
+  sensitive   = true
 }

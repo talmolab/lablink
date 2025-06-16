@@ -3,10 +3,21 @@ name: Terraform Deploy
 on:
   push:
     branches:
-      - "**" # Runs on all branches
+      - test
+      - main
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy (dev, test, prod)"
+        required: true
+        default: dev
+      image_tag:
+        description: "Docker image tag to deploy (only for prod)"
+        required: false
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write
   contents: read
 
 jobs:
@@ -28,40 +39,110 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Store private key for EC2
-        run: echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/ec2-key.pem
-        shell: bash
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
-      - name: Set permissions for the private key
-        run: chmod 600 ~/ec2-key.pem
+      - name: Determine Environment
+        id: setenv
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ github.event.inputs.environment }}" in
+              dev|test|prod)
+                echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "Unsupported environment: ${{ github.event.inputs.environment }}"
+                exit 1
+                ;;
+            esac
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "test" ]; then
+            echo "env=test" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported branch or manual input"
+            exit 1
+          fi
+
       - name: Terraform Init
-        run: terraform init
-        working-directory: lablink-allocator
+        run: |
+          cd lablink-allocator
+          if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
+            terraform init
+          else
+            terraform init -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl
+          fi
 
       - name: Terraform Format
         run: terraform fmt -check
         working-directory: lablink-allocator
+
       - name: Terraform Validate
         run: terraform validate
         working-directory: lablink-allocator
 
+      - name: Determine Image Tag
+        id: getimagetag
+        run: |
+          if [ "${{ steps.setenv.outputs.env }}" = "prod" ]; then
+            if [ -z "${{ github.event.inputs.image_tag }}" ]; then
+              echo "Error: image_tag must be provided for prod deployments"
+              exit 1
+            fi
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=linux-amd64-latest-test" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Terraform Plan
-        run: terraform plan
+        run: |
+          terraform plan \
+            -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
+            -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
         working-directory: lablink-allocator
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve
-        working-directory: lablink-allocator
-        continue-on-error: true # Allow failure to move on to cleanup
-
-      - name: Get EC2 Public IP and write to config
-        id: get_ip
         run: |
+          terraform apply -auto-approve \
+            -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
+            -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
+        working-directory: lablink-allocator
+        continue-on-error: true
+
+      - name: Save PEM Key to Artifact
+        if: steps.apply.outcome == 'success'
+        run: |
+          cd lablink-allocator
+          terraform output -raw private_key_pem > lablink-key.pem
+          chmod 600 lablink-key.pem
+          mkdir -p artifact-output
+          mv lablink-key.pem artifact-output/
+
+      - name: Upload PEM Artifact
+        if: steps.apply.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lablink-key-${{ steps.setenv.outputs.env }}
+          path: artifact-output/lablink-key.pem
+          retention-days: 1
+
+      - name: Output EC2 IP
+        if: steps.apply.outcome == 'success'
+        run: |
+          cd lablink-allocator
           EC2_IP=$(terraform output -raw ec2_public_ip)
+          echo "EC2 Public IP: $EC2_IP"
           echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
 
       - name: Terraform Destroy on Failure
         if: steps.apply.outcome == 'failure'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
         working-directory: lablink-allocator
+
+      - name: Deployment Summary
+        if: steps.apply.outcome == 'success'
+        run: |
+          echo "✅ Deployment succeeded!"
+          echo "Environment: ${{ steps.setenv.outputs.env }}"
+          jq -r .DB_HOST lablink-allocator/postgre_ip.json
