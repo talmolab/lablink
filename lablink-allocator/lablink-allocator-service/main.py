@@ -257,6 +257,7 @@ def launch():
             )
 
         logger.debug(f"Allocator IP: {allocator_ip}")
+        logger.debug(f"Key Name: {key_name}")
         logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
         # Write the runtime variables to the file
