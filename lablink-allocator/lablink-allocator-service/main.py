@@ -25,6 +25,7 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 from utils.scp import (
+    get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
@@ -370,7 +371,7 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips, _ = extract_allocator_outputs()
+        instance_ips, _ = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
 
         with tempfile.TemporaryDirectory() as temp_dir:
