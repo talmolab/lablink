@@ -263,7 +263,6 @@ def launch():
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
-        allocator_ip, key_name = extract_allocator_outputs()
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
             return render_template(
