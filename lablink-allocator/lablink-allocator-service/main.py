@@ -25,6 +25,7 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 from utils.scp import (
+    get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
@@ -222,19 +223,6 @@ def submit_vm_details():
         )
 
 
-def extract_allocator_outputs():
-    allocator_dir = Path("terraform_allocator")
-    allocator_ip = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_public_ip"], cwd=allocator_dir, text=True
-    ).strip()
-
-    key_name = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_key_name"], cwd=allocator_dir, text=True
-    ).strip()
-
-    return allocator_ip, key_name
-
-
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
@@ -262,7 +250,6 @@ def launch():
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
-        allocator_ip, key_name = extract_allocator_outputs()
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
             return render_template(
@@ -280,7 +267,6 @@ def launch():
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
-            f.write(f'key_name = "{key_name}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
 
         # Apply with the new number of instances
@@ -370,7 +356,7 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips, _ = extract_allocator_outputs()
+        instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
 
         with tempfile.TemporaryDirectory() as temp_dir:
