@@ -52,6 +52,7 @@ resource "aws_security_group" "allow_http" {
 variable "allocator_image_tag" {
   description = "Docker image tag for the lablink allocator"
   type        = string
+  default     = "linux-amd64-latest-test"
 }
 
 resource "aws_instance" "lablink_allocator_server" {
