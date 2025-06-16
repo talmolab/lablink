@@ -223,19 +223,6 @@ def submit_vm_details():
         )
 
 
-def extract_allocator_outputs():
-    allocator_dir = Path("terraform_allocator")
-    allocator_ip = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_public_ip"], cwd=allocator_dir, text=True
-    ).strip()
-
-    key_name = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_key_name"], cwd=allocator_dir, text=True
-    ).strip()
-
-    return allocator_ip, key_name
-
-
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
