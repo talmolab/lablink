@@ -57,7 +57,7 @@ variable "client_ami_id" {
 
 variable "key_name" {
   type        = string
-  description = "Name of the SSH key pair to be used for the VM"
+  description = "EC2 key name to use for instances"
 }
 
 variable "resource_suffix" {
@@ -136,6 +136,16 @@ resource "aws_instance" "lablink_vm" {
   tags = {
     Name = "lablink-vm-${count.index + 1}"
   }
+}
+
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink_key_pair_client"
+  public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
 output "vm_instance_ids" {
