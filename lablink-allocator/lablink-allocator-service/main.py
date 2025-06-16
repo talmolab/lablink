@@ -25,7 +25,6 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.available_instances import get_all_instance_types
 from utils.scp import (
-    get_instance_ips,
     get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
@@ -48,6 +47,10 @@ PIN = "123456"
 MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
+key_name = os.getenv("ALLOCATOR_KEY_NAME")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
+
 
 # Initialize the database connection
 database = PostgresqlDatabase(
@@ -219,6 +222,19 @@ def submit_vm_details():
         )
 
 
+def extract_allocator_outputs():
+    allocator_dir = Path("terraform_allocator")
+    allocator_ip = subprocess.check_output(
+        ["terraform", "output", "-raw", "ec2_public_ip"], cwd=allocator_dir, text=True
+    ).strip()
+
+    key_name = subprocess.check_output(
+        ["terraform", "output", "-raw", "ec2_key_name"], cwd=allocator_dir, text=True
+    ).strip()
+
+    return allocator_ip, key_name
+
+
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
@@ -230,21 +246,31 @@ def launch():
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
 
-        # Fetch the IP address of the allocator
-        allocator_ip = requests.get("http://checkip.amazonaws.com").text.strip()
-
         logger.debug(f"Machine type: {cfg.machine.machine_type}")
         logger.debug(f"Image name: {cfg.machine.image}")
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
-        # Write the IP address to the terraform.tfvars file
+        allocator_ip, key_name = extract_allocator_outputs()
+        if not allocator_ip or not key_name:
+            logger.error("Missing allocator outputs.")
+            return render_template(
+                "dashboard.html", error="Allocator outputs not found."
+            )
+
+        logger.debug(f"Allocator IP: {allocator_ip}")
+        logger.debug(f"Key Name: {key_name}")
+        logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
+
+        # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
+            f.write(f'key_name = "{key_name}"\n')
+            f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -255,6 +281,8 @@ def launch():
             "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={num_vms}",
         ]
+
+        logger.debug(f"Running command: {' '.join(apply_cmd)}")
 
         # Run the Terraform apply command
         result = subprocess.run(
@@ -331,7 +359,7 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips = get_instance_ips(terraform_dir="terraform")
+        instance_ips, _ = extract_allocator_outputs()
         key_path = get_ssh_private_key(terraform_dir="terraform")
 
         with tempfile.TemporaryDirectory() as temp_dir:

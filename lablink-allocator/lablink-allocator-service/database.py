@@ -70,7 +70,6 @@ class PostgresqlDatabase:
 
     def get_row_count(self) -> int:
         """Get the number of rows in the table.
-
         Returns:
             int: The number of rows in the table.
         """

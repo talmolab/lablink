@@ -55,19 +55,19 @@ variable "client_ami_id" {
   description = "AMI ID for the client VM"
 }
 
-output "vm_public_ips" {
-  value       = [for instance in aws_instance.lablink_vm : instance.public_ip]
-  description = "Public IPs of the created VM instances"
+variable "key_name" {
+  type        = string
+  description = "EC2 key name to use for instances"
 }
 
-output "lablink_private_key_pem" {
-  description = "Private key used to access EC2 instances"
-  value       = tls_private_key.lablink_key.private_key_pem
-  sensitive   = true
+variable "resource_suffix" {
+  type        = string
+  default     = "client"
+  description = "Suffix to ensure uniqueness"
 }
 
 resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_sg_"
+  name        = "lablink_allocator_service_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
 
   ingress {
@@ -92,22 +92,12 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
-resource "tls_private_key" "lablink_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "lablink_key_pair_client"
-  public_key = tls_private_key.lablink_key.public_key_openssh
-}
-
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
-  key_name               = aws_key_pair.lablink_key_pair.key_name
+  key_name               = var.key_name
 
   root_block_device {
     volume_size = 40
@@ -118,10 +108,16 @@ resource "aws_instance" "lablink_vm" {
               #!/bin/bash
 
               docker pull ${var.image_name}
+              if [ $? -ne 0 ]; then
+                  echo "Docker image pull failed!" >&2
+                  exit 1
+              else
+                  echo "Docker image pulled successfully."
+              fi
 
               export TUTORIAL_REPO_TO_CLONE=${var.repository}
 
-              if [ -z "$TUTORIAL_REPO_TO_CLONE" ] ||  [ "$TUTORIAL_REPO_TO_CLONE" = "None" ]; then
+              if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo "No repository specified, starting container without cloning."
                   docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else
@@ -140,4 +136,30 @@ resource "aws_instance" "lablink_vm" {
   tags = {
     Name = "lablink-vm-${count.index + 1}"
   }
+}
+
+resource "tls_private_key" "lablink_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "lablink_key_pair" {
+  key_name   = "lablink_key_pair_client"
+  public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
+output "vm_instance_ids" {
+  description = "List of EC2 instance IDs created"
+  value       = aws_instance.lablink_vm[*].id
+}
+
+output "vm_public_ips" {
+  description = "List of public IPs assigned to the VMs"
+  value       = aws_instance.lablink_vm[*].public_ip
+}
+
+output "lablink_private_key_pem" {
+  description = "Private key used to access EC2 instances"
+  value       = tls_private_key.lablink_key.private_key_pem
+  sensitive   = true
 }
