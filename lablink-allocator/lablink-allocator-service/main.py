@@ -222,19 +222,6 @@ def submit_vm_details():
         )
 
 
-def extract_allocator_outputs():
-    allocator_dir = Path("terraform_allocator")
-    allocator_ip = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_public_ip"], cwd=allocator_dir, text=True
-    ).strip()
-
-    key_name = subprocess.check_output(
-        ["terraform", "output", "-raw", "ec2_key_name"], cwd=allocator_dir, text=True
-    ).strip()
-
-    return allocator_ip, key_name
-
-
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
@@ -262,7 +249,6 @@ def launch():
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
 
-        allocator_ip, key_name = extract_allocator_outputs()
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
             return render_template(
@@ -370,7 +356,7 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips, _ = extract_allocator_outputs()
+        instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
 
         with tempfile.TemporaryDirectory() as temp_dir:
