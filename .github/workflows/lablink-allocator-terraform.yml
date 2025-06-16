@@ -12,6 +12,9 @@ on:
         description: "Environment to deploy (dev, test, prod)"
         required: true
         default: dev
+      image_tag:
+        description: "Docker image tag to deploy (only for prod)"
+        required: false
 
 permissions:
   id-token: write
