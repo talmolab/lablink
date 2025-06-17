@@ -56,8 +56,6 @@ jobs:
             esac
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref_name }}" = "main" ]; then
-            echo "env=prod" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
             echo "env=test" >> "$GITHUB_OUTPUT"
           else
