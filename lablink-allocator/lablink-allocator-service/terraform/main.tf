@@ -98,33 +98,61 @@ resource "aws_instance" "lablink_vm" {
     volume_type = "gp3"
   }
 
+  ########################
+  # cgroupfs-enabled user_data
+  ########################
   user_data = <<-EOF
               #!/bin/bash
+              set -euo pipefail
 
-              docker pull ${var.image_name}
-              if [ $? -ne 0 ]; then
+              echo ">> Switching Docker to cgroupfs…"
+              cat >/etc/docker/daemon.json <<'JSON'
+              {
+                "default-runtime": "nvidia",
+                "runtimes": {
+                  "nvidia": {
+                    "path": "nvidia-container-runtime",
+                    "runtimeArgs": []
+                  }
+                },
+                "exec-opts": ["native.cgroupdriver=cgroupfs"]
+              }
+              JSON
+
+              systemctl restart docker
+
+              # Wait until Docker is ready again
+              until docker info >/dev/null 2>&1; do
+                  sleep 1
+              done
+              echo ">> Docker restarted with cgroupfs."
+
+              # Optional: keep GPU awake
+              nvidia-smi -pm 1 || true
+
+              echo ">> Pulling application image ${var.image_name}…"
+              if ! docker pull ${var.image_name}; then
                   echo "Docker image pull failed!" >&2
                   exit 1
-              else
-                  echo "Docker image pulled successfully."
               fi
+              echo ">> Image pulled."
 
               export TUTORIAL_REPO_TO_CLONE=${var.repository}
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
-                  echo "No repository specified, starting container without cloning."
-                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+                  echo ">> No repo specified; starting container without cloning."
+                  docker run -dit --runtime=nvidia --gpus all \
+                      -e ALLOCATOR_HOST=${var.allocator_ip} \
+                      ${var.image_name}
               else
-                  echo "Cloning repository: $TUTORIAL_REPO_TO_CLONE"
-                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
+                  echo ">> Cloning repo and starting container."
+                  docker run -dit --runtime=nvidia --gpus all \
+                      -e ALLOCATOR_HOST=${var.allocator_ip} \
+                      -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
+                      ${var.image_name}
               fi
 
-              if [ $? -ne 0 ]; then
-                  echo "Docker run failed!" >&2
-                  exit 1
-              else
-                  echo "Docker container started."
-              fi
+              echo ">> Container launched."
               EOF
 
   tags = {
