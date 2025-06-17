@@ -113,10 +113,10 @@ resource "aws_instance" "lablink_vm" {
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo "No repository specified, starting container without cloning."
-                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else
                   echo "Cloning repository: $TUTORIAL_REPO_TO_CLONE"
-                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
+                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
               fi
 
               if [ $? -ne 0 ]; then
