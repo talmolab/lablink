@@ -89,5 +89,5 @@ jobs:
           client-payload: >-
             {
               "environment": "prod",
-              "image_tag": "linux-amd64-${{ steps.get_sha.outputs.sha }}"
+              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
             }
