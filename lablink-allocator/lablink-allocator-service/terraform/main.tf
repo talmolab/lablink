@@ -119,6 +119,13 @@ resource "aws_instance" "lablink_vm" {
                   docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
               fi
 
+              nvidia-smi -pm 1
+              if [ $? -ne 0 ]; then
+                  echo "Failed to enable persistence mode. GPU might not be initialized yet." >&2
+              else
+                  echo "Persistence mode enabled on GPU."
+              fi
+
               if [ $? -ne 0 ]; then
                   echo "Docker run failed!" >&2
                   exit 1
