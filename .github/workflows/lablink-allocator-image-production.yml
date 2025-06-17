@@ -64,6 +64,21 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-terraform-1.4.6
             ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform}}-postgres-15
 
+      - name: Debug Docker Image Tags
+        run: |
+          echo "Pushed Docker image tags:"
+          echo "  - ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:latest"
+          echo "  - ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.get_sha.outputs.sha }}"
+          echo "  - ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-latest"
+          echo "  - ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-terraform-1.4.6"
+          echo "  - ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-postgres-15"
+      
+      - name: Set GitHub Output
+        id: set_output
+        run: |
+          echo "Triggering deployment with image tag: ${{ steps.get_sha.outputs.sha }}"
+          echo "image_tag=${{ steps.get_sha.outputs.sha }}" >> $GITHUB_OUTPUT
+      
       - name: Trigger Terraform Deploy
         if: github.ref_name == 'main'
         uses: peter-evans/repository-dispatch@v3
@@ -74,5 +89,5 @@ jobs:
           client-payload: >-
             {
               "environment": "prod",
-              "image_tag": "linux-amd64-${{ steps.get_sha.outputs.sha }}"
+              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
             }
