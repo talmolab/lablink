@@ -41,9 +41,6 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
       - name: Determine Environment
         id: setenv
         run: |
@@ -168,7 +165,6 @@ jobs:
           echo ""
           echo "📡 EC2 Public IP:"
           terraform output -raw ec2_public_ip
-
 
       - name: Terraform Destroy on Failure
         working-directory: lablink-allocator
