@@ -94,7 +94,7 @@ resource "aws_instance" "lablink_vm" {
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
   root_block_device {
-    volume_size = 40
+    volume_size = 80
     volume_type = "gp3"
   }
 
@@ -113,10 +113,10 @@ resource "aws_instance" "lablink_vm" {
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo "No repository specified, starting container without cloning."
-                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
+                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} ${var.image_name}
               else
                   echo "Cloning repository: $TUTORIAL_REPO_TO_CLONE"
-                  docker run -dit --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
+                  docker run -dit --runtime=nvidia --gpus all -e ALLOCATOR_HOST=${var.allocator_ip} -e TUTORIAL_REPO_TO_CLONE=${var.repository} ${var.image_name}
               fi
 
               if [ $? -ne 0 ]; then
