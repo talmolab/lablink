@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - test
-      - main
 
   workflow_dispatch:
     inputs:
@@ -15,6 +14,9 @@ on:
       image_tag:
         description: "Docker image tag to deploy (only for prod)"
         required: false
+
+  repository_dispatch:
+    types: [deploy-prod-image]
 
 permissions:
   id-token: write
@@ -55,6 +57,8 @@ jobs:
                 exit 1
                 ;;
             esac
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "main" ]; then
             echo "env=prod" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
