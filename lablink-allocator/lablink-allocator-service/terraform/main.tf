@@ -94,7 +94,7 @@ resource "aws_instance" "lablink_vm" {
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
   root_block_device {
-    volume_size = 40
+    volume_size = 80
     volume_type = "gp3"
   }
 
