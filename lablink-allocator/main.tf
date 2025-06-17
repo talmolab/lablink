@@ -57,7 +57,7 @@ variable "allocator_image_tag" {
 
 resource "aws_instance" "lablink_allocator_server" {
   ami             = "ami-0e096562a04af2d8b"
-  instance_type   = "t2.micro"
+  instance_type   = local.allocator_instance_type
   security_groups = [aws_security_group.allow_http.name]
   key_name        = aws_key_pair.lablink_key_pair.key_name
 
@@ -76,6 +76,10 @@ resource "aws_instance" "lablink_allocator_server" {
     Name        = "lablink_allocator_server_${var.resource_suffix}"
     Environment = var.resource_suffix
   }
+
+  depends_on = [
+    aws_eip_association.lablink_allocator_ip_assoc
+  ]
 }
 
 data "aws_eip" "lablink_allocator_ip" {
@@ -93,8 +97,10 @@ resource "aws_eip_association" "lablink_allocator_ip_assoc" {
 }
 
 # Define the FQDN based on the resource suffix
+# Use larger instance type for production
 locals {
   fqdn = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
+  allocator_instance_type = var.resource_suffix == "prod" ? "t3.large" : "t2.micro"
 }
 
 
@@ -119,6 +125,11 @@ output "private_key_pem" {
 output "allocator_fqdn" {
   value       = local.fqdn
   description = "The subdomain associated with the allocator EIP"
+}
+
+output "allocator_instance_type" {
+  value       = local.allocator_instance_type
+  description = "Instance type used for the allocator server"
 }
 
 

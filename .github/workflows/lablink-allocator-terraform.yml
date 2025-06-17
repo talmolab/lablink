@@ -63,6 +63,10 @@ jobs:
             exit 1
           fi
 
+      - name: Debug Environment
+        run: |
+          echo "Using environment: ${{ steps.setenv.outputs.env }}"
+
       - name: Terraform Init
         working-directory: lablink-allocator
         run: |
