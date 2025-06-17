@@ -71,7 +71,7 @@ jobs:
         working-directory: lablink-allocator
         run: |
           if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
-            terraform init -input=false
+            terraform init
           else
             terraform init -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl
           fi
