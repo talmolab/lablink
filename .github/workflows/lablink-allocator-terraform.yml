@@ -150,22 +150,27 @@ jobs:
           path: artifact-output/lablink-key.pem
           retention-days: 1
 
-      - name: Output EC2 IP
+      - name: Deployment Summary
         if: steps.apply.outcome == 'success'
         working-directory: lablink-allocator
         run: |
-          EC2_IP=$(terraform output -raw ec2_public_ip)
-          echo "EC2 Public IP: $EC2_IP"
-          echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
+          echo "✅ Deployment succeeded!"
+          echo "Environment: ${{ steps.setenv.outputs.env }}"
+
+          echo ""
+          echo "🌐 Allocator FQDN:"
+          terraform output -raw allocator_fqdn
+
+          echo ""
+          echo "🔑 EC2 Key Name:"
+          terraform output -raw ec2_key_name
+
+          echo ""
+          echo "📡 EC2 Public IP:"
+          terraform output -raw ec2_public_ip
+
 
       - name: Terraform Destroy on Failure
         working-directory: lablink-allocator
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
-
-      - name: Deployment Summary
-        if: steps.apply.outcome == 'success'
-        run: |
-          echo "✅ Deployment succeeded!"
-          echo "Environment: ${{ steps.setenv.outputs.env }}"
-          jq -r .DB_HOST postgre_ip.json
