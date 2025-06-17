@@ -76,6 +76,10 @@ resource "aws_instance" "lablink_allocator_server" {
     Name        = "lablink_allocator_server_${var.resource_suffix}"
     Environment = var.resource_suffix
   }
+
+  depends_on = [
+    aws_eip_association.lablink_allocator_ip_assoc
+  ]
 }
 
 data "aws_eip" "lablink_allocator_ip" {
