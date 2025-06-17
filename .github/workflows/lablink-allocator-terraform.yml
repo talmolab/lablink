@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - test
-      - main
 
   workflow_dispatch:
     inputs:
@@ -15,6 +14,9 @@ on:
       image_tag:
         description: "Docker image tag to deploy (only for prod)"
         required: false
+
+  repository_dispatch:
+    types: [deploy-prod-image]
 
 permissions:
   id-token: write
@@ -39,9 +41,6 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
       - name: Determine Environment
         id: setenv
         run: |
@@ -55,8 +54,8 @@ jobs:
                 exit 1
                 ;;
             esac
-          elif [ "${{ github.ref_name }}" = "main" ]; then
-            echo "env=prod" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
             echo "env=test" >> "$GITHUB_OUTPUT"
           else
@@ -65,8 +64,8 @@ jobs:
           fi
 
       - name: Terraform Init
+        working-directory: lablink-allocator
         run: |
-          cd lablink-allocator
           if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
             terraform init
           else
@@ -74,46 +73,65 @@ jobs:
           fi
 
       - name: Terraform Format
-        run: terraform fmt -check
         working-directory: lablink-allocator
+        run: terraform fmt -check
 
       - name: Terraform Validate
-        run: terraform validate
         working-directory: lablink-allocator
+        run: terraform validate
 
       - name: Determine Image Tag
         id: getimagetag
         run: |
           if [ "${{ steps.setenv.outputs.env }}" = "prod" ]; then
-            if [ -z "${{ github.event.inputs.image_tag }}" ]; then
+            if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+              if [ -z "${{ github.event.client_payload.image_tag }}" ]; then
+                echo "Error: image_tag must be provided for prod deployments"
+                exit 1
+              fi
+              echo "tag=${{ github.event.client_payload.image_tag }}" >> "$GITHUB_OUTPUT"
+
+            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              if [ -z "${{ github.event.inputs.image_tag }}" ]; then
+                echo "Error: image_tag must be provided for prod deployments"
+                exit 1
+              fi
+              echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+            else
               echo "Error: image_tag must be provided for prod deployments"
               exit 1
             fi
-            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
           else
+            echo "Using default image tag for non-prod: linux-amd64-latest-test"
             echo "tag=linux-amd64-latest-test" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Image Tag Debug
+        run: |
+          echo "Using image tag: ${{ steps.getimagetag.outputs.tag }}"
+
       - name: Terraform Plan
+        working-directory: lablink-allocator
         run: |
           terraform plan \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
             -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
-        working-directory: lablink-allocator
 
       - name: Terraform Apply
         id: apply
+        working-directory: lablink-allocator
         run: |
           terraform apply -auto-approve \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
             -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
-        working-directory: lablink-allocator
         continue-on-error: true
 
       - name: Save PEM Key to Artifact
         if: steps.apply.outcome == 'success'
+        working-directory: lablink-allocator
         run: |
-          cd lablink-allocator
           terraform output -raw private_key_pem > lablink-key.pem
           chmod 600 lablink-key.pem
           mkdir -p artifact-output
@@ -127,22 +145,26 @@ jobs:
           path: artifact-output/lablink-key.pem
           retention-days: 1
 
-      - name: Output EC2 IP
-        if: steps.apply.outcome == 'success'
-        run: |
-          cd lablink-allocator
-          EC2_IP=$(terraform output -raw ec2_public_ip)
-          echo "EC2 Public IP: $EC2_IP"
-          echo "{\"DB_HOST\": \"${EC2_IP}\"}" > postgre_ip.json
-
-      - name: Terraform Destroy on Failure
-        if: steps.apply.outcome == 'failure'
-        run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
-        working-directory: lablink-allocator
-
       - name: Deployment Summary
         if: steps.apply.outcome == 'success'
+        working-directory: lablink-allocator
         run: |
           echo "✅ Deployment succeeded!"
           echo "Environment: ${{ steps.setenv.outputs.env }}"
-          jq -r .DB_HOST lablink-allocator/postgre_ip.json
+
+          echo ""
+          echo "🌐 Allocator FQDN:"
+          terraform output -raw allocator_fqdn
+
+          echo ""
+          echo "🔑 EC2 Key Name:"
+          terraform output -raw ec2_key_name
+
+          echo ""
+          echo "📡 EC2 Public IP:"
+          terraform output -raw ec2_public_ip
+
+      - name: Terraform Destroy on Failure
+        working-directory: lablink-allocator
+        if: steps.apply.outcome == 'failure'
+        run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
