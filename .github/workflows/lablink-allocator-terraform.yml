@@ -69,8 +69,8 @@ jobs:
           fi
 
       - name: Terraform Init
+        working-directory: lablink-allocator
         run: |
-          cd lablink-allocator
           if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
             terraform init
           else
@@ -78,46 +78,65 @@ jobs:
           fi
 
       - name: Terraform Format
-        run: terraform fmt -check
         working-directory: lablink-allocator
+        run: terraform fmt -check
 
       - name: Terraform Validate
-        run: terraform validate
         working-directory: lablink-allocator
+        run: terraform validate
 
       - name: Determine Image Tag
         id: getimagetag
         run: |
           if [ "${{ steps.setenv.outputs.env }}" = "prod" ]; then
-            if [ -z "${{ github.event.inputs.image_tag }}" ]; then
-              echo "Error: image_tag must be provided for prod deployments"
+            if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+              if [ -z "${{ github.event.client_payload.image_tag }}" ]; then
+                echo "Error: image_tag must be provided for prod deployments"
+                exit 1
+              fi
+              echo "tag=${{ github.event.client_payload.image_tag }}" >> "$GITHUB_OUTPUT"
+
+            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              if [ -z "${{ github.event.inputs.image_tag }}" ]; then
+                echo "Error: image_tag must be provided for prod deployments"
+                exit 1
+              fi
+              echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+            else
+              echo "Error: no image_tag provided for prod"
               exit 1
             fi
-            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
           else
+            echo "Using default image tag for non-prod: linux-amd64-latest-test"
             echo "tag=linux-amd64-latest-test" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Image Tag Debug
+        run: |
+          echo "Using image tag: ${{ steps.getimagetag.outputs.tag }}"
+
       - name: Terraform Plan
+        working-directory: lablink-allocator
         run: |
           terraform plan \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
             -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
-        working-directory: lablink-allocator
 
       - name: Terraform Apply
         id: apply
+        working-directory: lablink-allocator
         run: |
           terraform apply -auto-approve \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
             -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
-        working-directory: lablink-allocator
         continue-on-error: true
 
       - name: Save PEM Key to Artifact
         if: steps.apply.outcome == 'success'
+        working-directory: lablink-allocator
         run: |
-          cd lablink-allocator
           terraform output -raw private_key_pem > lablink-key.pem
           chmod 600 lablink-key.pem
           mkdir -p artifact-output
