@@ -99,7 +99,7 @@ jobs:
               echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
 
             else
-              echo "Error: no image_tag provided for prod"
+              echo "Error: image_tag must be provided for prod deployments"
               exit 1
             fi
 
