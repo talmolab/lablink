@@ -76,10 +76,6 @@ resource "aws_instance" "lablink_allocator_server" {
     Name        = "lablink_allocator_server_${var.resource_suffix}"
     Environment = var.resource_suffix
   }
-
-  depends_on = [
-    aws_eip_association.lablink_allocator_ip_assoc
-  ]
 }
 
 data "aws_eip" "lablink_allocator_ip" {
@@ -99,7 +95,7 @@ resource "aws_eip_association" "lablink_allocator_ip_assoc" {
 # Define the FQDN based on the resource suffix
 # Use larger instance type for production
 locals {
-  fqdn = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
+  fqdn                    = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
   allocator_instance_type = var.resource_suffix == "prod" ? "t3.large" : "t2.micro"
 }
 
