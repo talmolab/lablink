@@ -92,6 +92,12 @@ RUN rm -f /usr/bin/google-chrome && \
     echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome && \
     chmod +x /usr/bin/google-chrome
 
+# Do the same for the stable version of Google Chrome
+RUN rm -f /usr/bin/google-chrome-stable && \
+    echo '#!/bin/bash' > /usr/bin/google-chrome-stable && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome-stable && \
+    chmod +x /usr/bin/google-chrome-stable
+
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} && \
