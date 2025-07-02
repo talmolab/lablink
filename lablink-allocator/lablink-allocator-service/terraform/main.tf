@@ -143,12 +143,14 @@ resource "aws_instance" "lablink_vm" {
                   echo ">> No repo specified; starting container without cloning."
                   docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
+                      -e VM_NAME="${aws_instance.lablink_vm[count.index].tags.Name}" \
                       ${var.image_name}
               else
                   echo ">> Cloning repo and starting container."
                   docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
+                      -e VM_NAME="${aws_instance.lablink_vm[count.index].tags.Name}" \
                       ${var.image_name}
               fi
 
