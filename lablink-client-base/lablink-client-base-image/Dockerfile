@@ -87,7 +87,7 @@ RUN curl -L -o google-chrome-stable_current_amd64.deb \
 # Configure Google Chrome to run without sandboxing
 # This is necessary for Chrome Remote Desktop to work properly in a container environment.
 RUN echo '#!/bin/bash\nexec /opt/google/chrome/google-chrome --no-sandbox "$@"' > /usr/local/bin/google-chrome && \
-    sudo chmod +x /usr/local/bin/google-chrome
+    chmod +x /usr/local/bin/google-chrome
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
@@ -97,6 +97,10 @@ RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpassw
 
 # Add USERNAME to the chrome-remote-desktop group
 RUN usermod -aG chrome-remote-desktop ${USERNAME}
+
+# Ensure Chrome directories are accessible to the client user
+RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
 # Switch to non-root user for Google Chrome Remote Desktop to work.
 USER ${USERNAME}
