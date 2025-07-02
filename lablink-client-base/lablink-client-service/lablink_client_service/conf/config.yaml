@@ -1,3 +1,6 @@
 allocator:
   host: "localhost"
   port: 80
+
+client:
+  software: "sleap"
