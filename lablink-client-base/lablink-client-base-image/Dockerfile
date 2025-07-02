@@ -87,14 +87,10 @@ RUN curl -L -o google-chrome-stable_current_amd64.deb \
 # Configure Google Chrome to run without sandboxing
 # This is necessary for Chrome Remote Desktop to work properly in a container environment.
 # Create a directory for wrapper scripts
-RUN mkdir -p /opt/chrome-wrapper
-
-# Add the google-chrome wrapper script
-RUN printf '#!/bin/bash\nexec /opt/google/chrome/google-chrome --no-sandbox "$@"\n' \
-    > /opt/chrome-wrapper/google-chrome && chmod +x /opt/chrome-wrapper/google-chrome
-
-# Add wrapper directory to the front of PATH
-ENV PATH="/opt/chrome-wrapper:$PATH"
+RUN rm -f /usr/bin/google-chrome && \
+    echo '#!/bin/bash' > /usr/bin/google-chrome && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome && \
+    chmod +x /usr/bin/google-chrome
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
