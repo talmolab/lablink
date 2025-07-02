@@ -81,13 +81,17 @@ RUN systemctl disable lightdm.service
 # Install Chrome browser
 RUN curl -L -o google-chrome-stable_current_amd64.deb \
     https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb
+    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb && \
+    rm google-chrome-stable_current_amd64.deb
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} && \
     chmod 0440 /etc/sudoers.d/${USERNAME} && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
+
+# Configure Chrome sandbox permissions
+RUN chmod 4755 /opt/google/chrome/chrome-sandbox
 
 # Add USERNAME to the chrome-remote-desktop group
 RUN usermod -aG chrome-remote-desktop ${USERNAME}
