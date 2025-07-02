@@ -1,8 +1,11 @@
 import socket
-import hydra
-from omegaconf import OmegaConf
 import logging
 import requests
+import os
+
+import hydra
+from omegaconf import OmegaConf
+
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.connect_crd import connect_to_crd
 
@@ -16,17 +19,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
-    
+
     # Define the URL for the POST request
     url = f"http://{cfg.allocator.host}:{cfg.allocator.port}/vm_startup"
     logger.debug(f"URL: {url}")
 
     # Define hostname for the client
-    hostname = socket.gethostname()
+    hostname = os.getenv("VM_NAME")
     logger.debug(f"Hostname: {hostname}")
 
     # Send a POST request to the specified URL
@@ -42,7 +46,7 @@ def main(cfg: Config) -> None:
             pin = data["pin"]
             logger.debug(f"Command received: {command}")
             logger.debug(f"Pin received: {pin}")
-            
+
             # Execute the command
             connect_to_crd(pin=pin, command=command)
             logger.debug("Command executed successfully.")
