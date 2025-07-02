@@ -1,4 +1,3 @@
-import socket
 import logging
 import requests
 import os
