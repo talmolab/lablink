@@ -333,6 +333,22 @@ class PostgresqlDatabase:
         row = self.cursor.fetchone()
         return row[0] if row else None
 
+    def update_vm_in_use(self, hostname: str, in_use: bool) -> None:
+        """Update the in-use status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            in_use (bool): The in-use status to set.
+        """
+        query = f"UPDATE {self.table_name} SET inuse = %s WHERE hostname = %s"
+        try:
+            self.cursor.execute(query, (in_use, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated VM '{hostname}' in-use status to {in_use}.")
+        except Exception as e:
+            logger.error(f"Error updating VM in-use status: {e}")
+            self.conn.rollback()
+
     def clear_database(self) -> None:
         """Delete all VMs from the table."""
         query = f"DELETE FROM {self.table_name};"
