@@ -1,8 +1,9 @@
 import select
-from lablink_client_service import connect_crd
 import json
 import socket
 import logging
+
+from lablink_client_service import connect_crd
 
 # Set up logging
 logger = logging.getLogger(__name__)
