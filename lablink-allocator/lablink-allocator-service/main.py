@@ -136,8 +136,20 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
+    # Check if AWS credentials are set and valid
     is_credentials_valid = validate_aws_credentials()
-    return render_template("admin.html", is_credentials_valid=is_credentials_valid)
+
+    # If credentials are set and valid, display the admin dashboard
+    if is_credentials_valid:
+        message = "AWS credentials are valid."
+        return render_template("admin.html", message=message)
+
+    # If credentials are not set or invalid, prompt the user to set them
+    else:
+        error = (
+            "AWS credentials are not set or invalid. Please set your AWS credentials."
+        )
+        return render_template("admin.html", error=error)
 
 
 @app.route("/api/admin/set-aws-credentials", methods=["POST"])
