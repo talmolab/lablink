@@ -226,7 +226,7 @@ def submit_vm_details():
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
-    num_vms = request.form.get("num_vms")
+    num_vms = int(request.form.get("num_vms"))
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
