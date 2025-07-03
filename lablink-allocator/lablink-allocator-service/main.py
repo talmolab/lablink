@@ -172,14 +172,6 @@ def set_aws_credentials():
     if not aws_access_key or not aws_secret_key:
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
 
-    # Check if the AWS credentials are valid
-    if not validate_aws_credentials():
-        logger.error("Invalid AWS credentials provided.")
-        return render_template(
-            "admin.html",
-            error="Invalid AWS credentials provided. Please check your credentials.",
-        )
-
     # Save the credentials to a file or environment variable
     terraform_dir = Path("terraform")
     credential_file = terraform_dir / "terraform.credentials.tfvars"
@@ -193,6 +185,20 @@ def set_aws_credentials():
     os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
     os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
     os.environ["AWS_SESSION_TOKEN"] = aws_token
+
+    # Check if the AWS credentials are valid
+    if not validate_aws_credentials():
+        logger.error("Invalid AWS credentials provided.")
+
+        # Remove environment variables if credentials are invalid
+        del os.environ["AWS_ACCESS_KEY_ID"]
+        del os.environ["AWS_SECRET_ACCESS_KEY"]
+        del os.environ["AWS_SESSION_TOKEN"]
+
+        return render_template(
+            "admin.html",
+            error="Invalid AWS credentials provided. Please check your credentials.",
+        )
 
     return render_template("admin.html", message="AWS credentials set successfully.")
 
