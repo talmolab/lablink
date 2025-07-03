@@ -115,12 +115,18 @@
         {{ message }}
       </div>
     {% endif %}
-    <form method="POST" action="/api/admin/set-aws-credentials">
-      <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
-      <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
-      <input type="password" name="aws_token" placeholder="Token" required />
-      <input type="submit" value="Submit" />
-    </form>
+    {% if not is_credentials_valid %}
+      <form method="POST" action="/api/admin/set-aws-credentials">
+        <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
+        <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
+        <input type="password" name="aws_token" placeholder="Token" required />
+        <input type="submit" value="Submit" />
+      </form>
+    {% else %}
+      <div style="background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+        AWS credentials are already set and valid.
+      </div>
+    {% endif %}
   </div>
 </body>
 </html>
