@@ -242,6 +242,9 @@ def launch():
         )
 
     try:
+        # Calculate the number of VMs to launch
+        total_vms = num_vms + database.get_row_count()
+
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
 
@@ -276,7 +279,7 @@ def launch():
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
-            f"-var=instance_count={num_vms}",
+            f"-var=instance_count={total_vms}",
         ]
 
         logger.debug(f"Running command: {' '.join(apply_cmd)}")
