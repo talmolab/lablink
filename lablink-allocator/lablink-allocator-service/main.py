@@ -151,7 +151,7 @@ def admin():
 
     # If credentials are set and valid, display the admin dashboard
     if is_credentials_valid:
-        message = "AWS credentials are valid."
+        message = "AWS credentials are already set and valid."
         return render_template("admin.html", message=message)
 
     # If credentials are not set or invalid, prompt the user to set them
