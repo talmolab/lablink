@@ -35,17 +35,6 @@ def validate_aws_credentials() -> bool:
     Returns:
         bool: True if credentials are valid, False otherwise.
     """
-    # Check if AWS credentials are set in environment variables
-    if not all(
-        [
-            os.getenv("AWS_ACCESS_KEY_ID"),
-            os.getenv("AWS_SECRET_ACCESS_KEY"),
-            os.getenv("AWS_SESSION_TOKEN"),
-        ]
-    ):
-        logger.error("AWS credentials are not set in environment variables.")
-        return False
-
     try:
         # Attempt to create a client and call a simple API to validate credentials
         client = boto3.client(
