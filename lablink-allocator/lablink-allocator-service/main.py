@@ -23,7 +23,7 @@ import requests
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.available_instances import get_all_instance_types
+from utils.aws_utils import validate_aws_credentials
 from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
@@ -136,7 +136,8 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
-    return render_template("admin.html")
+    is_credentials_valid = validate_aws_credentials()
+    return render_template("admin.html", is_credentials_valid=is_credentials_valid)
 
 
 @app.route("/api/admin/set-aws-credentials", methods=["POST"])
@@ -159,9 +160,9 @@ def set_aws_credentials():
         f.write(f'aws_session_token = "{aws_token}"\n')
 
     # also set the environment variables
-    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key  # public identifier
-    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key  # secret key
-    os.environ["AWS_SESSION_TOKEN"] = aws_token  # session token
+    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
+    os.environ["AWS_SESSION_TOKEN"] = aws_token
 
     return render_template("admin.html", message="AWS credentials set successfully.")
 
