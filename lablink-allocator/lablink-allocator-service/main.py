@@ -164,6 +164,13 @@ def set_aws_credentials():
     os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
     os.environ["AWS_SESSION_TOKEN"] = aws_token
 
+    if not validate_aws_credentials():
+        logger.error("Invalid AWS credentials provided.")
+        return render_template(
+            "admin.html",
+            error="Invalid AWS credentials provided. Please check your credentials.",
+        )
+
     return render_template("admin.html", message="AWS credentials set successfully.")
 
 
