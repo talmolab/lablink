@@ -136,6 +136,16 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
+    # If credentials are not set, render the admin page without a message
+    if not all(
+        [
+            os.getenv("AWS_ACCESS_KEY_ID"),
+            os.getenv("AWS_SECRET_ACCESS_KEY"),
+            os.getenv("AWS_SESSION_TOKEN"),
+        ]
+    ):
+        return render_template("admin.html")
+
     # Check if AWS credentials are set and valid
     is_credentials_valid = validate_aws_credentials()
 

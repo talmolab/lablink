@@ -30,7 +30,7 @@ def get_all_instance_types(region="us-west-2"):
     return instance_types
 
 
-def validate_aws_credentials():
+def validate_aws_credentials() -> bool:
     """Validate AWS credentials by attempting to list EC2 instance types.
     Returns:
         bool: True if credentials are valid, False otherwise.
