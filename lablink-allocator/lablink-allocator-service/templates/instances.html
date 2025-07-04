@@ -46,6 +46,7 @@
   <table>
     <thead>
       <tr>
+        <th>No.</th>
         <th>Hostname</th>
         <th>PIN</th>
         <th>CRD Command</th>
@@ -56,6 +57,7 @@
     <tbody>
       {% for vm in instances %}
       <tr>
+        <td>{{ loop.index }}</td>
         <td>{{ vm.hostname }}</td>
         <td>{{ vm.pin or "—" }}</td>
         <td>{{ vm.crdcommand or "—" }}</td>
@@ -65,6 +67,5 @@
       {% endfor %}
     </tbody>
   </table>
-
 </body>
 </html>
