@@ -115,12 +115,19 @@
         {{ message }}
       </div>
     {% endif %}
-    <form method="POST" action="/api/admin/set-aws-credentials">
-      <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
-      <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
-      <input type="password" name="aws_token" placeholder="Token" required />
-      <input type="submit" value="Submit" />
-    </form>
+    {% if error %}
+      <div style="background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+        {{ error }}
+      </div>
+    {% endif %}
+    {% if not message %}
+      <form method="POST" action="/api/admin/set-aws-credentials">
+        <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
+        <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
+        <input type="password" name="aws_token" placeholder="Token" required />
+        <input type="submit" value="Submit" />
+      </form>
+    {% endif %}
   </div>
 </body>
 </html>
