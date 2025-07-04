@@ -29,6 +29,7 @@ class MachineConfig:
     repository: Optional[str] = field(default=None)
     image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
     ami_id: str = field(default="ami-00c257e12d6828491")
+    software: str = field(default="sleap")
 
 
 @dataclass

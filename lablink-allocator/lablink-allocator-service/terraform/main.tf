@@ -61,6 +61,12 @@ variable "resource_suffix" {
   description = "Suffix to ensure uniqueness"
 }
 
+variable "software_subject" {
+  type        = string
+  default     = "sleap"
+  description = "Software subject for the client VM"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -143,6 +149,7 @@ resource "aws_instance" "lablink_vm" {
                   echo ">> No repo specified; starting container without cloning."
                   docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
+                      -e SOFTWARE_SUBJECT=${var.software_subject} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
                       ${var.image_name}
               else
@@ -150,6 +157,7 @@ resource "aws_instance" "lablink_vm" {
                   docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
+                      -e SOFTWARE_SUBJECT=${var.software_subject} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
                       ${var.image_name}
               fi

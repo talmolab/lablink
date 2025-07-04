@@ -439,6 +439,24 @@ def get_unassigned_instance_counts():
     return jsonify(count=instance_counts), 200
 
 
+@app.route("/api/update_inuse_status", methods=["POST"])
+def update_inuse_status():
+    """Update the in-use status of a VM."""
+    data = request.get_json()
+    hostname = data.get("hostname")
+    in_use = data.get("in_use", False)
+
+    if not hostname:
+        return jsonify({"error": "Hostname is required."}), 400
+
+    try:
+        database.update_vm_in_use(hostname=hostname, in_use=in_use)
+        return jsonify({"message": "In-use status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating in-use status: {e}")
+        return jsonify({"error": "Failed to update in-use status."}), 500
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
