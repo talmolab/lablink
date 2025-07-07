@@ -311,7 +311,7 @@ class PostgresqlDatabase:
         # SQL query to update the VM record with the user's email, CRD command, and pin
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s, inuse = TRUE
+        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE
         WHERE hostname = %s;
         """
         try:
