@@ -110,7 +110,7 @@ def main(cfg: Config) -> None:
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=call_api(cfg.client.software, url),
+        callback_func=lambda: call_api(cfg.client.software, url),
     )
 
 
