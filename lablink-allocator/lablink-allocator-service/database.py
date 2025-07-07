@@ -328,7 +328,9 @@ class PostgresqlDatabase:
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE email IS NULL LIMIT 1"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL LIMIT 1"
+        )
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
