@@ -65,6 +65,7 @@ def listen_for_process(
         # Compare the current state with the previous state
         if process_running_prev != process_running_curr:
             if callback_func:
+                logger.info(f"Process '{process_name}' state changed.")
                 callback_func()
 
         # Update the previous state
