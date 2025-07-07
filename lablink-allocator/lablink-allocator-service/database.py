@@ -323,12 +323,12 @@ class PostgresqlDatabase:
             self.conn.rollback()
 
     def get_first_available_vm(self) -> str:
-        """Get the first available VM that is not in use.
+        """Get the first available VM that is not assigned.
 
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE inuse = FALSE LIMIT 1"
+        query = f"SELECT hostname FROM {self.table_name} WHERE email IS NULL LIMIT 1"
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
