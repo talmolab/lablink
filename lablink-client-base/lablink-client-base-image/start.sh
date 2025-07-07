@@ -25,5 +25,8 @@ fi
 # Activate the conda environment and run the subscribe script
 /home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SOFTWARE_SUBJECT
 
+# After the subscribe script runs, we can start the update_inuse_status service
+/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SOFTWARE_SUBJECT
+
 # Keep the container alive
 tail -f /dev/null

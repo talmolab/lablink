@@ -90,7 +90,6 @@ def call_api(status, url):
         logger.error(f"API call failed: {e}")
 
 
-# TODO: Combine all the pieces into a single function that can be called
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
     logger.debug("Starting the update_inuse_status service...")
