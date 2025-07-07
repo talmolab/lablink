@@ -446,7 +446,7 @@ def update_inuse_status():
     """Update the in-use status of a VM."""
     data = request.get_json()
     hostname = data.get("hostname")
-    in_use = data.get("in_use", False)
+    in_use = data.get("in_use")
 
     if not hostname:
         return jsonify({"error": "Hostname is required."}), 400

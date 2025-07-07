@@ -81,9 +81,10 @@ def listen_for_process(
         time.sleep(interval)
 
 
-def call_api(status, url):
-    logger.debug(f"Calling API with status: {status}")
+def call_api(process_name, url):
+    logger.debug(f"Calling API for process: {process_name}")
     hostname = os.getenv("VM_NAME")
+    status = is_process_running(process_name=process_name)
 
     try:
         response = requests.post(
@@ -109,7 +110,7 @@ def main(cfg: Config) -> None:
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=lambda: call_api("inuse", url),
+        callback_func=call_api(cfg.client.software, url),
     )
 
 
