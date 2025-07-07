@@ -252,6 +252,7 @@ def launch():
         logger.debug(f"Image name: {cfg.machine.image}")
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
+        logger.debug(f"Subject Software: {cfg.machine.software}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -270,6 +271,7 @@ def launch():
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
+            f.write(f'software_subject = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
 
         # Apply with the new number of instances
