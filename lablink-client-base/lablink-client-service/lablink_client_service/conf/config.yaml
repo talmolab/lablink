@@ -3,4 +3,4 @@ allocator:
   port: 80
 
 client:
-  software: "sleap"
+  software: "google-chrome"
