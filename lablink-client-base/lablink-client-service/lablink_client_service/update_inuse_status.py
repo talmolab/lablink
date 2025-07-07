@@ -30,9 +30,12 @@ def is_process_running(process_name: str) -> bool:
     for proc in psutil.process_iter():
         try:
             if any(process_name in part for part in proc.cmdline()):
-                if "update_inuse_status" in proc.cmdline():
-                    # Skip the current script itself to avoid false positives
+                if "update_inuse_status" in " ".join(proc.cmdline()):
+                    logger.debug(
+                        f"Skipping process '{process_name}' as it is the current script."
+                    )
                     continue
+                logger.debug(f"Found process: {proc.cmdline()}")
                 logger.debug(f"Process '{process_name}' is running.")
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
