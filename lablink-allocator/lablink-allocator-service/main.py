@@ -271,7 +271,7 @@ def launch():
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
-            f.write(f'software_subject = "{cfg.machine.software}"\n')
+            f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
 
         # Apply with the new number of instances
