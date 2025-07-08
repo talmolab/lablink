@@ -1,6 +1,7 @@
 import subprocess
 import time
 import logging
+import os
 
 import requests
 from omegaconf import OmegaConf
@@ -39,7 +40,11 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
             logger.info(f"GPU Health Check: {result.stdout.strip()}")
             requests.post(
                 f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                json={"gpu_status": "healthy", "message": result.stdout.strip()},
+                json={
+                    "hostname": os.getenv("VM_NAME"),
+                    "gpu_status": "healthy",
+                    "message": result.stdout.strip(),
+                },
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to check GPU health: {e}")
@@ -51,6 +56,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 requests.post(
                     f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
                     json={
+                        "hostname": os.getenv("VM_NAME"),
                         "gpu_status": "N/A",
                         "message": "nvidia-smi command not found",
                     },
@@ -61,7 +67,11 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 )
                 requests.post(
                     f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                    json={"gpu_status": "Unhealthy", "message": str(e)},
+                    json={
+                        "hostname": os.environ["VM_NAME"],
+                        "gpu_status": "Unhealthy",
+                        "message": str(e),
+                    },
                 )
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")

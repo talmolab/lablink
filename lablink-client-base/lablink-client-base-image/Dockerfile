@@ -125,7 +125,7 @@ RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_nvm.sh
 
 # Activate conda environment and install client service package
-RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install --index-url https://test.pypi.org/simple/  --extra-index-url https://pypi.org/simple lablink-client-service==0.0.4b1
+RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install --index-url https://test.pypi.org/simple/  --extra-index-url https://pypi.org/simple lablink-client-service==0.0.4b2
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
