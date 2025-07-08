@@ -32,5 +32,8 @@ sleep 5
 # Run update_inuse_status
 /home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE
 
+# Run GPU health check
+/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80
+
 # Keep the container alive
 tail -f /dev/null
