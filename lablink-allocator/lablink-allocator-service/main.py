@@ -479,7 +479,7 @@ def download_all_data():
         )
 
 
-@app.route("/api/unassigned_vms_count", methods=["GET"])
+@app.route("/api/unassigned_vms_count", methods=["POST"])
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
@@ -504,6 +504,23 @@ def update_inuse_status():
     except Exception as e:
         logger.error(f"Error updating in-use status: {e}")
         return jsonify({"error": "Failed to update in-use status."}), 500
+
+
+@app.route("/api/gpu_health", methods=["GET"])
+def get_gpu_health():
+    """Check the health of the GPU."""
+    data = request.get_json()
+    gpu_status = data.get("gpu_status")
+    hostname = data.get("hostname")
+    if gpu_status is None:
+        return jsonify({"error": "GPU status is required."}), 400
+
+    try:
+        database.update_health(hostname=hostname, healthy=(gpu_status == "healthy"))
+        return jsonify({"message": "GPU health status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating GPU health status: {e}")
+        return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
 if __name__ == "__main__":
