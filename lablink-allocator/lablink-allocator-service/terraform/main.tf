@@ -111,30 +111,39 @@ resource "aws_instance" "lablink_vm" {
               #!/bin/bash
               set -euo pipefail
 
-              echo ">> Switching Docker to cgroupfs…"
-              cat >/etc/docker/daemon.json <<'JSON'
-              {
-                "default-runtime": "nvidia",
-                "runtimes": {
-                  "nvidia": {
-                    "path": "nvidia-container-runtime",
-                    "runtimeArgs": []
+              echo ">> Checking GPU Support…"
+              # Check if NVIDIA GPU is supported
+              if ! command -v nvidia-smi >/dev/null 2>&1; then
+                  echo "NVIDIA GPU support not found. Exiting."
+              fi
+              # If NVIDIA GPU is supported, switch Docker to cgroupfs
+              else
+                  echo "NVIDIA GPU support found."
+                  echo ">> Switching Docker to cgroupfs…"
+                  cat >/etc/docker/daemon.json <<'JSON'
+                  {
+                    "default-runtime": "nvidia",
+                    "runtimes": {
+                      "nvidia": {
+                        "path": "nvidia-container-runtime",
+                        "runtimeArgs": []
+                      }
+                    },
+                    "exec-opts": ["native.cgroupdriver=cgroupfs"]
                   }
-                },
-                "exec-opts": ["native.cgroupdriver=cgroupfs"]
-              }
-              JSON
+                  JSON
 
-              systemctl restart docker
+                  systemctl restart docker
 
-              # Wait until Docker is ready again
-              until docker info >/dev/null 2>&1; do
-                  sleep 1
-              done
-              echo ">> Docker restarted with cgroupfs."
+                  # Wait until Docker is ready again
+                  until docker info >/dev/null 2>&1; do
+                      sleep 1
+                  done
+                  echo ">> Docker restarted with cgroupfs."
 
-              # Optional: keep GPU awake
-              nvidia-smi -pm 1 || true
+                  # Optional: keep GPU awake
+                  nvidia-smi -pm 1 || true
+              fi
 
               echo ">> Pulling application image ${var.image_name}…"
               if ! docker pull ${var.image_name}; then
