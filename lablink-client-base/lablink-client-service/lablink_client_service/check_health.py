@@ -43,7 +43,8 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to check GPU health: {e}")
-            if e.stderr == "nvidia-smi: command not found\n":
+            # Command not found -> likely nvidia-smi is not installed
+            if e.returncode == 127:
                 logger.error(
                     "nvidia-smi command not found. Ensure NVIDIA drivers are installed."
                 )
@@ -54,10 +55,14 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                         "message": "nvidia-smi command not found",
                     },
                 )
-            requests.post(
-                f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                json={"status": "Unhealthy", "message": str(e)},
-            )
+            else:
+                logger.error(
+                    f"nvidia-smi command failed with error: {e.stderr.strip()}"
+                )
+                requests.post(
+                    f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
+                    json={"status": "Unhealthy", "message": str(e)},
+                )
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")
         time.sleep(interval)
