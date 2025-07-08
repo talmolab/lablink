@@ -311,7 +311,7 @@ class PostgresqlDatabase:
         # SQL query to update the VM record with the user's email, CRD command, and pin
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE
+        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE, healthy = TRUE
         WHERE hostname = %s;
         """
         try:
@@ -360,6 +360,22 @@ class PostgresqlDatabase:
             logger.debug("All VMs deleted from the table.")
         except Exception as e:
             logger.error(f"Error deleting VMs: {e}")
+            self.conn.rollback()
+
+    def update_health(self, hostname: str, healthy: bool) -> None:
+        """Modify the health status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            healthy (bool): The health status to set for the VM.
+        """
+        query = f"UPDATE {self.table_name} SET healthy = %s WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (healthy, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated health status for VM '{hostname}' to {healthy}.")
+        except Exception as e:
+            logger.error(f"Error updating health status: {e}")
             self.conn.rollback()
 
     @classmethod

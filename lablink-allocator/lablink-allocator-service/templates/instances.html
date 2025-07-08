@@ -52,6 +52,7 @@
         <th>CRD Command</th>
         <th>User Email</th>
         <th>In Use</th>
+        <th>Health Status</th>
       </tr>
     </thead>
     <tbody>
@@ -63,6 +64,7 @@
         <td>{{ vm.crdcommand or "—" }}</td>
         <td>{{ vm.useremail or "—" }}</td>
         <td>{{ "Yes" if vm.inuse else "No" }}</td>
+        <td>{{ "Healthy" if vm.healthy else "Unhealthy" }}</td>
       </tr>
       {% endfor %}
     </tbody>
