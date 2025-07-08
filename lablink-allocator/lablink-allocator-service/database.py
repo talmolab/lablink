@@ -362,12 +362,12 @@ class PostgresqlDatabase:
             logger.error(f"Error deleting VMs: {e}")
             self.conn.rollback()
 
-    def update_health(self, hostname: str, healthy: bool) -> None:
+    def update_health(self, hostname: str, healthy: str) -> None:
         """Modify the health status of a VM.
 
         Args:
             hostname (str): The hostname of the VM.
-            healthy (bool): The health status to set for the VM.
+            healthy (str): The health status to set for the VM.
         """
         query = f"UPDATE {self.table_name} SET healthy = %s WHERE hostname = %s;"
         try:
