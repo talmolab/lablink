@@ -378,6 +378,28 @@ class PostgresqlDatabase:
             logger.error(f"Error updating health status: {e}")
             self.conn.rollback()
 
+    def get_gpu_health(self, hostname: str) -> str:
+        """Get the GPU health status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            str: The health status of the GPU for the specified VM, or None if not found.
+        """
+        query = f"SELECT healthy FROM {self.table_name} WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (hostname,))
+            result = self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                logger.error(f"No VM found with hostname '{hostname}'.")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving GPU health: {e}")
+            return None
+
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
         """Loads an existing database from PostgreSQL.
