@@ -78,6 +78,7 @@ class vms(db.Model):
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+    healthy = db.Column(db.String(1024), nullable=True)
 
 
 @auth.verify_password

@@ -64,7 +64,7 @@
         <td>{{ vm.crdcommand or "—" }}</td>
         <td>{{ vm.useremail or "—" }}</td>
         <td>{{ "Yes" if vm.inuse else "No" }}</td>
-        <td>{{ vm.gpu_status or "—" }}</td>
+        <td>{{ vm.healthy or "—" }}</td>
       </tr>
       {% endfor %}
     </tbody>
