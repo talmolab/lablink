@@ -24,7 +24,7 @@ fi
 
 # Activate the conda environment and run the subscribe script
 /home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE
-subscribe_pid=$!
+
 
 # Wait for the subscribe script to start
 sleep 5
