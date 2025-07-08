@@ -20,11 +20,7 @@ def check_gpu_health():
     try:
         # Run the nvidia-smi command to check GPU health
         result = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu,memory.used,memory.total",
-                "--format=csv",
-            ],
+            ["nvidia-smi"],
             capture_output=True,
             text=True,
             check=True,
