@@ -10,11 +10,6 @@ import hydra
 from lablink_client_service.conf.structured_config import Config
 
 # Set up logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(name)s: %(message)s",
-    datefmt="%H:%M",
-)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
