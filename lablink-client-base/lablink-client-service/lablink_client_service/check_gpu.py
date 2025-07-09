@@ -2,10 +2,8 @@ import subprocess
 import time
 import logging
 import os
-import shutil
 
 import requests
-from omegaconf import OmegaConf
 import hydra
 
 from lablink_client_service.conf.structured_config import Config
