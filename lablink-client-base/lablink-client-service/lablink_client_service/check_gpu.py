@@ -2,6 +2,7 @@ import subprocess
 import time
 import logging
 import os
+import shutil
 
 import requests
 from omegaconf import OmegaConf
@@ -70,6 +71,17 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                         "message": str(e),
                     },
                 )
+        except FileNotFoundError as e:
+            logger.error(f"File not found: {e}")
+            requests.post(
+                f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
+                json={
+                    "hostname": os.getenv("VM_NAME"),
+                    "gpu_status": "N/A",
+                    "message": "nvidia-smi command not found",
+                },
+            )
+            break
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")
         time.sleep(interval)
