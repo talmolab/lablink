@@ -92,7 +92,6 @@ def main(cfg: Config) -> None:
     check_gpu_health(
         allocator_ip=cfg.allocator.host,
         allocator_port=cfg.allocator.port,
-        interval=60,
     )
 
 
