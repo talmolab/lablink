@@ -37,7 +37,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
                 json={
                     "hostname": os.getenv("VM_NAME"),
-                    "gpu_status": "healthy",
+                    "gpu_status": "Healthy",
                     "message": result.stdout.strip(),
                 },
             )
@@ -56,6 +56,8 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                         "message": "nvidia-smi command not found",
                     },
                 )
+                # Terminate the loop if nvidia-smi is not available
+                break
             else:
                 logger.error(
                     f"nvidia-smi command failed with error: {e.stderr.strip()}"
