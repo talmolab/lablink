@@ -282,7 +282,7 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (email,))
         row = self.cursor.fetchone()
         if row:
-            hostname, pin, crdcommand, _, _ = row
+            hostname, pin, crdcommand, _, _, _ = row
             return [
                 hostname,
                 pin,
