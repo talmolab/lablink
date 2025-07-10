@@ -393,10 +393,7 @@ def vm_startup():
 def download_all_data():
     if database.get_row_count() == 0:
         logger.warning("No VMs found in the database.")
-        return render_template(
-            "delete-instances.html",
-            error="No VMs found in the database. Please create instances first.",
-        )
+        return jsonify({"error": "No VMs found in the database."}), 404
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
@@ -440,10 +437,7 @@ def download_all_data():
 
             if empty_data:
                 logger.warning("No .slp files found in any VMs.")
-                return render_template(
-                    "delete-instances.html",
-                    error="No .slp files found in any VMs. Please check the VMs.",
-                )
+                return jsonify({"error": "No .slp files found in any VMs."}), 404
 
             logger.info(f"All .slp files copied to {temp_dir}.")
 
@@ -477,9 +471,9 @@ def download_all_data():
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error downloading data: {e}")
-        return render_template(
-            "delete-instances.html",
-            error="An error occurred while downloading data from VMs. Please try again later.",
+        return (
+            jsonify({"error": "An error occurred while downloading data from VMs."}),
+            500,
         )
 
 

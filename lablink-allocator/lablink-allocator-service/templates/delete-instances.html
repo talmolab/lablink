@@ -52,12 +52,8 @@
       <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
         Download complete.
       </div>
-      {% if error %}
-        <div class="alert alert-danger alert-dismissible fade show text-center" role="alert">
-          {{ error }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endif %}
+      <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
+      </div>
     </form>
   </div>
 
@@ -90,6 +86,7 @@
       const extractLoading = document.getElementById("extract-loading");
       const extractSuccess = document.getElementById("extract-success");
       const destroyBtn = document.getElementById("destroy-btn");
+      const extractError = document.getElementById("extract-error");
 
       // UI state: loading
       extractBtn.disabled = true;
@@ -124,6 +121,8 @@
 
       } catch (err) {
         console.error("Download failed", err);
+        extractError.classList.remove("d-none");
+        extractBtn.innerText = err.message || "An error occurred";
       } finally {
         // Reset UI
         extractBtn.disabled = false;
