@@ -100,8 +100,19 @@
 
       try {
         const response = await fetch("/api/scp-client");
-        if (!response.ok || !response.headers.get("Content-Disposition")) {
-          throw new Error("No download triggered.");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error downloading data:", errorText);
+          extractError.textContent = errorText || "Failed to download data.";
+          extractError.classList.remove("d-none");
+          return;
+        }
+
+        const disposition = response.headers.get("Content-Disposition");
+        if (!disposition) {
+          extractError.textContent = "No downloadable file returned from the server.";
+          extractError.classList.remove("d-none");
+          return;
         }
 
         const blob = await response.blob();
@@ -120,9 +131,9 @@
         extractSuccess.classList.remove("d-none");
 
       } catch (err) {
+        console.error("Unexpected error:", err);
+        extractError.textContent = "Unexpected error occurred while downloading.";
         console.error("Download failed", err);
-        extractError.classList.remove("d-none");
-        extractBtn.innerText = err.message || "An error occurred";
       } finally {
         // Reset UI
         extractBtn.disabled = false;
