@@ -19,7 +19,6 @@ from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-import requests
 
 from get_config import get_config
 from database import PostgresqlDatabase
