@@ -3,11 +3,7 @@ import logging
 import requests
 import os
 
-try:
-    import psutil
-except ImportError as e:
-    print("psutil is not installed. Please install it using 'pip install psutil'.")
-    raise e
+import psutil
 import hydra
 from omegaconf import OmegaConf
 
