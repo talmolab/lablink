@@ -400,6 +400,7 @@ def download_all_data():
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
+        empty_data = True
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for i, ip in enumerate(instance_ips):
@@ -427,6 +428,7 @@ def download_all_data():
                         key_path=key_path,
                         slp_files=slp_files,
                     )
+                    empty_data = False
                 logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
                 # Copy the extracted .slp files to the allocator container's local directory
@@ -434,6 +436,13 @@ def download_all_data():
                     ip=ip,
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
+                )
+
+            if empty_data:
+                logger.warning("No .slp files found in any VMs.")
+                return render_template(
+                    "delete-instances.html",
+                    error="No .slp files found in any VMs. Please check the VMs.",
                 )
 
             logger.info(f"All .slp files copied to {temp_dir}.")
