@@ -101,9 +101,9 @@
       try {
         const response = await fetch("/api/scp-client");
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Error downloading data:", errorText);
-          extractError.textContent = errorText || "Failed to download data.";
+          const reponseText = await response.json();
+          console.error("Error downloading data:", reponseText);
+          extractError.textContent = reponseText.error || "An error occurred while downloading data.";
           extractError.classList.remove("d-none");
           return;
         }
@@ -135,7 +135,6 @@
         extractError.textContent = "Unexpected error occurred while downloading.";
         console.error("Download failed", err);
       } finally {
-        // Reset UI
         extractBtn.disabled = false;
         extractBtn.innerText = "Extract and Download .slp Files";
         extractBtn.classList.remove("disabled");
