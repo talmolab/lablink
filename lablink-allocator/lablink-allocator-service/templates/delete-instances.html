@@ -55,6 +55,12 @@
       <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none" role="alert">
         Extraction failed.
       </div>
+      {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ error }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endif %}
     </form>
   </div>
 
@@ -82,24 +88,19 @@
     }
 
     function handleExtractSubmit() {
-      const btn = document.getElementById("extract-btn");
-      const loading = document.getElementById("extract-loading");
+      const extractBtn = document.getElementById("extract-btn");
+      const extractLoading = document.getElementById("extract-loading");
       const destroyBtn = document.getElementById("destroy-btn");
-      const success = document.getElementById("extract-success");
-      const error = document.getElementById("extract-error");
 
-      // Disable buttons and show loading
-      btn.disabled = true;
-      btn.innerText = "Extracting...";
-      btn.classList.add("disabled");
-      success.classList.add("d-none");
-      error.classList.add("d-none");
+      extractBtn.disabled = true;
+      extractBtn.innerText = "Extracting...";
+      extractBtn.classList.add("disabled");
+      extractLoading.classList.remove("d-none");
 
-      // Disable destroy button
       destroyBtn.disabled = true;
       destroyBtn.classList.add("disabled");
-      loading.classList.remove("d-none");
 
+      // No spinner reset needed — browser will either download or redirect
       return true;
     }
   </script>

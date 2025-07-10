@@ -394,7 +394,10 @@ def vm_startup():
 def download_all_data():
     if database.get_row_count() == 0:
         logger.warning("No VMs found in the database.")
-        return jsonify({"error": "No VMs found in the database."}), 404
+        return render_template(
+            "delete-instances.html",
+            error="No VMs found in the database. Please create instances first.",
+        )
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
@@ -466,7 +469,10 @@ def download_all_data():
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error downloading data: {e}")
-        return jsonify({"error": "Failed to download data from VMs."}), 500
+        return render_template(
+            "delete-instances.html",
+            error="An error occurred while downloading data from VMs. Please try again later.",
+        )
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
