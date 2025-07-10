@@ -49,14 +49,14 @@
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
         Extracting .slp files from VMs... please wait.
       </div>
-      <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none" role="alert">
+      <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
         Download complete.
       </div>
-      <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none" role="alert">
+      <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none mx-auto text-center" role="alert">
         Extraction failed.
       </div>
       {% if error %}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show text-center" role="alert">
           {{ error }}
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
