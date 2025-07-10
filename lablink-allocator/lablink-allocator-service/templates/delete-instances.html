@@ -134,6 +134,7 @@
       } catch (err) {
         console.error("Unexpected error:", err);
         extractError.textContent = "Unexpected error occurred while downloading.";
+        extractError.classList.remove("d-none");
         console.error("Download failed", err);
       } finally {
         extractBtn.disabled = false;
