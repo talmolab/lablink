@@ -104,9 +104,6 @@ resource "aws_instance" "lablink_vm" {
     volume_type = "gp3"
   }
 
-  ########################
-  # cgroupfs-enabled user_data
-  ########################
   user_data = templatefile("${path.module}/user_data.sh", {
     allocator_ip     = var.allocator_ip
     repository       = var.repository
