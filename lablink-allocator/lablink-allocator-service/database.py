@@ -311,7 +311,7 @@ class PostgresqlDatabase:
         # SQL query to update the VM record with the user's email, CRD command, and pin
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s, inuse = TRUE
+        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE
         WHERE hostname = %s;
         """
         try:
@@ -323,15 +323,33 @@ class PostgresqlDatabase:
             self.conn.rollback()
 
     def get_first_available_vm(self) -> str:
-        """Get the first available VM that is not in use.
+        """Get the first available VM that is not assigned.
 
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE inuse = FALSE LIMIT 1"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL LIMIT 1"
+        )
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
+
+    def update_vm_in_use(self, hostname: str, in_use: bool) -> None:
+        """Update the in-use status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            in_use (bool): The in-use status to set.
+        """
+        query = f"UPDATE {self.table_name} SET inuse = %s WHERE hostname = %s"
+        try:
+            self.cursor.execute(query, (in_use, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated VM '{hostname}' in-use status to {in_use}.")
+        except Exception as e:
+            logger.error(f"Error updating VM in-use status: {e}")
+            self.conn.rollback()
 
     def clear_database(self) -> None:
         """Delete all VMs from the table."""

@@ -46,6 +46,6 @@ EXPOSE 5000
 COPY lablink-allocator/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Set the entrypoint script
+# Set the entrypoint script to start the Flask application
 CMD ["/bin/bash", "-c", "/app/start.sh"]
 
