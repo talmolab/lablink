@@ -108,11 +108,12 @@ resource "aws_instance" "lablink_vm" {
   # cgroupfs-enabled user_data
   ########################
   user_data = templatefile("${path.module}/user_data.sh", {
-    allocator_ip    = var.allocator_ip
-    repository      = var.repository
-    resource_suffix = var.resource_suffix
-    image_name      = var.image_name
-    count_index     = count.index + 1
+    allocator_ip     = var.allocator_ip
+    repository       = var.repository
+    resource_suffix  = var.resource_suffix
+    image_name       = var.image_name
+    count_index      = count.index + 1
+    subject_software = var.subject_software
   })
 
   tags = {

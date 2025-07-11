@@ -57,6 +57,7 @@ if [ -z "${repository}" ]; then
     docker run -dit $DOCKER_GPU_ARGS \
         -e ALLOCATOR_HOST="${allocator_ip}" \
         -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
+        -e SUBJECT_SOFTWARE="${subject_software}" \
         "${image_name}"
 else
     echo ">> Cloning repo and starting container."
@@ -64,6 +65,7 @@ else
         -e ALLOCATOR_HOST="${allocator_ip}" \
         -e TUTORIAL_REPO_TO_CLONE="${repository}" \
         -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
+        -e SUBJECT_SOFTWARE="${subject_software}" \
         "${image_name}"
 fi
 
