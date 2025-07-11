@@ -61,16 +61,12 @@ resource "aws_instance" "lablink_allocator_server" {
   security_groups = [aws_security_group.allow_http.name]
   key_name        = aws_key_pair.lablink_key_pair.key_name
 
-  user_data = <<-EOF
-    #!/bin/bash
-    IMAGE="ghcr.io/talmolab/lablink-allocator-image:${var.allocator_image_tag}"
-    docker pull $IMAGE
-    docker run -d -p 80:5000 \
-      -e ENVIRONMENT=${var.resource_suffix} \
-      -e ALLOCATOR_PUBLIC_IP=${data.aws_eip.lablink_allocator_ip.public_ip} \
-      -e ALLOCATOR_KEY_NAME=${aws_key_pair.lablink_key_pair.key_name} \
-      $IMAGE
-  EOF
+  user_data = templatefile("${path.module}/user_data.sh", {
+    ALLOCATOR_IMAGE_TAG = var.allocator_image_tag
+    RESOURCE_SUFFIX     = var.resource_suffix
+    ALLOCATOR_PUBLIC_IP = data.aws_eip.lablink_allocator_ip.public_ip
+    ALLOCATOR_KEY_NAME  = aws_key_pair.lablink_key_pair.key_name
+  })
 
   tags = {
     Name        = "lablink_allocator_server_${var.resource_suffix}"

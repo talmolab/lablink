@@ -79,6 +79,7 @@ class vms(db.Model):
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+    healthy = db.Column(db.String(1024), nullable=True)
 
 
 @auth.verify_password
@@ -496,6 +497,40 @@ def update_inuse_status():
     except Exception as e:
         logger.error(f"Error updating in-use status: {e}")
         return jsonify({"error": "Failed to update in-use status."}), 500
+
+
+@app.route("/api/gpu_health", methods=["POST"])
+def get_gpu_health():
+    """Check the health of the GPU."""
+    data = request.get_json()
+    gpu_status = data.get("gpu_status")
+    hostname = data.get("hostname")
+    if gpu_status is None:
+        return jsonify({"error": "GPU status is required."}), 400
+
+    try:
+        database.update_health(hostname=hostname, healthy=gpu_status)
+        logger.info(f"Updated GPU health status for {hostname} to {gpu_status}")
+        return jsonify({"message": "GPU health status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating GPU health status: {e}")
+        return jsonify({"error": "Failed to update GPU health status."}), 500
+
+
+@app.route("/api/gpu_health", methods=["GET"])
+def get_gpu_health_status():
+    """Get the current GPU health status."""
+    data = request.get_json()
+    hostname = data.get("hostname")
+    if not hostname:
+        return jsonify({"error": "Hostname is required."}), 400
+    gpu_health = database.get_gpu_health(hostname=hostname)
+    if gpu_health is None:
+        return (
+            jsonify({"error": "No GPU health data found for the specified hostname."}),
+            404,
+        )
+    return jsonify(gpu_health), 200
 
 
 if __name__ == "__main__":
