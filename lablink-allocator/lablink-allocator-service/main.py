@@ -19,7 +19,6 @@ from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-import requests
 
 from get_config import get_config
 from database import PostgresqlDatabase
@@ -400,6 +399,7 @@ def download_all_data():
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
+        empty_data = True
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for i, ip in enumerate(instance_ips):
@@ -427,6 +427,7 @@ def download_all_data():
                         key_path=key_path,
                         slp_files=slp_files,
                     )
+                    empty_data = False
                 logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
                 # Copy the extracted .slp files to the allocator container's local directory
@@ -435,6 +436,10 @@ def download_all_data():
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
                 )
+
+            if empty_data:
+                logger.warning("No .slp files found in any VMs.")
+                return jsonify({"error": "No .slp files found in any VMs."}), 404
 
             logger.info(f"All .slp files copied to {temp_dir}.")
 
@@ -468,7 +473,10 @@ def download_all_data():
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error downloading data: {e}")
-        return jsonify({"error": "Failed to download data from VMs."}), 500
+        return (
+            jsonify({"error": "An error occurred while downloading data from VMs."}),
+            500,
+        )
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
