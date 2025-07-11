@@ -12,7 +12,7 @@ if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
   cd /home/client/Desktop
   echo "Cloning repository $TUTORIAL_REPO_TO_CLONE..."
   sudo -u client git clone "$TUTORIAL_REPO_TO_CLONE"
-  if [$? -ne 0]; then
+  if [ $? -ne 0 ]; then
     echo "Failed to clone repository $TUTORIAL_REPO_TO_CLONE"
     exit 1
   else
@@ -23,20 +23,20 @@ else
 fi
 
 # Activate the conda environment and run the subscribe script
-/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE &
 
+/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE > /var/log/subscribe.log 2>&1
 
 # Wait for the subscribe script to start
 sleep 5
 
 # Run update_inuse_status
-/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE
+/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE > /var/log/update_inuse_status.log 2>&1 &
 
 # Wait for the subscribe script to start
 sleep 5
 
 # Run GPU health check
-/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80
+/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80 > /var/log/gpu_health.log 2>&1 &
 
 # Keep the container alive
 tail -f /dev/null
