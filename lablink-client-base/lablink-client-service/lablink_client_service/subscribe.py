@@ -7,16 +7,9 @@ from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.connect_crd import connect_to_crd
+from lablink_client_service.logger_config import setup_logger
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(name)s: %(message)s",
-    datefmt="%H:%M",
-)
-
-# Set up logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = setup_logger()
 
 
 @hydra.main(version_base=None, config_name="config")
