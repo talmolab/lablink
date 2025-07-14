@@ -59,6 +59,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdg-utils \
     # Allows running commands as root
     sudo && \
+    # For cloning repositories and managing git
+    git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
