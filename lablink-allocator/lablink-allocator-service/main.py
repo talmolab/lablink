@@ -508,7 +508,7 @@ def update_inuse_status():
 
 
 @app.route("/api/gpu_health", methods=["POST"])
-def get_gpu_health():
+def update_gpu_health():
     """Check the health of the GPU."""
     data = request.get_json()
     gpu_status = data.get("gpu_status")
