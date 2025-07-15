@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import logging
+import os
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ def construct_command(args):
     """
 
     redirect_url = "'https://remotedesktop.google.com/_/oauthredirect'"
-    name = "$(hostname)"
+    name = os.getenv("VM_NAME", "$(hostname)")
 
     command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host"
     command += f" --code={args.code}"
