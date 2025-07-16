@@ -164,9 +164,6 @@ resource "aws_instance" "lablink_vm" {
 
               echo ">> Container launched."
 
-              echo ">> Logs from cloud-init:"
-              cat /var/log/cloud-init-output.log
-
               curl -s -X POST "http://${var.allocator_ip}/api/logs" \
                   -H "Content-Type: application/json" \
                   -d "{\"hostname\": \"lablink-vm-${var.resource_suffix}-${count.index + 1}\", \"log_lines\": \"$(tail -n 100 /var/log/cloud-init-output.log | base64 | tr -d '\n')\"}"
