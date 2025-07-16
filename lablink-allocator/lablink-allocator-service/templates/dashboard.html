@@ -10,17 +10,19 @@
         <h1 class="mb-4 text-center">Terraform Output Dashboard</h1>
 
         {% if output %}
-            <div class="alert alert-success" role="alert">
+            <button class="btn btn-outline-success mb-2" onclick="toggleVisibility('output-block')">Toggle Terraform Output</button>
+            <div id="output-block" class="alert alert-success" role="alert" style="display: none;">
                 <h4 class="alert-heading">Terraform Script Ran Successfully!</h4>
                 <pre class="mb-0">{{ output }}</pre>
             </div>
         {% elif credential_error %}
-            <div class="alert alert-danger" role="alert">
-                <h4 class="alert-heading">AWS Credentials Error</h4>
-                <p>AWS credentials file not found. Please set AWS credentials first in the <a href="/admin">Admin Panel</a>.</p>
-            </div>
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">AWS Credentials Error</h4>
+            <p>AWS credentials file not found. Please set AWS credentials first in the <a href="/admin">Admin Panel</a>.</p>
+        </div>
         {% elif error %}
-            <div class="alert alert-danger" role="alert">
+        <button class="btn btn-outline-danger mb-2" onclick="toggleVisibility('error-block')">Toggle Error</button>
+            <div id="error-block" class="alert alert-danger" role="alert" style="display: none;">
                 <h4 class="alert-heading">Terraform Script Failed</h4>
                 <pre class="mb-0">{{ error }}</pre>
             </div>
@@ -35,4 +37,14 @@
         </div>
     </div>
 </body>
+<script>
+    function toggleVisibility(id) {
+        const block = document.getElementById(id);
+        if (block.style.display === "none") {
+            block.style.display = "block";
+        } else {
+            block.style.display = "none";
+        }
+    }
+</script>
 </html>
