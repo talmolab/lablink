@@ -6,6 +6,7 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
+import base64
 
 from flask import (
     Flask,
@@ -531,6 +532,34 @@ def update_gpu_health():
     except Exception as e:
         logger.error(f"Error updating GPU health status: {e}")
         return jsonify({"error": "Failed to update GPU health status."}), 500
+
+
+@app.route("/api/logs", methods=["POST"])
+def get_logs():
+    data = request.get_json()
+    hostname = data.get("hostname")
+    log_data = data.get("log_lines")
+
+    if not hostname or not log_data:
+        logger.error("Hostname and log lines are required.")
+        return jsonify({"error": "Hostname and log lines are required."}), 400
+
+    try:
+        log_text = base64.b64decode(log_data).decode("utf-8")
+    except Exception:
+        log_text = log_data
+
+    logger.debug(f"Received log data for {hostname}.")
+    logger.debug(f"Log data:\n{log_text}")
+
+    log_file_path = Path("client_vm_logs") / f"{hostname}_log.log"
+
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_file_path.open("w") as log_file:
+        log_file.write(log_text)
+
+    logger.debug(f"Log file created at {log_file_path}")
+    return jsonify({"message": "Log file created successfully."}), 200
 
 
 if __name__ == "__main__":
