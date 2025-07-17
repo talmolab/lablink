@@ -570,6 +570,54 @@ def get_logs():
     return jsonify({"message": "Log file created successfully."}), 200
 
 
+vm_status = {}
+
+
+@app.route("/api/vm-status/", methods=["POST"])
+def update_vm_status():
+    try:
+        data = request.get_json()
+        hostname = data.get("hostname")
+        status = data.get("status")
+
+        if not hostname or status is None:
+            return jsonify({"error": "Hostname and status are required."}), 400
+
+        vm_status[hostname] = status
+
+        logger.debug(f"Updated status for {hostname}: {status}")
+
+        return jsonify({"message": "VM status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating VM status: {e}")
+        return jsonify({"error": "Failed to update VM status."}), 500
+
+
+@app.route("/api/vm-status/<hostname>", methods=["GET"])
+def get_vm_status(hostname):
+    try:
+        status = vm_status.get(hostname)
+        if status is None:
+            return jsonify({"error": "VM not found."}), 404
+
+        return jsonify({"hostname": hostname, "status": status}), 200
+    except Exception as e:
+        logger.error(f"Error getting VM status: {e}")
+        return jsonify({"error": "Failed to get VM status."}), 500
+
+
+@app.route("/api/vm-status", methods=["GET"])
+def get_all_vm_status():
+    try:
+        if not vm_status:
+            return jsonify({"error": "No VM status updates available."}), 404
+
+        return jsonify(vm_status), 200
+    except Exception as e:
+        logger.error(f"Error getting all VM status: {e}")
+        return jsonify({"error": "Failed to get VM status."}), 500
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
