@@ -10,22 +10,26 @@
         <h1 class="mb-4 text-center">Terraform Output Dashboard</h1>
 
         {% if output %}
-            <button class="btn btn-outline-success mb-2" onclick="toggleVisibility('output-block')">Toggle Terraform Output</button>
-            <div id="output-block" class="alert alert-success" role="alert" style="display: none;">
+        <details class="mb-3 border rounded shadow-sm p-3 bg-white">
+            <summary class="fw-semibold text-success mb-2">Terraform Script Output</summary>
+            <div class="alert alert-success mt-2">
                 <h4 class="alert-heading">Terraform Script Ran Successfully!</h4>
                 <pre class="mb-0">{{ output }}</pre>
             </div>
+        </details>
         {% elif credential_error %}
         <div class="alert alert-danger" role="alert">
             <h4 class="alert-heading">AWS Credentials Error</h4>
             <p>AWS credentials file not found. Please set AWS credentials first in the <a href="/admin">Admin Panel</a>.</p>
         </div>
         {% elif error %}
-        <button class="btn btn-outline-danger mb-2" onclick="toggleVisibility('error-block')">Toggle Error</button>
-            <div id="error-block" class="alert alert-danger" role="alert" style="display: none;">
+        <details class="mb-3 border rounded shadow-sm p-3 bg-white">
+            <summary class="fw-semibold text-danger mb-2">Show Error</summary>
+            <div class="alert alert-danger mt-2">
                 <h4 class="alert-heading">Terraform Script Failed</h4>
                 <pre class="mb-0">{{ error }}</pre>
             </div>
+        </details>
         {% else %}
             <div class="alert alert-info" role="alert">
                 No operation performed yet.
@@ -37,14 +41,4 @@
         </div>
     </div>
 </body>
-<script>
-    function toggleVisibility(id) {
-        const block = document.getElementById(id);
-        if (block.style.display === "none") {
-            block.style.display = "block";
-        } else {
-            block.style.display = "none";
-        }
-    }
-</script>
 </html>
