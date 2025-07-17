@@ -125,7 +125,7 @@ resource "aws_instance" "lablink_vm" {
               }
 
               # Initial status update
-              send_status "starting"
+              send_status "initializing"
 
               echo ">> Switching Docker to cgroupfs…"
               cat >/etc/docker/daemon.json <<'JSON'
