@@ -111,6 +111,22 @@ resource "aws_instance" "lablink_vm" {
               #!/bin/bash
               set -euo pipefail
 
+              VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
+              ALLOCATOR_IP="${var.allocator_ip}"
+              STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+
+              # Function to send status updates
+              send_status() {
+                  local status="$1"
+
+                  curl -s -X POST "$STATUS_ENDPOINT" \
+                      -H "Content-Type: application/json" \
+                      -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
+              }
+
+              # Initial status update
+              send_status "initializing"
+
               echo ">> Switching Docker to cgroupfs…"
               cat >/etc/docker/daemon.json <<'JSON'
               {
@@ -139,6 +155,7 @@ resource "aws_instance" "lablink_vm" {
               echo ">> Pulling application image ${var.image_name}…"
               if ! docker pull ${var.image_name}; then
                   echo "Docker image pull failed!" >&2
+                  send_status "failed"
                   exit 1
               fi
               echo ">> Image pulled."
@@ -147,22 +164,40 @@ resource "aws_instance" "lablink_vm" {
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo ">> No repo specified; starting container without cloning."
-                  docker run -dit --runtime=nvidia --gpus all \
+                  if docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e SUBJECT_SOFTWARE=${var.subject_software} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
-                      ${var.image_name}
+                      ${var.image_name}; then
+                      send_status "running"
+                  else
+                      echo ">> Container start failed!"
+                      send_status "failed"
+                      exit 1
+                  fi
               else
                   echo ">> Cloning repo and starting container."
-                  docker run -dit --runtime=nvidia --gpus all \
+                  if docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
                       -e SUBJECT_SOFTWARE=${var.subject_software} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
-                      ${var.image_name}
+                      ${var.image_name}; then
+                      send_status "running"
+                  else
+                      echo ">> Container start failed!"
+                      send_status "failed"
+                      exit 1
+                  fi
               fi
 
               echo ">> Container launched."
+
+              curl -s -X POST "http://${var.allocator_ip}/api/logs" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"hostname\": \"lablink-vm-${var.resource_suffix}-${count.index + 1}\", \"log_lines\": \"$(tail -n 200 /var/log/cloud-init-output.log | base64 | tr -d '\n')\"}"
+
+              echo ">> Log sent to allocator."
               EOF
 
   tags = {
