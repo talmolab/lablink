@@ -195,7 +195,7 @@ resource "aws_instance" "lablink_vm" {
 
               curl -s -X POST "http://${var.allocator_ip}/api/logs" \
                   -H "Content-Type: application/json" \
-                  -d "{\"hostname\": \"lablink-vm-${var.resource_suffix}-${count.index + 1}\", \"log_lines\": \"$(tail -n 100 /var/log/cloud-init-output.log | base64 | tr -d '\n')\"}"
+                  -d "{\"hostname\": \"lablink-vm-${var.resource_suffix}-${count.index + 1}\", \"log_lines\": \"$(tail -n 200 /var/log/cloud-init-output.log | base64 | tr -d '\n')\"}"
 
               echo ">> Log sent to allocator."
               EOF
