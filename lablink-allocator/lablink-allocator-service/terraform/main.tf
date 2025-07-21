@@ -114,6 +114,10 @@ resource "aws_instance" "lablink_vm" {
               #!/bin/bash
               set -euo pipefail
 
+              VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
+              ALLOCATOR_IP="${var.allocator_ip}"
+              STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+
               apt-get update && apt-get install -y amazon-cloudwatch-agent
 
               mkdir -p /var/log/lablink
@@ -127,12 +131,12 @@ resource "aws_instance" "lablink_vm" {
                         {
                           "file_path": "/var/log/cloud-init-output.log",
                           "log_group_name": "/lablink/cloud-init",
-                          "log_stream_name": "${VM_NAME}-cloudinit"
+                          "log_stream_name": " $VM_NAME-cloudinit"
                         },
                         {
                           "file_path": "/var/log/lablink/startup.log",
                           "log_group_name": "/lablink/docker",
-                          "log_stream_name": "${VM_NAME}-startup"
+                          "log_stream_name": "$VM_NAME-startup"
                         }
                       ]
                     }
@@ -142,10 +146,6 @@ resource "aws_instance" "lablink_vm" {
               EOCWCONFIG
 
               /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
-
-              VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
-              ALLOCATOR_IP="${var.allocator_ip}"
-              STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
 
               # Function to send status updates
               send_status() {
