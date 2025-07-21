@@ -67,6 +67,7 @@ variable "subject_software" {
   description = "Software subject for the client VM"
 }
 
+# Security Group for LabLink Client
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -93,12 +94,14 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+# EC2 Instance for LabLink Client
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile   = aws_iam_instance_profile.cloudwatch_instance_profile.name
   root_block_device {
     volume_size = 80
     volume_type = "gp3"
@@ -110,6 +113,35 @@ resource "aws_instance" "lablink_vm" {
   user_data = <<-EOF
               #!/bin/bash
               set -euo pipefail
+
+              apt-get update && apt-get install -y amazon-cloudwatch-agent
+
+              mkdir -p /var/log/lablink
+              echo ">> Setting up CloudWatch agent…"
+              cat <<EOCWCONFIG > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+              {
+                "logs": {
+                  "logs_collected": {
+                    "files": {
+                      "collect_list": [
+                        {
+                          "file_path": "/var/log/cloud-init-output.log",
+                          "log_group_name": "/lablink/cloud-init",
+                          "log_stream_name": "${VM_NAME}-cloudinit"
+                        },
+                        {
+                          "file_path": "/var/log/lablink/startup.log",
+                          "log_group_name": "/lablink/docker",
+                          "log_stream_name": "${VM_NAME}-startup"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+              EOCWCONFIG
+
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
               VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
               ALLOCATOR_IP="${var.allocator_ip}"
@@ -205,15 +237,46 @@ resource "aws_instance" "lablink_vm" {
   }
 }
 
+# TLS Private Key for LabLink Client
 resource "tls_private_key" "lablink_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
+# Key Pair for LabLink Client
 resource "aws_key_pair" "lablink_key_pair" {
   key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
+
+# IAM Role for CloudWatch Logs 
+resource "aws_iam_role" "cloudwatch_agent_role" {
+  name = "lablink_cloudwatch_agent_role_${var.resource_suffix}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
+  role       = aws_iam_role.cloudwatch_agent_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_iam_instance_profile" "cloudwatch_instance_profile" {
+  name = "lablink_cloudwatch_instance_profile_${var.resource_suffix}"
+  role = aws_iam_role.cloudwatch_agent_role.name
+}
+
 
 output "vm_instance_ids" {
   description = "List of EC2 instance IDs created"
