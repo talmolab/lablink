@@ -35,13 +35,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-10-base \
     libgcc-s1 \
     # XFCE4 desktop environment for lightweight graphical interface
-    xfce4 \
-    desktop-base \
-    xfce4-terminal \
-    xfce4-goodies \
+    # xfce4 \
+    # desktop-base \
+    # xfce4-terminal \
+    # xfce4-goodies \
+    gnome-session \
+    gnome-terminal \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
+    xbase-clients \
     xvfb \
     # Miscellaneous dependencies
     # Provides process management utilities
