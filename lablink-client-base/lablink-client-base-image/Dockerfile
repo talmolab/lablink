@@ -35,10 +35,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-10-base \
     libgcc-s1 \
     # XFCE4 desktop environment for lightweight graphical interface
-    xfce4 \
-    desktop-base \
-    xfce4-terminal \
-    xfce4-goodies \
+    # xfce4 \
+    # desktop-base \
+    # xfce4-terminal \
+    # xfce4-goodies \
+    kde-plasma-desktop \
+    kde-standard \
+    kde-spectacle \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
@@ -78,7 +81,9 @@ RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure Chrome Remote Desktop to use Gnome by default
-RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session
+# RUN bash -c 'echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session'
+RUN bash -c 'echo "exec /etc/X11/Xsession /usr/bin/startplasma-x11" > /etc/chrome-remote-desktop-session'
+
 
 # Because there is no display connected to your instance, disable the display manager service on your instance
 RUN systemctl disable lightdm.service
