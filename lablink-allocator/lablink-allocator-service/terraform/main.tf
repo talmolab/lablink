@@ -77,7 +77,6 @@ resource "aws_instance" "lablink_vm" {
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
-  iam_instance_profile   = aws_iam_instance_profile.cloudwatch_instance_profile.name
   root_block_device {
     volume_size = 80
     volume_type = "gp3"
@@ -225,35 +224,13 @@ resource "aws_key_pair" "lablink_key_pair" {
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
-# IAM Role for CloudWatch Logs 
-resource "aws_iam_role" "cloudwatch_agent_role" {
-  name = "lablink_cloudwatch_agent_role_${var.resource_suffix}"
+# IAM Role for CloudWatch Logs
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
+# IAM Role Policy Attachment for CloudWatch Agent
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
-  role       = aws_iam_role.cloudwatch_agent_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-}
+# IAM Instance Profile for CloudWatch Agent
 
-resource "aws_iam_instance_profile" "cloudwatch_instance_profile" {
-  name = "lablink_cloudwatch_instance_profile_${var.resource_suffix}"
-  role = aws_iam_role.cloudwatch_agent_role.name
-}
-
-
+# Outputs
 output "vm_instance_ids" {
   description = "List of EC2 instance IDs created"
   value       = aws_instance.lablink_vm[*].id
