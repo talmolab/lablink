@@ -83,13 +83,14 @@
     document.getElementById("extract-form").addEventListener("submit", async function (e) {
       e.preventDefault();
 
+      // Define elements
       const extractBtn = document.getElementById("extract-btn");
       const extractLoading = document.getElementById("extract-loading");
       const extractSuccess = document.getElementById("extract-success");
       const destroyBtn = document.getElementById("destroy-btn");
       const extractError = document.getElementById("extract-error");
 
-      // UI state: loading
+      // Loading state
       extractBtn.disabled = true;
       extractBtn.innerText = "Extracting...";
       extractBtn.classList.add("disabled");
@@ -100,6 +101,7 @@
       destroyBtn.classList.add("disabled");
 
       try {
+        // Fetch the SCP client data
         const response = await fetch("/api/scp-client");
         if (!response.ok) {
           const responseText = await response.json();
@@ -135,7 +137,6 @@
         console.error("Unexpected error:", err);
         extractError.textContent = "Unexpected error occurred while downloading.";
         extractError.classList.remove("d-none");
-        console.error("Download failed", err);
       } finally {
         extractBtn.disabled = false;
         extractBtn.innerText = "Extract and Download .slp Files";
