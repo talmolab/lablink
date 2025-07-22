@@ -164,6 +164,7 @@
             fetch('/api/vm-status')
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Fetched VM status:', data);
                     displayVMStatus(data);
                     lastUpdateTime = new Date();
                 })
@@ -196,6 +197,7 @@
             let html = '<div class="vm-grid">';
             
             for (const [hostname, status] of Object.entries(statusData)) {
+                console.log(`Processing status for ${hostname}:`, status);
                 const statusInfo = getStatusInfo(status.status);
                 const timeAgo = getTimeAgo(status.timestamp);
                 
@@ -351,19 +353,18 @@
         }
 
         function showErrorDetails(hostname) {
-            // You can implement this to show detailed error logs
             alert(`Error details for ${hostname} - check logs for more information`);
         }
 
         // Auto-start refresh if we have output (VMs were just created)
         {% if output %}
         document.addEventListener('DOMContentLoaded', function() {
-            // Initial load after 3 seconds to allow VMs to start sending status
+            // Initial load after 10 seconds to allow VMs to start sending status
             setTimeout(() => {
                 refreshVMStatus();
                 // Auto-enable refresh for newly created VMs
                 setTimeout(toggleAutoRefresh, 1000);
-            }, 3000);
+            }, 10000);
         });
         {% endif %}
 
