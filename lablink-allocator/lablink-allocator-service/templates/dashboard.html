@@ -8,10 +8,6 @@
         .vm-status-card {
             transition: all 0.3s ease;
         }
-        .vm-status-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
         .status-indicator {
             width: 12px;
             height: 12px;
@@ -176,7 +172,7 @@
                         </div>`;
                 })
                 .finally(() => {
-                    setTimeout(hideRefreshIndicator, 500); // Show indicator for at least 500ms
+                    setTimeout(hideRefreshIndicator, 500);
                 });
         }
 
@@ -201,7 +197,7 @@
                 html += `
                     <div class="vm-status-card card h-100">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
                                 <h6 class="card-title mb-0">
                                     <i class="bi bi-server me-2"></i>${hostname}
                                 </h6>
@@ -222,7 +218,6 @@
             
             html += '</div>';
             
-            // Add summary
             const summary = getSummary(statusData);
             html = `
                 <div class="row mb-3">
@@ -304,7 +299,7 @@
             
             for (const [hostname, status] of Object.entries(statusData)) {
                 summary.total++;
-                switch(status.status) {
+                switch(status) {
                     case 'running':
                         summary.running++;
                         break;
