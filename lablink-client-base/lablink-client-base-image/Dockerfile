@@ -86,7 +86,7 @@ RUN bash -c 'echo "exec /etc/X11/Xsession /usr/bin/startplasma-x11" > /etc/chrom
 
 
 # Because there is no display connected to your instance, disable the display manager service on your instance
-RUN systemctl disable lightdm.service
+# RUN systemctl disable lightdm.service
 
 # Install Chrome browser
 RUN curl -L -o google-chrome-stable_current_amd64.deb \
