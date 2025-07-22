@@ -159,7 +159,15 @@
             showRefreshIndicator();
             
             fetch('/api/vm-status')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.status === 404) {
+                        document.getElementById('vm-status-container').innerHTML = 
+                            `<div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                VMs Starting Up... Please wait.
+                            </div>`;
+                    }
+                    response.json()})
                 .then(data => {
                     displayVMStatus(data);
                     lastUpdateTime = new Date();
