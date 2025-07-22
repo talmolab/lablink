@@ -164,7 +164,6 @@
             fetch('/api/vm-status')
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Fetched VM status:', data);
                     displayVMStatus(data);
                     lastUpdateTime = new Date();
                 })
@@ -197,9 +196,7 @@
             let html = '<div class="vm-grid">';
             
             for (const [hostname, status] of Object.entries(statusData)) {
-                console.log(`Processing status for ${hostname}:`, status);
-                const statusInfo = getStatusInfo(status.status);
-                const timeAgo = getTimeAgo(status.timestamp);
+                const statusInfo = getStatusInfo(status);
                 
                 html += `
                     <div class="vm-status-card card h-100">
@@ -211,18 +208,7 @@
                                 <span class="badge ${statusInfo.badgeClass}">${statusInfo.displayText}</span>
                             </div>
                             
-                            <div class="d-flex align-items-center mb-2">
-                                ${statusInfo.indicator}
-                                <span class="me-2">${status.message || 'No message available'}</span>
-                                ${statusInfo.spinner}
-                            </div>
-                            
-                            <div class="last-updated">
-                                <i class="bi bi-clock me-1"></i>
-                                ${timeAgo}
-                            </div>
-                            
-                            ${status.status === 'error' ? `
+                            ${status === 'error' ? `
                                 <div class="mt-2">
                                     <button class="btn btn-sm btn-outline-danger" onclick="showErrorDetails('${hostname}')">
                                         <i class="bi bi-exclamation-triangle me-1"></i>View Details
@@ -332,24 +318,6 @@
             }
             
             return summary;
-        }
-
-        function getTimeAgo(timestamp) {
-            if (!timestamp) return 'Unknown';
-            
-            const now = new Date();
-            const time = new Date(timestamp);
-            const diffMs = now - time;
-            const diffSecs = Math.floor(diffMs / 1000);
-            const diffMins = Math.floor(diffSecs / 60);
-            
-            if (diffSecs < 60) {
-                return `${diffSecs} seconds ago`;
-            } else if (diffMins < 60) {
-                return `${diffMins} minutes ago`;
-            } else {
-                return time.toLocaleTimeString();
-            }
         }
 
         function showErrorDetails(hostname) {
