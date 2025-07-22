@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     kde-plasma-desktop \
     kde-standard \
     kde-spectacle \
+    kwin-x11 \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
