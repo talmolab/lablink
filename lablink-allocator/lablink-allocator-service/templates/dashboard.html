@@ -160,14 +160,20 @@
             
             fetch('/api/vm-status')
                 .then(response => {
-                    if (!response.status === 404) {
-                        document.getElementById('vm-status-container').innerHTML = 
-                            `<div class="alert alert-danger">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                VMs Starting Up... Please wait.
-                            </div>`;
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            document.getElementById('vm-status-container').innerHTML = 
+                                `<div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    No VM status available. Please ensure VMs are created.
+                                </div>`;
+                            return {};
+                        } else {
+                            throw new Error('HTTP error: ' + response.status);
+                        }
                     }
-                    response.json()})
+                    return response.json();
+                })
                 .then(data => {
                     displayVMStatus(data);
                     lastUpdateTime = new Date();
