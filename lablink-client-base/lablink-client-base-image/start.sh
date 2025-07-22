@@ -30,7 +30,7 @@ fi
 sleep 5
 
 # Run update_inuse_status
-/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE
+# /home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE
 
 # Keep the container alive
 tail -f /dev/null
