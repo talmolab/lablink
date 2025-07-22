@@ -584,8 +584,8 @@ def update_vm_status():
             return jsonify({"error": "Hostname and status are required."}), 400
 
         vm_status[hostname] = status
-
         logger.debug(f"Updated status for {hostname}: {status}")
+        logger.debug(f"Current VM status: {vm_status}")
 
         return jsonify({"message": "VM status updated successfully."}), 200
     except Exception as e:
