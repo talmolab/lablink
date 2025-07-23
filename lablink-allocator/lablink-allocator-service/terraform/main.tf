@@ -59,7 +59,7 @@ resource "aws_security_group" "lablink_sg_" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # You can restrict to your IP
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -70,6 +70,12 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+# IAM Instance Profile for CloudWatch Agent
+resource "aws_iam_instance_profile" "cloudwatch_agent_profile" {
+  name = "cloudwatch-agent-profile"
+  role = "ec2-cloudwatch-agent-role"
+}
+
 # EC2 Instance for LabLink Client
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
@@ -77,6 +83,7 @@ resource "aws_instance" "lablink_vm" {
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile   = aws_iam_instance_profile.cloudwatch_agent_profile.name
   root_block_device {
     volume_size = 80
     volume_type = "gp3"
@@ -137,6 +144,40 @@ resource "aws_instance" "lablink_vm" {
 
               # Initial status update
               send_status "initializing"
+
+              # Install CloudWatch agent
+              echo ">> Installing CloudWatch agent..."
+              wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+              rpm -U ./amazon-cloudwatch-agent.rpm
+
+              # Create CloudWatch agent configuration
+              cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'CWCONFIG'
+              {
+                "logs": {
+                  "logs_collected": {
+                    "files": {
+                      "collect_list": [
+                        {
+                          "file_path": "/var/log/cloud-init-output.log",
+                          "log_group_name": "lablink-vm-logs",
+                          "log_stream_name": "lablink-vm-${var.resource_suffix}-${count.index + 1}",
+                          "timezone": "UTC"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+              CWCONFIG
+
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+                  -a fetch-config \
+                  -m ec2 \
+                  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+                  -s
+
+              echo ">> CloudWatch agent configured and started."
 
               echo ">> Switching Docker to cgroupfs…"
               cat >/etc/docker/daemon.json <<'JSON'
@@ -228,11 +269,16 @@ resource "aws_key_pair" "lablink_key_pair" {
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
-# IAM Role for CloudWatch Logs
+# CloudWatch Log Group for VM Logs
+resource "aws_cloudwatch_log_group" "lablink_client_vm_logs" {
+  name              = "lablink-client-vm-logs-${var.resource_suffix}"
+  retention_in_days = 14
 
-# IAM Role Policy Attachment for CloudWatch Agent
-
-# IAM Instance Profile for CloudWatch Agent
+  tags = {
+    Environment = "LabLink"
+    Application = "LabLink Client VM"
+  }
+}
 
 # Outputs
 output "vm_instance_ids" {
