@@ -70,12 +70,6 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
-# IAM Instance Profile for CloudWatch Agent
-resource "aws_iam_instance_profile" "cloudwatch_agent_profile" {
-  name = "cloudwatch-agent-profile"
-  role = "ec2-cloudwatch-agent-role"
-}
-
 # EC2 Instance for LabLink Client
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
@@ -83,7 +77,7 @@ resource "aws_instance" "lablink_vm" {
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
-  iam_instance_profile   = aws_iam_instance_profile.cloudwatch_agent_profile.name
+  iam_instance_profile   = "ec2-poweruser-role"
   root_block_device {
     volume_size = 80
     volume_type = "gp3"
