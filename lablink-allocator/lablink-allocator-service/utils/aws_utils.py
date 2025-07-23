@@ -61,11 +61,20 @@ def check_support_nvidia(machine_type) -> bool:
     )
     try:
         response = ec2.describe_instance_types(InstanceTypes=[machine_type])
-        for itype in response["InstanceTypes"]:
-            if "NVIDIA" in itype.get("ProcessorInfo", {}).get(
-                "SupportedArchitectures", []
-            ):
+        gpu_info = response["InstanceTypes"][0].get("GpuInfo", {})
+
+        # Check if GPU is present
+        if not gpu_info:
+            logger.debug(f"No GPU info found for instance type {machine_type}.")
+            return False
+
+        # Check if any GPU supports NVIDIA
+        for gpu in gpu_info.get("Gpus", []):
+            if "NVIDIA" in gpu.get("Manufacturer", ""):
+                logger.info(f"Instance type {machine_type} supports NVIDIA GPUs.")
                 return True
+
+        logger.debug(f"Instance type {machine_type} does not support NVIDIA GPUs.")
     except ClientError as e:
         logger.error(f"Error checking NVIDIA support for {machine_type}: {e}")
     return False

@@ -303,7 +303,7 @@ def launch():
 
         # Check if GPU is supported
         gpu_support = check_support_nvidia(machine_type=cfg.machine.machine_type)
-        print(f"GPU support: {gpu_support}")
+        logger.debug(f"GPU support: {gpu_support}")
 
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
