@@ -20,7 +20,7 @@ fi
 if [ "$HAS_GPU" = true ]; then
     echo ">> Switching Docker to cgroupfs for NVIDIA runtime…"
     cat >/etc/docker/daemon.json <<'JSON'
-    {
+{
     "default-runtime": "nvidia",
     "runtimes": {
         "nvidia": {
@@ -29,8 +29,8 @@ if [ "$HAS_GPU" = true ]; then
         }
     },
     "exec-opts": ["native.cgroupdriver=cgroupfs"]
-    }
-    JSON
+}
+JSON
 
     systemctl restart docker
 
