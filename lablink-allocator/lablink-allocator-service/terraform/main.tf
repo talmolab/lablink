@@ -67,6 +67,7 @@ variable "subject_software" {
   description = "Software subject for the client VM"
 }
 
+# Security Group for LabLink Client
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -75,7 +76,7 @@ resource "aws_security_group" "lablink_sg_" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # You can restrict to your IP
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -93,12 +94,14 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+# EC2 Instance for LabLink Client
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
   vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile   = "ec2-poweruser-role"
   root_block_device {
     volume_size = 80
     volume_type = "gp3"
@@ -110,6 +113,56 @@ resource "aws_instance" "lablink_vm" {
   user_data = <<-EOF
               #!/bin/bash
               set -euo pipefail
+
+              VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
+              ALLOCATOR_IP="${var.allocator_ip}"
+              STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+
+              # Function to send status updates
+              send_status() {
+                  local status="$1"
+
+                  curl -s -X POST "$STATUS_ENDPOINT" \
+                      -H "Content-Type: application/json" \
+                      -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
+              }
+
+              # Initial status update
+              send_status "initializing"
+
+              # Install CloudWatch agent
+              echo ">> Installing CloudWatch agent..."
+              wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+              rpm -U ./amazon-cloudwatch-agent.rpm
+
+              # Create CloudWatch agent configuration
+              cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'CWCONFIG'
+              {
+                "logs": {
+                  "logs_collected": {
+                    "files": {
+                      "collect_list": [
+                        {
+                          "file_path": "/var/log/cloud-init-output.log",
+                          "log_group_name": "lablink-vm-logs",
+                          "log_stream_name": "lablink-vm-${var.resource_suffix}-${count.index + 1}",
+                          "timezone": "UTC"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+              CWCONFIG
+
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+                  -a fetch-config \
+                  -m ec2 \
+                  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+                  -s
+
+              echo ">> CloudWatch agent configured and started."
 
               echo ">> Switching Docker to cgroupfs…"
               cat >/etc/docker/daemon.json <<'JSON'
@@ -139,6 +192,7 @@ resource "aws_instance" "lablink_vm" {
               echo ">> Pulling application image ${var.image_name}…"
               if ! docker pull ${var.image_name}; then
                   echo "Docker image pull failed!" >&2
+                  send_status "failed"
                   exit 1
               fi
               echo ">> Image pulled."
@@ -147,22 +201,40 @@ resource "aws_instance" "lablink_vm" {
 
               if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
                   echo ">> No repo specified; starting container without cloning."
-                  docker run -dit --runtime=nvidia --gpus all \
+                  if docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e SUBJECT_SOFTWARE=${var.subject_software} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
-                      ${var.image_name}
+                      ${var.image_name}; then
+                      send_status "running"
+                  else
+                      echo ">> Container start failed!"
+                      send_status "failed"
+                      exit 1
+                  fi
               else
                   echo ">> Cloning repo and starting container."
-                  docker run -dit --runtime=nvidia --gpus all \
+                  if docker run -dit --runtime=nvidia --gpus all \
                       -e ALLOCATOR_HOST=${var.allocator_ip} \
                       -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
                       -e SUBJECT_SOFTWARE=${var.subject_software} \
                       -e VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}" \
-                      ${var.image_name}
+                      ${var.image_name}; then
+                      send_status "running"
+                  else
+                      echo ">> Container start failed!"
+                      send_status "failed"
+                      exit 1
+                  fi
               fi
 
               echo ">> Container launched."
+
+              curl -s -X POST "http://${var.allocator_ip}/api/logs" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"hostname\": \"lablink-vm-${var.resource_suffix}-${count.index + 1}\", \"log_lines\": \"$(tail -n 200 /var/log/cloud-init-output.log | base64 | tr -d '\n')\"}"
+
+              echo ">> Log sent to allocator."
               EOF
 
   tags = {
@@ -170,16 +242,30 @@ resource "aws_instance" "lablink_vm" {
   }
 }
 
+# TLS Private Key for LabLink Client
 resource "tls_private_key" "lablink_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
+# Key Pair for LabLink Client
 resource "aws_key_pair" "lablink_key_pair" {
   key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
+# CloudWatch Log Group for VM Logs
+resource "aws_cloudwatch_log_group" "lablink_client_vm_logs" {
+  name              = "lablink-client-vm-logs-${var.resource_suffix}"
+  retention_in_days = 14
+
+  tags = {
+    Environment = "LabLink"
+    Application = "LabLink Client VM"
+  }
+}
+
+# Outputs
 output "vm_instance_ids" {
   description = "List of EC2 instance IDs created"
   value       = aws_instance.lablink_vm[*].id
