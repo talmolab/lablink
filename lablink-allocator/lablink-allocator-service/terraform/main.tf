@@ -89,6 +89,10 @@ resource "aws_instance" "lablink_vm" {
               #!/bin/bash
               set -euo pipefail
 
+              VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
+              ALLOCATOR_IP="${var.allocator_ip}"
+              STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+
               apt-get update && apt-get install -y amazon-cloudwatch-agent
 
               mkdir -p /var/log/lablink
