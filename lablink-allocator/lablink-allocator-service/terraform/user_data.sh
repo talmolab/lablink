@@ -3,17 +3,20 @@ set -euo pipefail
 
 echo ">> Checking GPU Support…"
 
-HAS_GPU=false
-if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
-    HAS_GPU=true
-    echo ">> GPU detected and drivers working."
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+    AMI_GPU_SUPPORT=true
+    echo ">> AMI GPU support detected. Checking NVIDIA drivers…"
 else
-    echo ">> No GPU detected or drivers not working. Continuing without GPU features."
+    AMI_GPU_SUPPORT=false
+    echo ">> AMI GPU support not detected."
 fi
 
-if [ "$HAS_GPU" = ${gpu_support} ]; then
+if [ "$AMI_GPU_SUPPORT" = ${gpu_support} ]; then
+    HAS_GPU=true
     echo ">> GPU support matches configuration."
 else
+    HAS_GPU=false
     echo ">> GPU support mismatch! Expected: ${gpu_support}, Detected: $HAS_GPU\nWarning: Using CPU to launch containers."
 fi
 
