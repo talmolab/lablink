@@ -302,8 +302,15 @@ def launch():
         logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
         # Check if GPU is supported
-        gpu_support = check_support_nvidia(machine_type=cfg.machine.machine_type)
-        logger.debug(f"GPU support: {gpu_support}")
+        gpu_support_bool = check_support_nvidia(machine_type=cfg.machine.machine_type)
+
+        # Process GPU support so that it can be used in the runtime file
+        if gpu_support_bool:
+            logger.info("GPU support is enabled for the machine type.")
+            gpu_support = "true"
+        else:
+            logger.info("GPU support is not enabled for the machine type.")
+            gpu_support = "false"
 
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
