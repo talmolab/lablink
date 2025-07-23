@@ -11,20 +11,26 @@ else
     echo ">> No GPU detected or drivers not working. Continuing without GPU features."
 fi
 
+if [ "$HAS_GPU" = ${gpu_support} ]; then
+    echo ">> GPU support matches configuration."
+else
+    echo ">> GPU support mismatch! Expected: ${gpu_support}, Detected: $HAS_GPU\nWarning: Using CPU to launch containers."
+fi
+
 if [ "$HAS_GPU" = true ]; then
     echo ">> Switching Docker to cgroupfs for NVIDIA runtime…"
     cat >/etc/docker/daemon.json <<'JSON'
-{
-  "default-runtime": "nvidia",
-  "runtimes": {
-    "nvidia": {
-      "path": "nvidia-container-runtime",
-      "runtimeArgs": []
+    {
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+        "path": "nvidia-container-runtime",
+        "runtimeArgs": []
+        }
+    },
+    "exec-opts": ["native.cgroupdriver=cgroupfs"]
     }
-  },
-  "exec-opts": ["native.cgroupdriver=cgroupfs"]
-}
-JSON
+    JSON
 
     systemctl restart docker
 

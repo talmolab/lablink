@@ -67,6 +67,11 @@ variable "subject_software" {
   description = "Software subject for the client VM"
 }
 
+variable "gpu_support" {
+  type        = bool
+  description = "Whether the instance machine type supports GPU"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -111,6 +116,7 @@ resource "aws_instance" "lablink_vm" {
     image_name       = var.image_name
     count_index      = count.index + 1
     subject_software = var.subject_software
+    gpu_support      = var.gpu_support
   })
 
   tags = {

@@ -22,7 +22,7 @@ import psycopg2
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.aws_utils import validate_aws_credentials
+from utils.aws_utils import validate_aws_credentials, check_support_nvidia
 from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
@@ -301,6 +301,10 @@ def launch():
         logger.debug(f"Key Name: {key_name}")
         logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
+        # Check if GPU is supported
+        gpu_support = check_support_nvidia(machine_type=cfg.machine.machine_type)
+        print(f"GPU support: {gpu_support}")
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
@@ -310,6 +314,7 @@ def launch():
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
             f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
+            f.write(f'gpu_support = "{gpu_support}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
