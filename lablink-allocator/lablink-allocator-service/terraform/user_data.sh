@@ -12,7 +12,7 @@ else
     echo ">> AMI GPU support not detected."
 fi
 
-if [ "$AMI_GPU_SUPPORT" = ${gpu_support} ] && [ "$HAS_GPU" = true ]; then
+if [ "$AMI_GPU_SUPPORT" = ${gpu_support} ] && [ ${gpu_support} = true ]; then
     HAS_GPU=true
     echo ">> GPU support matches configuration."
 else
