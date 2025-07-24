@@ -10,6 +10,8 @@ from lablink_client_service.connect_crd import (
     connect_to_crd,
 )
 
+CRD_COMMAND_WITH_CODE = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+
 
 def test_construct_command_with_code():
     args = argparse.Namespace(code="test_code")
@@ -65,7 +67,7 @@ def test_reconstruct_command(mock_create_parser, mock_construct_command):
 
 
 def test_whole_reconstruction():
-    crd_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name='$(hostname)'"
+    crd_command = CRD_COMMAND_WITH_CODE
     command = reconstruct_command(crd_command)
     expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
     assert command == expected
@@ -74,8 +76,8 @@ def test_whole_reconstruction():
 @patch("lablink_client_service.connect_crd.subprocess.run")
 @patch("lablink_client_service.connect_crd.reconstruct_command")
 def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
-    input_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
-    reconstructed_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    input_command = CRD_COMMAND_WITH_CODE
+    reconstructed_command = CRD_COMMAND_WITH_CODE
 
     mock_reconstruct_command.return_value = reconstructed_command
     pin = "123456"
@@ -100,7 +102,7 @@ def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
 
 @patch("lablink_client_service.connect_crd.subprocess.run")
 def test_whole_connection_workflow(mock_subprocess_run):
-    input_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    input_command = CRD_COMMAND_WITH_CODE
     pin = "123456"
 
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):

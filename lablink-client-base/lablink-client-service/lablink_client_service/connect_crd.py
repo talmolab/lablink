@@ -59,10 +59,7 @@ def reconstruct_command(command: str) -> str:
     Returns:
         str: Reconstructed command to connect to the machine.
     """
-    if command is None:
-        arg_to_parse = None
-    else:
-        arg_to_parse = command.split()
+    arg_to_parse = command.split()
 
     # Parse the command line arguments
     parser = create_parser()
