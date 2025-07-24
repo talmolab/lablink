@@ -8,15 +8,10 @@ import hydra
 from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
+from lablink_client_service.logger_config import setup_logger
 
 # Set up logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(name)s: %(message)s",
-    datefmt="%H:%M",
-)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = setup_logger()
 
 
 def is_process_running(process_name: str) -> bool:

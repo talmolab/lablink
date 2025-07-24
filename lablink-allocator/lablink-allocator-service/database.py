@@ -282,7 +282,7 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (email,))
         row = self.cursor.fetchone()
         if row:
-            hostname, pin, crdcommand, _, _ = row
+            hostname, pin, crdcommand, _, _, _ = row
             return [
                 hostname,
                 pin,
@@ -311,7 +311,7 @@ class PostgresqlDatabase:
         # SQL query to update the VM record with the user's email, CRD command, and pin
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE
+        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE, healthy = NULL
         WHERE hostname = %s;
         """
         try:
@@ -361,6 +361,44 @@ class PostgresqlDatabase:
         except Exception as e:
             logger.error(f"Error deleting VMs: {e}")
             self.conn.rollback()
+
+    def update_health(self, hostname: str, healthy: str) -> None:
+        """Modify the health status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            healthy (str): The health status to set for the VM.
+        """
+        query = f"UPDATE {self.table_name} SET healthy = %s WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (healthy, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated health status for VM '{hostname}' to {healthy}.")
+        except Exception as e:
+            logger.error(f"Error updating health status: {e}")
+            self.conn.rollback()
+
+    def get_gpu_health(self, hostname: str) -> str:
+        """Get the GPU health status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            str: The health status of the GPU for the specified VM, or None if not found.
+        """
+        query = f"SELECT healthy FROM {self.table_name} WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (hostname,))
+            result = self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                logger.error(f"No VM found with hostname '{hostname}'.")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving GPU health: {e}")
+            return None
 
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):

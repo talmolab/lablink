@@ -22,7 +22,7 @@ import psycopg2
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.aws_utils import validate_aws_credentials
+from utils.aws_utils import validate_aws_credentials, check_support_nvidia
 from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
@@ -78,6 +78,7 @@ class vms(db.Model):
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+    healthy = db.Column(db.String(1024), nullable=True)
 
 
 @auth.verify_password
@@ -300,6 +301,17 @@ def launch():
         logger.debug(f"Key Name: {key_name}")
         logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
+        # Check if GPU is supported
+        gpu_support_bool = check_support_nvidia(machine_type=cfg.machine.machine_type)
+
+        # Process GPU support so that it can be used in the runtime file
+        if gpu_support_bool:
+            logger.info("GPU support is enabled for the machine type.")
+            gpu_support = "true"
+        else:
+            logger.info("GPU support is not enabled for the machine type.")
+            gpu_support = "false"
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
@@ -309,6 +321,7 @@ def launch():
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
             f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
+            f.write(f'gpu_support = "{gpu_support}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -504,6 +517,24 @@ def update_inuse_status():
     except Exception as e:
         logger.error(f"Error updating in-use status: {e}")
         return jsonify({"error": "Failed to update in-use status."}), 500
+
+
+@app.route("/api/gpu_health", methods=["POST"])
+def update_gpu_health():
+    """Check the health of the GPU."""
+    data = request.get_json()
+    gpu_status = data.get("gpu_status")
+    hostname = data.get("hostname")
+    if gpu_status is None:
+        return jsonify({"error": "GPU status is required."}), 400
+
+    try:
+        database.update_health(hostname=hostname, healthy=gpu_status)
+        logger.info(f"Updated GPU health status for {hostname} to {gpu_status}")
+        return jsonify({"message": "GPU health status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating GPU health status: {e}")
+        return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
 if __name__ == "__main__":
