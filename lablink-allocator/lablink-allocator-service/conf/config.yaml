@@ -8,7 +8,7 @@ db:
   message_channel: "vm_updates"
 
 machine:
-  machine_type: "g4dn.xlarge"
+  machine_type: "t2.medium"
   image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test"
   ami_id: "ami-067cc81f948e50e06"
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
