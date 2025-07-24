@@ -96,3 +96,21 @@ def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
         capture_output=True,
         text=True,
     )
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+def test_whole_connection_workflow(mock_subprocess_run):
+    input_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    pin = "123456"
+
+    with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
+        connect_to_crd(input_command, pin)
+
+    expected_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
+    mock_subprocess_run.assert_called_once_with(
+        expected_command,
+        input="123456\n123456\n",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
