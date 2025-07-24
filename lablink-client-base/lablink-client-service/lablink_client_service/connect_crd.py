@@ -50,11 +50,11 @@ def construct_command(args):
     return command
 
 
-def reconstruct_command(command: str = None) -> str:
+def reconstruct_command(command: str) -> str:
     """Reconstructs the Chrome Remote Desktop command.
 
     Args:
-        command (str, optional): CRD command to connect to the machine. Defaults to None.
+        command (str): CRD command to connect to the machine.
 
     Returns:
         str: Reconstructed command to connect to the machine.
@@ -77,7 +77,7 @@ def reconstruct_command(command: str = None) -> str:
     return command
 
 
-def connect_to_crd(command=None, pin=None):
+def connect_to_crd(command, pin):
     # Parse the command line arguments
     command = reconstruct_command(command)
 
