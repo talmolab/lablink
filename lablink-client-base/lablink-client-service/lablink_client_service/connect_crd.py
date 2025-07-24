@@ -39,6 +39,9 @@ def construct_command(args):
     redirect_url = "'https://remotedesktop.google.com/_/oauthredirect'"
     name = os.getenv("VM_NAME", "$(hostname)")
 
+    if args.code is None:
+        raise ValueError("Code must be provided to construct the command.")
+
     command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host"
     command += f" --code={args.code}"
     command += f" --redirect-url={redirect_url}"
