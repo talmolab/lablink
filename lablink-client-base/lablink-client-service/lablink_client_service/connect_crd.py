@@ -50,7 +50,7 @@ def construct_command(args):
     return command
 
 
-def reconstruct_command(command: str = None):
+def reconstruct_command(command: str = None) -> str:
     """Reconstructs the Chrome Remote Desktop command.
 
     Args:
