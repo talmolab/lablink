@@ -537,22 +537,6 @@ def update_gpu_health():
         return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
-@app.route("/api/gpu_health", methods=["GET"])
-def get_gpu_health_status():
-    """Get the current GPU health status."""
-    data = request.get_json()
-    hostname = data.get("hostname")
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-    gpu_health = database.get_gpu_health(hostname=hostname)
-    if gpu_health is None:
-        return (
-            jsonify({"error": "No GPU health data found for the specified hostname."}),
-            404,
-        )
-    return jsonify(gpu_health), 200
-
-
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
