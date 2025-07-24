@@ -22,9 +22,6 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
-# Create logs directory if it doesn't exist
-mkdir -p /home/client/logs
-
 # Activate the conda environment and run the subscribe script
 /home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE &
 
