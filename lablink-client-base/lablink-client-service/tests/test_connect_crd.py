@@ -69,3 +69,30 @@ def test_whole_reconstruction():
     command = reconstruct_command(crd_command)
     expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
     assert command == expected
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.reconstruct_command")
+def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
+    input_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    reconstructed_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+
+    mock_reconstruct_command.return_value = reconstructed_command
+    pin = "123456"
+    mock_result = MagicMock()
+    mock_result.stdout = "Connection successful"
+    mock_result.stderr = ""
+    mock_subprocess_run.return_value = mock_result
+
+    connect_to_crd(input_command, pin)
+
+    mock_reconstruct_command.assert_called_once_with(
+        "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    )
+    mock_subprocess_run.assert_called_once_with(
+        "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)",
+        input="123456\n123456\n",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
