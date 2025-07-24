@@ -17,7 +17,7 @@ if [ "$AMI_GPU_SUPPORT" = ${gpu_support} ] && [ ${gpu_support} = true ]; then
     echo ">> GPU support matches configuration."
 else
     HAS_GPU=false
-    echo ">> GPU support mismatch! Expected: ${gpu_support}, Detected: $HAS_GPU\nWarning: Using CPU to launch containers."
+    echo ">> GPU support mismatch! Expected: $AMI_GPU_SUPPORT, Detected: ${gpu_support}\nWarning: Using CPU to launch containers."
 fi
 
 if [ "$HAS_GPU" = true ]; then
