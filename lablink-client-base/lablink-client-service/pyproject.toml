@@ -18,7 +18,7 @@ description = "Lablink Client Service that will be installed in the lablink-clie
 keywords = ["vm", "docker", "postgres", "tutorial"]
 name = "lablink-client-service"
 readme = "README.md"
-version = "0.0.4a9"
+version = "0.0.4a1"
 
 [project.optional-dependencies]
 dev = ["toml", "twine", "build", "pytest", "black", "python-dotenv"]
