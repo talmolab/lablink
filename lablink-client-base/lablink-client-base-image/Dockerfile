@@ -60,6 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     wget \
     xdg-utils \
+    libvulkan1 \
     # Allows running commands as root
     sudo \
     # For cloning repositories and managing git
