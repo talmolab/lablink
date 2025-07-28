@@ -70,7 +70,7 @@ if [ "$HAS_GPU" = true ]; then
 fi
 
 echo ">> Starting container..."
-if [ -z "$${repository:-}" ]; then
+if [ -z "${repository:-}" ]; then
     echo ">> No repo specified; starting container without cloning."
     docker run -dit $DOCKER_GPU_ARGS \
         -e ALLOCATOR_HOST="${allocator_ip}" \
