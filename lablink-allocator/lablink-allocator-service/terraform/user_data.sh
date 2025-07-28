@@ -1,6 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+echo ">> Configuration:"
+echo "  - Allocator IP: ${allocator_ip}"
+echo "  - Resource Suffix: ${resource_suffix}"
+echo "  - Count Index: ${count_index}"
+echo "  - Subject Software: ${subject_software}"
+echo "  - Image Name: ${image_name}"
+echo "  - Machine Type GPU Support: ${gpu_support}"
+echo "  - GitHub Repository: ${repository}"
+
 echo ">> Checking GPU Support…"
 
 
