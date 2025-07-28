@@ -49,11 +49,10 @@
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
         Extracting .slp files from VMs... please wait.
       </div>
-      <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none" role="alert">
+      <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
         Download complete.
       </div>
-      <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none" role="alert">
-        Extraction failed.
+      <div id="extract-error" class="alert alert-danger py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
       </div>
     </form>
   </div>
@@ -84,35 +83,77 @@
     document.getElementById("extract-form").addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const btn = document.getElementById("extract-btn");
+      // Define elements
+      const extractBtn = document.getElementById("extract-btn");
+      const extractLoading = document.getElementById("extract-loading");
+      const extractSuccess = document.getElementById("extract-success");
       const destroyBtn = document.getElementById("destroy-btn");
-      const loading = document.getElementById("extract-loading");
-      const success = document.getElementById("extract-success");
-      const error = document.getElementById("extract-error");
+      const extractError = document.getElementById("extract-error");
 
-      // Disable buttons and show loading state
-      btn.disabled = true;
-      btn.innerText = "Extracting...";
-      btn.classList.add("disabled");
-      success.classList.add("d-none");
-      error.classList.add("d-none");
-
-      // Disable destroy button
+      // Loading state
+      extractBtn.disabled = true;
+      extractBtn.innerText = "Extracting...";
+      extractBtn.classList.add("disabled");
+      extractLoading.classList.remove("d-none");
+      extractSuccess.classList.add("d-none");
+      extractError.classList.add("d-none");
       destroyBtn.disabled = true;
       destroyBtn.classList.add("disabled");
-      loading.classList.remove("d-none");
 
-      window.location.href = "/api/scp-client";
+      try {
+        // Fetch the SCP client data
+        const response = await fetch("/api/scp-client");
+        if (!response.ok) {
+          const responseText = await response.json();
+          console.error("Error downloading data:", responseText);
+          extractError.textContent = responseText.error || "An error occurred while downloading data.";
+          extractError.classList.remove("d-none");
+          return;
+        }
 
-      setTimeout(() => {
-        loading.classList.add("d-none");
-        btn.disabled = false;
-        btn.innerText = "Extract and Download .slp Files";
-        btn.classList.remove("disabled");
+        const disposition = response.headers.get("Content-Disposition");
+        if (!disposition) {
+          extractError.textContent = "No downloadable file returned from the server.";
+          extractError.classList.remove("d-none");
+          return;
+        }
+
+        const blob = await response.blob();
+        const filename = getFilenameFromDisposition(response.headers.get("Content-Disposition"));
+
+        // Trigger download
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename || "lablink_data.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+
+        // Success
+        extractSuccess.classList.remove("d-none");
+
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        extractError.textContent = "Unexpected error occurred while downloading.";
+        extractError.classList.remove("d-none");
+      } finally {
+        extractBtn.disabled = false;
+        extractBtn.innerText = "Extract and Download .slp Files";
+        extractBtn.classList.remove("disabled");
         destroyBtn.disabled = false;
         destroyBtn.classList.remove("disabled");
-      }, 10000);
+        extractLoading.classList.add("d-none");
+      }
     });
+
+    // Helper: extract filename from Content-Disposition
+    function getFilenameFromDisposition(disposition) {
+      const match = /filename="?([^"]+)"?/.exec(disposition);
+      return match ? match[1] : null;
+    }
+
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

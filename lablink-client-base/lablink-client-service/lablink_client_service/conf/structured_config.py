@@ -11,8 +11,14 @@ class AllocatorConfig:
 
 
 @dataclass
+class ClientConfig:
+    software: str = field(default="sleap")
+
+
+@dataclass
 class Config:
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
+    client: ClientConfig = field(default_factory=ClientConfig)
 
 
 cs = ConfigStore.instance()

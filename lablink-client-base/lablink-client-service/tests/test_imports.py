@@ -1,7 +1,6 @@
 """Module that tests the imports of the package."""
 
 import pytest
-from unittest import mock
 
 
 def test_import():

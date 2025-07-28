@@ -58,7 +58,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     xdg-utils \
     # Allows running commands as root
-    sudo && \
+    sudo \
+    # For cloning repositories and managing git
+    git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -81,7 +83,22 @@ RUN systemctl disable lightdm.service
 # Install Chrome browser
 RUN curl -L -o google-chrome-stable_current_amd64.deb \
     https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb
+    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb && \
+    rm google-chrome-stable_current_amd64.deb
+
+# Configure Google Chrome to run without sandboxing
+# This is necessary for Chrome Remote Desktop to work properly in a container environment.
+# Create a directory for wrapper scripts
+RUN rm -f /usr/bin/google-chrome && \
+    echo '#!/bin/bash' > /usr/bin/google-chrome && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome && \
+    chmod +x /usr/bin/google-chrome
+
+# Do the same for the stable version of Google Chrome
+RUN rm -f /usr/bin/google-chrome-stable && \
+    echo '#!/bin/bash' > /usr/bin/google-chrome-stable && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome-stable && \
+    chmod +x /usr/bin/google-chrome-stable
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
@@ -91,6 +108,10 @@ RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpassw
 
 # Add USERNAME to the chrome-remote-desktop group
 RUN usermod -aG chrome-remote-desktop ${USERNAME}
+
+# Ensure Chrome directories are accessible to the client user
+RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
 # Switch to non-root user for Google Chrome Remote Desktop to work.
 USER ${USERNAME}

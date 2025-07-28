@@ -61,6 +61,17 @@ variable "resource_suffix" {
   description = "Suffix to ensure uniqueness"
 }
 
+variable "subject_software" {
+  type        = string
+  default     = "sleap"
+  description = "Software subject for the client VM"
+}
+
+variable "gpu_support" {
+  type        = bool
+  description = "Whether the instance machine type supports GPU"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -98,62 +109,15 @@ resource "aws_instance" "lablink_vm" {
     volume_type = "gp3"
   }
 
-  ########################
-  # cgroupfs-enabled user_data
-  ########################
-  user_data = <<-EOF
-              #!/bin/bash
-              set -euo pipefail
-
-              echo ">> Switching Docker to cgroupfs…"
-              cat >/etc/docker/daemon.json <<'JSON'
-              {
-                "default-runtime": "nvidia",
-                "runtimes": {
-                  "nvidia": {
-                    "path": "nvidia-container-runtime",
-                    "runtimeArgs": []
-                  }
-                },
-                "exec-opts": ["native.cgroupdriver=cgroupfs"]
-              }
-              JSON
-
-              systemctl restart docker
-
-              # Wait until Docker is ready again
-              until docker info >/dev/null 2>&1; do
-                  sleep 1
-              done
-              echo ">> Docker restarted with cgroupfs."
-
-              # Optional: keep GPU awake
-              nvidia-smi -pm 1 || true
-
-              echo ">> Pulling application image ${var.image_name}…"
-              if ! docker pull ${var.image_name}; then
-                  echo "Docker image pull failed!" >&2
-                  exit 1
-              fi
-              echo ">> Image pulled."
-
-              export TUTORIAL_REPO_TO_CLONE=${var.repository}
-
-              if [ -z "$TUTORIAL_REPO_TO_CLONE" ]; then
-                  echo ">> No repo specified; starting container without cloning."
-                  docker run -dit --runtime=nvidia --gpus all \
-                      -e ALLOCATOR_HOST=${var.allocator_ip} \
-                      ${var.image_name}
-              else
-                  echo ">> Cloning repo and starting container."
-                  docker run -dit --runtime=nvidia --gpus all \
-                      -e ALLOCATOR_HOST=${var.allocator_ip} \
-                      -e TUTORIAL_REPO_TO_CLONE=${var.repository} \
-                      ${var.image_name}
-              fi
-
-              echo ">> Container launched."
-              EOF
+  user_data = templatefile("${path.module}/user_data.sh", {
+    allocator_ip     = var.allocator_ip
+    repository       = var.repository
+    resource_suffix  = var.resource_suffix
+    image_name       = var.image_name
+    count_index      = count.index + 1
+    subject_software = var.subject_software
+    gpu_support      = var.gpu_support
+  })
 
   tags = {
     Name = "lablink-vm-${var.resource_suffix}-${count.index + 1}"

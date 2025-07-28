@@ -18,8 +18,6 @@ Lablink has folowing componenets:
 
 - generate-init-sql.py  - This file contains python script to generate init.sql file, after importing config.
 
-- db_config.py (in root directory of lablink) - This file has the config used by the allocator for database.
-
 - lablink-allocator service:
 
   -> pg_hba.conf - Defines a custom pg_hba.conf file for postgre
@@ -49,6 +47,13 @@ Lablink has folowing componenets:
         - `db.host`: The host address of the database.
         - `db.port`: The port number for the database connection.
         - `db.table_name`: The name of the table to query for VM assignments.
+        - `machine.machine_type`: The type of machine to be used for the client's VM.
+          - Default: `g4dn.xlarge` with NVIDIA T4 GPU.
+        - `machine.ami_id`: The Amazon Machine Image (AMI) ID to be used for the client's VM instances.
+          - Default: `ami-067cc81f948e50e06` (ubuntu 20.04 with Docker installed).
+        - `machine.image`: The Docker image ID to be used for the client's VM instances.
+          - Default: `ghcr.io/talmolab/lablink-client-base-image:latest` (latest version of LabLink client base image).
+        - `machine.repository` (Optional): GitHub repository URL for the client's VM instances to clone.
    -> templates/index.html - Takes email and crd command as input and submits to /request_vm
 
    -> templates/create-instances.html - Takes in no of instances count and submits to /launch

@@ -19,11 +19,10 @@ from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-import requests
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.available_instances import get_all_instance_types
+from utils.aws_utils import validate_aws_credentials, check_support_nvidia
 from utils.scp import (
     get_instance_ips,
     get_ssh_private_key,
@@ -79,6 +78,7 @@ class vms(db.Model):
     crdcommand = db.Column(db.String(1024), nullable=True)
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+    healthy = db.Column(db.String(1024), nullable=True)
 
 
 @auth.verify_password
@@ -136,7 +136,30 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
-    return render_template("admin.html")
+    # If credentials are not set, render the admin page without a message
+    if not all(
+        [
+            os.getenv("AWS_ACCESS_KEY_ID"),
+            os.getenv("AWS_SECRET_ACCESS_KEY"),
+            os.getenv("AWS_SESSION_TOKEN"),
+        ]
+    ):
+        return render_template("admin.html")
+
+    # Check if AWS credentials are set and valid
+    is_credentials_valid = validate_aws_credentials()
+
+    # If credentials are set and valid, display the admin dashboard
+    if is_credentials_valid:
+        message = "AWS credentials are already set and valid."
+        return render_template("admin.html", message=message)
+
+    # If credentials are not set or invalid, prompt the user to set them
+    else:
+        error = (
+            "AWS credentials are not set or invalid. Please set your AWS credentials."
+        )
+        return render_template("admin.html", error=error)
 
 
 @app.route("/api/admin/set-aws-credentials", methods=["POST"])
@@ -149,6 +172,25 @@ def set_aws_credentials():
     if not aws_access_key or not aws_secret_key:
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
 
+    # also set the environment variables
+    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
+    os.environ["AWS_SESSION_TOKEN"] = aws_token
+
+    # Check if the AWS credentials are valid
+    if not validate_aws_credentials():
+        logger.error("Invalid AWS credentials provided.")
+
+        # Remove environment variables if credentials are invalid
+        del os.environ["AWS_ACCESS_KEY_ID"]
+        del os.environ["AWS_SECRET_ACCESS_KEY"]
+        del os.environ["AWS_SESSION_TOKEN"]
+
+        return render_template(
+            "admin.html",
+            error="Invalid AWS credentials provided. Please check your credentials.",
+        )
+
     # Save the credentials to a file or environment variable
     terraform_dir = Path("terraform")
     credential_file = terraform_dir / "terraform.credentials.tfvars"
@@ -157,11 +199,6 @@ def set_aws_credentials():
         f.write(f'aws_access_key = "{aws_access_key}"\n')
         f.write(f'aws_secret_key = "{aws_secret_key}"\n')
         f.write(f'aws_session_token = "{aws_token}"\n')
-
-    # also set the environment variables
-    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key  # public identifier
-    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key  # secret key
-    os.environ["AWS_SESSION_TOKEN"] = aws_token  # session token
 
     return render_template("admin.html", message="AWS credentials set successfully.")
 
@@ -226,7 +263,7 @@ def submit_vm_details():
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
-    num_vms = request.form.get("num_vms")
+    num_vms = int(request.form.get("num_vms"))
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
@@ -242,6 +279,9 @@ def launch():
         )
 
     try:
+        # Calculate the number of VMs to launch
+        total_vms = num_vms + database.get_row_count()
+
         # Init Terraform (optional if already initialized)
         subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
 
@@ -249,6 +289,7 @@ def launch():
         logger.debug(f"Image name: {cfg.machine.image}")
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
+        logger.debug(f"Subject Software: {cfg.machine.software}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -260,6 +301,17 @@ def launch():
         logger.debug(f"Key Name: {key_name}")
         logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
 
+        # Check if GPU is supported
+        gpu_support_bool = check_support_nvidia(machine_type=cfg.machine.machine_type)
+
+        # Process GPU support so that it can be used in the runtime file
+        if gpu_support_bool:
+            logger.info("GPU support is enabled for the machine type.")
+            gpu_support = "true"
+        else:
+            logger.info("GPU support is not enabled for the machine type.")
+            gpu_support = "false"
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
@@ -267,7 +319,9 @@ def launch():
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
             f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
+            f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
+            f.write(f'gpu_support = "{gpu_support}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -276,7 +330,7 @@ def launch():
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
             "-var-file=terraform.credentials.tfvars",
-            f"-var=instance_count={num_vms}",
+            f"-var=instance_count={total_vms}",
         ]
 
         logger.debug(f"Running command: {' '.join(apply_cmd)}")
@@ -358,6 +412,7 @@ def download_all_data():
     try:
         instance_ips = get_instance_ips(terraform_dir="terraform")
         key_path = get_ssh_private_key(terraform_dir="terraform")
+        empty_data = True
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for i, ip in enumerate(instance_ips):
@@ -385,6 +440,7 @@ def download_all_data():
                         key_path=key_path,
                         slp_files=slp_files,
                     )
+                    empty_data = False
                 logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
                 # Copy the extracted .slp files to the allocator container's local directory
@@ -393,6 +449,10 @@ def download_all_data():
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
                 )
+
+            if empty_data:
+                logger.warning("No .slp files found in any VMs.")
+                return jsonify({"error": "No .slp files found in any VMs."}), 404
 
             logger.info(f"All .slp files copied to {temp_dir}.")
 
@@ -426,7 +486,10 @@ def download_all_data():
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error downloading data: {e}")
-        return jsonify({"error": "Failed to download data from VMs."}), 500
+        return (
+            jsonify({"error": "An error occurred while downloading data from VMs."}),
+            500,
+        )
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
@@ -434,6 +497,44 @@ def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
     return jsonify(count=instance_counts), 200
+
+
+@app.route("/api/update_inuse_status", methods=["POST"])
+def update_inuse_status():
+    """Update the in-use status of a VM."""
+    data = request.get_json()
+    hostname = data.get("hostname")
+    in_use = data.get("status")
+
+    logger.debug(f"Updating in-use status for {hostname} to {in_use}")
+
+    if not hostname:
+        return jsonify({"error": "Hostname is required."}), 400
+
+    try:
+        database.update_vm_in_use(hostname=hostname, in_use=in_use)
+        return jsonify({"message": "In-use status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating in-use status: {e}")
+        return jsonify({"error": "Failed to update in-use status."}), 500
+
+
+@app.route("/api/gpu_health", methods=["POST"])
+def update_gpu_health():
+    """Check the health of the GPU."""
+    data = request.get_json()
+    gpu_status = data.get("gpu_status")
+    hostname = data.get("hostname")
+    if gpu_status is None:
+        return jsonify({"error": "GPU status is required."}), 400
+
+    try:
+        database.update_health(hostname=hostname, healthy=gpu_status)
+        logger.info(f"Updated GPU health status for {hostname} to {gpu_status}")
+        return jsonify({"message": "GPU health status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating GPU health status: {e}")
+        return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
 if __name__ == "__main__":
