@@ -1,5 +1,5 @@
 # Base image with GPU support
-FROM nvidia/cuda:11.6.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 # https://askubuntu.com/questions/1402167/must-specify-the-user-name-option-when-running-as-root-chrome-remote-desktop
 # Must be a non-root user to run Chrome Remote Desktop
@@ -35,14 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-10-base \
     libgcc-s1 \
     # XFCE4 desktop environment for lightweight graphical interface
-    # xfce4 \
-    # desktop-base \
-    # xfce4-terminal \
-    # xfce4-goodies \
-    kde-plasma-desktop \
-    kde-standard \
-    kde-spectacle \
-    kwin-x11 \
+    xfce4 \
+    desktop-base \
+    xfce4-terminal \
+    xfce4-goodies \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
