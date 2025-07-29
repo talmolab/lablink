@@ -40,6 +40,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4-terminal \
     xfce4-goodies \
     elementary-xfce-icon-theme \
+    font-dejavu \
+    fontconfig \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
