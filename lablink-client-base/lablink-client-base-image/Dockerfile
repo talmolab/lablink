@@ -39,8 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     desktop-base \
     xfce4-terminal \
     xfce4-goodies \
-    librsvg2-2 \
-    libgdk-pixbuf-2.0-0 \
+    elementary-xfce-icon-theme \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
