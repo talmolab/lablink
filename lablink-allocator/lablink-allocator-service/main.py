@@ -141,7 +141,6 @@ def admin():
         [
             os.getenv("AWS_ACCESS_KEY_ID"),
             os.getenv("AWS_SECRET_ACCESS_KEY"),
-            os.getenv("AWS_SESSION_TOKEN"),
         ]
     ):
         return render_template("admin.html")
@@ -167,7 +166,6 @@ def admin():
 def set_aws_credentials():
     aws_access_key = request.form.get("aws_access_key_id", "").strip()
     aws_secret_key = request.form.get("aws_secret_access_key", "").strip()
-    aws_token = request.form.get("aws_token", "").strip()
 
     if not aws_access_key or not aws_secret_key:
         return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
@@ -175,7 +173,6 @@ def set_aws_credentials():
     # also set the environment variables
     os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
     os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
-    os.environ["AWS_SESSION_TOKEN"] = aws_token
 
     # Check if the AWS credentials are valid
     if not validate_aws_credentials():
@@ -184,7 +181,6 @@ def set_aws_credentials():
         # Remove environment variables if credentials are invalid
         del os.environ["AWS_ACCESS_KEY_ID"]
         del os.environ["AWS_SECRET_ACCESS_KEY"]
-        del os.environ["AWS_SESSION_TOKEN"]
 
         return render_template(
             "admin.html",

@@ -20,7 +20,6 @@ def get_all_instance_types(region="us-west-2"):
         region_name=region,
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
     )
     instance_types = []
     paginator = ec2.get_paginator("describe_instance_types")
@@ -41,7 +40,6 @@ def validate_aws_credentials() -> bool:
             "sts",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
         )
         client.get_caller_identity()
         logger.info("AWS credentials are valid.")
@@ -57,7 +55,6 @@ def check_support_nvidia(machine_type) -> bool:
         region_name=os.getenv("AWS_REGION", "us-west-2"),
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
     )
     try:
         response = ec2.describe_instance_types(InstanceTypes=[machine_type])
