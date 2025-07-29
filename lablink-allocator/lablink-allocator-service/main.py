@@ -191,15 +191,6 @@ def set_aws_credentials():
             error="Invalid AWS credentials provided. Please check your credentials.",
         )
 
-    # Save the credentials to a file or environment variable
-    terraform_dir = Path("terraform")
-    credential_file = terraform_dir / "terraform.credentials.tfvars"
-
-    with credential_file.open("w") as f:
-        f.write(f'aws_access_key = "{aws_access_key}"\n')
-        f.write(f'aws_secret_key = "{aws_secret_key}"\n')
-        f.write(f'aws_session_token = "{aws_token}"\n')
-
     return render_template("admin.html", message="AWS credentials set successfully.")
 
 
@@ -267,17 +258,6 @@ def launch():
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
-    # Check if the credentials file exists
-    credentials_file = terraform_dir / "terraform.credentials.tfvars"
-    if not credentials_file.exists():
-        logger.error(
-            "AWS credentials file not found. Please set AWS credentials first."
-        )
-        return render_template(
-            "dashboard.html",
-            credential_error="AWS credentials file not found.",
-        )
-
     try:
         # Calculate the number of VMs to launch
         total_vms = num_vms + database.get_row_count()
@@ -329,7 +309,6 @@ def launch():
             "apply",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={total_vms}",
         ]
 
@@ -363,7 +342,6 @@ def destroy():
             "destroy",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
         ]
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
