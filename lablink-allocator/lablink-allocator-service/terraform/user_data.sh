@@ -10,7 +10,7 @@ echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
 
-VM_NAME="lablink-vm-${resource_suffix}-${count_index + 1}"
+VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
 
