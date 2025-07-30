@@ -51,6 +51,11 @@ variable "gpu_support" {
   description = "Whether the instance machine type supports GPU"
 }
 
+variable "cloud_init_output_log_group" {
+  type        = string
+  description = "CloudWatch Log Group for client VM logs"
+}
+
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -98,6 +103,32 @@ resource "aws_iam_instance_profile" "lablink_instance_profile" {
   role = aws_iam_role.cloud_watch_agent_role.name
 }
 
+resource "aws_lambda_function" "log_processor" {
+  function_name = "lablink_log_processor_${var.resource_suffix}"
+  role          = aws_iam_role.lambda_exec.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.11"
+  filename      = "${path.module}/lambda_package.zip"
+}
+
+# IAM Role for Lambda
+resource "aws_iam_role" "lambda_exec" {
+  name = "lablink_lambda_exec_${var.resource_suffix}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
@@ -111,13 +142,14 @@ resource "aws_instance" "lablink_vm" {
   }
 
   user_data = templatefile("${path.module}/user_data.sh", {
-    allocator_ip     = var.allocator_ip
-    repository       = var.repository
-    resource_suffix  = var.resource_suffix
-    image_name       = var.image_name
-    count_index      = count.index + 1
-    subject_software = var.subject_software
-    gpu_support      = var.gpu_support
+    allocator_ip                = var.allocator_ip
+    repository                  = var.repository
+    resource_suffix             = var.resource_suffix
+    image_name                  = var.image_name
+    count_index                 = count.index + 1
+    subject_software            = var.subject_software
+    gpu_support                 = var.gpu_support
+    cloud_init_output_log_group = var.cloud_init_output_log_group
   })
 
   tags = {

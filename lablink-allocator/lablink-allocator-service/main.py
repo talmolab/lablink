@@ -51,6 +51,7 @@ ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
+cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
 
 # Initialize the database connection
@@ -321,6 +322,7 @@ def launch():
             f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
             f.write(f'gpu_support = "{gpu_support}"\n')
+            f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -547,34 +549,7 @@ def update_gpu_health():
         return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
-@app.route("/api/logs", methods=["POST"])
-def get_logs():
-    data = request.get_json()
-    hostname = data.get("hostname")
-    log_data = data.get("log_lines")
-
-    if not hostname or not log_data:
-        logger.error("Hostname and log lines are required.")
-        return jsonify({"error": "Hostname and log lines are required."}), 400
-
-    try:
-        log_text = base64.b64decode(log_data).decode("utf-8")
-    except Exception:
-        log_text = log_data
-
-    logger.debug(f"Received log data for {hostname}.")
-    logger.debug(f"Log data:\n{log_text}")
-
-    log_file_path = Path("client_vm_logs") / f"{hostname}.log"
-
-    log_file_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_file_path.open("w") as log_file:
-        log_file.write(log_text)
-
-    logger.debug(f"Log file created at {log_file_path}")
-    return jsonify({"message": "Log file created successfully."}), 200
-
-
+# Global variable to store VM status
 vm_status = {}
 
 

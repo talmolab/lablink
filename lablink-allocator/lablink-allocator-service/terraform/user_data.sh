@@ -9,6 +9,7 @@ echo "  - Subject Software: ${subject_software}"
 echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
+echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
 
 VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
@@ -45,8 +46,8 @@ cat >/opt/aws/amazon-cloudwatch-agent/bin/config.json <<'EOF'
         "collect_list": [
           {
             "file_path": "/var/log/cloud-init-output.log",
-            "log_group_name": "cloud-init-output",
-            "log_stream_name": "{instance_id}",
+            "log_group_name": "${cloud_init_output_log_group}",
+            "log_stream_name": "$VM_NAME",
             "timestamp_format": "%b %d %H:%M:%S"
           }
         ]

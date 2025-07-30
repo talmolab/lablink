@@ -62,10 +62,11 @@ resource "aws_instance" "lablink_allocator_server" {
   key_name        = aws_key_pair.lablink_key_pair.key_name
 
   user_data = templatefile("${path.module}/user_data.sh", {
-    ALLOCATOR_IMAGE_TAG = var.allocator_image_tag
-    RESOURCE_SUFFIX     = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP = data.aws_eip.lablink_allocator_ip.public_ip
-    ALLOCATOR_KEY_NAME  = aws_key_pair.lablink_key_pair.key_name
+    ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
+    RESOURCE_SUFFIX      = var.resource_suffix
+    ALLOCATOR_PUBLIC_IP  = data.aws_eip.lablink_allocator_ip.public_ip
+    ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
+    CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
   })
 
   tags = {
@@ -95,6 +96,11 @@ locals {
   allocator_instance_type = var.resource_suffix == "prod" ? "t3.large" : "t2.micro"
 }
 
+# CloudWatch Log Groups for Client VMs
+resource "aws_cloudwatch_log_group" "client_vm_logs" {
+  name              = "lablink-cloud-init-${var.resource_suffix}"
+  retention_in_days = 30
+}
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
