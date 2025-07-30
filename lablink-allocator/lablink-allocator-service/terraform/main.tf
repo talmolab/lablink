@@ -104,11 +104,12 @@ resource "aws_iam_instance_profile" "lablink_instance_profile" {
 }
 
 resource "aws_lambda_function" "log_processor" {
-  function_name = "lablink_log_processor_${var.resource_suffix}"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.11"
-  filename      = "${path.module}/lambda_package.zip"
+  function_name    = "lablink_log_processor_${var.resource_suffix}"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.11"
+  filename         = data.archive_file.lambda_zip.output_path
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 }
 
 # IAM Role for Lambda
@@ -127,6 +128,13 @@ resource "aws_iam_role" "lambda_exec" {
 resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# To package the Lambda function into a zip file
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = "${path.module}/lambda_function.py"
+  output_path = "${path.module}/lambda_package.zip"
 }
 
 resource "aws_instance" "lablink_vm" {
