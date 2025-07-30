@@ -59,7 +59,6 @@ resource "aws_lambda_function" "log_processor" {
 }
 resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
   name            = "lablink_lambda_subscription_${var.resource_suffix}"
-  role_arn        = aws_iam_role.lambda_exec.arn
   filter_pattern  = ""
   destination_arn = aws_lambda_function.log_processor.arn
   log_group_name  = var.cloud_init_output_log_group
