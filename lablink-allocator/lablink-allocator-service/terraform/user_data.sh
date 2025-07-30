@@ -10,8 +10,47 @@ echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
 
-echo ">> Checking GPU Support…"
+echo ">> Installing CloudWatch agent…"
 
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+
+if ! sudo rpm -U ./amazon-cloudwatch-agent.rpm; then
+    echo "CloudWatch agent installation failed!" >&2
+    exit 1
+fi
+
+echo ">> CloudWatch agent installed."
+
+echo ">> Configuring CloudWatch agent…"
+
+cat >/opt/aws/amazon-cloudwatch-agent/bin/config.json <<'EOF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/cloud-init-output.log",
+            "log_group_name": "cloud-init-output",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%b %d %H:%M:%S"
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+echo ">> CloudWatch agent configuration complete."
+
+echo ">> Starting CloudWatch agent…"
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+
+echo ">> CloudWatch agent started."
+
+echo ">> Checking GPU Support…"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     AMI_GPU_SUPPORT=true
