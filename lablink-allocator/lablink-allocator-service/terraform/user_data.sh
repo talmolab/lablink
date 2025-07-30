@@ -27,14 +27,13 @@ send_status "initializing"
 
 echo ">> Installing CloudWatch agent…"
 
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
 
-if ! sudo rpm -U ./amazon-cloudwatch-agent.rpm; then
+if ! sudo dpkg -i ./amazon-cloudwatch-agent.deb; then
     echo "CloudWatch agent installation failed!" >&2
+    send_status "failed"
     exit 1
 fi
-
-echo ">> CloudWatch agent installed."
 
 echo ">> Configuring CloudWatch agent…"
 
