@@ -2,60 +2,6 @@ provider "aws" {
   region = "us-west-2"
 }
 
-variable "instance_count" {
-  type    = number
-  default = 1
-}
-
-variable "allocator_ip" {
-  type        = string
-  description = "IP address of the allocator server"
-  sensitive   = true
-}
-
-variable "machine_type" {
-  type        = string
-  description = "Type of the machine to be created"
-  default     = "t2.medium"
-}
-
-variable "image_name" {
-  type        = string
-  description = "VM Image Name to be used as client base image"
-}
-
-variable "repository" {
-  type        = string
-  description = "GitHub repository URL for the Data Repository"
-}
-
-variable "client_ami_id" {
-  type        = string
-  description = "AMI ID for the client VM"
-}
-
-variable "resource_suffix" {
-  type        = string
-  default     = "client"
-  description = "Suffix to ensure uniqueness"
-}
-
-variable "subject_software" {
-  type        = string
-  default     = "sleap"
-  description = "Software subject for the client VM"
-}
-
-variable "gpu_support" {
-  type        = bool
-  description = "Whether the instance machine type supports GPU"
-}
-
-variable "cloud_init_output_log_group" {
-  type        = string
-  description = "CloudWatch Log Group for client VM logs"
-}
-
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -110,6 +56,13 @@ resource "aws_lambda_function" "log_processor" {
   runtime          = "python3.11"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+}
+resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
+  name            = "lablink_lambda_subscription_${var.resource_suffix}"
+  role_arn        = aws_iam_role.lambda_exec.arn
+  filter_pattern  = ""
+  destination_arn = aws_lambda_function.log_processor.arn
+  log_group_name  = var.cloud_init_output_log_group
 }
 
 # IAM Role for Lambda
@@ -173,20 +126,4 @@ resource "tls_private_key" "lablink_key" {
 resource "aws_key_pair" "lablink_key_pair" {
   key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh
-}
-
-output "vm_instance_ids" {
-  description = "List of EC2 instance IDs created"
-  value       = aws_instance.lablink_vm[*].id
-}
-
-output "vm_public_ips" {
-  description = "List of public IPs assigned to the VMs"
-  value       = aws_instance.lablink_vm[*].public_ip
-}
-
-output "lablink_private_key_pem" {
-  description = "Private key used to access EC2 instances"
-  value       = tls_private_key.lablink_key.private_key_pem
-  sensitive   = true
 }

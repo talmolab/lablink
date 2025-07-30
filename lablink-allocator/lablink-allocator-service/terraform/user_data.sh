@@ -47,7 +47,7 @@ cat >/opt/aws/amazon-cloudwatch-agent/bin/config.json <<'EOF'
           {
             "file_path": "/var/log/cloud-init-output.log",
             "log_group_name": "${cloud_init_output_log_group}",
-            "log_stream_name": "$VM_NAME",
+            "log_stream_name": "${VM_NAME}",
             "timestamp_format": "%b %d %H:%M:%S"
           }
         ]
