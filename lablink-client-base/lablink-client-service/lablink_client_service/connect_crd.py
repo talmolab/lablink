@@ -39,6 +39,9 @@ def construct_command(args):
     redirect_url = "'https://remotedesktop.google.com/_/oauthredirect'"
     name = os.getenv("VM_NAME", "$(hostname)")
 
+    if args.code is None:
+        raise ValueError("Code must be provided to construct the command.")
+
     command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host"
     command += f" --code={args.code}"
     command += f" --redirect-url={redirect_url}"
@@ -47,19 +50,16 @@ def construct_command(args):
     return command
 
 
-def reconstruct_command(command: str = None):
+def reconstruct_command(command: str) -> str:
     """Reconstructs the Chrome Remote Desktop command.
 
     Args:
-        command (str, optional): CRD command to connect to the machine. Defaults to None.
+        command (str): CRD command to connect to the machine.
 
     Returns:
         str: Reconstructed command to connect to the machine.
     """
-    if command is None:
-        arg_to_parse = None
-    else:
-        arg_to_parse = command.split()
+    arg_to_parse = command.split()
 
     # Parse the command line arguments
     parser = create_parser()
@@ -74,7 +74,7 @@ def reconstruct_command(command: str = None):
     return command
 
 
-def connect_to_crd(command=None, pin=None):
+def connect_to_crd(command, pin):
     # Parse the command line arguments
     command = reconstruct_command(command)
 
