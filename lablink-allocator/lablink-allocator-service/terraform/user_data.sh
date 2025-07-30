@@ -10,6 +10,21 @@ echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
 
+VM_NAME="lablink-vm-${var.resource_suffix}-${count.index + 1}"
+ALLOCATOR_IP="${var.allocator_ip}"
+STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+
+# Function to send status updates
+send_status() {
+    local status="$1"
+    curl -s -X POST "$STATUS_ENDPOINT" \
+        -H "Content-Type: application/json" \
+        -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
+}
+
+# Send initial status
+send_status "initializing"
+
 echo ">> Installing CloudWatch agent…"
 
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
@@ -109,11 +124,17 @@ if [ "$HAS_GPU" = true ]; then
 fi
 
 echo ">> Starting container..."
-docker run -dit $DOCKER_GPU_ARGS \
+if docker run -dit $DOCKER_GPU_ARGS \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
     -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
-    "${image_name}"
+    "${image_name}"; then
+    send_status "running"
+else
+    echo "Container launch failed!"
+    send_status "failed"
+    exit 1
+fi
 
 echo ">> Container launched."
