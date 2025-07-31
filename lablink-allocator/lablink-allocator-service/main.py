@@ -25,11 +25,14 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.aws_utils import validate_aws_credentials, check_support_nvidia
 from utils.scp import (
-    get_instance_ips,
-    get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
     find_slp_files_in_container,
+)
+from utils.terraform_utils import (
+    get_instance_ips,
+    get_ssh_private_key,
+    get_instance_names,
 )
 
 app = Flask(__name__)
@@ -88,6 +91,8 @@ class vms(db.Model):
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
     healthy = db.Column(db.String(1024), nullable=True)
+    state = db.Column(db.String(1024), nullable=True)
+    logs = db.Column(db.Text, nullable=True)
 
 
 @auth.verify_password
@@ -344,6 +349,12 @@ def launch():
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
 
+        # Insert the new VMs into the database
+        logger.debug("Inserting new VMs into the database...")
+        instance_names = get_instance_names(terraform_dir="terraform")
+        for name in instance_names:
+            database.insert_vm(hostname=name)
+
         return render_template("dashboard.html", output=clean_output)
 
     except subprocess.CalledProcessError as e:
@@ -406,9 +417,11 @@ def vm_startup():
     if not hostname:
         return jsonify({"error": "Hostname is required."}), 400
 
-    # Add to the database
-    logger.debug(f"Adding VM {hostname} to database...")
-    database.insert_vm(hostname=hostname)
+    # Check if the VM exists in the database
+    vm = database.get_vm_by_hostname(hostname)
+    if not vm:
+        return jsonify({"error": "VM not found."}), 404
+
     result = database.listen_for_notifications(
         channel=MESSAGE_CHANNEL, target_hostname=hostname
     )
@@ -550,10 +563,6 @@ def update_gpu_health():
         return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
-# Global variable to store VM status
-vm_status = {}
-
-
 @app.route("/api/vm-status/", methods=["POST"])
 def update_vm_status():
     try:
@@ -564,9 +573,7 @@ def update_vm_status():
         if not hostname or status is None:
             return jsonify({"error": "Hostname and status are required."}), 400
 
-        vm_status[hostname] = status
-        logger.debug(f"Updated status for {hostname}: {status}")
-        logger.debug(f"Current VM status: {vm_status}")
+        database.update_vm_status(hostname=hostname, status=status)
 
         return jsonify({"message": "VM status updated successfully."}), 200
     except Exception as e:
@@ -577,7 +584,7 @@ def update_vm_status():
 @app.route("/api/vm-status/<hostname>", methods=["GET"])
 def get_vm_status(hostname):
     try:
-        status = vm_status.get(hostname)
+        status = database.get_vm_status(hostname=hostname)
         if status is None:
             return jsonify({"error": "VM not found."}), 404
 
@@ -590,6 +597,7 @@ def get_vm_status(hostname):
 @app.route("/api/vm-status", methods=["GET"])
 def get_all_vm_status():
     try:
+        vm_status = database.get_all_vm_status()
         if not vm_status:
             return jsonify({"error": "No VM status updates available."}), 404
 
@@ -613,15 +621,24 @@ def receive_vm_logs():
                 400,
             )
 
+        # Check if the VM exists in the database
+        if not database.vm_exists(log_stream):
+            logger.error(f"VM with log stream {log_stream} does not exist.")
+            return jsonify({"error": "VM not found."}), 404
+
         # Process the logs (e.g., save to a file, database, etc.)
         logger.info(
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
-        # Here you can implement your logic to store the logs
-        # For now, we just log them
-        for message in messages:
-            logger.debug(f"Log message: {message}")
+        # Save the logs to the database
+        new_logs = "\n".join(messages)
+        vm_log = database.get_vm_logs(hostname=log_stream)
+        if vm_log is not None:
+            vm_log += "\n" + new_logs
+        else:
+            vm_log = new_logs
+        database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
 
         return jsonify({"message": "Logs received successfully."}), 200
     except Exception as e:
