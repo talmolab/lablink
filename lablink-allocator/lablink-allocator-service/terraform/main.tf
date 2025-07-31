@@ -64,6 +64,7 @@ resource "aws_lambda_function" "log_processor" {
   runtime          = "python3.11"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  timeout          = 10
   environment {
     variables = {
       API_ENDPOINT = "https://${var.allocator_ip}/api/vm-logs"
@@ -145,11 +146,13 @@ resource "aws_instance" "lablink_vm" {
   }
 }
 
+# TLS Private Key for SSH access
 resource "tls_private_key" "lablink_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
+# AWS Key Pair for SSH access
 resource "aws_key_pair" "lablink_key_pair" {
   key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh

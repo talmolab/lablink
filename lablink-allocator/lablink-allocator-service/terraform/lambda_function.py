@@ -26,6 +26,7 @@ def lambda_handler(event, context):
         "messages": log_messages,
     }
 
+    print(f"Sending payload to {API_ENDPOINT}: {payload}")
     try:
         # Send logs to external API
         response = http.request(
