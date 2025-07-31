@@ -235,7 +235,7 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are not assigned to any command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NULL"
+        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NULL AND status = 'running'"
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
@@ -328,9 +328,7 @@ class PostgresqlDatabase:
         Returns:
             str: The hostname of the first available VM.
         """
-        query = (
-            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL LIMIT 1"
-        )
+        query = f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND status = 'running' LIMIT 1"
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
