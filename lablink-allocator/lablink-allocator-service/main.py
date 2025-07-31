@@ -598,6 +598,36 @@ def get_all_vm_status():
         return jsonify({"error": "Failed to get VM status."}), 500
 
 
+@app.route("/api/vm-logs", methods=["POST"])
+def receive_vm_logs():
+    try:
+        data = request.get_json()
+        log_group = data.get("log_group")
+        log_stream = data.get("log_stream")
+        messages = data.get("messages", [])
+
+        if not log_group or not log_stream or not messages:
+            return (
+                jsonify({"error": "Log group, stream, and messages are required."}),
+                400,
+            )
+
+        # Process the logs (e.g., save to a file, database, etc.)
+        logger.info(
+            f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
+        )
+
+        # Here you can implement your logic to store the logs
+        # For now, we just log them
+        for message in messages:
+            logger.debug(f"Log message: {message}")
+
+        return jsonify({"message": "Logs received successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error receiving VM logs: {e}")
+        return jsonify({"error": "Failed to receive VM logs."}), 500
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

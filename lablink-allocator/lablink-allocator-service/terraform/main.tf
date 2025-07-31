@@ -2,6 +2,7 @@ provider "aws" {
   region = "us-west-2"
 }
 
+# Security Group for the Client VM
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
   description = "Allow SSH and Docker ports"
@@ -21,6 +22,7 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+# IAM Role for CloudWatch Agent
 resource "aws_iam_role" "cloud_watch_agent_role" {
   name = "lablink_cloud_watch_agent_role_${var.resource_suffix}"
 
@@ -38,17 +40,20 @@ resource "aws_iam_role" "cloud_watch_agent_role" {
   })
 }
 
+# Policy to allow CloudWatch agent to write logs
 resource "aws_iam_policy_attachment" "cloudwatch_agent_policy" {
   name       = "lablink_cloudwatch_agent_policy_attachment_${var.resource_suffix}"
   roles      = [aws_iam_role.cloud_watch_agent_role.name]
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# Instance profile for EC2 instances
 resource "aws_iam_instance_profile" "lablink_instance_profile" {
   name = "lablink_client_instance_profile_${var.resource_suffix}"
   role = aws_iam_role.cloud_watch_agent_role.name
 }
 
+# Lambda Function to process logs
 resource "aws_lambda_function" "log_processor" {
   function_name    = "lablink_log_processor_${var.resource_suffix}"
   role             = aws_iam_role.lambda_exec.arn
@@ -56,7 +61,14 @@ resource "aws_lambda_function" "log_processor" {
   runtime          = "python3.11"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  environment {
+    variables = {
+      API_ENDPOINT = "https://${var.allocator_ip}/api/vm-logs"
+    }
+  }
 }
+
+# Subscription filter to send CloudWatch logs to Lambda
 resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
   name            = "lablink_lambda_subscription_${var.resource_suffix}"
   filter_pattern  = ""
@@ -77,11 +89,13 @@ resource "aws_iam_role" "lambda_exec" {
   })
 }
 
+# Attach basic execution role to Lambda
 resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Zip the Lambda function code
 # To package the Lambda function into a zip file
 data "archive_file" "lambda_zip" {
   type        = "zip"
@@ -89,6 +103,7 @@ data "archive_file" "lambda_zip" {
   output_path = "${path.module}/lambda_package.zip"
 }
 
+# EC2 Instance for the LabLink Client
 resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
