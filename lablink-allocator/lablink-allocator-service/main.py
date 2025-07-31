@@ -282,9 +282,6 @@ def launch():
         # Calculate the number of VMs to launch
         total_vms = num_vms + database.get_row_count()
 
-        # Init Terraform (optional if already initialized)
-        subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
-
         logger.debug(f"Machine type: {cfg.machine.machine_type}")
         logger.debug(f"Image name: {cfg.machine.image}")
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
@@ -636,4 +633,10 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         init_database()
+
+    # Terraform initialization
+    terraform_dir = Path("terraform")
+    if not (terraform_dir / "terraform.runtime.tfvars").exists():
+        logger.info("Initializing Terraform...")
+        subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
     app.run(host="0.0.0.0", port=5000, threaded=True)
