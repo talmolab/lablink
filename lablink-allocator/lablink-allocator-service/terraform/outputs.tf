@@ -13,3 +13,8 @@ output "lablink_private_key_pem" {
   value       = tls_private_key.lablink_key.private_key_pem
   sensitive   = true
 }
+
+output "vm_instance_names" {
+  description = "List of names assigned to the EC2 instances"
+  value       = [for instance in aws_instance.lablink_vm : instance.tags["Name"]]
+}

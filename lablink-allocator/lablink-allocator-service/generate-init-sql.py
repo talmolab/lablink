@@ -30,7 +30,10 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     CrdCommand VARCHAR(1024),
     UserEmail VARCHAR(1024),
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
-    Healthy VARCHAR(1024)
+    Healthy VARCHAR(1024),
+    State VARCHAR(1024),
+    Logs TEXT,
+
 );
 
 CREATE OR REPLACE FUNCTION notify_crd_command_update()

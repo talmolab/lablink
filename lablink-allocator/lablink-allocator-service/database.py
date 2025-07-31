@@ -282,7 +282,7 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (email,))
         row = self.cursor.fetchone()
         if row:
-            hostname, pin, crdcommand, _, _, _ = row
+            hostname, pin, crdcommand, _, _, _, _, _ = row
             return [
                 hostname,
                 pin,
@@ -399,6 +399,97 @@ class PostgresqlDatabase:
         except Exception as e:
             logger.error(f"Error retrieving GPU health: {e}")
             return None
+
+    def get_status(self) -> list:
+        """Get the status of all VMs in the table.
+
+        Returns:
+            list: A list of dictionaries containing the hostname and status of each VM.
+        """
+        query = f"SELECT hostname, status FROM {self.table_name};"
+        try:
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
+            return [{"hostname": row[0], "status": row[1]} for row in rows]
+        except Exception as e:
+            logger.error(f"Error retrieving VM status: {e}")
+            return []
+
+    def get_status_by_hostname(self, hostname: str) -> str:
+        """Get the status of a VM by its hostname.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            str: The status of the VM, or None if not found.
+        """
+        query = f"SELECT status FROM {self.table_name} WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (hostname,))
+            result = self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                logger.error(f"No VM found with hostname '{hostname}'.")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving status: {e}")
+            return None
+
+    def update_status(self, hostname: str, new_state: str) -> None:
+        """Update the status of a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            new_state (str): The new state to set for the VM.
+        """
+        query = f"UPDATE {self.table_name} SET status = %s WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (new_state, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated status for VM '{hostname}' to {new_state}.")
+        except Exception as e:
+            logger.error(f"Error updating status: {e}")
+            self.conn.rollback()
+
+    def get_vm_logs(self, hostname: str) -> str:
+        """Get the logs of a VM by its hostname.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            str: The logs of the VM, or None if not found.
+        """
+        query = f"SELECT logs FROM {self.table_name} WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (hostname,))
+            result = self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                logger.error(f"No VM found with hostname '{hostname}'.")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving logs: {e}")
+            return None
+
+    def save_logs_by_hostname(self, hostname: str, logs: str) -> None:
+        """Save logs for a VM by its hostname.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            logs (str): The logs to save for the VM.
+        """
+        query = f"UPDATE {self.table_name} SET logs = %s WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (logs, hostname))
+            self.conn.commit()
+            logger.debug(f"Saved logs for VM '{hostname}'.")
+        except Exception as e:
+            logger.error(f"Error saving logs: {e}")
+            self.conn.rollback()
 
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
