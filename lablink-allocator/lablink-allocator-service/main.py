@@ -291,6 +291,8 @@ def launch():
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
         logger.debug(f"Subject Software: {cfg.machine.software}")
         logger.debug(f"Region: {cfg.app.region}")
+        logger.debug(f"Allocator IP: {allocator_ip}")
+        logger.debug(f"Cloud Init Output Log Group: {cloud_init_output_log_group}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
