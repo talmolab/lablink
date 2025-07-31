@@ -491,6 +491,21 @@ class PostgresqlDatabase:
             logger.error(f"Error saving logs: {e}")
             self.conn.rollback()
 
+    def get_all_vm_status(self) -> dict:
+        """Get the status of all VMs in the table.
+
+        Returns:
+            dict: A dictionary containing the hostname and status of each VM.
+        """
+        query = f"SELECT hostname, status FROM {self.table_name};"
+        try:
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+        except Exception as e:
+            logger.error(f"Error retrieving all VM status: {e}")
+            return {}
+
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
         """Loads an existing database from PostgreSQL.
