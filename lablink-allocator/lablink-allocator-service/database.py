@@ -437,18 +437,18 @@ class PostgresqlDatabase:
             logger.error(f"Error retrieving status: {e}")
             return None
 
-    def update_status(self, hostname: str, new_state: str) -> None:
+    def update_status(self, hostname: str, new_status: str) -> None:
         """Update the status of a VM.
 
         Args:
             hostname (str): The hostname of the VM.
-            new_state (str): The new state to set for the VM.
+            new_status (str): The new status to set for the VM.
         """
         query = f"UPDATE {self.table_name} SET status = %s WHERE hostname = %s;"
         try:
-            self.cursor.execute(query, (new_state, hostname))
+            self.cursor.execute(query, (new_status, hostname))
             self.conn.commit()
-            logger.debug(f"Updated status for VM '{hostname}' to {new_state}.")
+            logger.debug(f"Updated status for VM '{hostname}' to {new_status}.")
         except Exception as e:
             logger.error(f"Error updating status: {e}")
             self.conn.rollback()

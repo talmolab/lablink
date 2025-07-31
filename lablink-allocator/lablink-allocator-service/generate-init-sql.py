@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     UserEmail VARCHAR(1024),
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
     Healthy VARCHAR(1024),
-    State VARCHAR(1024),
+    Status   VARCHAR(1024),
     Logs TEXT,
 
 );
