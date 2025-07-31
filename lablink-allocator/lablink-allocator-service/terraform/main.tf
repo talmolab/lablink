@@ -111,7 +111,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/${aws_lambda_function.log_processor.function_name}"
+  name              = "/aws/lambda/lablink_log_processor_${var.resource_suffix}}"
   retention_in_days = 14
 }
 
