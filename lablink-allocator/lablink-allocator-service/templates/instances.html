@@ -65,6 +65,8 @@
         <td>{{ vm.useremail or "—" }}</td>
         <td>{{ "Yes" if vm.inuse else "No" }}</td>
         <td>{{ vm.healthy or "—" }}</td>
+        <td>{{ vm.status or "Unknown" }}</td>
+
       </tr>
       {% endfor %}
     </tbody>
