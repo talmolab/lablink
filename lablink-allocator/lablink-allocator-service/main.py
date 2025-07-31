@@ -91,7 +91,7 @@ class vms(db.Model):
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
     healthy = db.Column(db.String(1024), nullable=True)
-    state = db.Column(db.String(1024), nullable=True)
+    status = db.Column(db.String(1024), nullable=True)
     logs = db.Column(db.Text, nullable=True)
 
 
