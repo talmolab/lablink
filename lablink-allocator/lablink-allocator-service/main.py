@@ -385,11 +385,6 @@ def destroy():
         database.clear_database()
         logger.debug("Database cleared successfully.")
 
-        # Clear the VM status
-        logger.debug("Clearing VM status...")
-        vm_status.clear()
-        logger.debug("VM status cleared successfully.")
-
         # Clear the log files
         log_dir = Path("client_vm_logs")
         if log_dir.exists():
