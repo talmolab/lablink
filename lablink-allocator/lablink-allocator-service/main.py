@@ -644,6 +644,26 @@ def receive_vm_logs():
         return jsonify({"error": "Failed to receive VM logs."}), 500
 
 
+@app.route("/admin/logs/<hostname>", methods=["GET"])
+@auth.login_required
+def get_vm_logs(hostname):
+    """Get the logs for a specific VM."""
+    # Fetch the VM from the database
+    vm = database.get_vm_by_hostname(hostname)
+
+    # Check if the VM exists
+    if not vm:
+        logger.error(f"VM {hostname} not found in the database.")
+        return render_template(
+            "instance-logs.html", hostname=hostname, logs="VM not found."
+        )
+
+    # Extract logs from the VM and render them
+    logger.debug(f"Fetching logs for VM: {hostname}")
+    logs = vm.logs if vm.logs else "No logs available for this VM."
+    return render_template("instance-logs.html", hostname=hostname, logs=logs)
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
