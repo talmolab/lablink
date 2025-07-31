@@ -2,9 +2,10 @@ import gzip
 import json
 import base64
 import os
-import requests
+import urllib3
 
 API_ENDPOINT = os.environ.get("API_ENDPOINT")
+http = urllib3.PoolManager()
 
 
 def lambda_handler(event, context):
@@ -27,10 +28,16 @@ def lambda_handler(event, context):
 
     try:
         # Send logs to external API
-        response = requests.post(API_ENDPOINT, json=payload)
-        response.raise_for_status()
+        response = http.request(
+            "POST",
+            API_ENDPOINT,
+            body=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+        )
+        if response.status != 200:
+            raise RuntimeError(f"API error {response.status}: {response.data}")
         print("Successfully sent logs to API")
-    except requests.exceptions.RequestException as e:
+    except urllib3.exceptions.HTTPError as e:
         print(f"Error sending logs to API: {e}")
         raise e
 
