@@ -504,6 +504,29 @@ class PostgresqlDatabase:
             logger.error(f"Error retrieving all VM status: {e}")
             return {}
 
+    def update_vm_status(self, hostname: str, status: str) -> None:
+        """Update the status of a VM by its hostname.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            status (str): The new status to set for the VM.
+        """
+        possible_statuses = ["running", "initializing", "unknown", "error"]
+        if status not in possible_statuses:
+            logger.error(
+                f"Invalid status '{status}'. Must be one of {possible_statuses}."
+            )
+            return
+
+        query = f"UPDATE {self.table_name} SET status = %s WHERE hostname = %s;"
+        try:
+            self.cursor.execute(query, (status, hostname))
+            self.conn.commit()
+            logger.debug(f"Updated status for VM '{hostname}' to {status}.")
+        except Exception as e:
+            logger.error(f"Error updating VM status: {e}")
+            self.conn.rollback()
+
     @classmethod
     def load_database(cls, dbname, user, password, host, port, table_name):
         """Loads an existing database from PostgreSQL.
