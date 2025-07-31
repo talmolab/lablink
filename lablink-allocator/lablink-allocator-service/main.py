@@ -353,7 +353,10 @@ def launch():
         logger.debug("Inserting new VMs into the database...")
         instance_names = get_instance_names(terraform_dir="terraform")
         for name in instance_names:
-            database.insert_vm(hostname=name)
+            # Check if the VM already exists in the database
+            if not database.get_vm_by_hostname(name):
+                logger.debug(f"Inserting VM: {name}")
+                database.insert_vm(hostname=name, pin=PIN)
 
         return render_template("dashboard.html", output=clean_output)
 
