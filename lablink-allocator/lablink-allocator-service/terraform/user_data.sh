@@ -32,7 +32,7 @@ wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-
 
 if ! sudo dpkg -i ./amazon-cloudwatch-agent.deb; then
     echo "CloudWatch agent installation failed!" >&2
-    send_status "failed"
+    send_status "error"
     exit 1
 fi
 
@@ -114,6 +114,7 @@ fi
 echo ">> Pulling application image ${image_name}…"
 if ! docker pull "${image_name}"; then
     echo "Docker image pull failed!" >&2
+    send_status "error"
     exit 1
 fi
 echo ">> Image pulled."
@@ -133,7 +134,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     send_status "running"
 else
     echo "Container launch failed!"
-    send_status "failed"
+    send_status "error"
     exit 1
 fi
 
