@@ -290,6 +290,7 @@ def launch():
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
         logger.debug(f"Subject Software: {cfg.machine.software}")
+        logger.debug(f"Region: {cfg.app.region}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -323,6 +324,7 @@ def launch():
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
             f.write(f'gpu_support = "{gpu_support}"\n')
             f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
+            f.write(f'region = "{cfg.app.region}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [

@@ -22,6 +22,9 @@ resource "aws_security_group" "lablink_sg_" {
   }
 }
 
+# Get the current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # IAM Role for CloudWatch Agent
 resource "aws_iam_role" "cloud_watch_agent_role" {
   name = "lablink_cloud_watch_agent_role_${var.resource_suffix}"
@@ -68,12 +71,22 @@ resource "aws_lambda_function" "log_processor" {
   }
 }
 
+# Permission to invoke the Lambda function from CloudWatch
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.log_processor.function_name
+  principal     = "logs.amazonaws.com"
+  source_arn    = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:${var.cloud_init_output_log_group}:*"
+}
+
 # Subscription filter to send CloudWatch logs to Lambda
 resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
   name            = "lablink_lambda_subscription_${var.resource_suffix}"
   filter_pattern  = ""
   destination_arn = aws_lambda_function.log_processor.arn
   log_group_name  = var.cloud_init_output_log_group
+  depends_on      = [aws_lambda_permission.allow_cloudwatch]
 }
 
 # IAM Role for Lambda
