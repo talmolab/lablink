@@ -127,6 +127,33 @@ class PostgresqlDatabase:
             logger.error(f"Error inserting data: {e}")
             self.conn.rollback()
 
+    def get_vm_by_hostname(self, hostname: str) -> dict:
+        """Get a VM by its hostname.
+
+        Args:
+            hostname (str): The hostname of the VM.
+
+        Returns:
+            dict: A dictionary containing the VM details.
+        """
+        query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
+        self.cursor.execute(query, (hostname,))
+        row = self.cursor.fetchone()
+        if row:
+            return {
+                "hostname": row[0],
+                "pin": row[1],
+                "crdcommand": row[2],
+                "useremail": row[3],
+                "inuse": row[4],
+                "healthy": row[5],
+                "status": row[6],
+                "logs": row[7],
+            }
+        else:
+            logger.error(f"No VM found with hostname '{hostname}'.")
+            return None
+
     def listen_for_notifications(self, channel, target_hostname) -> dict:
         """Listen for notifications on a specific channel.
 
