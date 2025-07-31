@@ -65,9 +65,10 @@ resource "aws_lambda_function" "log_processor" {
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = 10
+  depends_on       = [aws_cloudwatch_log_group.lambda_logs]
   environment {
     variables = {
-      API_ENDPOINT = "https://${var.allocator_ip}/api/vm-logs"
+      API_ENDPOINT = "http://${var.allocator_ip}/api/vm-logs"
     }
   }
 }
@@ -107,6 +108,11 @@ resource "aws_iam_role" "lambda_exec" {
 resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.log_processor.function_name}"
+  retention_in_days = 14
 }
 
 # Zip the Lambda function code

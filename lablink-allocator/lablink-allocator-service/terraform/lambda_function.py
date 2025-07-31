@@ -35,6 +35,8 @@ def lambda_handler(event, context):
             body=json.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
+        print("Response status:", response.status)
+        print("Response data:", response.data.decode())
         if response.status != 200:
             raise RuntimeError(f"API error {response.status}: {response.data}")
         print("Successfully sent logs to API")
