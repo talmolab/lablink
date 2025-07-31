@@ -38,10 +38,12 @@ class AppConfig:
     Attributes:
         admin_user (str): The username for the admin user.
         admin_password (str): The password for the admin user.
+        region (str): The AWS region where the service is deployed.
     """
 
     admin_user: str = field(default="admin")
     admin_password: str = field(default="admin_password")
+    region: str = field(default="us-west-2")
 
 
 @dataclass

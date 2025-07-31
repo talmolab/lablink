@@ -17,3 +17,4 @@ machine:
 app:
   admin_user: "admin"
   admin_password: "IwanttoSLEAP"
+  region: "us-west-2"

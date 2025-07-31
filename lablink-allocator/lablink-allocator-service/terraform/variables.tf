@@ -69,3 +69,8 @@ variable "cloud_init_output_log_group" {
   type        = string
   description = "CloudWatch Log Group for client VM logs"
 }
+
+variable "region" {
+  type        = string
+  description = "AWS region where resources will be created"
+}
