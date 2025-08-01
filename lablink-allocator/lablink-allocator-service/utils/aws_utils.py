@@ -15,13 +15,15 @@ def get_all_instance_types(region="us-west-2"):
     Returns:
         list: A list of available EC2 instance types in the specified region.
     """
-    ec2 = boto3.client(
-        "ec2",
-        region_name=region,
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
-    )
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
     instance_types = []
     paginator = ec2.get_paginator("describe_instance_types")
     for page in paginator.paginate():
@@ -30,35 +32,56 @@ def get_all_instance_types(region="us-west-2"):
     return instance_types
 
 
-def validate_aws_credentials() -> bool:
+def validate_aws_credentials() -> dict:
     """Validate AWS credentials by attempting to list EC2 instance types.
     Returns:
         bool: True if credentials are valid, False otherwise.
     """
     try:
+        # Prepare the kwargs for boto3 client
+        kwargs = {
+            "region_name": os.getenv("AWS_REGION", "us-west-2"),
+            "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+            "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+        }
+        if os.getenv("AWS_SESSION_TOKEN"):
+            kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
         # Attempt to create a client and call a simple API to validate credentials
-        client = boto3.client(
-            "sts",
-            region_name=os.getenv("AWS_REGION", "us-west-2"),
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            aws_access_token=os.getenv("AWS_SESSION_TOKEN"),
-        )
+        client = boto3.client("sts", **kwargs)
         client.get_caller_identity()
         logger.info("AWS credentials are valid.")
-        return True
+        return {"valid": True, "message": "AWS credentials are valid."}
     except ClientError as e:
-        logger.error(f"Error validating AWS credentials: {e}")
-        return False
+        if "InvalidClientTokenId" in str(e):
+            logger.error(
+                "AWS credentials appear to be temporary but no valid session token was provided."
+            )
+            return {
+                "valid": False,
+                "message": "AWS credentials are temporary but no session token provided.",
+            }
+        else:
+            logger.error(f"Error validating AWS credentials: {e}")
+        return {"valid": False, "message": str(e)}
 
 
 def check_support_nvidia(machine_type) -> bool:
-    ec2 = boto3.client(
-        "ec2",
-        region_name=os.getenv("AWS_REGION", "us-west-2"),
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    )
+    """Check if a given EC2 instance type supports NVIDIA GPUs.
+    Args:
+        machine_type (str): The EC2 instance type to check.
+    Returns:
+        bool: True if the instance type supports NVIDIA GPUs, False otherwise.
+    """
+    kwargs = {
+        "region_name": os.getenv("AWS_REGION", "us-west-2"),
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
     try:
         response = ec2.describe_instance_types(InstanceTypes=[machine_type])
         gpu_info = response["InstanceTypes"][0].get("GpuInfo", {})
