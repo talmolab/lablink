@@ -636,6 +636,19 @@ def receive_vm_logs():
         return jsonify({"error": "Failed to receive VM logs."}), 500
 
 
+@app.route("/api/vm-logs/<hostname>", methods=["GET"])
+def get_vm_logs(hostname):
+    try:
+        logs = database.get_vm_logs(hostname=hostname)
+        if logs is None:
+            return jsonify({"error": "VM not found."}), 404
+
+        return jsonify({"hostname": hostname, "logs": logs}), 200
+    except Exception as e:
+        logger.error(f"Error getting VM logs: {e}")
+        return jsonify({"error": "Failed to get VM logs."}), 500
+
+
 @app.route("/admin/logs/<hostname>", methods=["GET"])
 @auth.login_required
 def get_vm_logs(hostname):
