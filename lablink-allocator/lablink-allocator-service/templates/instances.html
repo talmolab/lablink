@@ -52,6 +52,7 @@
         <th>CRD Command</th>
         <th>User Email</th>
         <th>In Use</th>
+        <th>VM Status</th>
         <th>GPU Health Status</th>
       </tr>
     </thead>
@@ -64,8 +65,8 @@
         <td>{{ vm.crdcommand or "—" }}</td>
         <td>{{ vm.useremail or "—" }}</td>
         <td>{{ "Yes" if vm.inuse else "No" }}</td>
-        <td>{{ vm.healthy or "—" }}</td>
         <td>{{ vm.status or "Unknown" }}</td>
+        <td>{{ vm.healthy or "—" }}</td>
 
       </tr>
       {% endfor %}
