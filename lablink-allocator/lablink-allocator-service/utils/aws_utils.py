@@ -35,7 +35,10 @@ def get_all_instance_types(region="us-west-2"):
 def validate_aws_credentials() -> dict:
     """Validate AWS credentials by attempting to list EC2 instance types.
     Returns:
-        bool: True if credentials are valid, False otherwise.
+        dict: A dictionary indicating whether the credentials are valid.
+              If invalid, it includes an error message.
+    Raises:
+        ClientError: If there is an issue with the AWS credentials.
     """
     try:
         # Prepare the kwargs for boto3 client
@@ -51,7 +54,7 @@ def validate_aws_credentials() -> dict:
         client = boto3.client("sts", **kwargs)
         client.get_caller_identity()
         logger.info("AWS credentials are valid.")
-        return {"valid": True, "message": "AWS credentials are valid."}
+        return {"valid": True}
     except ClientError as e:
         if "InvalidClientTokenId" in str(e):
             logger.error(
@@ -63,7 +66,7 @@ def validate_aws_credentials() -> dict:
             }
         else:
             logger.error(f"Error validating AWS credentials: {e}")
-        return {"valid": False, "message": str(e)}
+            return {"valid": False, "message": str(e)}
 
 
 def check_support_nvidia(machine_type) -> bool:

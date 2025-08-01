@@ -147,6 +147,9 @@ def admin():
 
     # Check if AWS credentials are set and valid
     credential_response = validate_aws_credentials()
+    logger.debug(f"Credential response: {credential_response}")
+
+    # Check if the credentials are valid
     is_credentials_valid = credential_response.get("valid", False)
 
     # If credentials are set and valid, display the admin dashboard
