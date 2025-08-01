@@ -660,7 +660,7 @@ def get_vm_logs(hostname):
 
     # Extract logs from the VM and render them
     logger.debug(f"Fetching logs for VM: {hostname}")
-    logs = vm.logs if vm.logs else "No logs available for this VM."
+    logs = vm.get("logs", "No logs available.")
     return render_template("instance-logs.html", hostname=hostname, logs=logs)
 
 
