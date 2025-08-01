@@ -26,6 +26,11 @@ send_status() {
 # Send initial status
 send_status "initializing"
 
+echo ">> Waiting for apt/dpkg lock…"
+while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+    sleep 5
+done
+
 echo ">> Installing CloudWatch agent…"
 
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
