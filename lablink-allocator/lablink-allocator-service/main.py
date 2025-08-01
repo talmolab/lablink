@@ -388,14 +388,6 @@ def destroy():
         database.clear_database()
         logger.debug("Database cleared successfully.")
 
-        # Clear the log files
-        log_dir = Path("client_vm_logs")
-        if log_dir.exists():
-            logger.debug(f"Removing log files from {log_dir}...")
-            for log_file in log_dir.glob("*.log"):
-                log_file.unlink(missing_ok=True)
-            logger.debug("Log files removed successfully.")
-
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
 
