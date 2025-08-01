@@ -27,6 +27,7 @@ send_status() {
 send_status "initializing"
 
 echo ">> Waiting for apt/dpkg lock…"
+# This loop waits for the apt/dpkg lock to be released so that we can install packages without conflicts
 while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
     sleep 5
 done
