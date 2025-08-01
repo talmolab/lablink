@@ -32,8 +32,7 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
     Healthy VARCHAR(1024),
     Status   VARCHAR(1024),
-    Logs TEXT,
-
+    Logs TEXT
 );
 
 CREATE OR REPLACE FUNCTION notify_crd_command_update()
