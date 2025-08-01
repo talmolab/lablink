@@ -637,7 +637,7 @@ def receive_vm_logs():
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
-def get_vm_logs(hostname):
+def get_vm_logs_api(hostname):
     try:
         logs = database.get_vm_logs(hostname=hostname)
         if logs is None:
