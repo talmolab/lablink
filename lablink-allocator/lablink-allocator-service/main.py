@@ -181,17 +181,26 @@ def set_aws_credentials():
     os.environ["AWS_SESSION_TOKEN"] = aws_token
 
     # Check if the AWS credentials are valid
-    if not validate_aws_credentials():
-        logger.error("Invalid AWS credentials provided.")
+    credentials_response = validate_aws_credentials()
+    is_credentials_valid = credentials_response.get("valid", False)
+    if not is_credentials_valid:
+        logger.error(
+            "Invalid AWS credentials provided. Removing them from environment variables."
+        )
 
         # Remove environment variables if credentials are invalid
         del os.environ["AWS_ACCESS_KEY_ID"]
         del os.environ["AWS_SECRET_ACCESS_KEY"]
         del os.environ["AWS_SESSION_TOKEN"]
 
+        error = credentials_response.get(
+            "message",
+            "Invalid AWS credentials provided. Please check your credentials.",
+        )
+
         return render_template(
             "admin.html",
-            error="Invalid AWS credentials provided. Please check your credentials.",
+            error=error,
         )
 
     return render_template("admin.html", message="AWS credentials set successfully.")
