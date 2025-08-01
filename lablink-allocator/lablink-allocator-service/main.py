@@ -356,7 +356,7 @@ def launch():
             # Check if the VM already exists in the database
             if not database.get_vm_by_hostname(name):
                 logger.debug(f"Inserting VM: {name}")
-                database.insert_vm(hostname=name, pin=PIN)
+                database.insert_vm(hostname=name)
 
         return render_template("dashboard.html", output=clean_output)
 
