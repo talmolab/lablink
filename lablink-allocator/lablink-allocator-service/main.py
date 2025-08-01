@@ -639,9 +639,18 @@ def receive_vm_logs():
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
 def get_vm_logs_api(hostname):
     try:
-        logs = database.get_vm_logs(hostname=hostname)
-        if logs is None:
+        vm = database.get_vm_by_hostname(hostname=hostname)
+        logger.debug(f"Fetching logs for VM: {hostname}: {vm}")
+
+        # Check if the VM exists
+        if vm is None:
+            logger.error(f"VM with hostname {hostname} not found.")
             return jsonify({"error": "VM not found."}), 404
+
+        # If the logs are empty but the vm is initializing, return a 503 status
+        logs = database.get_vm_logs(hostname=hostname)
+        if logs is None and vm.status == "initializing":
+            return jsonify({"error": "VM is installing CloudWatch agent."}), 503
 
         return jsonify({"hostname": hostname, "logs": logs}), 200
     except Exception as e:
@@ -653,20 +662,8 @@ def get_vm_logs_api(hostname):
 @auth.login_required
 def get_vm_logs(hostname):
     """Get the logs for a specific VM."""
-    # Fetch the VM from the database
-    vm = database.get_vm_by_hostname(hostname)
-
-    # Check if the VM exists
-    if not vm:
-        logger.error(f"VM {hostname} not found in the database.")
-        return render_template(
-            "instance-logs.html", hostname=hostname, logs="VM not found."
-        )
-
-    # Extract logs from the VM and render them
     logger.debug(f"Fetching logs for VM: {hostname}")
-    logs = vm.get("logs", "No logs available.")
-    return render_template("instance-logs.html", hostname=hostname, logs=logs)
+    return render_template("instance-logs.html", hostname=hostname)
 
 
 if __name__ == "__main__":
