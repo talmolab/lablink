@@ -218,9 +218,6 @@
                 <button onclick="toggleAutoRefresh()" id="autoRefreshBtn">
                     <i class="bi bi-play me-1"></i>Start Auto Refresh
                 </button>
-                <button class="btn-secondary" onclick="clearLogs()">
-                    <i class="bi bi-trash me-1"></i>Clear View
-                </button>
                 <button class="btn-secondary" onclick="downloadLogs()">
                     <i class="bi bi-download me-1"></i>Download
                 </button>
@@ -228,7 +225,6 @@
             
             <div class="log-stats">
                 <div>Lines: <span id="lineCount">0</span></div>
-                <div>Size: <span id="logSize">0 bytes</span></div>
                 <div>Last Updated: <span id="lastUpdate">Loading...</span></div>
                 <div class="auto-refresh-indicator" id="autoRefreshIndicator">
                     <i class="bi bi-arrow-clockwise me-1"></i>Auto-refreshing...
@@ -318,11 +314,6 @@
             }
         }
 
-        function clearLogs() {
-            document.getElementById("logBox").textContent = "Log view cleared. Click 'Refresh Logs' to reload.";
-            updateLogStats("");
-        }
-
         function downloadLogs() {
             const logs = document.getElementById("logBox").textContent;
             const blob = new Blob([logs], { type: 'text/plain' });
@@ -338,22 +329,12 @@
 
         function updateLogStats(logs) {
             const lines = logs.split('\n').length;
-            const size = new Blob([logs]).size;
             
             document.getElementById("lineCount").textContent = lines.toLocaleString();
-            document.getElementById("logSize").textContent = formatBytes(size);
         }
 
         function updateTimestamp() {
             document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
-        }
-
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 bytes';
-            const k = 1024;
-            const sizes = ['bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         }
 
         // Cleanup on page unload
