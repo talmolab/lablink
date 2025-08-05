@@ -2,7 +2,7 @@ import logging
 import sys
 from typing import Optional
 
-from omegaconf import DictConfig
+from lablink_client_service.conf.structured_config import Config
 import watchtower
 import boto3
 
@@ -10,7 +10,7 @@ import boto3
 def setup_logger(
     name: str = __name__,
     level=logging.DEBUG,
-    config: Optional[DictConfig] = None,
+    config: Optional[Config] = None,
 ) -> logging.Logger:
     logger = logging.getLogger(name)
 
