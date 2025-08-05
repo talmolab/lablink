@@ -9,8 +9,6 @@ from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.connect_crd import connect_to_crd
 from lablink_client_service.logger_config import setup_logger
 
-logger = None
-
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:

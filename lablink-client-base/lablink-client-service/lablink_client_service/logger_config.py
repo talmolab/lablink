@@ -1,6 +1,7 @@
 import logging
 import sys
 from typing import Optional
+import os
 
 from lablink_client_service.conf.structured_config import Config
 import watchtower
@@ -25,18 +26,22 @@ def setup_logger(
         logger.addHandler(handler)
         logger.setLevel(level)
 
-        # If using AWS CloudWatch, add watchtower handler
-        cw_log_group = getattr(config.logging, "group_name", "lablink_client_logger")
-        cw_log_stream = getattr(config.logging, "stream_name", "default")
-        boto3_session = boto3.Session()
-        cw_handler = watchtower.CloudWatchLogHandler(
-            boto3_session=boto3_session,
-            log_group=cw_log_group,
-            stream_name=cw_log_stream,
-        )
-        cw_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        logger.addHandler(cw_handler)
+        if config and hasattr(config, "logging"):
+            hostname = os.environ.get("VM_NAME", "default")
+            # If using structured config, set up logging based on config
+            group_name = getattr(config.logging, "group_name", "lablink_client_logger")
+            stream_name = getattr(config.logging, "stream_name", hostname)
+            logger.debug(f"Using CloudWatch group: {group_name}, stream: {stream_name}")
+            cw_handler = watchtower.CloudWatchLogHandler(
+                log_group=group_name,
+                stream_name=stream_name,
+                create_log_group=True,
+            )
+            cw_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+            )
+            logger.addHandler(cw_handler)
 
     return logger
