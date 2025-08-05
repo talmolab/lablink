@@ -9,8 +9,7 @@ import hydra
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_config import setup_logger
 
-# Set up logging
-logger = setup_logger()
+logger = None
 
 
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):
@@ -31,7 +30,6 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 text=True,
                 check=True,
             )
-            logger.info(f"GPU Health Check: {result.stdout.strip()}")
             requests.post(
                 f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
                 json={
@@ -87,6 +85,15 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
+    # Set up the logger
+    global logger
+    logger = setup_logger(
+        name="gpu_health_checker",
+        config=cfg,
+    )
+
+    logger.info("Starting GPU health check service...")
+    # Check GPU health
     check_gpu_health(
         allocator_ip=cfg.allocator.host,
         allocator_port=cfg.allocator.port,

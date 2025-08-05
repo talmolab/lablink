@@ -1,15 +1,22 @@
-# logger_config.py
 import logging
 import sys
+from typing import Optional
+
+from omegaconf import DictConfig
+import watchtower
+import boto3
 
 
 def setup_logger(
-    name: str = "lablink_client_logger", level=logging.DEBUG
+    name: str = __name__,
+    level=logging.DEBUG,
+    config: Optional[DictConfig] = None,
 ) -> logging.Logger:
     logger = logging.getLogger(name)
 
     # Prevent adding multiple handlers if already set
     if not logger.hasHandlers():
+        # Console handler
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "%(asctime)s %(name)s [%(levelname)s]: %(message)s", "%H:%M"
@@ -17,5 +24,19 @@ def setup_logger(
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(level)
+
+        # If using AWS CloudWatch, add watchtower handler
+        cw_log_group = getattr(config.logging, "group_name", "lablink_client_logger")
+        cw_log_stream = getattr(config.logging, "stream_name", "default")
+        boto3_session = boto3.Session()
+        cw_handler = watchtower.CloudWatchLogHandler(
+            boto3_session=boto3_session,
+            log_group=cw_log_group,
+            stream_name=cw_log_stream,
+        )
+        cw_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logger.addHandler(cw_handler)
 
     return logger
