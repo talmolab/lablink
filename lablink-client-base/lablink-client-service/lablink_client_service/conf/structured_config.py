@@ -10,6 +10,7 @@ class AllocatorConfig:
     port: int = field(default=5000)
 
 
+@dataclass
 class LoggingConfig:
     group_name: str = field(default="lablink_client_logger")
     stream_name: str = field(default="${oc.env:VM_NAME,default}")
