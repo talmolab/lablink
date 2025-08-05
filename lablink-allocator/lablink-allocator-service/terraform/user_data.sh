@@ -136,6 +136,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
     -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
+    -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
     "${image_name}"; then
     send_status "running"
 else

@@ -23,19 +23,19 @@ else
 fi
 
 # Activate the conda environment and run the subscribe script
-/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 &
+/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP &
 
 # Wait for the subscribe script to start
 sleep 5
 
 # Run update_inuse_status
-/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE &
+/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE logging.group_name=$CLOUD_INIT_LOG_GROUP &
 
 # Wait for the subscribe script to start
 sleep 5
 
 # Run GPU health check
-/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80 &
+/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80  logging.group_name=$CLOUD_INIT_LOG_GROUP &
 
 # Keep the container alive
 tail -f /dev/null

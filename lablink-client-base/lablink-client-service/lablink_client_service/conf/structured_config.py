@@ -10,6 +10,11 @@ class AllocatorConfig:
     port: int = field(default=5000)
 
 
+class LoggingConfig:
+    group_name: str = field(default="lablink_client_logger")
+    log_stream: str = field(default="${oc.env:VM_NAME,default}")
+
+
 @dataclass
 class ClientConfig:
     software: str = field(default="sleap")
@@ -18,6 +23,7 @@ class ClientConfig:
 @dataclass
 class Config:
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
     client: ClientConfig = field(default_factory=ClientConfig)
 
 
