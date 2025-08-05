@@ -5,6 +5,7 @@ echo "Running subscribe script..."
 echo "ALLOCATOR_HOST: $ALLOCATOR_HOST"
 echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
 echo "SUBJECT_SOFTWARE: $SUBJECT_SOFTWARE"
+echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
