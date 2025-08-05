@@ -12,7 +12,7 @@ class AllocatorConfig:
 
 class LoggingConfig:
     group_name: str = field(default="lablink_client_logger")
-    log_stream: str = field(default="${oc.env:VM_NAME,default}")
+    stream_name: str = field(default="${oc.env:VM_NAME,default}")
 
 
 @dataclass
