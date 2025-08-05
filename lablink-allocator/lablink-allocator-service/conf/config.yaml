@@ -9,7 +9,7 @@ db:
 
 machine:
   machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64-test"
+  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64-c05435106f37bb9d84bd1a6052f82d7ea9f4d825-test"
   ami_id: "ami-067cc81f948e50e06"
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
