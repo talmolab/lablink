@@ -27,21 +27,32 @@ def setup_logger(
         logger.setLevel(level)
 
         if config and hasattr(config, "logging"):
-            hostname = os.environ.get("VM_NAME", "default")
-            # If using structured config, set up logging based on config
-            group_name = getattr(config.logging, "group_name", "lablink_client_logger")
-            stream_name = getattr(config.logging, "stream_name", hostname)
-            logger.debug(f"Using CloudWatch group: {group_name}, stream: {stream_name}")
-            cw_handler = watchtower.CloudWatchLogHandler(
-                log_group=group_name,
-                stream_name=stream_name,
-                create_log_group=True,
-            )
-            cw_handler.setFormatter(
-                logging.Formatter(
-                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            try:
+                hostname = os.environ.get("VM_NAME", "default")
+                # If using structured config, set up logging based on config
+                group_name = getattr(
+                    config.logging, "group_name", "lablink_client_logger"
                 )
-            )
-            logger.addHandler(cw_handler)
+                stream_name = getattr(config.logging, "stream_name", hostname)
+                logger.debug(
+                    f"Using CloudWatch group: {group_name}, stream: {stream_name}"
+                )
+                cw_handler = watchtower.CloudWatchLogHandler(
+                    log_group=group_name,
+                    stream_name=stream_name,
+                    create_log_group=True,
+                )
+                cw_handler.setFormatter(
+                    logging.Formatter(
+                        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    )
+                )
+                logger.addHandler(cw_handler)
+                logger.info(
+                    f"CloudWatch logging enabled for group '{group_name}' and stream '{stream_name}'"
+                )
+            except Exception as e:
+                logger.error(f"Failed to set up CloudWatch logging: {e}")
+                logger.info("Continuing without CloudWatch logging.")
 
     return logger
