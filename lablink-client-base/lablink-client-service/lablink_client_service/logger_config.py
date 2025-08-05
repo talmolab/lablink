@@ -26,10 +26,8 @@ def setup_logger(
         logger.setLevel(level)
 
         # If using AWS CloudWatch, add watchtower handler
-        cw_log_group = getattr(
-            config.logging.group_name, "group_name", "lablink_client_logger"
-        )
-        cw_log_stream = getattr(config.logging.stream_name, "stream_name", "default")
+        cw_log_group = config.logging.group_name or "lablink_client_logger"
+        cw_log_stream = config.logging.stream_name or "${oc.env:VM_NAME,default}"
         boto3_session = boto3.Session()
         cw_handler = watchtower.CloudWatchLogHandler(
             boto3_session=boto3_session,
