@@ -37,10 +37,12 @@ def setup_logger(
                 logger.debug(
                     f"Using CloudWatch group: {group_name}, stream: {stream_name}"
                 )
+                session = boto3.Session()
                 cw_handler = watchtower.CloudWatchLogHandler(
                     log_group=group_name,
                     stream_name=stream_name,
                     create_log_group=True,
+                    boto3_session=session,
                 )
                 cw_handler.setFormatter(
                     logging.Formatter(
@@ -56,3 +58,8 @@ def setup_logger(
                 logger.info("Continuing without CloudWatch logging.")
 
     return logger
+
+
+def setup_logger_from_hydra(cfg: Config, name: str = __name__) -> logging.Logger:
+    """Convenience function to setup logger directly from Hydra config."""
+    return setup_logger(name=name, config=cfg)

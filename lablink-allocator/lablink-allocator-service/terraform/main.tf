@@ -75,6 +75,7 @@ resource "aws_instance" "lablink_vm" {
     subject_software            = var.subject_software
     gpu_support                 = var.gpu_support
     cloud_init_output_log_group = var.cloud_init_output_log_group
+    region                      = var.region
   })
 
   tags = {

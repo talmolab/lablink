@@ -7,9 +7,9 @@ import requests
 import hydra
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.logger_config import setup_logger
+from lablink_client_service.logger_config import setup_logger, setup_logger_from_hydra
 
-logger = setup_logger()
+logger = setup_logger(name=__name__)
 
 
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):
@@ -87,9 +87,9 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
 def main(cfg: Config) -> None:
     # Set up the logger
     global logger
-    logger = setup_logger(
-        name="gpu_health_checker",
-        config=cfg,
+    logger = setup_logger_from_hydra(
+        cfg=cfg,
+        name=__name__,
     )
 
     logger.info("Starting GPU health check service...")
