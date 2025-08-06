@@ -14,7 +14,6 @@ class CloudAndConsoleLogger:
         level=logging.DEBUG,
         format=None,
         log_group=None,
-        log_stream=None,
         region=None,
     ):
         self.name = module_name
@@ -42,8 +41,10 @@ class CloudAndConsoleLogger:
         """Pass the log call to both the console and cloud loggers."""
 
         def wrapper(*args, **kwargs):
-            getattr(self.console_logger, name)(*args, **kwargs)
-            getattr(self.cloud_logger, name)(*args, **kwargs)
+            if hasattr(self.console_logger, name):
+                getattr(self.console_logger, name)(*args, **kwargs)
+            if self.cloud_logger and hasattr(self.cloud_logger, name):
+                getattr(self.cloud_logger, name)(*args, **kwargs)
 
         return wrapper
 
@@ -57,7 +58,8 @@ class CloudAndConsoleLogger:
 
         pp = pprint.PrettyPrinter(indent=4)
         pretty_str = pp.pformat(obj)
-        self.log(level, pretty_str)
+        self.console_logger.log(level, pretty_str)
+        self.cloud_logger.log(level, pretty_str)
 
     def setup_console_logger(
         self, level=logging.DEBUG, formatter: logging.Formatter = None
@@ -68,14 +70,11 @@ class CloudAndConsoleLogger:
         logger.setLevel(level)
 
         # Create a console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(level)
-
-        # Set Formatter
-        console_handler.setFormatter(formatter)
-
-        # Add the console handler to the logger
-        logger.addHandler(console_handler)
+        if not logger.handlers:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(level)
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
 
         return logger
 
@@ -95,7 +94,15 @@ class CloudAndConsoleLogger:
 
             logger = logging.getLogger(f"{self.name}_cloud_logger")
             logger.setLevel(level)
-            logger.addHandler(handler)
+
+            if not logger.handlers:
+                logger.addHandler(handler)
+
+            return logger
         except Exception as e:
-            logger.error(f"Failed to set up cloud logging: {e}")
-        return logger
+            console_logger = logging.getLogger(self.name)
+            console_logger.error(
+                f"Failed to set up CloudWatch logging: {e}. "
+                "Falling back to console logging only."
+            )
+            return None
