@@ -84,7 +84,7 @@ class CloudAndConsoleLogger:
         handler = watchtower.CloudWatchLogHandler(
             log_group=self.log_group,
             stream_name=self.log_stream,
-            boto3_session=session,
+            boto3_client=session,
             create_log_group=True,
         )
         handler.setFormatter(formatter)
