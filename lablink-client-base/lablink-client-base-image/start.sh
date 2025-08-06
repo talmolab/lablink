@@ -42,5 +42,7 @@ mkdir -p "$LOG_DIR"
   allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
+touch "$LOG_DIR/placeholder.log"
+
 # Keep container alive
-tail -f "$LOG_DIR/*.log"
+tail -F "$LOG_DIR/*.log"
