@@ -13,7 +13,7 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
     global logger
-    logger = CloudAndConsoleLogger(__name__)
+    logger = CloudAndConsoleLogger("subscribe")
 
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
