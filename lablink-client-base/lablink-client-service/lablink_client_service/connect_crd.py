@@ -6,9 +6,7 @@ import os
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = CloudAndConsoleLogger(
-    "connect_crd", log_group="lablink_client_service", log_stream="connect_crd"
-)
+logger = CloudAndConsoleLogger("connect_crd", log_group="lablink_client_service")
 
 
 def create_parser():

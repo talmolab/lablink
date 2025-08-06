@@ -14,7 +14,6 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 logger = CloudAndConsoleLogger(
     "update_inuse_status",
     log_group="lablink_client_service",
-    log_stream="update_inuse_status",
 )
 
 
