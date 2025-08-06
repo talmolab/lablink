@@ -27,7 +27,9 @@ class CloudAndConsoleLogger:
         self.log_group = log_group or os.environ.get(
             "CLOUD_INIT_LOG_GROUP", "my-app-logs"
         )
-        self.log_stream = log_stream or os.environ.get("VM_NAME", "my-app-stream")
+
+        log_stream_name = f"{os.getenv('VM_NAME', 'my-app-stream')}/{module_name}"
+        self.log_stream = log_stream_name
         self.region = region or os.environ.get("AWS_REGION", "us-west-2")
 
         # Set up both console and cloud logging
