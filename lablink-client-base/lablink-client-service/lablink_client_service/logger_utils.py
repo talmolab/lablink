@@ -80,10 +80,10 @@ class CloudAndConsoleLogger:
         self, level=logging.DEBUG, formatter: logging.Formatter = None
     ):
         """Set up logging to AWS CloudWatch Logs."""
-        session = boto3.Session(region_name=self.region)
+        session = boto3.client(region_name=self.region)
         handler = watchtower.CloudWatchLogHandler(
-            log_group=self.log_group,
-            stream_name=self.log_stream,
+            log_group_name=self.log_group,
+            log_stream_name=self.log_stream,
             boto3_client=session,
             create_log_group=True,
         )
