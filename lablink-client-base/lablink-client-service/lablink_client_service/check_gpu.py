@@ -9,7 +9,9 @@ import hydra
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
-logger = CloudAndConsoleLogger(__name__)
+logger = CloudAndConsoleLogger(
+    "check_gpu", log_group="lablink_client_service", log_stream="check_gpu"
+)
 
 
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):

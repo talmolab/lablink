@@ -89,6 +89,7 @@ class CloudAndConsoleLogger:
                 log_stream_name=self.log_stream,
                 boto3_client=session,
                 create_log_group=True,
+                create_log_stream=True,
             )
             handler.setFormatter(formatter)
 
