@@ -11,7 +11,7 @@ from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = CloudAndConsoleLogger(__name__)
+logger = CloudAndConsoleLogger("update_inuse_status")
 
 
 def is_process_running(process_name: str) -> bool:

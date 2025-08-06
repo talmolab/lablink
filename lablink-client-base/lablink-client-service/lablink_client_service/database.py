@@ -7,7 +7,7 @@ from lablink_client_service import connect_crd
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = CloudAndConsoleLogger(__name__)
+logger = CloudAndConsoleLogger("database")
 
 try:
     import psycopg2

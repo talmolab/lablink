@@ -1,6 +1,7 @@
 import logging
 import pprint
 import os
+import sys
 
 import boto3
 import watchtower
@@ -65,7 +66,7 @@ class CloudAndConsoleLogger:
         logger.setLevel(level)
 
         # Create a console handler
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
 
         # Set Formatter
@@ -80,16 +81,19 @@ class CloudAndConsoleLogger:
         self, level=logging.DEBUG, formatter: logging.Formatter = None
     ):
         """Set up logging to AWS CloudWatch Logs."""
-        session = boto3.client(service_name="logs", region_name=self.region)
-        handler = watchtower.CloudWatchLogHandler(
-            log_group_name=self.log_group,
-            log_stream_name=self.log_stream,
-            boto3_client=session,
-            create_log_group=True,
-        )
-        handler.setFormatter(formatter)
+        try:
+            session = boto3.client(service_name="logs", region_name=self.region)
+            handler = watchtower.CloudWatchLogHandler(
+                log_group_name=self.log_group,
+                log_stream_name=self.log_stream,
+                boto3_client=session,
+                create_log_group=True,
+            )
+            handler.setFormatter(formatter)
 
-        logger = logging.getLogger(f"{self.name}_cloud_logger")
-        logger.setLevel(level)
-        logger.addHandler(handler)
+            logger = logging.getLogger(f"{self.name}_cloud_logger")
+            logger.setLevel(level)
+            logger.addHandler(handler)
+        except Exception as e:
+            logger.error(f"Failed to set up cloud logging: {e}")
         return logger
