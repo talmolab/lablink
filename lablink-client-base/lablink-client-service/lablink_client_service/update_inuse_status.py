@@ -90,8 +90,6 @@ def call_api(process_name, url):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
-    global logger
-    logger = setup_logger_from_hydra(cfg=cfg, name=__name__)
     logger.debug("Starting the update_inuse_status service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
