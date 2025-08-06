@@ -24,22 +24,23 @@ else
 fi
 
 # Create a logs directory
-mkdir -p /var/log/lablink
+LOG_DIR="/home/client/logs"
+mkdir -p "$LOG_DIR"
 
 # Run subscribe in background, but preserve stdout + stderr to docker logs and file
 /home/client/miniforge3/bin/conda run -n base subscribe \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
-  2>&1 | tee /var/log/lablink/subscribe.log &
+  2>&1 | tee "$LOG_DIR/subscribe.log" &
 
 # Run update_inuse_status
 /home/client/miniforge3/bin/conda run -n base update_inuse_status \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE logging.group_name=$CLOUD_INIT_LOG_GROUP \
-  2>&1 | tee /var/log/lablink/update_inuse_status.log &
+  2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
 # Run GPU health check
 /home/client/miniforge3/bin/conda run -n base check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
-  2>&1 | tee /var/log/lablink/check_gpu.log &
+  2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
 # Keep container alive
-tail -f /var/log/lablink/*.log
+tail -f "$LOG_DIR/*.log"
