@@ -14,6 +14,11 @@ def setup_logger(
     config: Optional[Config] = None,
 ) -> logging.Logger:
     logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    # Always clear old handlers
+    for h in logger.handlers:
+        logger.removeHandler(h)
 
     # Prevent adding multiple handlers if already set
     if not logger.hasHandlers():
