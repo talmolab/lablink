@@ -137,7 +137,8 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
-    -e AWS_DEFAULT_REGION="${region}" \
+    -e AWS_REGION="${region}" \
+    --network host \
     "${image_name}"; then
     send_status "running"
 else

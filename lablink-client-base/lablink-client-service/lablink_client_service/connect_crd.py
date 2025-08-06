@@ -3,8 +3,10 @@ import subprocess
 import logging
 import os
 
+from logger_utils import CloudAndConsoleLogger
+
 # Set up logging
-logger = logging.getLogger(__name__)
+logger = CloudAndConsoleLogger(__name__)
 
 
 def create_parser():

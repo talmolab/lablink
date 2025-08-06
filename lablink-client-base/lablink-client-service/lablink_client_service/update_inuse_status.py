@@ -8,10 +8,10 @@ import hydra
 from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.logger_config import setup_logger, setup_logger_from_hydra
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = setup_logger(name=__name__)
+logger = CloudAndConsoleLogger(__name__)
 
 
 def is_process_running(process_name: str) -> bool:

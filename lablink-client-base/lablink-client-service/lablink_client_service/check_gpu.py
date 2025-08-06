@@ -7,9 +7,9 @@ import requests
 import hydra
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.logger_config import setup_logger, setup_logger_from_hydra
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
-logger = setup_logger(name=__name__)
+logger = CloudAndConsoleLogger(__name__)
 
 
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):

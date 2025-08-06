@@ -4,10 +4,10 @@ import socket
 import logging
 
 from lablink_client_service import connect_crd
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = CloudAndConsoleLogger(__name__)
 
 try:
     import psycopg2
