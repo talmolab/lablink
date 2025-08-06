@@ -23,20 +23,23 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
-# Activate the conda environment and run the subscribe script
-/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP &
+# Create a logs directory
+mkdir -p /var/log/lablink
 
-# Wait for the subscribe script to start
-sleep 5
+# Run subscribe in background, but preserve stdout + stderr to docker logs and file
+/home/client/miniforge3/bin/conda run -n base subscribe \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  2>&1 | tee /var/log/lablink/subscribe.log &
 
 # Run update_inuse_status
-/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE logging.group_name=$CLOUD_INIT_LOG_GROUP &
-
-# Wait for the subscribe script to start
-sleep 5
+/home/client/miniforge3/bin/conda run -n base update_inuse_status \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  2>&1 | tee /var/log/lablink/update_inuse_status.log &
 
 # Run GPU health check
-/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80  logging.group_name=$CLOUD_INIT_LOG_GROUP &
+/home/client/miniforge3/bin/conda run -n base check_gpu \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  2>&1 | tee /var/log/lablink/check_gpu.log &
 
-# Keep the container alive
-tail -f /dev/null
+# Keep container alive
+tail -f /var/log/lablink/*.log
