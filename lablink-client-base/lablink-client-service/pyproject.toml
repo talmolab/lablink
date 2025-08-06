@@ -13,7 +13,7 @@ dependencies = [
   "hydra-core>=1.3",
   "omegaconf>=2.3",
   "psutil",
-  "watchtower",
+  "watchtower>=3.0.0",
   "boto3",
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
