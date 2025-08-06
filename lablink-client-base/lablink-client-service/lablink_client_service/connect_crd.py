@@ -3,7 +3,7 @@ import subprocess
 import logging
 import os
 
-from logger_utils import CloudAndConsoleLogger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
 logger = CloudAndConsoleLogger(__name__)

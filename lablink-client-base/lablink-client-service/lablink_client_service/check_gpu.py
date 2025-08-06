@@ -85,13 +85,6 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
-    # Set up the logger
-    global logger
-    logger = setup_logger_from_hydra(
-        cfg=cfg,
-        name=__name__,
-    )
-
     logger.info("Starting GPU health check service...")
     # Check GPU health
     check_gpu_health(
