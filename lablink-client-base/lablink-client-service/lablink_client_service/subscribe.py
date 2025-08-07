@@ -13,9 +13,7 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
     global logger
-    logger = CloudAndConsoleLogger(
-        module_name="subscribe", log_group="lablink_client_service"
-    )
+    logger = CloudAndConsoleLogger(module_name="subscribe")
     set_logger(logger)  # Set the logger for connect_crd
 
     logger.debug("Starting the lablink client service...")

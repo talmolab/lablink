@@ -88,7 +88,6 @@ def main(cfg: Config) -> None:
     global logger
     logger = CloudAndConsoleLogger(
         module_name="check_gpu",
-        log_group="lablink_client_service",
     )
     logger.info("Starting GPU health check service...")
     # Check GPU health
