@@ -1,14 +1,29 @@
 import argparse
 import subprocess
 import logging
+import time
 import os
 
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = CloudAndConsoleLogger(
-    module_name="connect_crd", log_group="lablink_client_service"
-)
+logger = None
+
+def set_logger(external_logger)
+    global logger
+    logger = external_logger
+
+def cleanup_logs():
+    try:
+        for handler in logger.handlers:
+            if hasattr(handler, "flush"):
+                handler.flush()
+
+        time.sleep(1.5)
+
+        logging.shutdown()
+    except Exception as e:
+        logger.error(f"Error during log cleanup: {e}")
 
 
 def create_parser():
