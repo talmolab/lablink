@@ -41,10 +41,9 @@ class CloudAndConsoleLogger:
         """Pass the log call to both the console and cloud loggers."""
 
         def wrapper(*args, **kwargs):
-            if hasattr(self.console_logger, name):
-                getattr(self.console_logger, name)(*args, **kwargs)
-            if self.cloud_logger and hasattr(self.cloud_logger, name):
-                getattr(self.cloud_logger, name)(*args, **kwargs)
+            getattr(self.console_logger, name)(*args, **kwargs)
+            getattr(self.cloud_logger, name)(*args, **kwargs)
+            sys.stdout.flush()  # Force to flush stdout after logging
 
         return wrapper
 
