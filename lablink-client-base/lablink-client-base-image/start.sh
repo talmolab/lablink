@@ -7,6 +7,10 @@ echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
 echo "SUBJECT_SOFTWARE: $SUBJECT_SOFTWARE"
 echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 
+# Set environment variables
+export PYTHONUNBUFFERED=1
+export PYTHONIOENCODING=utf-8
+
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
   mkdir -p /home/client/Desktop
@@ -45,4 +49,4 @@ mkdir -p "$LOG_DIR"
 touch "$LOG_DIR/placeholder.log"
 
 # Keep container alive
-tail -F "$LOG_DIR/*.log"
+tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/placeholder.log"
