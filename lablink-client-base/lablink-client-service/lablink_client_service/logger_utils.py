@@ -18,10 +18,10 @@ class CloudAndConsoleLogger:
     ):
         self.name = module_name
 
-        format = format or "%(module)s[%(levelname)s]: %(message)s"
+        format = format or "%(name)s[%(levelname)s]: %(message)s"
         formatter = logging.Formatter(format)
 
-        # Get group/stream names from env vars or use defaults
+        # Get group name from env vars or use defaults
         self.log_group = log_group or os.environ.get(
             "CLOUD_INIT_LOG_GROUP", "lablink-client-service-logs"
         )
