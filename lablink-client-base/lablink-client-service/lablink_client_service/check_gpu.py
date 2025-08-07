@@ -5,13 +5,11 @@ import os
 
 import requests
 import hydra
+import watchtower
+import boto3
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
-
-logger = CloudAndConsoleLogger(
-    module_name="check_gpu", log_group="lablink_client_service"
-)
 
 
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):
@@ -87,6 +85,11 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
+    global logger
+    logger = CloudAndConsoleLogger(
+        module_name="check_gpu",
+        log_group="lablink_client_service",
+    )
     logger.info("Starting GPU health check service...")
     # Check GPU health
     check_gpu_health(
