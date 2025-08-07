@@ -18,18 +18,15 @@ class CloudAndConsoleLogger:
     ):
         self.name = module_name
 
-        format = format or "%(name)s[%(levelname)s]: %(message)s"
-        formatter = logging.Formatter(format)
+        final_format = format or "%(name)s[%(levelname)s]: %(message)s"
+        formatter = logging.Formatter(final_format)
 
         # Get group name from env vars or use defaults
         self.log_group = log_group or os.environ.get(
             "CLOUD_INIT_LOG_GROUP", "lablink-client-service-logs"
         )
 
-        log_stream_name = (
-            f"{os.getenv('VM_NAME', 'lablink-client-service-stream')}/{module_name}"
-        )
-        self.log_stream = log_stream_name
+        self.log_stream = os.getenv("VM_NAME", "lablink-client-service-stream")
         self.region = region or os.environ.get("AWS_REGION", "us-west-2")
 
         # Set up both console and cloud logging

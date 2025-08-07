@@ -90,11 +90,9 @@ def call_api(process_name, url):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
+    # Configure the logger
     global logger
-    logger = CloudAndConsoleLogger(
-        module_name="update_inuse_status",
-        log_group="lablink_client_service",
-    )
+    logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.debug("Starting the update_inuse_status service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
