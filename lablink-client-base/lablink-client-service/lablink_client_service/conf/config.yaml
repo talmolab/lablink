@@ -2,9 +2,5 @@ allocator:
   host: "localhost"
   port: 80
 
-logging:
-  group_name: "lablink_client_logs"
-  stream_name: "${oc.env:VM_NAME,default}"
-
 client:
   software: "sleap"

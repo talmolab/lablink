@@ -29,17 +29,17 @@ mkdir -p "$LOG_DIR"
 
 # Run subscribe in background, but preserve stdout + stderr to docker logs and file
 /home/client/miniforge3/bin/conda run -n base --no-capture-output subscribe \
-  allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/subscribe.log" &
 
 # Run update_inuse_status
 /home/client/miniforge3/bin/conda run -n base --no-capture-output update_inuse_status \
-  allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
   2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
 # Run GPU health check
 /home/client/miniforge3/bin/conda run -n base --no-capture-output check_gpu \
-  allocator.host=$ALLOCATOR_HOST allocator.port=80 logging.group_name=$CLOUD_INIT_LOG_GROUP \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
 touch "$LOG_DIR/placeholder.log"
