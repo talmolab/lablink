@@ -7,7 +7,7 @@ import os
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
-logger = None
+logger = logging.getLogger(__name__)
 
 
 def set_logger(external_logger):
