@@ -9,9 +9,11 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 # Set up logging
 logger = None
 
-def set_logger(external_logger)
+
+def set_logger(external_logger):
     global logger
     logger = external_logger
+
 
 def cleanup_logs():
     try:
