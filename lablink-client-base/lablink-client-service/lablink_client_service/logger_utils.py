@@ -21,13 +21,14 @@ class CloudAndConsoleLogger:
         format = format or "%(module)s[%(levelname)s]: %(message)s"
         formatter = logging.Formatter(format)
 
-        # Get credentials
         # Get group/stream names from env vars or use defaults
         self.log_group = log_group or os.environ.get(
-            "CLOUD_INIT_LOG_GROUP", "my-app-logs"
+            "CLOUD_INIT_LOG_GROUP", "lablink-client-service-logs"
         )
 
-        log_stream_name = f"{os.getenv('VM_NAME', 'my-app-stream')}/{module_name}"
+        log_stream_name = (
+            f"{os.getenv('VM_NAME', 'lablink-client-service-stream')}/{module_name}"
+        )
         self.log_stream = log_stream_name
         self.region = region or os.environ.get("AWS_REGION", "us-west-2")
 
@@ -42,7 +43,10 @@ class CloudAndConsoleLogger:
 
         def wrapper(*args, **kwargs):
             getattr(self.console_logger, name)(*args, **kwargs)
-            getattr(self.cloud_logger, name)(*args, **kwargs)
+
+            # Only call cloud logger if it exists
+            if self.cloud_logger and hasattr(self.cloud_logger, name):
+                getattr(self.cloud_logger, name)(*args, **kwargs)
             sys.stdout.flush()  # Force to flush stdout after logging
 
         return wrapper
@@ -67,6 +71,7 @@ class CloudAndConsoleLogger:
         # Create a console logger
         logger = logging.getLogger(self.name)
         logger.setLevel(level)
+        logger.propagate = False
 
         # Create a console handler
         if not logger.handlers:
@@ -94,6 +99,7 @@ class CloudAndConsoleLogger:
 
             logger = logging.getLogger(f"{self.name}_cloud_logger")
             logger.setLevel(level)
+            logger.propagate = False
 
             if not logger.handlers:
                 logger.addHandler(handler)

@@ -12,7 +12,7 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
 logger = CloudAndConsoleLogger(
-    "update_inuse_status",
+    module_name="update_inuse_status",
     log_group="lablink_client_service",
 )
 
