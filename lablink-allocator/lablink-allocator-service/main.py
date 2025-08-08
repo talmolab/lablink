@@ -53,14 +53,21 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 
 
 # Initialize the database connection
-database = PostgresqlDatabase(
-    dbname=cfg.db.dbname,
-    user=cfg.db.user,
-    password=cfg.db.password,
-    host=cfg.db.host,
-    port=cfg.db.port,
-    table_name=cfg.db.table_name,
-)
+database = None
+
+
+def init_database():
+    """Initialize the database connection."""
+    global database
+    database = PostgresqlDatabase(
+        dbname=cfg.db.dbname,
+        user=cfg.db.user,
+        password=cfg.db.password,
+        host=cfg.db.host,
+        port=cfg.db.port,
+        table_name=cfg.db.table_name,
+    )
+
 
 # Set up logging
 logging.basicConfig(
@@ -90,6 +97,8 @@ def verify_password(username, password):
     Returns:
         str: The username if the credentials are valid, None otherwise.
     """
+    print(f"Verifying user: {username}" f" with password: {password}")
+    print(f"Users: {users}")
     if username in users and check_password_hash(users.get(username), password):
         return username
 
@@ -530,4 +539,5 @@ def update_gpu_health():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        init_database()
     app.run(host="0.0.0.0", port=5000, threaded=True)
