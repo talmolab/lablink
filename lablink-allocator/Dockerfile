@@ -29,6 +29,8 @@ COPY lablink-allocator/lablink-allocator-service /app
 
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
+COPY lablink-allocator/lablink-allocator-service/requirements.txt /app/requirements.txt
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r app/requirements.txt
 
