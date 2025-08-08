@@ -63,6 +63,7 @@ def get_ssh_private_key(terraform_dir: str) -> str:
     return key_path
 
 
+# TODO: There may be more cases when the container is not running or other issues arise
 def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
     """SSH into the EC2 VM and find all .slp files in the running Docker container.
     Args:

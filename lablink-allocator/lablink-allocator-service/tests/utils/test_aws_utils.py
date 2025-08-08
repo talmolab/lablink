@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
-import utils.aws_utils as aws_utils  # <-- your actual module path
+import utils.aws_utils as aws_utils
 
 
 @patch("utils.aws_utils.boto3.client")
