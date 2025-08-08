@@ -24,12 +24,12 @@ RUN apt-get update && apt-get install -y curl unzip && \
 # Set working directory
 WORKDIR /app
 
-# Copy application files
+# Copy application files and requirements
 COPY lablink-allocator/lablink-allocator-service /app
 
-COPY lablink-allocator/requirements.txt /app/
-
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
+
+COPY lablink-allocator/lablink-allocator-service/requirements.txt requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt

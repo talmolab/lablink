@@ -1,31 +1,10 @@
 provider "aws" {
-  region     = "us-west-2"
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_key
-  token      = var.aws_session_token
+  region = "us-west-2"
 }
 
 variable "instance_count" {
   type    = number
   default = 1
-}
-
-variable "aws_access_key" {
-  type        = string
-  description = "AWS Access Key"
-  sensitive   = true
-}
-
-variable "aws_secret_key" {
-  type        = string
-  description = "AWS Secret Key"
-  sensitive   = true
-}
-
-variable "aws_session_token" {
-  type        = string
-  description = "AWS Session Token"
-  sensitive   = true
 }
 
 variable "allocator_ip" {
@@ -81,13 +60,6 @@ resource "aws_security_group" "lablink_sg_" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # You can restrict to your IP
-  }
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
