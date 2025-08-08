@@ -244,9 +244,9 @@
 
         <!-- Navigation -->
         <div style="text-align: center;">
-            <a href="/admin/instances" class="back-button">
-                <i class="bi bi-arrow-left me-2"></i>Back to Instances
-            </a>
+            <button class="back-button" onclick="handleClose()">
+                <i class="bi bi-x-lg me-2"></i>Close Tab
+            </button>
         </div>
     </div>
 
@@ -335,6 +335,10 @@
 
         function updateTimestamp() {
             document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
+        }
+
+        function handleClose() {
+            window.close();
         }
 
         // Cleanup on page unload
