@@ -52,7 +52,9 @@
         <th>CRD Command</th>
         <th>User Email</th>
         <th>In Use</th>
+        <th>VM Status</th>
         <th>GPU Health Status</th>
+        <th>Logs</th>
       </tr>
     </thead>
     <tbody>
@@ -64,7 +66,13 @@
         <td>{{ vm.crdcommand or "—" }}</td>
         <td>{{ vm.useremail or "—" }}</td>
         <td>{{ "Yes" if vm.inuse else "No" }}</td>
+        <td>{{ vm.status or "Unknown" }}</td>
         <td>{{ vm.healthy or "—" }}</td>
+        <td>
+          <a href="/admin/logs/{{ vm.hostname }}" class="btn btn-sm btn-outline-primary" target="_blank">
+            <i class="bi bi-file-text"></i> View Logs
+          </a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
