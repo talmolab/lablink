@@ -97,8 +97,6 @@ def verify_password(username, password):
     Returns:
         str: The username if the credentials are valid, None otherwise.
     """
-    print(f"Verifying user: {username}" f" with password: {password}")
-    print(f"Users: {users}")
     if username in users and check_password_hash(users.get(username), password):
         return username
 
