@@ -2,6 +2,10 @@ provider "aws" {
   region = "us-west-2"
 }
 
+resource "time_static" "start" {
+  count = var.instance_count
+}
+
 # Security Group for the Client VM
 resource "aws_security_group" "lablink_sg_" {
   name        = "lablink_client_${var.resource_suffix}"
@@ -93,4 +97,53 @@ resource "tls_private_key" "lablink_key" {
 resource "aws_key_pair" "lablink_key_pair" {
   key_name   = "lablink_key_pair_client_${var.resource_suffix}"
   public_key = tls_private_key.lablink_key.public_key_openssh
+}
+
+# Wait for the cloud-init to finish
+resource "null_resource" "cloud_init_ready" {
+  count      = var.instance_count
+  depends_on = [aws_instance.lablink_vm]
+
+  triggers = {
+    instance_id = aws_instance.lablink_vm[count.index].id
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo cloud-init status || true",
+      "sudo cloud-init status --wait",
+      "sudo tail -n 80 /var/log/cloud-init-output.log || true"
+    ]
+
+    connection {
+      type = "ssh"
+      user = var.ssh_user
+      host = aws_instance.lablink_vm[count.index].public_ip
+      # Use the key you created with tls_private_key (no file needed)
+      private_key = tls_private_key.lablink_key.private_key_pem
+      timeout     = "20m"
+    }
+  }
+}
+
+resource "time_static" "end" {
+  count      = var.instance_count
+  depends_on = [null_resource.cloud_init_ready]
+}
+
+locals {
+  per_instance_seconds = [
+    for i in range(var.instance_count) :
+    time_static.end[i].unix - time_static.start[i].unix
+  ]
+
+  # h:m:s strings
+  per_instance_hms = [
+    for s in local.per_instance_seconds :
+    format("%02dh:%02dm:%02ds", floor(s / 3600), floor(mod(s, 3600) / 60), mod(s, 60))
+  ]
+
+  avg_seconds = length(local.per_instance_seconds) > 0 ? floor(sum(local.per_instance_seconds) / length(local.per_instance_seconds)) : 0
+  max_seconds = length(local.per_instance_seconds) > 0 ? max(local.per_instance_seconds) : 0
+  min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds) : 0
 }

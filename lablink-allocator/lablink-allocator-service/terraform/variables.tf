@@ -74,3 +74,9 @@ variable "region" {
   type        = string
   description = "AWS region where resources will be created"
 }
+
+variable "ssh_user" {
+  type        = string
+  description = "SSH user for the EC2 instance"
+  default     = "ubuntu"
+}

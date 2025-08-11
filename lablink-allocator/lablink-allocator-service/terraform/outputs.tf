@@ -18,3 +18,25 @@ output "vm_instance_names" {
   description = "List of names assigned to the EC2 instances"
   value       = [for instance in aws_instance.lablink_vm : instance.tags["Name"]]
 }
+
+output "startup_time_seconds_per_instance" {
+  description = "Time from apply-start to cloud-init finished, per instance (seconds)"
+  value       = local.per_instance_seconds
+}
+
+output "startup_time_hms_per_instance" {
+  value = local.per_instance_hms
+}
+
+output "startup_time_avg_seconds" {
+  description = "Average startup time across all instances (seconds)"
+  value       = local.avg_seconds
+}
+output "startup_time_max_seconds" {
+  description = "Maximum startup time across all instances (seconds)"
+  value       = local.max_seconds
+}
+output "startup_time_min_seconds" {
+  description = "Minimum startup time across all instances (seconds)"
+  value       = local.min_seconds
+}
