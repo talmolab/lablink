@@ -140,7 +140,7 @@ locals {
   # h:m:s strings
   per_instance_hms = [
     for s in local.per_instance_seconds :
-    format("%02dh:%02dm:%02ds", floor(s / 3600), floor(mod(s, 3600) / 60), mod(s, 60))
+    format("%02dh:%02dm:%02ds", floor(s / 3600), floor((s % 3600) / 60), (s % 60))
   ]
 
   avg_seconds = length(local.per_instance_seconds) > 0 ? floor(sum(local.per_instance_seconds) / length(local.per_instance_seconds)) : 0
