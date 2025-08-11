@@ -1,12 +1,13 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from omegaconf import OmegaConf
+from werkzeug.security import generate_password_hash
 import base64
 
 
 @pytest.fixture(scope="session")
 def omega_config():
-    """Fixture for the Omega configuration."""
+    """Session-scoped OmegaConf for testing."""
     return OmegaConf.create(
         {
             "db": {
@@ -16,6 +17,7 @@ def omega_config():
                 "host": "localhost",
                 "port": 5432,
                 "table_name": "test_table",
+                "message_channel": "vm_updates",
             },
             "machine": {
                 "machine_type": "g4dn.xlarge",
@@ -33,36 +35,52 @@ def omega_config():
 
 
 @pytest.fixture
-def patch_get_config(omega_config):
-    """Patch the get_config function to return the mock Omega configuration."""
-    with patch("main.cfg", omega_config):
-        yield
+def app(monkeypatch, omega_config):
+    """
+    Import `main` lazily so we can patch module-level globals
+    (like cfg and database) before first use.
+    """
 
+    # Patch the module-level cfg to use our test OmegaConf
+    monkeypatch.setattr("get_config.get_config", lambda: omega_config, raising=True)
 
-@pytest.fixture
-def app():
-    """Configures the Flask application for testing."""
     import main
-    from main import app as flask_app
 
+    # If your code references `main.database`, stub it out:
+    if not hasattr(main, "database"):
+        monkeypatch.setattr(main, "database", MagicMock(), raising=False)
+    else:
+        main.database = MagicMock()
+
+    flask_app = main.app
     flask_app.config.update(
-        {
-            "TESTING": True,
-        }
+        TESTING=True,
+        SECRET_KEY=omega_config.app.get("secret_key", "test-secret"),
     )
 
-    main.database = MagicMock()  # Mock the database connection
-    yield flask_app
+    with flask_app.app_context():
+        yield flask_app
 
 
 @pytest.fixture
 def client(app):
+    """HTTP client for the Flask app."""
     return app.test_client()
 
 
 @pytest.fixture
 def admin_headers(omega_config):
+    """Convenience Basic-Auth header using cfg credentials."""
+    import main
+
     user = omega_config.app.admin_user
     pw = omega_config.app.admin_password
     token = base64.b64encode(f"{user}:{pw}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
+
+
+@pytest.fixture
+def caplog_debug(caplog):
+    """Default logs to DEBUG for easier assertions."""
+    caplog.set_level("DEBUG")
+    return caplog
