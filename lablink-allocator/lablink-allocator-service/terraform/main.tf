@@ -134,16 +134,22 @@ resource "time_static" "end" {
 locals {
   per_instance_seconds = [
     for i in range(var.instance_count) :
-    time_static.end[i].unix - time_static.start[i].unix
+    tonumber(time_static.end[i].unix) - tonumber(time_static.start[i].unix)
   ]
 
-  # h:m:s strings
   per_instance_hms = [
     for s in local.per_instance_seconds :
-    format("%02dh:%02dm:%02ds", floor(s / 3600), floor((s % 3600) / 60), (s % 60))
+    format(
+      "%02dh:%02dm:%02ds",
+      floor(s / 3600),
+      floor((s % 3600) / 60),
+      s % 60
+    )
   ]
 
   avg_seconds = length(local.per_instance_seconds) > 0 ? floor(sum(local.per_instance_seconds) / length(local.per_instance_seconds)) : 0
-  max_seconds = length(local.per_instance_seconds) > 0 ? max(local.per_instance_seconds) : 0
-  min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds) : 0
+
+  max_seconds = length(local.per_instance_seconds) > 0 ? max(local.per_instance_seconds...) : 0
+
+  min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds...) : 0
 }
