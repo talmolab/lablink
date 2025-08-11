@@ -223,8 +223,7 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    instances = vms.query.all()
-    return render_template("delete-instances.html", instances=instances)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])
