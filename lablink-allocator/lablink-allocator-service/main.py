@@ -229,7 +229,7 @@ def delete_instances():
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
     try:
-        data = request.form  # If you're sending JSON, use request.json instead
+        data = request.form
         email = data.get("email")
         crd_command = data.get("crd_command")
 

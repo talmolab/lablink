@@ -5,6 +5,7 @@ VM_STARTUP_ENDPOINT = "/vm_startup"
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
 UPDATE_INUSE_STATUS_ENDPOINT = "/api/update_inuse_status"
 UPDATE_GPU_HEALTH_ENDPOINT = "/api/gpu_health"
+REQUEST_VM_ENDPOINT = "/api/request_vm"
 
 
 def test_vm_startup_success(client, monkeypatch):
@@ -218,3 +219,155 @@ def test_update_gpu_health_failure(client, monkeypatch):
     fake_db.update_health.assert_called_once_with(
         hostname="test-vm-dev-1", healthy="Healthy"
     )
+
+
+def test_update_gpu_health_missing_hostname(client, monkeypatch):
+    """Test the /api/gpu_health endpoint with missing hostname."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    # Patch globals
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    # Call the API
+    data = {"gpu_status": "Healthy"}
+    resp = client.post(UPDATE_GPU_HEALTH_ENDPOINT, json=data)
+
+    # Assert the response
+    assert resp.status_code == 400
+    assert resp.get_json() == {"error": "GPU status and hostname are required."}
+    fake_db.update_health.assert_not_called()
+
+
+def test_request_vm_success(client, monkeypatch):
+    """Test the /api/request_vm endpoint with valid data."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    fake_db.get_unassigned_vms.return_value = [
+        {
+            "hostname": "test-vm-dev-1",
+            "crdcommand": "",
+            "pin": "",
+            "useremail": "",
+            "inuse": False,
+            "healthy": "Healthy",
+        },
+        {
+            "hostname": "test-vm-dev-2",
+            "crdcommand": "",
+            "pin": "",
+            "useremail": "",
+            "inuse": False,
+            "healthy": "Healthy",
+        },
+    ]
+    fake_db.get_vm_details.return_value = [
+        "test-vm-dev-1",
+        "DISPLAY=:0 --code=123",
+        "user@example.com",
+    ]
+
+    # Patch the database
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("main.check_crd_input", lambda crd_command: True, raising=False)
+
+    # Call the API
+    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    # Assert response
+    assert resp.status_code == 200
+    assert b"Success" in resp.data
+    assert b"test-vm-dev-1" in resp.data
+    fake_db.get_unassigned_vms.assert_called_once()
+    fake_db.get_vm_details.assert_called_once_with(email="user@example.com")
+    fake_db.assign_vm.assert_called_once_with(
+        email="user@example.com", crd_command="DISPLAY=:0 --code=123", pin="123456"
+    )
+
+
+def test_request_vm_missing(client, monkeypatch):
+    """Test the /api/request_vm endpoint with missing data."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    # Patch the database
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    # Call the API with missing data
+    data = {}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    # Assert response
+    assert resp.status_code == 200
+    assert b"Email and CRD command are required." in resp.data
+
+
+def test_request_vm_invalid_crd(client, monkeypatch):
+    """Test the /api/request_vm endpoint with invalid CRD command."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    # Patch the database
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr(
+        "main.check_crd_input", lambda crd_command: False, raising=False
+    )
+
+    # Call the API with invalid CRD command
+    data = {"email": "user@example.com", "crd_command": "<invalid_crd_command>"}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    # Assert response
+    assert resp.status_code == 200
+    assert b"Invalid" in resp.data
+    fake_db.get_unassigned_vms.assert_not_called()
+    fake_db.get_vm_details.assert_not_called()
+    fake_db.assign_vm.assert_not_called()
+
+
+def test_request_vm_no_vm_available(client, monkeypatch):
+    """Test the /api/request_vm endpoint when no VMs are available."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    fake_db.get_unassigned_vms.return_value = []
+
+    # Patch the database
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("main.check_crd_input", lambda crd_command: True, raising=False)
+
+    # Call the API
+    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    # Assert response
+    assert resp.status_code == 200
+    assert b"No available VMs." in resp.data
+    fake_db.get_unassigned_vms.assert_called_once()
+    fake_db.get_vm_details.assert_not_called()
+    fake_db.assign_vm.assert_not_called()
+
+
+def test_request_vm_database_internal_failure(client, monkeypatch):
+    """Test the /api/request_vm endpoint when the database fails."""
+    # Mock the database
+    fake_db = MagicMock()
+
+    fake_db.get_unassigned_vms.side_effect = Exception("Database error")
+
+    # Patch the database
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("main.check_crd_input", lambda crd_command: True, raising=False)
+
+    # Call the API
+    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    # Assert response
+    assert resp.status_code == 200
+    assert b"An unexpected error" in resp.data
+    fake_db.get_unassigned_vms.assert_called_once()
+    fake_db.get_vm_details.assert_not_called()
+    fake_db.assign_vm.assert_not_called()

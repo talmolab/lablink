@@ -77,10 +77,3 @@ def admin_headers(omega_config):
     pw = omega_config.app.admin_password
     token = base64.b64encode(f"{user}:{pw}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
-
-
-@pytest.fixture
-def caplog_debug(caplog):
-    """Default logs to DEBUG for easier assertions."""
-    caplog.set_level("DEBUG")
-    return caplog
