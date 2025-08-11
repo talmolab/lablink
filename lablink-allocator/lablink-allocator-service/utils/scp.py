@@ -63,7 +63,6 @@ def get_ssh_private_key(terraform_dir: str) -> str:
     return key_path
 
 
-# TODO: There may be more cases when the container is not running or other issues arise
 def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
     """SSH into the EC2 VM and find all .slp files in the running Docker container.
     Args:
@@ -128,7 +127,7 @@ def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> Non
         try:
             subprocess.run(ssh_cmd, check=True)
         except subprocess.CalledProcessError as e:
-            logging.warning(f"Failed to copy {file} from container on {ip}: {e}")
+            logging.error(f"Failed to copy {file} from container on {ip}: {e}")
 
 
 def has_slp_files(ip: str, key_path: str) -> bool:
