@@ -147,4 +147,4 @@ else
     exit 1
 fi
 
-echo ">> Container launched."
+echo ">> $(date -Is) Container launched successfully."

@@ -425,21 +425,6 @@ class PostgresqlDatabase:
             logger.error(f"Error retrieving GPU health: {e}")
             return None
 
-    def get_status(self) -> list:
-        """Get the status of all VMs in the table.
-
-        Returns:
-            list: A list of dictionaries containing the hostname and status of each VM.
-        """
-        query = f"SELECT hostname, status FROM {self.table_name};"
-        try:
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
-            return [{"hostname": row[0], "status": row[1]} for row in rows]
-        except Exception as e:
-            logger.error(f"Error retrieving VM status: {e}")
-            return []
-
     def get_status_by_hostname(self, hostname: str) -> str:
         """Get the status of a VM by its hostname.
 
@@ -461,22 +446,6 @@ class PostgresqlDatabase:
         except Exception as e:
             logger.error(f"Error retrieving status: {e}")
             return None
-
-    def update_status(self, hostname: str, new_status: str) -> None:
-        """Update the status of a VM.
-
-        Args:
-            hostname (str): The hostname of the VM.
-            new_status (str): The new status to set for the VM.
-        """
-        query = f"UPDATE {self.table_name} SET status = %s WHERE hostname = %s;"
-        try:
-            self.cursor.execute(query, (new_status, hostname))
-            self.conn.commit()
-            logger.debug(f"Updated status for VM '{hostname}' to {new_status}.")
-        except Exception as e:
-            logger.error(f"Error updating status: {e}")
-            self.conn.rollback()
 
     def get_vm_logs(self, hostname: str) -> str:
         """Get the logs of a VM by its hostname.

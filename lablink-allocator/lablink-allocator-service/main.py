@@ -575,7 +575,7 @@ def update_vm_status():
 @app.route("/api/vm-status/<hostname>", methods=["GET"])
 def get_vm_status(hostname):
     try:
-        status = database.get_vm_status(hostname=hostname)
+        status = database.get_status_by_hostname(hostname=hostname)
         if status is None:
             return jsonify({"error": "VM not found."}), 404
 

@@ -116,10 +116,9 @@ resource "null_resource" "cloud_init_ready" {
     ]
 
     connection {
-      type = "ssh"
-      user = var.ssh_user
-      host = aws_instance.lablink_vm[count.index].public_ip
-      # Use the key you created with tls_private_key (no file needed)
+      type        = "ssh"
+      user        = var.ssh_user
+      host        = aws_instance.lablink_vm[count.index].public_ip
       private_key = tls_private_key.lablink_key.private_key_pem
       timeout     = "20m"
     }
