@@ -1,11 +1,16 @@
 from unittest.mock import patch, MagicMock
-import json
+from pathlib import Path
+import io
+import zipfile
+import subprocess
+
 
 VM_STARTUP_ENDPOINT = "/vm_startup"
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
 UPDATE_INUSE_STATUS_ENDPOINT = "/api/update_inuse_status"
 UPDATE_GPU_HEALTH_ENDPOINT = "/api/gpu_health"
 REQUEST_VM_ENDPOINT = "/api/request_vm"
+SCP_ENDPOINT = "/api/scp-client"
 
 
 def test_vm_startup_success(client, monkeypatch):
@@ -357,7 +362,7 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
 
     fake_db.get_unassigned_vms.side_effect = Exception("Database error")
 
-    # Patch the database
+    # Patch the database and functions
     monkeypatch.setattr("main.database", fake_db, raising=False)
     monkeypatch.setattr("main.check_crd_input", lambda crd_command: True, raising=False)
 
@@ -371,3 +376,230 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
     fake_db.get_unassigned_vms.assert_called_once()
     fake_db.get_vm_details.assert_not_called()
     fake_db.assign_vm.assert_not_called()
+
+
+def test_scp_client_404_when_no_rows(client, admin_headers, monkeypatch):
+    """Test the /api/scp-client endpoint when no VMs are found."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.get_row_count.return_value = 0
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 404
+    assert resp.is_json
+    assert resp.get_json()["error"].startswith("No VMs found")
+
+
+def test_scp_success(client, admin_headers, monkeypatch):
+    """Test the /api/scp-client endpoint for successful SCP."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.get_row_count.return_value = 1
+
+    # Patch the database and util functions
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(
+        "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+    )
+    monkeypatch.setattr(
+        "main.find_slp_files_in_container",
+        lambda ip, key_path: ["/remote/path/sample.slp"],
+    )
+    monkeypatch.setattr("main.extract_slp_from_docker", lambda **kwargs: None)
+
+    # Dummy function for rsync
+    def fake_rsync(ip, key_path, local_dir):
+        Path(local_dir).mkdir(parents=True, exist_ok=True)
+        (Path(local_dir) / "sample.slp").write_text("dummy")
+
+    monkeypatch.setattr("main.rsync_slp_files_to_allocator", fake_rsync)
+
+    # Call the API
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 200
+    # Content-Disposition should look like a file download
+    disp = resp.headers.get("Content-Disposition", "")
+    assert "attachment" in disp and "lablink_data" in disp
+
+    # The body is the zip file bytes; inspect without touching disk
+    zf = zipfile.ZipFile(io.BytesIO(resp.data))
+    names = zf.namelist()
+    # The arcname is relative to temp_dir: e.g., vm_1/sample.slp
+    assert any(n.endswith("vm_1/sample.slp") for n in names), names
+    # Optional: verify file content
+    with zf.open([n for n in names if n.endswith("vm_1/sample.slp")][0]) as f:
+        assert f.read() == b"dummy"
+
+
+def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatch):
+    # DB has rows
+    fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    # Two IPs
+    monkeypatch.setattr(
+        "main.get_instance_ips", lambda terraform_dir: ["10.0.0.1", "10.0.0.2"]
+    )
+    monkeypatch.setattr(
+        "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+    )
+
+    # Create MagicMocks for each function
+    find_slp = MagicMock(return_value=["/remote/path/sample.slp"])
+    extract = MagicMock()
+    rsync = MagicMock(
+        side_effect=lambda ip, key_path, local_dir: (
+            Path(local_dir).mkdir(parents=True, exist_ok=True),
+            (Path(local_dir) / "sample.slp").write_text("dummy"),
+        )
+    )
+
+    # Use MagicMocks so we can assert call counts/args
+    monkeypatch.setattr("main.find_slp_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr("main.extract_slp_from_docker", extract, raising=False)
+    monkeypatch.setattr("main.rsync_slp_files_to_allocator", rsync, raising=False)
+
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 200
+
+    # Verify we zipped both vm_1 and vm_2 data
+    zf = zipfile.ZipFile(io.BytesIO(resp.data))
+    names = set(zf.namelist())
+    assert any(n.endswith("vm_1/sample.slp") for n in names)
+    assert any(n.endswith("vm_2/sample.slp") for n in names)
+
+    # Check call counts
+    assert find_slp.call_count == 2
+    assert extract.call_count == 2
+    assert rsync.call_count == 2
+
+    # Args contain both IPs
+    ips_seen = {call.kwargs.get("ip") or call.args[0] for call in find_slp.mock_calls}
+    assert ips_seen == {"10.0.0.1", "10.0.0.2"}
+
+    # rsync local_dir should end with vm_1 and vm_2 respectively
+    local_dirs = [(c.kwargs.get("local_dir") or c.args[2]) for c in rsync.mock_calls]
+    assert local_dirs[0].endswith("vm_1")
+    assert local_dirs[1].endswith("vm_2")
+
+
+def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
+    """Test the /api/scp-client endpoint when some VMs have no SLP files."""
+    # Mock the database
+    fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    # Mock the utility functions
+    monkeypatch.setattr(
+        "main.get_instance_ips", lambda terraform_dir: ["10.0.0.1", "10.0.0.2"]
+    )
+    monkeypatch.setattr(
+        "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+    )
+
+    # First VM has .slp files; second has none
+    def find_side_effect(ip, key_path):
+        return ["/remote/sample.slp"] if ip == "10.0.0.1" else []
+
+    # Mock the file operations
+    find_slp = MagicMock(side_effect=find_side_effect)
+    extract = MagicMock()
+    rsync = MagicMock(
+        side_effect=lambda ip, key_path, local_dir: (
+            Path(local_dir).mkdir(parents=True, exist_ok=True),
+            (Path(local_dir) / "sample.slp").write_text("dummy"),
+        )
+    )
+    monkeypatch.setattr("main.find_slp_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr("main.extract_slp_from_docker", extract, raising=False)
+    monkeypatch.setattr("main.rsync_slp_files_to_allocator", rsync, raising=False)
+
+    # Call the API
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 200
+
+    # Only vm_1 present in zip
+    zf = zipfile.ZipFile(io.BytesIO(resp.data))
+    names = set(zf.namelist())
+    assert any(n.endswith("vm_1/sample.slp") for n in names)
+    assert not any(n.endswith("vm_2/sample.slp") for n in names)
+
+    # Find called for both; extract/rsync only for the one with files
+    assert find_slp.call_count == 2
+    assert extract.call_count == 1
+    assert rsync.call_count == 1
+
+    # Check we extracted/rsynced only the first IP
+    called_ips_extract = {c.kwargs.get("ip") or c.args[0] for c in extract.mock_calls}
+    called_ips_rsync = {c.kwargs.get("ip") or c.args[0] for c in rsync.mock_calls}
+    assert called_ips_extract == {"10.0.0.1"}
+    assert called_ips_rsync == {"10.0.0.1"}
+
+
+def test_scp_no_vms_failure(client, admin_headers, monkeypatch):
+    """Test the /api/scp-client endpoint when no VMs are found."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.get_row_count.return_value = 0
+
+    # Patch the database and util functions
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    # Call the API
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 404
+    assert resp.is_json
+    assert resp.get_json() == {"error": "No VMs found in the database."}
+
+
+def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
+    """Test the /api/scp-client endpoint when no SLP files are found."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.get_row_count.return_value = 1
+
+    # Patch the database and util functions
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(
+        "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+    )
+    monkeypatch.setattr("main.find_slp_files_in_container", lambda ip, key_path: [])
+    monkeypatch.setattr("main.extract_slp_from_docker", lambda **kwargs: None)
+
+    # Call the API
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 404
+    assert resp.is_json
+    assert resp.get_json() == {"error": "No .slp files found in any VMs."}
+
+
+def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
+    # DB has rows
+    fake_db = MagicMock()
+    fake_db.get_row_count.return_value = 1
+    monkeypatch.setattr("main.database", fake_db, raising=False)
+
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir(exist_ok=True)
+
+    monkeypatch.setattr("main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(
+        "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+    )
+    monkeypatch.setattr(
+        "main.find_slp_files_in_container", lambda ip, key_path: ["/remote/sample.slp"]
+    )
+
+    # Make one of the steps raise a CalledProcessError to trigger 500 path
+    def explode(**kwargs):
+        raise subprocess.CalledProcessError(1, ["rsync"], "boom")
+
+    monkeypatch.setattr("main.extract_slp_from_docker", explode)
+
+    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
+    assert resp.status_code == 500
+    assert resp.is_json
+    assert "downloading data from VMs" in resp.get_json()["error"]
