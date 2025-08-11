@@ -1,4 +1,4 @@
-name: LabLink Allocator Service Test
+name: Test LabLink Allocator Flask Web Service
 
 on:
   pull_request:
