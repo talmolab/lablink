@@ -387,7 +387,7 @@ def vm_startup():
     hostname = data.get("hostname")
 
     if not hostname:
-        return jsonify({"error": "Hostname are required."}), 400
+        return jsonify({"error": "Hostname is required."}), 400
 
     # Add to the database
     logger.debug(f"Adding VM {hostname} to database...")
@@ -521,8 +521,8 @@ def update_gpu_health():
     data = request.get_json()
     gpu_status = data.get("gpu_status")
     hostname = data.get("hostname")
-    if gpu_status is None:
-        return jsonify({"error": "GPU status is required."}), 400
+    if gpu_status is None or hostname is None:
+        return jsonify({"error": "GPU status and hostname are required."}), 400
 
     try:
         database.update_health(hostname=hostname, healthy=gpu_status)
