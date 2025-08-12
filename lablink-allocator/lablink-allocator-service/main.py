@@ -318,6 +318,16 @@ def launch():
             logger.info("GPU support is not enabled for the machine type.")
             gpu_support = "false"
 
+        names = [
+            f"lablink-client-{ENVIRONMENT}-{database.get_row_count()+i+1}"
+            for i in range(num_vms)
+        ]
+
+        for n in names:
+            if not database.get_vm_by_hostname(n):
+                logger.debug(f"Inserting VM: {n}")
+                database.insert_vm(hostname=n)
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
