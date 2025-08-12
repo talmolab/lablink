@@ -21,7 +21,11 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
         interval (int, optional): The interval in seconds to check the GPU health. Defaults to 20.
     """
     logger.debug("Starting GPU health check...")
+    last_status = None
+
     while True:
+        curr_status = None
+
         try:
             # Run the nvidia-smi command to check GPU health
             result = subprocess.run(
@@ -30,14 +34,9 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 text=True,
                 check=True,
             )
-            requests.post(
-                f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                json={
-                    "hostname": os.getenv("VM_NAME"),
-                    "gpu_status": "Healthy",
-                    "message": result.stdout.strip(),
-                },
-            )
+            curr_status = "Healthy"
+            logger.info(f"GPU Health Check: {result.stdout.strip()}")
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to check GPU health: {e}")
             # Command not found -> likely nvidia-smi is not installed
@@ -45,6 +44,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 logger.error(
                     "nvidia-smi command not found. Ensure NVIDIA drivers are installed."
                 )
+                curr_status = "N/A"
                 requests.post(
                     f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
                     json={
@@ -55,20 +55,17 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 )
                 # Terminate the loop if nvidia-smi is not available
                 break
+
             else:
                 logger.error(
                     f"nvidia-smi command failed with error: {e.stderr.strip()}"
                 )
-                requests.post(
-                    f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                    json={
-                        "hostname": os.environ["VM_NAME"],
-                        "gpu_status": "Unhealthy",
-                        "message": str(e),
-                    },
-                )
+                curr_status = "Unhealthy"
+
         except FileNotFoundError as e:
+            # This exception is raised if the nvidia-smi command is not found
             logger.error(f"File not found: {e}")
+            curr_status = "N/A"
             requests.post(
                 f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
                 json={
@@ -78,8 +75,25 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 },
             )
             break
+
         except Exception as e:
+            curr_status = "Unhealthy"
             logger.error(f"An unexpected error occurred: {e}")
+
+        if curr_status != last_status:
+            logger.info(f"GPU health status changed: {curr_status}")
+            last_status = curr_status
+            try:
+                requests.post(
+                    f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
+                    json={
+                        "hostname": os.getenv("VM_NAME"),
+                        "gpu_status": curr_status,
+                        "message": result.stdout.strip(),
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Failed to report GPU health: {e}")
         time.sleep(interval)
 
 
