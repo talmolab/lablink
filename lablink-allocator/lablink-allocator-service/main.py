@@ -317,16 +317,6 @@ def launch():
             logger.info("GPU support is not enabled for the machine type.")
             gpu_support = "false"
 
-        names = [
-            f"lablink-vm-{ENVIRONMENT}-{database.get_row_count()+i+1}"
-            for i in range(num_vms)
-        ]
-
-        for n in names:
-            if not database.get_vm_by_hostname(n):
-                logger.debug(f"Inserting VM: {n}")
-                database.insert_vm(hostname=n)
-
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
@@ -358,15 +348,6 @@ def launch():
 
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
-
-        # Insert the new VMs into the database
-        logger.debug("Inserting new VMs into the database...")
-        instance_names = get_instance_names(terraform_dir="terraform")
-        for name in instance_names:
-            # Check if the VM already exists in the database
-            if not database.get_vm_by_hostname(name):
-                logger.debug(f"Inserting VM: {name}")
-                database.insert_vm(hostname=name)
 
         return render_template("dashboard.html", output=clean_output)
 

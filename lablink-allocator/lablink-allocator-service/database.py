@@ -514,9 +514,14 @@ class PostgresqlDatabase:
             )
             return
 
-        query = f"UPDATE {self.table_name} SET status = %s WHERE hostname = %s;"
+        query = f"""
+        INSERT INTO {self.table_name} (hostname, status)
+        VALUES (%s, %s)
+        ON CONFLICT (hostname) DO UPDATE
+            SET status = EXCLUDED.status;
+        """
         try:
-            self.cursor.execute(query, (status, hostname))
+            self.cursor.execute(query, (hostname, status))
             self.conn.commit()
             logger.debug(f"Updated status for VM '{hostname}' to {status}.")
         except Exception as e:
