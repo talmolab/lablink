@@ -319,7 +319,7 @@ def launch():
             gpu_support = "false"
 
         names = [
-            f"lablink-client-{ENVIRONMENT}-{database.get_row_count()+i+1}"
+            f"lablink-vm-{ENVIRONMENT}-{database.get_row_count()+i+1}"
             for i in range(num_vms)
         ]
 
