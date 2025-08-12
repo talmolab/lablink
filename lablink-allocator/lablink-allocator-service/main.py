@@ -104,7 +104,6 @@ def verify_password(username, password):
     Returns:
         str: The username if the credentials are valid, None otherwise.
     """
-    logger.debug(f"Received auth: {username}, {password}")
     if username in users and check_password_hash(users.get(username), password):
         return username
 
