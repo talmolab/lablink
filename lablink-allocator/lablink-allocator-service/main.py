@@ -655,6 +655,9 @@ def get_vm_logs_by_hostname(hostname):
 def get_vm_logs(hostname):
     """Get the logs for a specific VM."""
     logger.debug(f"Fetching logs for VM: {hostname}")
+    if not database.vm_exists(hostname=hostname):
+        logger.error(f"VM with hostname {hostname} not found.")
+        return jsonify({"error": "VM not found."}), 404
     return render_template("instance-logs.html", hostname=hostname)
 
 

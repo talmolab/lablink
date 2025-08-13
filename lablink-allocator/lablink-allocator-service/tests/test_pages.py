@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
 
@@ -87,9 +87,28 @@ def test_log_page_no_auth(client):
     assert response.status_code == 401
 
 
-def test_log_page_success(client, admin_headers):
+def test_log_page_success(client, admin_headers, monkeypatch):
     """Test the log page with authentication."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    monkeypatch.setattr("main.database", fake_db)
+
     hostname = "test-vm-dev-1"
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
     assert response.status_code == 200
     assert f"VM Logs - {hostname}" in response.data.decode()
+    fake_db.vm_exists.assert_called_once_with(hostname=hostname)
+
+
+def test_log_page_vm_not_found(client, admin_headers, monkeypatch):
+    """Test the log page with a non-existent VM."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = False
+    monkeypatch.setattr("main.database", fake_db)
+
+    hostname = "test-vm-dev-1"
+    response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
+    assert response.status_code == 404
+    assert "VM not found." in response.data.decode()
