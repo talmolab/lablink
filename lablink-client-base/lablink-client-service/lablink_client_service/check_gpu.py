@@ -50,7 +50,6 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                     json={
                         "hostname": os.getenv("VM_NAME"),
                         "gpu_status": "N/A",
-                        "message": "nvidia-smi command not found",
                     },
                 )
                 # Terminate the loop if nvidia-smi is not available
@@ -71,7 +70,6 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 json={
                     "hostname": os.getenv("VM_NAME"),
                     "gpu_status": "N/A",
-                    "message": "nvidia-smi command not found",
                 },
             )
             break
@@ -89,7 +87,6 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                     json={
                         "hostname": os.getenv("VM_NAME"),
                         "gpu_status": curr_status,
-                        "message": result.stdout.strip(),
                     },
                 )
             except Exception as e:
