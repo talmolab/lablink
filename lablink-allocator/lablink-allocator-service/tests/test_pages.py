@@ -1,0 +1,80 @@
+from unittest.mock import patch
+from types import SimpleNamespace
+
+
+def test_home_basic_structure(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    html = resp.data.decode()
+
+    # Title
+    assert "<title>LabLink Allocator</title>" in html
+
+    # Heading text
+    assert "Welcome to LabLink!" in html
+
+    # VM count placeholder
+    assert 'id="vms_available"' in html
+    assert 'id="unassigned_vms_count"' in html
+
+    # Form basics
+    assert '<form action="/api/request_vm" method="post">' in html
+    assert 'name="email"' in html
+    assert 'name="crd_command"' in html
+
+
+def test_admin_instances_no_auth(client):
+    """Test the admin instances endpoint without authentication."""
+    response = client.get("/admin/instances")
+    assert response.status_code == 401
+
+
+@patch("main.vms.query")
+def test_admin_instances(mock_query, client, admin_headers):
+    """Test the admin instances endpoint without any instances."""
+    mock_query.all.return_value = []
+    response = client.get("/admin/instances", headers=admin_headers)
+    assert response.status_code == 200
+
+
+@patch("main.vms.query")
+def test_view_instances_with_rows(mock_query, client, admin_headers):
+    """Test the admin instances endpoint with rows."""
+    rows = [
+        SimpleNamespace(
+            hostname="vm-1",
+            pin="111111",
+            crdcommand="sample-crd-command-1",
+            useremail="a@x.com",
+            inuse=False,
+            healthy="Unhealthy",
+        ),
+        SimpleNamespace(
+            hostname="vm-2",
+            pin="222222",
+            crdcommand="sample-crd-command-2",
+            useremail="b@y.com",
+            inuse=True,
+            healthy="Healthy",
+        ),
+    ]
+    mock_query.all.return_value = rows
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    assert resp.status_code == 200
+    assert b"vm-1" in resp.data
+    assert b"vm-2" in resp.data
+
+
+def test_admin_delete_instance(client, admin_headers):
+    """Test deleting an instance as an admin."""
+    response = client.get("/admin/instances/delete", headers=admin_headers)
+    assert response.status_code == 200
+    assert b"Run terraform destroy" in response.data
+    assert b"Extract and Download .slp Files" in response.data
+
+
+def test_admin_delete_instance_no_auth(client):
+    """Test deleting an instance without authentication."""
+    response = client.get("/admin/instances/delete")
+    assert response.status_code == 401

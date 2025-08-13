@@ -53,14 +53,21 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 
 
 # Initialize the database connection
-database = PostgresqlDatabase(
-    dbname=cfg.db.dbname,
-    user=cfg.db.user,
-    password=cfg.db.password,
-    host=cfg.db.host,
-    port=cfg.db.port,
-    table_name=cfg.db.table_name,
-)
+database = None
+
+
+def init_database():
+    """Initialize the database connection."""
+    global database
+    database = PostgresqlDatabase(
+        dbname=cfg.db.dbname,
+        user=cfg.db.user,
+        password=cfg.db.password,
+        host=cfg.db.host,
+        port=cfg.db.port,
+        table_name=cfg.db.table_name,
+    )
+
 
 # Set up logging
 logging.basicConfig(
@@ -141,13 +148,16 @@ def admin():
         [
             os.getenv("AWS_ACCESS_KEY_ID"),
             os.getenv("AWS_SECRET_ACCESS_KEY"),
-            os.getenv("AWS_SESSION_TOKEN"),
         ]
     ):
         return render_template("admin.html")
 
     # Check if AWS credentials are set and valid
-    is_credentials_valid = validate_aws_credentials()
+    credential_response = validate_aws_credentials()
+    logger.debug(f"Credential response: {credential_response}")
+
+    # Check if the credentials are valid
+    is_credentials_valid = credential_response.get("valid", False)
 
     # If credentials are set and valid, display the admin dashboard
     if is_credentials_valid:
@@ -156,8 +166,8 @@ def admin():
 
     # If credentials are not set or invalid, prompt the user to set them
     else:
-        error = (
-            "AWS credentials are not set or invalid. Please set your AWS credentials."
+        error = credential_response.get(
+            "message", "Invalid AWS credentials. Please set them."
         )
         return render_template("admin.html", error=error)
 
@@ -178,27 +188,27 @@ def set_aws_credentials():
     os.environ["AWS_SESSION_TOKEN"] = aws_token
 
     # Check if the AWS credentials are valid
-    if not validate_aws_credentials():
-        logger.error("Invalid AWS credentials provided.")
+    credentials_response = validate_aws_credentials()
+    is_credentials_valid = credentials_response.get("valid", False)
+    if not is_credentials_valid:
+        logger.error(
+            "Invalid AWS credentials provided. Removing them from environment variables."
+        )
 
         # Remove environment variables if credentials are invalid
         del os.environ["AWS_ACCESS_KEY_ID"]
         del os.environ["AWS_SECRET_ACCESS_KEY"]
         del os.environ["AWS_SESSION_TOKEN"]
 
-        return render_template(
-            "admin.html",
-            error="Invalid AWS credentials provided. Please check your credentials.",
+        error = credentials_response.get(
+            "message",
+            "Invalid AWS credentials provided. Please check your credentials.",
         )
 
-    # Save the credentials to a file or environment variable
-    terraform_dir = Path("terraform")
-    credential_file = terraform_dir / "terraform.credentials.tfvars"
-
-    with credential_file.open("w") as f:
-        f.write(f'aws_access_key = "{aws_access_key}"\n')
-        f.write(f'aws_secret_key = "{aws_secret_key}"\n')
-        f.write(f'aws_session_token = "{aws_token}"\n')
+        return render_template(
+            "admin.html",
+            error=error,
+        )
 
     return render_template("admin.html", message="AWS credentials set successfully.")
 
@@ -213,14 +223,13 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    instances = vms.query.all()
-    return render_template("delete-instances.html", instances=instances)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
     try:
-        data = request.form  # If you're sending JSON, use request.json instead
+        data = request.form
         email = data.get("email")
         crd_command = data.get("crd_command")
 
@@ -266,17 +275,6 @@ def launch():
     num_vms = int(request.form.get("num_vms"))
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
-
-    # Check if the credentials file exists
-    credentials_file = terraform_dir / "terraform.credentials.tfvars"
-    if not credentials_file.exists():
-        logger.error(
-            "AWS credentials file not found. Please set AWS credentials first."
-        )
-        return render_template(
-            "dashboard.html",
-            credential_error="AWS credentials file not found.",
-        )
 
     try:
         # Calculate the number of VMs to launch
@@ -329,7 +327,6 @@ def launch():
             "apply",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={total_vms}",
         ]
 
@@ -363,7 +360,6 @@ def destroy():
             "destroy",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
         ]
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
@@ -391,7 +387,7 @@ def vm_startup():
     hostname = data.get("hostname")
 
     if not hostname:
-        return jsonify({"error": "Hostname are required."}), 400
+        return jsonify({"error": "Hostname is required."}), 400
 
     # Add to the database
     logger.debug(f"Adding VM {hostname} to database...")
@@ -525,8 +521,8 @@ def update_gpu_health():
     data = request.get_json()
     gpu_status = data.get("gpu_status")
     hostname = data.get("hostname")
-    if gpu_status is None:
-        return jsonify({"error": "GPU status is required."}), 400
+    if gpu_status is None or hostname is None:
+        return jsonify({"error": "GPU status and hostname are required."}), 400
 
     try:
         database.update_health(hostname=hostname, healthy=gpu_status)
@@ -540,4 +536,5 @@ def update_gpu_health():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        init_database()
     app.run(host="0.0.0.0", port=5000, threaded=True)

@@ -127,7 +127,7 @@ def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> Non
         try:
             subprocess.run(ssh_cmd, check=True)
         except subprocess.CalledProcessError as e:
-            logging.warning(f"Failed to copy {file} from container on {ip}: {e}")
+            logging.error(f"Failed to copy {file} from container on {ip}: {e}")
 
 
 def has_slp_files(ip: str, key_path: str) -> bool:

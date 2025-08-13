@@ -124,7 +124,7 @@
       <form method="POST" action="/api/admin/set-aws-credentials">
         <input type="text" name="aws_access_key_id" placeholder="Access Key ID" required />
         <input type="password" name="aws_secret_access_key" placeholder="Secret Access Key" required />
-        <input type="password" name="aws_token" placeholder="Token" required />
+        <input type="password" name="aws_token" placeholder="Session Token (Only for temporary credentials)" />
         <input type="submit" value="Submit" />
       </form>
     {% endif %}
