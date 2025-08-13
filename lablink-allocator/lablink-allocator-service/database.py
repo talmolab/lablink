@@ -498,7 +498,7 @@ class PostgresqlDatabase:
             return {row[0]: row[1] for row in rows}
         except Exception as e:
             logger.error(f"Error retrieving all VM status: {e}")
-            return {}
+            return None
 
     def update_vm_status(self, hostname: str, status: str) -> None:
         """Update the status of a VM by its hostname.

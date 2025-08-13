@@ -78,3 +78,18 @@ def test_admin_delete_instance_no_auth(client):
     """Test deleting an instance without authentication."""
     response = client.get("/admin/instances/delete")
     assert response.status_code == 401
+
+
+def test_log_page_no_auth(client):
+    """Test the log page without authentication."""
+    hostname = "test-vm-dev-1"
+    response = client.get(f"/admin/logs/{hostname}")
+    assert response.status_code == 401
+
+
+def test_log_page_success(client, admin_headers):
+    """Test the log page with authentication."""
+    hostname = "test-vm-dev-1"
+    response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
+    assert response.status_code == 200
+    assert f"VM Logs - {hostname}" in response.data.decode()

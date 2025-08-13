@@ -544,7 +544,7 @@ def update_gpu_health():
         return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
-@app.route("/api/vm-status/", methods=["POST"])
+@app.route("/api/vm-status", methods=["POST"])
 def update_vm_status():
     try:
         data = request.get_json()
@@ -580,7 +580,7 @@ def get_all_vm_status():
     try:
         vm_status = database.get_all_vm_status()
         if not vm_status:
-            return jsonify({"error": "No VM status updates available."}), 404
+            return jsonify({"error": "No VMs found."}), 404
 
         return jsonify(vm_status), 200
     except Exception as e:
@@ -621,14 +621,14 @@ def receive_vm_logs():
             vm_log = new_logs
         database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
 
-        return jsonify({"message": "Logs received successfully."}), 200
+        return jsonify({"message": "VM logs posted successfully."}), 200
     except Exception as e:
         logger.error(f"Error receiving VM logs: {e}")
-        return jsonify({"error": "Failed to receive VM logs."}), 500
+        return jsonify({"error": "Failed to post VM logs."}), 500
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
-def get_vm_logs_api(hostname):
+def get_vm_logs_by_hostname(hostname):
     try:
         vm = database.get_vm_by_hostname(hostname=hostname)
         logger.debug(f"Fetching logs for VM: {hostname}: {vm}")
@@ -640,7 +640,8 @@ def get_vm_logs_api(hostname):
 
         # If the logs are empty but the vm is initializing, return a 503 status
         logs = database.get_vm_logs(hostname=hostname)
-        if logs is None and vm.status == "initializing":
+        status = vm.get("status")
+        if logs is None and status == "initializing":
             return jsonify({"error": "VM is installing CloudWatch agent."}), 503
 
         return jsonify({"hostname": hostname, "logs": logs}), 200

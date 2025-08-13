@@ -29,6 +29,7 @@ def omega_config():
             "app": {
                 "admin_user": "test_admin",
                 "admin_password": "test_pass",
+                "region": "us-west-2",
             },
         }
     )

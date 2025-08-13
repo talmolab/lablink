@@ -17,6 +17,7 @@ def test_launch_vm_success(
     omega_config,
     tmp_path,
 ):
+    """Test successful VM launch with some VMs already launched before."""
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()
 
@@ -40,11 +41,11 @@ def test_launch_vm_success(
     # Call route
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "2"})
     assert resp.status_code == 200
-    assert b"apply success" in resp.data
+    assert b"Output Dashboard" in resp.data
 
     # Assert calls
-    assert mock_run.call_count == 2
-    apply_cmd, apply_kwargs = mock_run.call_args_list[1]
+    assert mock_run.call_count == 1
+    apply_cmd, apply_kwargs = mock_run.call_args_list[0]
     assert "-var=instance_count=5" in apply_cmd[0]
 
     expected_lines = [
@@ -68,6 +69,7 @@ def test_launch_vm_success(
 def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path
 ):
+    """Test VM launch with missing allocator outputs."""
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()
 
@@ -90,6 +92,7 @@ def test_launch_missing_allocator_outputs_returns_error(
 def test_launch_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
+    """Test VM launch failure during apply."""
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()
 
@@ -117,6 +120,7 @@ def test_launch_apply_failure(
 
 @patch("main.subprocess.run")
 def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+    """Test successful VM destruction via terraform destroy."""
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()
 
