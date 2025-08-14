@@ -13,7 +13,7 @@ echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
 
 VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
-STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status/"
+STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status"
 
 # Function to send status updates
 send_status() {
