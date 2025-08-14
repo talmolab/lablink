@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   test:
+    name: Test LabLink Client VM Infrastructure
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -35,10 +36,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Debug files
-        run: ls -R
       - name: Install dependencies
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: lablink-allocator/lablink-allocator-service/terraform/tests
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
