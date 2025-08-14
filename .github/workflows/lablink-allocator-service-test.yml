@@ -35,4 +35,4 @@ jobs:
       - name: Run tests
         working-directory: lablink-allocator/lablink-allocator-service
         run: |
-          pytest --maxfail=1 --disable-warnings
+          pytest tests --maxfail=1 --disable-warnings
