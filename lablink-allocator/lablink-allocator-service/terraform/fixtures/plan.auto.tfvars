@@ -6,4 +6,4 @@ repository       = "https://github.com/example/repo.git"
 client_ami_id    = "<client_ami_id>"
 resource_suffix  = "test"
 subject_software = "test-software"
-gpu_support      = true
+gpu_support      = "true"
