@@ -1,0 +1,9 @@
+instance_count   = 1
+allocator_ip     = "10.0.0.1"
+machine_type     = "t2.micro"
+image_name       = "test-image"
+repository       = "https://github.com/example/repo.git"
+client_ami_id    = "<client_ami_id>"
+resource_suffix  = "test"
+subject_software = "test-software"
+gpu_support      = true
