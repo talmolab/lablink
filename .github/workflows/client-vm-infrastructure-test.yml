@@ -35,7 +35,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: lablink-allocator/lablink-allocator-service
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
