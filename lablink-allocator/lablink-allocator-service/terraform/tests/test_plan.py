@@ -16,5 +16,12 @@ def plan(fixture_dir):
 
 
 def test_variables(plan):
-    assert "resource_suffix" in plan.variables
+    assert plan.variables["instance_count"] == 1
     assert plan.variables["resource_suffix"] == "test"
+    assert plan.variables["allocator_ip"] == "10.0.0.1"
+    assert plan.variables["machine_type"] == "t2.medium"
+    assert plan.variables["image_name"] == "lablink-client-image"
+    assert plan.variables["repository"] == "https://github.com/example/repo.git"
+    assert plan.variables["client_ami_id"] == "ami-12345678"
+    assert plan.variables["subject_software"] == "sleap"
+    assert plan.variables["gpu_support"] == "true"
