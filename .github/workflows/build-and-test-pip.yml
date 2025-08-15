@@ -74,6 +74,9 @@ jobs:
           WHL=$(ls dist/*.whl)
           pip install "$WHL[dev]"
 
-      - name: Run tests
+      - name: Run tests with Coverage
         run: |
-          pytest lablink-client-base/lablink-client-service/tests
+          pytest lablink-client-base/lablink-client-service/tests \
+          --cov=lablink_client_service \
+          --cov-report=xml \
+          --cov-report=html
