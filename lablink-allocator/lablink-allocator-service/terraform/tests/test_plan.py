@@ -27,6 +27,9 @@ def test_variables(plan):
     assert plan.variables["resource_suffix"] == "ci-test"
     assert plan.variables["subject_software"] == "test-software"
     assert plan.variables["gpu_support"] == "true"
+    assert plan.variables["cloud_init_output_log_group"] == "lablink-cloud-init-logs"
+    assert plan.variables["region"] == "us-west-2"
+    assert plan.variables["ssh_user"] == "ubuntu"
 
 
 def _collect_resources(plan, type_name: str, name: str):
@@ -100,3 +103,9 @@ def test_output(plan):
     assert "vm_instance_ids" in plan.outputs
     assert "vm_public_ips" in plan.outputs
     assert "lablink_private_key_pem" in plan.outputs
+    assert "vm_instance_names" in plan.outputs
+    assert "startup_time_seconds_per_instance" in plan.outputs
+    assert "startup_time_hms_per_instance" in plan.outputs
+    assert "startup_time_avg_seconds" in plan.outputs
+    assert "startup_time_min_seconds" in plan.outputs
+    assert "startup_time_max_seconds" in plan.outputs
