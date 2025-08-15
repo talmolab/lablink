@@ -50,7 +50,16 @@ jobs:
         run: |
           uv sync --all-extras
 
+      - name: Run tests with Coverage
+        working-directory: lablink-client-base/lablink-client-service
+        run: |
+          WHL=$(ls dist/*.whl)
+          pip install "$WHL[dev]"
+
       - name: Run tests
         working-directory: lablink-client-base/lablink-client-service
         run: |
-          uv run pytest tests
+          uv run pytest tests \
+          --cov=lablink_client_service \
+          --cov-report=xml \
+          --cov-report=html
