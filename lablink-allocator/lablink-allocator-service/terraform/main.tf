@@ -15,7 +15,7 @@ resource "aws_security_group" "lablink_sg_" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # You can restrict to your IP
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -62,7 +62,7 @@ resource "aws_instance" "lablink_vm" {
   count                  = var.instance_count
   ami                    = var.client_ami_id
   instance_type          = var.machine_type
-  vpc_security_group_ids = [aws_security_group.lablink_sg_.id]
+  vpc_security_group_ids = [aws_security_group.lablink_sg.id]
   key_name               = aws_key_pair.lablink_key_pair.key_name
   iam_instance_profile   = aws_iam_instance_profile.lablink_instance_profile.name
   root_block_device {
