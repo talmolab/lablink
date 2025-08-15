@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-west-2"
+  region = var.region
 }
 
 resource "time_static" "start" {
@@ -7,8 +7,8 @@ resource "time_static" "start" {
 }
 
 # Security Group for the Client VM
-resource "aws_security_group" "lablink_sg_" {
-  name        = "lablink_client_${var.resource_suffix}"
+resource "aws_security_group" "lablink_sg" {
+  name        = "lablink_client_${var.resource_suffix}_sg"
   description = "Allow SSH and Docker ports"
 
   ingress {

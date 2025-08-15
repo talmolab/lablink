@@ -55,6 +55,7 @@ variable "cloud_init_output_log_group" {
 variable "region" {
   type        = string
   description = "AWS region where resources will be created"
+  default     = "us-west-2"
 }
 
 variable "ssh_user" {
