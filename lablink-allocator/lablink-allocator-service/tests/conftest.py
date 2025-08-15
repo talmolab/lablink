@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from omegaconf import OmegaConf
-from werkzeug.security import generate_password_hash
 import base64
 
 

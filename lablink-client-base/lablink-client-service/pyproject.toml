@@ -23,7 +23,7 @@ readme = "README.md"
 version = "0.0.6a2"
 
 [project.optional-dependencies]
-dev = ["toml", "twine", "build", "pytest", "black", "python-dotenv"]
+dev = ["toml", "twine", "build", "pytest", "black", "python-dotenv", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/talmolab/lablink"
