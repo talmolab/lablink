@@ -5,6 +5,7 @@ echo "Running subscribe script..."
 echo "ALLOCATOR_HOST: $ALLOCATOR_HOST"
 echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
 echo "SUBJECT_SOFTWARE: $SUBJECT_SOFTWARE"
+echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
@@ -22,20 +23,26 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
-# Activate the conda environment and run the subscribe script
-/home/client/miniforge3/bin/conda run -n base subscribe allocator.host=$ALLOCATOR_HOST allocator.port=80 &
+# Create a logs directory
+LOG_DIR="/home/client/logs"
+mkdir -p "$LOG_DIR"
 
-# Wait for the subscribe script to start
-sleep 5
+# Run subscribe in background, but preserve stdout + stderr to docker logs and file
+/home/client/miniforge3/bin/conda run -n base --no-capture-output subscribe \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
+  2>&1 | tee "$LOG_DIR/subscribe.log" &
 
 # Run update_inuse_status
-/home/client/miniforge3/bin/conda run -n base update_inuse_status allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE &
-
-# Wait for the subscribe script to start
-sleep 5
+/home/client/miniforge3/bin/conda run -n base --no-capture-output update_inuse_status \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
+  2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
 # Run GPU health check
-/home/client/miniforge3/bin/conda run -n base check_gpu allocator.host=$ALLOCATOR_HOST allocator.port=80 &
+/home/client/miniforge3/bin/conda run -n base --no-capture-output check_gpu \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
+  2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
-# Keep the container alive
-tail -f /dev/null
+touch "$LOG_DIR/placeholder.log"
+
+# Keep container alive
+tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/placeholder.log"

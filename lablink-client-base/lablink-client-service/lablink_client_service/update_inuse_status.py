@@ -8,10 +8,10 @@ import hydra
 from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.logger_config import setup_logger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
-# Set up logging
-logger = setup_logger()
+# Default logger setup
+logger = logging.getLogger(__name__)
 
 
 def is_process_running(process_name: str) -> bool:
@@ -90,6 +90,9 @@ def call_api(process_name, url):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
+    # Configure the logger
+    global logger
+    logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.debug("Starting the update_inuse_status service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 

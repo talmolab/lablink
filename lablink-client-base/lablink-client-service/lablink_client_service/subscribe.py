@@ -6,14 +6,16 @@ import hydra
 from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.connect_crd import connect_to_crd
-from lablink_client_service.logger_config import setup_logger
-
-logger = setup_logger()
+from lablink_client_service.connect_crd import connect_to_crd, set_logger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
+    global logger
+    logger = CloudAndConsoleLogger(module_name="subscribe")
+    set_logger(logger)  # Set the logger for connect_crd
+
     logger.debug("Starting the lablink client service...")
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 

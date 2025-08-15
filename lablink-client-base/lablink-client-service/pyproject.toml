@@ -13,12 +13,14 @@ dependencies = [
   "hydra-core>=1.3",
   "omegaconf>=2.3",
   "psutil",
+  "watchtower>=3.0.0",
+  "boto3",
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
-keywords = ["vm", "docker", "postgres", "tutorial"]
+keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
 name = "lablink-client-service"
 readme = "README.md"
-version = "0.0.4"
+version = "0.0.5"
 
 [project.optional-dependencies]
 dev = ["toml", "twine", "build", "pytest", "black", "python-dotenv"]
