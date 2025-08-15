@@ -12,6 +12,9 @@ from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
+logger = logging.getLogger(__name__)
+
+
 def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):
     """Check the health of the GPU.
 
@@ -25,6 +28,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
 
     while True:
         curr_status = None
+        break_now = False
 
         try:
             # Run the nvidia-smi command to check GPU health
@@ -45,15 +49,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                     "nvidia-smi command not found. Ensure NVIDIA drivers are installed."
                 )
                 curr_status = "N/A"
-                requests.post(
-                    f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                    json={
-                        "hostname": os.getenv("VM_NAME"),
-                        "gpu_status": "N/A",
-                    },
-                )
-                # Terminate the loop if nvidia-smi is not available
-                break
+                break_now = True
 
             else:
                 logger.error(
@@ -65,22 +61,14 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
             # This exception is raised if the nvidia-smi command is not found
             logger.error(f"File not found: {e}")
             curr_status = "N/A"
-            requests.post(
-                f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
-                json={
-                    "hostname": os.getenv("VM_NAME"),
-                    "gpu_status": "N/A",
-                },
-            )
-            break
+            break_now = True
 
         except Exception as e:
             curr_status = "Unhealthy"
             logger.error(f"An unexpected error occurred: {e}")
 
-        if curr_status != last_status:
+        if curr_status != last_status or break_now:
             logger.info(f"GPU health status changed: {curr_status}")
-            last_status = curr_status
             try:
                 requests.post(
                     f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
@@ -91,6 +79,10 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
                 )
             except Exception as e:
                 logger.error(f"Failed to report GPU health: {e}")
+            last_status = curr_status
+
+        if break_now:
+            break
         time.sleep(interval)
 
 
