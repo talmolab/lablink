@@ -133,7 +133,6 @@ RUN sudo chmod +x /scripts/*.sh && \
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-
 # Activate conda environment and install client service package
 RUN sudo uv pip install --system lablink-client-service
 

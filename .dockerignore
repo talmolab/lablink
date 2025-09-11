@@ -31,6 +31,3 @@ Dockerfile
 
 # Test folders
 lablink-allocator/lablink-allocator-service/tests/
-
-# requirement-dev file
-lablink-allocator/lablink-allocator-service/requirements-dev.txt

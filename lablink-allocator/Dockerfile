@@ -29,13 +29,8 @@ COPY lablink-allocator/lablink-allocator-service /app
 
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
-COPY lablink-allocator/lablink-allocator-service/requirements.txt requirements.txt
-
 # Install Python dependencies using UV
-RUN uv venv
-RUN uv pip install -r requirements.txt
-
-ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
+RUN uv venv && uv pip install -r pyproject.toml
 
 COPY lablink-allocator/lablink-allocator-service/generate-init-sql.py /app
 RUN uv run generate-init-sql.py
