@@ -5,8 +5,6 @@ import os
 
 import requests
 import hydra
-import watchtower
-import boto3
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger

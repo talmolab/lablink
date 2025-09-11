@@ -160,7 +160,8 @@ class PostgresqlDatabase:
                             )
 
                             logger.debug(
-                                "Chrome Remote Desktop connected successfully. Exiting listener loop."
+                                "Chrome Remote Desktop connected successfully. " \
+                                "Exiting listener loop."
                             )
                             return
 

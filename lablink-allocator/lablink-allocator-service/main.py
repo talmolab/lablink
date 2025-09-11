@@ -6,7 +6,6 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
-import base64
 
 from flask import (
     Flask,
@@ -32,7 +31,6 @@ from utils.scp import (
 from utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
-    get_instance_names,
 )
 
 app = Flask(__name__)

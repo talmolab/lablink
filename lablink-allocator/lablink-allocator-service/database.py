@@ -170,7 +170,7 @@ class PostgresqlDatabase:
         """
 
         # Create a new connection to listen for notifications in order to avoid blocking the main connection
-        logger.debug(f"Creating new connection to listen for notifications...")
+        logger.debug("Creating new connection to listen for notifications...")
         listen_conn = psycopg2.connect(
             dbname=self.dbname,
             user=self.user,

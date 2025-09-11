@@ -12,6 +12,24 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --dev
+      - name: Run ruff linter
+        working-directory: lablink-client-base/lablink-client-service
+        run: uv run ruff check lablink_client_service tests
   tests:
     name: Test lablink-client-service
     runs-on: ubuntu-latest
@@ -23,7 +41,7 @@ jobs:
       - name: Set up UV
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.9"
+          python-version: "3.11"
 
       - name: Install dependencies
         working-directory: lablink-client-base/lablink-client-service

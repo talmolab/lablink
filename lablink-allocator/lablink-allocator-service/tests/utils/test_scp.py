@@ -1,9 +1,5 @@
-import os
-import json
-import builtins
 import subprocess
-from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch
 import pytest
 
 from utils.scp import (

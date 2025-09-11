@@ -4,7 +4,6 @@ import logging
 import time
 import os
 
-from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Set up logging
 logger = logging.getLogger(__name__)
