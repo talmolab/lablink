@@ -43,9 +43,3 @@ jobs:
         working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
           pytest --maxfail=1 --disable-warnings
-
-      - name: Cleanup
-        if: always()
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
-        run: |
-          terraform destroy -auto-approve
