@@ -95,11 +95,9 @@ def main(cfg: Config) -> None:
     global logger
     logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.debug("Starting the update_inuse_status service...")
-    logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
     # Define the URL for the POST request
     url = f"http://{cfg.allocator.host}:{cfg.allocator.port}/api/update_inuse_status"
-    logger.debug(f"URL: {url}")
 
     # Start listening for the process
     listen_for_process(
