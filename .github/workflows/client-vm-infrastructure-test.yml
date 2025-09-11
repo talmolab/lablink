@@ -1,7 +1,11 @@
 name: End-to-End Test LabLink Client VM Infrastructure
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "lablink-allocator/lablink-allocator-service/terraform/**"
+      - ".github/workflows/client-vm-infrastructure-test.yml"
 
 permissions:
   id-token: write
