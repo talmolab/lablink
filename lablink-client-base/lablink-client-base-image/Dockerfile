@@ -123,14 +123,20 @@ USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Create scripts directory with miniforge, uv, and nvm installation scripts
-COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
+COPY install_miniforge.sh  install_nvm.sh /scripts/
 
 # Make scripts executable and run them
 RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_miniforge.sh && \
-    /scripts/install_uv.sh && \
     /scripts/install_nvm.sh
 
+# Download the latest installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+
+# Run the installer then remove it
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+
+# Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
 
 # Activate conda environment and install client service package
