@@ -26,10 +26,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
+        working-directory: lablink-allocator/lablink-allocator-service
         run: uv sync --dev
+
       - name: Run ruff linter
-        working-directory: lablink-allocator/
-        run: uv run ruff check lablink-allocator-service tests
+        working-directory: lablink-allocator/lablink-allocator-service
+        run: uv run ruff check . tests
   build-and-test:
     name: Test LabLink Allocator Flask Service
     runs-on: ubuntu-latest
