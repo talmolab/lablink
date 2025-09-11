@@ -64,7 +64,7 @@ class PostgresqlDatabase:
             port=port,
         )
 
-        # Set the isolation level to autocommit so that each SQL command is immediately executed
+        # Set the isolation level to autocommit
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
@@ -91,7 +91,8 @@ class PostgresqlDatabase:
         # Query to get the column names from the information schema
         with self.conn.cursor() as cursor:
             cursor.execute(
-                f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+                "SELECT column_name FROM information_schema.columns WHERE " \
+                f"table_name = '{table_name}'"
             )
             return [row[0] for row in cursor.fetchall()]
 
@@ -162,14 +163,14 @@ class PostgresqlDatabase:
             target_hostname (str): The hostname of the VM to connect to.
 
         Returns:
-            dict: A dictionary containing the status, pin, and command if the connection is successful.
+            dict: A dictionary containing the status, pin, and command.
 
         Raises:
-            psycopg2.Error: If there is an error connecting to the database or listening for notifications.
-            json.JSONDecodeError: If there is an error decoding the JSON payload from the notification.
+            psycopg2.Error: If there is an error in the database.
+            json.JSONDecodeError: If there is an error decoding the JSON payload.
         """
 
-        # Create a new connection to listen for notifications in order to avoid blocking the main connection
+        # Create a new connection to listen for notifications
         logger.debug("Creating new connection to listen for notifications...")
         listen_conn = psycopg2.connect(
             dbname=self.dbname,
@@ -195,7 +196,8 @@ class PostgresqlDatabase:
                     while listen_conn.notifies:
                         notify = listen_conn.notifies.pop(0)
                         logger.debug(
-                            f"Received notification: {notify.payload} from channel {notify.channel}"
+                            f"Received notification: {notify.payload} from " \
+                            f"channel {notify.channel}"
                         )
                         # Parse the JSON payload
                         try:
@@ -214,12 +216,13 @@ class PostgresqlDatabase:
                             # Check if the hostname matches the current hostname
                             if hostname != target_hostname:
                                 logger.debug(
-                                    f"Hostname '{hostname}' does not match the current hostname '{target_hostname}'."
+                                    f"Hostname '{hostname}' does not match the current"
+                                    f"hostname '{target_hostname}'."
                                 )
                                 continue
 
                             logger.debug(
-                                "Chrome Remote Desktop connected successfully. Exiting listener loop."
+                                "Chrome Remote Desktop connected successfully."
                             )
                             return {
                                 "status": "success",
@@ -262,7 +265,8 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are not assigned to any command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NULL AND status = 'running'"
+        query = f"SELECT hostname FROM {self.table_name} WHERE " \
+                f"crdcommand IS NULL AND status = 'running'"
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
@@ -303,7 +307,8 @@ class PostgresqlDatabase:
             email (str): The email of the user.
 
         Returns:
-            list: A list containing the hostname, pin, and CRD command of the VM assigned to the user.
+            list: A list containing the hostname, pin, and CRD command of the VM
+            assigned to the given user.
         """
         query = f"SELECT * FROM {self.table_name} WHERE useremail = %s"
         self.cursor.execute(query, (email,))
@@ -355,7 +360,8 @@ class PostgresqlDatabase:
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND status = 'running' LIMIT 1"
+        query = f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND " \
+                f"status = 'running' LIMIT 1"
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
@@ -410,7 +416,8 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
 
         Returns:
-            str: The health status of the GPU for the specified VM, or None if not found.
+            str: The health status of the GPU for the specified VM
+                or None if not found.
         """
         query = f"SELECT healthy FROM {self.table_name} WHERE hostname = %s;"
         try:
@@ -550,3 +557,4 @@ class PostgresqlDatabase:
         self.cursor.close()
         self.conn.close()
         logger.debug("Database connection closed.")
+

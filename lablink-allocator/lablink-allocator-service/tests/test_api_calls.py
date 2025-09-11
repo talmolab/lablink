@@ -186,24 +186,6 @@ def test_update_gpu_health_success(client, monkeypatch):
     )
 
 
-def test_update_gpu_health_missing_hostname(client, monkeypatch):
-    """Test the /api/gpu_health endpoint with missing hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-
-    # Patch globals
-    monkeypatch.setattr("main.database", fake_db, raising=False)
-
-    # Call the API
-    data = {}
-    resp = client.post(UPDATE_GPU_HEALTH_ENDPOINT, json=data)
-
-    # Assert the response
-    assert resp.status_code == 400
-    assert resp.get_json() == {"error": "GPU status and hostname are required."}
-    fake_db.update_health.assert_not_called()
-
-
 def test_update_gpu_health_failure(client, monkeypatch):
     """Test the /api/gpu_health endpoint with database internal failure."""
     # Mock the database

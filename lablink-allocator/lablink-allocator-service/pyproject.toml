@@ -23,3 +23,16 @@ version = "0.1.0"
 
 [project.optional-dependencies]
 dev = ["twine", "build", "pytest", "ruff"]
+
+[tool.ruff.lint]
+ignore = [
+  "E721", # Use isinstance() for type comparisons
+  "E731", # Do not assign a lambda expression
+  "E741", # Ambiguous variable name
+  "F405", # May be undefined, or defined from star imports
+]
+select = ["E", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+"tests/*" = ["F403", "F405"]

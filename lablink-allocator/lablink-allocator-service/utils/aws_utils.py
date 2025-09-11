@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def get_all_instance_types(region="us-west-2"):
     """Fetch all available EC2 instance types in a given AWS region.
     Args:
-        region (str): The AWS region to query for instance types. Default is 'us-west-2'.
+        region (str): The AWS region to query for instance types.
     Returns:
         list: A list of available EC2 instance types in the specified region.
     """
@@ -57,12 +57,11 @@ def validate_aws_credentials() -> dict:
         return {"valid": True}
     except ClientError as e:
         if "InvalidClientTokenId" in str(e):
-            logger.error(
-                "AWS credentials appear to be temporary but no valid session token was provided."
-            )
+            message = "AWS credentials are temporary but no session token provided."
+            logger.error(message)
             return {
                 "valid": False,
-                "message": "AWS credentials are temporary but no session token provided.",
+                "message": message,
             }
         else:
             logger.error(f"Error validating AWS credentials: {e}")
