@@ -130,14 +130,9 @@ RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_miniforge.sh && \
     /scripts/install_nvm.sh
 
-# Download the latest installer
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
+# Download the latest uv release from GitHub
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Run the installer then remove it
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-
-# Ensure the installed binary is on the `PATH`
-ENV PATH="/root/.local/bin/:$PATH"
 
 # Activate conda environment and install client service package
 RUN uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple  lablink-client-service==0.0.6a2
