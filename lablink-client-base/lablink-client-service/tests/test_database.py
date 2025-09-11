@@ -94,7 +94,8 @@ def test_insert_vm(mock_db_connection):
 
     # Check if the cursor.execute was called with the expected SQL command
     mock_cursor.execute.assert_called_with(
-        "INSERT INTO test_table (hostname, pin, crdcommand, useremail, inuse) VALUES (%s, %s, %s, %s, %s);",
+        "INSERT INTO test_table (hostname, pin, crdcommand, useremail, inuse) VALUES"
+        " (%s, %s, %s, %s, %s);",
         expected_values,
     )
 

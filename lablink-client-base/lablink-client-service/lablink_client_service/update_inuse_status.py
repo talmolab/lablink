@@ -23,7 +23,7 @@ def is_process_running(process_name: str) -> bool:
             if any(process_name in part for part in proc.cmdline()):
                 if "update_inuse_status" in " ".join(proc.cmdline()):
                     logger.debug(
-                        f"Skipping process '{process_name}' as it is the current script."
+                        f"Skipping process '{process_name}' as it is the current script"
                     )
                     continue
                 logger.debug(f"Found process: {proc.cmdline()}")
@@ -44,8 +44,8 @@ def listen_for_process(
     Args:
         process_name (str): The name of the process to listen for.
         interval (int, optional): The interval (in seconds) to check the process status,
-        callback_func (callable, optional): A callback function to execute when the 
-            process state changes.
+        callback_func (callable, optional): A callback function to execute
+        when the process state changes.
     """
 
     # Set up a default callback function if none is provided

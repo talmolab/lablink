@@ -19,7 +19,7 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
     Args:
         allocator_ip (str): The IP address of the allocator service.
         allocator_port (int): The port of the allocator service.
-        interval (int, optional): The interval in seconds to check the GPU health. Defaults to 20.
+        interval (int, optional): The interval in seconds to check the GPU health.
     """
     logger.debug("Starting GPU health check...")
     last_status = None
