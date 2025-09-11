@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: lablink-allocator/lablink-allocator-service
-        run: uv sync --dev
+        run: uv sync --all-extras
 
       - name: Run ruff linter
         working-directory: lablink-allocator/lablink-allocator-service
