@@ -31,5 +31,6 @@ jobs:
           uv sync --all-extras
 
       - name: Run tests
+        working-directory: lablink-client-base/lablink-client-service
         run: |
-          uv run pytest lablink-client-base/lablink-client-service/tests
+          uv run pytest tests
