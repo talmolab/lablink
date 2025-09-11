@@ -135,7 +135,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 
 # Activate conda environment and install client service package
-RUN uv pip install --system lablink-client-service
+RUN sudo uv pip install --system lablink-client-service
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
