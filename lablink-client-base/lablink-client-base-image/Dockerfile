@@ -131,6 +131,8 @@ RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_uv.sh && \
     /scripts/install_nvm.sh
 
+ENV PATH="/root/.local/bin/:$PATH"
+
 # Activate conda environment and install client service package
 RUN uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple  lablink-client-service==0.0.6a2
 
