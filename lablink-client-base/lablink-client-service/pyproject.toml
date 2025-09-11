@@ -20,10 +20,11 @@ description = "Lablink Client Service that will be installed in the lablink-clie
 keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
 name = "lablink-client-service"
 readme = "README.md"
+requires-python = ">=3.9"
 version = "0.0.6a2"
 
 [project.optional-dependencies]
-dev = ["toml", "twine", "build", "pytest", "black", "python-dotenv"]
+dev = ["twine", "build", "pytest", "black"]
 
 [project.urls]
 Homepage = "https://github.com/talmolab/lablink"
