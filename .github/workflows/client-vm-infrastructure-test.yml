@@ -1,11 +1,7 @@
 name: End-to-End Test LabLink Client VM Infrastructure
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - "lablink-allocator/lablink-allocator-service/terraform/**"
-      - ".github/workflows/client-vm-infrastructure-test.yml"
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -15,6 +11,7 @@ jobs:
   test:
     name: Test LabLink Client VM Infrastructure
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -46,3 +43,9 @@ jobs:
         working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
           pytest --maxfail=1 --disable-warnings
+
+      - name: Cleanup
+        if: always()
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        run: |
+          terraform destroy -auto-approve
