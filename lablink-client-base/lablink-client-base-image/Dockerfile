@@ -137,6 +137,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN sudo uv pip install --system \
     --extra-index-url https://test.pypi.org/simple/ \
     --index-url https://pypi.org/simple \
+    --index-strategy unsafe-best-match \
     lablink-client-service==0.0.6a2
 
 # Copy the startup script
