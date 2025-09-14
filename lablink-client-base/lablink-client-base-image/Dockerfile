@@ -138,7 +138,7 @@ RUN sudo uv pip install --system \
     --extra-index-url https://test.pypi.org/simple/ \
     --index-url https://pypi.org/simple \
     --index-strategy unsafe-best-match \
-    lablink-client-service==0.0.6a2
+    lablink-client-service==0.0.6a3
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh

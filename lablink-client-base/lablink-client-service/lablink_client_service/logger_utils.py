@@ -43,7 +43,13 @@ class CloudAndConsoleLogger:
 
             # Only call cloud logger if it exists
             if self.cloud_logger and hasattr(self.cloud_logger, name):
-                getattr(self.cloud_logger, name)(*args, **kwargs)
+                try:
+                    getattr(self.cloud_logger, name)(*args, **kwargs)
+                except Exception as e:
+                    self.console_logger.error(
+                        f"Failed to log to CloudWatch: {e}. "
+                        "Continuing with console logging only."
+                    )
             sys.stdout.flush()  # Force to flush stdout after logging
 
         return wrapper
@@ -100,6 +106,8 @@ class CloudAndConsoleLogger:
 
             if not logger.handlers:
                 logger.addHandler(handler)
+
+            logger.debug("CloudWatch logging is set up.")
 
             return logger
         except Exception as e:
