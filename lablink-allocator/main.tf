@@ -104,7 +104,7 @@ resource "aws_eip_association" "lablink_allocator_ip_assoc" {
 # Use larger instance type for production
 locals {
   fqdn                    = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
-  allocator_instance_type = var.resource_suffix == "prod" ? "t3.large" : "t2.micro"
+  allocator_instance_type = "t3.large"
 }
 
 # CloudWatch Log Groups for Client VMs
