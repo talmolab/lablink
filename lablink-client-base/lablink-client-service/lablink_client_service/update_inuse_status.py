@@ -5,7 +5,6 @@ import os
 
 import psutil
 import hydra
-from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.logger_utils import CloudAndConsoleLogger

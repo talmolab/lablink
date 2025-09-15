@@ -1,5 +1,4 @@
 import logging
-from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 from omegaconf import OmegaConf
 import pytest
