@@ -5,9 +5,9 @@ on:
     branches-ignore:
       - main
     paths:
-      - 'lablink-allocator/**'
-      - 'lablink-client-base/lablink-client-base-image/**'
-      - '.github/workflows/lablink-images-test.yml'
+      - "lablink-allocator/**"
+      - "lablink-client-base/lablink-client-base-image/**"
+      - ".github/workflows/lablink-images-test.yml"
 
 jobs:
   build:
@@ -67,6 +67,6 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile-path }}
-          platforms: linux/amd64 # Hardcoded for now
+          platforms: linux/amd64
           push: true
           tags: ${{ matrix.tags }}
