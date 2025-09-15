@@ -96,7 +96,9 @@ def test_lablink_vm(plan):
     """Test Terraform resources for EC2 instances."""
     instances = _collect_resources(plan, "aws_instance", "lablink_vm")
 
-    for i, (addr, resource) in enumerate(sorted(instances.items(), key=lambda x: _numeric_sort_key(x[0]))):
+    sorted_instances = sorted(instances.items(), key=lambda x: _numeric_sort_key(x[0]))
+
+    for i, (addr, resource) in enumerate(sorted_instances):
         assert resource["type"] == "aws_instance"
         assert resource["values"]["tags"]["Name"] == f"lablink-vm-ci-test-{i + 1}"
         assert resource["values"]["ami"] == plan["variables"]["client_ami_id"]["value"]
