@@ -1,9 +1,8 @@
 name: Build and Push Docker Images (Test Workflow)
 
 on:
-  push:
-    branches-ignore:
-      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
