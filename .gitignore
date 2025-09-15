@@ -173,7 +173,7 @@ cython_debug/
 .pypirc
 
 # Local .terraform directories
-terraform/.terraform
+**/.terraform
 
 # .tfstate files
 *.tfstate
