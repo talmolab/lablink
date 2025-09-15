@@ -25,6 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+lablink-client-base/lablink-client-service/uv.lock
+lablink-allocator/lablink-allocator-service/uv.lock
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
