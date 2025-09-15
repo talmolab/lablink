@@ -16,8 +16,10 @@ def plan(fixture_dir):
 
     # Initialize and create the plan
     subprocess.run(["terraform", "init", "-input=false", "-no-color"], cwd=base_dir)
-    subprocess.run(["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"], cwd=base_dir)
-    result = subprocess.run(["terraform", "show", "-json", "plan.tfplan"], cwd=base_dir, check=True, capture_output=True)
+    subprocess.run(["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan",
+                    "-no-color"], cwd=base_dir)
+    result = subprocess.run(["terraform", "show", "-json", "plan.tfplan"],
+                            cwd=base_dir, check=True, capture_output=True)
     tfplan = json.loads(result.stdout)
 
     yield tfplan
@@ -34,7 +36,10 @@ def test_variables(plan):
     assert plan["variables"]["resource_suffix"]["value"] == "ci-test"
     assert plan["variables"]["subject_software"]["value"] == "test-software"
     assert plan["variables"]["gpu_support"]["value"] == "true"
-    assert plan["variables"]["cloud_init_output_log_group"]["value"] == "lablink-cloud-init-logs"
+    assert (
+        plan["variables"]["cloud_init_output_log_group"]["value"]
+        == "lablink-cloud-init-logs"
+    )
     assert plan["variables"]["region"]["value"] == "us-west-2"
     assert plan["variables"]["ssh_user"]["value"] == "ubuntu"
 
@@ -95,7 +100,8 @@ def test_lablink_vm(plan):
         assert resource["type"] == "aws_instance"
         assert resource["values"]["tags"]["Name"] == f"lablink-vm-ci-test-{i + 1}"
         assert resource["values"]["ami"] == plan["variables"]["client_ami_id"]["value"]
-        assert resource["values"]["instance_type"] == plan["variables"]["machine_type"]["value"]
+        instance_type = resource["values"]["instance_type"]
+        assert instance_type == plan["variables"]["machine_type"]["value"]
 
 
 
