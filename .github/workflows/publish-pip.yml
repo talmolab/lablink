@@ -1,6 +1,4 @@
 name: Publish on Release
-# This workflow will only work if an artifact named "lablink-client-service-dist" is uploaded to the repository
-# Run this workflow after testing using the "build-and-test-pip.yml" workflow
 on:
   release:
     types: [published]
@@ -18,24 +16,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.9"
-
-      - name: Install dependencies
-        working-directory: lablink-client-base/lablink-client-service
-        run: |
-          python -m pip install --upgrade pip
-          pip install --editable .[dev]
+          python-version: "3.12"
 
       - name: Build package
         working-directory: lablink-client-base/lablink-client-service
         run: |
-          python -m build
-          twine check dist/*
+          uv build
 
       - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: lablink-client-base/lablink-client-service/dist
+        working-directory: lablink-client-base/lablink-client-service
+        run: |
+          uv publish
