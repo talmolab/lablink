@@ -50,7 +50,7 @@ jobs:
         run: |
           uv sync --all-extras
 
-      - name: Run tests
+      - name: Run tests with Coverage
         working-directory: lablink-allocator/lablink-allocator-service
         run: |
-          uv run pytest tests --maxfail=1 --disable-warnings
+          uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term

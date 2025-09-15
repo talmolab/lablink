@@ -1,0 +1,48 @@
+name: End-to-End Test LabLink Client VM Infrastructure
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "lablink-allocator/lablink-allocator-service/terraform/**"
+      - ".github/workflows/client-vm-infrastructure-test.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    name: Test LabLink Client VM Infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7
+          aws-region: us-west-2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: lablink-allocator/lablink-allocator-service
+        run: |
+          uv sync --all-extras
+
+      - name: Run tests
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        run: |
+          uv run pytest tests --maxfail=1 --disable-warnings

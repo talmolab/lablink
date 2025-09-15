@@ -90,7 +90,6 @@ def main(cfg: Config) -> None:
     logger = CloudAndConsoleLogger(
         module_name="check_gpu",
     )
-    logger.info("Starting GPU health check service...")
     # Check GPU health
     check_gpu_health(
         allocator_ip=cfg.allocator.host,

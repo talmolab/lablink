@@ -3,14 +3,16 @@ import os
 
 import hydra
 from omegaconf import OmegaConf
+import logging
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.connect_crd import connect_to_crd, set_logger
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
+logger = logging.getLogger(__name__)
 
-@hydra.main(version_base=None, config_name="config")
-def main(cfg: Config) -> None:
+
+def subscribe(cfg: Config) -> None:
     global logger
     logger = CloudAndConsoleLogger(module_name="subscribe")
     set_logger(logger)  # Set the logger for connect_crd
@@ -48,6 +50,11 @@ def main(cfg: Config) -> None:
             logger.error(f"Error message: {data.get('message')}")
     else:
         logger.error(f"POST request failed with status code: {response.status_code}")
+
+
+@hydra.main(version_base=None, config_name="config")
+def main(cfg: Config) -> None:
+    subscribe(cfg)
 
 
 if __name__ == "__main__":
