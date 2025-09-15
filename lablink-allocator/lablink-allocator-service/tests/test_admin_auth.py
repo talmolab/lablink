@@ -77,7 +77,7 @@ def test_admin_set_aws_credentials_success_long_lasting(
 
 
 @patch("main.validate_aws_credentials", return_value={"valid": True})
-def test_admin_set_aws_credentials_success_long_lasting(
+def test_admin_set_aws_credentials_success_long_lasting_error(
     mock_validate, client, admin_headers, monkeypatch
 ):
     """Test setting AWS credentials as an admin."""
@@ -117,7 +117,7 @@ def test_admin_set_aws_credentials_failure_invalid_credentials(
         monkeypatch.delenv(k, raising=False)
 
     with caplog.at_level("ERROR"):
-        response = client.post(
+        client.post(
             AWS_CREDENTIALS_ENDPOINT,
             headers=admin_headers,
             data={
@@ -154,7 +154,7 @@ def test_admin_set_aws_credentials_failure_no_token(
         monkeypatch.delenv(k, raising=False)
 
     with caplog.at_level("ERROR"):
-        response = client.post(
+        client.post(
             AWS_CREDENTIALS_ENDPOINT,
             headers=admin_headers,
             data={

@@ -6,7 +6,6 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
-import base64
 
 from flask import (
     Flask,
@@ -32,7 +31,6 @@ from utils.scp import (
 from utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
-    get_instance_names,
 )
 
 app = Flask(__name__)
@@ -199,7 +197,7 @@ def set_aws_credentials():
     is_credentials_valid = credentials_response.get("valid", False)
     if not is_credentials_valid:
         logger.error(
-            "Invalid AWS credentials provided. Removing them from environment variables."
+            "Invalid AWS credentials provided."
         )
 
         # Remove environment variables if credentials are invalid
@@ -251,7 +249,8 @@ def submit_vm_details():
             logger.error("Invalid CRD command: --code not found.")
             return render_template(
                 "index.html",
-                error="Invalid CRD command received. Please ask your instructor for help.",
+                error="Invalid CRD command received. " \
+                "Please ask your instructor for help.",
             )
 
         # Check if there are any available VMs
@@ -259,7 +258,8 @@ def submit_vm_details():
             logger.error("No available VMs found.")
             return render_template(
                 "index.html",
-                error="No available VMs. Please try again later. Please ask your instructor for help",
+                error="No available VMs. Please try again later. Please ask your " \
+                "instructor for help",
             )
 
         # Assign the VM
@@ -272,7 +272,8 @@ def submit_vm_details():
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
             "index.html",
-            error="An unexpected error occurred while processing your request. Please ask your instructor for help.",
+            error="An unexpected error occurred while processing your request. " \
+            "Please ask your instructor for help.",
         )
 
 
@@ -450,7 +451,7 @@ def download_all_data():
                     empty_data = False
                 logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
-                # Copy the extracted .slp files to the allocator container's local directory
+                # Copy the extracted .slp files to the allocator container's local
                 rsync_slp_files_to_allocator(
                     ip=ip,
                     key_path=key_path,

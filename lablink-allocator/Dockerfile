@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,15 +29,11 @@ COPY lablink-allocator/lablink-allocator-service /app
 
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
-COPY lablink-allocator/lablink-allocator-service/requirements.txt requirements.txt
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
+# Install Python dependencies using UV
+RUN uv venv && uv pip install -r pyproject.toml
 
 COPY lablink-allocator/lablink-allocator-service/generate-init-sql.py /app
-RUN python generate-init-sql.py
+RUN uv run generate-init-sql.py
 
 # Expose ports for Flask
 EXPOSE 5000

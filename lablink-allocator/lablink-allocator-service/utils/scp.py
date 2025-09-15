@@ -1,6 +1,4 @@
-import os
 import subprocess
-import json
 from pathlib import Path
 import logging
 
@@ -11,13 +9,14 @@ def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
     """SSH into the EC2 VM and find all .slp files in the running Docker container.
     Args:
         ip (str): The public IP address of the EC2 instance.
-        key_path (str): The path to the SSH private key file for connecting to the instance.
+        key_path (str): The path to the SSH private key file.
     Returns:
         list[str]: A list of paths to .slp files found in the container.
     """
     cmd = (
         "cid=$(sudo docker ps -q | head -n1) && "
-        "sudo docker exec $cid find /home/client/Desktop -name '*.slp' -not -path '*/models/*' -not -path '*/predictions/*'"
+        "sudo docker exec $cid find /home/client/Desktop -name '*.slp' "
+        "-not -path '*/models/*' -not -path '*/predictions/*'"
     )
     ssh_cmd = [
         "ssh",
@@ -40,11 +39,11 @@ def find_slp_files_in_container(ip: str, key_path: str) -> list[str]:
 
 def extract_slp_from_docker(ip: str, key_path: str, slp_files: list[str]) -> None:
     """
-    SSH into the EC2 VM and extract .slp files from the running container to the EC2 host file system
-    under /home/ubuntu/slp_files.
+    SSH into the EC2 VM and extract .slp files from the running container to the EC2
+    host file system under /home/ubuntu/slp_files.
     Args:
         ip (str): The public IP address of the EC2 instance.
-        key_path (str): The path to the SSH private key file for connecting to the instance.
+        key_path (str): The path to the SSH private key file.
         slp_files (list[str]): A list of .slp file paths to extract from the container.
     Raises:
         subprocess.CalledProcessError: If the SSH command fails.
@@ -78,7 +77,7 @@ def has_slp_files(ip: str, key_path: str) -> bool:
     """Check if the target VM has .slp files in /home/ubuntu/slp_files.
     Args:
         ip (str): The public IP address of the EC2 instance.
-        key_path (str): The path to the SSH private key file for connecting to the instance.
+        key_path (str): The path to the SSH private key file.
     """
     ssh_cmd = [
         "ssh",
@@ -87,17 +86,20 @@ def has_slp_files(ip: str, key_path: str) -> bool:
         "-i",
         key_path,
         f"ubuntu@{ip}",
-        "sh -c 'ls /home/ubuntu/slp_files/*.slp 1>/dev/null 2>/dev/null && echo exists || echo missing'",
+        "sh -c 'ls /home/ubuntu/slp_files/*.slp 1>/dev/null 2>/dev/null && echo exists "
+        "|| echo missing'",
     ]
     result = subprocess.run(ssh_cmd, capture_output=True, text=True)
     return result.stdout.strip() == "exists"
 
 
 def rsync_slp_files_to_allocator(ip: str, key_path: str, local_dir: str) -> None:
-    """Copy .slp files from the target VM's file system to the allocator's docker container.
+    """Copy .slp files from the target VM's file system to the allocator's docker
+    container.
+
     Args:
         ip (str): The public IP address of the EC2 instance.
-        key_path (str): The path to the SSH private key file for connecting to the instance.
+        key_path (str): The path to the SSH private key file.
         local_dir (str): The local directory where the .slp files will be copied.
     """
     logger.debug(f"Copying the .slp files from VM {ip} to allocator...")

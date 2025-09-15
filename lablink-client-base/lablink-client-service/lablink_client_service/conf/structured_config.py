@@ -1,5 +1,3 @@
-"""This module defines the allocator configuration structure for the Lablink Client Service."""
-
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass, field
 

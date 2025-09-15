@@ -1,7 +1,6 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from omegaconf import OmegaConf
-from werkzeug.security import generate_password_hash
 import base64
 
 
@@ -72,7 +71,6 @@ def client(app):
 @pytest.fixture
 def admin_headers(omega_config):
     """Convenience Basic-Auth header using cfg credentials."""
-    import main
 
     user = omega_config.app.admin_user
     pw = omega_config.app.admin_password

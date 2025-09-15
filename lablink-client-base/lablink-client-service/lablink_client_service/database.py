@@ -60,7 +60,7 @@ class PostgresqlDatabase:
             port=port,
         )
 
-        # Set the isolation level to autocommit so that each SQL command is immediately executed
+        # Set the isolation level to autocommit
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
@@ -78,7 +78,8 @@ class PostgresqlDatabase:
 
         # Query to get the column names from the information schema
         self.cursor.execute(
-            f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+            f"SELECT column_name FROM information_schema.columns"
+            f" WHERE table_name = '{table_name}'"
         )
         return [row[0] for row in self.cursor.fetchall()]
 
@@ -130,7 +131,8 @@ class PostgresqlDatabase:
                     while self.conn.notifies:
                         notify = self.conn.notifies.pop(0)
                         logger.debug(
-                            f"Received notification: {notify.payload} from channel {notify.channel}"
+                            f"Received notification: {notify.payload} from channel "
+                            f"{notify.channel}"
                         )
                         # Parse the JSON payload
                         try:
@@ -150,7 +152,8 @@ class PostgresqlDatabase:
                             current_hostname = socket.gethostname()
                             if hostname != current_hostname:
                                 logger.debug(
-                                    f"Hostname '{hostname}' does not match the current hostname '{current_hostname}'."
+                                    f"Hostname '{hostname}' does not match the "
+                                    f"current hostname '{current_hostname}'."
                                 )
                                 continue
 
@@ -160,7 +163,8 @@ class PostgresqlDatabase:
                             )
 
                             logger.debug(
-                                "Chrome Remote Desktop connected successfully. Exiting listener loop."
+                                "Chrome Remote Desktop connected successfully. " \
+                                "Exiting listener loop."
                             )
                             return
 

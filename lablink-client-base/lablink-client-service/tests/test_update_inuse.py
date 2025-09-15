@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import requests
 
 from lablink_client_service.update_inuse_status import (
     is_process_running,
@@ -36,8 +35,8 @@ def test_listen_for_process_triggers_callback(monkeypatch):
     monkeypatch.setattr("psutil.process_iter", fake_proc_iter)
     called = []
 
-    # Define a callback function that appends to the called list and raises StopIteration because we want to stop
-    # listening after the first call
+    # Define a callback function that appends to the called list and raises
+    # StopIteration because we want to stop listening after the first call
     def stop_callback():
         called.append(True)
         raise StopIteration

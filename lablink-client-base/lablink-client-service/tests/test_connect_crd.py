@@ -10,7 +10,10 @@ from lablink_client_service.connect_crd import (
     connect_to_crd,
 )
 
-CRD_COMMAND_WITH_CODE = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+CRD_COMMAND_WITH_CODE = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
+    "--code='hidden_code' " \
+    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+    "--name=$(hostname)"
 
 
 def test_construct_command_with_code():
@@ -18,7 +21,10 @@ def test_construct_command_with_code():
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
         command = construct_command(args)
 
-    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=test_code --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
+    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
+                "--code=test_code " \
+                "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+                "--name=test_vm"
     assert command == expected
 
 
@@ -27,7 +33,10 @@ def test_construct_command_without_vm_name():
     with patch.dict(os.environ, {}, clear=True):
         command = construct_command(args)
 
-    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=test_code --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
+    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
+                "--code=test_code " \
+                "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+                "--name=$(hostname)"
     assert command == expected
 
 
@@ -49,7 +58,10 @@ def test_reconstruct_command(mock_create_parser, mock_construct_command):
     mock_construct_command.return_value = "test_command"
 
     result = reconstruct_command(
-        "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=test_code --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
+        "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
+        "--code=test_code " \
+        "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+        "--name=test_vm"
     )
 
     mock_create_parser.assert_called_once()
@@ -69,8 +81,7 @@ def test_reconstruct_command(mock_create_parser, mock_construct_command):
 def test_whole_reconstruction():
     crd_command = CRD_COMMAND_WITH_CODE
     command = reconstruct_command(crd_command)
-    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
-    assert command == expected
+    assert command == crd_command
 
 
 @patch("lablink_client_service.connect_crd.subprocess.run")
@@ -88,11 +99,9 @@ def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
 
     connect_to_crd(input_command, pin)
 
-    mock_reconstruct_command.assert_called_once_with(
-        "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)"
-    )
+    mock_reconstruct_command.assert_called_once_with(input_command)
     mock_subprocess_run.assert_called_once_with(
-        "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=$(hostname)",
+        input_command,
         input="123456\n123456\n",
         shell=True,
         capture_output=True,
@@ -108,7 +117,9 @@ def test_whole_connection_workflow(mock_subprocess_run):
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
         connect_to_crd(input_command, pin)
 
-    expected_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host --code='hidden_code' --redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
+    expected_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
+    "--code='hidden_code' " \
+    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
     mock_subprocess_run.assert_called_once_with(
         expected_command,
         input="123456\n123456\n",
