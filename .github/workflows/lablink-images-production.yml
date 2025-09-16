@@ -1,0 +1,83 @@
+name: Build and Push Docker Images (Production Workflow)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "lablink-allocator/**"
+      - "lablink-client-base/lablink-client-base-image/**"
+      - ".github/workflows/lablink-images-production.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image-name: lablink-allocator-image
+            dockerfile-path: ./lablink-allocator/Dockerfile
+            context: .
+          - image-name: lablink-client-base-image
+            dockerfile-path: ./lablink-client-base/lablink-client-base-image/Dockerfile
+            context: ./lablink-client-base/lablink-client-base-image
+    outputs:
+      git_sha: ${{ steps.get_sha.outputs.sha }}
+      sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get Git SHA
+        id: get_sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Debug Git SHA
+        run: echo "Git SHA ${{ steps.get_sha.outputs.sha }}"
+
+      - name: Sanitize platform name
+        id: sanitize_platform
+        run: |
+          sanitized_platform="linux/amd64" # Hardcoded for now
+          sanitized_platform="${sanitized_platform/\//-}"
+          echo "sanitized_platform=$sanitized_platform" >> $GITHUB_OUTPUT
+
+      - name: Generate tags
+        id: generate_tags
+        run: |
+          if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
+            echo "tags=ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:latest,ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.get_sha.outputs.sha }},ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-latest,ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-terraform-1.4.6,ghcr.io/${{ github.repository_owner }}/lablink-allocator-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-postgres-15" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
+            echo "tags=ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:latest,ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }},ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04,ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-${{ steps.get_sha.outputs.sha }},ghcr.io/${{ github.repository_owner }}/lablink-client-base-image:${{ steps.sanitize_platform.outputs.sanitized_platform }}-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile-path }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.generate_tags.outputs.tags }}
+
+      - name: Trigger Terraform Deploy
+        if: github.ref_name == 'main' && matrix.image-name == 'lablink-allocator-image'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: deploy-prod-image
+          client-payload: >-
+            {
+              "environment": "prod",
+              "image_tag": "${{ steps.get_sha.outputs.sha }}"
+            }
