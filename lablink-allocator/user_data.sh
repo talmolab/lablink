@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Install AWS SSM Agent
+sudo apt-get update -y
+sudo apt-get install -y amazon-ssm-agent
+sudo systemctl enable --now amazon-ssm-agent
+
 IMAGE="ghcr.io/talmolab/lablink-allocator-image:${ALLOCATOR_IMAGE_TAG}"
 docker pull $IMAGE
 docker run -d -p 80:5000 \

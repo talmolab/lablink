@@ -67,10 +67,11 @@ variable "allocator_image_tag" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami             = "ami-0e096562a04af2d8b"
-  instance_type   = local.allocator_instance_type
-  security_groups = [aws_security_group.allow_http.name]
-  key_name        = aws_key_pair.lablink_key_pair.key_name
+  ami                  = "ami-0e096562a04af2d8b"
+  instance_type        = local.allocator_instance_type
+  security_groups      = [aws_security_group.allow_http.name]
+  key_name             = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile = aws_iam_instance_profile.allocator_instance_profile.name
 
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
@@ -131,6 +132,30 @@ resource "aws_iam_role" "lambda_exec" {
     }]
   })
 }
+
+resource "aws_iam_role" "allocator_instance_role" {
+  name = "lablink-allocator-instance-role-${var.resource_suffix}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+# SSM core permissions (RunCommand, inventory, etc.)
+resource "aws_iam_role_policy_attachment" "allocator_ssm_core" {
+  role       = aws_iam_role.allocator_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "allocator_instance_profile" {
+  name = "lablink-allocator-instance-profile-${var.resource_suffix}"
+  role = aws_iam_role.allocator_instance_role.name
+}
+
 # Subscription filter to send CloudWatch logs to Lambda
 resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
   name            = "lablink_lambda_subscription_${var.resource_suffix}"
