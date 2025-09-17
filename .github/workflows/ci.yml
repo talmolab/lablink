@@ -24,7 +24,7 @@ jobs:
             working-directory: lablink-client-base/lablink-client-service
             ruff-command: "uv run ruff check lablink_client_service tests"
           - package: lablink-allocator-service
-            python-version: "3.12"
+            python-version: "3.10"
             working-directory: lablink-allocator/lablink-allocator-service
             ruff-command: "uv run ruff check . tests"
     steps:
@@ -51,11 +51,11 @@ jobs:
       matrix:
         include:
           - package: lablink-client-service
-            python-version: "3.11"
+            python-version: "3.10"
             working-directory: lablink-client-base/lablink-client-service
             test-command: "uv run pytest tests --cov=lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
           - package: lablink-allocator-service
-            python-version: "3.12"
+            python-version: "3.10"
             working-directory: lablink-allocator/lablink-allocator-service
             test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term"
 
