@@ -106,3 +106,22 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.generate_tags.outputs.tags }}
+
+      - name: Set GitHub Output
+        id: set_output
+        run: |
+          echo "Triggering deployment with image tag: ${{ steps.get_sha.outputs.sha }}"
+          echo "image_tag=${{ steps.get_sha.outputs.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Trigger Terraform Deploy
+        if: github.ref_name == 'main' || inputs.environment == 'prod'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: deploy-prod-image
+          client-payload: >-
+            {
+              "environment": "prod",
+              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
+            }
