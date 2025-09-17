@@ -1,18 +1,29 @@
 name: Build and Push Docker Images
 
 on:
-  push:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run the workflow against"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+          - prod
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
       - ".github/workflows/lablink-images.yml"
-
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to deploy (test, prod)"
-        required: true
-        default: "test"
+  push:
+    branches:
+      - main
+    paths:
+      - "lablink-allocator/**"
+      - "lablink-client-base/lablink-client-base-image/**"
+      - ".github/workflows/lablink-images.yml"
 
 jobs:
   build:
@@ -34,6 +45,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set environment suffix
+        id: set_env_suffix
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ inputs.environment }}" == "test" ]; then
+            echo "env_suffix=-test" >> $GITHUB_OUTPUT
+          else
+            echo "env_suffix=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Get Git SHA
         id: get_sha
         run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
@@ -44,8 +64,8 @@ jobs:
       - name: Sanitize platform name
         id: sanitize_platform
         run: |
-          sanitized_platform="linux/amd64" # Hardcoded for now
-          sanitized_platform="${sanitized_platform/\//-}" # Replace / with -
+          sanitized_platform="linux/amd64"
+          sanitized_platform="${sanitized_platform/\//-}"
           echo "sanitized_platform=$sanitized_platform" >> $GITHUB_OUTPUT
 
       - name: Generate tags
@@ -54,42 +74,20 @@ jobs:
           REPO_OWNER="${{ github.repository_owner }}"
           PLATFORM="${{ steps.sanitize_platform.outputs.sanitized_platform }}"
           SHA="${{ steps.get_sha.outputs.sha }}"
+          ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
+
           if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
-            if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
-              TAGS="$(
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:latest"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15"
-              | paste -sd "," - )"
-            else
-              TAGS="$(
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-test"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA-test"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest-test"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6-test"
-              echo "ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15-test"
-              | paste -sd "," - )"
+            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+            if [ -z "$ENV_SUFFIX" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:latest"
             fi
-            echo "tags=$TAGS" >> $GITHUB_OUTPUT
+            echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-            if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
-              TAGS="$(
-              echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:latest"
-              echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04"
-              echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$SHA"
-              echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3"
-              | paste -sd "," - )"
-            else
-              TAGS="$(
-                echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-test"
-                echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04-test"
-                echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA-test"
-                echo "ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3-test"
-              | paste -sd "," - )"
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            if [ -z "$ENV_SUFFIX" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:latest"
             fi
-            echo "tags=$TAGS" >> $GITHUB_OUTPUT
+            echo "tags=$tags" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
@@ -105,6 +103,6 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile-path }}
-          platforms: linux/amd64 # Hardcoded for now
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.generate_tags.outputs.tags }}
