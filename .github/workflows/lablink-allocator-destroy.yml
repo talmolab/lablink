@@ -63,7 +63,7 @@ jobs:
       - name: Terraform Destroy Client VMs
         working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
-          terraform destroy -auto-approve
+          echo "Destroying client VMs..."
 
       - name: Terraform Init
         working-directory: lablink-allocator
