@@ -60,10 +60,18 @@ jobs:
         run: |
           terraform init -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl
 
+      - name: Extract Variable File
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
+            cp variables-dev.tfvars variables.tfvars
+          else
+            aws s3 cp s3://tf-state-lablink-allocator-bucket/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars
+          fi
       - name: Terraform Destroy Client VMs
         working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
-          echo "Destroying client VMs..."
+          terraform destroy -auto-approve -var-file=variables.tfvars
 
       - name: Terraform Init
         working-directory: lablink-allocator
