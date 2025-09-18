@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -103,3 +104,20 @@ def check_support_nvidia(machine_type) -> bool:
     except ClientError as e:
         logger.error(f"Error checking NVIDIA support for {machine_type}: {e}")
     return False
+
+
+def upload_to_s3(
+        local_path: Path,
+        env: str,
+        bucket_name: str,
+        region: str,
+        kms_key_id: str|None=None
+    ) -> None:
+    s3 = boto3.client("s3", region_name=region)
+    key = f"{env}/client/{local_path.name}"
+    extra = {"ContentType": "text/plain"}
+    if kms_key_id:
+        extra.update({"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key_id})
+
+    # Upload the variable file
+    s3.upload_file(local_path, bucket_name, key, ExtraArgs=extra)

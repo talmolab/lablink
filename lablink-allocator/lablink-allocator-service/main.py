@@ -22,7 +22,7 @@ import psycopg2
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.aws_utils import validate_aws_credentials, check_support_nvidia
+from utils.aws_utils import validate_aws_credentials, check_support_nvidia, upload_to_s3
 from utils.scp import (
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
@@ -54,10 +54,8 @@ key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
-
 # Initialize the database connection
 database = None
-
 
 def init_database():
     """Initialize the database connection."""
@@ -349,6 +347,15 @@ def launch():
 
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
+
+        # Upload the runtime file to S3
+        s3_bucket = "tf-state-lablink-allocator-bucket"
+        upload_to_s3(
+            local_path=runtime_file,
+            env=ENVIRONMENT,
+            bucket_name=s3_bucket,
+            region=cfg.app.region,
+        )
 
         return render_template("dashboard.html", output=clean_output)
 
@@ -671,5 +678,7 @@ if __name__ == "__main__":
     terraform_dir = Path("terraform")
     if not (terraform_dir / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
-        subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
+        subprocess.run(["terraform", "init",
+                        f"-backend-config=backend-client-{ENVIRONMENT}.hcl"],
+                        cwd=terraform_dir, check=True)
     app.run(host="0.0.0.0", port=5000, threaded=True)

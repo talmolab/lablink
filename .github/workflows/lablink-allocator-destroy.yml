@@ -55,6 +55,16 @@ jobs:
             echo "tag=linux-amd64-latest-test" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Terraform Init Client VMs
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        run: |
+          terraform init -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl
+
+      - name: Terraform Destroy Client VMs
+        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        run: |
+          terraform destroy -auto-approve
+
       - name: Terraform Init
         working-directory: lablink-allocator
         run: |
