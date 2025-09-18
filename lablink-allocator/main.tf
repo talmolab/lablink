@@ -16,12 +16,12 @@ data "aws_iam_policy_document" "s3_backend_doc" {
   statement {
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::mybucket"]
+    resources = ["arn:aws:s3:::tf-state-lablink-allocator-bucket"]
 
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["path/to/my/*"]
+      values   = ["${var.resource_suffix}/*"]
     }
   }
 
@@ -30,7 +30,7 @@ data "aws_iam_policy_document" "s3_backend_doc" {
     effect  = "Allow"
     actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = [
-      "arn:aws:s3:::mybucket/path/to/my/*"
+      "arn:aws:s3:::tf-state-lablink-allocator-bucket/${var.resource_suffix}/*"
     ]
   }
 }
