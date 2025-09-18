@@ -221,3 +221,6 @@ outputs
 
 # Ignore VS Code workspace settings
 .vscode/
+
+# Ignore lambda zip files
+lambda_package.zip
