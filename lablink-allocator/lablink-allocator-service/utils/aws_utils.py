@@ -121,7 +121,7 @@ def upload_to_s3(
         env (str): The environment (e.g., dev, test, prod) for the upload.
         bucket_name (str): The name of the S3 bucket to upload to.
         region (str): The AWS region where the S3 bucket is located.
-        kms_key_id (Optional[str], optional): The KMS key ID for server-side encryption. 
+        kms_key_id (Optional[str], optional): The KMS key ID for server-side encryption.
             Defaults to None.
     """
     s3 = boto3.client("s3", region_name=region)
