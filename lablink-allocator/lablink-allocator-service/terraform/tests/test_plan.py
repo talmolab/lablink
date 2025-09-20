@@ -1,8 +1,8 @@
-import os
 import json
 import pytest
 import re
 import subprocess
+from pathlib import Path
 
 
 @pytest.fixture(scope="module")
@@ -11,13 +11,17 @@ def plan(fixture_dir):
     Fixture to validate the Terraform plan using the provided fixtures.
     """
     # Find the Terraform directory relative to this test file
-    base_dir = os.path.join(os.path.dirname(__file__), "..")
-    var_path = os.path.join(fixture_dir, "plan.auto.tfvars")
+    base_dir = Path(__file__).parent.parent
+    var_path = fixture_dir / "plan.auto.tfvars"
 
     # Initialize and create the plan
-    subprocess.run(["terraform", "init", "-input=false", "-no-color"], cwd=base_dir)
+    subprocess.run(
+        ["terraform", "init", "-input=false", "-no-color"],
+        cwd=base_dir,
+        check=True
+    )
     subprocess.run(["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan",
-                    "-no-color"], cwd=base_dir)
+                    "-no-color"], cwd=base_dir, check=True)
     result = subprocess.run(["terraform", "show", "-json", "plan.tfplan"],
                             cwd=base_dir, check=True, capture_output=True)
     tfplan = json.loads(result.stdout)
