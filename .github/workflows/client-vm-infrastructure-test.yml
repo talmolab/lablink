@@ -42,6 +42,10 @@ jobs:
         run: |
           uv sync --all-extras
 
+      - name: Remove backend config
+        run: |
+          rm -f lablink-allocator/lablink-allocator-service/terraform/backend.tf
+
       - name: Run tests
         working-directory: lablink-allocator/lablink-allocator-service/terraform
         run: |
