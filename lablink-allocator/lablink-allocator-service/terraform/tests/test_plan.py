@@ -12,11 +12,12 @@ def plan(fixture_dir):
     """
     # Find the Terraform directory relative to this test file
     base_dir = Path(__file__).parent.parent
-    var_path = fixture_dir / "plan.auto.tfvars"
+    var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
 
     # Initialize and create the plan
     subprocess.run(
-        ["terraform", "init", "-input=false", "-no-color", "-backend=false", "-reconfigure"],
+        ["terraform", "init", "-input=false", "-no-color",
+         "-backend=false", "-reconfigure"],
         cwd=base_dir,
         check=True
     )
