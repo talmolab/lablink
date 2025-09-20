@@ -16,7 +16,7 @@ def plan(fixture_dir):
 
     # Initialize and create the plan
     subprocess.run(
-        ["terraform", "init", "-input=false", "-no-color"],
+        ["terraform", "init", "-input=false", "-no-color", "-backend=false", "-reconfigure"],
         cwd=base_dir,
         check=True
     )
