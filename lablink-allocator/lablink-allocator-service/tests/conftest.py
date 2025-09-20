@@ -30,6 +30,7 @@ def omega_config():
                 "admin_password": "test_pass",
                 "region": "us-west-2",
             },
+            "bucket_name": "test-bucket",
         }
     )
 

@@ -68,7 +68,7 @@ def test_launch_vm_success(
 
     # Assert upload to s3 called once with correct args
     mock_upload_to_s3.assert_called_once_with(
-        bucket_name="tf-state-lablink-allocator-bucket",
+        bucket_name="test-bucket",
         region="us-west-2",
         local_path=Path("terraform") / "terraform.runtime.tfvars",
         env="test",

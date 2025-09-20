@@ -12,7 +12,6 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_policy_document" "s3_backend_doc" {
-  # List the bucket (optionally scope with prefix condition)
   statement {
     effect    = "Allow"
     actions   = ["s3:ListBucket"]

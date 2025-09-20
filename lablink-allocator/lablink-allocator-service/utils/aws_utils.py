@@ -1,6 +1,7 @@
 import os
 import logging
 from pathlib import Path
+from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -111,8 +112,18 @@ def upload_to_s3(
         env: str,
         bucket_name: str,
         region: str,
-        kms_key_id: str|None=None
+        kms_key_id: Optional[str] = None,
     ) -> None:
+    """Uploads a file to an S3 bucket.
+
+    Args:
+        local_path (Path): The local file path to upload.
+        env (str): The environment (e.g., dev, test, prod) for the upload.
+        bucket_name (str): The name of the S3 bucket to upload to.
+        region (str): The AWS region where the S3 bucket is located.
+        kms_key_id (Optional[str], optional): The KMS key ID for server-side encryption. 
+            Defaults to None.
+    """
     s3 = boto3.client("s3", region_name=region)
     key = f"{env}/client/{local_path.name}"
     extra = {"ContentType": "text/plain"}

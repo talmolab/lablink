@@ -349,11 +349,11 @@ def launch():
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
 
         # Upload the runtime file to S3
-        s3_bucket = "tf-state-lablink-allocator-bucket"
+        logger.debug(f"Uploading runtime file to S3 bucket: {cfg.bucket_name}...")
         upload_to_s3(
             local_path=runtime_file,
             env=ENVIRONMENT,
-            bucket_name=s3_bucket,
+            bucket_name=cfg.bucket_name,
             region=cfg.app.region,
         )
 
