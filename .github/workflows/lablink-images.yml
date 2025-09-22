@@ -20,6 +20,7 @@ on:
   push:
     branches:
       - main
+      - test
     paths:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
@@ -48,7 +49,7 @@ jobs:
       - name: Set environment suffix
         id: set_env_suffix
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ inputs.environment }}" == "test" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ inputs.environment }}" == "test" ]; then
             echo "env_suffix=-test" >> $GITHUB_OUTPUT
           else
             echo "env_suffix=" >> $GITHUB_OUTPUT
