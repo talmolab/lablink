@@ -1,0 +1,78 @@
+name: CI for Lablink Services
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "lablink-client-base/lablink-client-service/**"
+      - "lablink-allocator/lablink-allocator-service/**"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  lint:
+    name: Lint - ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - package: lablink-client-service
+            python-version: "3.10"
+            working-directory: lablink-client-base/lablink-client-service
+            ruff-command: "uv run ruff check lablink_client_service tests"
+          - package: lablink-allocator-service
+            python-version: "3.10"
+            working-directory: lablink-allocator/lablink-allocator-service
+            ruff-command: "uv run ruff check . tests"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.working-directory }}
+        run: uv sync --all-extras
+
+      - name: Run ruff linter
+        working-directory: ${{ matrix.working-directory }}
+        run: ${{ matrix.ruff-command }}
+
+  test:
+    name: Test - ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - package: lablink-client-service
+            python-version: "3.10"
+            working-directory: lablink-client-base/lablink-client-service
+            test-command: "uv run pytest tests --cov=lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+          - package: lablink-allocator-service
+            python-version: "3.10"
+            working-directory: lablink-allocator/lablink-allocator-service
+            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.working-directory }}
+        run: |
+          uv sync --all-extras
+
+      - name: Run tests
+        working-directory: ${{ matrix.working-directory }}
+        run: ${{ matrix.test-command }}
