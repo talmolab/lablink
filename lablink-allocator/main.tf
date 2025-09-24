@@ -11,6 +11,30 @@ provider "aws" {
 # Get the current AWS account ID
 data "aws_caller_identity" "current" {}
 
+data "aws_iam_policy_document" "s3_backend_doc" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::tf-state-lablink-allocator-bucket"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["${var.resource_suffix}/*"]
+    }
+  }
+
+  # Read/Write/Delete objects under the prefix
+  statement {
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [
+      "arn:aws:s3:::tf-state-lablink-allocator-bucket/${var.resource_suffix}/*"
+    ]
+  }
+}
+
+
 # Zip the Lambda function code
 # To package the Lambda function into a zip file
 data "archive_file" "lambda_zip" {
@@ -67,10 +91,11 @@ variable "allocator_image_tag" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami             = "ami-0e096562a04af2d8b"
-  instance_type   = local.allocator_instance_type
-  security_groups = [aws_security_group.allow_http.name]
-  key_name        = aws_key_pair.lablink_key_pair.key_name
+  ami                  = "ami-0e096562a04af2d8b"
+  instance_type        = local.allocator_instance_type
+  security_groups      = [aws_security_group.allow_http.name]
+  key_name             = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile = aws_iam_instance_profile.allocator_instance_profile.name
 
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
@@ -124,13 +149,45 @@ resource "aws_iam_role" "lambda_exec" {
   name = "lablink_lambda_exec_${var.resource_suffix}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      },
+    ]
+  })
+}
+
+
+resource "aws_iam_policy" "s3_backend_policy" {
+  name   = "lablink_s3_backend_${var.resource_suffix}"
+  policy = data.aws_iam_policy_document.s3_backend_doc.json
+}
+
+resource "aws_iam_role" "instance_role" {
+  name = "lablink_instance_role_${var.resource_suffix}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
     Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
+      Effect    = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" },
       Action    = "sts:AssumeRole"
     }]
   })
 }
+
+resource "aws_iam_role_policy_attachment" "attach_s3_backend" {
+  role       = aws_iam_role.instance_role.name
+  policy_arn = aws_iam_policy.s3_backend_policy.arn
+}
+
+resource "aws_iam_instance_profile" "allocator_instance_profile" {
+  name = "lablink_instance_profile_${var.resource_suffix}"
+  role = aws_iam_role.instance_role.name
+}
+
 # Subscription filter to send CloudWatch logs to Lambda
 resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
   name            = "lablink_lambda_subscription_${var.resource_suffix}"

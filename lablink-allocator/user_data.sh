@@ -1,4 +1,5 @@
 #!/bin/bash
+
 IMAGE="ghcr.io/talmolab/lablink-allocator-image:${ALLOCATOR_IMAGE_TAG}"
 docker pull $IMAGE
 docker run -d -p 80:5000 \

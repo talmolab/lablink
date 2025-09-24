@@ -75,6 +75,7 @@ class Config:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)
+    bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
 
 
 cs = ConfigStore.instance()

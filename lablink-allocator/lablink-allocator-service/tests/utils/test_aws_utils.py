@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
 import utils.aws_utils as aws_utils
@@ -108,3 +109,35 @@ def test_check_support_nvidia_no_gpuinfo(mock_boto_client):
     mock_boto_client.return_value = mock_ec2
 
     assert aws_utils.check_support_nvidia("t2.micro") is False
+
+
+def test_upload_to_s3_success(monkeypatch, tmp_path):
+    # Prepare a real file so Path handling is realistic
+    local_file = tmp_path / "vars.auto.tfvars"
+    local_file.write_text('foo="bar"\n')
+
+    # Mock the S3 client and its upload_file method
+    mock_s3 = SimpleNamespace(upload_file=MagicMock(name="upload_file"))
+    client_mock = MagicMock(return_value=mock_s3)
+    monkeypatch.setattr(
+            aws_utils, "boto3", SimpleNamespace(client=client_mock), raising=True
+        )
+
+    bucket = "tf-state-lablink-allocator-bucket"
+
+    aws_utils.upload_to_s3(
+        bucket_name=bucket,
+        region="us-west-2",
+        local_path=local_file,
+        env="test",
+    )
+
+    # Assert: region passed to boto3.client
+    client_mock.assert_called_once_with("s3", region_name="us-west-2")
+
+    # Assert: upload_file args and ExtraArgs
+    expected_key = f'test/client/{local_file.name}'
+    mock_s3.upload_file.assert_called_once()
+    args, kwargs = mock_s3.upload_file.call_args
+    assert args == (local_file, bucket, expected_key)
+    assert kwargs["ExtraArgs"] == {"ContentType": "text/plain"}

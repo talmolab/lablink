@@ -18,3 +18,5 @@ app:
   admin_user: "admin"
   admin_password: "IwanttoSLEAP"
   region: "us-west-2"
+
+bucket_name: "tf-state-lablink-allocator-bucket"

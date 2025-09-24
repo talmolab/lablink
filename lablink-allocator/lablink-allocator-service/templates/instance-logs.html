@@ -267,7 +267,7 @@
                 const logBox = document.getElementById("logBox");
                 const shouldFollowTail = document.getElementById("followTail").checked;
                 
-                const res = await fetch(`/api/vm-logs/${hostname}`);
+                const res = await fetch(`/api/vm-logs/${hostname}`, { credentials : 'include' });
                 if (res.ok) {
                     const data = await res.json();
                     const logs = data.logs || "No logs available.";

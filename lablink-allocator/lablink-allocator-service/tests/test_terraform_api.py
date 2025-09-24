@@ -6,11 +6,13 @@ POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
 
+@patch("main.upload_to_s3")
 @patch("main.check_support_nvidia", return_value=True)
 @patch("main.subprocess.run")
 def test_launch_vm_success(
     mock_run,
     mock_check_support_nvidia,
+    mock_upload_to_s3,
     client,
     admin_headers,
     monkeypatch,
@@ -63,6 +65,15 @@ def test_launch_vm_success(
     tfvars = (Path("terraform") / "terraform.runtime.tfvars").read_text()
     missing = [line for line in expected_lines if line not in tfvars]
     assert not missing, f"Missing lines in tfvars: {missing}"
+
+    # Assert upload to s3 called once with correct args
+    mock_upload_to_s3.assert_called_once_with(
+        bucket_name="test-bucket",
+        region="us-west-2",
+        local_path=Path("terraform") / "terraform.runtime.tfvars",
+        env="test",
+    )
+
 
 
 @patch("main.subprocess.run")
