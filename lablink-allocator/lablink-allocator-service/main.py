@@ -678,7 +678,7 @@ if __name__ == "__main__":
     terraform_dir = Path("terraform")
     if not (terraform_dir / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
-        if ENVIRONMENT not in ["prod", "dev"]:
+        if ENVIRONMENT not in ["prod", "test"]:
             subprocess.run(["terraform", "init"],
                             cwd=terraform_dir, check=True)
         else:
