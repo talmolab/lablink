@@ -1,0 +1,65 @@
+name: Docs
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'lablink-allocator/lablink-allocator-service/**/*.py'
+      - 'lablink-client-base/lablink-client-service/**/*.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system --extra docs .
+          uv pip install --system -e lablink-allocator/lablink-allocator-service
+          uv pip install --system -e lablink-client-base/lablink-client-service
+
+      - name: Print environment info
+        run: |
+          which python
+          uv pip list
+
+      - name: Configure Git for deployment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy documentation (release)
+        if: github.event_name == 'release'
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          uv run mike deploy --push --update-aliases $VERSION latest
+          uv run mike set-default --push latest
+
+      - name: Deploy documentation (dev)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          uv run mike deploy --push dev
+
+      - name: Build documentation (manual/PR)
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+        run: |
+          uv run mkdocs build --strict
