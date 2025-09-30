@@ -440,7 +440,7 @@ When making changes that affect users:
 
 ```bash
 # Quick test (creates temporary environment automatically)
-uv run --with-requirements docs-requirements.txt mkdocs serve
+uv run --extra docs mkdocs serve
 
 # Or create persistent virtual environment
 uv venv .venv-docs
@@ -450,7 +450,7 @@ uv venv .venv-docs
 source .venv-docs/bin/activate
 
 # Install dependencies
-uv pip install -r docs-requirements.txt
+uv sync --extra docs
 
 # Serve documentation
 mkdocs serve
@@ -465,7 +465,7 @@ mkdocs build
 
 ```bash
 # Install docs dependencies
-pip install -r docs-requirements.txt
+pip install -e ".[docs]"
 
 # Serve documentation
 mkdocs serve

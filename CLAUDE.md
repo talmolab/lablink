@@ -48,7 +48,7 @@ lablink/
 │       └── tests/              # Unit tests
 ├── terraform/                  # Shared Terraform modules
 ├── mkdocs.yml                  # Documentation configuration
-├── docs-requirements.txt       # Documentation dependencies
+├── pyproject.toml              # Python dependencies (docs extra)
 ├── README.md                   # Repository README
 └── CLAUDE.md                   # This file
 ```
@@ -380,20 +380,20 @@ sudo docker exec <container-id> pg_isready -U lablink
 **Using uv (Recommended):**
 ```bash
 # Quick test (temporary environment)
-uv run --with-requirements docs-requirements.txt mkdocs serve
+uv run --extra docs mkdocs serve
 # Open http://localhost:8000
 
 # Or persistent environment
 uv venv .venv-docs
 source .venv-docs/bin/activate  # macOS/Linux
 # .venv-docs\Scripts\activate  # Windows
-uv pip install -r docs-requirements.txt
+uv sync --extra docs
 mkdocs serve
 ```
 
 **Using pip:**
 ```bash
-pip install -r docs-requirements.txt
+pip install -e ".[docs]"
 mkdocs serve
 # Open http://localhost:8000
 ```

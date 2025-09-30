@@ -26,7 +26,7 @@ git clone https://github.com/talmolab/lablink.git
 cd lablink
 
 # Quick test (creates temporary environment automatically)
-uv run --with-requirements docs-requirements.txt mkdocs serve
+uv run --extra docs mkdocs serve
 
 # Or create persistent virtual environment
 uv venv .venv-docs
@@ -36,7 +36,7 @@ uv venv .venv-docs
 source .venv-docs/bin/activate
 
 # Install dependencies
-uv pip install -r docs-requirements.txt
+uv sync --extra docs
 ```
 
 **Option 2: Using pip**
@@ -53,8 +53,8 @@ python -m venv .venv-docs
 # macOS/Linux
 source .venv-docs/bin/activate
 
-# Install documentation dependencies
-pip install -r docs-requirements.txt
+# Install documentation dependencies (from pyproject.toml)
+pip install -e ".[docs]"
 ```
 
 ### Build and Preview
@@ -82,7 +82,7 @@ mkdocs build
 ```
 lablink/
 ├── mkdocs.yml              # MkDocs configuration
-├── docs-requirements.txt   # Python dependencies
+├── pyproject.toml          # Python dependencies (docs extra)
 ├── docs/
 │   ├── index.md           # Homepage
 │   ├── prerequisites.md   # Getting Started section
@@ -665,8 +665,11 @@ Content not indented
 ## Quick Reference
 
 ```bash
-# Install dependencies
-pip install -r docs-requirements.txt
+# Install dependencies (uv)
+uv sync --extra docs
+
+# Install dependencies (pip)
+pip install -e ".[docs]"
 
 # Serve locally
 mkdocs serve

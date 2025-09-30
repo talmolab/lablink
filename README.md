@@ -176,13 +176,13 @@ ruff check .
 
 ```bash
 # Quick test (temporary environment)
-uv run --with-requirements docs-requirements.txt mkdocs serve
+uv run --extra docs mkdocs serve
 
 # Or create persistent environment
 uv venv .venv-docs
 .venv-docs\Scripts\activate  # Windows
 # source .venv-docs/bin/activate  # macOS/Linux
-uv pip install -r docs-requirements.txt
+uv sync --extra docs
 mkdocs serve
 ```
 
@@ -190,7 +190,7 @@ mkdocs serve
 
 ```bash
 # Install dependencies
-pip install -r docs-requirements.txt
+pip install -e ".[docs]"
 
 # Serve locally
 mkdocs serve
