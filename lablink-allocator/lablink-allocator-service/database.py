@@ -91,7 +91,8 @@ class PostgresqlDatabase:
         # Query to get the column names from the information schema
         with self.conn.cursor() as cursor:
             cursor.execute(
-                "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = %s",
                 (table_name,)
             )
             return [row[0] for row in cursor.fetchall()]

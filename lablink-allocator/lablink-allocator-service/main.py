@@ -292,7 +292,8 @@ def launch():
             )
     except ValueError:
         return render_template(
-            "dashboard.html", error="Invalid number of VMs. Please enter a valid integer."
+            "dashboard.html",
+            error="Invalid number of VMs. Please enter a valid integer.",
         )
 
     terraform_dir = Path("terraform")
