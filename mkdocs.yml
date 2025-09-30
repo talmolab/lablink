@@ -108,6 +108,7 @@ nav:
       - Troubleshooting: troubleshooting.md
       - FAQ: faq.md
   - Contributing:
+      - Contributing Guide: contributing.md
       - Contributing to Docs: contributing-docs.md
   - About:
       - Changelog: changelog.md

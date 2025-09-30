@@ -305,15 +305,18 @@ terraform apply \
 
 After deploying the allocator:
 
-### 1. Update DNS (Optional)
+### 1. Configure DNS (Optional)
 
-Point a friendly DNS name to your allocator:
+Point a custom domain to your allocator for easier access.
 
+#### Using AWS Route 53
+
+**Quick Update**:
 ```bash
 # Get IP
 ALLOCATOR_IP=$(terraform output -raw ec2_public_ip)
 
-# Update Route 53 (example)
+# Update Route 53 A record
 aws route53 change-resource-record-sets \
   --hosted-zone-id Z1234567890ABC \
   --change-batch '{
@@ -328,6 +331,101 @@ aws route53 change-resource-record-sets \
     }]
   }'
 ```
+
+#### Example: Talmo Lab DNS Configuration
+
+The Talmo Lab LabLink deployment uses the `sleap.ai` domain with environment-specific subdomains:
+
+| Environment | Subdomain | IP Address | Purpose |
+|-------------|-----------|------------|---------|
+| **Production** | `lablink.sleap.ai` | `44.247.165.126` | Production allocator |
+| **Test** | `test.lablink.sleap.ai` | `100.20.149.17` | Testing environment |
+| **Dev** | `dev.lablink.sleap.ai` | `34.208.206.60` | Development environment |
+
+**DNS Configuration**:
+- **Type**: A Records
+- **TTL**: 300 seconds
+- **Managed via**: AWS Route 53
+- **Name Servers**:
+  - `ns-158.awsdns-19.com`
+  - `ns-697.awsdns-23.net`
+  - `ns-1839.awsdns-37.co.uk`
+  - `ns-1029.awsdns-00.org`
+
+**To replicate this setup**:
+
+1. **Create hosted zone** in Route 53:
+   ```bash
+   aws route53 create-hosted-zone \
+     --name sleap.ai \
+     --caller-reference $(date +%s)
+   ```
+
+2. **Add A records** for each environment:
+   ```bash
+   # Production
+   aws route53 change-resource-record-sets \
+     --hosted-zone-id YOUR_ZONE_ID \
+     --change-batch '{
+       "Changes": [{
+         "Action": "UPSERT",
+         "ResourceRecordSet": {
+           "Name": "lablink.sleap.ai",
+           "Type": "A",
+           "TTL": 300,
+           "ResourceRecords": [{"Value": "44.247.165.126"}]
+         }
+       }]
+     }'
+
+   # Test environment
+   aws route53 change-resource-record-sets \
+     --hosted-zone-id YOUR_ZONE_ID \
+     --change-batch '{
+       "Changes": [{
+         "Action": "UPSERT",
+         "ResourceRecordSet": {
+           "Name": "test.lablink.sleap.ai",
+           "Type": "A",
+           "TTL": 300,
+           "ResourceRecords": [{"Value": "100.20.149.17"}]
+         }
+       }]
+     }'
+
+   # Dev environment
+   aws route53 change-resource-record-sets \
+     --hosted-zone-id YOUR_ZONE_ID \
+     --change-batch '{
+       "Changes": [{
+         "Action": "UPSERT",
+         "ResourceRecordSet": {
+           "Name": "dev.lablink.sleap.ai",
+           "Type": "A",
+           "TTL": 300,
+           "ResourceRecords": [{"Value": "34.208.206.60"}]
+         }
+       }]
+     }'
+   ```
+
+3. **Verify DNS propagation**:
+   ```bash
+   # Check if DNS is resolving
+   nslookup lablink.sleap.ai
+   dig lablink.sleap.ai
+
+   # Test all environments
+   curl http://lablink.sleap.ai
+   curl http://test.lablink.sleap.ai
+   curl http://dev.lablink.sleap.ai
+   ```
+
+!!! tip "DNS Best Practices"
+    - Use environment-specific subdomains (e.g., `prod.`, `test.`, `dev.`)
+    - Keep TTL low (300s) for easier updates during initial setup
+    - Increase TTL (3600s+) once stable to reduce DNS query costs
+    - Use Elastic IPs for production to avoid DNS updates on instance replacement
 
 ### 2. Change Default Passwords
 
