@@ -278,7 +278,24 @@ def submit_vm_details():
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
-    num_vms = int(request.form.get("num_vms"))
+    # Get and validate num_vms input
+    try:
+        num_vms_str = request.form.get("num_vms")
+        if not num_vms_str:
+            return render_template(
+                "dashboard.html", error="Number of VMs is required."
+            )
+        num_vms = int(num_vms_str)
+        if num_vms <= 0:
+            return render_template(
+                "dashboard.html", error="Number of VMs must be greater than 0."
+            )
+    except ValueError:
+        return render_template(
+            "dashboard.html",
+            error="Invalid number of VMs. Please enter a valid integer.",
+        )
+
     terraform_dir = Path("terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 

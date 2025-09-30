@@ -1,3 +1,7 @@
+"""This module defines the database configuration structure for the LabLink
+Allocator Service.
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -7,6 +11,8 @@ from hydra.core.config_store import ConfigStore
 @dataclass
 class DatabaseConfig:
     """Configuration for the database used in the LabLink Allocator Service.
+    This class defines the connection parameters for the database, including
+    the name, user, password, host, port, table name, and message channel.
 
     Attributes:
         dbname (str): The name of the database.
@@ -45,6 +51,8 @@ class AppConfig:
 @dataclass
 class MachineConfig:
     """Configuration for the machine used in the LabLink Allocator Service.
+    This class defines the machine type, repository, image, AMI ID, and
+    software to be used.
 
     Attributes:
         machine_type (str): The type of the machine to be used.
@@ -70,6 +78,7 @@ class Config:
         db (DatabaseConfig): The database configuration.
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.
+        bucket_name (str): The S3 bucket name for Terraform state.
     """
 
     db: DatabaseConfig = field(default_factory=DatabaseConfig)

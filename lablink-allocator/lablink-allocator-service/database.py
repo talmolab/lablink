@@ -91,8 +91,9 @@ class PostgresqlDatabase:
         # Query to get the column names from the information schema
         with self.conn.cursor() as cursor:
             cursor.execute(
-                "SELECT column_name FROM information_schema.columns WHERE " \
-                f"table_name = '{table_name}'"
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = %s",
+                (table_name,)
             )
             return [row[0] for row in cursor.fetchall()]
 
@@ -416,8 +417,7 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
 
         Returns:
-            str: The health status of the GPU for the specified VM
-                or None if not found.
+            str: The health status of the GPU for the specified VM or None if not found.
         """
         query = f"SELECT healthy FROM {self.table_name} WHERE hostname = %s;"
         try:
@@ -557,4 +557,3 @@ class PostgresqlDatabase:
         self.cursor.close()
         self.conn.close()
         logger.debug("Database connection closed.")
-
