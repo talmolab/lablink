@@ -1,0 +1,128 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run the workflow against"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+          - prod
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "lablink-allocator/**"
+      - "lablink-client-base/lablink-client-base-image/**"
+      - ".github/workflows/lablink-images.yml"
+  push:
+    branches:
+      - main
+      - test
+    paths:
+      - "lablink-allocator/**"
+      - "lablink-client-base/lablink-client-base-image/**"
+      - ".github/workflows/lablink-images.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image-name: lablink-allocator-image
+            dockerfile-path: ./lablink-allocator/Dockerfile
+            context: .
+          - image-name: lablink-client-base-image
+            dockerfile-path: ./lablink-client-base/lablink-client-base-image/Dockerfile
+            context: ./lablink-client-base/lablink-client-base-image
+    outputs:
+      git_sha: ${{ steps.get_sha.outputs.sha }}
+      sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment suffix
+        id: set_env_suffix
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ inputs.environment }}" == "test" ]; then
+            echo "env_suffix=-test" >> $GITHUB_OUTPUT
+          else
+            echo "env_suffix=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Git SHA
+        id: get_sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Debug Git SHA
+        run: echo "Git SHA ${{ steps.get_sha.outputs.sha }}"
+
+      - name: Sanitize platform name
+        id: sanitize_platform
+        run: |
+          sanitized_platform="linux/amd64"
+          sanitized_platform="${sanitized_platform/\//-}"
+          echo "sanitized_platform=$sanitized_platform" >> $GITHUB_OUTPUT
+
+      - name: Generate tags
+        id: generate_tags
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          PLATFORM="${{ steps.sanitize_platform.outputs.sanitized_platform }}"
+          SHA="${{ steps.get_sha.outputs.sha }}"
+          ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
+
+          if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
+            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+            if [ -z "$ENV_SUFFIX" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:latest"
+            fi
+            echo "tags=$tags" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            if [ -z "$ENV_SUFFIX" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:latest"
+            fi
+            echo "tags=$tags" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile-path }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.generate_tags.outputs.tags }}
+
+      - name: Set GitHub Output
+        id: set_output
+        run: |
+          echo "Triggering deployment with image tag: ${{ steps.get_sha.outputs.sha }}"
+          echo "image_tag=${{ steps.get_sha.outputs.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Trigger Terraform Deploy
+        if: github.ref_name == 'main' || inputs.environment == 'prod'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: deploy-prod-image
+          client-payload: >-
+            {
+              "environment": "prod",
+              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
+            }

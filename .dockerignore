@@ -1,0 +1,33 @@
+# Bytecode & cache
+lablink-allocator/lablink-allocator-service/__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Git files
+.git/
+.gitignore
+
+# Logs & temporary files
+*.log
+*.tmp
+
+# Docker-related
+Dockerfile
+.dockerignore
+
+# Local configs and credentials
+.env
+*.pem
+*.key
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Test folders
+lablink-allocator/lablink-allocator-service/tests/

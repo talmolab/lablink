@@ -5,13 +5,12 @@ import os
 
 import psutil
 import hydra
-from omegaconf import OmegaConf
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.logger_config import setup_logger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
-# Set up logging
-logger = setup_logger()
+# Default logger setup
+logger = logging.getLogger(__name__)
 
 
 def is_process_running(process_name: str) -> bool:
@@ -23,7 +22,7 @@ def is_process_running(process_name: str) -> bool:
             if any(process_name in part for part in proc.cmdline()):
                 if "update_inuse_status" in " ".join(proc.cmdline()):
                     logger.debug(
-                        f"Skipping process '{process_name}' as it is the current script."
+                        f"Skipping process '{process_name}' as it is the current script"
                     )
                     continue
                 logger.debug(f"Found process: {proc.cmdline()}")
@@ -35,6 +34,11 @@ def is_process_running(process_name: str) -> bool:
     return False
 
 
+def default_callback(process_name: str):
+    """Default callback to log when a process is detected."""
+    logger.info(f"Process '{process_name}' started.")
+
+
 def listen_for_process(
     process_name: str, interval: int = 20, callback_func=None
 ) -> None:
@@ -43,13 +47,14 @@ def listen_for_process(
 
     Args:
         process_name (str): The name of the process to listen for.
-        interval (int, optional): The interval (in seconds) to check the process status. Defaults to 20.
-        callback_func (callable, optional): A callback function to execute when the process state changes.
+        interval (int, optional): The interval (in seconds) to check the process status.
+        callback_func (callable, optional): A callback function to execute
+        when the process state changes.
     """
 
     # Set up a default callback function if none is provided
     if callback_func is None:
-        callback_func = lambda: logger.info(f"Process '{process_name}' started.")
+        callback_func = lambda: default_callback(process_name)
 
     logger.debug(f"Listening for process '{process_name}' every {interval} seconds.")
 
@@ -88,20 +93,26 @@ def call_api(process_name, url):
         logger.error(f"API call failed: {e}")
 
 
+def api_callback(process_name: str, url: str):
+    """Callback to call the API when process state changes."""
+    call_api(process_name, url)
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
+    # Configure the logger
+    global logger
+    logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.debug("Starting the update_inuse_status service...")
-    logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
     # Define the URL for the POST request
     url = f"http://{cfg.allocator.host}:{cfg.allocator.port}/api/update_inuse_status"
-    logger.debug(f"URL: {url}")
 
     # Start listening for the process
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=lambda: call_api(cfg.client.software, url),
+        callback_func=lambda: api_callback(cfg.client.software, url),
     )
 
 

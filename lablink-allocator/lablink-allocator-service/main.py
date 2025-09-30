@@ -22,13 +22,15 @@ import psycopg2
 
 from get_config import get_config
 from database import PostgresqlDatabase
-from utils.aws_utils import validate_aws_credentials, check_support_nvidia
+from utils.aws_utils import validate_aws_credentials, check_support_nvidia, upload_to_s3
 from utils.scp import (
-    get_instance_ips,
-    get_ssh_private_key,
     extract_slp_from_docker,
     rsync_slp_files_to_allocator,
     find_slp_files_in_container,
+)
+from utils.terraform_utils import (
+    get_instance_ips,
+    get_ssh_private_key,
 )
 
 app = Flask(__name__)
@@ -50,17 +52,23 @@ ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
-
+cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
 # Initialize the database connection
-database = PostgresqlDatabase(
-    dbname=cfg.db.dbname,
-    user=cfg.db.user,
-    password=cfg.db.password,
-    host=cfg.db.host,
-    port=cfg.db.port,
-    table_name=cfg.db.table_name,
-)
+database = None
+
+def init_database():
+    """Initialize the database connection."""
+    global database
+    database = PostgresqlDatabase(
+        dbname=cfg.db.dbname,
+        user=cfg.db.user,
+        password=cfg.db.password,
+        host=cfg.db.host,
+        port=cfg.db.port,
+        table_name=cfg.db.table_name,
+    )
+
 
 # Set up logging
 logging.basicConfig(
@@ -79,6 +87,8 @@ class vms(db.Model):
     useremail = db.Column(db.String(1024), nullable=True)
     inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
     healthy = db.Column(db.String(1024), nullable=True)
+    status = db.Column(db.String(1024), nullable=True)
+    logs = db.Column(db.Text, nullable=True)
 
 
 @auth.verify_password
@@ -141,13 +151,16 @@ def admin():
         [
             os.getenv("AWS_ACCESS_KEY_ID"),
             os.getenv("AWS_SECRET_ACCESS_KEY"),
-            os.getenv("AWS_SESSION_TOKEN"),
         ]
     ):
         return render_template("admin.html")
 
     # Check if AWS credentials are set and valid
-    is_credentials_valid = validate_aws_credentials()
+    credential_response = validate_aws_credentials()
+    logger.debug(f"Credential response: {credential_response}")
+
+    # Check if the credentials are valid
+    is_credentials_valid = credential_response.get("valid", False)
 
     # If credentials are set and valid, display the admin dashboard
     if is_credentials_valid:
@@ -156,8 +169,8 @@ def admin():
 
     # If credentials are not set or invalid, prompt the user to set them
     else:
-        error = (
-            "AWS credentials are not set or invalid. Please set your AWS credentials."
+        error = credential_response.get(
+            "message", "Invalid AWS credentials. Please set them."
         )
         return render_template("admin.html", error=error)
 
@@ -178,27 +191,27 @@ def set_aws_credentials():
     os.environ["AWS_SESSION_TOKEN"] = aws_token
 
     # Check if the AWS credentials are valid
-    if not validate_aws_credentials():
-        logger.error("Invalid AWS credentials provided.")
+    credentials_response = validate_aws_credentials()
+    is_credentials_valid = credentials_response.get("valid", False)
+    if not is_credentials_valid:
+        logger.error(
+            "Invalid AWS credentials provided."
+        )
 
         # Remove environment variables if credentials are invalid
         del os.environ["AWS_ACCESS_KEY_ID"]
         del os.environ["AWS_SECRET_ACCESS_KEY"]
         del os.environ["AWS_SESSION_TOKEN"]
 
-        return render_template(
-            "admin.html",
-            error="Invalid AWS credentials provided. Please check your credentials.",
+        error = credentials_response.get(
+            "message",
+            "Invalid AWS credentials provided. Please check your credentials.",
         )
 
-    # Save the credentials to a file or environment variable
-    terraform_dir = Path("terraform")
-    credential_file = terraform_dir / "terraform.credentials.tfvars"
-
-    with credential_file.open("w") as f:
-        f.write(f'aws_access_key = "{aws_access_key}"\n')
-        f.write(f'aws_secret_key = "{aws_secret_key}"\n')
-        f.write(f'aws_session_token = "{aws_token}"\n')
+        return render_template(
+            "admin.html",
+            error=error,
+        )
 
     return render_template("admin.html", message="AWS credentials set successfully.")
 
@@ -213,14 +226,13 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    instances = vms.query.all()
-    return render_template("delete-instances.html", instances=instances)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
     try:
-        data = request.form  # If you're sending JSON, use request.json instead
+        data = request.form
         email = data.get("email")
         crd_command = data.get("crd_command")
 
@@ -235,7 +247,8 @@ def submit_vm_details():
             logger.error("Invalid CRD command: --code not found.")
             return render_template(
                 "index.html",
-                error="Invalid CRD command received. Please ask your instructor for help.",
+                error="Invalid CRD command received. " \
+                "Please ask your instructor for help.",
             )
 
         # Check if there are any available VMs
@@ -243,7 +256,8 @@ def submit_vm_details():
             logger.error("No available VMs found.")
             return render_template(
                 "index.html",
-                error="No available VMs. Please try again later. Please ask your instructor for help",
+                error="No available VMs. Please try again later. Please ask your " \
+                "instructor for help",
             )
 
         # Assign the VM
@@ -256,40 +270,47 @@ def submit_vm_details():
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
             "index.html",
-            error="An unexpected error occurred while processing your request. Please ask your instructor for help.",
+            error="An unexpected error occurred while processing your request. " \
+            "Please ask your instructor for help.",
         )
 
 
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
-    num_vms = int(request.form.get("num_vms"))
-    terraform_dir = Path("terraform")
-    runtime_file = terraform_dir / "terraform.runtime.tfvars"
-
-    # Check if the credentials file exists
-    credentials_file = terraform_dir / "terraform.credentials.tfvars"
-    if not credentials_file.exists():
-        logger.error(
-            "AWS credentials file not found. Please set AWS credentials first."
-        )
+    # Get and validate num_vms input
+    try:
+        num_vms_str = request.form.get("num_vms")
+        if not num_vms_str:
+            return render_template(
+                "dashboard.html", error="Number of VMs is required."
+            )
+        num_vms = int(num_vms_str)
+        if num_vms <= 0:
+            return render_template(
+                "dashboard.html", error="Number of VMs must be greater than 0."
+            )
+    except ValueError:
         return render_template(
             "dashboard.html",
-            credential_error="AWS credentials file not found.",
+            error="Invalid number of VMs. Please enter a valid integer.",
         )
+
+    terraform_dir = Path("terraform")
+    runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
     try:
         # Calculate the number of VMs to launch
         total_vms = num_vms + database.get_row_count()
-
-        # Init Terraform (optional if already initialized)
-        subprocess.run(["terraform", "init"], cwd=terraform_dir, check=True)
 
         logger.debug(f"Machine type: {cfg.machine.machine_type}")
         logger.debug(f"Image name: {cfg.machine.image}")
         logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
         logger.debug(f"GitHub repository: {cfg.machine.repository}")
         logger.debug(f"Subject Software: {cfg.machine.software}")
+        logger.debug(f"Region: {cfg.app.region}")
+        logger.debug(f"Allocator IP: {allocator_ip}")
+        logger.debug(f"Cloud Init Output Log Group: {cloud_init_output_log_group}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -322,6 +343,8 @@ def launch():
             f.write(f'subject_software = "{cfg.machine.software}"\n')
             f.write(f'resource_suffix = "{ENVIRONMENT}"\n')
             f.write(f'gpu_support = "{gpu_support}"\n')
+            f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
+            f.write(f'region = "{cfg.app.region}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -329,7 +352,6 @@ def launch():
             "apply",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
             f"-var=instance_count={total_vms}",
         ]
 
@@ -342,6 +364,15 @@ def launch():
 
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
+
+        # Upload the runtime file to S3
+        logger.debug(f"Uploading runtime file to S3 bucket: {cfg.bucket_name}...")
+        upload_to_s3(
+            local_path=runtime_file,
+            env=ENVIRONMENT,
+            bucket_name=cfg.bucket_name,
+            region=cfg.app.region,
+        )
 
         return render_template("dashboard.html", output=clean_output)
 
@@ -363,7 +394,6 @@ def destroy():
             "destroy",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
-            "-var-file=terraform.credentials.tfvars",
         ]
         result = subprocess.run(
             apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
@@ -377,12 +407,12 @@ def destroy():
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
 
-        return render_template("dashboard.html", output=clean_output)
+        return render_template("delete-dashboard.html", output=clean_output)
     except subprocess.CalledProcessError as e:
         logger.error(f"Error during Terraform destroy: {e}")
         error_output = e.stderr or e.stdout
         clean_output = ANSI_ESCAPE.sub("", error_output or "")
-        return render_template("dashboard.html", error=clean_output)
+        return render_template("delete-dashboard.html", error=clean_output)
 
 
 @app.route("/vm_startup", methods=["POST"])
@@ -391,11 +421,13 @@ def vm_startup():
     hostname = data.get("hostname")
 
     if not hostname:
-        return jsonify({"error": "Hostname are required."}), 400
+        return jsonify({"error": "Hostname is required."}), 400
 
-    # Add to the database
-    logger.debug(f"Adding VM {hostname} to database...")
-    database.insert_vm(hostname=hostname)
+    # Check if the VM exists in the database
+    vm = database.get_vm_by_hostname(hostname)
+    if not vm:
+        return jsonify({"error": "VM not found."}), 404
+
     result = database.listen_for_notifications(
         channel=MESSAGE_CHANNEL, target_hostname=hostname
     )
@@ -443,7 +475,7 @@ def download_all_data():
                     empty_data = False
                 logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
 
-                # Copy the extracted .slp files to the allocator container's local directory
+                # Copy the extracted .slp files to the allocator container's local
                 rsync_slp_files_to_allocator(
                     ip=ip,
                     key_path=key_path,
@@ -525,8 +557,8 @@ def update_gpu_health():
     data = request.get_json()
     gpu_status = data.get("gpu_status")
     hostname = data.get("hostname")
-    if gpu_status is None:
-        return jsonify({"error": "GPU status is required."}), 400
+    if gpu_status is None or hostname is None:
+        return jsonify({"error": "GPU status and hostname are required."}), 400
 
     try:
         database.update_health(hostname=hostname, healthy=gpu_status)
@@ -537,7 +569,133 @@ def update_gpu_health():
         return jsonify({"error": "Failed to update GPU health status."}), 500
 
 
+@app.route("/api/vm-status", methods=["POST"])
+def update_vm_status():
+    try:
+        data = request.get_json()
+        hostname = data.get("hostname")
+        status = data.get("status")
+
+        if not hostname or status is None:
+            return jsonify({"error": "Hostname and status are required."}), 400
+
+        database.update_vm_status(hostname=hostname, status=status)
+
+        return jsonify({"message": "VM status updated successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error updating VM status: {e}")
+        return jsonify({"error": "Failed to update VM status."}), 500
+
+
+@app.route("/api/vm-status/<hostname>", methods=["GET"])
+def get_vm_status(hostname):
+    try:
+        status = database.get_status_by_hostname(hostname=hostname)
+        if status is None:
+            return jsonify({"error": "VM not found."}), 404
+
+        return jsonify({"hostname": hostname, "status": status}), 200
+    except Exception as e:
+        logger.error(f"Error getting VM status: {e}")
+        return jsonify({"error": "Failed to get VM status."}), 500
+
+
+@app.route("/api/vm-status", methods=["GET"])
+def get_all_vm_status():
+    try:
+        vm_status = database.get_all_vm_status()
+        if not vm_status:
+            return jsonify({"error": "No VMs found."}), 404
+
+        return jsonify(vm_status), 200
+    except Exception as e:
+        logger.error(f"Error getting all VM status: {e}")
+        return jsonify({"error": "Failed to get VM status."}), 500
+
+
+@app.route("/api/vm-logs", methods=["POST"])
+def receive_vm_logs():
+    try:
+        data = request.get_json()
+        log_group = data.get("log_group")
+        log_stream = data.get("log_stream")
+        messages = data.get("messages", [])
+
+        if not log_group or not log_stream or not messages:
+            return (
+                jsonify({"error": "Log group, stream, and messages are required."}),
+                400,
+            )
+
+        # Check if the VM exists in the database
+        if not database.vm_exists(log_stream):
+            logger.error(f"VM with log stream {log_stream} does not exist.")
+            return jsonify({"error": "VM not found."}), 404
+
+        # Process the logs (e.g., save to a file, database, etc.)
+        logger.info(
+            f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
+        )
+
+        # Save the logs to the database
+        new_logs = "\n".join(messages)
+        vm_log = database.get_vm_logs(hostname=log_stream)
+        if vm_log is not None:
+            vm_log += "\n" + new_logs
+        else:
+            vm_log = new_logs
+        database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
+
+        return jsonify({"message": "VM logs posted successfully."}), 200
+    except Exception as e:
+        logger.error(f"Error receiving VM logs: {e}")
+        return jsonify({"error": "Failed to post VM logs."}), 500
+
+
+@app.route("/api/vm-logs/<hostname>", methods=["GET"])
+def get_vm_logs_by_hostname(hostname):
+    try:
+        vm = database.get_vm_by_hostname(hostname=hostname)
+        logger.debug(f"Fetching logs for VM: {hostname}: {vm}")
+
+        # Check if the VM exists
+        if vm is None:
+            logger.error(f"VM with hostname {hostname} not found.")
+            return jsonify({"error": "VM not found."}), 404
+
+        # If the logs are empty but the vm is initializing, return a 503 status
+        logs = database.get_vm_logs(hostname=hostname)
+        status = vm.get("status")
+        if logs is None and status == "initializing":
+            return jsonify({"error": "VM is installing CloudWatch agent."}), 503
+
+        return jsonify({"hostname": hostname, "logs": logs}), 200
+    except Exception as e:
+        logger.error(f"Error getting VM logs: {e}")
+        return jsonify({"error": "Failed to get VM logs."}), 500
+
+
+@app.route("/admin/logs/<hostname>", methods=["GET"])
+@auth.login_required
+def get_vm_logs(hostname):
+    """Get the logs for a specific VM."""
+    logger.debug(f"Fetching logs for VM: {hostname}")
+    if not database.vm_exists(hostname=hostname):
+        logger.error(f"VM with hostname {hostname} not found.")
+        return jsonify({"error": "VM not found."}), 404
+    return render_template("instance-logs.html", hostname=hostname)
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        init_database()
+
+    # Terraform initialization
+    terraform_dir = Path("terraform")
+    if not (terraform_dir / "terraform.runtime.tfvars").exists():
+        logger.info("Initializing Terraform...")
+        subprocess.run(["terraform", "init",
+                        f"-backend-config=backend-client-{ENVIRONMENT}.hcl"],
+                        cwd=terraform_dir, check=True)
     app.run(host="0.0.0.0", port=5000, threaded=True)

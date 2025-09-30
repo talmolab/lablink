@@ -1,5 +1,5 @@
 # Base image with GPU support
-FROM nvidia/cuda:11.6.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 # https://askubuntu.com/questions/1402167/must-specify-the-user-name-option-when-running-as-root-chrome-remote-desktop
 # Must be a non-root user to run Chrome Remote Desktop
@@ -39,11 +39,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     desktop-base \
     xfce4-terminal \
     xfce4-goodies \
+    elementary-xfce-icon-theme \
+    fonts-dejavu \
+    fontconfig \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
+    xbase-clients \
     xvfb \
-    # Miscellaneous dependencies
     # Provides process management utilities
     psmisc \
     # Dummy X server for headless environments
@@ -57,6 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     wget \
     xdg-utils \
+    libvulkan1 \
     # Allows running commands as root
     sudo \
     # For cloning repositories and managing git
@@ -77,6 +81,7 @@ RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /
 # Configure Chrome Remote Desktop to use Gnome by default
 RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session
 
+
 # Because there is no display connected to your instance, disable the display manager service on your instance
 RUN systemctl disable lightdm.service
 
@@ -91,13 +96,13 @@ RUN curl -L -o google-chrome-stable_current_amd64.deb \
 # Create a directory for wrapper scripts
 RUN rm -f /usr/bin/google-chrome && \
     echo '#!/bin/bash' > /usr/bin/google-chrome && \
-    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage "$@"' >> /usr/bin/google-chrome && \
     chmod +x /usr/bin/google-chrome
 
 # Do the same for the stable version of Google Chrome
 RUN rm -f /usr/bin/google-chrome-stable && \
     echo '#!/bin/bash' > /usr/bin/google-chrome-stable && \
-    echo 'exec /opt/google/chrome/google-chrome --no-sandbox "$@"' >> /usr/bin/google-chrome-stable && \
+    echo 'exec /opt/google/chrome/google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage "$@"' >> /usr/bin/google-chrome-stable && \
     chmod +x /usr/bin/google-chrome-stable
 
 # Create the user USERNAME
@@ -118,16 +123,22 @@ USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Create scripts directory with miniforge, uv, and nvm installation scripts
-COPY install_miniforge.sh install_uv.sh install_nvm.sh /scripts/
+COPY install_miniforge.sh  install_nvm.sh /scripts/
 
 # Make scripts executable and run them
 RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_miniforge.sh && \
-    /scripts/install_uv.sh && \
     /scripts/install_nvm.sh
 
+# Download the latest uv release from GitHub
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Activate conda environment and install client service package
-RUN /home/${USERNAME}/miniforge3/bin/conda run -n base pip install lablink-client-service
+RUN sudo uv pip install --system \
+    --extra-index-url https://test.pypi.org/simple/ \
+    --index-url https://pypi.org/simple \
+    --index-strategy unsafe-best-match \
+    lablink-client-service==0.0.6a3
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh

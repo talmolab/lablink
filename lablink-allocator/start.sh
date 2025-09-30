@@ -3,7 +3,7 @@
 export POSTGRES_HOST_AUTH_METHOD=trust
 
 
-pg_ctlcluster 15 main restart
+pg_ctlcluster 17 main restart
 
 # Wait for PostgreSQL to be ready
 until pg_isready -U postgres; do
@@ -20,7 +20,7 @@ su postgres -c "psql -d postgres -f /app/init.sql"
 echo "Configuring PostgreSQL to listen on all addresses..."
 su postgres -c "psql -d postgres -c \"ALTER SYSTEM SET listen_addresses = '*';\""
 
-pg_ctlcluster 15 main restart
+pg_ctlcluster 17 main restart
 
 # Check if the psql command was successful
 if [ $? -eq 0 ]; then
@@ -37,8 +37,8 @@ until pg_isready -U lablink -d lablink_db; do
 done
 
 # Run database migrations (if applicable)
-flask db upgrade  
+uv run -m flask db upgrade
 
 # Start the Flask application
 echo "Starting Flask app..."
-exec python main.py
+exec uv run main.py

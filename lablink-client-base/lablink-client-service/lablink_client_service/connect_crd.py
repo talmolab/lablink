@@ -1,11 +1,30 @@
 import argparse
 import subprocess
 import logging
+import time
 import os
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
+
+def set_logger(external_logger):
+    global logger
+    logger = external_logger
+
+
+def cleanup_logs():
+    try:
+        for handler in logger.handlers:
+            if hasattr(handler, "flush"):
+                handler.flush()
+
+        time.sleep(1.5)
+
+        logging.shutdown()
+    except Exception as e:
+        logger.error(f"Error during log cleanup: {e}")
 
 
 def create_parser():
@@ -39,6 +58,9 @@ def construct_command(args):
     redirect_url = "'https://remotedesktop.google.com/_/oauthredirect'"
     name = os.getenv("VM_NAME", "$(hostname)")
 
+    if args.code is None:
+        raise ValueError("Code must be provided to construct the command.")
+
     command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host"
     command += f" --code={args.code}"
     command += f" --redirect-url={redirect_url}"
@@ -47,19 +69,16 @@ def construct_command(args):
     return command
 
 
-def reconstruct_command(command: str = None):
+def reconstruct_command(command: str) -> str:
     """Reconstructs the Chrome Remote Desktop command.
 
     Args:
-        command (str, optional): CRD command to connect to the machine. Defaults to None.
+        command (str): CRD command to connect to the machine.
 
     Returns:
         str: Reconstructed command to connect to the machine.
     """
-    if command is None:
-        arg_to_parse = None
-    else:
-        arg_to_parse = command.split()
+    arg_to_parse = command.split()
 
     # Parse the command line arguments
     parser = create_parser()
@@ -74,7 +93,7 @@ def reconstruct_command(command: str = None):
     return command
 
 
-def connect_to_crd(command=None, pin=None):
+def connect_to_crd(command, pin):
     # Parse the command line arguments
     command = reconstruct_command(command)
 

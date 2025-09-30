@@ -8,6 +8,41 @@ provider "aws" {
   region = "us-west-2"
 }
 
+# Get the current AWS account ID
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "s3_backend_doc" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::tf-state-lablink-allocator-bucket"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["${var.resource_suffix}/*"]
+    }
+  }
+
+  # Read/Write/Delete objects under the prefix
+  statement {
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [
+      "arn:aws:s3:::tf-state-lablink-allocator-bucket/${var.resource_suffix}/*"
+    ]
+  }
+}
+
+
+# Zip the Lambda function code
+# To package the Lambda function into a zip file
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = "${path.module}/lablink-allocator-service/lambda_function.py"
+  output_path = "${path.module}/lambda_package.zip"
+}
+
 # Generate a new private key
 resource "tls_private_key" "lablink_key" {
   algorithm = "RSA"
@@ -56,16 +91,18 @@ variable "allocator_image_tag" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami             = "ami-0e096562a04af2d8b"
-  instance_type   = local.allocator_instance_type
-  security_groups = [aws_security_group.allow_http.name]
-  key_name        = aws_key_pair.lablink_key_pair.key_name
+  ami                  = "ami-0e096562a04af2d8b"
+  instance_type        = local.allocator_instance_type
+  security_groups      = [aws_security_group.allow_http.name]
+  key_name             = aws_key_pair.lablink_key_pair.key_name
+  iam_instance_profile = aws_iam_instance_profile.allocator_instance_profile.name
 
   user_data = templatefile("${path.module}/user_data.sh", {
-    ALLOCATOR_IMAGE_TAG = var.allocator_image_tag
-    RESOURCE_SUFFIX     = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP = data.aws_eip.lablink_allocator_ip.public_ip
-    ALLOCATOR_KEY_NAME  = aws_key_pair.lablink_key_pair.key_name
+    ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
+    RESOURCE_SUFFIX      = var.resource_suffix
+    ALLOCATOR_PUBLIC_IP  = data.aws_eip.lablink_allocator_ip.public_ip
+    ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
+    CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
   })
 
   tags = {
@@ -92,9 +129,106 @@ resource "aws_eip_association" "lablink_allocator_ip_assoc" {
 # Use larger instance type for production
 locals {
   fqdn                    = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
-  allocator_instance_type = var.resource_suffix == "prod" ? "t3.large" : "t2.micro"
+  allocator_instance_type = "t3.large"
 }
 
+# CloudWatch Log Groups for Client VMs
+resource "aws_cloudwatch_log_group" "client_vm_logs" {
+  name              = "lablink-cloud-init-${var.resource_suffix}"
+  retention_in_days = 30
+}
+
+# CloudWatch Log Group for Lambda logs
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/lablink_log_processor_${var.resource_suffix}"
+  retention_in_days = 14
+}
+
+# IAM Role for Lambda
+resource "aws_iam_role" "lambda_exec" {
+  name = "lablink_lambda_exec_${var.resource_suffix}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      },
+    ]
+  })
+}
+
+
+resource "aws_iam_policy" "s3_backend_policy" {
+  name   = "lablink_s3_backend_${var.resource_suffix}"
+  policy = data.aws_iam_policy_document.s3_backend_doc.json
+}
+
+resource "aws_iam_role" "instance_role" {
+  name = "lablink_instance_role_${var.resource_suffix}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_s3_backend" {
+  role       = aws_iam_role.instance_role.name
+  policy_arn = aws_iam_policy.s3_backend_policy.arn
+}
+
+resource "aws_iam_instance_profile" "allocator_instance_profile" {
+  name = "lablink_instance_profile_${var.resource_suffix}"
+  role = aws_iam_role.instance_role.name
+}
+
+# Subscription filter to send CloudWatch logs to Lambda
+resource "aws_cloudwatch_log_subscription_filter" "lambda_subscription" {
+  name            = "lablink_lambda_subscription_${var.resource_suffix}"
+  filter_pattern  = ""
+  destination_arn = aws_lambda_function.log_processor.arn
+  log_group_name  = aws_cloudwatch_log_group.client_vm_logs.name
+  depends_on      = [aws_lambda_permission.allow_cloudwatch]
+}
+
+# Lambda function for processing logs
+# Lambda Function to process logs
+resource "aws_lambda_function" "log_processor" {
+  function_name    = "lablink_log_processor_${var.resource_suffix}"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.11"
+  filename         = data.archive_file.lambda_zip.output_path
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  timeout          = 10
+  depends_on       = [aws_cloudwatch_log_group.lambda_logs]
+  environment {
+    variables = {
+      API_ENDPOINT = "${local.fqdn}/api/vm-logs"
+    }
+  }
+}
+
+# Permission to invoke the Lambda function from CloudWatch
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.log_processor.function_name
+  principal     = "logs.amazonaws.com"
+  source_arn    = "arn:aws:logs:us-west-2:${data.aws_caller_identity.current.account_id}:log-group:${aws_cloudwatch_log_group.client_vm_logs.name}:*"
+}
+
+# Attach basic execution role to Lambda
+resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
 
 # Output the EC2 public IP
 output "ec2_public_ip" {

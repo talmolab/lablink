@@ -9,7 +9,7 @@ db:
 
 machine:
   machine_type: "g4dn.xlarge"
-  image: "ghcr.io/talmolab/lablink-sleap-client-image:linux-amd64"
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test"
   ami_id: "ami-067cc81f948e50e06"
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
@@ -17,3 +17,6 @@ machine:
 app:
   admin_user: "admin"
   admin_password: "IwanttoSLEAP"
+  region: "us-west-2"
+
+bucket_name: "tf-state-lablink-allocator-bucket"
