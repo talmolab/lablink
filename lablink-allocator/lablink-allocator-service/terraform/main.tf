@@ -120,7 +120,7 @@ resource "null_resource" "cloud_init_ready" {
       user        = var.ssh_user
       host        = aws_instance.lablink_vm[count.index].public_ip
       private_key = tls_private_key.lablink_key.private_key_pem
-      timeout     = "20m"
+      timeout     = "15m"
     }
   }
 }

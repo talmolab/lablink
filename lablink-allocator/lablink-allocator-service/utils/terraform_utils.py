@@ -19,13 +19,16 @@ def get_instance_ips(terraform_dir: str) -> list:
         list: A list of public IP addresses of the instances.
     """
     terraform_dir = Path(terraform_dir)
-    result = subprocess.run(
-        ["terraform", "output", "-json", "vm_public_ips"],
-        cwd=terraform_dir,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json", "vm_public_ips"],
+            cwd=terraform_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error running terraform output: {e.stderr}")
     if result.returncode != 0:
         raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
@@ -47,13 +50,16 @@ def get_ssh_private_key(terraform_dir: str) -> str:
         str: The path to the SSH private key file.
     """
     terraform_dir = Path(terraform_dir)
-    result = subprocess.run(
-        ["terraform", "output", "-raw", "lablink_private_key_pem"],
-        cwd=terraform_dir,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-raw", "lablink_private_key_pem"],
+            cwd=terraform_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error running terraform output: {e.stderr}")
     if result.returncode != 0:
         raise RuntimeError(f"Error running terraform output: {result.stderr}")
     key_path = "/tmp/lablink_key.pem"
@@ -75,13 +81,16 @@ def get_instance_ids(terraform_dir: str) -> list:
         list: A list of instance IDs of the instances.
     """
     terraform_dir = Path(terraform_dir)
-    result = subprocess.run(
-        ["terraform", "output", "-json", "vm_instance_ids"],
-        cwd=terraform_dir,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json", "vm_instance_ids"],
+            cwd=terraform_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error running terraform output: {e.stderr}")
     if result.returncode != 0:
         raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
@@ -105,13 +114,16 @@ def get_instance_names(terraform_dir: str) -> list:
         list: A list of names assigned to the EC2 instances.
     """
     terraform_dir = Path(terraform_dir)
-    result = subprocess.run(
-        ["terraform", "output", "-json", "vm_instance_names"],
-        cwd=terraform_dir,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json", "vm_instance_names"],
+            cwd=terraform_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error running terraform output: {e.stderr}")
     if result.returncode != 0:
         raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:

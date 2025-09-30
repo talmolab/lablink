@@ -34,6 +34,11 @@ def is_process_running(process_name: str) -> bool:
     return False
 
 
+def default_callback(process_name: str):
+    """Default callback to log when a process is detected."""
+    logger.info(f"Process '{process_name}' started.")
+
+
 def listen_for_process(
     process_name: str, interval: int = 20, callback_func=None
 ) -> None:
@@ -49,7 +54,7 @@ def listen_for_process(
 
     # Set up a default callback function if none is provided
     if callback_func is None:
-        callback_func = lambda: logger.info(f"Process '{process_name}' started.")
+        callback_func = lambda: default_callback(process_name)
 
     logger.debug(f"Listening for process '{process_name}' every {interval} seconds.")
 
@@ -88,6 +93,11 @@ def call_api(process_name, url):
         logger.error(f"API call failed: {e}")
 
 
+def api_callback(process_name: str, url: str):
+    """Callback to call the API when process state changes."""
+    call_api(process_name, url)
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
     # Configure the logger
@@ -102,7 +112,7 @@ def main(cfg: Config) -> None:
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=lambda: call_api(cfg.client.software, url),
+        callback_func=lambda: api_callback(cfg.client.software, url),
     )
 
 
