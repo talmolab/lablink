@@ -4,6 +4,11 @@ variable "resource_suffix" {
   default     = "prod"
 }
 
+variable "dns_name" {
+  description = "DNS Name for 53 Route"
+  type        = string
+}
+
 provider "aws" {
   region = "us-west-2"
 }
@@ -100,7 +105,7 @@ resource "aws_instance" "lablink_allocator_server" {
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
     RESOURCE_SUFFIX      = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP  = data.aws_eip.lablink_allocator_ip.public_ip
+    ALLOCATOR_PUBLIC_IP  = aws_eip.lablink_allocator_eip.public_ip
     ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
   })
@@ -111,18 +116,48 @@ resource "aws_instance" "lablink_allocator_server" {
   }
 }
 
-data "aws_eip" "lablink_allocator_ip" {
-  filter {
-    name   = "tag:Name"
-    values = ["lablink-eip-${var.resource_suffix}"]
+resource "aws_eip" "lablink_allocator_eip" {
+  domain = "vpc"
+  tags = {
+    Name = "lablink-eip-${var.resource_suffix}"
   }
 }
 
+# Find the Route 53 Host zone by name
+data "aws_route53_zone" "selected" {
+  name         = var.dns_name
+  private_zone = false
+}
+
+
+locals {
+  zone_exists = length(data.aws_route53_zone.selected.zone_id) > 0
+}
+
+# Route 53 Hosted Zone
+resource "aws_route53_zone" "lablink_main" {
+  count = local.zone_exists ? 0 : 1
+  name  = var.dns_name
+}
+
+locals {
+  zone_id = local.zone_exists ? data.aws_route53_zone.selected.zone_id : aws_route53_zone.lablink_main[0].zone_id
+}
+
+# Record for the allocator
+resource "aws_route53_record" "lablink_a_record" {
+  zone_id = local.zone_id
+  # name    = "${var.resource_suffix}.${var.dns_name}"
+  name    = "app.${var.dns_name}"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.lablink_allocator_eip.public_ip]
+}
 
 # Associate Elastic IP with EC2 instance
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
-  allocation_id = data.aws_eip.lablink_allocator_ip.id
+  allocation_id = aws_eip.lablink_allocator_eip.id
 }
 
 # Define the FQDN based on the resource suffix
@@ -232,7 +267,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
-  value = data.aws_eip.lablink_allocator_ip.public_ip
+  value = aws_eip.lablink_allocator_eip.public_ip
 }
 
 # Output the EC2 key name
