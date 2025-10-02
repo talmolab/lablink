@@ -95,7 +95,7 @@ class PostgresqlDatabase:
             cursor.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_name = %s",
-                (table_name,)
+                (table_name,),
             )
             return [row[0] for row in cursor.fetchall()]
 
@@ -199,7 +199,7 @@ class PostgresqlDatabase:
                     while listen_conn.notifies:
                         notify = listen_conn.notifies.pop(0)
                         logger.debug(
-                            f"Received notification: {notify.payload} from " \
+                            f"Received notification: {notify.payload} from "
                             f"channel {notify.channel}"
                         )
                         # Parse the JSON payload
@@ -268,8 +268,10 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are not assigned to any command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE " \
-                f"crdcommand IS NULL AND status = 'running'"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE "
+            f"crdcommand IS NULL AND status = 'running'"
+        )
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
@@ -363,8 +365,10 @@ class PostgresqlDatabase:
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND " \
-                f"status = 'running' LIMIT 1"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND "
+            f"status = 'running' LIMIT 1"
+        )
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
@@ -538,7 +542,9 @@ class PostgresqlDatabase:
             self.conn.rollback()
 
     @classmethod
-    def load_database(cls, dbname, user, password, host, port, table_name, message_channel):
+    def load_database(
+        cls, dbname, user, password, host, port, table_name, message_channel
+    ):
         """Loads an existing database from PostgreSQL.
 
         Args:

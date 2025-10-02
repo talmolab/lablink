@@ -75,7 +75,6 @@ def test_launch_vm_success(
     )
 
 
-
 @patch("main.subprocess.run")
 def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path
