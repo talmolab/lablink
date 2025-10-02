@@ -40,6 +40,7 @@ auth = HTTPBasicAuth()
 cfg = get_config()
 
 db_uri = f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+os.environ["DATABASE_URL"] = db_uri
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", db_uri)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
