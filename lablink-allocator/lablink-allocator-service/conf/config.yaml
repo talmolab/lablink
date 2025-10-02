@@ -13,10 +13,19 @@ machine:
   ami_id: "ami-067cc81f948e50e06"
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
+  extension: "slp"
 
 app:
   admin_user: "admin"
   admin_password: "IwanttoSLEAP"
   region: "us-west-2"
+
+dns:
+  enabled: true
+  domain: "sleap.ai"
+  app_name: "lablink"
+  pattern: "auto"  # prod: lablink.sleap.ai, test: test.lablink.sleap.ai, dev: dev.lablink.sleap.ai
+  custom_subdomain: ""
+  create_zone: false
 
 bucket_name: "tf-state-lablink-allocator-bucket"
