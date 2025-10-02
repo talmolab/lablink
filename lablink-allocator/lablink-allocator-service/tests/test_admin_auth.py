@@ -49,7 +49,10 @@ def test_set_aws_credentials_empty_field(client, admin_headers):
     assert response.json == {"error": "AWS Access Key and Secret Key are required"}
 
 
-@patch("lablink_allocator_service.main.validate_aws_credentials", return_value={"valid": True})
+@patch(
+    "lablink_allocator_service.main.validate_aws_credentials",
+    return_value={"valid": True},
+)
 def test_admin_set_aws_credentials_success_long_lasting(
     mock_validate, client, admin_headers, monkeypatch
 ):
@@ -76,7 +79,10 @@ def test_admin_set_aws_credentials_success_long_lasting(
     assert os.environ.get("AWS_SESSION_TOKEN") == ""
 
 
-@patch("lablink_allocator_service.main.validate_aws_credentials", return_value={"valid": True})
+@patch(
+    "lablink_allocator_service.main.validate_aws_credentials",
+    return_value={"valid": True},
+)
 def test_admin_set_aws_credentials_success_long_lasting_error(
     mock_validate, client, admin_headers, monkeypatch
 ):
@@ -104,7 +110,7 @@ def test_admin_set_aws_credentials_success_long_lasting_error(
 
 
 @patch(
-    "main.validate_aws_credentials",
+    "lablink_allocator_service.main.validate_aws_credentials",
     return_value={"valid": False, "message": "Invalid AWS credentials"},
 )
 def test_admin_set_aws_credentials_failure_invalid_credentials(
@@ -138,7 +144,7 @@ def test_admin_set_aws_credentials_failure_invalid_credentials(
 
 
 @patch(
-    "main.validate_aws_credentials",
+    "lablink_allocator_service.main.validate_aws_credentials",
     return_value={
         "valid": False,
         "message": "AWS credentials are temporary but no session token provided.",
