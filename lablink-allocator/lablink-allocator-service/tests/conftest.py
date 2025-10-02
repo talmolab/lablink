@@ -56,6 +56,15 @@ def app(monkeypatch, omega_config):
 
     import main
 
+    # Patch the users dict to use test credentials
+    from werkzeug.security import generate_password_hash
+    test_users = {
+        omega_config.app.admin_user: generate_password_hash(
+            omega_config.app.admin_password
+        )
+    }
+    monkeypatch.setattr(main, "users", test_users, raising=False)
+
     # If your code references `main.database`, stub it out:
     if not hasattr(main, "database"):
         monkeypatch.setattr(main, "database", MagicMock(), raising=False)
