@@ -2,6 +2,8 @@ from unittest.mock import patch
 import base64
 import os
 
+from lablink_allocator_service import main
+
 AWS_CREDENTIALS_ENDPOINT = "/api/admin/set-aws-credentials"
 
 
@@ -50,7 +52,7 @@ def test_set_aws_credentials_empty_field(client, admin_headers):
 
 
 @patch(
-    "lablink_allocator_service.main.validate_aws_credentials",
+    main.validate_aws_credentials,
     return_value={"valid": True},
 )
 def test_admin_set_aws_credentials_success_long_lasting(
@@ -80,7 +82,7 @@ def test_admin_set_aws_credentials_success_long_lasting(
 
 
 @patch(
-    "lablink_allocator_service.main.validate_aws_credentials",
+    main.validate_aws_credentials,
     return_value={"valid": True},
 )
 def test_admin_set_aws_credentials_success_long_lasting_error(
@@ -110,7 +112,7 @@ def test_admin_set_aws_credentials_success_long_lasting_error(
 
 
 @patch(
-    "lablink_allocator_service.main.validate_aws_credentials",
+    main.validate_aws_credentials,
     return_value={"valid": False, "message": "Invalid AWS credentials"},
 )
 def test_admin_set_aws_credentials_failure_invalid_credentials(
@@ -144,7 +146,7 @@ def test_admin_set_aws_credentials_failure_invalid_credentials(
 
 
 @patch(
-    "lablink_allocator_service.main.validate_aws_credentials",
+    main.validate_aws_credentials,
     return_value={
         "valid": False,
         "message": "AWS credentials are temporary but no session token provided.",

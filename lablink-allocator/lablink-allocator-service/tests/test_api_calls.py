@@ -4,6 +4,8 @@ import io
 import zipfile
 import subprocess
 
+from lablink_allocator_service import main
+
 
 VM_STARTUP_ENDPOINT = "/vm_startup"
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
@@ -27,7 +29,7 @@ def test_vm_startup_success(client, monkeypatch):
     }
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": "test-vm-dev-1"}
@@ -57,7 +59,7 @@ def test_vm_startup_failure(client, monkeypatch):
     }
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": ""}
@@ -94,7 +96,7 @@ def test_unassigned_vms_count(client, monkeypatch):
     ]
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(UNASSIGNED_VMS_COUNT_ENDPOINT)
@@ -111,7 +113,7 @@ def test_update_inuse_status_success(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "status": True}
@@ -131,7 +133,7 @@ def test_update_inuse_status_missing_hostname(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"status": True}
@@ -152,7 +154,7 @@ def test_update_inuse_status_failure(client, monkeypatch):
     fake_db.update_vm_in_use.side_effect = Exception("Database internal error")
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "status": True}
@@ -172,7 +174,7 @@ def test_update_gpu_health_success(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "gpu_status": "Healthy"}
@@ -195,7 +197,7 @@ def test_update_gpu_health_failure(client, monkeypatch):
     fake_db.update_health.side_effect = Exception("Database internal error")
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "gpu_status": "Healthy"}
@@ -215,7 +217,7 @@ def test_update_gpu_health_missing_hostname(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch globals
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {"gpu_status": "Healthy"}
@@ -257,8 +259,8 @@ def test_request_vm_success(client, monkeypatch):
     ]
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.check_crd_input", lambda crd_command: True, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -281,7 +283,7 @@ def test_request_vm_missing(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API with missing data
     data = {}
@@ -298,7 +300,7 @@ def test_request_vm_invalid_crd(client, monkeypatch):
     fake_db = MagicMock()
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
     monkeypatch.setattr(
         "main.check_crd_input", lambda crd_command: False, raising=False
     )
@@ -323,8 +325,8 @@ def test_request_vm_no_vm_available(client, monkeypatch):
     fake_db.get_unassigned_vms.return_value = []
 
     # Patch the database
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.check_crd_input", lambda crd_command: True, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -346,8 +348,8 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
     fake_db.get_unassigned_vms.side_effect = Exception("Database error")
 
     # Patch the database and functions
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.check_crd_input", lambda crd_command: True, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -366,7 +368,7 @@ def test_scp_client_404_when_no_rows(client, admin_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_row_count.return_value = 0
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 404
@@ -381,8 +383,8 @@ def test_scp_success(client, admin_headers, monkeypatch):
     fake_db.get_row_count.return_value = 1
 
     # Patch the database and util functions
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
@@ -390,14 +392,14 @@ def test_scp_success(client, admin_headers, monkeypatch):
         "main.find_files_in_container",
         lambda ip, key_path, extension: ["/remote/path/sample.slp"],
     )
-    monkeypatch.setattr("lablink_allocator_service.main.extract_files_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr(main, "extract_files_from_docker", lambda **kwargs: None)
 
     # Dummy function for rsync
     def fake_rsync(ip, key_path, local_dir, extension="slp"):
         Path(local_dir).mkdir(parents=True, exist_ok=True)
         (Path(local_dir) / f"sample.{extension}").write_text("dummy")
 
-    monkeypatch.setattr("lablink_allocator_service.main.rsync_files_to_allocator", fake_rsync)
+    monkeypatch.setattr(main, "rsync_files_to_allocator", fake_rsync)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -419,7 +421,7 @@ def test_scp_success(client, admin_headers, monkeypatch):
 def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatch):
     # DB has rows
     fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Two IPs
     monkeypatch.setattr(
@@ -440,9 +442,9 @@ def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatc
     )
 
     # Use MagicMocks so we can assert call counts/args
-    monkeypatch.setattr("lablink_allocator_service.main.find_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.extract_files_from_docker", extract, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.rsync_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr(main, "find_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr(main, "extract_files_from_docker", extract, raising=False)
+    monkeypatch.setattr(main, "rsync_files_to_allocator", rsync, raising=False)
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 200
@@ -472,7 +474,7 @@ def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
     """Test the /api/scp-client endpoint when some VMs have no SLP files."""
     # Mock the database
     fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Mock the utility functions
     monkeypatch.setattr(
@@ -495,9 +497,9 @@ def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
             (Path(local_dir) / "sample.slp").write_text("dummy"),
         )
     )
-    monkeypatch.setattr("lablink_allocator_service.main.find_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.extract_files_from_docker", extract, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.rsync_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr(main, "find_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr(main, "extract_files_from_docker", extract, raising=False)
+    monkeypatch.setattr(main, "rsync_files_to_allocator", rsync, raising=False)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -528,7 +530,7 @@ def test_scp_no_vms_failure(client, admin_headers, monkeypatch):
     fake_db.get_row_count.return_value = 0
 
     # Patch the database and util functions
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -544,15 +546,15 @@ def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
     fake_db.get_row_count.return_value = 1
 
     # Patch the database and util functions
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
     monkeypatch.setattr(
         "main.find_files_in_container", lambda ip, key_path, extension: []
     )
-    monkeypatch.setattr("lablink_allocator_service.main.extract_files_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr(main, "extract_files_from_docker", lambda **kwargs: None)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -565,12 +567,12 @@ def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
     # DB has rows
     fake_db = MagicMock()
     fake_db.get_row_count.return_value = 1
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir(exist_ok=True)
 
-    monkeypatch.setattr("lablink_allocator_service.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
+    monkeypatch.setattr(main, "get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
@@ -583,7 +585,7 @@ def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
     def explode(**kwargs):
         raise subprocess.CalledProcessError(1, ["rsync"], "boom")
 
-    monkeypatch.setattr("lablink_allocator_service.main.extract_files_from_docker", explode)
+    monkeypatch.setattr(main, "extract_files_from_docker", explode)
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 500
@@ -595,7 +597,7 @@ def test_update_vm_status_success(client, monkeypatch):
     """Test successful VM status update."""
     # Mock the database
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.post(
@@ -615,7 +617,7 @@ def test_update_vm_status_missing_fields(client, monkeypatch):
     """Test VM status update with missing fields."""
     # Mock the database
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API without the hostname
     resp = client.post(
@@ -633,7 +635,7 @@ def test_update_vm_status_internal_failure(client, monkeypatch):
     """Test VM status update with internal failure."""
     # Mock the database
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Simulate an internal error
     fake_db.update_vm_status.side_effect = Exception("Internal error")
@@ -654,7 +656,7 @@ def test_get_vm_status_by_hostname_success(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_status_by_hostname.return_value = "running"
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get("/api/vm-status/lablink-vm-test-1")
@@ -673,7 +675,7 @@ def test_get_vm_status_by_hostname_not_found(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_status_by_hostname.return_value = None
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get("/api/vm-status/lablink-vm-nonexistent")
@@ -691,7 +693,7 @@ def test_get_vm_status_by_hostname_internal_error(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_status_by_hostname.side_effect = Exception("Internal error")
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get("/api/vm-status/lablink-vm-test-1")
@@ -710,7 +712,7 @@ def test_get_all_vm_status_success(client, monkeypatch):
         "lablink-vm-test-1": "running",
         "lablink-vm-test-2": "initializing",
     }
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(VM_STATUS_UPDATE_ENDPOINT)
@@ -729,7 +731,7 @@ def test_get_all_vm_status_empty(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_all_vm_status.return_value = {}
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(VM_STATUS_UPDATE_ENDPOINT)
@@ -745,7 +747,7 @@ def test_get_all_vm_status_internal_error(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_all_vm_status.side_effect = Exception("Internal error")
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(VM_STATUS_UPDATE_ENDPOINT)
@@ -762,7 +764,7 @@ def test_posting_vm_logs_success(client, monkeypatch):
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
     fake_db.get_vm_logs.return_value = "Sample log data for VM."
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {
@@ -787,7 +789,7 @@ def test_posting_vm_logs_missing_data(client, monkeypatch):
     """Test posting VM logs with missing data."""
     # Mock the database
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API with missing data
     resp = client.post(VM_LOGS_ENDPOINT, json={})
@@ -805,7 +807,7 @@ def test_posting_vm_logs_vm_not_exists(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = False
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {
@@ -828,7 +830,7 @@ def test_posting_vm_logs_internal_error(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.side_effect = Exception("Internal error")
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     data = {
@@ -855,7 +857,7 @@ def test_get_vm_logs_by_hostname_success(client, monkeypatch):
         "logs": "Sample log data for VM.",
     }
     fake_db.get_vm_logs.return_value = "Sample log data for VM."
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1")
@@ -874,7 +876,7 @@ def test_vm_logs_by_hostname_not_found(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.return_value = None
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1")
@@ -894,7 +896,7 @@ def test_vm_logs_by_hostname_installing_cloud_watch(client, monkeypatch):
         "status": "initializing",
     }
     fake_db.get_vm_logs.return_value = None
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1")
@@ -909,7 +911,7 @@ def test_vm_logs_by_hostname_internal_error(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.side_effect = Exception("Internal error")
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     # Call the API
     resp = client.get(f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1")

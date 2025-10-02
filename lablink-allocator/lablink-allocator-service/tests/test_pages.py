@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
+from lablink_allocator_service import main
+
 
 def test_home_basic_structure(client):
     resp = client.get("/")
@@ -29,7 +31,7 @@ def test_admin_instances_no_auth(client):
     assert response.status_code == 401
 
 
-@patch("lablink_allocator_service.main.vms.query")
+@patch(main.vms.query")
 def test_admin_instances(mock_query, client, admin_headers):
     """Test the admin instances endpoint without any instances."""
     mock_query.all.return_value = []
@@ -37,7 +39,7 @@ def test_admin_instances(mock_query, client, admin_headers):
     assert response.status_code == 200
 
 
-@patch("lablink_allocator_service.main.vms.query")
+@patch(main.vms.query")
 def test_view_instances_with_rows(mock_query, client, admin_headers):
     """Test the admin instances endpoint with rows."""
     rows = [
