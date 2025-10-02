@@ -25,7 +25,7 @@ def test_launch_vm_success(
 
     # Mock Global Variables in "main.py"
     monkeypatch.setattr(
-        "main.database",
+        "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=3)),
         raising=False,
     )
@@ -85,7 +85,7 @@ def test_launch_missing_allocator_outputs_returns_error(
     Path("terraform").mkdir()
 
     monkeypatch.setattr(
-        "main.database", MagicMock(get_row_count=lambda: 0), raising=False
+        "lablink_allocator_service.main.database", MagicMock(get_row_count=lambda: 0), raising=False
     )
     monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "", raising=False)
     monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
@@ -108,7 +108,7 @@ def test_launch_apply_failure(
     Path("terraform").mkdir()
 
     monkeypatch.setattr(
-        "main.database", MagicMock(get_row_count=lambda: 1), raising=False
+        "lablink_allocator_service.main.database", MagicMock(get_row_count=lambda: 1), raising=False
     )
     monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False)
     monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
