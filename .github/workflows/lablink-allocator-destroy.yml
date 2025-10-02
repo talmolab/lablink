@@ -88,3 +88,4 @@ jobs:
           terraform destroy -auto-approve \
             -var="resource_suffix=${{ github.event.inputs.environment }}" \
             -var="allocator_image_tag=${{ steps.resolve_image_tag.outputs.tag }}"
+            -var-file="terraform.tfvars"
