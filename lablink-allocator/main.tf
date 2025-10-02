@@ -123,32 +123,35 @@ resource "aws_eip" "lablink_allocator_eip" {
   }
 }
 
-# Find the Route 53 hosted zone by name
-data "aws_route53_zone" "selected" {
-  name         = var.dns_name
-  private_zone = false
-}
-
-
-locals {
-  zone_exists = length(data.aws_route53_zone.selected.zone_id) > 0
-}
-
-# Route 53 Hosted Zone
+# Route 53 Hosted Zone - create if it doesn't exist
 resource "aws_route53_zone" "lablink_main" {
-  count = local.zone_exists ? 0 : 1
+  count = var.dns_name != "" ? 1 : 0
   name  = var.dns_name
+
+  lifecycle {
+    # Prevent accidental deletion of zone
+    prevent_destroy = false
+  }
 }
 
 locals {
-  zone_id = local.zone_exists ? data.aws_route53_zone.selected.zone_id : aws_route53_zone.lablink_main[0].zone_id
+  zone_id = var.dns_name != "" ? aws_route53_zone.lablink_main[0].zone_id : ""
+}
+
+# Generate FQDN based on environment and DNS name
+# Pattern: prod -> lablink.{dns_name}, non-prod -> {env}.lablink.{dns_name}
+locals {
+  fqdn = var.dns_name != "" ? (
+    var.resource_suffix == "prod" ? "lablink.${var.dns_name}" : "${var.resource_suffix}.lablink.${var.dns_name}"
+  ) : "N/A"
+  allocator_instance_type = "t3.large"
 }
 
 # Record for the allocator
 resource "aws_route53_record" "lablink_a_record" {
+  count   = var.dns_name != "" ? 1 : 0
   zone_id = local.zone_id
-  # name    = "${var.resource_suffix}.${var.dns_name}"
-  name    = "app.${var.dns_name}"
+  name    = local.fqdn
   type    = "A"
   ttl     = 300
   records = [aws_eip.lablink_allocator_eip.public_ip]
@@ -158,13 +161,6 @@ resource "aws_route53_record" "lablink_a_record" {
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
   allocation_id = aws_eip.lablink_allocator_eip.id
-}
-
-# Define the FQDN based on the resource suffix
-# Use larger instance type for production
-locals {
-  fqdn                    = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
-  allocator_instance_type = "t3.large"
 }
 
 # CloudWatch Log Groups for Client VMs
