@@ -37,9 +37,9 @@ class PostgresqlDatabase:
         host: str,
         port: int,
         table_name: str,
+        message_channel: str,
     ):
         """Initialize the database connection.
-
         Args:
             dbname (str): The name of the database.
             user (str): The username to connect to the database.
@@ -47,6 +47,7 @@ class PostgresqlDatabase:
             host (str): The host where the database is located.
             port (int): The port number for the database connection.
             table_name (str): The name of the table to interact with.
+            message_channel (str): The name of the message channel to listen to.
         """
         self.dbname = dbname
         self.user = user
@@ -54,6 +55,7 @@ class PostgresqlDatabase:
         self.host = host
         self.port = port
         self.table_name = table_name
+        self.message_channel = message_channel
 
         # Connect to the PostgreSQL database
         self.conn = psycopg2.connect(
@@ -93,7 +95,7 @@ class PostgresqlDatabase:
             cursor.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_name = %s",
-                (table_name,)
+                (table_name,),
             )
             return [row[0] for row in cursor.fetchall()]
 
@@ -197,7 +199,7 @@ class PostgresqlDatabase:
                     while listen_conn.notifies:
                         notify = listen_conn.notifies.pop(0)
                         logger.debug(
-                            f"Received notification: {notify.payload} from " \
+                            f"Received notification: {notify.payload} from "
                             f"channel {notify.channel}"
                         )
                         # Parse the JSON payload
@@ -266,8 +268,10 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are not assigned to any command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE " \
-                f"crdcommand IS NULL AND status = 'running'"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE "
+            f"crdcommand IS NULL AND status = 'running'"
+        )
         try:
             self.cursor.execute(query)
             return [row[0] for row in self.cursor.fetchall()]
@@ -361,8 +365,10 @@ class PostgresqlDatabase:
         Returns:
             str: The hostname of the first available VM.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND " \
-                f"status = 'running' LIMIT 1"
+        query = (
+            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND "
+            f"status = 'running' LIMIT 1"
+        )
         self.cursor.execute(query)
         row = self.cursor.fetchone()
         return row[0] if row else None
@@ -536,7 +542,9 @@ class PostgresqlDatabase:
             self.conn.rollback()
 
     @classmethod
-    def load_database(cls, dbname, user, password, host, port, table_name):
+    def load_database(
+        cls, dbname, user, password, host, port, table_name, message_channel
+    ):
         """Loads an existing database from PostgreSQL.
 
         Args:
@@ -546,11 +554,12 @@ class PostgresqlDatabase:
             host (str): The host where the database is located.
             port (int): The port number for the database connection.
             table_name (str): The name of the table to interact with.
+            message_channel (str): The name of the message channel to listen to.
 
         Returns:
             PostgresqlDtabase: An instance of the PostgresqlDtabase class.
         """
-        return cls(dbname, user, password, host, port, table_name)
+        return cls(dbname, user, password, host, port, table_name, message_channel)
 
     def __del__(self):
         """Close the database connection when the object is deleted."""

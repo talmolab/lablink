@@ -2,8 +2,9 @@ FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DATABASE_URL=postgresql://lablink:lablink@localhost:5432/lablink_db
-
+ENV CONFIG_DIR=/config
+ENV CONFIG_NAME=config.yaml
+VOLUME [ "/config" ]
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -18,9 +19,6 @@ RUN apt-get update && apt-get install -y curl unzip && \
     unzip /tmp/terraform.zip -d /usr/local/bin && \
     rm /tmp/terraform.zip
 
-
-
-
 # Set working directory
 WORKDIR /app
 
@@ -32,8 +30,7 @@ COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/
 # Install Python dependencies using UV
 RUN uv venv && uv pip install -r pyproject.toml
 
-COPY lablink-allocator/lablink-allocator-service/generate-init-sql.py /app
-RUN uv run generate-init-sql.py
+
 
 # Expose ports for Flask
 EXPOSE 5000

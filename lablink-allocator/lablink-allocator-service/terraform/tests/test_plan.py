@@ -16,14 +16,19 @@ def plan(fixture_dir):
 
     # Initialize and create the plan
     subprocess.run(
-        ["terraform", "init", "-input=false", "-no-color"],
-        cwd=base_dir,
-        check=True
+        ["terraform", "init", "-input=false", "-no-color"], cwd=base_dir, check=True
     )
-    subprocess.run(["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan",
-                    "-no-color"], cwd=base_dir, check=True)
-    result = subprocess.run(["terraform", "show", "-json", "plan.tfplan"],
-                            cwd=base_dir, check=True, capture_output=True)
+    subprocess.run(
+        ["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"],
+        cwd=base_dir,
+        check=True,
+    )
+    result = subprocess.run(
+        ["terraform", "show", "-json", "plan.tfplan"],
+        cwd=base_dir,
+        check=True,
+        capture_output=True,
+    )
     tfplan = json.loads(result.stdout)
 
     yield tfplan
@@ -35,7 +40,10 @@ def test_variables(plan):
     assert plan["variables"]["allocator_ip"]["value"] == "10.0.0.1"
     assert plan["variables"]["machine_type"]["value"] == "t2.micro"
     assert plan["variables"]["image_name"]["value"] == "ghcr.io/test-image"
-    assert plan["variables"]["repository"]["value"] == "https://github.com/example/repo.git"
+    assert (
+        plan["variables"]["repository"]["value"]
+        == "https://github.com/example/repo.git"
+    )
     assert plan["variables"]["client_ami_id"]["value"] == "ami-067cc81f948e50e06"
     assert plan["variables"]["resource_suffix"]["value"] == "ci-test"
     assert plan["variables"]["subject_software"]["value"] == "test-software"
@@ -48,12 +56,12 @@ def test_variables(plan):
     assert plan["variables"]["ssh_user"]["value"] == "ubuntu"
 
 
-
 def _resource_map(plan):
     """
     Flatten all resources into {address: resource_dict}.
     Handles root_module and any child_modules.
     """
+
     def collect(mod, acc):
         for r in mod.get("resources", []):
             acc[r["address"]] = r
@@ -64,12 +72,12 @@ def _resource_map(plan):
     root = plan.get("planned_values", {}).get("root_module", {}) or {}
     return collect(root, {})
 
+
 def _collect_resources(plan, type_name: str, name: str):
     """Return {full_address: resource_dict} for e.g. aws_instance.lablink_vm[0]."""
     prefix = f"{type_name}.{name}["
     rmap = _resource_map(plan)
     return {addr: r for addr, r in rmap.items() if addr.startswith(prefix)}
-
 
 
 def _extract_index(address: str):
@@ -96,6 +104,7 @@ def test_vm_count(plan):
     instances = _collect_resources(plan, "aws_instance", "lablink_vm")
     assert len(instances) == plan["variables"]["instance_count"]["value"]
 
+
 def test_lablink_vm(plan):
     """Test Terraform resources for EC2 instances."""
     instances = _collect_resources(plan, "aws_instance", "lablink_vm")
@@ -108,7 +117,6 @@ def test_lablink_vm(plan):
         assert resource["values"]["ami"] == plan["variables"]["client_ami_id"]["value"]
         instance_type = resource["values"]["instance_type"]
         assert instance_type == plan["variables"]["machine_type"]["value"]
-
 
 
 def test_lablink_security_group(plan):
@@ -135,7 +143,6 @@ def test_lablink_key_pair(plan):
     resource = rmap["aws_key_pair.lablink_key_pair"]
     assert resource["type"] == "aws_key_pair"
     assert resource["values"]["key_name"] == "lablink_key_pair_client_ci-test"
-
 
 
 def test_output(plan):

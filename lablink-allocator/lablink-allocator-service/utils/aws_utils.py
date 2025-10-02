@@ -108,12 +108,12 @@ def check_support_nvidia(machine_type) -> bool:
 
 
 def upload_to_s3(
-        local_path: Path,
-        env: str,
-        bucket_name: str,
-        region: str,
-        kms_key_id: Optional[str] = None,
-    ) -> None:
+    local_path: Path,
+    env: str,
+    bucket_name: str,
+    region: str,
+    kms_key_id: Optional[str] = None,
+) -> None:
     """Uploads a file to an S3 bucket.
 
     Args:
