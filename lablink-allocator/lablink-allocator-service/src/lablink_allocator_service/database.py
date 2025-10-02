@@ -543,7 +543,7 @@ class PostgresqlDatabase:
     @classmethod
     def load_database(
         cls, dbname, user, password, host, port, table_name, message_channel
-    ) -> "PostgresqlDtabase":
+    ) -> "PostgresqlDatabase":
         """Loads an existing database from PostgreSQL.
 
         Args:

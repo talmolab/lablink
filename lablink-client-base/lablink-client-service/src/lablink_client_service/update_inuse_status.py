@@ -47,7 +47,8 @@ def listen_for_process(
     Args:
         process_name (str): The name of the process to listen for.
         interval (int, optional): The interval (in seconds) to check the process status.
-        callback_func (callable, optional): A callback function to execute when the process state changes.
+        callback_func (callable, optional): A callback function to execute when the
+            process state changes.
     """
 
     # Set up a default callback function if none is provided
