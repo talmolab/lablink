@@ -1,6 +1,7 @@
 from omegaconf import OmegaConf
+from get_config import get_config
 
-config = OmegaConf.load("conf/config.yaml")
+config = get_config()
 
 # Load database configuration from config.yaml
 DB_NAME = config.db.dbname
