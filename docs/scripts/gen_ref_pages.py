@@ -9,11 +9,11 @@ root = Path(__file__).parent.parent.parent
 # Define the Python packages to document
 packages = {
     "allocator": {
-        "path": root / "lablink-allocator" / "lablink-allocator-service",
+        "path": root / "lablink-allocator" / "lablink-allocator-service" / "src",
         "module_name": "lablink_allocator_service",
     },
     "client": {
-        "path": root / "lablink-client-base" / "lablink-client-service",
+        "path": root / "lablink-client-base" / "lablink-client-service" / "src",
         "module_name": "lablink_client_service",
     },
 }
