@@ -39,9 +39,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --system --extras docs
-          uv pip install --system -e lablink-allocator/lablink-allocator-service
-          uv pip install --system -e lablink-client-base/lablink-client-service
+          uv sync --extra docs
+          source .venv/bin/activate
+          uv pip install -e lablink-allocator/lablink-allocator-service
+          uv pip install -e lablink-client-base/lablink-client-service
 
       - name: Print environment info
         run: |
