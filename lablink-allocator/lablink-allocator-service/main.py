@@ -24,9 +24,9 @@ from get_config import get_config
 from database import PostgresqlDatabase
 from utils.aws_utils import validate_aws_credentials, check_support_nvidia, upload_to_s3
 from utils.scp import (
-    extract_slp_from_docker,
-    rsync_slp_files_to_allocator,
-    find_slp_files_in_container,
+    find_files_in_container,
+    extract_files_from_docker,
+    rsync_files_to_allocator
 )
 from utils.terraform_utils import (
     get_instance_ips,
@@ -453,40 +453,41 @@ def download_all_data():
                 vm_dir = Path(temp_dir) / f"vm_{i + 1}"
                 vm_dir.mkdir(parents=True, exist_ok=True)
 
-                logger.info(f"Extracting .slp files from container on {ip}...")
+                logger.info(f"Extracting {cfg.machine.extension} files from container on {ip}...")
 
-                # Find slp files from the Docker container
-                slp_files = find_slp_files_in_container(ip=ip, key_path=key_path)
+                # Find files from the Docker container
+                files = find_files_in_container(ip=ip, key_path=key_path, extension=cfg.machine.extension)
 
-                # If no .slp files are found, log a warning and continue to the next VM
-                if len(slp_files) == 0:
-                    logger.warning(f"No .slp files found in container on {ip}.")
+                # If no files are found, log a warning and continue to the next VM
+                if len(files) == 0:
+                    logger.warning(f"No {cfg.machine.extension} files found in container on {ip}.")
                     continue
                 else:
                     logger.debug(
-                        f"Found {len(slp_files)} .slp files in container on {ip}."
+                        f"Found {len(files)} {cfg.machine.extension} files in container on {ip}."
                     )
-                    # Extract .slp files from the Docker container
-                    extract_slp_from_docker(
+                    # Extract files from the Docker container
+                    extract_files_from_docker(
                         ip=ip,
                         key_path=key_path,
-                        slp_files=slp_files,
+                        files=files,
                     )
                     empty_data = False
-                logger.info(f"Copying .slp files from {ip} to {vm_dir}...")
+                logger.info(f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}...")
 
-                # Copy the extracted .slp files to the allocator container's local
-                rsync_slp_files_to_allocator(
+                # Copy the extracted files to the allocator container's local
+                rsync_files_to_allocator(
                     ip=ip,
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
+                    extension=cfg.machine.extension
                 )
 
             if empty_data:
-                logger.warning("No .slp files found in any VMs.")
-                return jsonify({"error": "No .slp files found in any VMs."}), 404
+                logger.warning(f"No {cfg.machine.extension} files found in any VMs.")
+                return jsonify({"error": f"No {cfg.machine.extension} files found in any VMs."}), 404
 
-            logger.info(f"All .slp files copied to {temp_dir}.")
+            logger.info(f"All files copied to {temp_dir}.")
 
             # Create a zip file of the downloaded data with a timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -496,11 +497,11 @@ def download_all_data():
                 for vm_dir in Path(temp_dir).iterdir():
                     if vm_dir.is_dir():
                         logger.debug(f"Zipping data for VM: {vm_dir.name}")
-                        for slp_file in vm_dir.rglob("*.slp"):
-                            logger.debug(f"Adding {slp_file.name} to zip archive.")
+                        for file in vm_dir.rglob(f"*{cfg.machine.extension}"):
+                            logger.debug(f"Adding {file.name} to zip archive.")
                             # Add with relative path inside zip
                             archive.write(
-                                slp_file, arcname=slp_file.relative_to(temp_dir)
+                                file, arcname=file.relative_to(temp_dir)
                             )
             logger.debug("All data downloaded and zipped successfully.")
 
