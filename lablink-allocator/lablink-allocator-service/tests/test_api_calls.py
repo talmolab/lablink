@@ -549,7 +549,9 @@ def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
     monkeypatch.setattr(
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
-    monkeypatch.setattr("main.find_files_in_container", lambda ip, key_path, extension: [])
+    monkeypatch.setattr(
+        "main.find_files_in_container", lambda ip, key_path, extension: []
+    )
     monkeypatch.setattr("main.extract_files_from_docker", lambda **kwargs: None)
 
     # Call the API

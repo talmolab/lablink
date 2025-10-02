@@ -102,7 +102,9 @@ def test_rsync_files_to_allocator_test_success(mock_run, mock_has_files):
     ip = "1.2.3.4"
     local_dir = "/tmp/slp_files"
 
-    rsync_files_to_allocator(ip=ip, key_path=key_path, local_dir=local_dir, extension="slp")
+    rsync_files_to_allocator(
+        ip=ip, key_path=key_path, local_dir=local_dir, extension="slp"
+    )
     assert mock_has_files.call_count == 1
     args, kwargs = mock_run.call_args
     assert args[0] == [
@@ -126,7 +128,10 @@ def test_rsync_files_to_allocator_test_success(mock_run, mock_has_files):
 def test_rsync_files_to_allocator_test_skip(mock_run, mock_has_files):
     """Test skipping rsync when no extension files are found in the container."""
     rsync_files_to_allocator(
-        ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/slp_files", extension="slp"
+        ip="1.2.3.4",
+        key_path="/fake/key.pem",
+        local_dir="/tmp/slp_files",
+        extension="slp",
     )
     mock_run.assert_not_called()
 
@@ -143,7 +148,10 @@ def test_rsync_files_to_allocator_test_error(mock_run, mock_has_files, caplog):
     with caplog.at_level("ERROR"):
         with pytest.raises(subprocess.CalledProcessError):
             rsync_files_to_allocator(
-                ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/extracted_files", extension="slp"
+                ip="1.2.3.4",
+                key_path="/fake/key.pem",
+                local_dir="/tmp/extracted_files",
+                extension="slp",
             )
     mock_run.assert_called_once()
     assert any(

@@ -453,18 +453,26 @@ def download_all_data():
                 vm_dir = Path(temp_dir) / f"vm_{i + 1}"
                 vm_dir.mkdir(parents=True, exist_ok=True)
 
-                logger.info(f"Extracting {cfg.machine.extension} files from container on {ip}...")
+                logger.info(
+                    f"Extracting {cfg.machine.extension} files "
+                    f"from container on {ip}..."
+                )
 
                 # Find files from the Docker container
-                files = find_files_in_container(ip=ip, key_path=key_path, extension=cfg.machine.extension)
+                files = find_files_in_container(
+                    ip=ip, key_path=key_path, extension=cfg.machine.extension
+                )
 
                 # If no files are found, log a warning and continue to the next VM
                 if len(files) == 0:
-                    logger.warning(f"No {cfg.machine.extension} files found in container on {ip}.")
+                    logger.warning(
+                        f"No {cfg.machine.extension} files found in container on {ip}."
+                    )
                     continue
                 else:
                     logger.debug(
-                        f"Found {len(files)} {cfg.machine.extension} files in container on {ip}."
+                        f"Found {len(files)} {cfg.machine.extension} "
+                        f"files in container on {ip}."
                     )
                     # Extract files from the Docker container
                     extract_files_from_docker(
@@ -473,19 +481,26 @@ def download_all_data():
                         files=files,
                     )
                     empty_data = False
-                logger.info(f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}...")
+                logger.info(
+                    f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}..."
+                )
 
                 # Copy the extracted files to the allocator container's local
                 rsync_files_to_allocator(
                     ip=ip,
                     key_path=key_path,
                     local_dir=vm_dir.as_posix(),
-                    extension=cfg.machine.extension
+                    extension=cfg.machine.extension,
                 )
 
             if empty_data:
                 logger.warning(f"No {cfg.machine.extension} files found in any VMs.")
-                return jsonify({"error": f"No {cfg.machine.extension} files found in any VMs."}), 404
+                return (
+                    jsonify(
+                        {"error": f"No {cfg.machine.extension} files found in any VMs."}
+                    ),
+                    404,
+                )
 
             logger.info(f"All files copied to {temp_dir}.")
 

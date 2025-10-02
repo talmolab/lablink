@@ -88,14 +88,19 @@ def has_files(ip: str, key_path: str, extension: str) -> bool:
         "-i",
         key_path,
         f"ubuntu@{ip}",
-        f"sh -c 'ls /home/ubuntu/extracted_files/*.{extension} 1>/dev/null 2>/dev/null && echo exists "
-        "|| echo missing'",
+        (
+            f"sh -c 'ls /home/ubuntu/extracted_files/*.{extension} "
+            "1>/dev/null 2>/dev/null "
+            "&& echo exists || echo missing'"
+        ),
     ]
     result = subprocess.run(ssh_cmd, capture_output=True, text=True)
     return result.stdout.strip() == "exists"
 
 
-def rsync_files_to_allocator(ip: str, key_path: str, local_dir: str, extension: str) -> None:
+def rsync_files_to_allocator(
+    ip: str, key_path: str, local_dir: str, extension: str
+) -> None:
     """Copy specific files from the target VM's file system to the allocator's docker
     container.
 
@@ -103,7 +108,7 @@ def rsync_files_to_allocator(ip: str, key_path: str, local_dir: str, extension: 
         ip (str): The public IP address of the EC2 instance.
         key_path (str): The path to the SSH private key file.
         extension (str): The file extension to copy.
-        local_dir (str): The local directory where the .{extension} files will be copied.
+        local_dir (str): The local directory where the files will be copied.
     """
     logger.debug(f"Copying the .{extension} files from VM {ip} to allocator...")
     cmd = [
