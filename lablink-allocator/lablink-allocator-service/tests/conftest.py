@@ -31,6 +31,14 @@ def omega_config():
                 "admin_password": "test_pass",
                 "region": "us-west-2",
             },
+            "dns": {
+                "enabled": False,
+                "domain": "",
+                "app_name": "lablink",
+                "pattern": "auto",
+                "custom_subdomain": "",
+                "create_zone": False,
+            },
             "bucket_name": "test-bucket",
         }
     )
