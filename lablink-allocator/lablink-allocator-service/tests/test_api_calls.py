@@ -4,8 +4,6 @@ import io
 import zipfile
 import subprocess
 
-from lablink_allocator_service import main
-
 
 VM_STARTUP_ENDPOINT = "/vm_startup"
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
