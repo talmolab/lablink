@@ -3,20 +3,20 @@ from unittest.mock import patch
 import pytest
 
 from utils.scp import (
-    find_slp_files_in_container,
-    extract_slp_from_docker,
-    has_slp_files,
-    rsync_slp_files_to_allocator,
+    find_files_in_container,
+    extract_files_from_docker,
+    has_files,
+    rsync_files_to_allocator,
 )
 
 
 @patch("subprocess.run")
-def test_find_slp_files_success(mock_run):
+def test_find_files_in_container_success(mock_run):
     """Test finding .slp files in container."""
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout="/path/file1.slp\n/path/file2.slp\n", stderr=""
     )
-    files = find_slp_files_in_container("1.2.3.4", "/fake/key.pem")
+    files = find_files_in_container("1.2.3.4", "/fake/key.pem", "slp")
     assert files == ["/path/file1.slp", "/path/file2.slp"]
 
 
@@ -27,7 +27,7 @@ def test_find_slp_files_empty(mock_run, caplog):
         returncode=1, cmd=["ssh"], stderr="error msg"
     )
     with caplog.at_level("ERROR"):
-        result = find_slp_files_in_container("1.2.3.4", "/fake/key.pem")
+        result = find_files_in_container("1.2.3.4", "/fake/key.pem", "slp")
     assert result == []
     assert any(
         "Error finding .slp files in container on 1.2.3.4" in r.message
@@ -44,12 +44,12 @@ def test_extract_slp_from_docker_success(mock_run):
         stdout="Extracted SLP content",
         stderr="",
     )
-    extract_slp_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
+    extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
     mock_run.assert_called_once()
 
 
 @patch("subprocess.run")
-def test_extract_slp_from_docker_failure(mock_run, caplog):
+def test_extract_files_from_docker_failure(mock_run, caplog):
     """Test handling failure when extracting .slp files from Docker container."""
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
@@ -57,7 +57,7 @@ def test_extract_slp_from_docker_failure(mock_run, caplog):
         stderr="error message",
     )
     with caplog.at_level("ERROR"):
-        extract_slp_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
+        extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
     mock_run.assert_called_once()
     assert any(
         "Failed to copy /path/file1.slp from container on 1.2.3.4" in r.message
@@ -74,12 +74,12 @@ def test_has_slp_files_found(mock_run):
         stdout="exists",
         stderr="",
     )
-    result = has_slp_files("1.2.3.4", "/fake/key.pem")
+    result = has_files("1.2.3.4", "/fake/key.pem", "slp")
     assert result is True
 
 
 @patch("subprocess.run")
-def test_has_slp_files_missing(mock_run):
+def test_has_files_missing(mock_run):
     """Test finding .slp files in container without .slp files."""
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -87,13 +87,13 @@ def test_has_slp_files_missing(mock_run):
         stdout="missing",
         stderr="",
     )
-    result = has_slp_files("1.2.3.4", "/fake/key.pem")
+    result = has_files("1.2.3.4", "/fake/key.pem", "slp")
     assert result is False
 
 
-@patch("utils.scp.has_slp_files", return_value=True)
+@patch("utils.scp.has_files", return_value=True)
 @patch("subprocess.run")
-def test_rsync_slp_files_to_allocator_test_success(mock_run, mock_has_slp_files):
+def test_rsync_files_to_allocator_test_success(mock_run, mock_has_files):
     """Test rsyncing .slp files to allocator successfully."""
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout="", stderr=""
@@ -102,8 +102,8 @@ def test_rsync_slp_files_to_allocator_test_success(mock_run, mock_has_slp_files)
     ip = "1.2.3.4"
     local_dir = "/tmp/slp_files"
 
-    rsync_slp_files_to_allocator(ip=ip, key_path=key_path, local_dir=local_dir)
-    assert mock_has_slp_files.call_count == 1
+    rsync_files_to_allocator(ip=ip, key_path=key_path, local_dir=local_dir, extension="slp")
+    assert mock_has_files.call_count == 1
     args, kwargs = mock_run.call_args
     assert args[0] == [
         "rsync",
@@ -116,24 +116,24 @@ def test_rsync_slp_files_to_allocator_test_success(mock_run, mock_has_slp_files)
         "*",
         "-e",
         f"ssh -o StrictHostKeyChecking=no -i {key_path}",
-        f"ubuntu@{ip}:/home/ubuntu/slp_files/",
+        f"ubuntu@{ip}:/home/ubuntu/extracted_files/",
         f"{local_dir}/",
     ]
 
 
-@patch("utils.scp.has_slp_files", return_value=False)
+@patch("utils.scp.has_files", return_value=False)
 @patch("subprocess.run")
-def test_rsync_slp_files_to_allocator_test_skip(mock_run, mock_has_slp_files):
-    """Test skipping rsync when no .slp files are found in the container."""
-    rsync_slp_files_to_allocator(
-        ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/slp_files"
+def test_rsync_files_to_allocator_test_skip(mock_run, mock_has_files):
+    """Test skipping rsync when no extension files are found in the container."""
+    rsync_files_to_allocator(
+        ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/slp_files", extension="slp"
     )
     mock_run.assert_not_called()
 
 
-@patch("utils.scp.has_slp_files", return_value=True)
+@patch("utils.scp.has_files", return_value=True)
 @patch("subprocess.run")
-def test_rsync_slp_files_to_allocator_test_error(mock_run, mock_has_slp_files, caplog):
+def test_rsync_files_to_allocator_test_error(mock_run, mock_has_files, caplog):
     """Test handling errors when rsyncing .slp files to allocator."""
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
@@ -142,8 +142,8 @@ def test_rsync_slp_files_to_allocator_test_error(mock_run, mock_has_slp_files, c
     )
     with caplog.at_level("ERROR"):
         with pytest.raises(subprocess.CalledProcessError):
-            rsync_slp_files_to_allocator(
-                ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/slp_files"
+            rsync_files_to_allocator(
+                ip="1.2.3.4", key_path="/fake/key.pem", local_dir="/tmp/extracted_files", extension="slp"
             )
     mock_run.assert_called_once()
     assert any(
