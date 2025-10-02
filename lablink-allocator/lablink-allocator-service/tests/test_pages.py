@@ -94,7 +94,7 @@ def test_log_page_success(client, admin_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    monkeypatch.setattr("main.database"", fake_db)
+    monkeypatch.setattr("main.database", fake_db)
 
     hostname = "test-vm-dev-1"
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
@@ -108,7 +108,7 @@ def test_log_page_vm_not_found(client, admin_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = False
-    monkeypatch.setattr("main.database"", fake_db)
+    monkeypatch.setattr("main.database", fake_db)
 
     hostname = "test-vm-dev-1"
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
