@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
-from lablink_allocator_service import main
-
 
 def test_home_basic_structure(client):
     resp = client.get("/")
