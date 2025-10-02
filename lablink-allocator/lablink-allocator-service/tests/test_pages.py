@@ -31,7 +31,7 @@ def test_admin_instances_no_auth(client):
     assert response.status_code == 401
 
 
-@patch(main.vms.query")
+@patch(""main.vms.query"")
 def test_admin_instances(mock_query, client, admin_headers):
     """Test the admin instances endpoint without any instances."""
     mock_query.all.return_value = []
@@ -39,7 +39,7 @@ def test_admin_instances(mock_query, client, admin_headers):
     assert response.status_code == 200
 
 
-@patch(main.vms.query")
+@patch(""main.vms.query"")
 def test_view_instances_with_rows(mock_query, client, admin_headers):
     """Test the admin instances endpoint with rows."""
     rows = [
@@ -94,7 +94,7 @@ def test_log_page_success(client, admin_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    monkeypatch.setattr("main.database", fake_db)
+    monkeypatch.setattr(""main.database"", fake_db)
 
     hostname = "test-vm-dev-1"
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
@@ -108,7 +108,7 @@ def test_log_page_vm_not_found(client, admin_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = False
-    monkeypatch.setattr("main.database", fake_db)
+    monkeypatch.setattr(""main.database"", fake_db)
 
     hostname = "test-vm-dev-1"
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)

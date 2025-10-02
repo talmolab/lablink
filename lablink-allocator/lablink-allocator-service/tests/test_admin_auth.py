@@ -52,7 +52,7 @@ def test_set_aws_credentials_empty_field(client, admin_headers):
 
 
 @patch(
-    main.validate_aws_credentials,
+    "main.validate_aws_credentials",
     return_value={"valid": True},
 )
 def test_admin_set_aws_credentials_success_long_lasting(
@@ -82,7 +82,7 @@ def test_admin_set_aws_credentials_success_long_lasting(
 
 
 @patch(
-    main.validate_aws_credentials,
+    "main.validate_aws_credentials",
     return_value={"valid": True},
 )
 def test_admin_set_aws_credentials_success_long_lasting_error(
@@ -112,7 +112,7 @@ def test_admin_set_aws_credentials_success_long_lasting_error(
 
 
 @patch(
-    main.validate_aws_credentials,
+    "main.validate_aws_credentials",
     return_value={"valid": False, "message": "Invalid AWS credentials"},
 )
 def test_admin_set_aws_credentials_failure_invalid_credentials(
@@ -146,7 +146,7 @@ def test_admin_set_aws_credentials_failure_invalid_credentials(
 
 
 @patch(
-    main.validate_aws_credentials,
+    "main.validate_aws_credentials",
     return_value={
         "valid": False,
         "message": "AWS credentials are temporary but no session token provided.",
