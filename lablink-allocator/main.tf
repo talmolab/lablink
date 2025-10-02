@@ -9,6 +9,12 @@ variable "dns_name" {
   type        = string
 }
 
+variable "config_path" {
+  description = "Path to the allocator config file"
+  type        = string
+  default     = "conf/config.yaml"
+}
+
 provider "aws" {
   region = "us-west-2"
 }
@@ -108,6 +114,7 @@ resource "aws_instance" "lablink_allocator_server" {
     ALLOCATOR_PUBLIC_IP  = aws_eip.lablink_allocator_eip.public_ip
     ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
+    CONFIG_CONTENT       = file("${path.module}/${var.config_path}")
   })
 
   tags = {

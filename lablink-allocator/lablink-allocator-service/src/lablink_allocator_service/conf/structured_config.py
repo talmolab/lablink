@@ -24,9 +24,9 @@ class DatabaseConfig:
         message_channel (str): The name of the message channel for updates.
     """
 
-    dbname: str = field(default="lablink")
+    dbname: str = field(default="lablink_db")
     user: str = field(default="lablink")
-    password: str = field(default="lablink_password")
+    password: str = field(default="lablink")
     host: str = field(default="localhost")
     port: int = field(default=5432)
     table_name: str = field(default="vm_table")

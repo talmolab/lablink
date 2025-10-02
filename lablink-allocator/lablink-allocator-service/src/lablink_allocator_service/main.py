@@ -40,14 +40,15 @@ from lablink_allocator_service.utils.terraform_utils import (
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "postgresql://lablink:lablink@localhost:5432/lablink_db"
-)
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
 
 # Load the configuration
 cfg = get_config()
+
+db_uri = f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+os.environ["DATABASE_URL"] = db_uri
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", db_uri)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
 
 # Initialize variables
 PIN = "123456"
@@ -95,9 +96,7 @@ def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
             )
             return ""
     else:
-        logger.warning(
-            f"Unknown DNS pattern '{dns_config.pattern}'. Using IP only."
-        )
+        logger.warning(f"Unknown DNS pattern '{dns_config.pattern}'. Using IP only.")
         return ""
 
 
@@ -111,6 +110,7 @@ def init_database():
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
+        message_channel=cfg.db.message_channel,
     )
 
 
@@ -238,9 +238,7 @@ def set_aws_credentials():
     credentials_response = validate_aws_credentials()
     is_credentials_valid = credentials_response.get("valid", False)
     if not is_credentials_valid:
-        logger.error(
-            "Invalid AWS credentials provided."
-        )
+        logger.error("Invalid AWS credentials provided.")
 
         # Remove environment variables if credentials are invalid
         del os.environ["AWS_ACCESS_KEY_ID"]
@@ -291,7 +289,7 @@ def submit_vm_details():
             logger.error("Invalid CRD command: --code not found.")
             return render_template(
                 "index.html",
-                error="Invalid CRD command received. " \
+                error="Invalid CRD command received. "
                 "Please ask your instructor for help.",
             )
 
@@ -300,7 +298,7 @@ def submit_vm_details():
             logger.error("No available VMs found.")
             return render_template(
                 "index.html",
-                error="No available VMs. Please try again later. Please ask your " \
+                error="No available VMs. Please try again later. Please ask your "
                 "instructor for help",
             )
 
@@ -314,7 +312,7 @@ def submit_vm_details():
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
             "index.html",
-            error="An unexpected error occurred while processing your request. " \
+            error="An unexpected error occurred while processing your request. "
             "Please ask your instructor for help.",
         )
 
@@ -326,9 +324,7 @@ def launch():
     try:
         num_vms_str = request.form.get("num_vms")
         if not num_vms_str:
-            return render_template(
-                "dashboard.html", error="Number of VMs is required."
-            )
+            return render_template("dashboard.html", error="Number of VMs is required.")
         num_vms = int(num_vms_str)
         if num_vms <= 0:
             return render_template(
@@ -559,9 +555,7 @@ def download_all_data():
                         for file in vm_dir.rglob(f"*.{cfg.machine.extension}"):
                             logger.debug(f"Adding {file.name} to zip archive.")
                             # Add with relative path inside zip
-                            archive.write(
-                                file, arcname=file.relative_to(temp_dir)
-                            )
+                            archive.write(file, arcname=file.relative_to(temp_dir))
             logger.debug("All data downloaded and zipped successfully.")
 
             # Send the zip file as a response and remove it after the request
@@ -763,7 +757,13 @@ if __name__ == "__main__":
                 check=True,
             )
         else:
-            subprocess.run(["terraform", "init",
-                            f"-backend-config=backend-client-{ENVIRONMENT}.hcl"],
-                            cwd=terraform_dir, check=True)
+            subprocess.run(
+                [
+                    "terraform",
+                    "init",
+                    f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
+                ],
+                cwd=terraform_dir,
+                check=True,
+            )
     app.run(host="0.0.0.0", port=5000, threaded=True)

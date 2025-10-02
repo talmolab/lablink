@@ -65,6 +65,7 @@ def app(monkeypatch, omega_config):
 
     # Patch the users dict to use test credentials
     from werkzeug.security import generate_password_hash
+
     test_users = {
         omega_config.app.admin_user: generate_password_hash(
             omega_config.app.admin_password

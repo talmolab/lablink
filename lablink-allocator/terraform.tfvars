@@ -12,4 +12,5 @@
 #
 # This can be configured in lablink-allocator-service/conf/config.yaml
 
-dns_name = "sleap.ai"
+dns_name    = "sleap.ai"
+config_path = "/conf/config.yaml"
