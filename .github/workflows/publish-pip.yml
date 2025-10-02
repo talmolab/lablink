@@ -21,12 +21,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build package
+      - name: Build allocator package
+        working-directory: lablink-allocator/lablink-allocator-service
+        run: |
+          uv build
+
+      - name: Build client package
         working-directory: lablink-client-base/lablink-client-service
         run: |
           uv build
 
-      - name: Publish package distributions to PyPI
+      - name: Publish allocator package to PyPI
+        working-directory: lablink-allocator/lablink-allocator-service
+        run: |
+          uv publish
+
+      - name: Publish client package to PyPI
         working-directory: lablink-client-base/lablink-client-service
         run: |
           uv publish

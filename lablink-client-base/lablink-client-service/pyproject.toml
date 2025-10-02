@@ -1,10 +1,11 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools", "wheel"]
+requires = ["uv_build>=0.8.11,<0.9.0"]
+build-backend = "uv_build"
 
 [project]
 authors = [
-  {name = "Amitha Attapu", email = "amithaattapu0509@gmail.com"},
+  {name = "Elizabeth Berrigan", email = "eberrigan@salk.edu"},
+  {name = "Talmo Pereira", email = "talmo@salk.edu"},
   {name = "Andrew Park", email = "hep003@ucsd.edu"},
 ]
 dependencies = [
@@ -29,10 +30,6 @@ dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
 [project.urls]
 Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
-
-[tool.setuptools.packages.find]
-include = ["lablink_client_service*"]
-where = ["."]
 
 [project.scripts]
 check_gpu = "lablink_client_service.check_gpu:main"
