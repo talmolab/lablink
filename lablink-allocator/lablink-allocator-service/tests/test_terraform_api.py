@@ -6,9 +6,9 @@ POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
 
-@patch("main.upload_to_s3")
-@patch("main.check_support_nvidia", return_value=True)
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_vm_success(
     mock_run,
     mock_check_support_nvidia,
@@ -29,9 +29,9 @@ def test_launch_vm_success(
         MagicMock(get_row_count=MagicMock(return_value=3)),
         raising=False,
     )
-    monkeypatch.setattr("main.allocator_ip", "1.2.3.4", raising=False)
-    monkeypatch.setattr("main.key_name", "my-key", raising=False)
-    monkeypatch.setattr("main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "my-key", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
 
     # Fake terraform calls
     class R:
@@ -76,7 +76,7 @@ def test_launch_vm_success(
 
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -87,8 +87,8 @@ def test_launch_missing_allocator_outputs_returns_error(
     monkeypatch.setattr(
         "main.database", MagicMock(get_row_count=lambda: 0), raising=False
     )
-    monkeypatch.setattr("main.allocator_ip", "", raising=False)
-    monkeypatch.setattr("main.key_name", None, raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
 
     mock_run.return_value = MagicMock(stdout="INIT", stderr="")
 
@@ -98,8 +98,8 @@ def test_launch_missing_allocator_outputs_returns_error(
     assert not (Path("terraform") / "terraform.runtime.tfvars").exists()
 
 
-@patch("main.check_support_nvidia", return_value=False)
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -110,9 +110,9 @@ def test_launch_apply_failure(
     monkeypatch.setattr(
         "main.database", MagicMock(get_row_count=lambda: 1), raising=False
     )
-    monkeypatch.setattr("main.allocator_ip", "9.9.9.9", raising=False)
-    monkeypatch.setattr("main.key_name", "k", raising=False)
-    monkeypatch.setattr("main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
 
     def side_effect(cmd, **kwargs):
         if cmd[1] == "init":
@@ -129,7 +129,7 @@ def test_launch_apply_failure(
     assert 'gpu_support = "false"' in tfvars
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via terraform destroy."""
     monkeypatch.chdir(tmp_path)
@@ -142,7 +142,7 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
 
     # Mock DB and attach to app module via string target
     fake_db = MagicMock()
-    monkeypatch.setattr("main.database", fake_db, raising=False)
+    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
 
     # Call the destroy endpoint
     resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
@@ -164,7 +164,7 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
     fake_db.clear_database.assert_called_once()
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()

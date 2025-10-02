@@ -44,4 +44,4 @@ select = ["E", "F", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]
-"tests/*" = ["F403", "F405"]
+"tests/*" = ["F403", "F405", "E501"]
