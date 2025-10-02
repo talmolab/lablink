@@ -1,7 +1,7 @@
 """Unit tests for DNS configuration functionality."""
 
-from conf.structured_config import DNSConfig
-from main import generate_dns_name
+from lablink_allocator_service.conf.structured_config import DNSConfig
+from lablink_allocator_service.main import generate_dns_name
 
 
 class TestDNSConfig:
