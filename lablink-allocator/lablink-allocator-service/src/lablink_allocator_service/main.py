@@ -22,11 +22,15 @@ import psycopg2
 
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.database import PostgresqlDatabase
-from lablink_allocator_service.utils.aws_utils import validate_aws_credentials, check_support_nvidia, upload_to_s3
+from lablink_allocator_service.utils.aws_utils import (
+    validate_aws_credentials,
+    check_support_nvidia,
+    upload_to_s3,
+)
 from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
-    rsync_files_to_allocator
+    rsync_files_to_allocator,
 )
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
