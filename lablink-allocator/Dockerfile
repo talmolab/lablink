@@ -3,7 +3,9 @@ FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DATABASE_URL=postgresql://lablink:lablink@localhost:5432/lablink_db
-
+ENV CONFIG_DIR=/config
+ENV CONFIG_NAME=config.yaml
+VOLUME [ "/config" ]
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,9 +19,6 @@ RUN apt-get update && apt-get install -y curl unzip && \
     curl -fsSL https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_amd64.zip -o /tmp/terraform.zip && \
     unzip /tmp/terraform.zip -d /usr/local/bin && \
     rm /tmp/terraform.zip
-
-
-
 
 # Set working directory
 WORKDIR /app

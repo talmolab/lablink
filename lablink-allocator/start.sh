@@ -39,6 +39,22 @@ done
 # Run database migrations (if applicable)
 uv run -m flask db upgrade
 
+CONFIG_DIR="${CONFIG_DIR:-/config}"
+CONFIG_NAME="${CONFIG_NAME:-config.yaml}"
+mkdir -p "$CONFIG_DIR"
+
+# Seed only if needed
+if [ ! -f "$CONFIG_DIR/$CONFIG_NAME" ]; then
+  if [ -z "$(ls -A "$CONFIG_DIR" 2>/dev/null || true)" ]; then
+    echo "[allocator] Seeding defaults into $CONFIG_DIR ..."
+    rsync -a /app/config.defaults/ "$CONFIG_DIR"/
+  else
+    echo "[allocator] Warning: $CONFIG_DIR/$CONFIG_NAME not found; using whatever exists in "$CONFIG_DIR""
+  fi
+fi
+
+echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
+
 # Start the Flask application
 echo "Starting Flask app..."
 exec uv run main.py
