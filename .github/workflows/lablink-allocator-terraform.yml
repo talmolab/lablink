@@ -129,7 +129,7 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
-            -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}"
+            -var="allocator_image_tag=${{ steps.getimagetag.outputs.tag }}" \
             -var-file="terraform.tfvars"
         continue-on-error: true
 

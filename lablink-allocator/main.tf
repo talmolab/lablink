@@ -5,7 +5,7 @@ variable "resource_suffix" {
 }
 
 variable "dns_name" {
-  description = "DNS Name for 53 Route"
+  description = "DNS Name for Route 53"
   type        = string
 }
 
@@ -123,7 +123,7 @@ resource "aws_eip" "lablink_allocator_eip" {
   }
 }
 
-# Find the Route 53 Host zone by name
+# Find the Route 53 hosted zone by name
 data "aws_route53_zone" "selected" {
   name         = var.dns_name
   private_zone = false
