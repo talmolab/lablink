@@ -48,7 +48,7 @@ This project adheres to a code of conduct that we expect all contributors to fol
 1. **Check existing issues**: Someone may already be working on it
 2. **Open an issue first**: For major changes, discuss before implementing
 3. **Read the docs**: Familiarize yourself with LabLink architecture
-4. **Review CLAUDE.md**: Developer-focused project overview
+4. **Review [CLAUDE.md](https://github.com/talmolab/lablink/blob/main/CLAUDE.md)**: Developer-focused project overview
 
 ## Development Setup
 
@@ -422,7 +422,7 @@ When making changes that affect users:
 1. **Update relevant docs** in `docs/` directory
 2. **Update docstrings** for API changes
 3. **Update README.md** if adding major features
-4. **Update CLAUDE.md** if changing architecture
+4. **Update [CLAUDE.md](https://github.com/talmolab/lablink/blob/main/CLAUDE.md)** if changing architecture
 5. **Test documentation** locally with `mkdocs serve`
 
 ### Documentation Checklist
@@ -738,7 +738,7 @@ If a release has issues:
 - 📖 **Documentation**: https://talmolab.github.io/lablink/
 - 🐛 **Issues**: https://github.com/talmolab/lablink/issues
 - 💬 **Discussions**: https://github.com/talmolab/lablink/discussions
-- 📧 **Developer Guide**: [CLAUDE.md](CLAUDE.md)
+- 📧 **Developer Guide**: [CLAUDE.md](https://github.com/talmolab/lablink/blob/main/CLAUDE.md)
 
 ### Questions?
 
@@ -763,7 +763,7 @@ Contributors are recognized in:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same [BSD-3-Clause License](LICENSE) that covers the project.
+By contributing, you agree that your contributions will be licensed under the same [BSD-3-Clause License](https://github.com/talmolab/lablink/blob/main/LICENSE) that covers the project.
 
 ## Thank You!
 
