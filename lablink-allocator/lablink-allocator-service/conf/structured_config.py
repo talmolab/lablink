@@ -60,6 +60,7 @@ class MachineConfig:
         image (str): The Docker image ID to be used for the machine.
         ami_id (str): The Amazon Machine Image (AMI) ID for the machine.
         software (str): The software to be installed on the machine.
+        extension (str): The file extension associated with the software.
     """
 
     machine_type: str = field(default="g4dn.xlarge")
@@ -67,6 +68,36 @@ class MachineConfig:
     image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
     ami_id: str = field(default="ami-00c257e12d6828491")
     software: str = field(default="sleap")
+    extension: str = field(default="slp")
+
+
+@dataclass
+class DNSConfig:
+    """Configuration for DNS and domain setup.
+
+    This class defines DNS settings for Route 53 hosted zones and records.
+    DNS can be disabled entirely, or configured with different naming patterns.
+
+    Attributes:
+        enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
+        domain (str): The base domain name (e.g., "sleap.ai").
+        app_name (str): The application name used in subdomains (e.g., "lablink").
+        pattern (str): Naming pattern for DNS records. Options:
+            - "auto": Automatically generate based on environment
+                      prod: {app_name}.{domain}
+                      non-prod: {env}.{app_name}.{domain}
+            - "app-only": Always use {app_name}.{domain}
+            - "custom": Use custom_subdomain value
+        custom_subdomain (str): Custom subdomain when pattern="custom"
+        create_zone (bool): Whether to create a new Route 53 hosted zone
+    """
+
+    enabled: bool = field(default=False)
+    domain: str = field(default="")
+    app_name: str = field(default="lablink")
+    pattern: str = field(default="auto")
+    custom_subdomain: str = field(default="")
+    create_zone: bool = field(default=False)
 
 
 @dataclass
@@ -78,12 +109,14 @@ class Config:
         db (DatabaseConfig): The database configuration.
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.
+        dns (DNSConfig): The DNS configuration.
         bucket_name (str): The S3 bucket name for Terraform state.
     """
 
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)
+    dns: DNSConfig = field(default_factory=DNSConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
 
 

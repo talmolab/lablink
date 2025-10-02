@@ -24,11 +24,20 @@ def omega_config():
                 "ami_id": "ami-test",
                 "repository": "https://github.com/example/repo.git",
                 "software": "sleap",
+                "extension": "slp",
             },
             "app": {
                 "admin_user": "test_admin",
                 "admin_password": "test_pass",
                 "region": "us-west-2",
+            },
+            "dns": {
+                "enabled": False,
+                "domain": "",
+                "app_name": "lablink",
+                "pattern": "auto",
+                "custom_subdomain": "",
+                "create_zone": False,
             },
             "bucket_name": "test-bucket",
         }
@@ -46,6 +55,18 @@ def app(monkeypatch, omega_config):
     monkeypatch.setattr("get_config.get_config", lambda: omega_config, raising=True)
 
     import main
+
+    # Patch the cfg to use test config
+    monkeypatch.setattr(main, "cfg", omega_config, raising=False)
+
+    # Patch the users dict to use test credentials
+    from werkzeug.security import generate_password_hash
+    test_users = {
+        omega_config.app.admin_user: generate_password_hash(
+            omega_config.app.admin_password
+        )
+    }
+    monkeypatch.setattr(main, "users", test_users, raising=False)
 
     # If your code references `main.database`, stub it out:
     if not hasattr(main, "database"):

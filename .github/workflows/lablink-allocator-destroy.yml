@@ -34,7 +34,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
         with:
-          role-to-assume: arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-2
 
       - name: Setup Terraform
@@ -87,4 +87,5 @@ jobs:
         run: |
           terraform destroy -auto-approve \
             -var="resource_suffix=${{ github.event.inputs.environment }}" \
-            -var="allocator_image_tag=${{ steps.resolve_image_tag.outputs.tag }}"
+            -var="allocator_image_tag=${{ steps.resolve_image_tag.outputs.tag }}" \
+            -var-file="terraform.tfvars"

@@ -387,17 +387,17 @@ def test_scp_success(client, admin_headers, monkeypatch):
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
     monkeypatch.setattr(
-        "main.find_slp_files_in_container",
-        lambda ip, key_path: ["/remote/path/sample.slp"],
+        "main.find_files_in_container",
+        lambda ip, key_path, extension: ["/remote/path/sample.slp"],
     )
-    monkeypatch.setattr("main.extract_slp_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr("main.extract_files_from_docker", lambda **kwargs: None)
 
     # Dummy function for rsync
-    def fake_rsync(ip, key_path, local_dir):
+    def fake_rsync(ip, key_path, local_dir, extension="slp"):
         Path(local_dir).mkdir(parents=True, exist_ok=True)
-        (Path(local_dir) / "sample.slp").write_text("dummy")
+        (Path(local_dir) / f"sample.{extension}").write_text("dummy")
 
-    monkeypatch.setattr("main.rsync_slp_files_to_allocator", fake_rsync)
+    monkeypatch.setattr("main.rsync_files_to_allocator", fake_rsync)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -433,16 +433,16 @@ def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatc
     find_slp = MagicMock(return_value=["/remote/path/sample.slp"])
     extract = MagicMock()
     rsync = MagicMock(
-        side_effect=lambda ip, key_path, local_dir: (
+        side_effect=lambda ip, key_path, local_dir, extension: (
             Path(local_dir).mkdir(parents=True, exist_ok=True),
-            (Path(local_dir) / "sample.slp").write_text("dummy"),
+            (Path(local_dir) / f"sample.{extension}").write_text("dummy"),
         )
     )
 
     # Use MagicMocks so we can assert call counts/args
-    monkeypatch.setattr("main.find_slp_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("main.extract_slp_from_docker", extract, raising=False)
-    monkeypatch.setattr("main.rsync_slp_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr("main.find_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr("main.extract_files_from_docker", extract, raising=False)
+    monkeypatch.setattr("main.rsync_files_to_allocator", rsync, raising=False)
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 200
@@ -483,21 +483,21 @@ def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
     )
 
     # First VM has .slp files; second has none
-    def find_side_effect(ip, key_path):
+    def find_side_effect(ip, key_path, extension):
         return ["/remote/sample.slp"] if ip == "10.0.0.1" else []
 
     # Mock the file operations
     find_slp = MagicMock(side_effect=find_side_effect)
     extract = MagicMock()
     rsync = MagicMock(
-        side_effect=lambda ip, key_path, local_dir: (
+        side_effect=lambda ip, key_path, local_dir, extension: (
             Path(local_dir).mkdir(parents=True, exist_ok=True),
             (Path(local_dir) / "sample.slp").write_text("dummy"),
         )
     )
-    monkeypatch.setattr("main.find_slp_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("main.extract_slp_from_docker", extract, raising=False)
-    monkeypatch.setattr("main.rsync_slp_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr("main.find_files_in_container", find_slp, raising=False)
+    monkeypatch.setattr("main.extract_files_from_docker", extract, raising=False)
+    monkeypatch.setattr("main.rsync_files_to_allocator", rsync, raising=False)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -549,14 +549,16 @@ def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
     monkeypatch.setattr(
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
-    monkeypatch.setattr("main.find_slp_files_in_container", lambda ip, key_path: [])
-    monkeypatch.setattr("main.extract_slp_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr(
+        "main.find_files_in_container", lambda ip, key_path, extension: []
+    )
+    monkeypatch.setattr("main.extract_files_from_docker", lambda **kwargs: None)
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 404
     assert resp.is_json
-    assert resp.get_json() == {"error": "No .slp files found in any VMs."}
+    assert resp.get_json() == {"error": "No slp files found in any VMs."}
 
 
 def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
@@ -573,14 +575,15 @@ def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
         "main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
     )
     monkeypatch.setattr(
-        "main.find_slp_files_in_container", lambda ip, key_path: ["/remote/sample.slp"]
+        "main.find_files_in_container",
+        lambda ip, key_path, extension: ["/remote/sample.slp"],
     )
 
     # Make one of the steps raise a CalledProcessError to trigger 500 path
     def explode(**kwargs):
         raise subprocess.CalledProcessError(1, ["rsync"], "boom")
 
-    monkeypatch.setattr("main.extract_slp_from_docker", explode)
+    monkeypatch.setattr("main.extract_files_from_docker", explode)
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 500

@@ -4,6 +4,11 @@ variable "resource_suffix" {
   default     = "prod"
 }
 
+variable "dns_name" {
+  description = "DNS Name for Route 53"
+  type        = string
+}
+
 provider "aws" {
   region = "us-west-2"
 }
@@ -91,7 +96,7 @@ variable "allocator_image_tag" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami                  = "ami-0e096562a04af2d8b"
+  ami                  = "ami-0bd08c9d4aa9f0bc6"
   instance_type        = local.allocator_instance_type
   security_groups      = [aws_security_group.allow_http.name]
   key_name             = aws_key_pair.lablink_key_pair.key_name
@@ -100,7 +105,7 @@ resource "aws_instance" "lablink_allocator_server" {
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
     RESOURCE_SUFFIX      = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP  = data.aws_eip.lablink_allocator_ip.public_ip
+    ALLOCATOR_PUBLIC_IP  = aws_eip.lablink_allocator_eip.public_ip
     ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
   })
@@ -111,25 +116,51 @@ resource "aws_instance" "lablink_allocator_server" {
   }
 }
 
-data "aws_eip" "lablink_allocator_ip" {
-  filter {
-    name   = "tag:Name"
-    values = ["lablink-eip-${var.resource_suffix}"]
+resource "aws_eip" "lablink_allocator_eip" {
+  domain = "vpc"
+  tags = {
+    Name = "lablink-eip-${var.resource_suffix}"
   }
 }
 
+# Route 53 Hosted Zone - create if it doesn't exist
+resource "aws_route53_zone" "lablink_main" {
+  count = var.dns_name != "" ? 1 : 0
+  name  = var.dns_name
+
+  lifecycle {
+    # Prevent accidental deletion of zone
+    prevent_destroy = false
+  }
+}
+
+locals {
+  zone_id = var.dns_name != "" ? aws_route53_zone.lablink_main[0].zone_id : ""
+}
+
+# Generate FQDN based on environment and DNS name
+# Pattern: prod -> lablink.{dns_name}, non-prod -> {env}.lablink.{dns_name}
+locals {
+  fqdn = var.dns_name != "" ? (
+    var.resource_suffix == "prod" ? "lablink.${var.dns_name}" : "${var.resource_suffix}.lablink.${var.dns_name}"
+  ) : "N/A"
+  allocator_instance_type = "t3.large"
+}
+
+# Record for the allocator
+resource "aws_route53_record" "lablink_a_record" {
+  count   = var.dns_name != "" ? 1 : 0
+  zone_id = local.zone_id
+  name    = local.fqdn
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.lablink_allocator_eip.public_ip]
+}
 
 # Associate Elastic IP with EC2 instance
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
-  allocation_id = data.aws_eip.lablink_allocator_ip.id
-}
-
-# Define the FQDN based on the resource suffix
-# Use larger instance type for production
-locals {
-  fqdn                    = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
-  allocator_instance_type = "t3.large"
+  allocation_id = aws_eip.lablink_allocator_eip.id
 }
 
 # CloudWatch Log Groups for Client VMs
@@ -232,7 +263,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
-  value = data.aws_eip.lablink_allocator_ip.public_ip
+  value = aws_eip.lablink_allocator_eip.public_ip
 }
 
 # Output the EC2 key name
