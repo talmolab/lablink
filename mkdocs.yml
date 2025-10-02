@@ -65,6 +65,7 @@ plugins:
   - mike:
       alias_type: symlink
       canonical_version: latest
+      version_selector: true
 
 markdown_extensions:
   - admonition
@@ -86,34 +87,33 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
+  - Installation:
       - Prerequisites: prerequisites.md
       - Installation: installation.md
       - Quickstart: quickstart.md
-  - User Guides:
+  - Guides:
       - Architecture: architecture.md
       - Configuration: configuration.md
-      - Adapting for Your Software: adapting.md
+      - Adapting for your software: adapting.md
       - Deployment: deployment.md
       - Workflows: workflows.md
-      - SSH Access: ssh-access.md
-      - Database Management: database.md
+      - SSH access: ssh-access.md
+      - Database: database.md
       - Testing: testing.md
-  - AWS Setup:
-      - AWS Setup from Scratch: aws-setup.md
-      - Security & Credentials: security.md
-      - Cost Estimation: cost-estimation.md
+  - AWS:
+      - AWS setup: aws-setup.md
+      - Security and credentials: security.md
+      - Cost estimation: cost-estimation.md
   - Reference:
-      - API Reference: reference/
+      - API reference: reference/
       - Troubleshooting: troubleshooting.md
       - FAQ: faq.md
-  - Contributing:
-      - Contributing Guide: contributing.md
-      - Contributing to Docs: contributing-docs.md
-  - About:
+  - Development:
+      - Contributing: contributing.md
+      - Documentation: contributing-docs.md
       - Changelog: changelog.md
-      - Allocator Changelog: changelog-allocator.md
-      - Client Changelog: changelog-client.md
+      - Allocator changelog: changelog-allocator.md
+      - Client changelog: changelog-client.md
       - Releases: https://github.com/talmolab/lablink/releases
 
 extra:
