@@ -49,7 +49,7 @@ def test_set_aws_credentials_empty_field(client, admin_headers):
     assert response.json == {"error": "AWS Access Key and Secret Key are required"}
 
 
-@patch("main.validate_aws_credentials", return_value={"valid": True})
+@patch("lablink_allocator_service.main.validate_aws_credentials", return_value={"valid": True})
 def test_admin_set_aws_credentials_success_long_lasting(
     mock_validate, client, admin_headers, monkeypatch
 ):
@@ -76,7 +76,7 @@ def test_admin_set_aws_credentials_success_long_lasting(
     assert os.environ.get("AWS_SESSION_TOKEN") == ""
 
 
-@patch("main.validate_aws_credentials", return_value={"valid": True})
+@patch("lablink_allocator_service.main.validate_aws_credentials", return_value={"valid": True})
 def test_admin_set_aws_credentials_success_long_lasting_error(
     mock_validate, client, admin_headers, monkeypatch
 ):

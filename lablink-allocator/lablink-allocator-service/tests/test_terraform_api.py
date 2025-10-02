@@ -6,9 +6,9 @@ POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
 
-@patch("main.upload_to_s3")
-@patch("main.check_support_nvidia", return_value=True)
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_vm_success(
     mock_run,
     mock_check_support_nvidia,
@@ -76,7 +76,7 @@ def test_launch_vm_success(
 
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -98,8 +98,8 @@ def test_launch_missing_allocator_outputs_returns_error(
     assert not (Path("terraform") / "terraform.runtime.tfvars").exists()
 
 
-@patch("main.check_support_nvidia", return_value=False)
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -129,7 +129,7 @@ def test_launch_apply_failure(
     assert 'gpu_support = "false"' in tfvars
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via terraform destroy."""
     monkeypatch.chdir(tmp_path)
@@ -164,7 +164,7 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
     fake_db.clear_database.assert_called_once()
 
 
-@patch("main.subprocess.run")
+@patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir()
