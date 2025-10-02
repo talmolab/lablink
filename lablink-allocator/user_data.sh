@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create config directory and file
+# Create config directory and file in /etc/lablink-allocator in EC2 instance
 mkdir -p /etc/lablink-allocator
 cat <<EOF > /etc/lablink-allocator/config.yaml
 ${CONFIG_CONTENT}
