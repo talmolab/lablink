@@ -28,7 +28,7 @@ def get_config() -> Config:
         chosen_name = config_name.replace(".yaml", "")
         source = "runtime"
     else:
-        chosen_path = "conf"
+        chosen_path = "../conf"
         chosen_name = "config"
         source = "default"
         logger.info(f"Using {source} config from {chosen_path}")
