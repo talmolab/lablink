@@ -35,14 +35,14 @@ from utils.terraform_utils import (
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "postgresql://lablink:lablink@localhost:5432/lablink_db"
-)
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
 
 # Load the configuration
 cfg = get_config()
+
+db_uri = f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", db_uri)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
 
 # Initialize variables
 PIN = "123456"
