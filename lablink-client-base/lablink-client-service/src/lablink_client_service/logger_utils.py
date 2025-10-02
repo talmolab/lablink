@@ -54,12 +54,12 @@ class CloudAndConsoleLogger:
 
         return wrapper
 
-    def pprint(self, obj, level=logging.INFO):
+    def pprint(self, obj: object, level: int = logging.INFO) -> None:
         """Pretty-print an object and log the output.
 
         Args:
             obj: The object to pretty-print and log.
-            level (int, optional): The logging level. Defaults to logging.INFO.
+            level: The logging level. Defaults to logging.INFO.
         """
 
         pp = pprint.PrettyPrinter(indent=4)

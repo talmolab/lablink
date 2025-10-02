@@ -22,6 +22,7 @@ import psycopg2
 
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.database import PostgresqlDatabase
+from lablink_allocator_service.conf.structured_config import DNSConfig
 from lablink_allocator_service.utils.aws_utils import (
     validate_aws_credentials,
     check_support_nvidia,
@@ -62,7 +63,7 @@ cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 database = None
 
 
-def generate_dns_name(dns_config, environment):
+def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
     """Generate DNS name based on configuration and environment.
 
     Args:

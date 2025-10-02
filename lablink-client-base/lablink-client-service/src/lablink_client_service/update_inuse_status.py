@@ -42,14 +42,12 @@ def default_callback(process_name: str):
 def listen_for_process(
     process_name: str, interval: int = 20, callback_func=None
 ) -> None:
-    """
-    Listen for a specific process to start or stop.
+    """Listen for a specific process to start or stop.
 
     Args:
         process_name (str): The name of the process to listen for.
         interval (int, optional): The interval (in seconds) to check the process status.
-        callback_func (callable, optional): A callback function to execute
-        when the process state changes.
+        callback_func (callable, optional): A callback function to execute when the process state changes.
     """
 
     # Set up a default callback function if none is provided
