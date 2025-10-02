@@ -2,7 +2,6 @@ FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DATABASE_URL=postgresql://lablink:lablink@localhost:5432/lablink_db
 ENV CONFIG_DIR=/config
 ENV CONFIG_NAME=config.yaml
 VOLUME [ "/config" ]
