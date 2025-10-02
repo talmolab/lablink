@@ -60,6 +60,7 @@ class MachineConfig:
         image (str): The Docker image ID to be used for the machine.
         ami_id (str): The Amazon Machine Image (AMI) ID for the machine.
         software (str): The software to be installed on the machine.
+        extension (str): The file extension associated with the software.
     """
 
     machine_type: str = field(default="g4dn.xlarge")
@@ -67,6 +68,7 @@ class MachineConfig:
     image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
     ami_id: str = field(default="ami-00c257e12d6828491")
     software: str = field(default="sleap")
+    extension: str = field(default="slp")
 
 
 @dataclass

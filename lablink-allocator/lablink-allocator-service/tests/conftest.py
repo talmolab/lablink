@@ -24,6 +24,7 @@ def omega_config():
                 "ami_id": "ami-test",
                 "repository": "https://github.com/example/repo.git",
                 "software": "sleap",
+                "extension": "slp",
             },
             "app": {
                 "admin_user": "test_admin",
