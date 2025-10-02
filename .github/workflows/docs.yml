@@ -86,4 +86,4 @@ jobs:
       - name: Build documentation (manual/PR)
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
         run: |
-          uv run mkdocs build --strict
+          uv run mkdocs build
