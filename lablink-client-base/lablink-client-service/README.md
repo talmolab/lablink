@@ -1,78 +1,238 @@
 # lablink-client-service
 
-## Description
-This folder contains the Python Package installed in the VM instance. The service is designed to run on a Ubuntu system with NVIDIA GPU support, specifically for use with Chrome Remote Desktop. This is the client side (VM instance) of the LabLink infrastructure. The `subscribe.py` will run as a startup script in the VM.
+**Client service for LabLink VM instances.**
+
+[![PyPI version](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/github/license/talmolab/lablink)](https://github.com/talmolab/lablink/blob/main/LICENSE)
+
+This package runs on client VM instances to communicate with the LabLink allocator, report health status, and manage containerized workloads.
+
+---
+
+## Features
+
+- 📡 **Allocator Subscription**: Automatically registers with the allocator service
+- 💓 **Health Monitoring**: Reports GPU and system health status
+- 🔄 **Status Updates**: Communicates VM availability and usage
+- 🐳 **Docker Integration**: Manages containerized research workloads
+- ⚡ **GPU Support**: Monitors NVIDIA GPU health and availability
+- 🔧 **Configurable**: Flexible configuration via Hydra
+
+---
 
 ## Installation
-Install Lablink Client Service from [PyPI](https://pypi.org/project/lablink-client-service/). 
+
+### From PyPI
 
 ```bash
 pip install lablink-client-service
 ```
 
-If installed properly, you should be able to run the following command:
+### With uv (Recommended)
 
 ```bash
-subscribe
+uv pip install lablink-client-service
 ```
 
-## Usage in the Client VM
-Run the following command with necessary configuration based on the allocator's host and port manually in the VM instance terminal:
+---
+
+## Quick Start
+
+### Running the Service
+
+The client service provides a `subscribe` command that connects to the allocator:
 
 ```bash
-subscribe allocator.host=<allocator_host> allocator.port=<allocator.port>
+subscribe allocator.host=your-allocator.com allocator.port=5000
 ```
 
-This command will subscribe to the message from the allocator web application. 
-
-## Configuration
-The configuration can be overridden by passing a different config file path as an argument to the script. For example:
+Or use the Python module:
 
 ```bash
-python -m lablink_client_service.subscribe allocator.host=<your_allocator_host> allocator.port=<your_allocator_port>
+python -m lablink_client_service.subscribe allocator.host=your-allocator.com allocator.port=5000
 ```
 
-- `allocator.host`: The hostname of the allocator server.
-- `allocator.port`: The port of the allocator server.
+### Configuration
 
-You can also fix the configuration by modifying the `config.yaml` file in the `lablink_client_service` directory. The script will automatically load the configuration from this file.
+Configuration is managed via Hydra with `conf/config.yaml`:
 
-## Development Setup
-For developers modifying this package, follow this guide. While the VMs will just install these dependencies globally, developers should use a venv. For developers:
+```yaml
+allocator:
+  host: "allocator.example.com"
+  port: 5000
 
-1. Open terminal in project root directory
-2. Create a virtual environment
+client:
+  software: "your-research-software"
+```
+
+You can override configuration at runtime:
 
 ```bash
-python3 -m venv venv
+subscribe allocator.host=new-host.com allocator.port=8080 client.software=my-software
 ```
 
-3. Activate the virtual environment
+See the [Configuration Guide](https://talmolab.github.io/lablink/configuration/) for detailed options.
+
+---
+
+## Usage in VM Instances
+
+The client service is designed to run as a startup script in client VMs:
+
+1. **Automatic Registration**: Subscribes to the allocator on VM startup
+2. **Health Reporting**: Continuously monitors and reports system health
+3. **Status Updates**: Notifies allocator of availability changes
+4. **Workload Management**: Manages Docker containers for research tasks
+
+The service runs continuously and handles:
+- GPU health checks
+- Process monitoring
+- Status synchronization with allocator
+- Automatic recovery from failures
+
+---
+
+## Development
+
+### Setup
 
 ```bash
-source venv/bin/activate
+# Clone the repository
+git clone https://github.com/talmolab/lablink.git
+cd lablink/lablink-client-base/lablink-client-service
+
+# Install with development dependencies
+uv sync --extra dev
+
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src/lablink_client_service
+
+# Run linting
+uv run ruff check src tests
 ```
 
-4. Install the dependencies
+### Project Structure
 
-```bash
-pip install -e ".[dev]"
+```
+lablink-client-service/
+├── src/
+│   └── lablink_client_service/
+│       ├── subscribe.py              # Main subscription service
+│       ├── check_gpu.py              # GPU health monitoring
+│       ├── update_inuse_status.py    # Status update service
+│       ├── conf/                     # Configuration files
+│       └── utils/                    # Utility modules
+├── tests/                            # Test suite
+├── pyproject.toml                    # Package configuration
+└── README.md                         # This file
 ```
 
-5. Deactivate the virtual environment when done
+### Entry Points
 
-```bash
-deactivate
+The package provides the following entry points:
+
+- `subscribe` - Main service for connecting to allocator
+- `check_gpu` - GPU health check utility
+- `update_inuse_status` - Status update utility
+
+---
+
+## Components
+
+### Subscription Service (`subscribe.py`)
+
+Connects to the allocator and maintains communication:
+
+```python
+from lablink_client_service import subscribe
+
+# Run subscription service
+subscribe.main()
 ```
 
-6. To remove the virtual environment, delete the `venv` directory
+### GPU Health Check (`check_gpu.py`)
 
-## Usage in Local Machine
+Monitors NVIDIA GPU health and availability:
 
-Run the `subscribe.py` script to start the service. This script will subscribe to the LabLink server and listen for incoming messages.
+```python
+from lablink_client_service import check_gpu
 
-```bash
-python -m lablink_client_service.subscribe
+# Check GPU status
+status = check_gpu.check_gpu_health()
 ```
 
-> This script will run with the default configuration. To change the configuration, you can modify the `config.yaml` file in the `lablink_client_service` directory. The script will automatically load the configuration from this file.
+### Status Updates (`update_inuse_status.py`)
+
+Reports VM usage status to allocator:
+
+```python
+from lablink_client_service import update_inuse_status
+
+# Update VM status
+update_inuse_status.update_status(in_use=True)
+```
+
+---
+
+## Deployment
+
+This package is designed to be deployed in client VMs as part of the LabLink infrastructure. For deployment instructions, see the **[LabLink Template Repository](https://github.com/talmolab/lablink-template)** (coming soon).
+
+### Docker Deployment
+
+The client service is containerized and published to GHCR. See [lablink-client-base-image](../lablink-client-base-image/) for the Docker image.
+
+---
+
+## Documentation
+
+- **[Full Documentation](https://talmolab.github.io/lablink/)** - Complete guide
+- **[Configuration](https://talmolab.github.io/lablink/configuration/)** - Configuration options
+- **[API Reference](https://talmolab.github.io/lablink/reference/client/)** - API documentation
+- **[Contributing](https://talmolab.github.io/lablink/contributing/)** - Development guide
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) for details.
+
+### Quick Contribution Workflow
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make changes and add tests
+4. Run tests: `uv run pytest`
+5. Run linting: `uv run ruff check src tests`
+6. Commit: `git commit -m "feat(client): add my feature"`
+7. Push and open a Pull Request
+
+---
+
+## Changelog
+
+See the [Client Changelog](https://talmolab.github.io/lablink/changelog-client/) for release history.
+
+---
+
+## License
+
+BSD-3-Clause License. See [LICENSE](https://github.com/talmolab/lablink/blob/main/LICENSE) for details.
+
+---
+
+## Links
+
+- **PyPI**: https://pypi.org/project/lablink-client-service/
+- **Documentation**: https://talmolab.github.io/lablink/
+- **Repository**: https://github.com/talmolab/lablink
+- **Issues**: https://github.com/talmolab/lablink/issues
+- **Discussions**: https://github.com/talmolab/lablink/discussions
+
+---
+
+**Questions?** Check the [FAQ](https://talmolab.github.io/lablink/faq/) or open an [issue](https://github.com/talmolab/lablink/issues).
