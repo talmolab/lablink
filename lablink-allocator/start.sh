@@ -11,6 +11,11 @@ until pg_isready -U postgres; do
     sleep 2
 done
 
+# Generate the init.sql script
+echo "Generating init.sql..."
+cd /app
+uv run generate-init-sql.py
+
 # Run the init.sql script as the postgres superuser
 echo "Running init.sql..."
 until pg_isready -U postgres; do sleep 1; done
@@ -49,7 +54,7 @@ if [ ! -f "$CONFIG_DIR/$CONFIG_NAME" ]; then
     echo "[allocator] Seeding defaults into $CONFIG_DIR ..."
     rsync -a /app/config.defaults/ "$CONFIG_DIR"/
   else
-    echo "[allocator] Warning: $CONFIG_DIR/$CONFIG_NAME not found; using whatever exists in "$CONFIG_DIR""
+    echo "[allocator] Warning: $CONFIG_DIR/$CONFIG_NAME not found; using whatever exists in \"$CONFIG_DIR\""
   fi
 fi
 

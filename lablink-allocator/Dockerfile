@@ -30,8 +30,7 @@ COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/
 # Install Python dependencies using UV
 RUN uv venv && uv pip install -r pyproject.toml
 
-COPY lablink-allocator/lablink-allocator-service/generate-init-sql.py /app
-RUN uv run generate-init-sql.py
+
 
 # Expose ports for Flask
 EXPOSE 5000
