@@ -1,6 +1,7 @@
 from get_config import get_config
 
 config = get_config()
+print(config)
 
 # Load database configuration from config.yaml
 DB_NAME = config.db.dbname
