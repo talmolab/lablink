@@ -56,6 +56,9 @@ def app(monkeypatch, omega_config):
 
     import main
 
+    # Patch the cfg to use test config
+    monkeypatch.setattr(main, "cfg", omega_config, raising=False)
+
     # Patch the users dict to use test credentials
     from werkzeug.security import generate_password_hash
     test_users = {
