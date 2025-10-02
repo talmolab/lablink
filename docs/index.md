@@ -19,5 +19,6 @@ LabLink allocates virtual machines (VMs) on Amazon Web Services (AWS) to make re
 ## Links
 
 - [GitHub](https://github.com/talmolab/lablink)
+- [Template](https://github.com/talmolab/lablink-template)
 - [Issues](https://github.com/talmolab/lablink/issues)
 - [Releases](https://github.com/talmolab/lablink/releases)
