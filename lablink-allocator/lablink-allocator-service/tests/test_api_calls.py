@@ -260,7 +260,8 @@ def test_request_vm_success(client, monkeypatch):
 
     # Patch the database
     monkeypatch.setattr(main, "database", fake_db, raising=False)
-    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
+    check_crd = lambda crd_command: True  # noqa: E731
+    monkeypatch.setattr(main, "check_crd_input", check_crd, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -326,7 +327,8 @@ def test_request_vm_no_vm_available(client, monkeypatch):
 
     # Patch the database
     monkeypatch.setattr(main, "database", fake_db, raising=False)
-    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
+    check_crd = lambda crd_command: True  # noqa: E731
+    monkeypatch.setattr(main, "check_crd_input", check_crd, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -349,7 +351,8 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
 
     # Patch the database and functions
     monkeypatch.setattr(main, "database", fake_db, raising=False)
-    monkeypatch.setattr(main, "check_crd_input", lambda crd_command: True, raising=False)
+    check_crd = lambda crd_command: True  # noqa: E731
+    monkeypatch.setattr(main, "check_crd_input", check_crd, raising=False)
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}

@@ -2,8 +2,6 @@ from unittest.mock import patch
 import base64
 import os
 
-from lablink_allocator_service import main
-
 AWS_CREDENTIALS_ENDPOINT = "/api/admin/set-aws-credentials"
 
 
