@@ -543,14 +543,193 @@ Add screenshots for UI changes
 
 ## Release Process
 
-Maintainers follow this process for releases:
+LabLink uses **independent versioning** for its two packages. Maintainers follow this process for releases:
 
-1. **Version bump** following semantic versioning
-2. **Update CHANGELOG.md**
-3. **Create release tag**: `git tag -a v1.1.0 -m "Release v1.1.0"`
-4. **Push tag**: `git push origin v1.1.0`
-5. **GitHub Release** created automatically
-6. **Documentation** deployed with version
+### Package Versions
+
+- **lablink-allocator-service**: VM Allocator Service
+- **lablink-client-service**: Client Service
+
+Each package is versioned and released independently following [Semantic Versioning](https://semver.org/).
+
+### Release Workflow
+
+#### 1. Prepare the Release
+
+```bash
+# Update version in pyproject.toml
+cd lablink-allocator/lablink-allocator-service  # or lablink-client-base/lablink-client-service
+# Edit pyproject.toml: version = "0.3.0"
+
+# Commit the version bump
+git add pyproject.toml
+git commit -m "chore: bump lablink-allocator-service to 0.3.0"
+git push origin main
+```
+
+#### 2. Test with Dry Run (Recommended)
+
+Before creating a release, test the build process:
+
+```bash
+# For allocator
+gh workflow run "Publish Python Packages" \
+  -f package=lablink-allocator-service \
+  -f dry_run=true
+
+# For client
+gh workflow run "Publish Python Packages" \
+  -f package=lablink-client-service \
+  -f dry_run=true
+
+# Monitor the workflow
+gh run watch
+```
+
+The dry run will verify:
+- ✅ Package metadata is correct
+- ✅ Linting passes
+- ✅ Tests pass
+- ✅ Package builds successfully
+
+#### 3. Create GitHub Release
+
+Once the dry run passes, create the release:
+
+```bash
+# For lablink-allocator-service
+gh release create lablink-allocator-service_v0.3.0 \
+  --title "lablink-allocator-service v0.3.0" \
+  --notes "## Changes
+
+### Features
+- New feature X (#123)
+- Enhancement Y (#124)
+
+### Bug Fixes
+- Fixed issue Z (#125)
+
+### Documentation
+- Updated configuration docs
+
+## Installation
+\`\`\`bash
+pip install lablink-allocator-service==0.3.0
+\`\`\`
+"
+
+# For lablink-client-service
+gh release create lablink-client-service_v0.1.5 \
+  --title "lablink-client-service v0.1.5" \
+  --notes "## Changes
+
+### Features
+- New feature A (#130)
+
+### Bug Fixes
+- Fixed bug B (#131)
+
+## Installation
+\`\`\`bash
+pip install lablink-client-service==0.1.5
+\`\`\`
+"
+```
+
+#### 4. Automated Publishing
+
+When you create the GitHub Release, the `Publish Python Packages` workflow automatically:
+
+1. **Verifies** the release is from the `main` branch
+2. **Checks** the tag version matches `pyproject.toml`
+3. **Validates** package metadata
+4. **Runs** linting checks
+5. **Executes** test suite
+6. **Builds** the package
+7. **Publishes** to PyPI using OIDC (no API token needed)
+8. **Updates** the changelog in documentation
+
+### Release Guardrails
+
+The workflow includes several safety checks:
+
+| Check | Purpose | Failure Action |
+|-------|---------|----------------|
+| Branch verification | Ensures releases only from `main` | Blocks publish |
+| Version match | Tag must equal `pyproject.toml` | Blocks publish |
+| Metadata validation | All required fields present | Blocks publish |
+| Linting | Code quality standards | Blocks publish |
+| Test suite | Functionality verification | Blocks publish |
+| Build verification | Package builds successfully | Blocks publish |
+
+### Tag Naming Convention
+
+**Format**: `<package-name>_v<version>`
+
+**Examples**:
+- `lablink-allocator-service_v0.3.0`
+- `lablink-allocator-service_v1.0.0-rc1`
+- `lablink-client-service_v0.1.5`
+- `lablink-client-service_v0.2.0-beta1`
+
+### Versioning Guidelines
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (1.0.0): Breaking changes
+- **MINOR** (0.1.0): New features, backwards compatible
+- **PATCH** (0.0.1): Bug fixes, backwards compatible
+
+**Pre-release identifiers**:
+- `0.3.0-alpha1`: Alpha release
+- `0.3.0-beta1`: Beta release
+- `0.3.0-rc1`: Release candidate
+
+### Post-Release
+
+After publishing:
+
+1. **Verify on PyPI**: Check package appears on [PyPI](https://pypi.org/)
+2. **Test installation**: `pip install lablink-allocator-service==0.3.0`
+3. **Check documentation**: Verify changelog updated at https://talmolab.github.io/lablink/
+4. **Announce**: Post release announcement (if major version)
+
+### Troubleshooting Releases
+
+**Version mismatch error:**
+```bash
+# Ensure pyproject.toml version matches tag
+grep '^version = ' lablink-allocator/lablink-allocator-service/pyproject.toml
+# Should output: version = "0.3.0"
+```
+
+**Tests failing:**
+```bash
+# Run tests locally first
+cd lablink-allocator/lablink-allocator-service
+uv sync --extra dev
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+uv run pytest tests
+```
+
+**Build failing:**
+```bash
+# Test build locally
+cd lablink-allocator/lablink-allocator-service
+uv build
+ls -lh dist/
+```
+
+### Rolling Back a Release
+
+If a release has issues:
+
+1. **Delete the GitHub Release** (does not delete the tag)
+2. **Delete the tag**: `gh release delete lablink-allocator-service_v0.3.0 --yes`
+3. **Delete from PyPI**: Contact PyPI support (cannot delete via API)
+4. **Fix the issue** and release as a new patch version (e.g., 0.3.1)
+
+**Note**: PyPI does not allow re-uploading the same version. Always increment the version number.
 
 ## Getting Help
 

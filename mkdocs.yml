@@ -112,6 +112,8 @@ nav:
       - Contributing to Docs: contributing-docs.md
   - About:
       - Changelog: changelog.md
+      - Allocator Changelog: changelog-allocator.md
+      - Client Changelog: changelog-client.md
       - Releases: https://github.com/talmolab/lablink/releases
 
 extra:
