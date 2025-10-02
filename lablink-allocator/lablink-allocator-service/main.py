@@ -107,6 +107,7 @@ def init_database():
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
+        message_channel=cfg.db.message_channel,
     )
 
 
