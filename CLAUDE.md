@@ -302,7 +302,7 @@ These are automatically installed when the package is installed and available in
 - **Smart Dockerfile Selection**:
   - PR/test branch → `Dockerfile.dev` (local code with `uv sync`)
   - Main branch → `Dockerfile` (from PyPI with default version)
-  - Manual dispatch with `package_version` → `Dockerfile` (from PyPI with specific version)
+  - Manual dispatch with version parameters → `Dockerfile` (from PyPI with specific versions)
 - **Image Tags** (vary by trigger):
   - **Production with version** (manual trigger): `0.0.2a0`, `linux-amd64-0.0.2a0`, `latest`, `linux-amd64-latest`, `<sha>`, plus metadata tags
   - **Main branch** (auto): `latest`, `linux-amd64-latest`, `<sha>`, metadata tags (no version tags)
@@ -354,8 +354,9 @@ These are automatically installed when the package is installed and available in
 
 4. Build Production Docker Images
    └─ Manually trigger:
-      gh workflow run lablink-images.yml -f environment=prod -f package_version=0.0.2a0
-      └─ lablink-images.yml (build prod image with version tag from PyPI)
+      gh workflow run lablink-images.yml -f environment=prod \
+        -f allocator_version=0.0.2a0 -f client_version=0.0.7a0
+      └─ lablink-images.yml (build prod images with version tags from PyPI)
 ```
 
 ### Package Versioning
