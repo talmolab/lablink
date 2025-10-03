@@ -3,5 +3,12 @@
     "version": "prod",
     "title": "prod",
     "aliases": []
+  },
+  {
+    "version": "lablink-allocator-service_v0.0.2a0",
+    "title": "lablink-allocator-service_v0.0.2a0",
+    "aliases": [
+      "latest"
+    ]
   }
 ]
