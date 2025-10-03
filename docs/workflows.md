@@ -30,27 +30,33 @@ All workflows are located in `.github/workflows/`:
 
 ### Purpose
 
-Runs tests, linting, and Docker build verification on every pull request and push.
+Runs tests, linting, and Docker build verification on every pull request affecting service code.
 
 ### Triggers
 
-- Pull requests to any branch
-- Pushes to `main` or development branches
+- Pull requests with changes to:
+  - `lablink-client-base/lablink-client-service/**`
+  - `lablink-allocator/lablink-allocator-service/**`
+  - `.github/workflows/ci.yml`
 
 ### Jobs
 
 1. **Lint** - Checks code quality with `ruff`
-   - Allocator service
-   - Client service
+   - Allocator service: `uv run ruff check src tests`
+   - Client service: `uv run ruff check src tests`
 
 2. **Test** - Runs unit tests with `pytest`
-   - Allocator service tests
-   - Client service tests
+   - Allocator: `uv run pytest tests --cov=. --cov-report=xml`
+   - Client: `uv run pytest tests --cov=src/lablink_client_service --cov-report=xml`
 
-3. **Docker Build Test** - Verifies Docker builds
-   - Builds allocator `Dockerfile.dev` (uses local code)
-   - Verifies console scripts are installed correctly
-   - **Note**: Client Docker build test skipped due to large image size (~6GB)
+3. **Docker Build Test (Allocator Only)**
+   - Builds `Dockerfile.dev` using `uv sync --extra dev`
+   - Verifies virtual environment activation
+   - Verifies console scripts exist (`lablink-allocator`, `generate-init-sql`)
+   - Verifies dev dependencies installed (pytest, ruff, coverage with versions)
+   - Verifies package imports (main, database, get_config)
+   - Verifies `uv sync` installation
+   - **Note**: Client Docker build test skipped due to large image size (~6GB with CUDA)
 
 ### Example Workflow Run
 
@@ -61,7 +67,11 @@ PR opened → ci.yml triggered
   ├─ Test allocator-service ✓
   ├─ Test client-service ✓
   └─ Docker Build Test - Allocator ✓
-     └─ Verifies lablink-allocator and generate-init-sql scripts
+     ├─ Venv activated: /app/lablink-allocator-service/.venv
+     ├─ Console scripts: lablink-allocator, generate-init-sql ✓
+     ├─ Dev dependencies: pytest 8.4.2, ruff, coverage 7.10.7 ✓
+     ├─ Package imports: main.main, database.PostgresqlDatabase, get_config ✓
+     └─ Installation: Package installed via uv sync ✓
 ```
 
 ## Package Publishing Workflow
@@ -132,7 +142,7 @@ git push origin lablink-allocator-service_v0.0.2a0
 
 ### Purpose
 
-Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using either local code (dev) or published packages (prod).
+Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using either local code (dev) or published packages (prod), then verifies the images work correctly.
 
 ### Triggers
 
@@ -144,12 +154,12 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 
 ### Smart Dockerfile Selection
 
-| Trigger | Dockerfile Used | Package Source |
-|---------|----------------|----------------|
-| PR / test branch | `Dockerfile.dev` | Local code (copied) |
-| Main branch | `Dockerfile` | PyPI (default version) |
-| After package publish | `Dockerfile` | PyPI (specific version) |
-| Manual with version | `Dockerfile` | PyPI (specified version) |
+| Trigger | Dockerfile Used | Package Source | Installation Method |
+|---------|----------------|----------------|---------------------|
+| PR / test branch | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` |
+| Main branch | `Dockerfile` | PyPI (default version) | `uv pip install` |
+| After package publish | `Dockerfile` | PyPI (specific version) | `uv pip install` |
+| Manual with version | `Dockerfile` | PyPI (specified version) | `uv pip install` |
 
 ### Image Tagging Strategy
 
@@ -159,11 +169,13 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 | Main | `linux-amd64-latest`, `<SHA>`, `latest` | `ghcr.io/.../image:latest` |
 | Package publish | `<version>`, `linux-amd64-<version>` + main tags | `ghcr.io/.../image:0.0.2a0` |
 
-### What It Does
+### Workflow Jobs
+
+#### 1. Build Job
 
 1. **Select Dockerfile**
-   - Dev: Uses `Dockerfile.dev` (copies local source)
-   - Prod: Uses `Dockerfile` (installs from PyPI)
+   - Dev: Uses `Dockerfile.dev` (copies local source, uses `uv sync`)
+   - Prod: Uses `Dockerfile` (installs from PyPI with `uv pip install`)
 
 2. **Build Allocator Image**
    - Context: Repository root
@@ -179,16 +191,42 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
    - Authenticates to ghcr.io
    - Pushes images with all applicable tags
 
+#### 2. Verify Allocator Job
+
+Runs after successful build, pulls and tests the allocator image:
+
+- **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist
+- **Package Imports**: Tests importing `main`, `database.PostgresqlDatabase`, `get_config`
+- **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
+
+#### 3. Verify Client Job
+
+Runs after successful build, pulls and tests the client image:
+
+- **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist
+- **Package Imports**: Tests importing subscribe, check_gpu, update_inuse_status modules
+- **UV Availability**: Verifies `uv` command and version
+- **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
+
 ### Example Workflow Run
 
 ```
-1. Developer pushes to branch `feature/new-api`
-2. Workflow triggered
-3. Checks for changes in allocator/client dirs
-4. Builds images
-5. Tags as `linux-amd64-feature-new-api-test`
-6. Pushes to ghcr.io
-7. Images available for deployment
+PR opened → lablink-images.yml triggered
+  └─ Build Job
+     ├─ Build allocator dev image ✓
+     ├─ Build client dev image ✓
+     └─ Push to ghcr.io ✓
+  └─ Verify Allocator Job
+     ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
+     ├─ Console scripts: lablink-allocator, generate-init-sql ✓
+     ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
+     └─ Dev deps: pytest 8.4.2, ruff ✓
+  └─ Verify Client Job
+     ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
+     ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
+     ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
+     ├─ UV: uv 0.6.8 ✓
+     └─ Dev deps: pytest 8.4.2, ruff ✓
 ```
 
 ### Customization
@@ -422,62 +460,28 @@ End-to-end test of client VM creation and management.
 8. Verify all resources cleaned up
 ```
 
-## Continuous Integration Workflow
+## Documentation Workflow
 
-**File**: `.github/workflows/ci.yml`
+**File**: `.github/workflows/docs.yml`
 
 ### Purpose
 
-Run unit tests and code quality checks on pull requests.
+Builds and deploys MkDocs documentation to GitHub Pages.
 
 ### Triggers
 
-- Pull requests to `main`
-- Pushes to `main` or development branches
+- Pushes to `main` branch
+- Pull requests affecting `docs/**` or `mkdocs.yml`
 
-### Steps
+### What It Does
 
-1. **Setup Python Environment**
-   ```yaml
-   - uses: actions/setup-python@v4
-     with:
-       python-version: '3.11'
-   ```
+1. Installs Python and dependencies (including docs extras from `pyproject.toml`)
+2. Builds documentation with `mkdocs build`
+3. Deploys to GitHub Pages branch (`gh-pages`)
 
-2. **Install Dependencies**
-   ```bash
-   pip install pytest pytest-cov ruff
-   ```
+### Deployment
 
-3. **Run Linting**
-   ```bash
-   ruff check .
-   ```
-
-4. **Run Tests**
-   ```bash
-   pytest --cov=lablink_allocator_service
-   pytest --cov=lablink_client_service
-   ```
-
-5. **Upload Coverage**
-   - Generates coverage report
-   - Uploads to coverage service (optional)
-
-### Adding More Tests
-
-Edit `ci.yml` to add test steps:
-
-```yaml
-- name: Run integration tests
-  run: |
-    pytest tests/integration/
-
-- name: Security scan
-  run: |
-    pip install bandit
-    bandit -r lablink_allocator_service/
-```
+Documentation is available at: `https://talmolab.github.io/lablink/`
 
 ## Workflow Environment Variables
 
