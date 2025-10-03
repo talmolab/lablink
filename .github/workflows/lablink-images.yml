@@ -33,8 +33,6 @@ on:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
       - ".github/workflows/lablink-images.yml"
-  repository_dispatch:
-    types: [package-published]
 
 jobs:
   build:
@@ -65,12 +63,6 @@ jobs:
             echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
             echo "build_args=" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            # Package was just published - use specific version
-            VERSION="${{ github.event.client_payload.version }}"
-            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
-            echo "build_args=PACKAGE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "is_dev=false" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             # Manual trigger - determine version based on image type
             if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
@@ -127,10 +119,8 @@ jobs:
           SHA="${{ steps.get_sha.outputs.sha }}"
           ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
 
-          # Extract package version if available (from repository_dispatch or workflow_dispatch)
-          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            PKG_VERSION="${{ github.event.client_payload.version }}"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          # Extract package version if available from workflow_dispatch
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             # Use image-specific version
             if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
               PKG_VERSION="${{ inputs.allocator_version }}"
