@@ -11,8 +11,12 @@ on:
         options:
           - test
           - prod
-      package_version:
-        description: "Package version to use (optional, for prod builds)"
+      allocator_version:
+        description: "Allocator package version (e.g., 0.0.2a0)"
+        required: false
+        type: string
+      client_version:
+        description: "Client package version (e.g., 0.0.7a0)"
         required: false
         type: string
   pull_request:
@@ -29,8 +33,6 @@ on:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
       - ".github/workflows/lablink-images.yml"
-  repository_dispatch:
-    types: [package-published]
 
 jobs:
   build:
@@ -61,17 +63,24 @@ jobs:
             echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
             echo "build_args=" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            # Package was just published - use specific version
-            VERSION="${{ github.event.client_payload.version }}"
-            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
-            echo "build_args=PACKAGE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "is_dev=false" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
-            # Manual trigger with specific version
-            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
-            echo "build_args=PACKAGE_VERSION=${{ inputs.package_version }}" >> $GITHUB_OUTPUT
-            echo "is_dev=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Manual trigger - determine version based on image type
+            if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
+              VERSION="${{ inputs.allocator_version }}"
+            elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
+              VERSION="${{ inputs.client_version }}"
+            fi
+
+            if [ -n "$VERSION" ]; then
+              echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+              echo "build_args=PACKAGE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+              echo "is_dev=false" >> $GITHUB_OUTPUT
+            else
+              # No version specified - use default from Dockerfile
+              echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+              echo "build_args=" >> $GITHUB_OUTPUT
+              echo "is_dev=false" >> $GITHUB_OUTPUT
+            fi
           else
             # Default: production build with default version from Dockerfile
             echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
@@ -110,11 +119,14 @@ jobs:
           SHA="${{ steps.get_sha.outputs.sha }}"
           ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
 
-          # Extract package version if available (from repository_dispatch or workflow_dispatch)
-          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-            PKG_VERSION="${{ github.event.client_payload.version }}"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
-            PKG_VERSION="${{ inputs.package_version }}"
+          # Extract package version if available from workflow_dispatch
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Use image-specific version
+            if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
+              PKG_VERSION="${{ inputs.allocator_version }}"
+            elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
+              PKG_VERSION="${{ inputs.client_version }}"
+            fi
           else
             PKG_VERSION=""
           fi
@@ -132,7 +144,7 @@ jobs:
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then

@@ -27,8 +27,28 @@ This repository contains the **core LabLink packages, Docker images, and documen
 
 ### Docker Images (Published to GHCR)
 
+Production images are built from PyPI packages and tagged with specific versions:
+
 - **lablink-allocator-image** - Allocator service container
+  ```bash
+  docker pull ghcr.io/talmolab/lablink-allocator-image:0.0.2a0
+  docker pull ghcr.io/talmolab/lablink-allocator-image:latest
+  ```
+
 - **lablink-client-base-image** - Client service container
+  ```bash
+  docker pull ghcr.io/talmolab/lablink-client-base-image:0.0.7a0
+  docker pull ghcr.io/talmolab/lablink-client-base-image:latest
+  ```
+
+**Available Tags:**
+- `<version>` (e.g., `0.0.2a0`) - Specific package version (recommended for production)
+- `latest` - Latest stable release
+- `linux-amd64-latest` - Latest for specific platform
+- `<sha>` - Specific git commit
+- `linux-amd64-test` - Development/testing builds
+
+See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tagging strategy.
 
 ### Documentation
 

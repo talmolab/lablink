@@ -179,7 +179,33 @@ ruff format .
 
 ### Building Docker Images
 
-#### Development Builds (Local Code)
+#### Via GitHub Actions (Recommended)
+
+**Production builds with version tags** (after publishing to PyPI):
+```bash
+# Trigger production builds for both images with their versions
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
+
+This creates Docker images tagged with:
+- `ghcr.io/talmolab/lablink-allocator-image:0.0.2a0` (version tag)
+- `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` (version tag)
+- `latest` tags for both images
+- Plus platform and metadata tags
+
+See [Image Tagging Strategy](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tag list.
+
+**Development builds** (automatic on PR/push to test):
+- Automatically triggered by PRs or pushes to `test` branch
+- Uses `Dockerfile.dev` with local code
+- Tagged with `-test` suffix (e.g., `linux-amd64-test`)
+
+#### Local Development Builds
+
+**Development Builds (Local Code)**:
 ```bash
 # Allocator (dev) - uses local code
 docker build -t lablink-allocator:dev -f lablink-allocator/Dockerfile.dev .
@@ -190,7 +216,7 @@ docker build -t lablink-client:dev \
   lablink-client-base
 ```
 
-#### Production Builds (From PyPI)
+**Production Builds (From PyPI)**:
 ```bash
 # Allocator (prod) - installs from PyPI
 docker build -t lablink-allocator:0.0.2a0 \
@@ -272,31 +298,40 @@ These are automatically installed when the package is installed and available in
 - **Note**: Client Docker build test skipped due to large image size (~6GB with CUDA)
 
 **`lablink-images.yml`** - Docker Image Building
-- **Triggers**: PRs, pushes to main/test, manual dispatch, `repository_dispatch`
+- **Triggers**: PRs, pushes to main/test, manual dispatch
 - **Smart Dockerfile Selection**:
   - PR/test branch → `Dockerfile.dev` (local code with `uv sync`)
   - Main branch → `Dockerfile` (from PyPI with default version)
-  - After package publish → `Dockerfile` (from PyPI with specific version)
-- **Image Tags**:
-  - Git SHA (e.g., `abc123-test`)
-  - Platform (e.g., `linux-amd64-latest-test`)
-  - Package version (e.g., `0.0.2a0`, `linux-amd64-0.0.2a0`) when available
-  - Environment suffix (`-test` for non-prod)
-- **Post-Build Verification** (new jobs):
+  - Manual dispatch with version parameters → `Dockerfile` (from PyPI with specific versions)
+- **Image Tags** (vary by trigger):
+  - **Production with version** (manual trigger): `0.0.2a0`, `linux-amd64-0.0.2a0`, `latest`, `linux-amd64-latest`, `<sha>`, plus metadata tags
+  - **Main branch** (auto): `latest`, `linux-amd64-latest`, `<sha>`, metadata tags (no version tags)
+  - **Test/PR** (auto): All tags with `-test` suffix
+- **Post-Build Verification**:
   - `verify-allocator`: Tests entry point callability, console scripts, imports, dev deps
   - `verify-client`: Tests entry point callability, console scripts, imports, uv availability, dev deps
   - Verifies entry points are importable and callable (prevents runtime failures)
   - Pulls pushed images and runs validation tests
-- **Deployment**: Pushes to `ghcr.io`
+- **Deployment**: Pushes to `ghcr.io/talmolab/`
+- **Manual Production Build**:
+  ```bash
+  gh workflow run lablink-images.yml \
+    -f environment=prod \
+    -f allocator_version=0.0.2a0 \
+    -f client_version=0.0.7a0
+  ```
 
 **`publish-pip.yml`** - PyPI Publishing
-- **Triggers**: Git tags, manual dispatch
+- **Triggers**: Git tags (e.g., `lablink-allocator-service_v0.0.2a0`), manual dispatch
 - **Features**:
-  - Version verification and guardrails
+  - Branch verification (must be from main)
+  - Version verification (tag must match pyproject.toml)
+  - Package metadata validation
   - Linting and tests before publish
   - Dry-run mode available
   - Per-package control (allocator/client)
-- **Integration**: Triggers Docker image rebuild via `repository_dispatch` after successful publish
+- **Post-Publish**: Displays manual Docker build command for creating production images
+- **Note**: Docker image builds must be triggered manually after publishing
 
 **`docs.yml`** - Documentation Deployment
 - **Triggers**: Pushes to main, PRs for docs changes
@@ -310,13 +345,18 @@ These are automatically installed when the package is installed and available in
            lablink-images.yml (build dev image with -test tag)
 
 2. Merge to Main
-   └─ lablink-images.yml (build prod image from latest PyPI package)
+   └─ lablink-images.yml (build prod image from latest PyPI package, no version tag)
 
-3. Release
+3. Publish to PyPI
    └─ Create tag (e.g., lablink-allocator-service_v0.0.2a0)
       └─ publish-pip.yml (publish to PyPI)
-         └─ repository_dispatch
-            └─ lablink-images.yml (build prod image with version tag)
+         └─ Displays manual Docker build command
+
+4. Build Production Docker Images
+   └─ Manually trigger:
+      gh workflow run lablink-images.yml -f environment=prod \
+        -f allocator_version=0.0.2a0 -f client_version=0.0.7a0
+      └─ lablink-images.yml (build prod images with version tags from PyPI)
 ```
 
 ### Package Versioning

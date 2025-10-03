@@ -82,7 +82,7 @@ PR opened → ci.yml triggered
 
 ### Purpose
 
-Publishes Python packages to PyPI with safety guardrails and automatic Docker image rebuilds.
+Publishes Python packages to PyPI with safety guardrails.
 
 ### Triggers
 
@@ -96,26 +96,27 @@ Publishes Python packages to PyPI with safety guardrails and automatic Docker im
 - Linting and tests before publishing
 - Dry-run mode for testing
 - Per-package control (publish allocator/client independently)
-- Automatic Docker image rebuild on successful publish
 
 ### Input Parameters (Manual Dispatch)
 
 | Parameter | Description | Options | Default |
 |-----------|-------------|---------|---------|
-| `package` | Which package to publish | `allocator`, `client`, `both` | `both` |
+| `package` | Which package to publish | `lablink-allocator-service`, `lablink-client-service` | Required |
 | `dry_run` | Test without publishing | `true`, `false` | `true` |
+| `skip_tests` | Skip test suite | `true`, `false` | `false` |
 
 ### Workflow Steps
 
 1. **Determine which packages to publish** (from tag or input)
 2. **Run guardrails**:
-   - Check version doesn't already exist on PyPI
+   - Verify release from main branch (for releases)
+   - Validate version matches tag
    - Validate package metadata
    - Run linting with `ruff`
-   - Run unit tests
+   - Run unit tests (unless skipped)
 3. **Build package** with `uv build`
 4. **Publish to PyPI** (unless dry-run)
-5. **Trigger Docker rebuild** via `repository_dispatch`
+5. **Display manual Docker build instructions**
 
 ### Package Versioning
 
@@ -127,16 +128,47 @@ Publishes Python packages to PyPI with safety guardrails and automatic Docker im
 ### Example: Publishing a Release
 
 ```bash
-# Create and push a tag
+# 1. Create and push tags
 git tag lablink-allocator-service_v0.0.2a0
-git push origin lablink-allocator-service_v0.0.2a0
+git tag lablink-client-service_v0.0.7a0
+git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
 
-# Workflow automatically:
-#  1. Detects tag
-#  2. Runs tests
-#  3. Publishes to PyPI
-#  4. Triggers Docker image rebuild with version tag
+# 2. Workflow automatically:
+#    - Detects tags
+#    - Runs tests for each package
+#    - Publishes to PyPI
+#    - Displays Docker build instructions
+
+# 3. Manually trigger Docker image build (see below)
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
+
+### Building Docker Images After Publishing
+
+After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version.
+
+**Option 1: Using GitHub CLI** (recommended):
+```bash
+# Build both images with their respective versions
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
+
+**Option 2: Using GitHub UI**:
+1. Go to [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml)
+2. Click "Run workflow"
+3. Select branch: `main`
+4. Set environment: `prod`
+5. Enter allocator version: `0.0.2a0`
+6. Enter client version: `0.0.7a0`
+7. Click "Run workflow"
+
+This creates Docker images tagged with the specific package versions (see [Image Tagging Strategy](#image-tagging-strategy) below).
 
 ## Image Building Workflow
 
@@ -165,11 +197,105 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 
 ### Image Tagging Strategy
 
-| Trigger | Tags Applied | Example |
-|---------|--------------|---------|
-| PR/test | `linux-amd64-test`, `<SHA>-test` | `ghcr.io/.../image:linux-amd64-test` |
-| Main | `linux-amd64-latest`, `<SHA>`, `latest` | `ghcr.io/.../image:latest` |
-| Package publish | `<version>`, `linux-amd64-<version>` + main tags | `ghcr.io/.../image:0.0.2a0` |
+Docker images are tagged differently based on how they are triggered. This allows you to reference specific versions, latest development builds, or stable releases.
+
+#### Allocator Image Tags
+
+**Manual trigger with package version (recommended for production):**
+```bash
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
+
+Creates images tagged with:
+- `ghcr.io/talmolab/lablink-allocator-image:0.0.2a0` - **Version-specific tag**
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.0.2a0` - Platform + version
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest` - Latest for platform
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64` - Platform tag
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6` - Metadata tag
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15` - Metadata tag
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>` - Git commit SHA
+- `ghcr.io/talmolab/lablink-allocator-image:latest` - Latest stable
+
+**Push to main branch (automatic):**
+```bash
+git push origin main
+```
+
+Creates images tagged with (no version-specific tags):
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest`
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64`
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>`
+- `ghcr.io/talmolab/lablink-allocator-image:latest`
+- Plus metadata tags
+
+**Pull requests / test branch (automatic):**
+```bash
+git push origin test
+```
+
+Creates images tagged with `-test` suffix:
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test`
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>-test`
+- Plus metadata tags with `-test` suffix
+
+#### Client Image Tags
+
+**Manual trigger with package version (recommended for production):**
+```bash
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
+
+Creates images tagged with:
+- `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` - **Version-specific tag**
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.0.7a0` - Platform + version
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest` - Latest for platform
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04`
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3`
+- `ghcr.io/talmolab/lablink-client-base-image:<sha>` - Git commit SHA
+- `ghcr.io/talmolab/lablink-client-base-image:latest` - Latest stable
+
+**Push to main branch (automatic):**
+
+Creates same tags as manual trigger except without version-specific tags (`0.0.7a0`, `linux-amd64-0.0.7a0`)
+
+**Pull requests / test branch (automatic):**
+
+Creates same tags as main but with `-test` suffix
+
+#### Tag Usage in Terraform
+
+For production deployments, always use version-specific tags in your Terraform configuration:
+
+```hcl
+# terraform.tfvars or -var flags
+allocator_image_tag = "0.0.2a0"  # Pin to specific version
+client_image_tag    = "0.0.7a0"  # Pin to specific version
+```
+
+For development/testing, you can use environment-specific tags:
+
+```hcl
+# Development
+allocator_image_tag = "linux-amd64-test"
+
+# Latest main branch
+allocator_image_tag = "latest"
+```
+
+#### Summary Table
+
+| Trigger Type | Environment | Version Tag? | Suffix | Use Case |
+|--------------|-------------|--------------|--------|----------|
+| Manual w/ version | `prod` | ✅ Yes | None | Production releases |
+| Push to main | `prod` | ❌ No | None | Latest development |
+| Push to test | `test` | ❌ No | `-test` | Staging/testing |
+| Pull request | `test` | ❌ No | `-test` | CI/CD validation |
 
 ### Workflow Jobs
 

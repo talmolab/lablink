@@ -196,25 +196,19 @@ jobs:
           echo "Publishing ${{ matrix.package }} to PyPI..."
           uv publish
           echo "✅ Published successfully!"
+          echo ""
+          echo "📦 Package published to PyPI"
 
-          # Extract version for triggering Docker build
+          # Extract version for reference
           VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+          echo ""
+          echo "ℹ️  To build production Docker images with all package versions:"
+          echo "   gh workflow run lablink-images.yml -f environment=prod \\"
+          echo "     -f allocator_version=<allocator-version> \\"
+          echo "     -f client_version=<client-version>"
         working-directory: ${{ matrix.dir }}
-
-      # Trigger Docker image rebuild with new package version
-      - name: Trigger Docker image build
-        if: steps.publish.outcome == 'success'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          event-type: package-published
-          client-payload: |
-            {
-              "package": "${{ matrix.package }}",
-              "version": "${{ steps.publish.outputs.version }}"
-            }
 
       # Dry run summary
       - name: Dry run summary
