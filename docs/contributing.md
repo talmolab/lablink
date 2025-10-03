@@ -647,7 +647,33 @@ When you create the GitHub Release, the `Publish Python Packages` workflow autom
 5. **Executes** test suite
 6. **Builds** the package
 7. **Publishes** to PyPI using OIDC (no API token needed)
-8. **Updates** the changelog in documentation
+8. **Displays** Docker build command for creating production images
+
+#### 5. Build Production Docker Images
+
+After publishing to PyPI, manually trigger Docker image builds to create production images with version tags:
+
+```bash
+# For allocator service
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f package_version=0.3.0
+
+# For client service
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f package_version=0.1.5
+
+# Monitor the build
+gh run watch
+```
+
+This creates Docker images tagged with:
+- `ghcr.io/talmolab/lablink-allocator-image:0.3.0` (version tag)
+- `ghcr.io/talmolab/lablink-allocator-image:latest` (latest stable)
+- Plus platform-specific and metadata tags
+
+See [Image Tagging Strategy](workflows.md#image-tagging-strategy) for complete tag details.
 
 ### Release Guardrails
 
@@ -687,12 +713,28 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Post-Release
 
-After publishing:
+After publishing and building Docker images:
 
 1. **Verify on PyPI**: Check package appears on [PyPI](https://pypi.org/)
-2. **Test installation**: `pip install lablink-allocator-service==0.3.0`
-3. **Check documentation**: Verify changelog updated at https://talmolab.github.io/lablink/
-4. **Announce**: Post release announcement (if major version)
+   ```bash
+   pip install lablink-allocator-service==0.3.0
+   ```
+
+2. **Verify Docker images**: Check images on GHCR
+   ```bash
+   docker pull ghcr.io/talmolab/lablink-allocator-image:0.3.0
+   docker pull ghcr.io/talmolab/lablink-client-base-image:0.1.5
+   ```
+
+3. **Test installation**: Install and verify the package works
+   ```bash
+   pip install lablink-allocator-service==0.3.0
+   python -c "from lablink_allocator_service.main import main; print('OK')"
+   ```
+
+4. **Check documentation**: Verify docs at https://talmolab.github.io/lablink/
+
+5. **Announce**: Post release announcement (if major version)
 
 ### Troubleshooting Releases
 
