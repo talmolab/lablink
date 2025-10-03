@@ -271,12 +271,12 @@ jobs:
       - name: Verify client console scripts exist
         run: |
           echo "Testing client console scripts..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && source .venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /home/client/.venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
 
       - name: Verify client package imports
         run: |
           echo "Testing client package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && python -c "
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
           print(\"Importing client packages:\")
           from lablink_client_service.subscribe import main
           print(\"  - subscribe.main imported\")
@@ -296,7 +296,7 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
           echo "Testing client dev dependencies..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && python -c "
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
           print(\"Checking client dev dependencies:\")
           import pytest; print(\"  - pytest version:\", pytest.__version__)
           import ruff; print(\"  - ruff available\")
@@ -307,6 +307,6 @@ jobs:
         run: |
           echo "Testing client console script execution..."
           # Test that scripts execute (will fail without allocator, but should attempt to run)
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'

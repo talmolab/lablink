@@ -136,8 +136,9 @@ ARG PACKAGE_VERSION=0.0.7a0
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install client service package from PyPI
-RUN sudo uv pip install --system lablink-client-service==${PACKAGE_VERSION}
+# Install client service package from PyPI in a virtual environment
+RUN uv venv /home/${USERNAME}/.venv && \
+    uv pip install --python=/home/${USERNAME}/.venv/bin/python lablink-client-service==${PACKAGE_VERSION}
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh

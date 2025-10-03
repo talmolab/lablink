@@ -137,10 +137,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY lablink-client-service /home/${USERNAME}/lablink-client-service
 
 # Install client service package with dev dependencies using uv sync
-# uv run in start.sh will automatically use the project's .venv
+# Create venv at /home/client/.venv to match production location
 WORKDIR /home/${USERNAME}/lablink-client-service
-RUN sudo uv sync --extra dev && \
-    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/lablink-client-service
+RUN sudo uv venv /home/${USERNAME}/.venv && \
+    sudo uv pip install --python=/home/${USERNAME}/.venv/bin/python -e ".[dev]" && \
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client-service
 WORKDIR /home/${USERNAME}
 
 # Copy the startup script
