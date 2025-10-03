@@ -99,7 +99,7 @@ lablink/
 ├── docs/                            # MkDocs documentation
 ├── .github/workflows/               # CI/CD workflows
 │   ├── ci.yml                       # Tests, linting, Docker builds
-│   ├── publish-packages.yml         # PyPI publishing
+│   ├── publish-pip.yml              # PyPI publishing
 │   ├── lablink-images.yml           # Docker image builds & pushes
 │   └── docs.yml                     # Documentation deployment
 └── terraform/                       # (Infrastructure - being moved to template repo)
