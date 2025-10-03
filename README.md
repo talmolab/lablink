@@ -89,15 +89,18 @@ See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) f
 lablink/
 ├── lablink-allocator/
 │   ├── lablink-allocator-service/   # Allocator Python package
-│   └── Dockerfile                   # Allocator Docker image
+│   ├── Dockerfile                   # Production image (from PyPI)
+│   └── Dockerfile.dev               # Development image (local code)
 ├── lablink-client-base/
 │   ├── lablink-client-service/      # Client Python package
-│   └── lablink-client-base-image/   # Client Docker image
+│   └── lablink-client-base-image/
+│       ├── Dockerfile               # Production image (from PyPI)
+│       └── Dockerfile.dev           # Development image (local code)
 ├── docs/                            # MkDocs documentation
 ├── .github/workflows/               # CI/CD workflows
-│   ├── ci.yml                       # Tests and linting
+│   ├── ci.yml                       # Tests, linting, Docker builds
 │   ├── publish-packages.yml         # PyPI publishing
-│   ├── lablink-images.yml           # Docker image builds
+│   ├── lablink-images.yml           # Docker image builds & pushes
 │   └── docs.yml                     # Documentation deployment
 └── terraform/                       # (Infrastructure - being moved to template repo)
 ```

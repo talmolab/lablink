@@ -6,10 +6,12 @@ This guide explains LabLink's CI/CD workflows, how they work, and how to customi
 
 LabLink uses GitHub Actions for continuous integration and deployment. The workflows automate:
 
-- Docker image building and publishing
-- Infrastructure deployment via Terraform
-- Testing and validation
-- Environment management
+- Python package publishing to PyPI
+- Docker image building and publishing to GHCR
+- Testing and validation (linting, unit tests, Docker builds)
+- Documentation deployment to GitHub Pages
+
+**Note**: Infrastructure deployment workflows (Terraform) have been moved to the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
 
 ## Workflow Files
 
@@ -17,11 +19,112 @@ All workflows are located in `.github/workflows/`:
 
 | Workflow File | Purpose | Trigger |
 |---------------|---------|---------|
-| [`lablink-images.yml`](#image-building-workflow) | Build and push Docker images | Push to branches, PRs |
-| [`lablink-allocator-terraform.yml`](#terraform-deployment-workflow) | Deploy infrastructure | Push to `test`, manual dispatch |
-| [`lablink-allocator-destroy.yml`](#destroy-workflow) | Destroy environment | Manual only |
-| [`client-vm-infrastructure-test.yml`](#infrastructure-testing-workflow) | Test client VM creation | Manual/scheduled |
-| [`ci.yml`](#continuous-integration-workflow) | Run unit tests | PRs, pushes |
+| [`ci.yml`](#continuous-integration-workflow) | Unit tests, linting, Docker build tests | PRs, pushes |
+| [`publish-packages.yml`](#package-publishing-workflow) | Publish Python packages to PyPI | Git tags, manual dispatch |
+| [`lablink-images.yml`](#image-building-workflow) | Build and push Docker images to GHCR | Push to branches, PRs, package publish |
+| [`docs.yml`](#documentation-workflow) | Build and deploy documentation | Pushes to main, docs changes |
+
+## Continuous Integration Workflow
+
+**File**: `.github/workflows/ci.yml`
+
+### Purpose
+
+Runs tests, linting, and Docker build verification on every pull request and push.
+
+### Triggers
+
+- Pull requests to any branch
+- Pushes to `main` or development branches
+
+### Jobs
+
+1. **Lint** - Checks code quality with `ruff`
+   - Allocator service
+   - Client service
+
+2. **Test** - Runs unit tests with `pytest`
+   - Allocator service tests
+   - Client service tests
+
+3. **Docker Build Test** - Verifies Docker builds
+   - Builds allocator `Dockerfile.dev` (uses local code)
+   - Verifies console scripts are installed correctly
+   - **Note**: Client Docker build test skipped due to large image size (~6GB)
+
+### Example Workflow Run
+
+```
+PR opened → ci.yml triggered
+  ├─ Lint allocator-service ✓
+  ├─ Lint client-service ✓
+  ├─ Test allocator-service ✓
+  ├─ Test client-service ✓
+  └─ Docker Build Test - Allocator ✓
+     └─ Verifies lablink-allocator and generate-init-sql scripts
+```
+
+## Package Publishing Workflow
+
+**File**: `.github/workflows/publish-packages.yml`
+
+### Purpose
+
+Publishes Python packages to PyPI with safety guardrails and automatic Docker image rebuilds.
+
+### Triggers
+
+- **Git tags** matching package name pattern (e.g., `lablink-allocator-service_v0.0.2a0`)
+- **Manual dispatch** with dry-run option
+
+### Features
+
+- Version verification (prevents republishing same version)
+- Metadata validation
+- Linting and tests before publishing
+- Dry-run mode for testing
+- Per-package control (publish allocator/client independently)
+- Automatic Docker image rebuild on successful publish
+
+### Input Parameters (Manual Dispatch)
+
+| Parameter | Description | Options | Default |
+|-----------|-------------|---------|---------|
+| `package` | Which package to publish | `allocator`, `client`, `both` | `both` |
+| `dry_run` | Test without publishing | `true`, `false` | `true` |
+
+### Workflow Steps
+
+1. **Determine which packages to publish** (from tag or input)
+2. **Run guardrails**:
+   - Check version doesn't already exist on PyPI
+   - Validate package metadata
+   - Run linting with `ruff`
+   - Run unit tests
+3. **Build package** with `uv build`
+4. **Publish to PyPI** (unless dry-run)
+5. **Trigger Docker rebuild** via `repository_dispatch`
+
+### Package Versioning
+
+- **Format**: `{package-name}_v{version}`
+- **Examples**:
+  - `lablink-allocator-service_v0.0.2a0`
+  - `lablink-client-service_v0.0.7a0`
+
+### Example: Publishing a Release
+
+```bash
+# Create and push a tag
+git tag lablink-allocator-service_v0.0.2a0
+git push origin lablink-allocator-service_v0.0.2a0
+
+# Workflow automatically:
+#  1. Detects tag
+#  2. Runs tests
+#  3. Publishes to PyPI
+#  4. Triggers Docker image rebuild with version tag
+```
 
 ## Image Building Workflow
 
@@ -29,40 +132,52 @@ All workflows are located in `.github/workflows/`:
 
 ### Purpose
 
-Builds and publishes Docker images to GitHub Container Registry (ghcr.io).
+Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using either local code (dev) or published packages (prod).
 
 ### Triggers
 
-- **Push to `main`**: Creates images tagged `:latest`
-- **Push to other branches**: Creates images tagged `:<branch>-test`
-- **Pull requests**: Builds but doesn't push
+- **Pull requests**: Build dev images with `-test` tag
+- **Push to `test` branch**: Build dev images with `-test` tag
+- **Push to `main`**: Build prod images from latest PyPI packages
+- **Repository dispatch** (from package publish): Build prod images with specific package version
+- **Manual dispatch**: Build with optional package version
 
-### What It Does
+### Smart Dockerfile Selection
 
-1. **Check for Changes**
-   - Detects changes in allocator or client directories
-   - Skips unnecessary builds
-
-2. **Build Allocator Image**
-   - Builds from `lablink-allocator/Dockerfile`
-   - Tags: `ghcr.io/talmolab/lablink-allocator-image:<tag>`
-
-3. **Build Client Image**
-   - Builds from `lablink-client-base/lablink-client-base-image/Dockerfile`
-   - Tags: `ghcr.io/talmolab/lablink-client-base-image:<tag>`
-
-4. **Push to Registry**
-   - Authenticates to ghcr.io
-   - Pushes images with appropriate tags
+| Trigger | Dockerfile Used | Package Source |
+|---------|----------------|----------------|
+| PR / test branch | `Dockerfile.dev` | Local code (copied) |
+| Main branch | `Dockerfile` | PyPI (default version) |
+| After package publish | `Dockerfile` | PyPI (specific version) |
+| Manual with version | `Dockerfile` | PyPI (specified version) |
 
 ### Image Tagging Strategy
 
-| Branch/Event | Tag Format | Example |
-|--------------|------------|---------|
-| `main` branch | `linux-amd64-latest` | `ghcr.io/.../image:linux-amd64-latest` |
-| Other branches | `linux-amd64-<branch>-test` | `ghcr.io/.../image:linux-amd64-dev-test` |
-| Pull requests | Build only, no push | N/A |
-| Releases | `v<version>` | `ghcr.io/.../image:v1.0.0` |
+| Trigger | Tags Applied | Example |
+|---------|--------------|---------|
+| PR/test | `linux-amd64-test`, `<SHA>-test` | `ghcr.io/.../image:linux-amd64-test` |
+| Main | `linux-amd64-latest`, `<SHA>`, `latest` | `ghcr.io/.../image:latest` |
+| Package publish | `<version>`, `linux-amd64-<version>` + main tags | `ghcr.io/.../image:0.0.2a0` |
+
+### What It Does
+
+1. **Select Dockerfile**
+   - Dev: Uses `Dockerfile.dev` (copies local source)
+   - Prod: Uses `Dockerfile` (installs from PyPI)
+
+2. **Build Allocator Image**
+   - Context: Repository root
+   - Dockerfile: `lablink-allocator/Dockerfile[.dev]`
+   - Tags: `ghcr.io/talmolab/lablink-allocator-image:<tags>`
+
+3. **Build Client Image**
+   - Context: `lablink-client-base/`
+   - Dockerfile: `lablink-client-base/lablink-client-base-image/Dockerfile[.dev]`
+   - Tags: `ghcr.io/talmolab/lablink-client-base-image:<tags>`
+
+4. **Push to Registry**
+   - Authenticates to ghcr.io
+   - Pushes images with all applicable tags
 
 ### Example Workflow Run
 
