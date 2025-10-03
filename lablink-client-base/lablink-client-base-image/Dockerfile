@@ -123,7 +123,7 @@ USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Create scripts directory with miniforge, uv, and nvm installation scripts
-COPY install_miniforge.sh  install_nvm.sh /scripts/
+COPY lablink-client-base-image/install_miniforge.sh lablink-client-base-image/install_nvm.sh /scripts/
 
 # Make scripts executable and run them
 RUN sudo chmod +x /scripts/*.sh && \
@@ -141,7 +141,7 @@ RUN uv venv /home/${USERNAME}/.venv && \
     uv pip install --python=/home/${USERNAME}/.venv/bin/python lablink-client-service==${PACKAGE_VERSION}
 
 # Copy the startup script
-COPY start.sh /home/${USERNAME}/start.sh
+COPY lablink-client-base-image/start.sh /home/${USERNAME}/start.sh
 RUN sudo chmod +x /home/${USERNAME}/start.sh
 
 # Run the startup script
