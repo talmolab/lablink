@@ -766,14 +766,9 @@ if __name__ == "__main__":
                 cwd=terraform_dir,
                 check=True,
             )
-    app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
 def main():
     """Main entry point for the allocator service."""
-    # All the initialization code at module level already runs
-    # when the module is imported, so we just need to trigger it
-    pass
+    app.run(host="0.0.0.0", port=5000, threaded=True)
 
 
 if __name__ == "__main__":
