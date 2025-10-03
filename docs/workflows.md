@@ -78,7 +78,7 @@ PR opened → ci.yml triggered
 
 ## Package Publishing Workflow
 
-**File**: `.github/workflows/publish-packages.yml`
+**File**: `.github/workflows/publish-pip.yml`
 
 ### Purpose
 

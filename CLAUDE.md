@@ -289,7 +289,7 @@ These are automatically installed when the package is installed and available in
   - Pulls pushed images and runs validation tests
 - **Deployment**: Pushes to `ghcr.io`
 
-**`publish-packages.yml`** - PyPI Publishing
+**`publish-pip.yml`** - PyPI Publishing
 - **Triggers**: Git tags, manual dispatch
 - **Features**:
   - Version verification and guardrails
@@ -314,7 +314,7 @@ These are automatically installed when the package is installed and available in
 
 3. Release
    └─ Create tag (e.g., lablink-allocator-service_v0.0.2a0)
-      └─ publish-packages.yml (publish to PyPI)
+      └─ publish-pip.yml (publish to PyPI)
          └─ repository_dispatch
             └─ lablink-images.yml (build prod image with version tag)
 ```
