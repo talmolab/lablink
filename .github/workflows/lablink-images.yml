@@ -208,7 +208,7 @@ jobs:
       - name: Verify allocator package imports
         run: |
           echo "Testing allocator package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c '
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
 import warnings
 warnings.filterwarnings(\"ignore\")
 import logging
@@ -221,18 +221,18 @@ print(\"  - database.PostgresqlDatabase imported\")
 from lablink_allocator_service.get_config import get_config
 print(\"  - get_config.get_config imported\")
 print(\"Allocator imports verified\")
-'"
+"'
 
       - name: Verify allocator dev dependencies (dev images only)
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
           echo "Testing allocator dev dependencies..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c '
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
 print(\"Checking allocator dev dependencies:\")
 import pytest; print(\"  - pytest version:\", pytest.__version__)
 import ruff; print(\"  - ruff available\")
 print(\"Dev dependencies verified\")
-'"
+"'
 
   verify-client:
     name: Verify Client Image
@@ -270,7 +270,7 @@ print(\"Dev dependencies verified\")
       - name: Verify client package imports
         run: |
           echo "Testing client package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "python -c '
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'python -c "
 print(\"Importing client packages:\")
 from lablink_client_service.subscribe import main
 print(\"  - subscribe.main imported\")
@@ -279,7 +279,7 @@ print(\"  - check_gpu.main imported\")
 from lablink_client_service.update_inuse_status import main as update_main
 print(\"  - update_inuse_status.main imported\")
 print(\"Client imports verified\")
-'"
+"'
 
       - name: Verify uv is available
         run: |
@@ -290,9 +290,9 @@ print(\"Client imports verified\")
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
           echo "Testing client dev dependencies..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && python -c '
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && python -c "
 print(\"Checking client dev dependencies:\")
 import pytest; print(\"  - pytest version:\", pytest.__version__)
 import ruff; print(\"  - ruff available\")
 print(\"Dev dependencies verified\")
-'"
+"'
