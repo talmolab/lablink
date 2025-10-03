@@ -152,4 +152,4 @@ jobs:
 
           # Test lablink-allocator starts (will fail without DB, but should at least attempt to run)
           echo "Attempting to start lablink-allocator..."
-          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator 2>&1 > /tmp/allocator_output.txt || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator > /tmp/allocator_output.txt 2>&1 || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'
