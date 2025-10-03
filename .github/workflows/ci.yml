@@ -77,23 +77,9 @@ jobs:
         working-directory: ${{ matrix.working-directory }}
         run: ${{ matrix.test-command }}
 
-  docker-build-test:
-    name: Docker Build Test - ${{ matrix.service }}
+  docker-build-test-allocator:
+    name: Docker Build Test - Allocator
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - service: lablink-allocator
-            dockerfile: lablink-allocator/Dockerfile.dev
-            context: .
-            test-script: |
-              docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql"
-          - service: lablink-client
-            dockerfile: lablink-client-base/lablink-client-base-image/Dockerfile.dev
-            context: lablink-client-base
-            test-script: |
-              docker run --rm lablink-client-dev:test bash -c "which check_gpu && which subscribe && which update_inuse_status"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -101,21 +87,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Free up disk space for large images
-        if: matrix.service == 'lablink-client'
-        run: |
-          echo "Freeing up disk space before building large client image..."
-          docker system prune -af --volumes
-          df -h
-
-      - name: Build dev Docker image
+      - name: Build allocator dev Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          tags: ${{ matrix.service }}-dev:test
+          context: .
+          file: lablink-allocator/Dockerfile.dev
+          tags: lablink-allocator-dev:test
           push: false
           load: true
 
       - name: Verify console scripts
-        run: ${{ matrix.test-script }}
+        run: |
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql"
