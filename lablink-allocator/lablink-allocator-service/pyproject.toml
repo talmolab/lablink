@@ -24,10 +24,14 @@ description = "VM Allocator Service Package for Lablink"
 name = "lablink-allocator-service"
 readme = "README.md"
 requires-python = ">=3.9"
-version = "0.0.1a0"
+version = "0.0.2a0"
 
 [project.optional-dependencies]
 dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
+
+[project.scripts]
+lablink-allocator = "lablink_allocator_service.main:main"
+generate-init-sql = "lablink_allocator_service.generate_init_sql:main"
 
 [project.urls]
 Homepage = "https://github.com/talmolab/lablink"

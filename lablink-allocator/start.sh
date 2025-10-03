@@ -11,10 +11,13 @@ until pg_isready -U postgres; do
     sleep 2
 done
 
+# Activate venv
+source /app/.venv/bin/activate
+
 # Generate the init.sql script
 echo "Generating init.sql..."
 cd /app
-uv run generate-init-sql.py
+generate-init-sql
 
 # Run the init.sql script as the postgres superuser
 echo "Running init.sql..."
@@ -42,7 +45,7 @@ until pg_isready -U lablink -d lablink_db; do
 done
 
 # Run database migrations (if applicable)
-uv run -m flask db upgrade
+flask db upgrade
 
 CONFIG_DIR="${CONFIG_DIR:-/config}"
 CONFIG_NAME="${CONFIG_NAME:-config.yaml}"
@@ -62,4 +65,4 @@ echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 
 # Start the Flask application
 echo "Starting Flask app..."
-exec uv run main.py
+exec lablink-allocator

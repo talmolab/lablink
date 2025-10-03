@@ -76,3 +76,39 @@ jobs:
       - name: Run tests
         working-directory: ${{ matrix.working-directory }}
         run: ${{ matrix.test-command }}
+
+  docker-build-test:
+    name: Docker Build Test - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: lablink-allocator
+            dockerfile: lablink-allocator/Dockerfile.dev
+            context: .
+            test-script: |
+              docker run --rm lablink-allocator-dev bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql"
+          - service: lablink-client
+            dockerfile: lablink-client-base/lablink-client-base-image/Dockerfile.dev
+            context: lablink-client-base/lablink-client-base-image
+            test-script: |
+              docker run --rm lablink-client-dev bash -c "which check_gpu && which subscribe && which update_inuse_status"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dev Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          tags: ${{ matrix.service }}-dev:test
+          push: false
+          load: true
+
+      - name: Verify console scripts
+        run: ${{ matrix.test-script }}

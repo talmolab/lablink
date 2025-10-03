@@ -130,15 +130,14 @@ RUN sudo chmod +x /scripts/*.sh && \
     /scripts/install_miniforge.sh && \
     /scripts/install_nvm.sh
 
+# Build argument for package version
+ARG PACKAGE_VERSION=0.0.7a0
+
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Activate conda environment and install client service package
-RUN sudo uv pip install --system \
-    --extra-index-url https://test.pypi.org/simple/ \
-    --index-url https://pypi.org/simple \
-    --index-strategy unsafe-best-match \
-    lablink-client-service==0.0.6a3
+# Install client service package from PyPI
+RUN sudo uv pip install --system lablink-client-service==${PACKAGE_VERSION}
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh

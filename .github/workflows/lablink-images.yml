@@ -11,6 +11,10 @@ on:
         options:
           - test
           - prod
+      package_version:
+        description: "Package version to use (optional, for prod builds)"
+        required: false
+        type: string
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -25,6 +29,8 @@ on:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
       - ".github/workflows/lablink-images.yml"
+  repository_dispatch:
+    types: [package-published]
 
 jobs:
   build:
@@ -45,6 +51,33 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Select Dockerfile and build args
+        id: docker_config
+        run: |
+          # Determine if this is a dev build (use Dockerfile.dev with local code)
+          # or prod build (use Dockerfile with PyPI package)
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
+            echo "build_args=" >> $GITHUB_OUTPUT
+            echo "is_dev=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            # Package was just published - use specific version
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=PACKAGE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
+            # Manual trigger with specific version
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=PACKAGE_VERSION=${{ inputs.package_version }}" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          else
+            # Default: production build with default version from Dockerfile
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set environment suffix
         id: set_env_suffix
@@ -103,26 +136,17 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile-path }}
+          file: ${{ matrix.dockerfile-path }}${{ steps.docker_config.outputs.dockerfile_suffix }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.generate_tags.outputs.tags }}
+          build-args: ${{ steps.docker_config.outputs.build_args }}
 
-      - name: Set GitHub Output
-        id: set_output
+      - name: Build Summary
         run: |
-          echo "Triggering deployment with image tag: ${{ steps.get_sha.outputs.sha }}"
-          echo "image_tag=${{ steps.get_sha.outputs.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Trigger Terraform Deploy
-        if: github.ref_name == 'main' || inputs.environment == 'prod'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          event-type: deploy-prod-image
-          client-payload: >-
-            {
-              "environment": "prod",
-              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
-            }
+          echo "✅ Docker image built successfully!"
+          echo "Image tags: ${{ steps.generate_tags.outputs.tags }}"
+          echo "Dockerfile: ${{ matrix.dockerfile-path }}${{ steps.docker_config.outputs.dockerfile_suffix }}"
+          if [ -n "${{ steps.docker_config.outputs.build_args }}" ]; then
+            echo "Build args: ${{ steps.docker_config.outputs.build_args }}"
+          fi
