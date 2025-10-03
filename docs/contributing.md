@@ -654,15 +654,11 @@ When you create the GitHub Release, the `Publish Python Packages` workflow autom
 After publishing to PyPI, manually trigger Docker image builds to create production images with version tags:
 
 ```bash
-# For allocator service
+# Build both images with their respective versions
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f package_version=0.3.0
-
-# For client service
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f package_version=0.1.5
+  -f allocator_version=0.3.0 \
+  -f client_version=0.1.5
 
 # Monitor the build
 gh run watch
@@ -670,7 +666,8 @@ gh run watch
 
 This creates Docker images tagged with:
 - `ghcr.io/talmolab/lablink-allocator-image:0.3.0` (version tag)
-- `ghcr.io/talmolab/lablink-allocator-image:latest` (latest stable)
+- `ghcr.io/talmolab/lablink-client-base-image:0.1.5` (version tag)
+- `latest` tags for both images
 - Plus platform-specific and metadata tags
 
 See [Image Tagging Strategy](workflows.md#image-tagging-strategy) for complete tag details.

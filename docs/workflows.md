@@ -149,18 +149,16 @@ gh workflow run lablink-images.yml \
 After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version:
 
 ```bash
-# For allocator service v0.0.2a0
+# Build both images with their respective versions (recommended)
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f package_version=0.0.2a0
-
-# For client service v0.0.7a0
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f package_version=0.0.7a0
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
 
-This creates Docker images tagged with the specific package version (see [Image Tagging Strategy](#image-tagging-strategy) below).
+This creates Docker images tagged with the specific package versions (see [Image Tagging Strategy](#image-tagging-strategy) below).
+
+**Note:** After merging PR #182, use the new `allocator_version` and `client_version` parameters shown above. The old `package_version` parameter is deprecated but still supported for backwards compatibility.
 
 ## Image Building Workflow
 
