@@ -43,7 +43,7 @@ jobs:
             context: .
           - image-name: lablink-client-base-image
             dockerfile-path: ./lablink-client-base/lablink-client-base-image/Dockerfile
-            context: ./lablink-client-base/lablink-client-base-image
+            context: ./lablink-client-base
     outputs:
       git_sha: ${{ steps.get_sha.outputs.sha }}
       sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}

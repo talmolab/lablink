@@ -90,7 +90,7 @@ jobs:
               docker run --rm lablink-allocator-dev bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql"
           - service: lablink-client
             dockerfile: lablink-client-base/lablink-client-base-image/Dockerfile.dev
-            context: lablink-client-base/lablink-client-base-image
+            context: lablink-client-base
             test-script: |
               docker run --rm lablink-client-dev bash -c "which check_gpu && which subscribe && which update_inuse_status"
 
