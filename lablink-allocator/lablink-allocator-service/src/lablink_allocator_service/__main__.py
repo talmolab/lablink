@@ -1,4 +1,4 @@
-"""Allow running the allocator service as a module: python -m lablink_allocator_service"""
+"""Allow running the allocator service as a module."""
 
 from lablink_allocator_service.main import main
 

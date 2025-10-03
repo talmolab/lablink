@@ -9,8 +9,6 @@ def main():
     DB_NAME = config.db.dbname
     DB_USER = config.db.user
     DB_PASSWORD = config.db.password
-    DB_HOST = config.db.host
-    DB_PORT = config.db.port
     VM_TABLE = config.db.table_name
     MESSAGE_CHANNEL = config.db.message_channel
 

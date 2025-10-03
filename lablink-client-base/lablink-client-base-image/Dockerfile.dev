@@ -134,7 +134,7 @@ RUN sudo chmod +x /scripts/*.sh && \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy local client service package for development
-COPY lablink-client-service /tmp/lablink-client-service
+COPY ../lablink-client-service /tmp/lablink-client-service
 
 # Install client service package from local copy
 RUN sudo uv pip install --system /tmp/lablink-client-service && \
