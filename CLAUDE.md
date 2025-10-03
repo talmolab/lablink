@@ -264,6 +264,7 @@ These are automatically installed when the package is installed and available in
   - **Docker Build Test** (allocator only):
     - Build `Dockerfile.dev` image
     - Verify venv activation and paths
+    - Verify entry points are importable and callable (catches indentation bugs)
     - Verify console scripts exist (`lablink-allocator`, `generate-init-sql`)
     - Verify dev dependencies installed (pytest, ruff, coverage with versions)
     - Verify package imports work (main, database, get_config)
@@ -282,8 +283,9 @@ These are automatically installed when the package is installed and available in
   - Package version (e.g., `0.0.2a0`, `linux-amd64-0.0.2a0`) when available
   - Environment suffix (`-test` for non-prod)
 - **Post-Build Verification** (new jobs):
-  - `verify-allocator`: Tests allocator image console scripts, imports, dev deps
-  - `verify-client`: Tests client image console scripts, imports, uv availability, dev deps
+  - `verify-allocator`: Tests entry point callability, console scripts, imports, dev deps
+  - `verify-client`: Tests entry point callability, console scripts, imports, uv availability, dev deps
+  - Verifies entry points are importable and callable (prevents runtime failures)
   - Pulls pushed images and runs validation tests
 - **Deployment**: Pushes to `ghcr.io`
 

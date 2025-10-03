@@ -52,6 +52,7 @@ Runs tests, linting, and Docker build verification on every pull request affecti
 3. **Docker Build Test (Allocator Only)**
    - Builds `Dockerfile.dev` using `uv sync --extra dev`
    - Verifies virtual environment activation
+   - Verifies console script entry points are importable and callable
    - Verifies console scripts exist (`lablink-allocator`, `generate-init-sql`)
    - Verifies dev dependencies installed (pytest, ruff, coverage with versions)
    - Verifies package imports (main, database, get_config)
@@ -68,6 +69,7 @@ PR opened → ci.yml triggered
   ├─ Test client-service ✓
   └─ Docker Build Test - Allocator ✓
      ├─ Venv activated: /app/lablink-allocator-service/.venv
+     ├─ Entry points importable: main(), generate_init_sql.main() ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
      ├─ Dev dependencies: pytest 8.4.2, ruff, coverage 7.10.7 ✓
      ├─ Package imports: main.main, database.PostgresqlDatabase, get_config ✓
@@ -196,6 +198,7 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 Runs after successful build, pulls and tests the allocator image:
 
 - **Virtual Environment**: Activates venv at `/app/.venv`
+- **Entry Points**: Verifies `main()` and `generate_init_sql.main()` are importable and callable
 - **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist and execute
 - **Package Imports**: Tests importing `main`, `database.PostgresqlDatabase`, `get_config`
 - **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
@@ -205,6 +208,7 @@ Runs after successful build, pulls and tests the allocator image:
 Runs after successful build, pulls and tests the client image:
 
 - **Virtual Environment**: Activates venv at `/home/client/.venv`
+- **Entry Points**: Verifies `check_gpu.main()`, `subscribe.main()`, `update_inuse_status.main()` are importable and callable
 - **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist and execute
 - **Package Imports**: Tests importing subscribe, check_gpu, update_inuse_status modules
 - **UV Availability**: Verifies `uv` command and version
@@ -221,12 +225,14 @@ PR opened → lablink-images.yml triggered
   └─ Verify Allocator Job
      ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
      ├─ Venv activated: /app/.venv ✓
+     ├─ Entry points callable: main(), generate_init_sql.main() ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
      ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
      └─ Dev deps: pytest 8.4.2, ruff ✓
   └─ Verify Client Job
      ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
      ├─ Venv activated: /home/client/.venv ✓
+     ├─ Entry points callable: check_gpu.main(), subscribe.main(), update_inuse_status.main() ✓
      ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
      ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
      ├─ UV: uv 0.6.8 ✓
