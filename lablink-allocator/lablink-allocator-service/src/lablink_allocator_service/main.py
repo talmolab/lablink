@@ -740,7 +740,8 @@ def get_vm_logs(hostname):
     return render_template("instance-logs.html", hostname=hostname)
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the allocator service."""
     with app.app_context():
         db.create_all()
         init_database()
@@ -767,9 +768,6 @@ if __name__ == "__main__":
                 check=True,
             )
 
-
-def main():
-    """Main entry point for the allocator service."""
     app.run(host="0.0.0.0", port=5000, threaded=True)
 
 
