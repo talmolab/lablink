@@ -183,20 +183,17 @@ ruff format .
 
 **Production builds with version tags** (after publishing to PyPI):
 ```bash
-# Trigger production build for allocator
+# Trigger production builds for both images with their versions
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f package_version=0.0.2a0
-
-# Trigger production build for client
-gh workflow run lablink-images.yml \
-  -f environment=prod \
-  -f package_version=0.0.7a0
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
 
 This creates Docker images tagged with:
 - `ghcr.io/talmolab/lablink-allocator-image:0.0.2a0` (version tag)
-- `ghcr.io/talmolab/lablink-allocator-image:latest` (latest stable)
+- `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` (version tag)
+- `latest` tags for both images
 - Plus platform and metadata tags
 
 See [Image Tagging Strategy](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tag list.
@@ -318,7 +315,10 @@ These are automatically installed when the package is installed and available in
 - **Deployment**: Pushes to `ghcr.io/talmolab/`
 - **Manual Production Build**:
   ```bash
-  gh workflow run lablink-images.yml -f environment=prod -f package_version=0.0.2a0
+  gh workflow run lablink-images.yml \
+    -f environment=prod \
+    -f allocator_version=0.0.2a0 \
+    -f client_version=0.0.7a0
   ```
 
 **`publish-pip.yml`** - PyPI Publishing

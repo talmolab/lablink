@@ -128,20 +128,22 @@ Publishes Python packages to PyPI with safety guardrails.
 ### Example: Publishing a Release
 
 ```bash
-# 1. Create and push a tag
+# 1. Create and push tags
 git tag lablink-allocator-service_v0.0.2a0
-git push origin lablink-allocator-service_v0.0.2a0
+git tag lablink-client-service_v0.0.7a0
+git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
 
 # 2. Workflow automatically:
-#    - Detects tag
-#    - Runs tests
+#    - Detects tags
+#    - Runs tests for each package
 #    - Publishes to PyPI
 #    - Displays Docker build instructions
 
 # 3. Manually trigger Docker image build (see below)
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f package_version=0.0.2a0
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
 
 ### Building Docker Images After Publishing
@@ -157,8 +159,6 @@ gh workflow run lablink-images.yml \
 ```
 
 This creates Docker images tagged with the specific package versions (see [Image Tagging Strategy](#image-tagging-strategy) below).
-
-**Note:** After merging PR #182, use the new `allocator_version` and `client_version` parameters shown above. The old `package_version` parameter is deprecated but still supported for backwards compatibility.
 
 ## Image Building Workflow
 
@@ -193,7 +193,10 @@ Docker images are tagged differently based on how they are triggered. This allow
 
 **Manual trigger with package version (recommended for production):**
 ```bash
-gh workflow run lablink-images.yml -f environment=prod -f package_version=0.0.2a0
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
 
 Creates images tagged with:
@@ -232,13 +235,16 @@ Creates images tagged with `-test` suffix:
 
 **Manual trigger with package version (recommended for production):**
 ```bash
-gh workflow run lablink-images.yml -f environment=prod -f package_version=0.0.7a0
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
 ```
 
 Creates images tagged with:
 - `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` - **Version-specific tag**
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.0.7a0` - Platform + version
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test` - Latest for platform
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest` - Latest for platform
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04`
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3`
 - `ghcr.io/talmolab/lablink-client-base-image:<sha>` - Git commit SHA

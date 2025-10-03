@@ -19,10 +19,6 @@ on:
         description: "Client package version (e.g., 0.0.7a0)"
         required: false
         type: string
-      package_version:
-        description: "DEPRECATED: Use allocator_version and client_version instead"
-        required: false
-        type: string
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -78,9 +74,9 @@ jobs:
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             # Manual trigger - determine version based on image type
             if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
-              VERSION="${{ inputs.allocator_version }}${{ inputs.package_version }}"
+              VERSION="${{ inputs.allocator_version }}"
             elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-              VERSION="${{ inputs.client_version }}${{ inputs.package_version }}"
+              VERSION="${{ inputs.client_version }}"
             fi
 
             if [ -n "$VERSION" ]; then
@@ -135,11 +131,11 @@ jobs:
           if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
             PKG_VERSION="${{ github.event.client_payload.version }}"
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Use image-specific version or fallback to package_version (deprecated)
+            # Use image-specific version
             if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
-              PKG_VERSION="${{ inputs.allocator_version }}${{ inputs.package_version }}"
+              PKG_VERSION="${{ inputs.allocator_version }}"
             elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-              PKG_VERSION="${{ inputs.client_version }}${{ inputs.package_version }}"
+              PKG_VERSION="${{ inputs.client_version }}"
             fi
           else
             PKG_VERSION=""

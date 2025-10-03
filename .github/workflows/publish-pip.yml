@@ -204,8 +204,10 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Version: ${VERSION}"
           echo ""
-          echo "ℹ️  To build production Docker images with this version:"
-          echo "   gh workflow run lablink-images.yml -f environment=prod -f package_version=${VERSION}"
+          echo "ℹ️  To build production Docker images with all package versions:"
+          echo "   gh workflow run lablink-images.yml -f environment=prod \\"
+          echo "     -f allocator_version=<allocator-version> \\"
+          echo "     -f client_version=<client-version>"
         working-directory: ${{ matrix.dir }}
 
       # Dry run summary
