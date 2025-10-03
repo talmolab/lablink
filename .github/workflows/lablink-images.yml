@@ -276,7 +276,7 @@ jobs:
       - name: Verify client package imports
         run: |
           echo "Testing client package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'python -c "
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && python -c "
           print(\"Importing client packages:\")
           from lablink_client_service.subscribe import main
           print(\"  - subscribe.main imported\")
