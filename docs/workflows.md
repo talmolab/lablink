@@ -148,15 +148,25 @@ gh workflow run lablink-images.yml \
 
 ### Building Docker Images After Publishing
 
-After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version:
+After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version.
 
+**Option 1: Using GitHub CLI** (recommended):
 ```bash
-# Build both images with their respective versions (recommended)
+# Build both images with their respective versions
 gh workflow run lablink-images.yml \
   -f environment=prod \
   -f allocator_version=0.0.2a0 \
   -f client_version=0.0.7a0
 ```
+
+**Option 2: Using GitHub UI**:
+1. Go to [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml)
+2. Click "Run workflow"
+3. Select branch: `main`
+4. Set environment: `prod`
+5. Enter allocator version: `0.0.2a0`
+6. Enter client version: `0.0.7a0`
+7. Click "Run workflow"
 
 This creates Docker images tagged with the specific package versions (see [Image Tagging Strategy](#image-tagging-strategy) below).
 

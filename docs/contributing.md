@@ -651,8 +651,9 @@ When you create the GitHub Release, the `Publish Python Packages` workflow autom
 
 #### 5. Build Production Docker Images
 
-After publishing to PyPI, manually trigger Docker image builds to create production images with version tags:
+After publishing to PyPI, manually trigger Docker image builds to create production images with version tags.
 
+**Using GitHub CLI**:
 ```bash
 # Build both images with their respective versions
 gh workflow run lablink-images.yml \
@@ -663,6 +664,16 @@ gh workflow run lablink-images.yml \
 # Monitor the build
 gh run watch
 ```
+
+**Using GitHub UI**:
+1. Go to [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml)
+2. Click "Run workflow"
+3. Fill in:
+   - Branch: `main`
+   - Environment: `prod`
+   - Allocator version: `0.3.0`
+   - Client version: `0.1.5`
+4. Click "Run workflow"
 
 This creates Docker images tagged with:
 - `ghcr.io/talmolab/lablink-allocator-image:0.3.0` (version tag)
