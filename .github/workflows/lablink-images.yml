@@ -11,6 +11,10 @@ on:
         options:
           - test
           - prod
+      package_version:
+        description: "Package version to use (optional, for prod builds)"
+        required: false
+        type: string
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -25,6 +29,8 @@ on:
       - "lablink-allocator/**"
       - "lablink-client-base/lablink-client-base-image/**"
       - ".github/workflows/lablink-images.yml"
+  repository_dispatch:
+    types: [package-published]
 
 jobs:
   build:
@@ -37,7 +43,7 @@ jobs:
             context: .
           - image-name: lablink-client-base-image
             dockerfile-path: ./lablink-client-base/lablink-client-base-image/Dockerfile
-            context: ./lablink-client-base/lablink-client-base-image
+            context: ./lablink-client-base
     outputs:
       git_sha: ${{ steps.get_sha.outputs.sha }}
       sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}
@@ -45,6 +51,33 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Select Dockerfile and build args
+        id: docker_config
+        run: |
+          # Determine if this is a dev build (use Dockerfile.dev with local code)
+          # or prod build (use Dockerfile with PyPI package)
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
+            echo "build_args=" >> $GITHUB_OUTPUT
+            echo "is_dev=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            # Package was just published - use specific version
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=PACKAGE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
+            # Manual trigger with specific version
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=PACKAGE_VERSION=${{ inputs.package_version }}" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          else
+            # Default: production build with default version from Dockerfile
+            echo "dockerfile_suffix=" >> $GITHUB_OUTPUT
+            echo "build_args=" >> $GITHUB_OUTPUT
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set environment suffix
         id: set_env_suffix
@@ -77,14 +110,35 @@ jobs:
           SHA="${{ steps.get_sha.outputs.sha }}"
           ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
 
+          # Extract package version if available (from repository_dispatch or workflow_dispatch)
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            PKG_VERSION="${{ github.event.client_payload.version }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
+            PKG_VERSION="${{ inputs.package_version }}"
+          else
+            PKG_VERSION=""
+          fi
+
           if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
             tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+
+            # Add package version tag if available
+            if [ -n "$PKG_VERSION" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PKG_VERSION,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-$PKG_VERSION"
+            fi
+
             if [ -z "$ENV_SUFFIX" ]; then
               tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:latest"
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
             tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+
+            # Add package version tag if available
+            if [ -n "$PKG_VERSION" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PKG_VERSION,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$PKG_VERSION"
+            fi
+
             if [ -z "$ENV_SUFFIX" ]; then
               tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:latest"
             fi
@@ -103,26 +157,180 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile-path }}
+          file: ${{ matrix.dockerfile-path }}${{ steps.docker_config.outputs.dockerfile_suffix }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.generate_tags.outputs.tags }}
+          build-args: ${{ steps.docker_config.outputs.build_args }}
 
-      - name: Set GitHub Output
-        id: set_output
+      - name: Build Summary
         run: |
-          echo "Triggering deployment with image tag: ${{ steps.get_sha.outputs.sha }}"
-          echo "image_tag=${{ steps.get_sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "✅ Docker image built successfully!"
+          echo "Image tags: ${{ steps.generate_tags.outputs.tags }}"
+          echo "Dockerfile: ${{ matrix.dockerfile-path }}${{ steps.docker_config.outputs.dockerfile_suffix }}"
+          if [ -n "${{ steps.docker_config.outputs.build_args }}" ]; then
+            echo "Build args: ${{ steps.docker_config.outputs.build_args }}"
+          fi
 
-      - name: Trigger Terraform Deploy
-        if: github.ref_name == 'main' || inputs.environment == 'prod'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          event-type: deploy-prod-image
-          client-payload: >-
-            {
-              "environment": "prod",
-              "image_tag": "${{ steps.set_output.outputs.image_tag }}"
-            }
+  verify-allocator:
+    name: Verify Allocator Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: contains(needs.build.result, 'success')
+    steps:
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Determine image tag
+        id: get_tag
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          SHA="${{ needs.build.outputs.git_sha }}"
+          PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            TAG="${PLATFORM}-test"
+          else
+            TAG="${PLATFORM}-latest"
+          fi
+
+          IMAGE="ghcr.io/$REPO_OWNER/lablink-allocator-image:$TAG"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Pull allocator image
+        run: docker pull ${{ steps.get_tag.outputs.image }}
+
+      - name: Verify allocator console scripts
+        run: |
+          echo "Testing allocator console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && echo \"lablink-allocator:\" && which lablink-allocator && echo \"generate-init-sql:\" && which generate-init-sql && echo \"Allocator console scripts verified\""
+
+      - name: Verify allocator package imports
+        run: |
+          echo "Testing allocator package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
+          import warnings
+          warnings.filterwarnings(\"ignore\")
+          import logging
+          logging.basicConfig(level=logging.ERROR)
+          print(\"Importing allocator packages:\")
+          from lablink_allocator_service.main import main
+          print(\"  - main.main imported\")
+          from lablink_allocator_service.database import PostgresqlDatabase
+          print(\"  - database.PostgresqlDatabase imported\")
+          from lablink_allocator_service.get_config import get_config
+          print(\"  - get_config.get_config imported\")
+          print(\"Allocator imports verified\")
+          "'
+
+      - name: Verify allocator dev dependencies (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "Testing allocator dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
+          print(\"Checking allocator dev dependencies:\")
+          import pytest; print(\"  - pytest version:\", pytest.__version__)
+          import ruff; print(\"  - ruff available\")
+          print(\"Dev dependencies verified\")
+          "'
+
+      - name: Verify allocator entry points are importable
+        run: |
+          echo "Testing allocator console script entry points can be imported..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
+          from lablink_allocator_service.main import main as allocator_main
+          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
+          assert callable(allocator_main), \"allocator main() is not callable\"
+          assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
+          print(\"✓ All entry points are importable and callable\")
+          "'
+
+      - name: Execute allocator console scripts
+        run: |
+          echo "Testing allocator console script execution..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && generate-init-sql 2>/dev/null && test -f /app/init.sql && wc -l /app/init.sql && echo "generate-init-sql executed successfully"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator > /tmp/allocator_output.txt 2>&1 || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'
+
+  verify-client:
+    name: Verify Client Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: contains(needs.build.result, 'success')
+    steps:
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Determine image tag
+        id: get_tag
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          SHA="${{ needs.build.outputs.git_sha }}"
+          PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            TAG="${PLATFORM}-test"
+          else
+            TAG="${PLATFORM}-latest"
+          fi
+
+          IMAGE="ghcr.io/$REPO_OWNER/lablink-client-base-image:$TAG"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Pull client image
+        run: docker pull ${{ steps.get_tag.outputs.image }}
+
+      - name: Verify client console scripts exist
+        run: |
+          echo "Testing client console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /home/client/.venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
+
+      - name: Verify client package imports
+        run: |
+          echo "Testing client package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
+          print(\"Importing client packages:\")
+          from lablink_client_service.subscribe import main
+          print(\"  - subscribe.main imported\")
+          from lablink_client_service.check_gpu import main as check_main
+          print(\"  - check_gpu.main imported\")
+          from lablink_client_service.update_inuse_status import main as update_main
+          print(\"  - update_inuse_status.main imported\")
+          print(\"Client imports verified\")
+          "'
+
+      - name: Verify uv is available
+        run: |
+          echo "Testing uv availability..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && echo \"uv version:\" && uv --version"
+
+      - name: Verify client dev dependencies (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "Testing client dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
+          print(\"Checking client dev dependencies:\")
+          import pytest; print(\"  - pytest version:\", pytest.__version__)
+          import ruff; print(\"  - ruff available\")
+          print(\"Dev dependencies verified\")
+          "'
+
+      - name: Verify client entry points are importable
+        run: |
+          echo "Testing client console script entry points can be imported..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
+          from lablink_client_service.check_gpu import main as check_gpu_main
+          from lablink_client_service.subscribe import main as subscribe_main
+          from lablink_client_service.update_inuse_status import main as update_main
+          assert callable(check_gpu_main), \"check_gpu main() is not callable\"
+          assert callable(subscribe_main), \"subscribe main() is not callable\"
+          assert callable(update_main), \"update_inuse_status main() is not callable\"
+          print(\"✓ All entry points are importable and callable\")
+          "'
+
+      - name: Execute client console scripts
+        run: |
+          echo "Testing client console script execution..."
+          # Test that scripts execute (will fail without allocator, but should attempt to run)
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'

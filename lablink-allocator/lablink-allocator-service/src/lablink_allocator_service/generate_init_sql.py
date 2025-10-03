@@ -1,17 +1,18 @@
-from get_config import get_config
+from lablink_allocator_service.get_config import get_config
 
-config = get_config()
 
-# Load database configuration from config.yaml
-DB_NAME = config.db.dbname
-DB_USER = config.db.user
-DB_PASSWORD = config.db.password
-DB_HOST = config.db.host
-DB_PORT = config.db.port
-VM_TABLE = config.db.table_name
-MESSAGE_CHANNEL = config.db.message_channel
+def main():
+    """Generate PostgreSQL initialization SQL script."""
+    config = get_config()
 
-template = f"""
+    # Load database configuration from config.yaml
+    DB_NAME = config.db.dbname
+    DB_USER = config.db.user
+    DB_PASSWORD = config.db.password
+    VM_TABLE = config.db.table_name
+    MESSAGE_CHANNEL = config.db.message_channel
+
+    template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
 
 DROP USER IF EXISTS {DB_USER};
@@ -57,5 +58,9 @@ EXECUTE FUNCTION notify_crd_command_update();
 
 """
 
-with open("/app/init.sql", "w") as f:
-    f.write(template)
+    with open("/app/init.sql", "w") as f:
+        f.write(template)
+
+
+if __name__ == "__main__":
+    main()

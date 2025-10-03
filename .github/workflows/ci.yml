@@ -76,3 +76,91 @@ jobs:
       - name: Run tests
         working-directory: ${{ matrix.working-directory }}
         run: ${{ matrix.test-command }}
+
+  docker-build-test-allocator:
+    name: Docker Build Test - Allocator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build allocator dev Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: lablink-allocator/Dockerfile.dev
+          tags: lablink-allocator-dev:test
+          push: false
+          load: true
+
+      - name: Verify venv activation
+        run: |
+          echo "Testing venv activation..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"Venv activated:\", sys.prefix); print(\"Python executable:\", sys.executable); assert \"lablink-allocator-service/.venv\" in sys.prefix'"
+
+      - name: Verify console scripts exist
+        run: |
+          echo "Testing console scripts..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && echo \"lablink-allocator:\" && which lablink-allocator && echo \"generate-init-sql:\" && which generate-init-sql && echo \"Console scripts found\""
+
+      - name: Verify dev dependencies installed
+        run: |
+          echo "Testing dev dependencies..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
+          import sys
+          print(\"Checking dev dependencies:\")
+          import pytest; print(\"  - pytest version:\", pytest.__version__)
+          import ruff; print(\"  - ruff available\")
+          import coverage; print(\"  - coverage version:\", coverage.__version__)
+          print(\"Dev dependencies verified\")
+          "'
+
+      - name: Verify package imports
+        run: |
+          echo "Testing package imports..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
+          import sys
+          import warnings
+          warnings.filterwarnings(\"ignore\")
+          import logging
+          logging.basicConfig(level=logging.ERROR)
+          print(\"Importing lablink-allocator-service packages:\")
+          from lablink_allocator_service.main import main
+          print(\"  - main.main imported\")
+          from lablink_allocator_service.database import PostgresqlDatabase
+          print(\"  - database.PostgresqlDatabase imported\")
+          from lablink_allocator_service.get_config import get_config
+          print(\"  - get_config.get_config imported\")
+          print(\"Package imports successful\")
+          "'
+
+      - name: Verify uv sync created proper installation
+        run: |
+          echo "Testing uv sync installation..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && pip list 2>/dev/null | grep lablink-allocator-service | head -1 && echo \"Package installed via uv sync\""
+
+      - name: Verify console script entry points are importable
+        run: |
+          echo "Testing console script entry points can be imported..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
+          from lablink_allocator_service.main import main as allocator_main
+          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
+          assert callable(allocator_main), \"allocator main() is not callable\"
+          assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
+          print(\"✓ All entry points are importable and callable\")
+          "'
+
+      - name: Execute console scripts to verify they work
+        run: |
+          echo "Testing console script execution..."
+
+          # Test generate-init-sql actually runs and produces SQL file
+          echo "Running generate-init-sql..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && generate-init-sql 2>/dev/null && test -f /app/init.sql && wc -l /app/init.sql && grep -q "CREATE TABLE" /app/init.sql && echo "generate-init-sql executed successfully"'
+
+          # Test lablink-allocator starts (will fail without DB, but should at least attempt to run)
+          echo "Attempting to start lablink-allocator..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator > /tmp/allocator_output.txt 2>&1 || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'

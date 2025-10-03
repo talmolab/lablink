@@ -1,6 +1,9 @@
 #!/bin/bash
 export PYTHONUNBUFFERED=1
 
+# Activate virtual environment
+source /home/client/.venv/bin/activate
+
 echo "Running subscribe script..."
 
 echo "ALLOCATOR_HOST: $ALLOCATOR_HOST"
@@ -29,17 +32,17 @@ LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
 
 # Run subscribe in background, but preserve stdout + stderr to docker logs and file
-uv run subscribe \
+subscribe \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/subscribe.log" &
 
 # Run update_inuse_status
-uv run update_inuse_status \
+update_inuse_status \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
   2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
 # Run GPU health check
-uv run check_gpu \
+check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 

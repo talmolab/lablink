@@ -23,7 +23,8 @@ lablink/
 │   ├── scripts/                # Doc generation scripts
 │   └── assets/                 # Images, diagrams
 ├── lablink-allocator/          # Allocator service
-│   ├── Dockerfile              # Allocator Docker image
+│   ├── Dockerfile              # Allocator Docker image (production)
+│   ├── Dockerfile.dev          # Allocator Docker image (development)
 │   ├── main.tf                 # Terraform for allocator EC2
 │   ├── backend-*.hcl           # Terraform backends (dev/test/prod)
 │   └── lablink-allocator-service/
@@ -38,7 +39,8 @@ lablink/
 │       └── utils/              # Utility modules
 ├── lablink-client-base/        # Client service
 │   ├── lablink-client-base-image/
-│   │   └── Dockerfile          # Client Docker image
+│   │   ├── Dockerfile          # Client Docker image (production)
+│   │   └── Dockerfile.dev      # Client Docker image (development)
 │   └── lablink-client-service/
 │       ├── lablink_client_service/
 │       │   ├── subscribe.py    # Allocator subscription
@@ -177,13 +179,154 @@ ruff format .
 
 ### Building Docker Images
 
+#### Development Builds (Local Code)
 ```bash
-# Allocator
-docker build -t lablink-allocator -f lablink-allocator/Dockerfile .
+# Allocator (dev) - uses local code
+docker build -t lablink-allocator:dev -f lablink-allocator/Dockerfile.dev .
 
-# Client
-docker build -t lablink-client -f lablink-client-base/lablink-client-base-image/Dockerfile .
+# Client (dev) - uses local code
+docker build -t lablink-client:dev \
+  -f lablink-client-base/lablink-client-base-image/Dockerfile.dev \
+  lablink-client-base
 ```
+
+#### Production Builds (From PyPI)
+```bash
+# Allocator (prod) - installs from PyPI
+docker build -t lablink-allocator:0.0.2a0 \
+  --build-arg PACKAGE_VERSION=0.0.2a0 \
+  -f lablink-allocator/Dockerfile .
+
+# Client (prod) - installs from PyPI
+docker build -t lablink-client:0.0.7a0 \
+  --build-arg PACKAGE_VERSION=0.0.7a0 \
+  -f lablink-client-base/lablink-client-base-image/Dockerfile \
+  lablink-client-base
+```
+
+## Docker Strategy
+
+### Dockerfile Types
+
+**`Dockerfile.dev`** (Development/CI):
+- Copies local source code directly into the image
+- Uses `uv sync --extra dev` for installation
+- Installs dev dependencies (pytest, ruff, coverage)
+- Creates virtual environment at project location
+- Fast iteration during development
+- Used by CI workflows on PRs and test branches
+- No PyPI dependency required
+
+**Dockerfile**  (Production):
+- Installs Python packages from PyPI using `uv pip install`
+- Accepts `PACKAGE_VERSION` build argument
+- Uses specific pinned versions
+- No dev dependencies (smaller image)
+- Reproducible builds
+- Used for main/prod deployments
+
+### Virtual Environment Setup
+
+**Allocator:**
+- `Dockerfile.dev`: Creates venv at `/app/lablink-allocator-service/.venv` with symlink at `/app/.venv`
+- `Dockerfile`: Creates venv at `/app/.venv` from PyPI package
+- `start.sh` activates venv with `source /app/.venv/bin/activate`
+
+**Client:**
+- `Dockerfile.dev`: Creates venv at `/home/client/.venv` with editable install
+- `Dockerfile`: Creates venv at `/home/client/.venv` from PyPI package
+- `start.sh` activates venv with `source /home/client/.venv/bin/activate`
+
+### Console Scripts
+
+Both services provide console script entry points defined in `pyproject.toml`:
+
+**Allocator:**
+- `lablink-allocator` - Runs the Flask application
+- `generate-init-sql` - Generates PostgreSQL init script
+
+**Client:**
+- `check_gpu` - GPU health check
+- `subscribe` - Allocator subscription service
+- `update_inuse_status` - Status update service
+
+These are automatically installed when the package is installed and available in the venv or system PATH.
+
+## CI/CD Workflows
+
+### Workflow Overview
+
+**`ci.yml`** - Continuous Integration
+- **Triggers**: PRs affecting service code or workflows
+- **Jobs**:
+  - **Lint**: Run `ruff check` on both packages
+  - **Test**: Run `pytest` with coverage on both packages
+  - **Docker Build Test** (allocator only):
+    - Build `Dockerfile.dev` image
+    - Verify venv activation and paths
+    - Verify entry points are importable and callable (catches indentation bugs)
+    - Verify console scripts exist (`lablink-allocator`, `generate-init-sql`)
+    - Verify dev dependencies installed (pytest, ruff, coverage with versions)
+    - Verify package imports work (main, database, get_config)
+    - Verify `uv sync` installation
+- **Note**: Client Docker build test skipped due to large image size (~6GB with CUDA)
+
+**`lablink-images.yml`** - Docker Image Building
+- **Triggers**: PRs, pushes to main/test, manual dispatch, `repository_dispatch`
+- **Smart Dockerfile Selection**:
+  - PR/test branch → `Dockerfile.dev` (local code with `uv sync`)
+  - Main branch → `Dockerfile` (from PyPI with default version)
+  - After package publish → `Dockerfile` (from PyPI with specific version)
+- **Image Tags**:
+  - Git SHA (e.g., `abc123-test`)
+  - Platform (e.g., `linux-amd64-latest-test`)
+  - Package version (e.g., `0.0.2a0`, `linux-amd64-0.0.2a0`) when available
+  - Environment suffix (`-test` for non-prod)
+- **Post-Build Verification** (new jobs):
+  - `verify-allocator`: Tests entry point callability, console scripts, imports, dev deps
+  - `verify-client`: Tests entry point callability, console scripts, imports, uv availability, dev deps
+  - Verifies entry points are importable and callable (prevents runtime failures)
+  - Pulls pushed images and runs validation tests
+- **Deployment**: Pushes to `ghcr.io`
+
+**`publish-packages.yml`** - PyPI Publishing
+- **Triggers**: Git tags, manual dispatch
+- **Features**:
+  - Version verification and guardrails
+  - Linting and tests before publish
+  - Dry-run mode available
+  - Per-package control (allocator/client)
+- **Integration**: Triggers Docker image rebuild via `repository_dispatch` after successful publish
+
+**`docs.yml`** - Documentation Deployment
+- **Triggers**: Pushes to main, PRs for docs changes
+- **Deployment**: Builds and deploys MkDocs to GitHub Pages
+
+### Release Workflow
+
+```
+1. Development
+   └─ PR → ci.yml (test, lint, build Dockerfile.dev)
+           lablink-images.yml (build dev image with -test tag)
+
+2. Merge to Main
+   └─ lablink-images.yml (build prod image from latest PyPI package)
+
+3. Release
+   └─ Create tag (e.g., lablink-allocator-service_v0.0.2a0)
+      └─ publish-packages.yml (publish to PyPI)
+         └─ repository_dispatch
+            └─ lablink-images.yml (build prod image with version tag)
+```
+
+### Package Versioning
+
+- **Format**: Semantic versioning (e.g., `0.0.2a0` for alpha, `0.1.0` for stable)
+- **Tag Convention**: `{package-name}_v{version}` (e.g., `lablink-allocator-service_v0.0.2a0`)
+- **Docker Tags**: Include package version when built from published packages
+- **Current Versions**:
+  - Allocator: `0.0.2a0`
+  - Client: `0.0.7a0`
 
 ## Common Tasks
 

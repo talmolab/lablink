@@ -187,6 +187,7 @@ jobs:
 
       # PUBLISH (unless dry run)
       - name: Publish to PyPI
+        id: publish
         if: |
           steps.should_run.outputs.should_run == 'true' &&
           (github.event_name != 'workflow_dispatch' ||
@@ -195,7 +196,25 @@ jobs:
           echo "Publishing ${{ matrix.package }} to PyPI..."
           uv publish
           echo "✅ Published successfully!"
+
+          # Extract version for triggering Docker build
+          VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.dir }}
+
+      # Trigger Docker image rebuild with new package version
+      - name: Trigger Docker image build
+        if: steps.publish.outcome == 'success'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: package-published
+          client-payload: |
+            {
+              "package": "${{ matrix.package }}",
+              "version": "${{ steps.publish.outputs.version }}"
+            }
 
       # Dry run summary
       - name: Dry run summary

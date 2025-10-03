@@ -1,8 +1,5 @@
 FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
 
-# Build argument for package version
-ARG PACKAGE_VERSION=0.0.2a0
-
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CONFIG_DIR=/config
@@ -28,8 +25,15 @@ WORKDIR /app
 # Copy PostgreSQL config
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
-# Install package from PyPI using UV
-RUN uv venv && uv pip install lablink-allocator-service==${PACKAGE_VERSION}
+# Copy package files
+COPY lablink-allocator/lablink-allocator-service /app/lablink-allocator-service
+
+# Install package with dev dependencies using uv sync
+WORKDIR /app/lablink-allocator-service
+RUN uv sync --extra dev
+# Create symlink so start.sh can find it at /app/.venv
+RUN ln -s /app/lablink-allocator-service/.venv /app/.venv
+WORKDIR /app
 
 
 
