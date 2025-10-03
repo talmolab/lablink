@@ -2,7 +2,7 @@ import subprocess
 from unittest.mock import patch
 import pytest
 
-from utils.scp import (
+from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
     has_files,
@@ -91,7 +91,7 @@ def test_has_files_missing(mock_run):
     assert result is False
 
 
-@patch("utils.scp.has_files", return_value=True)
+@patch("lablink_allocator_service.utils.scp.has_files", return_value=True)
 @patch("subprocess.run")
 def test_rsync_files_to_allocator_test_success(mock_run, mock_has_files):
     """Test rsyncing .slp files to allocator successfully."""
@@ -123,7 +123,7 @@ def test_rsync_files_to_allocator_test_success(mock_run, mock_has_files):
     ]
 
 
-@patch("utils.scp.has_files", return_value=False)
+@patch("lablink_allocator_service.utils.scp.has_files", return_value=False)
 @patch("subprocess.run")
 def test_rsync_files_to_allocator_test_skip(mock_run, mock_has_files):
     """Test skipping rsync when no extension files are found in the container."""
@@ -136,7 +136,7 @@ def test_rsync_files_to_allocator_test_skip(mock_run, mock_has_files):
     mock_run.assert_not_called()
 
 
-@patch("utils.scp.has_files", return_value=True)
+@patch("lablink_allocator_service.utils.scp.has_files", return_value=True)
 @patch("subprocess.run")
 def test_rsync_files_to_allocator_test_error(mock_run, mock_has_files, caplog):
     """Test handling errors when rsyncing .slp files to allocator."""

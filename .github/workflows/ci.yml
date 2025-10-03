@@ -22,11 +22,11 @@ jobs:
           - package: lablink-client-service
             python-version: "3.10"
             working-directory: lablink-client-base/lablink-client-service
-            ruff-command: "uv run ruff check lablink_client_service tests"
+            ruff-command: "uv run ruff check src tests"
           - package: lablink-allocator-service
             python-version: "3.10"
             working-directory: lablink-allocator/lablink-allocator-service
-            ruff-command: "uv run ruff check . tests"
+            ruff-command: "uv run ruff check src tests"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
           - package: lablink-client-service
             python-version: "3.10"
             working-directory: lablink-client-base/lablink-client-service
-            test-command: "uv run pytest tests --cov=lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
           - package: lablink-allocator-service
             python-version: "3.10"
             working-directory: lablink-allocator/lablink-allocator-service

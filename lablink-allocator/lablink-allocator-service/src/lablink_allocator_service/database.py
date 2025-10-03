@@ -332,7 +332,6 @@ class PostgresqlDatabase:
         """Assign a VM to a user.
 
         Args:
-            hostname (str): The hostname of the VM.
             email (str): The email of the user.
             crd_command (str): The CRD command to assign.
             pin (str): The PIN for the VM.
@@ -544,7 +543,7 @@ class PostgresqlDatabase:
     @classmethod
     def load_database(
         cls, dbname, user, password, host, port, table_name, message_channel
-    ):
+    ) -> "PostgresqlDatabase":
         """Loads an existing database from PostgreSQL.
 
         Args:

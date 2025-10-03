@@ -27,7 +27,7 @@ def cleanup_logs():
         logger.error(f"Error during log cleanup: {e}")
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     """Creates a parser for the command line arguments.
 
     Returns:
@@ -45,7 +45,7 @@ def create_parser():
     return parser
 
 
-def construct_command(args):
+def construct_command(args) -> str:
     """Constructs the Linux CRD command to connect to a remote machine.
 
     Args:

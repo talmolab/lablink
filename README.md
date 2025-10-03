@@ -1,90 +1,155 @@
 # LabLink
 
-Dynamic VM allocation and management system for computational research workflows.
+**Dynamic VM allocation and management system for computational research workflows.**
 
-## Overview
+[![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
+[![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
+[![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
 
-LabLink automates deployment and management of cloud-based VMs for running research software. It provides a web interface for requesting VMs, tracking their status, and managing computational workloads.
+---
 
-## Quick Start
+## 📦 What's in This Repository
 
-### Prerequisites
+This repository contains the **core LabLink packages, Docker images, and documentation**:
 
-- AWS account with appropriate permissions
-- Docker installed locally (for testing)
-- Python 3.9+ with `uv` package manager
+### Python Packages (Published to PyPI)
 
-### Installation
+- **[lablink-allocator-service](lablink-allocator/lablink-allocator-service/)** - VM Allocator Service
+  ```bash
+  pip install lablink-allocator-service
+  ```
+
+- **[lablink-client-service](lablink-client-base/lablink-client-service/)** - Client Service
+  ```bash
+  pip install lablink-client-service
+  ```
+
+### Docker Images (Published to GHCR)
+
+- **lablink-allocator-image** - Allocator service container
+- **lablink-client-base-image** - Client service container
+
+### Documentation
+
+- **[LabLink Docs](https://talmolab.github.io/lablink/)** - Comprehensive documentation
+  - Getting Started
+  - Configuration
+  - API Reference
+  - Contributing Guide
+
+---
+
+## 🚀 Quick Start
+
+### For Users
+
+**Using the LabLink infrastructure:**
+
+This repository provides the packages and images. For deploying LabLink infrastructure, see the **[LabLink Template Repository](https://github.com/talmolab/lablink-template)** (coming soon).
+
+### For Developers
+
+**Contributing to LabLink packages:**
 
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
 # Clone the repository
 git clone https://github.com/talmolab/lablink.git
 cd lablink
 
-# Install dependencies
+# Install uv (recommended Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Setup allocator service for development
 cd lablink-allocator/lablink-allocator-service
+uv sync --extra dev
+
+# Setup client service for development
+cd ../../lablink-client-base/lablink-client-service
 uv sync --extra dev
 ```
 
-### Configuration
+See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) for detailed development instructions.
 
-Copy the example configuration file and customize it:
+---
 
-```bash
-cd lablink-allocator/lablink-allocator-service/conf
-cp config.yaml.example config.yaml
-# Edit config.yaml with your settings
+## 📚 Documentation
+
+- **[Full Documentation](https://talmolab.github.io/lablink/)** - Complete guide
+- **[Architecture](https://talmolab.github.io/lablink/architecture/)** - System design
+- **[Configuration](https://talmolab.github.io/lablink/configuration/)** - Configuration options
+- **[API Reference](https://talmolab.github.io/lablink/reference/)** - Package APIs
+- **[Contributing](https://talmolab.github.io/lablink/contributing/)** - Contribution guide
+
+---
+
+## 🏗️ Repository Structure
+
+```
+lablink/
+├── lablink-allocator/
+│   ├── lablink-allocator-service/   # Allocator Python package
+│   └── Dockerfile                   # Allocator Docker image
+├── lablink-client-base/
+│   ├── lablink-client-service/      # Client Python package
+│   └── lablink-client-base-image/   # Client Docker image
+├── docs/                            # MkDocs documentation
+├── .github/workflows/               # CI/CD workflows
+│   ├── ci.yml                       # Tests and linting
+│   ├── publish-packages.yml         # PyPI publishing
+│   ├── lablink-images.yml           # Docker image builds
+│   └── docs.yml                     # Documentation deployment
+└── terraform/                       # (Infrastructure - being moved to template repo)
 ```
 
-#### DNS Configuration
+---
 
-DNS is optional and can be configured in `config.yaml`:
+## 📦 Package Versioning
 
-```yaml
-dns:
-  enabled: true  # Set to false to use IP addresses only
-  domain: "example.com"  # Your domain name
-  app_name: "lablink"  # Application name for subdomains
-  pattern: "auto"  # DNS naming pattern
-```
+LabLink uses **independent versioning** for its packages:
 
-**DNS Patterns:**
+- **lablink-allocator-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-allocator-service)](https://pypi.org/project/lablink-allocator-service/)
+- **lablink-client-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
 
-- **`auto`** (recommended): Environment-based subdomain
-  - Production: `lablink.example.com`
-  - Test: `test.lablink.example.com`
-  - Dev: `dev.lablink.example.com`
+See the [Release Process](https://talmolab.github.io/lablink/contributing/#release-process) for how releases are managed.
 
-- **`app-only`**: Same subdomain for all environments
-  - All environments: `lablink.example.com`
+---
 
-- **`custom`**: Use custom subdomain
-  - Set `custom_subdomain: "my-custom.example.com"`
+## 🤝 Contributing
 
-**To disable DNS:** Set `enabled: false` or leave `domain` empty. The allocator will use IP addresses only.
+We welcome contributions! Please see:
 
-## Deployment
+- **[Contributing Guide](https://talmolab.github.io/lablink/contributing/)** - How to contribute
+- **[Developer Guide (CLAUDE.md)](CLAUDE.md)** - Developer-focused overview
+- **[Code of Conduct](https://talmolab.github.io/lablink/contributing/#code-of-conduct)** - Community guidelines
 
-### Local Development
+### Quick Contributing Workflow
 
-```bash
-cd lablink-allocator/lablink-allocator-service
-uv run python main.py
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make changes and add tests
+4. Run tests: `cd lablink-allocator/lablink-allocator-service && uv run pytest`
+5. Commit: `git commit -m "feat: add my feature"`
+6. Push and open a Pull Request
 
-### Production Deployment
+---
 
-See the [GitHub Actions workflows](.github/workflows/) for CI/CD deployment examples.
+## 🔗 Related Repositories
 
-## Documentation
+- **[LabLink Template](https://github.com/talmolab/lablink-template)** _(coming soon)_ - Infrastructure deployment template using LabLink packages
 
-For comprehensive documentation, see:
-- [Configuration Examples](lablink-allocator/lablink-allocator-service/conf/config.yaml.example)
-- [Developer Guide](https://github.com/talmolab/lablink)
+---
 
-## License
+## 📝 License
 
-[Add your license here]
+[BSD-3-Clause License](LICENSE)
+
+---
+
+## 🙏 Acknowledgments
+
+LabLink is developed by the [Talmo Lab](https://github.com/talmolab) for the research community.
+
+---
+
+**Questions?** Check the [FAQ](https://talmolab.github.io/lablink/faq/) or open an [issue](https://github.com/talmolab/lablink/issues).

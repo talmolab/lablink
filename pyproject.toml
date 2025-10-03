@@ -1,0 +1,55 @@
+[project]
+name = "lablink"
+version = "0.1.0"
+description = "Dynamic VM allocation and management system for computational research"
+authors = [
+    {name = "Talmo Lab", email = "noreply@talmolab.org"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "BSD-3-Clause"}
+
+# This is a workspace root for documentation and tooling
+# The actual packages are in subdirectories with their own pyproject.toml
+dependencies = []
+
+[project.optional-dependencies]
+# Documentation-only (for quick local preview without API generation)
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocs-autorefs>=0.5.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
+    "mkdocs-section-index>=0.3.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mike>=2.0.0",
+    "pymdown-extensions>=10.0",
+    "mkdocstrings-python>=1.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink"
+Documentation = "https://talmolab.github.io/lablink/"
+Repository = "https://github.com/talmolab/lablink"
+Issues = "https://github.com/talmolab/lablink/issues"
+
+[tool.uv]
+# This is a workspace root, not a package
+package = false
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E721",  # Use isinstance() for type comparisons
+    "E731",  # Do not assign a lambda expression
+    "E741",  # Ambiguous variable name
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+"tests/*" = ["F403", "F405"]

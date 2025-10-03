@@ -1,6 +1,11 @@
+[build-system]
+requires = ["uv_build>=0.8.11,<0.9.0"]
+build-backend = "uv_build"
+
 [project]
 authors = [
-  {name = "Amitha Attapu", email = "amithaattapu0509@gmail.com"},
+  {name = "Elizabeth Berrigan", email = "eberrigan@salk.edu"},
+  {name = "Talmo Pereira", email = "talmo@salk.edu"},
   {name = "Andrew Park", email = "hep003@ucsd.edu"},
 ]
 dependencies = [
@@ -19,10 +24,14 @@ description = "VM Allocator Service Package for Lablink"
 name = "lablink-allocator-service"
 readme = "README.md"
 requires-python = ">=3.9"
-version = "0.1.0"
+version = "0.0.1a0"
 
 [project.optional-dependencies]
 dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink"
+Issues = "https://github.com/talmolab/lablink/issues"
 
 [tool.ruff.lint]
 ignore = [
@@ -35,4 +44,4 @@ select = ["E", "F", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]
-"tests/*" = ["F403", "F405"]
+"tests/*" = ["F403", "F405", "E501"]

@@ -20,15 +20,20 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 
-from get_config import get_config
-from database import PostgresqlDatabase
-from utils.aws_utils import validate_aws_credentials, check_support_nvidia, upload_to_s3
-from utils.scp import (
+from lablink_allocator_service.get_config import get_config
+from lablink_allocator_service.database import PostgresqlDatabase
+from lablink_allocator_service.conf.structured_config import DNSConfig
+from lablink_allocator_service.utils.aws_utils import (
+    validate_aws_credentials,
+    check_support_nvidia,
+    upload_to_s3,
+)
+from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
     rsync_files_to_allocator,
 )
-from utils.terraform_utils import (
+from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
 )
@@ -59,7 +64,7 @@ cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 database = None
 
 
-def generate_dns_name(dns_config, environment):
+def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
     """Generate DNS name based on configuration and environment.
 
     Args:

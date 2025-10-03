@@ -5,7 +5,7 @@ from pathlib import Path
 from hydra import initialize, compose
 from omegaconf import OmegaConf
 
-from conf.structured_config import Config
+from lablink_allocator_service.conf.structured_config import Config
 
 # Setup logging
 logger = logging.getLogger(__name__)
