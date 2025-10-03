@@ -766,6 +766,8 @@ if __name__ == "__main__":
                 cwd=terraform_dir,
                 check=True,
             )
+
+
 def main():
     """Main entry point for the allocator service."""
     app.run(host="0.0.0.0", port=5000, threaded=True)
