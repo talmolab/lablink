@@ -110,14 +110,35 @@ jobs:
           SHA="${{ steps.get_sha.outputs.sha }}"
           ENV_SUFFIX="${{ steps.set_env_suffix.outputs.env_suffix }}"
 
+          # Extract package version if available (from repository_dispatch or workflow_dispatch)
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            PKG_VERSION="${{ github.event.client_payload.version }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.package_version }}" ]; then
+            PKG_VERSION="${{ inputs.package_version }}"
+          else
+            PKG_VERSION=""
+          fi
+
           if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
             tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+
+            # Add package version tag if available
+            if [ -n "$PKG_VERSION" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PKG_VERSION,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-$PKG_VERSION"
+            fi
+
             if [ -z "$ENV_SUFFIX" ]; then
               tags="$tags,ghcr.io/$REPO_OWNER/lablink-allocator-image:latest"
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
             tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+
+            # Add package version tag if available
+            if [ -n "$PKG_VERSION" ]; then
+              tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PKG_VERSION,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$PKG_VERSION"
+            fi
+
             if [ -z "$ENV_SUFFIX" ]; then
               tags="$tags,ghcr.io/$REPO_OWNER/lablink-client-base-image:latest"
             fi
