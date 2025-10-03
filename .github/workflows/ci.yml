@@ -110,32 +110,32 @@ jobs:
         run: |
           echo "Testing dev dependencies..."
           docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
-import sys
-print(\"Checking dev dependencies:\")
-import pytest; print(\"  - pytest version:\", pytest.__version__)
-import ruff; print(\"  - ruff available\")
-import coverage; print(\"  - coverage version:\", coverage.__version__)
-print(\"Dev dependencies verified\")
-"'
+          import sys
+          print(\"Checking dev dependencies:\")
+          import pytest; print(\"  - pytest version:\", pytest.__version__)
+          import ruff; print(\"  - ruff available\")
+          import coverage; print(\"  - coverage version:\", coverage.__version__)
+          print(\"Dev dependencies verified\")
+          "'
 
       - name: Verify package imports
         run: |
           echo "Testing package imports..."
           docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
-import sys
-import warnings
-warnings.filterwarnings(\"ignore\")
-import logging
-logging.basicConfig(level=logging.ERROR)
-print(\"Importing lablink-allocator-service packages:\")
-from lablink_allocator_service.main import main
-print(\"  - main.main imported\")
-from lablink_allocator_service.database import PostgresqlDatabase
-print(\"  - database.PostgresqlDatabase imported\")
-from lablink_allocator_service.get_config import get_config
-print(\"  - get_config.get_config imported\")
-print(\"Package imports successful\")
-"'
+          import sys
+          import warnings
+          warnings.filterwarnings(\"ignore\")
+          import logging
+          logging.basicConfig(level=logging.ERROR)
+          print(\"Importing lablink-allocator-service packages:\")
+          from lablink_allocator_service.main import main
+          print(\"  - main.main imported\")
+          from lablink_allocator_service.database import PostgresqlDatabase
+          print(\"  - database.PostgresqlDatabase imported\")
+          from lablink_allocator_service.get_config import get_config
+          print(\"  - get_config.get_config imported\")
+          print(\"Package imports successful\")
+          "'
 
       - name: Verify uv sync created proper installation
         run: |
