@@ -43,29 +43,45 @@ jobs:
             tag_prefix: lablink-client-service_v
             path_filter: lablink-client-base/lablink-client-service
 
-    # Only run for matching package
-    if: |
-      (github.event_name == 'release' &&
-       startsWith(github.event.release.tag_name, matrix.tag_prefix)) ||
-      (github.event_name == 'push' &&
-       startsWith(github.ref_name, matrix.tag_prefix)) ||
-      (github.event_name == 'workflow_dispatch' &&
-       inputs.package == matrix.package)
-
     steps:
+      # Check if this matrix job should run
+      - name: Check if package matches trigger
+        id: should_run
+        run: |
+          SHOULD_RUN=false
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            if [[ "${{ github.event.release.tag_name }}" == ${{ matrix.tag_prefix }}* ]]; then
+              SHOULD_RUN=true
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            if [[ "$GITHUB_REF_NAME" == ${{ matrix.tag_prefix }}* ]]; then
+              SHOULD_RUN=true
+            fi
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" = "${{ matrix.package }}" ]; then
+              SHOULD_RUN=true
+            fi
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          echo "Package ${{ matrix.package }}: should_run=$SHOULD_RUN"
+
       - name: Checkout repository
+        if: steps.should_run.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup UV
+        if: steps.should_run.outputs.should_run == 'true'
         uses: astral-sh/setup-uv@v4
         with:
           python-version: '3.11'
 
       # GUARDRAIL 1: Branch verification
       - name: Verify release from main branch
-        if: github.event_name == 'release'
+        if: steps.should_run.outputs.should_run == 'true' && github.event_name == 'release'
         run: |
           if [ "${{ github.event.release.target_commitish }}" != "main" ]; then
             echo "❌ Releases must be created from main branch"
@@ -76,7 +92,7 @@ jobs:
 
       # GUARDRAIL 2: Version verification
       - name: Verify version matches tag
-        if: github.event_name != 'workflow_dispatch'
+        if: steps.should_run.outputs.should_run == 'true' && github.event_name != 'workflow_dispatch'
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG_VERSION="${{ github.event.release.tag_name }}"
@@ -100,6 +116,7 @@ jobs:
 
       # GUARDRAIL 3: Package metadata check
       - name: Verify package metadata
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           python -c "
           import tomllib
@@ -128,12 +145,14 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           uv sync --extra dev
         working-directory: ${{ matrix.dir }}
 
       # GUARDRAIL 4: Linting
       - name: Run linting
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           source .venv/bin/activate
           echo "Running ruff check..."
@@ -143,7 +162,7 @@ jobs:
 
       # GUARDRAIL 5: Test suite
       - name: Run tests
-        if: inputs.skip_tests != 'true'
+        if: steps.should_run.outputs.should_run == 'true' && inputs.skip_tests != 'true'
         run: |
           source .venv/bin/activate
           echo "Running test suite..."
@@ -156,6 +175,7 @@ jobs:
 
       # GUARDRAIL 6: Build verification
       - name: Build package
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           echo "Building package..."
           uv build
@@ -168,6 +188,7 @@ jobs:
       # PUBLISH (unless dry run)
       - name: Publish to PyPI
         if: |
+          steps.should_run.outputs.should_run == 'true' &&
           (github.event_name != 'workflow_dispatch' ||
            inputs.dry_run == false)
         run: |
@@ -178,7 +199,7 @@ jobs:
 
       # Dry run summary
       - name: Dry run summary
-        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        if: steps.should_run.outputs.should_run == 'true' && github.event_name == 'workflow_dispatch' && inputs.dry_run == true
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔍 DRY RUN COMPLETE"
