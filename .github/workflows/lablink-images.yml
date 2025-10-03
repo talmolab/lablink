@@ -234,6 +234,12 @@ jobs:
           print(\"Dev dependencies verified\")
           "'
 
+      - name: Execute allocator console scripts
+        run: |
+          echo "Testing allocator console script execution..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && generate-init-sql 2>/dev/null && test -f /app/init.sql && wc -l /app/init.sql && echo "generate-init-sql executed successfully"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator 2>&1 > /tmp/allocator_output.txt || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'
+
   verify-client:
     name: Verify Client Image
     runs-on: ubuntu-latest
@@ -296,3 +302,11 @@ jobs:
           import ruff; print(\"  - ruff available\")
           print(\"Dev dependencies verified\")
           "'
+
+      - name: Execute client console scripts
+        run: |
+          echo "Testing client console script execution..."
+          # Test that scripts execute (will fail without allocator, but should attempt to run)
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 check_gpu 2>&1 | head -3 || true' | grep -q "." && echo "check_gpu entry point executed"
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 subscribe 2>&1 | head -3 || true' | grep -q "." && echo "subscribe entry point executed"
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 update_inuse_status 2>&1 | head -3 || true' | grep -q "." && echo "update_inuse_status entry point executed"

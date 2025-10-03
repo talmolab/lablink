@@ -141,3 +141,15 @@ jobs:
         run: |
           echo "Testing uv sync installation..."
           docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && pip list 2>/dev/null | grep lablink-allocator-service | head -1 && echo \"Package installed via uv sync\""
+
+      - name: Execute console scripts to verify they work
+        run: |
+          echo "Testing console script execution..."
+
+          # Test generate-init-sql actually runs and produces SQL file
+          echo "Running generate-init-sql..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && generate-init-sql 2>/dev/null && test -f /app/init.sql && wc -l /app/init.sql && grep -q "CREATE TABLE" /app/init.sql && echo "generate-init-sql executed successfully"'
+
+          # Test lablink-allocator starts (will fail without DB, but should at least attempt to run)
+          echo "Attempting to start lablink-allocator..."
+          docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && timeout 2 lablink-allocator 2>&1 > /tmp/allocator_output.txt || true && test -s /tmp/allocator_output.txt && echo "lablink-allocator entry point executed"'
