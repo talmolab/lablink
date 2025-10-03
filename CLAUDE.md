@@ -210,15 +210,32 @@ docker build -t lablink-client:0.0.7a0 \
 
 **`Dockerfile.dev`** (Development/CI):
 - Copies local source code directly into the image
+- Uses `uv sync --extra dev` for installation
+- Installs dev dependencies (pytest, ruff, coverage)
+- Creates virtual environment at project location
 - Fast iteration during development
 - Used by CI workflows on PRs and test branches
 - No PyPI dependency required
 
-**`Dockerfile`** (Production):
-- Installs Python packages from PyPI
+**Dockerfile**  (Production):
+- Installs Python packages from PyPI using `uv pip install`
 - Accepts `PACKAGE_VERSION` build argument
-- Reproducible builds with pinned versions
+- Uses specific pinned versions
+- No dev dependencies (smaller image)
+- Reproducible builds
 - Used for main/prod deployments
+
+### Virtual Environment Setup
+
+**Allocator:**
+- `Dockerfile.dev`: Creates venv at `/app/lablink-allocator-service/.venv` with symlink at `/app/.venv`
+- `Dockerfile`: Creates venv at `/app/.venv` from PyPI package
+- `start.sh` activates venv with `source /app/.venv/bin/activate`
+
+**Client:**
+- `Dockerfile.dev`: Creates venv at `/home/client/lablink-client-service/.venv` via `uv sync`
+- `Dockerfile`: Installs system-wide via `uv pip install --system`
+- `start.sh` uses `uv run` which automatically detects project venv (dev) or system Python (prod)
 
 ### Console Scripts
 
@@ -233,24 +250,30 @@ Both services provide console script entry points defined in `pyproject.toml`:
 - `subscribe` - Allocator subscription service
 - `update_inuse_status` - Status update service
 
-These are automatically installed when the package is installed and available in the venv.
+These are automatically installed when the package is installed and available in the venv or system PATH.
 
 ## CI/CD Workflows
 
 ### Workflow Overview
 
 **`ci.yml`** - Continuous Integration
-- **Triggers**: PRs, pushes to main/test
+- **Triggers**: PRs affecting service code or workflows
 - **Jobs**:
-  - Lint both packages with `ruff`
-  - Run unit tests with `pytest`
-  - Build allocator `Dockerfile.dev` and verify console scripts
-- **Note**: Client Docker build test skipped due to large image size (~6GB)
+  - **Lint**: Run `ruff check` on both packages
+  - **Test**: Run `pytest` with coverage on both packages
+  - **Docker Build Test** (allocator only):
+    - Build `Dockerfile.dev` image
+    - Verify venv activation and paths
+    - Verify console scripts exist (`lablink-allocator`, `generate-init-sql`)
+    - Verify dev dependencies installed (pytest, ruff, coverage with versions)
+    - Verify package imports work (main, database, get_config)
+    - Verify `uv sync` installation
+- **Note**: Client Docker build test skipped due to large image size (~6GB with CUDA)
 
 **`lablink-images.yml`** - Docker Image Building
-- **Triggers**: PRs, pushes, manual dispatch, `repository_dispatch`
+- **Triggers**: PRs, pushes to main/test, manual dispatch, `repository_dispatch`
 - **Smart Dockerfile Selection**:
-  - PR/test branch → `Dockerfile.dev` (local code)
+  - PR/test branch → `Dockerfile.dev` (local code with `uv sync`)
   - Main branch → `Dockerfile` (from PyPI with default version)
   - After package publish → `Dockerfile` (from PyPI with specific version)
 - **Image Tags**:
@@ -258,6 +281,10 @@ These are automatically installed when the package is installed and available in
   - Platform (e.g., `linux-amd64-latest-test`)
   - Package version (e.g., `0.0.2a0`, `linux-amd64-0.0.2a0`) when available
   - Environment suffix (`-test` for non-prod)
+- **Post-Build Verification** (new jobs):
+  - `verify-allocator`: Tests allocator image console scripts, imports, dev deps
+  - `verify-client`: Tests client image console scripts, imports, uv availability, dev deps
+  - Pulls pushed images and runs validation tests
 - **Deployment**: Pushes to `ghcr.io`
 
 **`publish-packages.yml`** - PyPI Publishing
