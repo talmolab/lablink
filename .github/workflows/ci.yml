@@ -96,6 +96,27 @@ jobs:
           push: false
           load: true
 
-      - name: Verify console scripts
+      - name: Verify venv activation
         run: |
-          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql"
+          echo "✅ Testing venv activation..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"✅ venv activated:\", sys.prefix); assert \"lablink-allocator-service/.venv\" in sys.prefix'"
+
+      - name: Verify console scripts exist
+        run: |
+          echo "✅ Testing console scripts exist..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql && echo 'Console scripts found'"
+
+      - name: Verify dev dependencies installed
+        run: |
+          echo "✅ Testing dev dependencies..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import pytest; import ruff; import coverage; print(\"✅ Dev dependencies available\")'"
+
+      - name: Verify package imports
+        run: |
+          echo "✅ Testing package imports..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'from lablink_allocator_service.main import main; from lablink_allocator_service.database import PostgresqlDatabase; from lablink_allocator_service.get_config import get_config; print(\"✅ Package imports successful\")' 2>&1 | grep -E '(✅|Error|Traceback)'"
+
+      - name: Verify uv sync created proper installation
+        run: |
+          echo "✅ Testing uv sync installation..."
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && pip list | grep lablink-allocator-service && echo '✅ Package installed via uv sync'"

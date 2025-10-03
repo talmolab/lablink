@@ -26,10 +26,14 @@ WORKDIR /app
 COPY lablink-allocator/lablink-allocator-service/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
 # Copy package files
-COPY lablink-allocator/lablink-allocator-service /tmp/lablink-allocator-service
+COPY lablink-allocator/lablink-allocator-service /app/lablink-allocator-service
 
-# Install package using UV
-RUN uv venv && uv pip install /tmp/lablink-allocator-service && rm -rf /tmp/lablink-allocator-service
+# Install package with dev dependencies using uv sync
+WORKDIR /app/lablink-allocator-service
+RUN uv sync --extra dev
+# Create symlink so start.sh can find it at /app/.venv
+RUN ln -s /app/lablink-allocator-service/.venv /app/.venv
+WORKDIR /app
 
 
 

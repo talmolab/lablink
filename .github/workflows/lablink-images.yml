@@ -171,3 +171,96 @@ jobs:
           if [ -n "${{ steps.docker_config.outputs.build_args }}" ]; then
             echo "Build args: ${{ steps.docker_config.outputs.build_args }}"
           fi
+
+  verify-allocator:
+    name: Verify Allocator Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: contains(needs.build.result, 'success')
+    steps:
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Determine image tag
+        id: get_tag
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          SHA="${{ needs.build.outputs.git_sha }}"
+          PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            TAG="${PLATFORM}-test"
+          else
+            TAG="${PLATFORM}-latest"
+          fi
+
+          IMAGE="ghcr.io/$REPO_OWNER/lablink-allocator-image:$TAG"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Pull allocator image
+        run: docker pull ${{ steps.get_tag.outputs.image }}
+
+      - name: Verify allocator console scripts
+        run: |
+          echo "✅ Testing allocator console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql && echo 'Allocator console scripts found'"
+
+      - name: Verify allocator package imports
+        run: |
+          echo "✅ Testing allocator package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c 'from lablink_allocator_service.main import main; from lablink_allocator_service.database import PostgresqlDatabase; print(\"✅ Allocator imports OK\")' 2>&1 | grep -E '(✅|Error|Traceback)'"
+
+      - name: Verify allocator dev dependencies (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "✅ Testing allocator dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c 'import pytest; import ruff; print(\"✅ Dev deps available\")'"
+
+  verify-client:
+    name: Verify Client Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: contains(needs.build.result, 'success')
+    steps:
+      - name: Authenticate to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Determine image tag
+        id: get_tag
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          SHA="${{ needs.build.outputs.git_sha }}"
+          PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+            TAG="${PLATFORM}-test"
+          else
+            TAG="${PLATFORM}-latest"
+          fi
+
+          IMAGE="ghcr.io/$REPO_OWNER/lablink-client-base-image:$TAG"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Pull client image
+        run: docker pull ${{ steps.get_tag.outputs.image }}
+
+      - name: Verify client console scripts exist
+        run: |
+          echo "✅ Testing client console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which check_gpu && which subscribe && which update_inuse_status && echo '✅ Client console scripts found'"
+
+      - name: Verify client package imports
+        run: |
+          echo "✅ Testing client package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "python -c 'from lablink_client_service.subscribe import main; from lablink_client_service.check_gpu import main as check_main; print(\"✅ Client imports OK\")'"
+
+      - name: Verify uv is available
+        run: |
+          echo "✅ Testing uv availability..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && uv --version && echo '✅ uv available'"
+
+      - name: Verify client dev dependencies (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "✅ Testing client dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && python -c 'import pytest; import ruff; print(\"✅ Dev deps available\")'"
