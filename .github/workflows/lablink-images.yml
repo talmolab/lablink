@@ -271,7 +271,7 @@ jobs:
       - name: Verify client console scripts exist
         run: |
           echo "Testing client console scripts..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && source .venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
 
       - name: Verify client package imports
         run: |
@@ -307,6 +307,6 @@ jobs:
         run: |
           echo "Testing client console script execution..."
           # Test that scripts execute (will fail without allocator, but should attempt to run)
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 check_gpu 2>&1 | head -3 || true' | grep -q "." && echo "check_gpu entry point executed"
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 subscribe 2>&1 | head -3 || true' | grep -q "." && echo "subscribe entry point executed"
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'timeout 2 update_inuse_status 2>&1 | head -3 || true' | grep -q "." && echo "update_inuse_status entry point executed"
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client-service && source .venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'
