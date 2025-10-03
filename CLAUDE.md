@@ -233,9 +233,9 @@ docker build -t lablink-client:0.0.7a0 \
 - `start.sh` activates venv with `source /app/.venv/bin/activate`
 
 **Client:**
-- `Dockerfile.dev`: Creates venv at `/home/client/lablink-client-service/.venv` via `uv sync`
-- `Dockerfile`: Installs system-wide via `uv pip install --system`
-- `start.sh` uses `uv run` which automatically detects project venv (dev) or system Python (prod)
+- `Dockerfile.dev`: Creates venv at `/home/client/.venv` with editable install
+- `Dockerfile`: Creates venv at `/home/client/.venv` from PyPI package
+- `start.sh` activates venv with `source /home/client/.venv/bin/activate`
 
 ### Console Scripts
 

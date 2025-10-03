@@ -154,12 +154,12 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 
 ### Smart Dockerfile Selection
 
-| Trigger | Dockerfile Used | Package Source | Installation Method |
-|---------|----------------|----------------|---------------------|
-| PR / test branch | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` |
-| Main branch | `Dockerfile` | PyPI (default version) | `uv pip install` |
-| After package publish | `Dockerfile` | PyPI (specific version) | `uv pip install` |
-| Manual with version | `Dockerfile` | PyPI (specified version) | `uv pip install` |
+| Trigger | Dockerfile Used | Package Source | Installation Method | Virtual Environment |
+|---------|----------------|----------------|---------------------|---------------------|
+| PR / test branch | `Dockerfile.dev` | Local code (copied) | `uv venv` + editable install | `/home/client/.venv` (client), `/app/.venv` (allocator) |
+| Main branch | `Dockerfile` | PyPI (default version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
+| After package publish | `Dockerfile` | PyPI (specific version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
+| Manual with version | `Dockerfile` | PyPI (specified version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
 
 ### Image Tagging Strategy
 
@@ -195,7 +195,8 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 
 Runs after successful build, pulls and tests the allocator image:
 
-- **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist
+- **Virtual Environment**: Activates venv at `/app/.venv`
+- **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist and execute
 - **Package Imports**: Tests importing `main`, `database.PostgresqlDatabase`, `get_config`
 - **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
 
@@ -203,7 +204,8 @@ Runs after successful build, pulls and tests the allocator image:
 
 Runs after successful build, pulls and tests the client image:
 
-- **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist
+- **Virtual Environment**: Activates venv at `/home/client/.venv`
+- **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist and execute
 - **Package Imports**: Tests importing subscribe, check_gpu, update_inuse_status modules
 - **UV Availability**: Verifies `uv` command and version
 - **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
@@ -218,11 +220,13 @@ PR opened → lablink-images.yml triggered
      └─ Push to ghcr.io ✓
   └─ Verify Allocator Job
      ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
+     ├─ Venv activated: /app/.venv ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
      ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
      └─ Dev deps: pytest 8.4.2, ruff ✓
   └─ Verify Client Job
      ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
+     ├─ Venv activated: /home/client/.venv ✓
      ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
      ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
      ├─ UV: uv 0.6.8 ✓
