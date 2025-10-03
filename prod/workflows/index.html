@@ -883,6 +883,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#building-docker-images-after-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building Docker Images After Publishing
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -931,6 +940,48 @@
       Image Tagging Strategy
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Image Tagging Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#allocator-image-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allocator Image Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-image-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client Image Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag-usage-in-terraform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag Usage in Terraform
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary Table
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3032,6 +3083,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#building-docker-images-after-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building Docker Images After Publishing
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3080,6 +3140,48 @@
       Image Tagging Strategy
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Image Tagging Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#allocator-image-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allocator Image Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-image-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client Image Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag-usage-in-terraform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag Usage in Terraform
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary Table
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3802,7 +3904,7 @@
 <h2 id="package-publishing-workflow">Package Publishing Workflow<a class="headerlink" href="#package-publishing-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/publish-pip.yml</code></p>
 <h3 id="purpose_1">Purpose<a class="headerlink" href="#purpose_1" title="Permanent link">&para;</a></h3>
-<p>Publishes Python packages to PyPI with safety guardrails and automatic Docker image rebuilds.</p>
+<p>Publishes Python packages to PyPI with safety guardrails.</p>
 <h3 id="triggers_1">Triggers<a class="headerlink" href="#triggers_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Git tags</strong> matching package name pattern (e.g., <code>lablink-allocator-service_v0.0.2a0</code>)</li>
@@ -3815,7 +3917,6 @@
 <li>Linting and tests before publishing</li>
 <li>Dry-run mode for testing</li>
 <li>Per-package control (publish allocator/client independently)</li>
-<li>Automatic Docker image rebuild on successful publish</li>
 </ul>
 <h3 id="input-parameters-manual-dispatch">Input Parameters (Manual Dispatch)<a class="headerlink" href="#input-parameters-manual-dispatch" title="Permanent link">&para;</a></h3>
 <table>
@@ -3831,8 +3932,8 @@
 <tr>
 <td><code>package</code></td>
 <td>Which package to publish</td>
-<td><code>allocator</code>, <code>client</code>, <code>both</code></td>
-<td><code>both</code></td>
+<td><code>lablink-allocator-service</code>, <code>lablink-client-service</code></td>
+<td>Required</td>
 </tr>
 <tr>
 <td><code>dry_run</code></td>
@@ -3840,19 +3941,26 @@
 <td><code>true</code>, <code>false</code></td>
 <td><code>true</code></td>
 </tr>
+<tr>
+<td><code>skip_tests</code></td>
+<td>Skip test suite</td>
+<td><code>true</code>, <code>false</code></td>
+<td><code>false</code></td>
+</tr>
 </tbody>
 </table>
 <h3 id="workflow-steps">Workflow Steps<a class="headerlink" href="#workflow-steps" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Determine which packages to publish</strong> (from tag or input)</li>
 <li><strong>Run guardrails</strong>:</li>
-<li>Check version doesn't already exist on PyPI</li>
+<li>Verify release from main branch (for releases)</li>
+<li>Validate version matches tag</li>
 <li>Validate package metadata</li>
 <li>Run linting with <code>ruff</code></li>
-<li>Run unit tests</li>
+<li>Run unit tests (unless skipped)</li>
 <li><strong>Build package</strong> with <code>uv build</code></li>
 <li><strong>Publish to PyPI</strong> (unless dry-run)</li>
-<li><strong>Trigger Docker rebuild</strong> via <code>repository_dispatch</code></li>
+<li><strong>Display manual Docker build instructions</strong></li>
 </ol>
 <h3 id="package-versioning">Package Versioning<a class="headerlink" href="#package-versioning" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3862,16 +3970,41 @@
 <li><code>lablink-client-service_v0.0.7a0</code></li>
 </ul>
 <h3 id="example-publishing-a-release">Example: Publishing a Release<a class="headerlink" href="#example-publishing-a-release" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Create and push a tag</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 1. Create and push tags</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>tag<span class="w"> </span>lablink-allocator-service_v0.0.2a0
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>lablink-allocator-service_v0.0.2a0
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Workflow automatically:</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1">#  1. Detects tag</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1">#  2. Runs tests</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1">#  3. Publishes to PyPI</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1">#  4. Triggers Docker image rebuild with version tag</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>tag<span class="w"> </span>lablink-client-service_v0.0.7a0
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>lablink-allocator-service_v0.0.2a0<span class="w"> </span>lablink-client-service_v0.0.7a0
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># 2. Workflow automatically:</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1">#    - Detects tags</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1">#    - Runs tests for each package</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1">#    - Publishes to PyPI</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1">#    - Displays Docker build instructions</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># 3. Manually trigger Docker image build (see below)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">allocator_version</span><span class="o">=</span><span class="m">0</span>.0.2a0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">client_version</span><span class="o">=</span><span class="m">0</span>.0.7a0
 </code></pre></div>
+<h3 id="building-docker-images-after-publishing">Building Docker Images After Publishing<a class="headerlink" href="#building-docker-images-after-publishing" title="Permanent link">&para;</a></h3>
+<p>After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version.</p>
+<p><strong>Option 1: Using GitHub CLI</strong> (recommended):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Build both images with their respective versions</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">allocator_version</span><span class="o">=</span><span class="m">0</span>.0.2a0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">client_version</span><span class="o">=</span><span class="m">0</span>.0.7a0
+</code></pre></div></p>
+<p><strong>Option 2: Using GitHub UI</strong>:
+1. Go to <a href="https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml">Actions → Build and Push Docker Images</a>
+2. Click "Run workflow"
+3. Select branch: <code>main</code>
+4. Set environment: <code>prod</code>
+5. Enter allocator version: <code>0.0.2a0</code>
+6. Enter client version: <code>0.0.7a0</code>
+7. Click "Run workflow"</p>
+<p>This creates Docker images tagged with the specific package versions (see <a href="#image-tagging-strategy">Image Tagging Strategy</a> below).</p>
 <h2 id="image-building-workflow">Image Building Workflow<a class="headerlink" href="#image-building-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/lablink-images.yml</code></p>
 <h3 id="purpose_2">Purpose<a class="headerlink" href="#purpose_2" title="Permanent link">&para;</a></h3>
@@ -3927,29 +4060,110 @@
 </tbody>
 </table>
 <h3 id="image-tagging-strategy">Image Tagging Strategy<a class="headerlink" href="#image-tagging-strategy" title="Permanent link">&para;</a></h3>
+<p>Docker images are tagged differently based on how they are triggered. This allows you to reference specific versions, latest development builds, or stable releases.</p>
+<h4 id="allocator-image-tags">Allocator Image Tags<a class="headerlink" href="#allocator-image-tags" title="Permanent link">&para;</a></h4>
+<p><strong>Manual trigger with package version (recommended for production):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">allocator_version</span><span class="o">=</span><span class="m">0</span>.0.2a0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">client_version</span><span class="o">=</span><span class="m">0</span>.0.7a0
+</code></pre></div></p>
+<p>Creates images tagged with:
+- <code>ghcr.io/talmolab/lablink-allocator-image:0.0.2a0</code> - <strong>Version-specific tag</strong>
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.0.2a0</code> - Platform + version
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest</code> - Latest for platform
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64</code> - Platform tag
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6</code> - Metadata tag
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15</code> - Metadata tag
+- <code>ghcr.io/talmolab/lablink-allocator-image:&lt;sha&gt;</code> - Git commit SHA
+- <code>ghcr.io/talmolab/lablink-allocator-image:latest</code> - Latest stable</p>
+<p><strong>Push to main branch (automatic):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+</code></pre></div></p>
+<p>Creates images tagged with (no version-specific tags):
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest</code>
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64</code>
+- <code>ghcr.io/talmolab/lablink-allocator-image:&lt;sha&gt;</code>
+- <code>ghcr.io/talmolab/lablink-allocator-image:latest</code>
+- Plus metadata tags</p>
+<p><strong>Pull requests / test branch (automatic):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+</code></pre></div></p>
+<p>Creates images tagged with <code>-test</code> suffix:
+- <code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test</code>
+- <code>ghcr.io/talmolab/lablink-allocator-image:&lt;sha&gt;-test</code>
+- Plus metadata tags with <code>-test</code> suffix</p>
+<h4 id="client-image-tags">Client Image Tags<a class="headerlink" href="#client-image-tags" title="Permanent link">&para;</a></h4>
+<p><strong>Manual trigger with package version (recommended for production):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">allocator_version</span><span class="o">=</span><span class="m">0</span>.0.2a0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">client_version</span><span class="o">=</span><span class="m">0</span>.0.7a0
+</code></pre></div></p>
+<p>Creates images tagged with:
+- <code>ghcr.io/talmolab/lablink-client-base-image:0.0.7a0</code> - <strong>Version-specific tag</strong>
+- <code>ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.0.7a0</code> - Platform + version
+- <code>ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest</code> - Latest for platform
+- <code>ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04</code>
+- <code>ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3</code>
+- <code>ghcr.io/talmolab/lablink-client-base-image:&lt;sha&gt;</code> - Git commit SHA
+- <code>ghcr.io/talmolab/lablink-client-base-image:latest</code> - Latest stable</p>
+<p><strong>Push to main branch (automatic):</strong></p>
+<p>Creates same tags as manual trigger except without version-specific tags (<code>0.0.7a0</code>, <code>linux-amd64-0.0.7a0</code>)</p>
+<p><strong>Pull requests / test branch (automatic):</strong></p>
+<p>Creates same tags as main but with <code>-test</code> suffix</p>
+<h4 id="tag-usage-in-terraform">Tag Usage in Terraform<a class="headerlink" href="#tag-usage-in-terraform" title="Permanent link">&para;</a></h4>
+<p>For production deployments, always use version-specific tags in your Terraform configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># terraform.tfvars or -var flags</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.0.2a0&quot;</span><span class="c1">  # Pin to specific version</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="na">client_image_tag</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.0.7a0&quot;</span><span class="c1">  # Pin to specific version</span>
+</code></pre></div>
+<p>For development/testing, you can use environment-specific tags:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Development</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;linux-amd64-test&quot;</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Latest main branch</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;latest&quot;</span>
+</code></pre></div>
+<h4 id="summary-table">Summary Table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
-<th>Trigger</th>
-<th>Tags Applied</th>
-<th>Example</th>
+<th>Trigger Type</th>
+<th>Environment</th>
+<th>Version Tag?</th>
+<th>Suffix</th>
+<th>Use Case</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>PR/test</td>
-<td><code>linux-amd64-test</code>, <code>&lt;SHA&gt;-test</code></td>
-<td><code>ghcr.io/.../image:linux-amd64-test</code></td>
+<td>Manual w/ version</td>
+<td><code>prod</code></td>
+<td>✅ Yes</td>
+<td>None</td>
+<td>Production releases</td>
 </tr>
 <tr>
-<td>Main</td>
-<td><code>linux-amd64-latest</code>, <code>&lt;SHA&gt;</code>, <code>latest</code></td>
-<td><code>ghcr.io/.../image:latest</code></td>
+<td>Push to main</td>
+<td><code>prod</code></td>
+<td>❌ No</td>
+<td>None</td>
+<td>Latest development</td>
 </tr>
 <tr>
-<td>Package publish</td>
-<td><code>&lt;version&gt;</code>, <code>linux-amd64-&lt;version&gt;</code> + main tags</td>
-<td><code>ghcr.io/.../image:0.0.2a0</code></td>
+<td>Push to test</td>
+<td><code>test</code></td>
+<td>❌ No</td>
+<td><code>-test</code></td>
+<td>Staging/testing</td>
+</tr>
+<tr>
+<td>Pull request</td>
+<td><code>test</code></td>
+<td>❌ No</td>
+<td><code>-test</code></td>
+<td>CI/CD validation</td>
 </tr>
 </tbody>
 </table>
@@ -4003,38 +4217,38 @@
 <li><strong>Dev Dependencies</strong> (dev images only): Verifies pytest, ruff with versions</li>
 </ul>
 <h3 id="example-workflow-run_1">Example Workflow Run<a class="headerlink" href="#example-workflow-run_1" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>PR opened → lablink-images.yml triggered
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  └─ Build Job
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>     ├─ Build allocator dev image ✓
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>     ├─ Build client dev image ✓
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>     └─ Push to ghcr.io ✓
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  └─ Verify Allocator Job
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>     ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>     ├─ Venv activated: /app/.venv ✓
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>     ├─ Entry points callable: main(), generate_init_sql.main() ✓
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>     ├─ Console scripts: lablink-allocator, generate-init-sql ✓
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>     ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>     └─ Dev deps: pytest 8.4.2, ruff ✓
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  └─ Verify Client Job
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>     ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>     ├─ Venv activated: /home/client/.venv ✓
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>     ├─ Entry points callable: check_gpu.main(), subscribe.main(), update_inuse_status.main() ✓
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>     ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>     ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>     ├─ UV: uv 0.6.8 ✓
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>     └─ Dev deps: pytest 8.4.2, ruff ✓
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>PR opened → lablink-images.yml triggered
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  └─ Build Job
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>     ├─ Build allocator dev image ✓
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>     ├─ Build client dev image ✓
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>     └─ Push to ghcr.io ✓
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>  └─ Verify Allocator Job
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>     ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>     ├─ Venv activated: /app/.venv ✓
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>     ├─ Entry points callable: main(), generate_init_sql.main() ✓
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>     ├─ Console scripts: lablink-allocator, generate-init-sql ✓
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>     ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>     └─ Dev deps: pytest 8.4.2, ruff ✓
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>  └─ Verify Client Job
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>     ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>     ├─ Venv activated: /home/client/.venv ✓
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>     ├─ Entry points callable: check_gpu.main(), subscribe.main(), update_inuse_status.main() ✓
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>     ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>     ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>     ├─ UV: uv 0.6.8 ✓
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>     └─ Dev deps: pytest 8.4.2, ruff ✓
 </code></pre></div>
 <h3 id="customization">Customization<a class="headerlink" href="#customization" title="Permanent link">&para;</a></h3>
 <p>To modify image building:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># .github/workflows/lablink-images.yml</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Build for different platforms</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Build and push</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker/build-push-action@v5</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="nt">platforms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux/amd64,linux/arm64</span><span class="w">  </span><span class="c1"># Add ARM support</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.event_name != &#39;pull_request&#39; }}</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.meta.outputs.tags }}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># .github/workflows/lablink-images.yml</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Build for different platforms</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Build and push</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker/build-push-action@v5</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nt">platforms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux/amd64,linux/arm64</span><span class="w">  </span><span class="c1"># Add ARM support</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.event_name != &#39;pull_request&#39; }}</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.meta.outputs.tags }}</span>
 </code></pre></div>
 <h2 id="terraform-deployment-workflow">Terraform Deployment Workflow<a class="headerlink" href="#terraform-deployment-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/lablink-allocator-terraform.yml</code></p>
@@ -4073,39 +4287,39 @@
 </table>
 <h3 id="workflow-steps_1">Workflow Steps<a class="headerlink" href="#workflow-steps_1" title="Permanent link">&para;</a></h3>
 <h4 id="1-environment-determination">1. Environment Determination<a class="headerlink" href="#1-environment-determination" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Push to &#39;test&#39; branch → env=test
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Manual dispatch → env=&lt;user input&gt;
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Repository dispatch → env=&lt;payload&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Push to &#39;test&#39; branch → env=test
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Manual dispatch → env=&lt;user input&gt;
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>Repository dispatch → env=&lt;payload&gt;
 </code></pre></div>
 <h4 id="2-aws-authentication">2. AWS Authentication<a class="headerlink" href="#2-aws-authentication" title="Permanent link">&para;</a></h4>
 <p>Uses OpenID Connect (OIDC) to assume IAM role:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Configure AWS credentials via OIDC</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aws-actions/configure-aws-credentials@v3</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">role-to-assume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nt">aws-region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Configure AWS credentials via OIDC</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aws-actions/configure-aws-credentials@v3</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">role-to-assume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">arn:aws:iam::711387140753:role/github_lablink_repository-AE68499B37C7</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="nt">aws-region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
 </code></pre></div></p>
 <p><strong>No AWS credentials stored in GitHub!</strong></p>
 <h4 id="3-terraform-initialization">3. Terraform Initialization<a class="headerlink" href="#3-terraform-initialization" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Dev (local state)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>terraform<span class="w"> </span>init
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Test/Prod (remote state)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-&lt;env&gt;.hcl
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Dev (local state)</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>terraform<span class="w"> </span>init
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Test/Prod (remote state)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-&lt;env&gt;.hcl
 </code></pre></div>
 <h4 id="4-validation">4. Validation<a class="headerlink" href="#4-validation" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>terraform<span class="w"> </span>fmt<span class="w"> </span>-check<span class="w">  </span><span class="c1"># Check formatting</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>terraform<span class="w"> </span>validate<span class="w">    </span><span class="c1"># Validate syntax</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>terraform<span class="w"> </span>fmt<span class="w"> </span>-check<span class="w">  </span><span class="c1"># Check formatting</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>terraform<span class="w"> </span>validate<span class="w">    </span><span class="c1"># Validate syntax</span>
 </code></pre></div>
 <h4 id="5-planning">5. Planning<a class="headerlink" href="#5-planning" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>terraform<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>terraform<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
 </code></pre></div>
 <h4 id="6-application">6. Application<a class="headerlink" href="#6-application" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-auto-approve<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-auto-approve<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
 </code></pre></div>
 <h4 id="7-artifact-handling">7. Artifact Handling<a class="headerlink" href="#7-artifact-handling" title="Permanent link">&para;</a></h4>
 <ul>
@@ -4115,39 +4329,39 @@
 </ul>
 <h4 id="8-failure-handling">8. Failure Handling<a class="headerlink" href="#8-failure-handling" title="Permanent link">&para;</a></h4>
 <p>If <code>terraform apply</code> fails:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-auto-approve
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-auto-approve
 </code></pre></div></p>
 <p>Automatically cleans up partial deployments.</p>
 <h3 id="example-workflow-run_2">Example Workflow Run<a class="headerlink" href="#example-workflow-run_2" title="Permanent link">&para;</a></h3>
 <p><strong>Scenario</strong>: Deploy to production</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>1. Navigate to Actions → Terraform Deploy → Run workflow
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>2. Select:
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>   - Environment: prod
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>   - Image tag: v1.0.0
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>3. Workflow starts:
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>   - Authenticates to AWS via OIDC
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>   - Initializes Terraform with backend-prod.hcl
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>   - Plans infrastructure
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>   - Applies changes
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>   - Saves SSH key to artifacts
-<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>4. Deployment complete
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>5. Outputs displayed in workflow summary:
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>   - Allocator FQDN: lablink-prod.example.com
-<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>   - EC2 Public IP: 54.xxx.xxx.xxx
-<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>   - EC2 Key Name: lablink-prod-key
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>1. Navigate to Actions → Terraform Deploy → Run workflow
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>2. Select:
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>   - Environment: prod
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>   - Image tag: v1.0.0
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>3. Workflow starts:
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>   - Authenticates to AWS via OIDC
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>   - Initializes Terraform with backend-prod.hcl
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>   - Plans infrastructure
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>   - Applies changes
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>   - Saves SSH key to artifacts
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>4. Deployment complete
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>5. Outputs displayed in workflow summary:
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>   - Allocator FQDN: lablink-prod.example.com
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>   - EC2 Public IP: 54.xxx.xxx.xxx
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>   - EC2 Key Name: lablink-prod-key
 </code></pre></div>
 <h3 id="customization_1">Customization<a class="headerlink" href="#customization_1" title="Permanent link">&para;</a></h3>
 <p>To add deployment notifications:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Add at end of workflow</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Notify Slack</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success()</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slackapi/slack-github-action@v1</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="nt">webhook-url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.SLACK_WEBHOOK }}</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="nt">payload</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">      </span><span class="no">{</span>
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">        </span><span class="no">&quot;text&quot;: &quot;LabLink deployed to ${{ steps.setenv.outputs.env }}!&quot;</span>
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">      </span><span class="no">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Add at end of workflow</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Notify Slack</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success()</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slackapi/slack-github-action@v1</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span><span class="nt">webhook-url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.SLACK_WEBHOOK }}</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="nt">payload</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">      </span><span class="no">{</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">        </span><span class="no">&quot;text&quot;: &quot;LabLink deployed to ${{ steps.setenv.outputs.env }}!&quot;</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">      </span><span class="no">}</span>
 </code></pre></div>
 <h2 id="destroy-workflow">Destroy Workflow<a class="headerlink" href="#destroy-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/lablink-allocator-destroy.yml</code></p>
@@ -4190,15 +4404,15 @@
 <li>Output destroyed resources</li>
 </ol>
 <h3 id="example-usage">Example Usage<a class="headerlink" href="#example-usage" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>1. Navigate to Actions → Allocator Master Destroy
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>2. Click &quot;Run workflow&quot;
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>3. Select environment: dev
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>4. Confirm
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>5. Workflow destroys:
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>   - EC2 instance
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>   - Security group
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>   - SSH key pair
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>6. Terraform state updated
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>1. Navigate to Actions → Allocator Master Destroy
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>2. Click &quot;Run workflow&quot;
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>3. Select environment: dev
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>4. Confirm
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>5. Workflow destroys:
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>   - EC2 instance
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>   - Security group
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>   - SSH key pair
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>6. Terraform state updated
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Destructive Operation</p>
@@ -4222,14 +4436,14 @@
 <li>VM destruction</li>
 </ol>
 <h3 id="test-workflow">Test Workflow<a class="headerlink" href="#test-workflow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>1. Deploy test allocator
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>2. Request client VM via API
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>3. Wait for VM to be created and register
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>4. Verify VM appears in allocator database
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>5. Check VM health status
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>6. Destroy client VM
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>7. Destroy allocator
-<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>8. Verify all resources cleaned up
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>1. Deploy test allocator
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>2. Request client VM via API
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>3. Wait for VM to be created and register
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>4. Verify VM appears in allocator database
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>5. Check VM health status
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>6. Destroy client VM
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>7. Destroy allocator
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>8. Verify all resources cleaned up
 </code></pre></div>
 <h2 id="documentation-workflow">Documentation Workflow<a class="headerlink" href="#documentation-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/docs.yml</code></p>
@@ -4327,19 +4541,19 @@
 </tbody>
 </table>
 <h3 id="adding-secrets">Adding Secrets<a class="headerlink" href="#adding-secrets" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>1. Go to repository Settings
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>2. Navigate to Secrets and variables → Actions
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>3. Click &quot;New repository secret&quot;
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>4. Name: ADMIN_PASSWORD
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>5. Value: your-secure-password
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>6. Click &quot;Add secret&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>1. Go to repository Settings
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>2. Navigate to Secrets and variables → Actions
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>3. Click &quot;New repository secret&quot;
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>4. Name: ADMIN_PASSWORD
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>5. Value: your-secure-password
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>6. Click &quot;Add secret&quot;
 </code></pre></div>
 <p>Access in workflows:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Use secret</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">env</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nt">ADMIN_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.ADMIN_PASSWORD }}</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span><span class="no">echo &quot;Password is set&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Use secret</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">    </span><span class="nt">ADMIN_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.ADMIN_PASSWORD }}</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">    </span><span class="no">echo &quot;Password is set&quot;</span>
 </code></pre></div></p>
 <h2 id="workflow-monitoring">Workflow Monitoring<a class="headerlink" href="#workflow-monitoring" title="Permanent link">&para;</a></h2>
 <h3 id="view-workflow-runs">View Workflow Runs<a class="headerlink" href="#view-workflow-runs" title="Permanent link">&para;</a></h3>
@@ -4370,52 +4584,52 @@
 <h2 id="creating-custom-workflows">Creating Custom Workflows<a class="headerlink" href="#creating-custom-workflows" title="Permanent link">&para;</a></h2>
 <h3 id="example-backup-workflow">Example: Backup Workflow<a class="headerlink" href="#example-backup-workflow" title="Permanent link">&para;</a></h3>
 <p>Create <code>.github/workflows/backup.yml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Backup Database</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nt">on</span><span class="p">:</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span><span class="nt">schedule</span><span class="p">:</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span><span class="w">  </span><span class="c1"># Daily at 2 AM</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">  </span><span class="nt">workflow_dispatch</span><span class="p">:</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="nt">jobs</span><span class="p">:</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">  </span><span class="nt">backup</span><span class="p">:</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
-<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Configure AWS</span>
-<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aws-actions/configure-aws-credentials@v3</span>
-<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span>
-<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">          </span><span class="nt">role-to-assume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.AWS_ROLE_ARN }}</span>
-<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">          </span><span class="nt">aws-region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
-<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>
-<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Backup Database</span>
-<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a><span class="w">          </span><span class="no"># SSH into allocator</span>
-<a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a><span class="w">          </span><span class="no"># Run pg_dump</span>
-<a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a><span class="w">          </span><span class="no"># Upload to S3</span>
-<a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a><span class="w">          </span><span class="no">echo &quot;Backup complete&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Backup Database</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="nt">on</span><span class="p">:</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span><span class="nt">schedule</span><span class="p">:</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span><span class="w">  </span><span class="c1"># Daily at 2 AM</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="w">  </span><span class="nt">workflow_dispatch</span><span class="p">:</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="nt">jobs</span><span class="p">:</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="w">  </span><span class="nt">backup</span><span class="p">:</span>
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Configure AWS</span>
+<a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aws-actions/configure-aws-credentials@v3</span>
+<a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a><span class="w">          </span><span class="nt">role-to-assume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.AWS_ROLE_ARN }}</span>
+<a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a><span class="w">          </span><span class="nt">aws-region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
+<a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a>
+<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Backup Database</span>
+<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a><span class="w">          </span><span class="no"># SSH into allocator</span>
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="w">          </span><span class="no"># Run pg_dump</span>
+<a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a><span class="w">          </span><span class="no"># Upload to S3</span>
+<a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a><span class="w">          </span><span class="no">echo &quot;Backup complete&quot;</span>
 </code></pre></div>
 <h3 id="example-notification-workflow">Example: Notification Workflow<a class="headerlink" href="#example-notification-workflow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment Notifications</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="nt">on</span><span class="p">:</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="nt">workflow_run</span><span class="p">:</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span><span class="nt">workflows</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Terraform</span><span class="nv"> </span><span class="s">Deploy&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span><span class="nt">types</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">completed</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="nt">jobs</span><span class="p">:</span>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">  </span><span class="nt">notify</span><span class="p">:</span>
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
-<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Send Email</span>
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dawidd6/action-send-mail@v3</span>
-<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span>
-<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="w">          </span><span class="nt">server_address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smtp.gmail.com</span>
-<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="w">          </span><span class="nt">server_port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">465</span>
-<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="w">          </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.EMAIL_USERNAME }}</span>
-<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a><span class="w">          </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.EMAIL_PASSWORD }}</span>
-<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a><span class="w">          </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;LabLink</span><span class="nv"> </span><span class="s">Deployment:</span><span class="nv"> </span><span class="s">${{</span><span class="nv"> </span><span class="s">github.event.workflow_run.conclusion</span><span class="nv"> </span><span class="s">}}&quot;</span>
-<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="w">          </span><span class="nt">body</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Deployment</span><span class="nv"> </span><span class="s">finished</span><span class="nv"> </span><span class="s">with</span><span class="nv"> </span><span class="s">status:</span><span class="nv"> </span><span class="s">${{</span><span class="nv"> </span><span class="s">github.event.workflow_run.conclusion</span><span class="nv"> </span><span class="s">}}&quot;</span>
-<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="w">          </span><span class="nt">to</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">admin@example.com</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment Notifications</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="nt">on</span><span class="p">:</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span><span class="nt">workflow_run</span><span class="p">:</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">    </span><span class="nt">workflows</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Terraform</span><span class="nv"> </span><span class="s">Deploy&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">    </span><span class="nt">types</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">completed</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="nt">jobs</span><span class="p">:</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="w">  </span><span class="nt">notify</span><span class="p">:</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Send Email</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dawidd6/action-send-mail@v3</span>
+<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a><span class="w">          </span><span class="nt">server_address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smtp.gmail.com</span>
+<a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a><span class="w">          </span><span class="nt">server_port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">465</span>
+<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a><span class="w">          </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.EMAIL_USERNAME }}</span>
+<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a><span class="w">          </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.EMAIL_PASSWORD }}</span>
+<a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a><span class="w">          </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;LabLink</span><span class="nv"> </span><span class="s">Deployment:</span><span class="nv"> </span><span class="s">${{</span><span class="nv"> </span><span class="s">github.event.workflow_run.conclusion</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a><span class="w">          </span><span class="nt">body</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Deployment</span><span class="nv"> </span><span class="s">finished</span><span class="nv"> </span><span class="s">with</span><span class="nv"> </span><span class="s">status:</span><span class="nv"> </span><span class="s">${{</span><span class="nv"> </span><span class="s">github.event.workflow_run.conclusion</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a><span class="w">          </span><span class="nt">to</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">admin@example.com</span>
 </code></pre></div>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
@@ -4429,8 +4643,8 @@
 </ol>
 <h3 id="status-badge-example">Status Badge Example<a class="headerlink" href="#status-badge-example" title="Permanent link">&para;</a></h3>
 <p>Add to <code>README.md</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>![<span class="nt">CI</span>](<span class="na">https://github.com/talmolab/lablink/actions/workflows/ci.yml/badge.svg</span>)
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>![<span class="nt">Deploy</span>](<span class="na">https://github.com/talmolab/lablink/actions/workflows/lablink-allocator-terraform.yml/badge.svg</span>)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>![<span class="nt">CI</span>](<span class="na">https://github.com/talmolab/lablink/actions/workflows/ci.yml/badge.svg</span>)
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>![<span class="nt">Deploy</span>](<span class="na">https://github.com/talmolab/lablink/actions/workflows/lablink-allocator-terraform.yml/badge.svg</span>)
 </code></pre></div></p>
 <h2 id="troubleshooting-workflows">Troubleshooting Workflows<a class="headerlink" href="#troubleshooting-workflows" title="Permanent link">&para;</a></h2>
 <h3 id="workflow-wont-trigger">Workflow Won't Trigger<a class="headerlink" href="#workflow-wont-trigger" title="Permanent link">&para;</a></h3>

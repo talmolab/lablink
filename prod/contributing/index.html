@@ -2375,6 +2375,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#5-build-production-docker-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Build Production Docker Images
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3102,6 +3111,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#5-build-production-docker-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Build Production Docker Images
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3806,8 +3824,35 @@
 <li><strong>Executes</strong> test suite</li>
 <li><strong>Builds</strong> the package</li>
 <li><strong>Publishes</strong> to PyPI using OIDC (no API token needed)</li>
-<li><strong>Updates</strong> the changelog in documentation</li>
+<li><strong>Displays</strong> Docker build command for creating production images</li>
 </ol>
+<h4 id="5-build-production-docker-images">5. Build Production Docker Images<a class="headerlink" href="#5-build-production-docker-images" title="Permanent link">&para;</a></h4>
+<p>After publishing to PyPI, manually trigger Docker image builds to create production images with version tags.</p>
+<p><strong>Using GitHub CLI</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Build both images with their respective versions</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">allocator_version</span><span class="o">=</span><span class="m">0</span>.3.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span>-f<span class="w"> </span><span class="nv">client_version</span><span class="o">=</span><span class="m">0</span>.1.5
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Monitor the build</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>gh<span class="w"> </span>run<span class="w"> </span>watch
+</code></pre></div></p>
+<p><strong>Using GitHub UI</strong>:
+1. Go to <a href="https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml">Actions → Build and Push Docker Images</a>
+2. Click "Run workflow"
+3. Fill in:
+   - Branch: <code>main</code>
+   - Environment: <code>prod</code>
+   - Allocator version: <code>0.3.0</code>
+   - Client version: <code>0.1.5</code>
+4. Click "Run workflow"</p>
+<p>This creates Docker images tagged with:
+- <code>ghcr.io/talmolab/lablink-allocator-image:0.3.0</code> (version tag)
+- <code>ghcr.io/talmolab/lablink-client-base-image:0.1.5</code> (version tag)
+- <code>latest</code> tags for both images
+- Plus platform-specific and metadata tags</p>
+<p>See <a href="../workflows/#image-tagging-strategy">Image Tagging Strategy</a> for complete tag details.</p>
 <h3 id="release-guardrails">Release Guardrails<a class="headerlink" href="#release-guardrails" title="Permanent link">&para;</a></h3>
 <p>The workflow includes several safety checks:</p>
 <table>
@@ -3870,31 +3915,50 @@
 - <code>0.3.0-beta1</code>: Beta release
 - <code>0.3.0-rc1</code>: Release candidate</p>
 <h3 id="post-release">Post-Release<a class="headerlink" href="#post-release" title="Permanent link">&para;</a></h3>
-<p>After publishing:</p>
+<p>After publishing and building Docker images:</p>
 <ol>
-<li><strong>Verify on PyPI</strong>: Check package appears on <a href="https://pypi.org/">PyPI</a></li>
-<li><strong>Test installation</strong>: <code>pip install lablink-allocator-service==0.3.0</code></li>
-<li><strong>Check documentation</strong>: Verify changelog updated at https://talmolab.github.io/lablink/</li>
-<li><strong>Announce</strong>: Post release announcement (if major version)</li>
+<li>
+<p><strong>Verify on PyPI</strong>: Check package appears on <a href="https://pypi.org/">PyPI</a>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>pip<span class="w"> </span>install<span class="w"> </span>lablink-allocator-service<span class="o">==</span><span class="m">0</span>.3.0
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify Docker images</strong>: Check images on GHCR
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/talmolab/lablink-allocator-image:0.3.0
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/talmolab/lablink-client-base-image:0.1.5
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test installation</strong>: Install and verify the package works
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>pip<span class="w"> </span>install<span class="w"> </span>lablink-allocator-service<span class="o">==</span><span class="m">0</span>.3.0
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from lablink_allocator_service.main import main; print(&#39;OK&#39;)&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check documentation</strong>: Verify docs at https://talmolab.github.io/lablink/</p>
+</li>
+<li>
+<p><strong>Announce</strong>: Post release announcement (if major version)</p>
+</li>
 </ol>
 <h3 id="troubleshooting-releases">Troubleshooting Releases<a class="headerlink" href="#troubleshooting-releases" title="Permanent link">&para;</a></h3>
 <p><strong>Version mismatch error:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Ensure pyproject.toml version matches tag</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>grep<span class="w"> </span><span class="s1">&#39;^version = &#39;</span><span class="w"> </span>lablink-allocator/lablink-allocator-service/pyproject.toml
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c1"># Should output: version = &quot;0.3.0&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Ensure pyproject.toml version matches tag</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>grep<span class="w"> </span><span class="s1">&#39;^version = &#39;</span><span class="w"> </span>lablink-allocator/lablink-allocator-service/pyproject.toml
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="c1"># Should output: version = &quot;0.3.0&quot;</span>
 </code></pre></div></p>
 <p><strong>Tests failing:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Run tests locally first</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator/lablink-allocator-service
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># or .venv\Scripts\activate on Windows</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Run tests locally first</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator/lablink-allocator-service
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># or .venv\Scripts\activate on Windows</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests
 </code></pre></div></p>
 <p><strong>Build failing:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Test build locally</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator/lablink-allocator-service
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>uv<span class="w"> </span>build
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>ls<span class="w"> </span>-lh<span class="w"> </span>dist/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Test build locally</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator/lablink-allocator-service
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>uv<span class="w"> </span>build
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>ls<span class="w"> </span>-lh<span class="w"> </span>dist/
 </code></pre></div></p>
 <h3 id="rolling-back-a-release">Rolling Back a Release<a class="headerlink" href="#rolling-back-a-release" title="Permanent link">&para;</a></h3>
 <p>If a release has issues:</p>
