@@ -1215,12 +1215,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../generate-init-sql/" class="md-nav__link">
+      <a href="../generate_init_sql/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    generate-init-sql
+    generate_init_sql
     
   </span>
   
@@ -1474,15 +1474,6 @@
   <a href="#lablink_allocator_service.main.logger" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;logger
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.main.terraform_dir" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
     </span>
   </a>
   
@@ -1759,6 +1750,15 @@
   <a href="#lablink_allocator_service.main.launch" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;launch
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.main.main" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;main
     </span>
   </a>
   
@@ -2776,15 +2776,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.main.terraform_dir" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#lablink_allocator_service.main.users" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;users
@@ -3055,6 +3046,15 @@
   <a href="#lablink_allocator_service.main.launch" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;launch
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.main.main" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;main
     </span>
   </a>
   
@@ -3483,26 +3483,6 @@
   </span>
 
 <a href="#lablink_allocator_service.main.logger" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h4 id="lablink_allocator_service.main.terraform_dir" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;terraform&#39;</span><span class="p">)</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#lablink_allocator_service.main.terraform_dir" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -4958,6 +4938,85 @@
 <a id="__codelineno-0-421" name="__codelineno-0-421"></a>        <span class="n">error_output</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">stderr</span> <span class="ow">or</span> <span class="n">e</span><span class="o">.</span><span class="n">stdout</span>
 <a id="__codelineno-0-422" name="__codelineno-0-422"></a>        <span class="n">clean_output</span> <span class="o">=</span> <span class="n">ANSI_ESCAPE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error_output</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-423" name="__codelineno-0-423"></a>        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;dashboard.html&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">clean_output</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.main.main" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">main</span><span class="p">()</span></code>
+
+<a href="#lablink_allocator_service.main.main" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Main entry point for the allocator service.</p>
+
+
+            <details class="quote">
+              <summary>Source code in <code>lablink-allocator/lablink-allocator-service/src/lablink_allocator_service/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-743">743</a></span>
+<span class="normal"><a href="#__codelineno-0-744">744</a></span>
+<span class="normal"><a href="#__codelineno-0-745">745</a></span>
+<span class="normal"><a href="#__codelineno-0-746">746</a></span>
+<span class="normal"><a href="#__codelineno-0-747">747</a></span>
+<span class="normal"><a href="#__codelineno-0-748">748</a></span>
+<span class="normal"><a href="#__codelineno-0-749">749</a></span>
+<span class="normal"><a href="#__codelineno-0-750">750</a></span>
+<span class="normal"><a href="#__codelineno-0-751">751</a></span>
+<span class="normal"><a href="#__codelineno-0-752">752</a></span>
+<span class="normal"><a href="#__codelineno-0-753">753</a></span>
+<span class="normal"><a href="#__codelineno-0-754">754</a></span>
+<span class="normal"><a href="#__codelineno-0-755">755</a></span>
+<span class="normal"><a href="#__codelineno-0-756">756</a></span>
+<span class="normal"><a href="#__codelineno-0-757">757</a></span>
+<span class="normal"><a href="#__codelineno-0-758">758</a></span>
+<span class="normal"><a href="#__codelineno-0-759">759</a></span>
+<span class="normal"><a href="#__codelineno-0-760">760</a></span>
+<span class="normal"><a href="#__codelineno-0-761">761</a></span>
+<span class="normal"><a href="#__codelineno-0-762">762</a></span>
+<span class="normal"><a href="#__codelineno-0-763">763</a></span>
+<span class="normal"><a href="#__codelineno-0-764">764</a></span>
+<span class="normal"><a href="#__codelineno-0-765">765</a></span>
+<span class="normal"><a href="#__codelineno-0-766">766</a></span>
+<span class="normal"><a href="#__codelineno-0-767">767</a></span>
+<span class="normal"><a href="#__codelineno-0-768">768</a></span>
+<span class="normal"><a href="#__codelineno-0-769">769</a></span>
+<span class="normal"><a href="#__codelineno-0-770">770</a></span>
+<span class="normal"><a href="#__codelineno-0-771">771</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-743" name="__codelineno-0-743"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-0-744" name="__codelineno-0-744"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Main entry point for the allocator service.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-745" name="__codelineno-0-745"></a>    <span class="k">with</span> <span class="n">app</span><span class="o">.</span><span class="n">app_context</span><span class="p">():</span>
+<a id="__codelineno-0-746" name="__codelineno-0-746"></a>        <span class="n">db</span><span class="o">.</span><span class="n">create_all</span><span class="p">()</span>
+<a id="__codelineno-0-747" name="__codelineno-0-747"></a>        <span class="n">init_database</span><span class="p">()</span>
+<a id="__codelineno-0-748" name="__codelineno-0-748"></a>
+<a id="__codelineno-0-749" name="__codelineno-0-749"></a>    <span class="c1"># Terraform initialization</span>
+<a id="__codelineno-0-750" name="__codelineno-0-750"></a>    <span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;terraform&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-751" name="__codelineno-0-751"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">terraform_dir</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+<a id="__codelineno-0-752" name="__codelineno-0-752"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing Terraform...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-753" name="__codelineno-0-753"></a>        <span class="k">if</span> <span class="n">ENVIRONMENT</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;prod&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">]:</span>
+<a id="__codelineno-0-754" name="__codelineno-0-754"></a>            <span class="n">Path</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">terraform_dir</span> <span class="o">/</span> <span class="s2">&quot;backend.tf&quot;</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-755" name="__codelineno-0-755"></a>            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-0-756" name="__codelineno-0-756"></a>                <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;init&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-757" name="__codelineno-0-757"></a>                <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span>
+<a id="__codelineno-0-758" name="__codelineno-0-758"></a>                <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-759" name="__codelineno-0-759"></a>            <span class="p">)</span>
+<a id="__codelineno-0-760" name="__codelineno-0-760"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-761" name="__codelineno-0-761"></a>            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-0-762" name="__codelineno-0-762"></a>                <span class="p">[</span>
+<a id="__codelineno-0-763" name="__codelineno-0-763"></a>                    <span class="s2">&quot;terraform&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-764" name="__codelineno-0-764"></a>                    <span class="s2">&quot;init&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-765" name="__codelineno-0-765"></a>                    <span class="sa">f</span><span class="s2">&quot;-backend-config=backend-client-</span><span class="si">{</span><span class="n">ENVIRONMENT</span><span class="si">}</span><span class="s2">.hcl&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-766" name="__codelineno-0-766"></a>                <span class="p">],</span>
+<a id="__codelineno-0-767" name="__codelineno-0-767"></a>                <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span>
+<a id="__codelineno-0-768" name="__codelineno-0-768"></a>                <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-769" name="__codelineno-0-769"></a>            <span class="p">)</span>
+<a id="__codelineno-0-770" name="__codelineno-0-770"></a>
+<a id="__codelineno-0-771" name="__codelineno-0-771"></a>    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

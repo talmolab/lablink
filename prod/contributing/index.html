@@ -1209,12 +1209,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/allocator/lablink_allocator_service/generate-init-sql/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/generate_init_sql/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    generate-init-sql
+    generate_init_sql
     
   </span>
   
@@ -3339,9 +3339,9 @@
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Run linting</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>ruff<span class="w"> </span>check<span class="w"> </span>.
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Build Docker images</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>lablink-allocator<span class="w"> </span>-f<span class="w"> </span>lablink-allocator/Dockerfile<span class="w"> </span>.
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>lablink-client<span class="w"> </span>-f<span class="w"> </span>lablink-client-base/lablink-client-base-image/Dockerfile<span class="w"> </span>.
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Build Docker images (development)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>lablink-allocator:dev<span class="w"> </span>-f<span class="w"> </span>lablink-allocator/Dockerfile.dev<span class="w"> </span>.
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>lablink-client:dev<span class="w"> </span>-f<span class="w"> </span>lablink-client-base/lablink-client-base-image/Dockerfile.dev<span class="w"> </span>lablink-client-base
 </code></pre></div>
 <h2 id="how-to-contribute">How to Contribute<a class="headerlink" href="#how-to-contribute" title="Permanent link">&para;</a></h2>
 <h3 id="reporting-bugs">Reporting Bugs<a class="headerlink" href="#reporting-bugs" title="Permanent link">&para;</a></h3>
