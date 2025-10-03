@@ -234,6 +234,17 @@ jobs:
           print(\"Dev dependencies verified\")
           "'
 
+      - name: Verify allocator entry points are importable
+        run: |
+          echo "Testing allocator console script entry points can be imported..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
+          from lablink_allocator_service.main import main as allocator_main
+          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
+          assert callable(allocator_main), \"allocator main() is not callable\"
+          assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
+          print(\"✓ All entry points are importable and callable\")
+          "'
+
       - name: Execute allocator console scripts
         run: |
           echo "Testing allocator console script execution..."
@@ -301,6 +312,19 @@ jobs:
           import pytest; print(\"  - pytest version:\", pytest.__version__)
           import ruff; print(\"  - ruff available\")
           print(\"Dev dependencies verified\")
+          "'
+
+      - name: Verify client entry points are importable
+        run: |
+          echo "Testing client console script entry points can be imported..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
+          from lablink_client_service.check_gpu import main as check_gpu_main
+          from lablink_client_service.subscribe import main as subscribe_main
+          from lablink_client_service.update_inuse_status import main as update_main
+          assert callable(check_gpu_main), \"check_gpu main() is not callable\"
+          assert callable(subscribe_main), \"subscribe main() is not callable\"
+          assert callable(update_main), \"update_inuse_status main() is not callable\"
+          print(\"✓ All entry points are importable and callable\")
           "'
 
       - name: Execute client console scripts
