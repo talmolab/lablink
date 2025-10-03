@@ -202,19 +202,37 @@ jobs:
 
       - name: Verify allocator console scripts
         run: |
-          echo "✅ Testing allocator console scripts..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && which lablink-allocator && which generate-init-sql && echo 'Allocator console scripts found'"
+          echo "Testing allocator console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && echo \"lablink-allocator:\" && which lablink-allocator && echo \"generate-init-sql:\" && which generate-init-sql && echo \"Allocator console scripts verified\""
 
       - name: Verify allocator package imports
         run: |
-          echo "✅ Testing allocator package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c 'from lablink_allocator_service.main import main; from lablink_allocator_service.database import PostgresqlDatabase; print(\"✅ Allocator imports OK\")' 2>&1 | grep -E '(✅|Error|Traceback)'"
+          echo "Testing allocator package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c '
+import warnings
+warnings.filterwarnings(\"ignore\")
+import logging
+logging.basicConfig(level=logging.ERROR)
+print(\"Importing allocator packages:\")
+from lablink_allocator_service.main import main
+print(\"  - main.main imported\")
+from lablink_allocator_service.database import PostgresqlDatabase
+print(\"  - database.PostgresqlDatabase imported\")
+from lablink_allocator_service.get_config import get_config
+print(\"  - get_config.get_config imported\")
+print(\"Allocator imports verified\")
+'"
 
       - name: Verify allocator dev dependencies (dev images only)
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
-          echo "✅ Testing allocator dev dependencies..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c 'import pytest; import ruff; print(\"✅ Dev deps available\")'"
+          echo "Testing allocator dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /app/.venv/bin/activate && python -c '
+print(\"Checking allocator dev dependencies:\")
+import pytest; print(\"  - pytest version:\", pytest.__version__)
+import ruff; print(\"  - ruff available\")
+print(\"Dev dependencies verified\")
+'"
 
   verify-client:
     name: Verify Client Image
@@ -246,21 +264,35 @@ jobs:
 
       - name: Verify client console scripts exist
         run: |
-          echo "✅ Testing client console scripts..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which check_gpu && which subscribe && which update_inuse_status && echo '✅ Client console scripts found'"
+          echo "Testing client console scripts..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
 
       - name: Verify client package imports
         run: |
-          echo "✅ Testing client package imports..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "python -c 'from lablink_client_service.subscribe import main; from lablink_client_service.check_gpu import main as check_main; print(\"✅ Client imports OK\")'"
+          echo "Testing client package imports..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "python -c '
+print(\"Importing client packages:\")
+from lablink_client_service.subscribe import main
+print(\"  - subscribe.main imported\")
+from lablink_client_service.check_gpu import main as check_main
+print(\"  - check_gpu.main imported\")
+from lablink_client_service.update_inuse_status import main as update_main
+print(\"  - update_inuse_status.main imported\")
+print(\"Client imports verified\")
+'"
 
       - name: Verify uv is available
         run: |
-          echo "✅ Testing uv availability..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && uv --version && echo '✅ uv available'"
+          echo "Testing uv availability..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && echo \"uv version:\" && uv --version"
 
       - name: Verify client dev dependencies (dev images only)
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
-          echo "✅ Testing client dev dependencies..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && python -c 'import pytest; import ruff; print(\"✅ Dev deps available\")'"
+          echo "Testing client dev dependencies..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "cd /home/client/lablink-client-service && python -c '
+print(\"Checking client dev dependencies:\")
+import pytest; print(\"  - pytest version:\", pytest.__version__)
+import ruff; print(\"  - ruff available\")
+print(\"Dev dependencies verified\")
+'"
