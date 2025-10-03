@@ -144,7 +144,7 @@ jobs:
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then
