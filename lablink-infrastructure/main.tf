@@ -125,7 +125,7 @@ resource "aws_instance" "lablink_allocator_server" {
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
     RESOURCE_SUFFIX      = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP  = local.eip_public_ip
+    ALLOCATOR_PUBLIC_IP  = aws_eip.lablink_allocator_eip.public_ip
     ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
     CONFIG_CONTENT       = file("${path.module}/${var.config_path}")
@@ -138,27 +138,11 @@ resource "aws_instance" "lablink_allocator_server" {
   }
 }
 
-# Try to find existing EIP for this environment
-data "aws_eip" "existing" {
-  filter {
-    name   = "tag:Name"
-    values = ["lablink-eip-${var.resource_suffix}"]
-  }
-}
-
-# Only create new EIP if one doesn't exist with the environment tag
 resource "aws_eip" "lablink_allocator_eip" {
-  count  = data.aws_eip.existing.id != null ? 0 : 1
   domain = "vpc"
   tags = {
     Name = "lablink-eip-${var.resource_suffix}"
   }
-}
-
-# Use existing EIP if found, otherwise use newly created one
-locals {
-  eip_id        = data.aws_eip.existing.id != null ? data.aws_eip.existing.id : aws_eip.lablink_allocator_eip[0].id
-  eip_public_ip = data.aws_eip.existing.id != null ? data.aws_eip.existing.public_ip : aws_eip.lablink_allocator_eip[0].public_ip
 }
 
 # Route 53 Hosted Zone - create if DNS is enabled and domain is configured
@@ -191,13 +175,13 @@ resource "aws_route53_record" "lablink_a_record" {
   name    = local.fqdn
   type    = "A"
   ttl     = 300
-  records = [local.eip_public_ip]
+  records = [aws_eip.lablink_allocator_eip.public_ip]
 }
 
 # Associate Elastic IP with EC2 instance
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
-  allocation_id = local.eip_id
+  allocation_id = aws_eip.lablink_allocator_eip.id
 }
 
 # CloudWatch Log Groups for Client VMs
@@ -300,7 +284,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
-  value = local.eip_public_ip
+  value = aws_eip.lablink_allocator_eip.public_ip
 }
 
 # Output the EC2 key name
