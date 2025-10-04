@@ -61,7 +61,15 @@ jobs:
       - name: Terraform Init Client VMs
         working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
-          terraform init -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl
+          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
+            terraform init
+          else
+            # Extract bucket name from config.yaml
+            BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
+            terraform init \
+              -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl \
+              -backend-config="bucket=$BUCKET_NAME"
+          fi
 
       - name: Extract Variable File
         working-directory: packages/allocator/src/lablink_allocator/terraform
