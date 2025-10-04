@@ -1,24 +1,43 @@
 # LabLink
 
-LabLink allocates virtual machines (VMs) on Amazon Web Services (AWS) to make research software easily accessible. It’s designed to handle concurrent users and scale automatically. We maintain the infrastructure, Python packages, and Docker images—so you can focus on deploying any research software you need, on as many virtual machines as you want.
+Dynamic VM allocation system for computational research workflows. Deploy research software to AWS in minutes.
 
-## Components
+## Quick Start
 
-**Allocator** - Flask web service managing VM allocation and PostgreSQL database tracking VM states.
+Get running in 15 minutes: [Quickstart Guide](quickstart.md)
 
-**Client VMs** - EC2 instances running containerized research software, reporting health to allocator.
+```bash
+git clone https://github.com/talmolab/lablink.git
+cd lablink/lablink-infrastructure
+terraform init && terraform apply
+```
 
-**Infrastructure** - Our template repository with configurable infrastructure using terraform.
+## What is LabLink?
 
-## Getting started
+LabLink automatically provisions and manages cloud-based virtual machines for research software. It handles:
 
-- [Prerequisites](prerequisites.md) - Prerequisites and setup
-- [Quickstart](quickstart.md) - Deploy your first VM
-- [Configuration](configuration.md) - Customize settings
+- **VM Allocation** - Request VMs through a web interface
+- **Auto-scaling** - Create dozens of VMs in parallel
+- **Health Monitoring** - Track VM status and GPU health
+- **Custom Software** - Deploy any Docker image or GitHub repo
 
-## Links
+## Core Components
+
+**Allocator** - Web service managing VM requests and database
+
+**Client VMs** - EC2 instances running your research software
+
+**Infrastructure** - Terraform templates for AWS deployment
+
+## Documentation
+
+- [Prerequisites](prerequisites.md) - AWS account setup
+- [Quickstart](quickstart.md) - Deploy in 15 minutes
+- [Configuration](configuration.md) - Customize your deployment
+- [Troubleshooting](troubleshooting.md) - Common issues and fixes
+
+## Resources
 
 - [GitHub](https://github.com/talmolab/lablink)
 - [Template](https://github.com/talmolab/lablink-template)
 - [Issues](https://github.com/talmolab/lablink/issues)
-- [Releases](https://github.com/talmolab/lablink/releases)
