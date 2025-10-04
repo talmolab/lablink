@@ -1,79 +1,127 @@
 # Quickstart
 
+Get LabLink running in 15 minutes.
+
 ## Prerequisites
 
-- AWS CLI configured ([guide](prerequisites.md#2-aws-cli))
-- Terraform installed ([guide](prerequisites.md#3-terraform))
-- Docker running ([guide](prerequisites.md#4-docker))
+- **AWS Account** with admin access ([setup guide](prerequisites.md#1-aws-account))
+- **AWS CLI** configured locally ([setup guide](prerequisites.md#2-aws-cli))
+- **Terraform** installed ([setup guide](prerequisites.md#3-terraform))
 
-## Test locally
+## Step 1: Clone Repository
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
-cd lablink
-docker pull ghcr.io/talmolab/lablink-allocator-image:latest
-docker run -d -p 5000:5000 ghcr.io/talmolab/lablink-allocator-image:latest
+cd lablink/lablink-infrastructure
 ```
 
-Access at http://localhost:5000
+## Step 2: Configure Settings
 
-!!! tip "Default credentials"
-    Username: `admin` / Password: `IwanttoSLEAP`
+Edit `config/config.yaml`:
 
-## Deploy to AWS
+```yaml
+# Minimal configuration for quick start
+dns:
+  enabled: false  # Start without DNS, use IP address
+
+ssl:
+  provider: "none"  # Start without HTTPS
+
+machine:
+  ami_id: "ami-067cc81f948e50e06"  # Ubuntu 22.04 LTS (us-west-2)
+  machine_type: "t3.medium"
+  gpu_support: false
+```
+
+## Step 3: Initialize and Deploy
 
 ```bash
-cd lablink-allocator
+# Initialize Terraform
 terraform init
-terraform apply -var="resource_suffix=dev" -var="allocator_image_tag=linux-amd64-latest-test"
+
+# Deploy (will prompt for confirmation)
+terraform apply
 ```
 
-Save SSH key:
+**Deployment time**: ~5 minutes
+
+Creates:
+- EC2 instance running allocator (Flask app + PostgreSQL)
+- Security groups (HTTP port 80, SSH port 22)
+- SSH key pair
+
+## Step 4: Access Your Allocator
 
 ```bash
-terraform output -raw private_key_pem > ~/lablink-dev-key.pem
-chmod 600 ~/lablink-dev-key.pem
-```
-
-Access:
-
-```bash
-# Get IP
+# Get public IP
 terraform output ec2_public_ip
+# Output: 52.10.123.456
 
-# SSH access
-ssh -i ~/lablink-dev-key.pem ubuntu@<ec2_public_ip>
-
-# Web interface
-http://<ec2_public_ip>:80
+# Save SSH key
+terraform output -raw private_key_pem > ~/lablink-key.pem
+chmod 600 ~/lablink-key.pem
 ```
 
-## Create VMs
+**Web interface**: `http://<ec2_public_ip>`
 
-Web UI:
-1. Admin → Create Instances
-2. Enter count
-3. Submit
+**Admin login**:
+- Username: `admin`
+- Password: `IwanttoSLEAP`
 
-API:
+!!! warning "Change Password"
+    Change the default password immediately in production.
+
+## Step 5: Create Client VMs
+
+1. Navigate to `http://<ec2_public_ip>/admin`
+2. Log in with admin credentials
+3. Click **"Create VMs"**
+4. Enter number of VMs (try 2)
+5. Click **"Launch VMs"**
+
+**VM creation time**: ~5 minutes
+
+## Step 6: Verify
+
 ```bash
-curl -X POST http://<allocator_ip>:80/request_vm \
-  -d "email=your@email.com" \
-  -d "crd_command=your_command"
+# SSH into allocator
+ssh -i ~/lablink-key.pem ubuntu@<ec2_public_ip>
+
+# Check allocator is running
+sudo docker ps
+
+# Check VMs in database
+sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT hostname FROM vms;"
 ```
 
-## Cleanup
+## Step 7: Cleanup
 
 ```bash
-terraform destroy -var="resource_suffix=dev"
+# Destroy all resources
+terraform destroy
 ```
 
-!!! warning
-    EC2 instances incur costs. Destroy test resources when done.
+!!! warning "AWS Costs"
+    EC2 instances cost ~$0.04/hour (t3.medium). Always destroy test resources.
 
-## Next steps
+## Troubleshooting
 
-- [Configuration](configuration.md) - Customize settings
-- [Adapting](adapting.md) - Use your Docker images
-- [Deployment](deployment.md) - Production setup
-- [Troubleshooting](troubleshooting.md) - Common issues
+**Can't access web interface?**
+```bash
+curl http://$(terraform output -raw ec2_public_ip)
+# If this fails, check security group allows port 80
+```
+
+**VMs not appearing?** See [VM Registration Issue](troubleshooting.md#client-vm-not-registering)
+
+**SSH permission denied?**
+```bash
+chmod 600 ~/lablink-key.pem
+```
+
+## Next Steps
+
+- **Add DNS**: [DNS Configuration Guide](dns-configuration.md) for custom domains and HTTPS
+- **Production**: [Deployment Guide](deployment.md) for GitHub Actions and best practices
+- **Customize**: [Configuration Reference](configuration.md) for all options
+- **Secure**: [Security Guide](security.md) before going to production
