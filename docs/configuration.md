@@ -17,7 +17,7 @@ Default credentials are:
 
 ```bash
 # Edit allocator configuration
-vi lablink-allocator/lablink-allocator-service/conf/config.yaml
+vi lablink-infrastructure/config/config.yaml
 ```
 
 Update these values:
@@ -56,7 +56,7 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 
 ### Allocator Configuration
 
-**Location**: `lablink-allocator/lablink-allocator-service/conf/config.yaml`
+**Location**: `lablink-infrastructure/config/config.yaml`
 
 ```yaml
 db:
@@ -231,7 +231,7 @@ S3 bucket for Terraform state storage. Must be globally unique.
 Directly modify the configuration files:
 
 ```bash
-nano lablink-allocator/lablink-allocator-service/conf/config.yaml
+nano lablink-infrastructure/config/config.yaml
 ```
 
 ### Method 2: Environment Variables
@@ -345,14 +345,14 @@ python -c "import yaml; yaml.safe_load(open('conf/config.yaml'))"
 
 ```bash
 # Run allocator with custom config
-cd lablink-allocator/lablink-allocator-service
-python main.py
+cd packages/allocator
+python src/lablink_allocator/main.py
 ```
 
 ### Terraform Validation
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 terraform validate
 terraform plan  # Preview changes
 ```
