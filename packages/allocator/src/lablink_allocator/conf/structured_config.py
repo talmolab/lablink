@@ -81,6 +81,8 @@ class DNSConfig:
     Attributes:
         enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
         domain (str): The base domain name (e.g., "sleap.ai").
+        zone_id (str): Optional Route53 hosted zone ID. If provided, skips zone lookup.
+            Use this when zone lookup finds the wrong zone (e.g., parent vs subdomain).
         app_name (str): The application name used in subdomains (e.g., "lablink").
         pattern (str): Naming pattern for DNS records. Options:
             - "auto": Automatically generate based on environment
@@ -94,6 +96,7 @@ class DNSConfig:
 
     enabled: bool = field(default=False)
     domain: str = field(default="")
+    zone_id: str = field(default="")
     app_name: str = field(default="lablink")
     pattern: str = field(default="auto")
     custom_subdomain: str = field(default="")

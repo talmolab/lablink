@@ -12,6 +12,7 @@ class TestDNSConfig:
         config = DNSConfig()
         assert config.enabled is False
         assert config.domain == ""
+        assert config.zone_id == ""
         assert config.app_name == "lablink"
         assert config.pattern == "auto"
         assert config.custom_subdomain == ""
@@ -22,6 +23,7 @@ class TestDNSConfig:
         config = DNSConfig(
             enabled=True,
             domain="example.com",
+            zone_id="Z01234567890ABCDEFGHI",
             app_name="myapp",
             pattern="custom",
             custom_subdomain="my.custom.example.com",
@@ -29,6 +31,7 @@ class TestDNSConfig:
         )
         assert config.enabled is True
         assert config.domain == "example.com"
+        assert config.zone_id == "Z01234567890ABCDEFGHI"
         assert config.app_name == "myapp"
         assert config.pattern == "custom"
         assert config.custom_subdomain == "my.custom.example.com"
