@@ -1,0 +1,48 @@
+# LabLink Allocator Configuration
+# This file configures the allocator service and client VM specifications
+# Copy to config.yaml and customize for your deployment
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "lablink"  # Test password (change in production!)
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  # Client VM instance type (must support your workload)
+  machine_type: "g4dn.xlarge"  # GPU instance for ML workloads
+
+  # Docker image for client VMs (use version tags for production)
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+
+  # AMI ID for your AWS region (Ubuntu 22.04 recommended)
+  ami_id: "ami-067cc81f948e50e06"  # us-west-2 Ubuntu 22.04
+
+  # Git repository with your data/code
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+
+  # Software identifier for your application
+  software: "sleap"
+
+  # File extension for your data files
+  extension: "slp"
+
+app:
+  admin_user: "admin"
+  admin_password: "IwanttoSLEAP"  # Test password
+  region: "us-west-2"  # Your AWS region
+
+dns:
+  enabled: true  # Set to true if using Route53
+  domain: "sleap.ai"  # Your domain
+  app_name: "lablink"
+  pattern: "auto"  # auto, custom
+  custom_subdomain: ""
+  create_zone: false
+
+# S3 bucket for Terraform state (must be unique globally)
+# Only used for test/prod environments with S3 backend (not used in dev)
+bucket_name: "tf-state-lablink-allocator-bucket"

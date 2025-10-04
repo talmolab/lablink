@@ -9,7 +9,7 @@
 
 # Environment files with secrets
 .env
-config/config.yaml
 
-# Keep only examples
+# Keep only examples and test config
 !config/example.*
+!config/config.yaml
