@@ -157,8 +157,8 @@ resource "aws_eip" "lablink_allocator_eip" {
 
 # Use existing EIP if found, otherwise use newly created one
 locals {
-  eip_id         = data.aws_eip.existing.id != null ? data.aws_eip.existing.id : aws_eip.lablink_allocator_eip[0].id
-  eip_public_ip  = data.aws_eip.existing.id != null ? data.aws_eip.existing.public_ip : aws_eip.lablink_allocator_eip[0].public_ip
+  eip_id        = data.aws_eip.existing.id != null ? data.aws_eip.existing.id : aws_eip.lablink_allocator_eip[0].id
+  eip_public_ip = data.aws_eip.existing.id != null ? data.aws_eip.existing.public_ip : aws_eip.lablink_allocator_eip[0].public_ip
 }
 
 # Route 53 Hosted Zone - create if DNS is enabled and domain is configured
