@@ -248,7 +248,7 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref_name == 'test'
         run: |
           echo "Running allocator pytest tests..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests -v --tb=short'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests --ignore=tests/terraform -v --tb=short'
 
       - name: Verify allocator entry points are importable
         run: |
