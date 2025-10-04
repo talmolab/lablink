@@ -61,24 +61,18 @@ jobs:
       - name: Terraform Init Client VMs
         working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
-            terraform init
-          else
-            # Extract bucket name from config.yaml
-            BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
-            terraform init \
-              -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl \
-              -backend-config="bucket=$BUCKET_NAME"
-          fi
+          # Extract bucket name from config.yaml
+          BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
+          terraform init \
+            -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
 
       - name: Extract Variable File
         working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
-            cp variables-dev.tfvars variables.tfvars
-          else
-            aws s3 cp s3://tf-state-lablink-allocator-bucket/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars
-          fi
+          # Extract bucket name from config.yaml
+          BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
+          aws s3 cp s3://${BUCKET_NAME}/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars
       - name: Terraform Destroy Client VMs
         working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
@@ -87,15 +81,11 @@ jobs:
       - name: Terraform Init Infrastructure
         working-directory: lablink-infrastructure
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
-            terraform init
-          else
-            # Extract bucket name from config.yaml for S3 backend
-            BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
-            terraform init \
-              -backend-config=backend-${{ github.event.inputs.environment }}.hcl \
-              -backend-config="bucket=$BUCKET_NAME"
-          fi
+          # Extract bucket name from config.yaml for S3 backend
+          BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
+          terraform init \
+            -backend-config=backend-${{ github.event.inputs.environment }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
 
       - name: Terraform Destroy Infrastructure
         working-directory: lablink-infrastructure
