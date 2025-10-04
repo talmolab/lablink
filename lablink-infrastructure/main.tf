@@ -109,7 +109,7 @@ variable "allocator_image_tag" {
 }
 
 resource "aws_instance" "lablink_allocator_server" {
-  ami                  = "ami-0bd08c9d4aa9f0bc6"
+  ami                  = "ami-067cc81f948e50e06"
   instance_type        = local.allocator_instance_type
   security_groups      = [aws_security_group.allow_http.name]
   key_name             = aws_key_pair.lablink_key_pair.key_name

@@ -1,4 +1,11 @@
 #!/bin/bash
+set -e
+
+# Install Docker
+apt-get update
+apt-get install -y docker.io
+systemctl start docker
+systemctl enable docker
 
 # Create config directory and file in /etc/lablink-allocator in EC2 instance
 mkdir -p /etc/lablink-allocator
