@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "s3_backend_doc" {
 # To package the Lambda function into a zip file
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_file = "${path.module}/lablink-allocator-service/lambda_function.py"
+  source_file = "${path.module}/lambda_function.py"
   output_path = "${path.module}/lambda_package.zip"
 }
 
