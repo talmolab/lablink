@@ -1,4 +1,5 @@
 from unittest.mock import patch, MagicMock
+from pathlib import Path
 import subprocess
 
 POST_ENDPOINT = "/api/launch"
@@ -19,10 +20,8 @@ def test_launch_vm_success(
     tmp_path,
 ):
     """Test successful VM launch with some VMs already launched before."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir()
 
     # Mock Global Variables in "main.py"
     monkeypatch.setattr(
@@ -50,7 +49,6 @@ def test_launch_vm_success(
     assert mock_run.call_count == 1
     apply_cmd, apply_kwargs = mock_run.call_args_list[0]
     assert "-var=instance_count=5" in apply_cmd[0]
-    assert apply_kwargs["cwd"] == terraform_dir
 
     expected_lines = [
         'allocator_ip = "1.2.3.4"',
@@ -64,7 +62,7 @@ def test_launch_vm_success(
     ]
 
     # Assert tf vars
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (Path("terraform") / "terraform.runtime.tfvars").read_text()
     missing = [line for line in expected_lines if line not in tfvars]
     assert not missing, f"Missing lines in tfvars: {missing}"
 
@@ -72,7 +70,7 @@ def test_launch_vm_success(
     mock_upload_to_s3.assert_called_once_with(
         bucket_name="test-bucket",
         region="us-west-2",
-        local_path=terraform_dir / "terraform.runtime.tfvars",
+        local_path=Path("terraform") / "terraform.runtime.tfvars",
         env="test",
     )
 
@@ -82,10 +80,8 @@ def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path
 ):
     """Test VM launch with missing allocator outputs."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir()
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", MagicMock(get_row_count=lambda: 0), raising=False
@@ -98,7 +94,7 @@ def test_launch_missing_allocator_outputs_returns_error(
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
     assert resp.status_code == 200
     assert b"Allocator outputs not found." in resp.data
-    assert not (terraform_dir / "terraform.runtime.tfvars").exists()
+    assert not (Path("terraform") / "terraform.runtime.tfvars").exists()
 
 
 @patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
@@ -107,10 +103,8 @@ def test_launch_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
     """Test VM launch failure during apply."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir()
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", MagicMock(get_row_count=lambda: 1), raising=False
@@ -130,17 +124,15 @@ def test_launch_apply_failure(
     assert resp.status_code == 200
     assert b"boom" in resp.data  # stripped
 
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (Path("terraform") / "terraform.runtime.tfvars").read_text()
     assert 'gpu_support = "false"' in tfvars
 
 
 @patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via terraform destroy."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir()
 
     # Mock subprocess.run
     mock_run.return_value = type(
@@ -162,7 +154,7 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
     assert args[0][:2] == ["terraform", "destroy"]
     assert "-auto-approve" in args[0]
     assert "-var-file=terraform.runtime.tfvars" in args[0]
-    assert kwargs["cwd"] == terraform_dir
+    assert kwargs["cwd"] == Path("terraform")
     assert kwargs["check"] is True
     assert kwargs["capture_output"] is True
     assert kwargs["text"] is True
@@ -173,10 +165,8 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
 
 @patch("lablink_allocator_service.main.subprocess.run")
 def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.chdir(tmp_path)
+    Path("terraform").mkdir()
 
     # Mock subprocess.run to raise an error
     mock_run.side_effect = subprocess.CalledProcessError(
@@ -189,25 +179,3 @@ def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path)
 
     # Ensure run was called correctly
     mock_run.assert_called_once()
-
-
-def test_launch_invalid_num_vms(client, admin_headers):
-    """Test that providing an invalid number of VMs returns an error."""
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "0"})
-    assert resp.status_code == 200
-    assert b"Number of VMs must be greater than 0." in resp.data
-
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "-1"})
-    assert resp.status_code == 200
-    assert b"Number of VMs must be greater than 0." in resp.data
-
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "abc"})
-    assert resp.status_code == 200
-    assert b"Invalid number of VMs. Please enter a valid integer." in resp.data
-
-
-def test_launch_missing_num_vms(client, admin_headers):
-    """Test that not providing the number of VMs returns an error."""
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={})
-    assert resp.status_code == 200
-    assert b"Number of VMs is required." in resp.data

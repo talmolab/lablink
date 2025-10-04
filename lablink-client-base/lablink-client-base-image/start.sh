@@ -19,6 +19,7 @@ if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
   sudo -u client git clone "$TUTORIAL_REPO_TO_CLONE"
   if [ $? -ne 0 ]; then
     echo "Failed to clone repository $TUTORIAL_REPO_TO_CLONE"
+    exit 1
   else
     echo "Successfully cloned repository $TUTORIAL_REPO_TO_CLONE"
   fi
