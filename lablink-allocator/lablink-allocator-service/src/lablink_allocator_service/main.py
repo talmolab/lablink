@@ -336,7 +336,7 @@ def launch():
             error="Invalid number of VMs. Please enter a valid integer.",
         )
 
-    terraform_dir = Path("../terraform")
+    terraform_dir = Path("../../terraform")
     runtime_file = terraform_dir / "terraform.runtime.tfvars"
 
     try:
@@ -426,7 +426,7 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
-    terraform_dir = Path("../terraform")
+    terraform_dir = Path("../../terraform")
     try:
         # Destroy Terraform resources
         apply_cmd = [
@@ -482,8 +482,8 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips = get_instance_ips(terraform_dir="../terraform")
-        key_path = get_ssh_private_key(terraform_dir="../terraform")
+        instance_ips = get_instance_ips(terraform_dir="../../terraform")
+        key_path = get_ssh_private_key(terraform_dir="../../terraform")
         empty_data = True
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -747,7 +747,7 @@ def main():
         init_database()
 
     # Terraform initialization
-    terraform_dir = Path("../terraform")
+    terraform_dir = Path("../../terraform")
     if not (terraform_dir / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
         if ENVIRONMENT not in ["prod", "test"]:
