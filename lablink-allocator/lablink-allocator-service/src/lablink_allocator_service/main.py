@@ -747,7 +747,7 @@ def main():
         init_database()
 
     # Terraform initialization
-    terraform_dir = Path("terraform")
+    terraform_dir = Path("../terraform")
     if not (terraform_dir / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
         if ENVIRONMENT not in ["prod", "test"]:
