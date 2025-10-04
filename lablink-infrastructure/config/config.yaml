@@ -37,11 +37,12 @@ app:
 
 dns:
   enabled: true  # true = create DNS records, false = IP-only access
-  domain: "sleap.ai"  # Your domain
-  app_name: "lablink"  # App name for subdomain
-  pattern: "auto"  # "auto" generates: prod.lablink.sleap.ai, test.lablink.sleap.ai
-  custom_subdomain: ""  # Only used if pattern="custom"
-  create_zone: false  # false = lookup existing Route53 zone, true = create new zone
+  domain: "lablink.sleap.ai"  # Your Route53 hosted zone domain
+  zone_id: "Z010760118DSWF5IYKMOM"  # (Optional) Hardcode zone ID to skip lookup
+  app_name: ""  # Not used with custom pattern
+  pattern: "custom"  # "auto" = {env}.{app_name}.{domain}, "custom" = {custom_subdomain}.{domain}
+  custom_subdomain: "test"  # Will create: test.lablink.sleap.ai
+  create_zone: false  # false = use existing zone, true = create new zone
 
 eip:
   strategy: "dynamic"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time

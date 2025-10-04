@@ -17,6 +17,7 @@ locals {
   # DNS configuration from config.yaml
   dns_enabled          = try(local.config_file.dns.enabled, false)
   dns_domain           = try(local.config_file.dns.domain, "")
+  dns_zone_id          = try(local.config_file.dns.zone_id, "")
   dns_app_name         = try(local.config_file.dns.app_name, "lablink")
   dns_pattern          = try(local.config_file.dns.pattern, "auto")
   dns_custom_subdomain = try(local.config_file.dns.custom_subdomain, "")
@@ -178,6 +179,9 @@ locals {
 }
 
 # DNS Zone Lookup (if using existing zone)
+# AWS Route53 zone lookup matches EXACT zone name only
+# If lablink.sleap.ai zone exists, it will ONLY match "lablink.sleap.ai."
+# If it doesn't exist, it will fail (not fall back to parent zone)
 data "aws_route53_zone" "existing" {
   count        = local.dns_enabled && !local.dns_create_zone ? 1 : 0
   name         = "${local.dns_domain}."
@@ -205,9 +209,11 @@ locals {
   # Full domain name
   fqdn = local.dns_enabled ? "${local.subdomain}.${local.dns_domain}" : "N/A"
 
-  # Zone ID from either lookup or creation
+  # Zone ID from either config, lookup, or creation (priority: config > create > lookup)
   zone_id = local.dns_enabled ? (
-    local.dns_create_zone ? aws_route53_zone.new[0].zone_id : data.aws_route53_zone.existing[0].zone_id
+    local.dns_zone_id != "" ? local.dns_zone_id : (
+      local.dns_create_zone ? aws_route53_zone.new[0].zone_id : data.aws_route53_zone.existing[0].zone_id
+    )
   ) : ""
 
   allocator_instance_type = "t3.large"
