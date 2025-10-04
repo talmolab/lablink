@@ -224,11 +224,11 @@ jobs:
           import logging
           logging.basicConfig(level=logging.ERROR)
           print(\"Importing allocator packages:\")
-          from lablink_allocator_service.main import main
+          from lablink_allocator.main import main
           print(\"  - main.main imported\")
-          from lablink_allocator_service.database import PostgresqlDatabase
+          from lablink_allocator.database import PostgresqlDatabase
           print(\"  - database.PostgresqlDatabase imported\")
-          from lablink_allocator_service.get_config import get_config
+          from lablink_allocator.get_config import get_config
           print(\"  - get_config.get_config imported\")
           print(\"Allocator imports verified\")
           "'
@@ -244,12 +244,18 @@ jobs:
           print(\"Dev dependencies verified\")
           "'
 
+      - name: Run allocator tests (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "Running allocator pytest tests..."
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests -v --tb=short'
+
       - name: Verify allocator entry points are importable
         run: |
           echo "Testing allocator console script entry points can be imported..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
-          from lablink_allocator_service.main import main as allocator_main
-          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
+          from lablink_allocator.main import main as allocator_main
+          from lablink_allocator.generate_init_sql import main as generate_sql_main
           assert callable(allocator_main), \"allocator main() is not callable\"
           assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
           print(\"✓ All entry points are importable and callable\")
@@ -299,11 +305,11 @@ jobs:
           echo "Testing client package imports..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
           print(\"Importing client packages:\")
-          from lablink_client_service.subscribe import main
+          from lablink_client.subscribe import main
           print(\"  - subscribe.main imported\")
-          from lablink_client_service.check_gpu import main as check_main
+          from lablink_client.check_gpu import main as check_main
           print(\"  - check_gpu.main imported\")
-          from lablink_client_service.update_inuse_status import main as update_main
+          from lablink_client.update_inuse_status import main as update_main
           print(\"  - update_inuse_status.main imported\")
           print(\"Client imports verified\")
           "'
@@ -324,13 +330,19 @@ jobs:
           print(\"Dev dependencies verified\")
           "'
 
+      - name: Run client tests (dev images only)
+        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        run: |
+          echo "Running client pytest tests..."
+          docker run --rm --user client ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client && source /home/client/.venv/bin/activate && pytest tests -v --tb=short'
+
       - name: Verify client entry points are importable
         run: |
           echo "Testing client console script entry points can be imported..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
-          from lablink_client_service.check_gpu import main as check_gpu_main
-          from lablink_client_service.subscribe import main as subscribe_main
-          from lablink_client_service.update_inuse_status import main as update_main
+          from lablink_client.check_gpu import main as check_gpu_main
+          from lablink_client.subscribe import main as subscribe_main
+          from lablink_client.update_inuse_status import main as update_main
           assert callable(check_gpu_main), \"check_gpu main() is not callable\"
           assert callable(subscribe_main), \"subscribe main() is not callable\"
           assert callable(update_main), \"update_inuse_status main() is not callable\"
