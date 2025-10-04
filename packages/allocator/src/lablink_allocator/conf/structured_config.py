@@ -101,6 +101,37 @@ class DNSConfig:
 
 
 @dataclass
+class EIPConfig:
+    """Configuration for Elastic IP management strategy.
+
+    Attributes:
+        strategy (str): EIP allocation strategy. Options:
+            - "persistent": Reuse existing tagged EIP across deployments
+            - "dynamic": Create new EIP for each deployment
+        tag_name (str): Name tag value to identify reusable EIPs
+    """
+
+    strategy: str = field(default="dynamic")
+    tag_name: str = field(default="lablink-eip")
+
+
+@dataclass
+class SSLConfig:
+    """Configuration for SSL/TLS certificate management.
+
+    Attributes:
+        provider (str): SSL provider. Options:
+            - "letsencrypt": Automatic SSL via Caddy + Let's Encrypt
+            - "cloudflare": CloudFlare proxy handles SSL
+            - "none": HTTP only, no SSL
+        email (str): Email address for Let's Encrypt notifications
+    """
+
+    provider: str = field(default="letsencrypt")
+    email: str = field(default="")
+
+
+@dataclass
 class Config:
     """Configuration for the LabLink Allocator Service.
     This class aggregates the database, machine, and application configurations.
@@ -110,6 +141,8 @@ class Config:
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.
         dns (DNSConfig): The DNS configuration.
+        eip (EIPConfig): The EIP management configuration.
+        ssl (SSLConfig): The SSL certificate configuration.
         bucket_name (str): The S3 bucket name for Terraform state.
     """
 
@@ -117,6 +150,8 @@ class Config:
     machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)
     dns: DNSConfig = field(default_factory=DNSConfig)
+    eip: EIPConfig = field(default_factory=EIPConfig)
+    ssl: SSLConfig = field(default_factory=SSLConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
 
 
