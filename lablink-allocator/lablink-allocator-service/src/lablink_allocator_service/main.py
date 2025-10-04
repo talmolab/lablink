@@ -41,6 +41,9 @@ from lablink_allocator_service.utils.terraform_utils import (
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
+# Define the terraform directory relative to this file
+TERRAFORM_DIR = (Path(__file__).parent.parent.parent / "terraform").resolve()
+
 # Load the configuration
 cfg = get_config()
 
@@ -336,8 +339,7 @@ def launch():
             error="Invalid number of VMs. Please enter a valid integer.",
         )
 
-    terraform_dir = Path("../../terraform")
-    runtime_file = terraform_dir / "terraform.runtime.tfvars"
+    runtime_file = TERRAFORM_DIR / "terraform.runtime.tfvars"
 
     try:
         # Calculate the number of VMs to launch
@@ -399,7 +401,7 @@ def launch():
 
         # Run the Terraform apply command
         result = subprocess.run(
-            apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
+            apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
         )
 
         # Format the output to remove ANSI escape codes
@@ -426,7 +428,6 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
-    terraform_dir = Path("../../terraform")
     try:
         # Destroy Terraform resources
         apply_cmd = [
@@ -436,7 +437,7 @@ def destroy():
             "-var-file=terraform.runtime.tfvars",
         ]
         result = subprocess.run(
-            apply_cmd, cwd=terraform_dir, check=True, capture_output=True, text=True
+            apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
         )
 
         # Clear the database
@@ -482,8 +483,8 @@ def download_all_data():
         logger.warning("No VMs found in the database.")
         return jsonify({"error": "No VMs found in the database."}), 404
     try:
-        instance_ips = get_instance_ips(terraform_dir="../../terraform")
-        key_path = get_ssh_private_key(terraform_dir="../../terraform")
+        instance_ips = get_instance_ips(terraform_dir=TERRAFORM_DIR)
+        key_path = get_ssh_private_key(terraform_dir=TERRAFORM_DIR)
         empty_data = True
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -747,14 +748,13 @@ def main():
         init_database()
 
     # Terraform initialization
-    terraform_dir = Path("../../terraform")
-    if not (terraform_dir / "terraform.runtime.tfvars").exists():
+    if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
         if ENVIRONMENT not in ["prod", "test"]:
-            Path.unlink(terraform_dir / "backend.tf", missing_ok=True)
+            (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
             subprocess.run(
                 ["terraform", "init"],
-                cwd=terraform_dir,
+                cwd=TERRAFORM_DIR,
                 check=True,
             )
         else:
@@ -764,7 +764,7 @@ def main():
                     "init",
                     f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
                 ],
-                cwd=terraform_dir,
+                cwd=TERRAFORM_DIR,
                 check=True,
             )
 
