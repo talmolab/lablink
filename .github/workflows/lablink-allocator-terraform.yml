@@ -183,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lablink-key-${{ steps.setenv.outputs.env }}
-          path: artifact-output/lablink-key.pem
+          path: ${{ steps.setenv.outputs.workdir }}/artifact-output/lablink-key.pem
           retention-days: 1
 
       - name: Validate DNS Configuration
