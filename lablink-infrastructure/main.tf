@@ -15,8 +15,20 @@ locals {
   config_file = yamldecode(file("${path.module}/${var.config_path}"))
 
   # DNS configuration from config.yaml
-  dns_enabled = try(local.config_file.dns.enabled, false)
-  dns_domain  = try(local.config_file.dns.domain, "")
+  dns_enabled          = try(local.config_file.dns.enabled, false)
+  dns_domain           = try(local.config_file.dns.domain, "")
+  dns_app_name         = try(local.config_file.dns.app_name, "lablink")
+  dns_pattern          = try(local.config_file.dns.pattern, "auto")
+  dns_custom_subdomain = try(local.config_file.dns.custom_subdomain, "")
+  dns_create_zone      = try(local.config_file.dns.create_zone, false)
+
+  # EIP configuration from config.yaml
+  eip_strategy = try(local.config_file.eip.strategy, "dynamic")
+  eip_tag_name = try(local.config_file.eip.tag_name, "lablink-eip")
+
+  # SSL configuration from config.yaml
+  ssl_provider = try(local.config_file.ssl.provider, "letsencrypt")
+  ssl_email    = try(local.config_file.ssl.email, "")
 
   # Bucket name from config.yaml for S3 backend
   bucket_name = try(local.config_file.bucket_name, "tf-state-lablink-allocator-bucket")
@@ -125,11 +137,11 @@ resource "aws_instance" "lablink_allocator_server" {
   user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG  = var.allocator_image_tag
     RESOURCE_SUFFIX      = var.resource_suffix
-    ALLOCATOR_PUBLIC_IP  = aws_eip.lablink_allocator_eip.public_ip
+    ALLOCATOR_PUBLIC_IP  = local.eip_public_ip
     ALLOCATOR_KEY_NAME   = aws_key_pair.lablink_key_pair.key_name
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
     CONFIG_CONTENT       = file("${path.module}/${var.config_path}")
-    DOMAIN_NAME          = var.resource_suffix == "prod" ? "lablink.sleap.ai" : "${var.resource_suffix}.lablink.sleap.ai"
+    DOMAIN_NAME          = local.fqdn
   })
 
   tags = {
@@ -138,50 +150,83 @@ resource "aws_instance" "lablink_allocator_server" {
   }
 }
 
-resource "aws_eip" "lablink_allocator_eip" {
-  domain = "vpc"
+# EIP Lookup (for persistent strategy - reuse existing tagged EIP)
+data "aws_eip" "existing" {
+  count = local.eip_strategy == "persistent" ? 1 : 0
+
   tags = {
-    Name = "lablink-eip-${var.resource_suffix}"
+    Name        = "${local.eip_tag_name}-${var.resource_suffix}"
+    Environment = var.resource_suffix
   }
 }
 
-# Route 53 Hosted Zone - create if DNS is enabled and domain is configured
-resource "aws_route53_zone" "lablink_main" {
-  count = local.dns_enabled && local.dns_domain != "" ? 1 : 0
+# EIP Creation (for dynamic strategy - create new EIP each deployment)
+resource "aws_eip" "new" {
+  count  = local.eip_strategy == "dynamic" ? 1 : 0
+  domain = "vpc"
+
+  tags = {
+    Name        = "lablink-eip-${var.resource_suffix}"
+    Environment = var.resource_suffix
+  }
+}
+
+# Determine which EIP to use based on strategy
+locals {
+  eip_allocation_id = local.eip_strategy == "persistent" ? data.aws_eip.existing[0].id : aws_eip.new[0].id
+  eip_public_ip     = local.eip_strategy == "persistent" ? data.aws_eip.existing[0].public_ip : aws_eip.new[0].public_ip
+}
+
+# DNS Zone Lookup (if using existing zone)
+data "aws_route53_zone" "existing" {
+  count        = local.dns_enabled && !local.dns_create_zone ? 1 : 0
+  name         = "${local.dns_domain}."
+  private_zone = false
+}
+
+# DNS Zone Creation (if creating new zone)
+resource "aws_route53_zone" "new" {
+  count = local.dns_enabled && local.dns_create_zone ? 1 : 0
   name  = local.dns_domain
 
-  lifecycle {
-    # Prevent accidental deletion of zone
-    prevent_destroy = false
+  tags = {
+    Name        = "lablink-zone-${var.resource_suffix}"
+    Environment = var.resource_suffix
   }
 }
 
 # Generate FQDN based on environment and DNS settings from config.yaml
-# Pattern: prod -> lablink.{domain}, non-prod -> {env}.lablink.{domain}
 locals {
-  zone_id = local.dns_enabled && local.dns_domain != "" ? aws_route53_zone.lablink_main[0].zone_id : ""
+  # Subdomain pattern: auto generates prod.lablink or test.lablink, custom uses custom_subdomain
+  subdomain = local.dns_pattern == "custom" ? local.dns_custom_subdomain : (
+    var.resource_suffix == "prod" ? local.dns_app_name : "${var.resource_suffix}.${local.dns_app_name}"
+  )
 
-  fqdn = local.dns_enabled && local.dns_domain != "" ? (
-    var.resource_suffix == "prod" ? "lablink.${local.dns_domain}" : "${var.resource_suffix}.lablink.${local.dns_domain}"
-  ) : "N/A"
+  # Full domain name
+  fqdn = local.dns_enabled ? "${local.subdomain}.${local.dns_domain}" : "N/A"
+
+  # Zone ID from either lookup or creation
+  zone_id = local.dns_enabled ? (
+    local.dns_create_zone ? aws_route53_zone.new[0].zone_id : data.aws_route53_zone.existing[0].zone_id
+  ) : ""
 
   allocator_instance_type = "t3.large"
 }
 
-# Record for the allocator
+# DNS A Record for the allocator
 resource "aws_route53_record" "lablink_a_record" {
-  count   = local.dns_enabled && local.dns_domain != "" ? 1 : 0
+  count   = local.dns_enabled ? 1 : 0
   zone_id = local.zone_id
   name    = local.fqdn
   type    = "A"
   ttl     = 300
-  records = [aws_eip.lablink_allocator_eip.public_ip]
+  records = [local.eip_public_ip]
 }
 
 # Associate Elastic IP with EC2 instance
 resource "aws_eip_association" "lablink_allocator_ip_assoc" {
   instance_id   = aws_instance.lablink_allocator_server.id
-  allocation_id = aws_eip.lablink_allocator_eip.id
+  allocation_id = local.eip_allocation_id
 }
 
 # CloudWatch Log Groups for Client VMs
@@ -284,7 +329,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
 
 # Output the EC2 public IP
 output "ec2_public_ip" {
-  value = aws_eip.lablink_allocator_eip.public_ip
+  value = local.eip_public_ip
 }
 
 # Output the EC2 key name
