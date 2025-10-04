@@ -1,0 +1,54 @@
+[build-system]
+requires = ["uv_build>=0.8.11,<0.9.0"]
+build-backend = "uv_build"
+
+[project]
+authors = [
+  {name = "Elizabeth Berrigan", email = "eberrigan@salk.edu"},
+  {name = "Talmo Pereira", email = "talmo@salk.edu"},
+  {name = "Andrew Park", email = "hep003@ucsd.edu"},
+]
+dependencies = [
+  "psycopg2-binary>=2.9",
+  "requests>=2.31.0",
+  "hydra-core>=1.3",
+  "omegaconf>=2.3",
+  "psutil",
+  "watchtower>=3.0.0",
+  "boto3",
+]
+description = "Lablink Client Service that will be installed in the lablink-client-base-image"
+keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
+name = "lablink-client"
+readme = "README.md"
+requires-python = ">=3.9"
+version = "0.0.8a0"
+
+[project.optional-dependencies]
+dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink"
+Issues = "https://github.com/talmolab/lablink/issues"
+
+[project.scripts]
+check_gpu = "lablink_client.check_gpu:main"
+subscribe = "lablink_client.subscribe:main"
+update_inuse_status = "lablink_client.update_inuse_status:main"
+
+[tool.setuptools.package-data]
+lablink_client = ["conf/*.yaml"]
+
+[tool.ruff.lint]
+ignore = [
+  "E721", # Use isinstance() for type comparisons
+  "E731", # Do not assign a lambda expression
+  "E741", # Ambiguous variable name
+  "F405", # May be undefined, or defined from star imports
+]
+select = ["E", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+"tests/*" = ["F403", "F405"]
+"tests/test_imports.py" = ["F401"]

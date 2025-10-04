@@ -5,13 +5,13 @@ on:
     types: [published]
   push:
     tags:
-      - lablink-allocator-service_v*
-      - lablink-client-service_v*
+      - lablink-allocator_v*
+      - lablink-client_v*
   workflow_dispatch:
     inputs:
       package:
         type: choice
-        options: [lablink-allocator-service, lablink-client-service]
+        options: [lablink-allocator, lablink-client]
         required: true
         description: Which package to publish
       dry_run:
@@ -34,14 +34,14 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - package: lablink-allocator-service
-            dir: lablink-allocator/lablink-allocator-service
-            tag_prefix: lablink-allocator-service_v
-            path_filter: lablink-allocator/lablink-allocator-service
-          - package: lablink-client-service
-            dir: lablink-client-base/lablink-client-service
-            tag_prefix: lablink-client-service_v
-            path_filter: lablink-client-base/lablink-client-service
+          - package: lablink-allocator
+            dir: packages/allocator
+            tag_prefix: lablink-allocator_v
+            path_filter: packages/allocator
+          - package: lablink-client
+            dir: packages/client
+            tag_prefix: lablink-client_v
+            path_filter: packages/client
 
     steps:
       # Check if this matrix job should run
