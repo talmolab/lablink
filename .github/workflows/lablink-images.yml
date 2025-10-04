@@ -22,16 +22,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "lablink-allocator/**"
-      - "lablink-client-base/lablink-client-base-image/**"
+      - "packages/**"
       - ".github/workflows/lablink-images.yml"
   push:
     branches:
       - main
       - test
     paths:
-      - "lablink-allocator/**"
-      - "lablink-client-base/lablink-client-base-image/**"
+      - "packages/**"
       - ".github/workflows/lablink-images.yml"
 
 jobs:
@@ -41,11 +39,11 @@ jobs:
       matrix:
         include:
           - image-name: lablink-allocator-image
-            dockerfile-path: ./lablink-allocator/Dockerfile
-            context: .
+            dockerfile-path: ./packages/allocator/Dockerfile
+            context: ./packages/allocator
           - image-name: lablink-client-base-image
-            dockerfile-path: ./lablink-client-base/lablink-client-base-image/Dockerfile
-            context: ./lablink-client-base
+            dockerfile-path: ./packages/client/Dockerfile
+            context: ./packages/client
     outputs:
       git_sha: ${{ steps.get_sha.outputs.sha }}
       sanitized_platform: ${{ steps.sanitize_platform.outputs.sanitized_platform }}

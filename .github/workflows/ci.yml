@@ -4,8 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "lablink-client-base/lablink-client-service/**"
-      - "lablink-allocator/lablink-allocator-service/**"
+      - "packages/**"
       - ".github/workflows/ci.yml"
 
 permissions:
@@ -19,13 +18,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - package: lablink-client-service
+          - package: lablink-client
             python-version: "3.10"
-            working-directory: lablink-client-base/lablink-client-service
+            working-directory: packages/client
             ruff-command: "uv run ruff check src tests"
-          - package: lablink-allocator-service
+          - package: lablink-allocator
             python-version: "3.10"
-            working-directory: lablink-allocator/lablink-allocator-service
+            working-directory: packages/allocator
             ruff-command: "uv run ruff check src tests"
     steps:
       - name: Checkout code
@@ -50,13 +49,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - package: lablink-client-service
+          - package: lablink-client
             python-version: "3.10"
-            working-directory: lablink-client-base/lablink-client-service
-            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
-          - package: lablink-allocator-service
+            working-directory: packages/client
+            test-command: "uv run pytest tests --cov=src/lablink_client --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+          - package: lablink-allocator
             python-version: "3.10"
-            working-directory: lablink-allocator/lablink-allocator-service
+            working-directory: packages/allocator
             test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term"
 
     steps:

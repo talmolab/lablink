@@ -11,9 +11,23 @@ on:
         description: "Environment to deploy (dev, test, prod)"
         required: true
         default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
       image_tag:
         description: "Docker image tag to deploy (only for prod)"
         required: false
+        type: string
+      working_directory:
+        description: "Infrastructure directory (lablink-allocator or lablink-infrastructure)"
+        required: false
+        default: "lablink-infrastructure"
+        type: choice
+        options:
+          - lablink-allocator
+          - lablink-infrastructure
 
   repository_dispatch:
     types: [deploy-prod-image]
@@ -41,7 +55,7 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Determine Environment
+      - name: Determine Environment and Directory
         id: setenv
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -54,10 +68,13 @@ jobs:
                 exit 1
                 ;;
             esac
+            echo "workdir=${{ github.event.inputs.working_directory }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
+            echo "workdir=lablink-allocator" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
             echo "env=test" >> "$GITHUB_OUTPUT"
+            echo "workdir=lablink-allocator" >> "$GITHUB_OUTPUT"
           else
             echo "Unsupported branch or manual input"
             exit 1
@@ -66,9 +83,10 @@ jobs:
       - name: Debug Environment
         run: |
           echo "Using environment: ${{ steps.setenv.outputs.env }}"
+          echo "Working directory: ${{ steps.setenv.outputs.workdir }}"
 
       - name: Terraform Init
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
             terraform init
@@ -77,11 +95,11 @@ jobs:
           fi
 
       - name: Terraform Format
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: terraform fmt -check
 
       - name: Terraform Validate
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: terraform validate
 
       - name: Determine Image Tag
@@ -117,7 +135,7 @@ jobs:
           echo "Using image tag: ${{ steps.getimagetag.outputs.tag }}"
 
       - name: Terraform Plan
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform plan \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
@@ -125,7 +143,7 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform apply -auto-approve \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
@@ -135,7 +153,7 @@ jobs:
 
       - name: Save PEM Key to Artifact
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform output -raw private_key_pem > lablink-key.pem
           chmod 600 lablink-key.pem
@@ -152,24 +170,33 @@ jobs:
 
       - name: Validate DNS Configuration
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator/lablink-allocator-service
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
+          # Find config.yaml in either old or new structure
+          if [ -f "lablink-allocator-service/conf/config.yaml" ]; then
+            CONFIG_FILE="lablink-allocator-service/conf/config.yaml"
+          elif [ -f "config/example.config.yaml" ]; then
+            CONFIG_FILE="config/example.config.yaml"
+          else
+            echo "⚠️  Warning: No config.yaml found, skipping DNS validation"
+            exit 0
+          fi
           echo "🔍 Validating DNS configuration..."
 
           # Check if config.yaml has valid DNS structure
-          if ! grep -q "^dns:" conf/config.yaml; then
+          if ! grep -q "^dns:" "$CONFIG_FILE"; then
             echo "⚠️  Warning: DNS configuration not found in config.yaml"
             exit 0
           fi
 
           # Extract DNS settings
-          DNS_ENABLED=$(grep -A 10 "^dns:" conf/config.yaml | grep "enabled:" | awk '{print $2}')
+          DNS_ENABLED=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "enabled:" | awk '{print $2}')
 
           if [ "$DNS_ENABLED" = "true" ]; then
             echo "✅ DNS is enabled in configuration"
 
-            DNS_DOMAIN=$(grep -A 10 "^dns:" conf/config.yaml | grep "domain:" | awk '{print $2}' | tr -d '"')
-            DNS_PATTERN=$(grep -A 10 "^dns:" conf/config.yaml | grep "pattern:" | awk '{print $2}' | tr -d '"')
+            DNS_DOMAIN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "domain:" | awk '{print $2}' | tr -d '"')
+            DNS_PATTERN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "pattern:" | awk '{print $2}' | tr -d '"')
 
             echo "   Domain: $DNS_DOMAIN"
             echo "   Pattern: $DNS_PATTERN"
@@ -185,7 +212,7 @@ jobs:
 
       - name: Verify DNS Resolution
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           echo "🌐 Verifying DNS resolution..."
 
@@ -222,7 +249,7 @@ jobs:
 
       - name: Deployment Summary
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           echo "✅ Deployment succeeded!"
           echo "Environment: ${{ steps.setenv.outputs.env }}"
@@ -240,6 +267,6 @@ jobs:
           terraform output -raw ec2_public_ip
 
       - name: Terraform Destroy on Failure
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"
