@@ -4,15 +4,22 @@ variable "resource_suffix" {
   default     = "prod"
 }
 
-variable "dns_name" {
-  description = "DNS Name for Route 53"
-  type        = string
-}
-
 variable "config_path" {
   description = "Path to the allocator config file"
   type        = string
-  default     = "conf/config.yaml"
+  default     = "config/config.yaml"
+}
+
+# Read configuration from YAML file
+locals {
+  config_file = yamldecode(file("${path.module}/${var.config_path}"))
+
+  # DNS configuration from config.yaml
+  dns_enabled = try(local.config_file.dns.enabled, false)
+  dns_domain  = try(local.config_file.dns.domain, "")
+
+  # Bucket name from config.yaml for S3 backend
+  bucket_name = try(local.config_file.bucket_name, "tf-state-lablink-allocator-bucket")
 }
 
 provider "aws" {
@@ -26,7 +33,7 @@ data "aws_iam_policy_document" "s3_backend_doc" {
   statement {
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::tf-state-lablink-allocator-bucket"]
+    resources = ["arn:aws:s3:::${local.bucket_name}"]
 
     condition {
       test     = "StringLike"
@@ -40,7 +47,7 @@ data "aws_iam_policy_document" "s3_backend_doc" {
     effect  = "Allow"
     actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = [
-      "arn:aws:s3:::tf-state-lablink-allocator-bucket/${var.resource_suffix}/*"
+      "arn:aws:s3:::${local.bucket_name}/${var.resource_suffix}/*"
     ]
   }
 }
@@ -130,10 +137,10 @@ resource "aws_eip" "lablink_allocator_eip" {
   }
 }
 
-# Route 53 Hosted Zone - create if it doesn't exist
+# Route 53 Hosted Zone - create if DNS is enabled and domain is configured
 resource "aws_route53_zone" "lablink_main" {
-  count = var.dns_name != "" ? 1 : 0
-  name  = var.dns_name
+  count = local.dns_enabled && local.dns_domain != "" ? 1 : 0
+  name  = local.dns_domain
 
   lifecycle {
     # Prevent accidental deletion of zone
@@ -141,22 +148,21 @@ resource "aws_route53_zone" "lablink_main" {
   }
 }
 
+# Generate FQDN based on environment and DNS settings from config.yaml
+# Pattern: prod -> lablink.{domain}, non-prod -> {env}.lablink.{domain}
 locals {
-  zone_id = var.dns_name != "" ? aws_route53_zone.lablink_main[0].zone_id : ""
-}
+  zone_id = local.dns_enabled && local.dns_domain != "" ? aws_route53_zone.lablink_main[0].zone_id : ""
 
-# Generate FQDN based on environment and DNS name
-# Pattern: prod -> lablink.{dns_name}, non-prod -> {env}.lablink.{dns_name}
-locals {
-  fqdn = var.dns_name != "" ? (
-    var.resource_suffix == "prod" ? "lablink.${var.dns_name}" : "${var.resource_suffix}.lablink.${var.dns_name}"
+  fqdn = local.dns_enabled && local.dns_domain != "" ? (
+    var.resource_suffix == "prod" ? "lablink.${local.dns_domain}" : "${var.resource_suffix}.lablink.${local.dns_domain}"
   ) : "N/A"
+
   allocator_instance_type = "t3.large"
 }
 
 # Record for the allocator
 resource "aws_route53_record" "lablink_a_record" {
-  count   = var.dns_name != "" ? 1 : 0
+  count   = local.dns_enabled && local.dns_domain != "" ? 1 : 0
   zone_id = local.zone_id
   name    = local.fqdn
   type    = "A"
