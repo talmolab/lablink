@@ -238,32 +238,117 @@ jobs:
           PUBLIC_IP=$(terraform output -raw ec2_public_ip)
 
           if [ -z "$FQDN" ] || [ "$FQDN" = "N/A" ]; then
-            echo "No DNS configured (using IP address only)"
+            echo "✓ No DNS configured (using IP address only)"
             exit 0
           fi
 
           echo "Testing DNS resolution for: $FQDN"
           echo "Expected IP: $PUBLIC_IP"
 
-          # Wait for DNS propagation (max 60 seconds)
-          for i in {1..12}; do
+          # Wait for DNS propagation (max 5 minutes)
+          MAX_ATTEMPTS=30
+          for i in $(seq 1 $MAX_ATTEMPTS); do
             RESOLVED_IP=$(nslookup "$FQDN" 8.8.8.8 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
 
             if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
-              echo "DNS resolution successful!"
+              echo "✓ DNS resolution successful!"
               echo "   $FQDN -> $RESOLVED_IP"
               exit 0
             fi
 
-            if [ $i -lt 12 ]; then
-              echo "Waiting for DNS propagation (attempt $i/12)..."
-              sleep 5
+            if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo "⏳ Waiting for DNS propagation (attempt $i/$MAX_ATTEMPTS)..."
+              sleep 10
             fi
           done
 
-          echo "Warning: DNS resolution failed or propagation delayed"
+          echo "⚠ Warning: DNS resolution delayed"
           echo "   This may be normal for newly created DNS records"
           echo "   Manual verification recommended: nslookup $FQDN"
+
+      - name: Verify Service Health
+        if: steps.apply.outcome == 'success'
+        working-directory: ${{ steps.setenv.outputs.workdir }}
+        run: |
+          echo "Verifying allocator service health..."
+
+          FQDN=$(terraform output -raw allocator_fqdn 2>/dev/null || echo "")
+          PUBLIC_IP=$(terraform output -raw ec2_public_ip)
+
+          # Read SSL config from config.yaml
+          if [ -f "config/config.yaml" ]; then
+            SSL_PROVIDER=$(grep -A5 "^ssl:" config/config.yaml | grep "provider:" | awk '{print $2}' | tr -d '"' || echo "letsencrypt")
+          else
+            SSL_PROVIDER="letsencrypt"
+          fi
+
+          # Wait for container to start (60 seconds)
+          echo "⏳ Waiting for allocator container to start..."
+          sleep 60
+
+          # Determine which URL to test
+          if [ -n "$FQDN" ] && [ "$FQDN" != "N/A" ]; then
+            TEST_URL="http://$FQDN"
+            echo "Testing via domain: $TEST_URL"
+          else
+            TEST_URL="http://$PUBLIC_IP:5000"
+            echo "Testing via IP: $TEST_URL"
+          fi
+
+          # Test HTTP (max 2 minutes)
+          echo "Testing HTTP connectivity..."
+          MAX_ATTEMPTS=12
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$TEST_URL" 2>/dev/null || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "308" ] || [ "$HTTP_CODE" = "301" ]; then
+              echo "✓ HTTP responding (status $HTTP_CODE)"
+              break
+            fi
+
+            if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo "⏳ Waiting for allocator to respond (attempt $i/$MAX_ATTEMPTS, status: $HTTP_CODE)..."
+              sleep 10
+            else
+              echo "⚠ Warning: Allocator not responding via HTTP"
+              exit 0  # Don't fail the deployment
+            fi
+          done
+
+          # Test HTTPS if Let's Encrypt is enabled
+          if [ "$SSL_PROVIDER" = "letsencrypt" ] && [ -n "$FQDN" ] && [ "$FQDN" != "N/A" ]; then
+            echo ""
+            echo "Testing HTTPS (Let's Encrypt)..."
+            echo "⏳ Waiting for SSL certificate acquisition..."
+
+            # Wait for Let's Encrypt (max 3 minutes)
+            MAX_ATTEMPTS=18
+            for i in $(seq 1 $MAX_ATTEMPTS); do
+              HTTPS_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$FQDN" 2>/dev/null || echo "000")
+
+              if [ "$HTTPS_CODE" = "200" ] || [ "$HTTPS_CODE" = "302" ]; then
+                echo "✓ HTTPS responding (status $HTTPS_CODE)"
+                echo "✓ SSL certificate obtained successfully"
+                break
+              fi
+
+              if [ $i -lt $MAX_ATTEMPTS ]; then
+                echo "⏳ Waiting for SSL certificate (attempt $i/$MAX_ATTEMPTS, status: $HTTPS_CODE)..."
+                sleep 10
+              else
+                echo "⚠ Warning: SSL certificate not yet available"
+                echo "   Caddy may still be acquiring the certificate"
+                echo "   Check logs: ssh ubuntu@$PUBLIC_IP sudo journalctl -u caddy"
+              fi
+            done
+          elif [ "$SSL_PROVIDER" = "cloudflare" ]; then
+            echo "ℹ CloudFlare SSL enabled - skipping Let's Encrypt checks"
+          elif [ "$SSL_PROVIDER" = "none" ]; then
+            echo "ℹ SSL disabled - skipping HTTPS checks"
+          fi
+
+          echo ""
+          echo "✓ Service health verification complete"
 
       - name: Deployment Summary
         if: steps.apply.outcome == 'success'
