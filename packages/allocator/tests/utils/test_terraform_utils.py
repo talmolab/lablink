@@ -23,7 +23,8 @@ def test_get_instance_ips_success(mock_run):
     mock_run.assert_called_once()
     args, kwargs = mock_run.call_args
     assert args == (["terraform", "output", "-json", "vm_public_ips"],)
-    assert str(kwargs["cwd"]).endswith("/fake/terraform/dir")
+    # Check path ends with directory name (works on Windows and Unix)
+    assert str(kwargs["cwd"]).replace("\\", "/").endswith("/fake/terraform/dir")
     assert kwargs["capture_output"] is True
     assert kwargs["text"] is True
     assert kwargs["check"] is True
