@@ -18,31 +18,59 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 # opencv requires opengl https://github.com/conda-forge/opencv-feedstock/issues/401
 # Default python3 is 3.8 in ubuntu 20.04 https://wiki.ubuntu.com/FocalFossa/ReleaseNotes#Python3_by_default
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build tools / base
-    build-essential gcc-10-base libgcc-s1 curl wget git sudo gnupg2 psmisc \
-    # GL/OpenGL
-    libgl1-mesa-glx libglapi-mesa libegl-mesa0 libegl1 libopengl0 libgl1 \
-    # Fonts
-    fonts-dejavu fontconfig libfontconfig1 libfreetype6 fonts-liberation \
-    # DBus / Kerberos
-    dbus-x11 libdbus-1-3 libgssapi-krb5-2 \
-    # X11 / input
-    libx11-xcb1 libxrender1 libxrandr2 libxfixes3 libxi6 libxtst6 \
-    libxcomposite1 libxdamage1 xserver-xorg-video-dummy xvfb \
-    # xcb + Qt platform deps (Qt 6.5+ needs xcb-cursor)
-    libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
-    libxcb-keysyms1 libxcb-render-util0 \
-    # Vulkan (optional for Chrome)
-    libvulkan1 \
-    # Desktop (XFCE)
-    xfce4 xfce4-goodies xfce4-terminal elementary-xfce-icon-theme \
+    build-essential \
+    libgl1-mesa-glx \
+    libglapi-mesa \
+    libegl-mesa0 \
+    libegl1 \
+    libopengl0 \
+    libglib2.0-0 \
+    libfontconfig1 \
+    libgssapi-krb5-2 \
+    libdbus-1-3 \
+    libx11-xcb1 \
+    libxkbcommon-x11-0 \
+    curl \
+    # Base packages for compatibility with GCC-10 and other software
+    gcc-10-base \
+    libgcc-s1 \
+    # XFCE4 desktop environment for lightweight graphical interface
+    xfce4 \
     desktop-base \
-    # Session helpers
-    xscreensaver libutempter0 \
-    # Utils
+    xfce4-terminal \
+    xfce4-goodies \
+    elementary-xfce-icon-theme \
+    fonts-dejavu \
+    fontconfig \
+    # Required for session and screen management
+    dbus-x11 \
+    xscreensaver \
+    xbase-clients \
+    xvfb \
+    # Provides process management utilities
+    psmisc \
+    # Dummy X server for headless environments
+    xserver-xorg-video-dummy \
+    # Supports session management and terminal multiplexers
+    libutempter0 \  
+    # Enables secure communication and package verification
+    gnupg2 \
+    # For Chrome Browser
+    fonts-liberation \
+    libasound2 \
+    wget \
     xdg-utils \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    libvulkan1 \
+    # Allows running commands as root
+    sudo \
+    # For cloning repositories and managing git
+    libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+    libxcb-keysyms1 libxcb-render-util0 libxrender1 libxrandr2 \
+    libxfixes3 libxi6 libxtst6 libxcomposite1 libxdamage1 \
+    libdbus-1-3 libfontconfig1 libfreetype6 libgl1 \
+    git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
 # Install Chrome Remote Desktop
