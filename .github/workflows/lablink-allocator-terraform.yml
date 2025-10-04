@@ -92,29 +92,25 @@ jobs:
       - name: Terraform Init
         working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
-            terraform init
+          # Extract bucket name from config.yaml for S3 backend
+          if [ -f "config/config.yaml" ]; then
+            BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
+          elif [ -f "lablink-allocator-service/conf/config.yaml" ]; then
+            BUCKET_NAME=$(grep "^bucket_name:" lablink-allocator-service/conf/config.yaml | awk '{print $2}' | tr -d '"')
           else
-            # Extract bucket name from config.yaml for S3 backend
-            if [ -f "config/config.yaml" ]; then
-              BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
-            elif [ -f "lablink-allocator-service/conf/config.yaml" ]; then
-              BUCKET_NAME=$(grep "^bucket_name:" lablink-allocator-service/conf/config.yaml | awk '{print $2}' | tr -d '"')
-            else
-              echo "Error: config.yaml not found"
-              exit 1
-            fi
-
-            if [ -z "$BUCKET_NAME" ]; then
-              echo "Error: bucket_name not found in config.yaml"
-              exit 1
-            fi
-
-            echo "Using S3 bucket: $BUCKET_NAME"
-            terraform init \
-              -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl \
-              -backend-config="bucket=$BUCKET_NAME"
+            echo "Error: config.yaml not found"
+            exit 1
           fi
+
+          if [ -z "$BUCKET_NAME" ]; then
+            echo "Error: bucket_name not found in config.yaml"
+            exit 1
+          fi
+
+          echo "Using S3 bucket: $BUCKET_NAME"
+          terraform init \
+            -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
 
       - name: Terraform Format
         working-directory: ${{ steps.setenv.outputs.workdir }}
