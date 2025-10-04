@@ -71,7 +71,12 @@ jobs:
             echo "workdir=${{ github.event.inputs.working_directory }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
-            echo "workdir=lablink-allocator" >> "$GITHUB_OUTPUT"
+            # Allow specifying working directory in payload, default to lablink-infrastructure
+            WORKDIR="${{ github.event.client_payload.working_directory }}"
+            if [ -z "$WORKDIR" ]; then
+              WORKDIR="lablink-infrastructure"
+            fi
+            echo "workdir=$WORKDIR" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
             echo "env=test" >> "$GITHUB_OUTPUT"
             echo "workdir=lablink-allocator" >> "$GITHUB_OUTPUT"
