@@ -10,8 +10,9 @@ def plan(fixture_dir):
     """
     Fixture to validate the Terraform plan using the provided fixtures.
     """
-    # Find the Terraform directory relative to this test file
-    base_dir = Path(__file__).parent.parent
+    # Find the Terraform directory in the package (not in tests)
+    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator"
+    base_dir = pkg_root / "terraform"
     var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
 
     # Initialize and create the plan

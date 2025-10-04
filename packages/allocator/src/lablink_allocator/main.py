@@ -760,7 +760,11 @@ def main():
         else:
             # Use bucket_name from config for client VM terraform state
             default_bucket = "tf-state-lablink-allocator-bucket"
-            bucket_name = cfg.bucket_name if hasattr(cfg, 'bucket_name') else default_bucket
+            bucket_name = (
+                cfg.bucket_name
+                if hasattr(cfg, "bucket_name")
+                else default_bucket
+            )
             logger.info(f"Initializing Terraform with S3 backend: {bucket_name}")
             subprocess.run(
                 [
