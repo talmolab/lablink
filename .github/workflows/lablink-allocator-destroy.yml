@@ -9,10 +9,13 @@ on:
         default: "no"
         type: string
       environment:
-        description: "Environment to destroy (dev, test, prod)"
+        description: "Environment to destroy (test or prod) - dev uses local state and should only be used locally"
         required: true
-        default: "dev"
-        type: string
+        default: "test"
+        type: choice
+        options:
+          - test
+          - prod
       allocator_image_tag:
         description: "Docker image tag used in deployment (required for prod)"
         required: false
@@ -56,12 +59,12 @@ jobs:
           fi
 
       - name: Terraform Init Client VMs
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
           terraform init -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl
 
       - name: Extract Variable File
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
           if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
             cp variables-dev.tfvars variables.tfvars
@@ -69,21 +72,25 @@ jobs:
             aws s3 cp s3://tf-state-lablink-allocator-bucket/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars
           fi
       - name: Terraform Destroy Client VMs
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
           terraform destroy -auto-approve -var-file=variables.tfvars
 
-      - name: Terraform Init
-        working-directory: lablink-allocator
+      - name: Terraform Init Infrastructure
+        working-directory: lablink-infrastructure
         run: |
           if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
             terraform init
           else
-            terraform init -backend-config=backend-${{ github.event.inputs.environment }}.hcl
+            # Extract bucket name from config.yaml for S3 backend
+            BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
+            terraform init \
+              -backend-config=backend-${{ github.event.inputs.environment }}.hcl \
+              -backend-config="bucket=$BUCKET_NAME"
           fi
 
-      - name: Terraform Destroy
-        working-directory: lablink-allocator
+      - name: Terraform Destroy Infrastructure
+        working-directory: lablink-infrastructure
         run: |
           terraform destroy -auto-approve \
             -var="resource_suffix=${{ github.event.inputs.environment }}" \
