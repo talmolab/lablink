@@ -36,7 +36,7 @@ app:
   region: "us-west-2"  # Your AWS region
 
 dns:
-  enabled: true  # Set to true if using Route53
+  enabled: false  # Set to true if using Route53 (disabled - using CloudFlare)
   domain: "sleap.ai"  # Your domain
   app_name: "lablink"
   pattern: "auto"  # auto, custom
