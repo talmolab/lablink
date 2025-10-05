@@ -6,7 +6,6 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
-import json
 
 from flask import (
     Flask,
