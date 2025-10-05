@@ -43,7 +43,7 @@ resource "aws_key_pair" "lablink_key_pair" {
 After deployment:
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 
 # Display private key
 terraform output -raw private_key_pem
@@ -98,7 +98,7 @@ Permissions 0644 for 'lablink-key.pem' are too open.
 #### From Terraform Output
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 terraform output ec2_public_ip
 ```
 
@@ -181,7 +181,7 @@ Inside container:
 
 ```bash
 # View configuration
-cat /app/lablink-allocator-service/conf/config.yaml
+cat /app/config/config.yaml
 
 # Check Flask app
 ps aux | grep flask

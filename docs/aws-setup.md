@@ -121,12 +121,12 @@ aws s3api put-public-access-block \
 
 Update bucket name in your LabLink configuration:
 
-**`lablink-allocator/lablink-allocator-service/conf/config.yaml`**:
+**`lablink-infrastructure/config/config.yaml`**:
 ```yaml
 bucket_name: "tf-state-lablink-allocator-bucket-1234567890"
 ```
 
-**`lablink-allocator/backend-test.hcl`** and **`backend-prod.hcl`**:
+**`lablink-infrastructure/backend-test.hcl`** and **`backend-prod.hcl`**:
 ```hcl
 bucket = "tf-state-lablink-allocator-bucket-1234567890"
 key    = "lablink-allocator-<env>/terraform.tfstate"
@@ -167,7 +167,7 @@ aws ec2 create-tags \
 
 ### Update Terraform Configuration
 
-**`lablink-allocator/main.tf`**:
+**`lablink-infrastructure/main.tf`**:
 ```hcl
 variable "allocated_eip" {
   description = "Pre-allocated Elastic IP for production/test"

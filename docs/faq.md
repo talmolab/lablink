@@ -46,7 +46,7 @@ You can run the allocator locally with Docker for testing, but creating client V
 Edit the allocator configuration:
 
 ```yaml
-# lablink-allocator/lablink-allocator-service/conf/config.yaml
+# lablink-infrastructure/config/config.yaml
 machine:
   machine_type: "g5.xlarge"  # Change to desired instance type
 ```
@@ -285,7 +285,7 @@ Yes. Deploy separate instances with different AWS credentials/roles for each acc
 
 ### Can I add my own API endpoints?
 
-Yes. Edit `lablink-allocator/lablink-allocator-service/main.py`:
+Yes. Edit the allocator service in `packages/allocator/src/lablink_allocator_service/main.py`:
 
 ```python
 @app.route('/my-custom-endpoint', methods=['POST'])

@@ -41,7 +41,7 @@
 
     ```bash
     docker build -t lablink-allocator \
-      -f lablink-allocator/Dockerfile .
+      -f lablink-infrastructure/Dockerfile .
     docker run -d -p 5000:5000 lablink-allocator
     ```
 
@@ -63,17 +63,17 @@
 === "Allocator"
 
     ```bash
-    cd lablink-allocator/lablink-allocator-service
+    cd packages/allocator
     uv sync
-    uv run python main.py
+    uv run lablink-allocator
     ```
 
 === "Client"
 
     ```bash
-    cd lablink-client-base/lablink-client-service
+    cd packages/client
     uv sync
-    uv run python lablink_client_service/subscribe.py
+    uv run subscribe
     ```
 
 ## Configuration

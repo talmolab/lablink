@@ -22,32 +22,37 @@ lablink/
 │   ├── *.md                    # Documentation pages
 │   ├── scripts/                # Doc generation scripts
 │   └── assets/                 # Images, diagrams
-├── lablink-allocator/          # Allocator service
+├── lablink-infrastructure/     # Allocator infrastructure
 │   ├── Dockerfile              # Allocator Docker image (production)
 │   ├── Dockerfile.dev          # Allocator Docker image (development)
 │   ├── main.tf                 # Terraform for allocator EC2
 │   ├── backend-*.hcl           # Terraform backends (dev/test/prod)
-│   └── lablink-allocator-service/
-│       ├── main.py             # Flask application
-│       ├── database.py         # Database operations
-│       ├── conf/
-│       │   ├── config.yaml     # Configuration
-│       │   └── structured_config.py  # Hydra config
-│       ├── terraform/          # Terraform for client VMs
-│       │   └── main.tf         # Client VM provisioning
-│       ├── tests/              # Unit tests
-│       └── utils/              # Utility modules
-├── lablink-client-base/        # Client service
-│   ├── lablink-client-base-image/
-│   │   ├── Dockerfile          # Client Docker image (production)
-│   │   └── Dockerfile.dev      # Client Docker image (development)
-│   └── lablink-client-service/
-│       ├── lablink_client_service/
+│   └── config/
+│       └── config.yaml         # Configuration
+├── packages/                   # Python packages
+│   ├── allocator/              # Allocator service package
+│   │   ├── src/lablink_allocator_service/
+│   │   │   ├── main.py         # Flask application
+│   │   │   ├── database.py     # Database operations
+│   │   │   ├── conf/
+│   │   │   │   └── structured_config.py  # Hydra config
+│   │   │   ├── terraform/      # Terraform for client VMs
+│   │   │   │   └── main.tf     # Client VM provisioning
+│   │   │   └── utils/          # Utility modules
+│   │   ├── tests/              # Unit tests
+│   │   └── pyproject.toml      # Package metadata
+│   └── client/                 # Client service package
+│       ├── src/lablink_client_service/
 │       │   ├── subscribe.py    # Allocator subscription
 │       │   ├── check_gpu.py    # GPU health checks
 │       │   ├── update_inuse_status.py  # Status updates
 │       │   └── conf/           # Configuration
-│       └── tests/              # Unit tests
+│       ├── tests/              # Unit tests
+│       └── pyproject.toml      # Package metadata
+├── lablink-client-base/        # Client Docker image
+│   └── lablink-client-base-image/
+│       ├── Dockerfile          # Client Docker image (production)
+│       └── Dockerfile.dev      # Client Docker image (development)
 ├── terraform/                  # Shared Terraform modules
 ├── mkdocs.yml                  # Documentation configuration
 ├── pyproject.toml              # Python dependencies (docs extra)
@@ -109,7 +114,7 @@ lablink/
 Configuration uses **Hydra** with structured configs.
 
 ### Allocator Configuration
-**Location**: `lablink-allocator/lablink-allocator-service/conf/config.yaml`
+**Location**: `lablink-infrastructure/config/config.yaml`
 
 **Key sections**:
 - `db`: PostgreSQL connection settings
@@ -118,7 +123,7 @@ Configuration uses **Hydra** with structured configs.
 - `bucket_name`: S3 bucket for Terraform state
 
 ### Client Configuration
-**Location**: `lablink-client-base/lablink-client-service/lablink_client_service/conf/config.yaml`
+**Location**: `packages/client/src/lablink_client_service/conf/config.yaml`
 
 **Key sections**:
 - `allocator`: Allocator host and port
@@ -139,25 +144,25 @@ Configuration uses **Hydra** with structured configs.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Allocator
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 uv sync --extra dev
-uv run python main.py
+uv run lablink-allocator
 
 # Client
-cd lablink-client-base/lablink-client-service
+cd packages/client
 uv sync --extra dev
-uv run python lablink_client_service/subscribe.py
+uv run subscribe
 ```
 
 ### Running Tests
 
 ```bash
 # Allocator tests
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 PYTHONPATH=. pytest
 
 # Client tests
-cd lablink-client-base/lablink-client-service
+cd packages/client
 PYTHONPATH=. pytest
 
 # With coverage
@@ -208,7 +213,7 @@ See [Image Tagging Strategy](https://talmolab.github.io/lablink/workflows/#image
 **Development Builds (Local Code)**:
 ```bash
 # Allocator (dev) - uses local code
-docker build -t lablink-allocator:dev -f lablink-allocator/Dockerfile.dev .
+docker build -t lablink-allocator:dev -f lablink-infrastructure/Dockerfile.dev .
 
 # Client (dev) - uses local code
 docker build -t lablink-client:dev \
@@ -221,7 +226,7 @@ docker build -t lablink-client:dev \
 # Allocator (prod) - installs from PyPI
 docker build -t lablink-allocator:0.0.2a0 \
   --build-arg PACKAGE_VERSION=0.0.2a0 \
-  -f lablink-allocator/Dockerfile .
+  -f lablink-infrastructure/Dockerfile .
 
 # Client (prod) - installs from PyPI
 docker build -t lablink-client:0.0.7a0 \
@@ -372,7 +377,7 @@ These are automatically installed when the package is installed and available in
 
 ### Add New API Endpoint
 
-1. Edit `lablink-allocator/lablink-allocator-service/main.py`
+1. Edit `packages/allocator/src/lablink_allocator_service/main.py`
 2. Add Flask route:
    ```python
    @app.route('/my-endpoint', methods=['POST'])
@@ -397,7 +402,7 @@ These are automatically installed when the package is installed and available in
 
 ### Modify VM Creation
 
-1. Edit `lablink-allocator/lablink-allocator-service/terraform/main.tf`
+1. Edit `packages/allocator/src/lablink_allocator_service/terraform/main.tf`
 2. Update Terraform resource definitions
 3. Test with `terraform plan`
 4. Update documentation
@@ -522,7 +527,7 @@ Always set: `chmod 600 ~/lablink-key.pem`
 3. Push to ghcr.io
 
 ### Infrastructure Deployment
-1. Manual: `terraform apply` in `lablink-allocator/`
+1. Manual: `terraform apply` in `lablink-infrastructure/`
 2. GitHub Actions: Workflow dispatch or push to `test` branch
 3. Environments determined by branch or manual selection
 
@@ -594,16 +599,16 @@ mkdocs serve
 ## Important Files
 
 ### Configuration
-- `lablink-allocator/lablink-allocator-service/conf/config.yaml`: Main allocator config
-- `lablink-client-base/lablink-client-service/lablink_client_service/conf/config.yaml`: Client config
+- `lablink-infrastructure/config/config.yaml`: Main allocator config
+- `packages/client/src/lablink_client_service/conf/config.yaml`: Client config
 
 ### Entry Points
-- `lablink-allocator/lablink-allocator-service/main.py`: Allocator Flask app
-- `lablink-client-base/lablink-client-service/lablink_client_service/subscribe.py`: Client subscription service
+- `packages/allocator/src/lablink_allocator_service/main.py`: Allocator Flask app
+- `packages/client/src/lablink_client_service/subscribe.py`: Client subscription service
 
 ### Infrastructure
-- `lablink-allocator/main.tf`: Allocator EC2 provisioning
-- `lablink-allocator/lablink-allocator-service/terraform/main.tf`: Client VM provisioning
+- `lablink-infrastructure/main.tf`: Allocator EC2 provisioning
+- `packages/allocator/src/lablink_allocator_service/terraform/main.tf`: Client VM provisioning
 
 ### CI/CD
 - `.github/workflows/`: All GitHub Actions workflows

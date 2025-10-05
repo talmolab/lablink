@@ -122,7 +122,7 @@ Deploy directly from your local machine using Terraform CLI.
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
-cd lablink/lablink-allocator
+cd lablink/lablink-infrastructure
 ```
 
 ### Step 2: Configure AWS Credentials

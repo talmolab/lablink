@@ -71,11 +71,11 @@ cd lablink
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Setup allocator service
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 uv sync --extra dev
 
 # Setup client service
-cd ../../lablink-client-base/lablink-client-service
+cd ../client
 uv sync --extra dev
 
 # Return to root
@@ -86,18 +86,18 @@ cd ../..
 
 ```bash
 # Run allocator tests
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 PYTHONPATH=. pytest
 
 # Run client tests
-cd ../../lablink-client-base/lablink-client-service
+cd ../client
 PYTHONPATH=. pytest
 
 # Run linting
 ruff check .
 
 # Build Docker images (development)
-docker build -t lablink-allocator:dev -f lablink-allocator/Dockerfile.dev .
+docker build -t lablink-allocator:dev -f lablink-infrastructure/Dockerfile.dev .
 docker build -t lablink-client:dev -f lablink-client-base/lablink-client-base-image/Dockerfile.dev lablink-client-base
 ```
 
@@ -558,7 +558,7 @@ Each package is versioned and released independently following [Semantic Version
 
 ```bash
 # Update version in pyproject.toml
-cd lablink-allocator/lablink-allocator-service  # or lablink-client-base/lablink-client-service
+cd packages/allocator  # or packages/client
 # Edit pyproject.toml: version = "0.3.0"
 
 # Commit the version bump
@@ -749,14 +749,14 @@ After publishing and building Docker images:
 **Version mismatch error:**
 ```bash
 # Ensure pyproject.toml version matches tag
-grep '^version = ' lablink-allocator/lablink-allocator-service/pyproject.toml
+grep '^version = ' packages/allocator/pyproject.toml
 # Should output: version = "0.3.0"
 ```
 
 **Tests failing:**
 ```bash
 # Run tests locally first
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 uv sync --extra dev
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 uv run pytest tests
@@ -765,7 +765,7 @@ uv run pytest tests
 **Build failing:**
 ```bash
 # Test build locally
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 uv build
 ls -lh dist/
 ```

@@ -75,7 +75,7 @@ Permission denied (publickey).
 2. **Verify correct key**:
    ```bash
    # Extract key from Terraform
-   cd lablink-allocator
+   cd lablink-infrastructure
    terraform output -raw private_key_pem > ~/lablink-key.pem
    chmod 600 ~/lablink-key.pem
    ```
@@ -203,7 +203,7 @@ sudo docker logs <container-id>
 
 3. **Verify configuration**:
    ```bash
-   sudo docker exec <container-id> cat /app/lablink-allocator-service/conf/config.yaml
+   sudo docker exec <container-id> cat /app/config/config.yaml
    ```
 
 ### PostgreSQL Issues
@@ -318,7 +318,7 @@ sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT 1;"
 2. **Test Terraform manually**:
    ```bash
    sudo docker exec -it <container-id> bash
-   cd /app/lablink-allocator-service/terraform
+   cd /app/.venv/lib/python*/site-packages/lablink_allocator/terraform
    terraform init
    terraform plan
    ```

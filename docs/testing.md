@@ -56,20 +56,20 @@ LabLink uses **pytest** for testing Python code. The testing strategy includes:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Navigate to service directory
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 
 # Install dependencies including test deps
 uv sync --extra dev
 
 # Or for client
-cd lablink-client-base/lablink-client-service
+cd ../client
 uv sync --extra dev
 ```
 
 #### Using pip
 
 ```bash
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 
 # Create virtual environment
 python3 -m venv venv
@@ -85,7 +85,7 @@ pip install -e ".[dev]"
 #### Allocator Service
 
 ```bash
-cd lablink-allocator/lablink-allocator-service
+cd packages/allocator
 
 # Run all tests
 PYTHONPATH=. pytest
@@ -103,7 +103,7 @@ PYTHONPATH=. pytest tests/test_api_calls.py::test_request_vm
 #### Client Service
 
 ```bash
-cd lablink-client-base/lablink-client-service
+cd packages/client
 
 # Run all tests
 PYTHONPATH=. pytest
@@ -142,7 +142,7 @@ ruff format .
 
 ### Allocator Service Tests
 
-Located in `lablink-allocator/lablink-allocator-service/tests/`:
+Located in `packages/allocator/tests/`:
 
 | Test File | Purpose |
 |-----------|---------|
@@ -156,7 +156,7 @@ Located in `lablink-allocator/lablink-allocator-service/tests/`:
 
 ### Client Service Tests
 
-Located in `lablink-client-base/lablink-client-service/tests/`:
+Located in `packages/client/tests/`:
 
 | Test File | Purpose |
 |-----------|---------|
@@ -168,7 +168,7 @@ Located in `lablink-client-base/lablink-client-service/tests/`:
 
 ### Terraform Tests
 
-Located in `lablink-allocator/lablink-allocator-service/terraform/tests/`:
+Located in `packages/allocator/src/lablink_allocator_service/terraform/tests/`:
 
 | Test File | Purpose |
 |-----------|---------|
@@ -193,7 +193,7 @@ LabLink has two key features that require integration testing:
 
 ```bash
 # Deploy allocator
-cd lablink-allocator
+cd lablink-infrastructure
 terraform apply -var="resource_suffix=test"
 
 # Get allocator IP
@@ -258,7 +258,7 @@ Test complete VM allocation workflow:
 
 ```bash
 # 1. Deploy allocator
-cd lablink-allocator
+cd lablink-infrastructure
 terraform apply -var="resource_suffix=e2e-test"
 ALLOCATOR_IP=$(terraform output -raw ec2_public_ip)
 

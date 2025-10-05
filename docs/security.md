@@ -46,7 +46,7 @@ LabLink implements multiple security layers:
 
 **Change via configuration**:
 
-Edit `lablink-allocator/lablink-allocator-service/conf/config.yaml`:
+Edit `lablink-infrastructure/config/config.yaml`:
 ```yaml
 app:
   admin_user: "admin"
