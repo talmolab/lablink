@@ -45,7 +45,7 @@ dns:
   create_zone: false  # false = use existing zone, true = create new zone
 
 eip:
-  strategy: "dynamic"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
+  strategy: "persistent"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
   tag_name: "lablink-eip"  # Tag Name to identify reusable EIP (used with persistent strategy)
 
 ssl:
