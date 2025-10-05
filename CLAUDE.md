@@ -258,19 +258,20 @@ docker build -t lablink-client:0.0.7a0 \
 
 **`Dockerfile.dev`** (Development/CI):
 - Copies local source code directly into the image
-- Uses `uv sync --extra dev` for installation
+- Uses `uv sync --extra dev` with lockfile (`uv.lock`) for reproducible builds
 - Installs dev dependencies (pytest, ruff, coverage)
-- Creates virtual environment at project location
-- Fast iteration during development
+- Creates virtual environment with explicit path via `UV_PROJECT_ENVIRONMENT`
+- Fast iteration (lockfile prevents dependency resolution on each build)
 - Used by CI workflows on PRs and test branches
 - No PyPI dependency required
 
-**Dockerfile**  (Production):
+**Dockerfile** (Production):
 - Installs Python packages from PyPI using `uv pip install`
 - Accepts `PACKAGE_VERSION` build argument
-- Uses specific pinned versions
-- No dev dependencies (smaller image)
-- Reproducible builds
+- Uses specific pinned versions from PyPI
+- No source code included (smaller image)
+- No dev dependencies (even smaller image)
+- Explicit venv paths with `--python=/path/to/venv/bin/python` flag
 - Used for main/prod deployments
 
 ### Virtual Environment Setup
