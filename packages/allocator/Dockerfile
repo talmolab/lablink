@@ -28,8 +28,9 @@ WORKDIR /app
 # Copy PostgreSQL config
 COPY pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
-# Install package from PyPI using UV
-RUN uv venv && uv pip install lablink-allocator==${PACKAGE_VERSION}
+# Install package from PyPI using UV in explicit venv location
+RUN uv venv /app/.venv && \
+    uv pip install --python=/app/.venv/bin/python lablink-allocator==${PACKAGE_VERSION}
 
 # Ensure terraform directory has write permissions for state files
 RUN chmod -R 777 /app/.venv/lib/python*/site-packages/lablink_allocator/terraform/
