@@ -9,6 +9,12 @@ variable "allocator_ip" {
   sensitive   = true
 }
 
+variable "allocator_url" {
+  type        = string
+  description = "Full URL to allocator service (e.g., https://test.lablink.sleap.ai or http://1.2.3.4)"
+  sensitive   = true
+}
+
 variable "machine_type" {
   type        = string
   description = "Type of the machine to be created"

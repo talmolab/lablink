@@ -72,6 +72,7 @@ resource "aws_instance" "lablink_vm" {
 
   user_data = templatefile("${path.module}/user_data.sh", {
     allocator_ip                = var.allocator_ip
+    allocator_url               = var.allocator_url
     repository                  = var.repository
     resource_suffix             = var.resource_suffix
     image_name                  = var.image_name

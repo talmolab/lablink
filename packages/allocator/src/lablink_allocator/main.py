@@ -6,6 +6,7 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
+import json
 
 from flask import (
     Flask,
@@ -28,6 +29,7 @@ from lablink_allocator.utils.aws_utils import (
     check_support_nvidia,
     upload_to_s3,
 )
+from lablink_allocator.utils.config_helpers import get_allocator_url
 from lablink_allocator.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
@@ -375,9 +377,14 @@ def launch():
             logger.info("GPU support is not enabled for the machine type.")
             gpu_support = "false"
 
+        # Generate allocator URL based on DNS and SSL configuration
+        allocator_url, protocol = get_allocator_url(cfg, allocator_ip)
+        logger.info(f"Using allocator URL: {allocator_url} (protocol: {protocol})")
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
+            f.write(f'allocator_url = "{allocator_url}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')

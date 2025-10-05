@@ -13,7 +13,8 @@ echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
 
 VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
-STATUS_ENDPOINT="http://$ALLOCATOR_IP/api/vm-status"
+ALLOCATOR_URL="${allocator_url}"
+STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
 
 # Function to send status updates
 send_status() {
@@ -133,6 +134,7 @@ fi
 echo ">> Starting container..."
 if docker run -dit $DOCKER_GPU_ARGS \
     -e ALLOCATOR_HOST="${allocator_ip}" \
+    -e ALLOCATOR_URL="${allocator_url}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
     -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
