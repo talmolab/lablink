@@ -285,7 +285,7 @@ Yes. Deploy separate instances with different AWS credentials/roles for each acc
 
 ### Can I add my own API endpoints?
 
-Yes. Edit the allocator service in `packages/allocator/src/lablink_allocator_service/main.py`:
+Yes. Edit the allocator service in `packages/allocator/src/lablink_allocator/main.py`:
 
 ```python
 @app.route('/my-custom-endpoint', methods=['POST'])

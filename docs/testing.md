@@ -117,7 +117,7 @@ PYTHONPATH=. pytest tests/test_subscribe.py
 
 ```bash
 # Generate coverage report
-PYTHONPATH=. pytest --cov=lablink_allocator_service --cov-report=html
+PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=html
 
 # View coverage report
 open htmlcov/index.html  # macOS
@@ -168,7 +168,7 @@ Located in `packages/client/tests/`:
 
 ### Terraform Tests
 
-Located in `packages/allocator/src/lablink_allocator_service/terraform/tests/`:
+Located in `packages/allocator/src/lablink_allocator/terraform/tests/`:
 
 | Test File | Purpose |
 |-----------|---------|
@@ -462,7 +462,7 @@ export ADMIN_PASSWORD=test
 
 ### Import Errors
 
-**Error**: `ModuleNotFoundError: No module named 'lablink_allocator_service'`
+**Error**: `ModuleNotFoundError: No module named 'lablink_allocator'`
 
 **Solution**:
 ```bash

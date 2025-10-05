@@ -103,7 +103,7 @@ This page describes LabLink's architecture, components, and how they interact.
    - Manages AWS credentials
    - Handles security group configuration
 
-**Configuration**: See `packages/allocator/src/lablink_allocator_service/conf/structured_config.py`
+**Configuration**: See `packages/allocator/src/lablink_allocator/conf/structured_config.py`
 
 ### Client Service
 

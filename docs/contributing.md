@@ -398,7 +398,7 @@ PYTHONPATH=. pytest tests/test_api_calls.py
 PYTHONPATH=. pytest tests/test_api_calls.py::test_request_vm_success
 
 # Run with coverage
-PYTHONPATH=. pytest --cov=lablink_allocator_service --cov-report=html
+PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=html
 
 # View coverage report
 open htmlcov/index.html  # macOS
@@ -737,7 +737,7 @@ After publishing and building Docker images:
 3. **Test installation**: Install and verify the package works
    ```bash
    pip install lablink-allocator-service==0.3.0
-   python -c "from lablink_allocator_service.main import main; print('OK')"
+   python -c "from lablink_allocator.main import main; print('OK')"
    ```
 
 4. **Check documentation**: Verify docs at https://talmolab.github.io/lablink/
