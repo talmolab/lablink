@@ -15,13 +15,14 @@ locals {
   config_file = yamldecode(file("${path.module}/${var.config_path}"))
 
   # DNS configuration from config.yaml
-  dns_enabled          = try(local.config_file.dns.enabled, false)
-  dns_domain           = try(local.config_file.dns.domain, "")
-  dns_zone_id          = try(local.config_file.dns.zone_id, "")
-  dns_app_name         = try(local.config_file.dns.app_name, "lablink")
-  dns_pattern          = try(local.config_file.dns.pattern, "auto")
-  dns_custom_subdomain = try(local.config_file.dns.custom_subdomain, "")
-  dns_create_zone      = try(local.config_file.dns.create_zone, false)
+  dns_enabled           = try(local.config_file.dns.enabled, false)
+  dns_terraform_managed = try(local.config_file.dns.terraform_managed, true)  # default true for backwards compatibility
+  dns_domain            = try(local.config_file.dns.domain, "")
+  dns_zone_id           = try(local.config_file.dns.zone_id, "")
+  dns_app_name          = try(local.config_file.dns.app_name, "lablink")
+  dns_pattern           = try(local.config_file.dns.pattern, "auto")
+  dns_custom_subdomain  = try(local.config_file.dns.custom_subdomain, "")
+  dns_create_zone       = try(local.config_file.dns.create_zone, false)
 
   # EIP configuration from config.yaml
   eip_strategy = try(local.config_file.eip.strategy, "dynamic")
@@ -233,11 +234,10 @@ locals {
 }
 
 # DNS A Record for the allocator
-# With persistent EIP strategy:
-# - Same IP across deploys (no DNS propagation delay)
-# - DNS record is recreated on each deploy but points to same IP
+# Only created when terraform_managed is true
+# If terraform_managed is false, you must manually create the A record in Route53
 resource "aws_route53_record" "lablink_a_record" {
-  count   = local.dns_enabled ? 1 : 0
+  count   = local.dns_enabled && local.dns_terraform_managed ? 1 : 0
   zone_id = local.zone_id
   name    = local.fqdn
   type    = "A"

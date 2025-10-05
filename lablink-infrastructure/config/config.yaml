@@ -36,7 +36,8 @@ app:
   region: "us-west-2"  # Your AWS region
 
 dns:
-  enabled: true  # true = create DNS records, false = IP-only access
+  enabled: true  # true = use DNS for allocator URL, false = IP-only access
+  terraform_managed: false  # false = manual DNS records (you create in Route53), true = Terraform creates/destroys records
   domain: "lablink.sleap.ai"  # Your Route53 hosted zone domain
   zone_id: "Z010760118DSWF5IYKMOM"  # (Optional) Hardcode zone ID to skip lookup
   app_name: ""  # Not used with custom pattern
