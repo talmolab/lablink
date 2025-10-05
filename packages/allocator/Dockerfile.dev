@@ -29,10 +29,9 @@ COPY pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 COPY . /app/lablink-allocator
 
 # Install package with dev dependencies using uv sync
+# Use UV_PROJECT_ENVIRONMENT to specify venv location (matches production)
 WORKDIR /app/lablink-allocator
-RUN uv sync --extra dev
-# Create symlink so start.sh can find it at /app/.venv
-RUN ln -s /app/lablink-allocator/.venv /app/.venv
+RUN UV_PROJECT_ENVIRONMENT=/app/.venv uv sync --extra dev
 WORKDIR /app
 
 # Expose ports for Flask
