@@ -13,16 +13,16 @@ from lablink_client.logger_utils import CloudAndConsoleLogger
 logger = logging.getLogger(__name__)
 
 
-def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20):
+def check_gpu_health(allocator_url: str, interval: int = 20):
     """Check the health of the GPU.
 
     Args:
-        allocator_ip (str): The IP address of the allocator service.
-        allocator_port (int): The port of the allocator service.
+        allocator_url (str): The base URL of the allocator service.
         interval (int, optional): The interval in seconds to check the GPU health.
     """
     logger.debug("Starting GPU health check...")
     last_status = None
+    base_url = allocator_url.rstrip('/')
 
     while True:
         curr_status = None
@@ -69,13 +69,16 @@ def check_gpu_health(allocator_ip: str, allocator_port: int, interval: int = 20)
             logger.info(f"GPU health status changed: {curr_status}")
             try:
                 requests.post(
-                    f"http://{allocator_ip}:{allocator_port}/api/gpu_health",
+                    f"{base_url}/api/gpu_health",
                     json={
                         "hostname": os.getenv("VM_NAME"),
                         "gpu_status": curr_status,
                     },
+                    timeout=(10, 20),  # (connect_timeout, read_timeout): 10s to connect, 20s to read
                 )
-            except Exception as e:
+            except requests.exceptions.Timeout:
+                logger.error(f"GPU health report timed out after 30 seconds")
+            except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to report GPU health: {e}")
             last_status = curr_status
 
@@ -91,10 +94,14 @@ def main(cfg: Config) -> None:
         module_name="check_gpu",
     )
     # Check GPU health
-    check_gpu_health(
-        allocator_ip=cfg.allocator.host,
-        allocator_port=cfg.allocator.port,
-    )
+    # Use ALLOCATOR_URL env var if set (supports HTTPS), otherwise use host:port with HTTP
+    allocator_url_env = os.getenv("ALLOCATOR_URL")
+    if allocator_url_env:
+        allocator_url = allocator_url_env
+    else:
+        allocator_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
+
+    check_gpu_health(allocator_url=allocator_url)
 
 
 if __name__ == "__main__":

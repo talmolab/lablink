@@ -41,7 +41,7 @@ def test_run_success(
     subscribe(cfg)
 
     mock_post.assert_called_once_with(
-        "http://localhost:5000/vm_startup", json={"hostname": "vm-1"}
+        "http://localhost:5000/vm_startup", json={"hostname": "vm-1"}, timeout=(30, 604800)
     )
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
 
@@ -70,21 +70,37 @@ def test_run_server_error_payload(
     assert "no available VM" in caplog.text
 
 
+@patch("lablink_client.subscribe.time.sleep")
 @patch("lablink_client.subscribe.requests.post")
 @patch("lablink_client.subscribe.connect_to_crd")
 @patch("lablink_client.subscribe.set_logger")
 @patch("lablink_client.subscribe.CloudAndConsoleLogger")
 def test_run_http_failure(
-    mock_logger_cls, _set_logger, mock_connect, mock_post, cfg, vm_env, caplog
+    mock_logger_cls, _set_logger, mock_connect, mock_post, mock_sleep, cfg, vm_env, caplog
 ):
+    """Test that HTTP 500 errors trigger retry logic."""
     mock_logger_cls.return_value = logging.getLogger("subscribe-test")
 
-    resp = MagicMock()
-    resp.status_code = 500
-    mock_post.return_value = resp
+    # First 2 calls return 500, third call succeeds
+    resp_fail = MagicMock()
+    resp_fail.status_code = 500
+    resp_success = MagicMock()
+    resp_success.status_code = 200
+    resp_success.json.return_value = {
+        "status": "success",
+        "command": "CRD_COMMAND",
+        "pin": "123456",
+    }
+    mock_post.side_effect = [resp_fail, resp_fail, resp_success]
 
     caplog.set_level(logging.ERROR, logger="lablink_client.subscribe")
     subscribe(cfg)
 
-    mock_connect.assert_not_called()
+    # Should have been called 3 times (2 failures + 1 success)
+    assert mock_post.call_count == 3
+    # Should have called connect_to_crd once (after success)
+    mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
+    # Should have logged the failures
     assert "POST request failed with status code: 500" in caplog.text
+    # Should have slept between retries (2 times)
+    assert mock_sleep.call_count == 2

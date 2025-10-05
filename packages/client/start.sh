@@ -31,6 +31,7 @@ LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
 
 # Run subscribe in background, but preserve stdout + stderr to docker logs and file
+# Services read ALLOCATOR_URL from environment if set (HTTPS support), otherwise use allocator.host
 subscribe \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/subscribe.log" &

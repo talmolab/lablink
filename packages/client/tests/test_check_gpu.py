@@ -21,12 +21,13 @@ def test_check_gpu_health_machine_with_no_gpu(mock_run, mock_post, mock_environm
     ]
     mock_post.return_value = MagicMock(status_code=200)
 
-    check_gpu_health("localhost", 5000)
+    check_gpu_health("http://localhost:5000")
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "N/A"},
+        timeout=(10, 20),
     )
 
 
@@ -53,12 +54,13 @@ def test_check_gpu_health_machine_with_gpu(
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(StopIteration):
-        check_gpu_health("localhost", 5000)
+        check_gpu_health("http://localhost:5000")
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "Healthy"},
+        timeout=(10, 20),
     )
 
 
@@ -95,12 +97,13 @@ def test_check_gpu_health_machine_with_gpu_multiple(
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(StopIteration):
-        check_gpu_health(allocator_ip="localhost", allocator_port=5000, interval=10)
+        check_gpu_health(allocator_url="http://localhost:5000", interval=10)
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "Healthy"},
+        timeout=(10, 20),
     )
 
 
@@ -126,7 +129,7 @@ def test_check_gpu_health_from_health_change(mock_run, mock_post, mock_environme
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(KeyboardInterrupt):
-        check_gpu_health("localhost", 5000)
+        check_gpu_health("http://localhost:5000")
 
     assert mock_post.call_count == 3
 
@@ -165,7 +168,7 @@ def test_check_gpu_health_from_health_change_with_exception(
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(KeyboardInterrupt):
-        check_gpu_health("localhost", 5000)
+        check_gpu_health("http://localhost:5000")
 
     assert mock_post.call_count == 3
 
@@ -189,7 +192,7 @@ def test_check_gpu_with_no_file_found(mock_run, mock_post, mock_environment):
     mock_run.side_effect = FileNotFoundError("File not found")
     mock_post.return_value = MagicMock(status_code=200)
 
-    check_gpu_health("localhost", 5000)
+    check_gpu_health("http://localhost:5000")
 
     assert mock_post.call_count == 1
 
