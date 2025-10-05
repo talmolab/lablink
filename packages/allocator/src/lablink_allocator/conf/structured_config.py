@@ -131,10 +131,12 @@ class SSLConfig:
             - "cloudflare": CloudFlare proxy handles SSL
             - "none": HTTP only, no SSL
         email (str): Email address for Let's Encrypt notifications
+        staging (bool): Use Let's Encrypt staging server (unlimited rate limits, untrusted certs)
     """
 
     provider: str = field(default="letsencrypt")
     email: str = field(default="")
+    staging: bool = field(default=False)
 
 
 @dataclass

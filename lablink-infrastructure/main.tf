@@ -31,6 +31,7 @@ locals {
   # SSL configuration from config.yaml
   ssl_provider = try(local.config_file.ssl.provider, "letsencrypt")
   ssl_email    = try(local.config_file.ssl.email, "")
+  ssl_staging  = try(local.config_file.ssl.staging, false)
 
   # Bucket name from config.yaml for S3 backend
   bucket_name = try(local.config_file.bucket_name, "tf-state-lablink-allocator-bucket")
@@ -157,6 +158,7 @@ resource "aws_instance" "lablink_allocator_server" {
     CLOUD_INIT_LOG_GROUP = aws_cloudwatch_log_group.client_vm_logs.name
     CONFIG_CONTENT       = file("${path.module}/${var.config_path}")
     DOMAIN_NAME          = local.fqdn
+    SSL_STAGING          = local.ssl_staging
   })
 
   tags = {

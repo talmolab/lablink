@@ -52,6 +52,7 @@ eip:
 ssl:
   provider: "letsencrypt"  # "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "none" = HTTP only
   email: "admin@sleap.ai"  # Email for Let's Encrypt notifications
+  staging: true  # true = use Let's Encrypt staging server (unlimited rate limits, untrusted certs), false = production (trusted certs, rate limited)
 
 # S3 bucket for Terraform state (must be unique globally)
 # Only used for test/prod environments with S3 backend (not used in dev)

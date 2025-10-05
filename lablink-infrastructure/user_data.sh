@@ -31,11 +31,25 @@ docker run -d -p 127.0.0.1:5000:5000 \
   $IMAGE
 
 # Configure Caddy for SSL termination with Let's Encrypt
-cat <<EOF > /etc/caddy/Caddyfile
+# If SSL_STAGING is true, use Let's Encrypt staging server (unlimited rate limits, untrusted certs)
+# If SSL_STAGING is false, use Let's Encrypt production server (trusted certs, rate limited)
+if [ "${SSL_STAGING}" = "true" ]; then
+  cat <<EOF > /etc/caddy/Caddyfile
+{
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
 ${DOMAIN_NAME} {
     reverse_proxy localhost:5000
 }
 EOF
+else
+  cat <<EOF > /etc/caddy/Caddyfile
+${DOMAIN_NAME} {
+    reverse_proxy localhost:5000
+}
+EOF
+fi
 
 # Restart Caddy to apply configuration
 systemctl restart caddy

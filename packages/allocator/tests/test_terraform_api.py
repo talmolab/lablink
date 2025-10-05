@@ -88,7 +88,9 @@ def test_launch_missing_allocator_outputs_returns_error(
     monkeypatch.setattr("lablink_allocator.main.TERRAFORM_DIR", terraform_dir)
 
     monkeypatch.setattr(
-        "lablink_allocator.main.database", MagicMock(get_row_count=lambda: 0), raising=False
+        "lablink_allocator.main.database",
+        MagicMock(get_row_count=lambda: 0),
+        raising=False,
     )
     monkeypatch.setattr("lablink_allocator.main.allocator_ip", "", raising=False)
     monkeypatch.setattr("lablink_allocator.main.key_name", None, raising=False)
@@ -113,7 +115,9 @@ def test_launch_apply_failure(
     monkeypatch.setattr("lablink_allocator.main.TERRAFORM_DIR", terraform_dir)
 
     monkeypatch.setattr(
-        "lablink_allocator.main.database", MagicMock(get_row_count=lambda: 1), raising=False
+        "lablink_allocator.main.database",
+        MagicMock(get_row_count=lambda: 1),
+        raising=False,
     )
     monkeypatch.setattr("lablink_allocator.main.allocator_ip", "9.9.9.9", raising=False)
     monkeypatch.setattr("lablink_allocator.main.key_name", "k", raising=False)

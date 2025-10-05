@@ -259,7 +259,9 @@ def test_request_vm_success(client, monkeypatch):
     # Patch the database
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
     check_crd = lambda crd_command: True  # noqa: E731
-    monkeypatch.setattr("lablink_allocator.main.check_crd_input", check_crd, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator.main.check_crd_input", check_crd, raising=False
+    )
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -301,7 +303,9 @@ def test_request_vm_invalid_crd(client, monkeypatch):
     # Patch the database
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
     monkeypatch.setattr(
-        "lablink_allocator.main.check_crd_input", lambda crd_command: False, raising=False
+        "lablink_allocator.main.check_crd_input",
+        lambda crd_command: False,
+        raising=False,
     )
 
     # Call the API with invalid CRD command
@@ -326,7 +330,9 @@ def test_request_vm_no_vm_available(client, monkeypatch):
     # Patch the database
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
     check_crd = lambda crd_command: True  # noqa: E731
-    monkeypatch.setattr("lablink_allocator.main.check_crd_input", check_crd, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator.main.check_crd_input", check_crd, raising=False
+    )
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -350,7 +356,9 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
     # Patch the database and functions
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
     check_crd = lambda crd_command: True  # noqa: E731
-    monkeypatch.setattr("lablink_allocator.main.check_crd_input", check_crd, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator.main.check_crd_input", check_crd, raising=False
+    )
 
     # Call the API
     data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
@@ -385,15 +393,20 @@ def test_scp_success(client, admin_headers, monkeypatch):
 
     # Patch the database and util functions
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
-        "lablink_allocator.main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+        "lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"]
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.get_ssh_private_key",
+        lambda terraform_dir: "/tmp/key.pem",
     )
     monkeypatch.setattr(
         "lablink_allocator.main.find_files_in_container",
         lambda ip, key_path, extension: ["/remote/path/sample.slp"],
     )
-    monkeypatch.setattr("lablink_allocator.main.extract_files_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr(
+        "lablink_allocator.main.extract_files_from_docker", lambda **kwargs: None
+    )
 
     # Dummy function for rsync
     def fake_rsync(ip, key_path, local_dir, extension="slp"):
@@ -426,10 +439,12 @@ def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatc
 
     # Two IPs
     monkeypatch.setattr(
-        "lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1", "10.0.0.2"]
+        "lablink_allocator.main.get_instance_ips",
+        lambda terraform_dir: ["10.0.0.1", "10.0.0.2"],
     )
     monkeypatch.setattr(
-        "lablink_allocator.main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+        "lablink_allocator.main.get_ssh_private_key",
+        lambda terraform_dir: "/tmp/key.pem",
     )
 
     # Create MagicMocks for each function
@@ -443,9 +458,15 @@ def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatc
     )
 
     # Use MagicMocks so we can assert call counts/args
-    monkeypatch.setattr("lablink_allocator.main.find_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.extract_files_from_docker", extract, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.rsync_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator.main.find_files_in_container", find_slp, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.extract_files_from_docker", extract, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.rsync_files_to_allocator", rsync, raising=False
+    )
 
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 200
@@ -479,10 +500,12 @@ def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
 
     # Mock the utility functions
     monkeypatch.setattr(
-        "lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1", "10.0.0.2"]
+        "lablink_allocator.main.get_instance_ips",
+        lambda terraform_dir: ["10.0.0.1", "10.0.0.2"],
     )
     monkeypatch.setattr(
-        "lablink_allocator.main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+        "lablink_allocator.main.get_ssh_private_key",
+        lambda terraform_dir: "/tmp/key.pem",
     )
 
     # First VM has .slp files; second has none
@@ -498,9 +521,15 @@ def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
             (Path(local_dir) / "sample.slp").write_text("dummy"),
         )
     )
-    monkeypatch.setattr("lablink_allocator.main.find_files_in_container", find_slp, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.extract_files_from_docker", extract, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.rsync_files_to_allocator", rsync, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator.main.find_files_in_container", find_slp, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.extract_files_from_docker", extract, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.rsync_files_to_allocator", rsync, raising=False
+    )
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -548,14 +577,20 @@ def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
 
     # Patch the database and util functions
     monkeypatch.setattr("lablink_allocator.main.database", fake_db, raising=False)
-    monkeypatch.setattr("lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
-        "lablink_allocator.main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+        "lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"]
     )
     monkeypatch.setattr(
-        "lablink_allocator.main.find_files_in_container", lambda ip, key_path, extension: []
+        "lablink_allocator.main.get_ssh_private_key",
+        lambda terraform_dir: "/tmp/key.pem",
     )
-    monkeypatch.setattr("lablink_allocator.main.extract_files_from_docker", lambda **kwargs: None)
+    monkeypatch.setattr(
+        "lablink_allocator.main.find_files_in_container",
+        lambda ip, key_path, extension: [],
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.extract_files_from_docker", lambda **kwargs: None
+    )
 
     # Call the API
     resp = client.get(SCP_ENDPOINT, headers=admin_headers)
@@ -573,9 +608,12 @@ def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     Path("terraform").mkdir(exist_ok=True)
 
-    monkeypatch.setattr("lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"])
     monkeypatch.setattr(
-        "lablink_allocator.main.get_ssh_private_key", lambda terraform_dir: "/tmp/key.pem"
+        "lablink_allocator.main.get_instance_ips", lambda terraform_dir: ["10.0.0.1"]
+    )
+    monkeypatch.setattr(
+        "lablink_allocator.main.get_ssh_private_key",
+        lambda terraform_dir: "/tmp/key.pem",
     )
     monkeypatch.setattr(
         "lablink_allocator.main.find_files_in_container",
