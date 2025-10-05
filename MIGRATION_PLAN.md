@@ -64,7 +64,10 @@ lablink/
 - [x] Create VM_REGISTRATION_ISSUE.md documenting current bug
 - [x] Create DNS configuration documentation
 - [x] Update troubleshooting guide with DNS and VM issues
-- [ ] Review and test all infrastructure deployment paths
+- [x] Review and test all infrastructure deployment paths
+- [x] Fix HTTPS support for client services (VM registration, GPU health, status updates)
+- [x] Update DNS verification workflow to use curl instead of dig
+- [x] Test Chrome Remote Desktop workflow with HTTPS allocator
 - [ ] Document all environment variables and secrets
 - [ ] List all GitHub repository settings/secrets needed
 
@@ -209,15 +212,21 @@ Infrastructure will reference images from main repo:
 ## Known Issues to Address Before Migration
 
 ### Critical Bugs
-1. **VM Registration Issue** - [VM_REGISTRATION_ISSUE.md](VM_REGISTRATION_ISSUE.md)
-   - `/api/launch` doesn't insert VMs into database
-   - Must be fixed before migration
-   - Affects all deployments
+1. ~~**VM Registration Issue**~~ - ✅ **FIXED**
+   - ~~`/api/launch` doesn't insert VMs into database~~
+   - Fixed: HTTPS support added to all client services
+   - Client VMs now use `ALLOCATOR_URL` environment variable for HTTPS
+   - Deployed and tested successfully
 
 2. **DNS Zone ID Hardcoding**
    - Currently requires hardcoded zone_id in config
    - Consider making zone lookup more robust
    - Document clearly in new repo
+
+3. **DNS Verification Workflow** - ✅ **FIXED**
+   - ~~Old workflow used `dig` which failed with Cloudflare DNS~~
+   - Updated to use `curl` for HTTPS connectivity check
+   - More reliable for proxied domains
 
 ### Configuration Management
 1. **Config Schema Validation**
@@ -395,13 +404,35 @@ Migration is successful when:
 - [GitHub OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
 - [Repository Migration Best Practices](https://docs.github.com/en/github/administering-a-repository)
 
+## Recent Progress (October 2025)
+
+### HTTPS Support Implementation ✅
+- **Problem**: Client VMs couldn't communicate with HTTPS allocator
+- **Solution**:
+  - Added `ALLOCATOR_URL` environment variable support to all client services
+  - Updated subscribe.py, check_gpu.py, update_inuse_status.py
+  - Implemented timeout tuples for better error handling
+  - Added retry logic with 60s delays for transient failures
+- **Files Changed**:
+  - `packages/client/src/lablink_client/subscribe.py`
+  - `packages/client/src/lablink_client/check_gpu.py`
+  - `packages/client/src/lablink_client/update_inuse_status.py`
+  - `packages/client/tests/test_subscribe.py`
+  - `packages/client/tests/test_check_gpu.py`
+
+### DNS Verification Fix ✅
+- **Problem**: GitHub Actions DNS check using `dig` failed with Cloudflare
+- **Solution**: Changed to `curl` for HTTPS connectivity check
+- **File Changed**: `.github/workflows/lablink-allocator-terraform.yml`
+
 ## Next Actions
 
 **Immediate** (Before Migration):
-1. Fix VM registration bug in `main.py`
-2. Test fix in current setup
-3. Document current deployment thoroughly
-4. Create infrastructure repo
+1. ~~Fix VM registration bug~~ ✅ COMPLETED
+2. ~~Test fix in current setup~~ ✅ COMPLETED
+3. Test client VM launch and Chrome Remote Desktop connection ⏳ IN PROGRESS
+4. Document all environment variables and secrets
+5. Create infrastructure repo
 
 **Short Term** (During Migration):
 1. Copy infrastructure code
