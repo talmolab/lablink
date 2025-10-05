@@ -234,7 +234,7 @@ jobs:
         if: steps.apply.outcome == 'success'
         working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          echo "Verifying DNS resolution..."
+          echo "Verifying DNS and HTTPS connectivity..."
 
           FQDN=$(terraform output -raw allocator_fqdn 2>/dev/null || echo "")
           PUBLIC_IP=$(terraform output -raw ec2_public_ip)
@@ -244,45 +244,27 @@ jobs:
             exit 0
           fi
 
-          echo "Testing DNS resolution for: $FQDN"
-          echo "Expected IP: $PUBLIC_IP"
+          echo "Testing HTTPS connectivity for: $FQDN"
 
-          # Wait for DNS propagation (max 5 minutes)
+          # Wait for DNS and HTTPS to be ready (max 5 minutes)
           MAX_ATTEMPTS=30
           for i in $(seq 1 $MAX_ATTEMPTS); do
-            # Try multiple DNS resolution methods for reliability
-            RESOLVED_IP=""
-
-            # Method 1: dig (most reliable)
-            if command -v dig &> /dev/null; then
-              RESOLVED_IP=$(dig +short "$FQDN" @8.8.8.8 | grep -E '^[0-9.]+$' | head -1)
-            fi
-
-            # Method 2: host (fallback)
-            if [ -z "$RESOLVED_IP" ] && command -v host &> /dev/null; then
-              RESOLVED_IP=$(host "$FQDN" 8.8.8.8 2>/dev/null | grep "has address" | awk '{print $4}' | head -1)
-            fi
-
-            # Method 3: nslookup (last resort)
-            if [ -z "$RESOLVED_IP" ]; then
-              RESOLVED_IP=$(nslookup "$FQDN" 8.8.8.8 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
-            fi
-
-            if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
-              echo "✓ DNS resolution successful!"
-              echo "   $FQDN -> $RESOLVED_IP"
+            # Test HTTPS connectivity with curl (more reliable than DNS checks)
+            if curl -sS --max-time 5 -o /dev/null -w "%{http_code}" "https://$FQDN" | grep -q "200\|301\|302"; then
+              echo "✓ HTTPS connectivity successful!"
+              echo "   https://$FQDN is accessible"
               exit 0
             fi
 
             if [ $i -lt $MAX_ATTEMPTS ]; then
-              echo "⏳ Waiting for DNS propagation (attempt $i/$MAX_ATTEMPTS, resolved: ${RESOLVED_IP:-none})..."
+              echo "⏳ Waiting for HTTPS to be ready (attempt $i/$MAX_ATTEMPTS)..."
               sleep 10
             fi
           done
 
-          echo "⚠ Warning: DNS resolution delayed (resolved to: ${RESOLVED_IP:-none}, expected: $PUBLIC_IP)"
-          echo "   This may be normal for newly created DNS records"
-          echo "   Manual verification recommended: dig $FQDN"
+          echo "⚠ Warning: HTTPS connectivity check timed out"
+          echo "   This may be normal for newly created DNS records or SSL certificates"
+          echo "   Manual verification recommended: curl -I https://$FQDN"
 
       - name: Verify Service Health
         if: steps.apply.outcome == 'success'
