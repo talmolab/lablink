@@ -246,6 +246,11 @@ Each environment maintains separate Terraform state to avoid conflicts.
 - S3 bucket name for Terraform state storage (test/prod only)
 - Must be globally unique
 
+**Additional Resources:**
+- [Configuration Guide](../docs/configuration.md#ssltls-options-ssl) - Detailed SSL configuration reference
+- [Troubleshooting](../docs/troubleshooting.md#browser-cannot-access-http-staging-mode) - Browser HSTS cache issues
+- [Security](../docs/security.md#staging-mode-security) - Security implications of staging mode
+
 ## Included Scripts
 
 ### `init-terraform.sh` (Optional Helper)

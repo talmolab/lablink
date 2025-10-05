@@ -89,6 +89,65 @@ db:
 
 Or use environment variables. See [Security → Change Default Passwords](security.md#change-default-passwords).
 
+### Why does my browser say "Not Secure"?
+
+You're using staging mode (`ssl.staging: true`), which serves HTTP only (no encryption). This is expected for testing.
+
+To get a secure HTTPS connection with browser padlock, set `ssl.staging: false` in your configuration and redeploy.
+
+See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
+
+### Why can't I access the allocator in my browser?
+
+If your browser cannot connect to `http://your-domain.com`:
+
+1. Make sure you explicitly type `http://` (not `https://`)
+2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#browser-cannot-access-http-staging-mode))
+3. Try incognito/private browsing mode
+4. Try accessing via IP address: `http://<allocator-ip>`
+
+### Should I use staging or production mode?
+
+**Use staging mode (`ssl.staging: true`) for:**
+
+- Initial testing and development
+- Frequent deployments (unlimited)
+- Testing infrastructure changes
+- CI/CD automated tests
+
+**Use production mode (`ssl.staging: false`) for:**
+
+- Production deployments
+- Internet-accessible allocators
+- Handling sensitive data
+- Long-running deployments
+
+**Key difference:** Staging = HTTP only (fast, unlimited, no encryption). Production = HTTPS with trusted certificates (secure, rate limited).
+
+See [Configuration → Staging vs Production](configuration.md#staging-vs-production-mode).
+
+### How many times can I deploy with staging mode?
+
+Unlimited. Staging mode uses HTTP only, so there are no Let's Encrypt rate limits.
+
+With production mode, you're limited to 5 duplicate certificates per week.
+
+### Can I switch from staging to production mode?
+
+Yes. Change the configuration and redeploy:
+
+```yaml
+ssl:
+  staging: false
+```
+
+Then run:
+```bash
+terraform apply
+```
+
+The allocator will obtain a trusted Let's Encrypt certificate and start serving HTTPS. You may need to clear your browser's HSTS cache.
+
 ## Deployment
 
 ### What's the difference between dev, test, and prod environments?

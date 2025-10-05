@@ -33,6 +33,16 @@ machine:
   gpu_support: false
 ```
 
+**Note on SSL**: This configuration uses `provider: "none"` for simplicity. For testing with DNS, you can use:
+```yaml
+ssl:
+  provider: "letsencrypt"
+  email: "your-email@example.com"
+  staging: true  # HTTP only, unlimited deployments
+```
+
+Staging mode serves HTTP only. Your browser will show "Not Secure" - this is expected for testing. For production with HTTPS, set `staging: false`. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
+
 ## Step 3: Initialize and Deploy
 
 ```bash

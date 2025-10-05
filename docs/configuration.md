@@ -217,6 +217,127 @@ Client configuration for connecting to allocator.
 | `host` | string | `localhost` | Allocator hostname or IP |
 | `port` | int | `80` | Allocator port |
 
+### DNS Options (`dns`)
+
+Controls DNS configuration for allocator hostname.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable DNS-based URLs |
+| `terraform_managed` | boolean | `false` | Let Terraform manage Route 53 records |
+| `domain` | string | `""` | Your Route 53 hosted zone domain |
+| `zone_id` | string | `""` | Route 53 zone ID (optional, skips lookup if provided) |
+| `app_name` | string | `""` | Application name for auto pattern |
+| `pattern` | string | `"auto"` | DNS pattern: `auto` or `custom` |
+| `custom_subdomain` | string | `""` | Custom subdomain for custom pattern |
+| `create_zone` | boolean | `false` | Create new Route 53 zone |
+
+See [DNS Configuration](dns-configuration.md) for detailed setup instructions.
+
+### EIP Options (`eip`)
+
+Controls Elastic IP allocation strategy.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `strategy` | string | `"dynamic"` | `persistent` = reuse tagged EIP, `dynamic` = create new |
+| `tag_name` | string | `"lablink-eip"` | Tag name for persistent EIP lookup |
+
+### SSL/TLS Options (`ssl`)
+
+Controls HTTPS/SSL certificate management.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `provider` | string | `"letsencrypt"` | SSL provider: `letsencrypt`, `cloudflare`, or `none` |
+| `email` | string | `""` | Email for Let's Encrypt notifications |
+| `staging` | boolean | `false` | HTTP-only mode for testing (unlimited deployments) |
+
+#### SSL Providers
+
+**`letsencrypt`** - Automatic SSL via Caddy + Let's Encrypt
+
+- Staging mode (`staging: true`): HTTP only, unlimited deployments
+- Production mode (`staging: false`): HTTPS with trusted certificates
+
+**`cloudflare`** - CloudFlare proxy handles SSL
+
+- Requires CloudFlare DNS configuration
+- Not affected by `staging` setting
+
+**`none`** - No SSL, HTTP only
+
+- Similar to staging mode but explicit
+
+#### Staging vs Production Mode
+
+**Staging Mode** (`staging: true`)
+
+Use for testing and development:
+
+- Serves HTTP only on port 80 (port 443 closed)
+- Unlimited deployments per day
+- No SSL certificate issuance delays
+- **No encryption** - all traffic is plaintext
+- Browser shows "Not Secure" warning
+- May require clearing browser HSTS cache (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-staging-mode))
+
+Configuration example:
+```yaml
+ssl:
+  provider: "letsencrypt"
+  email: "admin@example.com"
+  staging: true
+```
+
+**Production Mode** (`staging: false`)
+
+Use for production deployments:
+
+- HTTPS with trusted Let's Encrypt certificates
+- Browser shows secure padlock
+- Full TLS 1.3 encryption
+- Automatic HTTP → HTTPS redirects
+- Rate limited (5 duplicate certificates per week)
+- Certificate issuance takes 30-60 seconds
+
+Configuration example:
+```yaml
+ssl:
+  provider: "letsencrypt"
+  email: "admin@example.com"  # Receives cert expiry notifications
+  staging: false
+```
+
+#### Browser Access
+
+**With staging mode:**
+
+1. Type `http://` explicitly in address bar (e.g., `http://test.lablink.sleap.ai`)
+2. Clear HSTS cache if you previously accessed via HTTPS
+3. Expect "Not Secure" warning (this is normal)
+
+Alternatives:
+- Use incognito/private browsing
+- Access via IP: `http://<allocator-ip>`
+- Use curl: `curl http://test.lablink.sleap.ai`
+
+**With production mode:**
+
+Access via `https://your-domain.com` - browser shows secure padlock.
+
+#### Let's Encrypt Rate Limits
+
+Production mode is subject to Let's Encrypt limits:
+
+- 50 certificates per domain per week
+- **5 duplicate certificates per week** (same hostnames)
+- 300 pending authorizations per account
+
+Use staging mode for frequent testing to avoid these limits.
+
+**Warning:** Staging mode serves unencrypted HTTP. Never use for production or sensitive data. See [Security](security.md#staging-mode-security).
+
 ### Bucket Name
 
 **Option**: `bucket_name`

@@ -173,6 +173,105 @@ ssh: connect to host X.X.X.X port 22: Connection timed out
      --cidr 0.0.0.0/0
    ```
 
+#### Browser Cannot Access HTTP (Staging Mode)
+
+**Symptoms**:
+- Browser cannot connect to `http://your-domain.com` when using staging mode
+- "This site can't be reached"
+- "Connection refused"
+- "ERR_CONNECTION_REFUSED"
+
+**Cause**: Your browser previously accessed the site via HTTPS and cached the HSTS (HTTP Strict Transport Security) policy. This forces all future requests to automatically upgrade to HTTPS. Since staging mode only serves HTTP (port 443 is closed), the browser cannot connect.
+
+**Solution - Clear HSTS Cache:**
+
+**Chrome / Edge:**
+
+1. Open a new tab and navigate to:
+   ```
+   chrome://net-internals/#hsts
+   ```
+   (For Edge use: `edge://net-internals/#hsts`)
+
+2. Scroll down to "Delete domain security policies"
+
+3. Enter your full domain name:
+   ```
+   test.lablink.sleap.ai
+   ```
+
+4. Click "Delete"
+
+5. Access the site again, explicitly typing `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Firefox:**
+
+1. Close all Firefox windows
+
+2. Navigate to your Firefox profile directory:
+   - Windows: `%APPDATA%\Mozilla\Firefox\Profiles\`
+   - macOS: `~/Library/Application Support/Firefox/Profiles/`
+   - Linux: `~/.mozilla/firefox/`
+
+3. Find your profile folder (e.g., `abc123.default-release`)
+
+4. Delete the file: `SiteSecurityServiceState.txt`
+
+5. Restart Firefox and access with `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Safari:**
+
+1. Close Safari completely
+
+2. Open Terminal and run:
+   ```bash
+   rm ~/Library/Cookies/HSTS.plist
+   ```
+
+3. Restart Safari and access with `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Quick Workarounds:**
+
+If you don't want to clear HSTS cache:
+
+1. **Use Incognito/Private Browsing**
+   - HSTS cache doesn't apply in incognito mode
+   - Access `http://test.lablink.sleap.ai`
+
+2. **Access via IP Address**
+   ```
+   http://54.214.215.124
+   ```
+   (Find IP in Terraform outputs: `terraform output allocator_public_ip`)
+
+3. **Use curl for testing**
+   ```bash
+   curl http://test.lablink.sleap.ai
+   ```
+
+**Verify Staging Mode is Working:**
+
+```bash
+# HTTP should return 200 OK
+curl -I http://test.lablink.sleap.ai
+
+# HTTPS should fail (connection refused)
+curl -I https://test.lablink.sleap.ai
+```
+
+**Expected behavior**: When using staging mode (`ssl.staging: true`), your browser will show "Not Secure" in the address bar. This is normal and expected - staging mode uses unencrypted HTTP for testing.
+
+To get a secure HTTPS connection, set `ssl.staging: false` in your configuration. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
+
 #### Flask App Not Starting
 
 **Symptoms**: Container runs but Flask doesn't start
