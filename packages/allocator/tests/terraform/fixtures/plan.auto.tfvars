@@ -1,5 +1,6 @@
 instance_count              = 3
 allocator_ip                = "10.0.0.1"
+allocator_url               = "http://10.0.0.1"
 machine_type                = "t2.micro"
 image_name                  = "ghcr.io/test-image"
 repository                  = "https://github.com/example/repo.git"
