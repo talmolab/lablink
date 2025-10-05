@@ -83,6 +83,7 @@ jobs:
 
       - name: Terraform Destroy Client VMs
         if: env.has_client_vms == 'true'
+        continue-on-error: true
         working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
           terraform destroy -auto-approve -var-file=variables.tfvars
