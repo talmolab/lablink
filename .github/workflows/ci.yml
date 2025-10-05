@@ -90,7 +90,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: lablink-allocator/Dockerfile.dev
+          file: packages/allocator/Dockerfile.dev
           tags: lablink-allocator-dev:test
           push: false
           load: true
@@ -98,7 +98,7 @@ jobs:
       - name: Verify venv activation
         run: |
           echo "Testing venv activation..."
-          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"Venv activated:\", sys.prefix); print(\"Python executable:\", sys.executable); assert \"lablink-allocator-service/.venv\" in sys.prefix'"
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"Venv activated:\", sys.prefix); print(\"Python executable:\", sys.executable); assert \"/app/.venv\" in sys.prefix'"
 
       - name: Verify console scripts exist
         run: |
