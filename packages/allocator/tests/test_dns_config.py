@@ -11,6 +11,7 @@ class TestDNSConfig:
         """Test DNSConfig default values."""
         config = DNSConfig()
         assert config.enabled is False
+        assert config.terraform_managed is True
         assert config.domain == ""
         assert config.zone_id == ""
         assert config.app_name == "lablink"
@@ -22,6 +23,7 @@ class TestDNSConfig:
         """Test DNSConfig with custom values."""
         config = DNSConfig(
             enabled=True,
+            terraform_managed=False,
             domain="example.com",
             zone_id="Z01234567890ABCDEFGHI",
             app_name="myapp",
@@ -30,6 +32,7 @@ class TestDNSConfig:
             create_zone=True,
         )
         assert config.enabled is True
+        assert config.terraform_managed is False
         assert config.domain == "example.com"
         assert config.zone_id == "Z01234567890ABCDEFGHI"
         assert config.app_name == "myapp"

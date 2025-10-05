@@ -80,6 +80,8 @@ class DNSConfig:
 
     Attributes:
         enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
+        terraform_managed (bool): Whether Terraform creates/destroys DNS records.
+            If False, DNS records must be created manually in Route53.
         domain (str): The base domain name (e.g., "sleap.ai").
         zone_id (str): Optional Route53 hosted zone ID. If provided, skips zone lookup.
             Use this when zone lookup finds the wrong zone (e.g., parent vs subdomain).
@@ -95,6 +97,7 @@ class DNSConfig:
     """
 
     enabled: bool = field(default=False)
+    terraform_managed: bool = field(default=True)
     domain: str = field(default="")
     zone_id: str = field(default="")
     app_name: str = field(default="lablink")
