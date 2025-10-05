@@ -220,6 +220,10 @@ locals {
 }
 
 # DNS A Record for the allocator
+# With persistent EIP strategy, the A record persists like the EIP
+# On first deploy: Terraform creates it
+# On subsequent deploys: Terraform updates it if IP changed (instant, no DNS propagation)
+# On destroy: Record is preserved (like the persistent EIP)
 resource "aws_route53_record" "lablink_a_record" {
   count   = local.dns_enabled ? 1 : 0
   zone_id = local.zone_id
@@ -227,6 +231,10 @@ resource "aws_route53_record" "lablink_a_record" {
   type    = "A"
   ttl     = 300
   records = [local.eip_public_ip]
+
+  lifecycle {
+    prevent_destroy = true  # Preserve DNS record on terraform destroy
+  }
 }
 
 # Associate Elastic IP with EC2 instance
