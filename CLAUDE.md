@@ -15,50 +15,52 @@ lablink/
 │       ├── ci.yml              # Unit tests and linting
 │       ├── docs.yml            # Documentation deployment
 │       ├── lablink-images.yml  # Docker image building
-│       ├── lablink-allocator-terraform.yml  # Infrastructure deployment
-│       ├── lablink-allocator-destroy.yml    # Destroy workflow
-│       └── client-vm-infrastructure-test.yml  # E2E testing
+│       └── lablink-allocator-terraform.yml  # Infrastructure deployment
 ├── docs/                       # MkDocs documentation
 │   ├── *.md                    # Documentation pages
 │   ├── scripts/                # Doc generation scripts
 │   └── assets/                 # Images, diagrams
-├── lablink-infrastructure/     # Allocator infrastructure
-│   ├── Dockerfile              # Allocator Docker image (production)
-│   ├── Dockerfile.dev          # Allocator Docker image (development)
-│   ├── main.tf                 # Terraform for allocator EC2
-│   ├── backend-*.hcl           # Terraform backends (dev/test/prod)
+├── lablink-infrastructure/     # Infrastructure deployment (PRODUCTION CONFIG)
+│   ├── main.tf                 # Allocator EC2, DNS, EIP, Lambda
+│   ├── user_data.sh            # EC2 initialization script
+│   ├── lambda_function.py      # CloudWatch log processor
+│   ├── backend-test.hcl        # S3 backend for test env
+│   ├── backend-prod.hcl        # S3 backend for prod env
 │   └── config/
-│       └── config.yaml         # Configuration
-├── packages/                   # Python packages
+│       └── config.yaml         # Production configuration
+├── packages/                   # Python packages (monorepo)
 │   ├── allocator/              # Allocator service package
-│   │   ├── src/lablink_allocator_service/
+│   │   ├── src/lablink_allocator/
 │   │   │   ├── main.py         # Flask application
 │   │   │   ├── database.py     # Database operations
+│   │   │   ├── get_config.py   # Config loader (reads /config or local)
 │   │   │   ├── conf/
-│   │   │   │   └── structured_config.py  # Hydra config
+│   │   │   │   ├── structured_config.py  # Hydra config schema
+│   │   │   │   └── config.yaml # Local dev fallback config
 │   │   │   ├── terraform/      # Terraform for client VMs
 │   │   │   │   └── main.tf     # Client VM provisioning
 │   │   │   └── utils/          # Utility modules
 │   │   ├── tests/              # Unit tests
+│   │   ├── Dockerfile          # Allocator Docker image
 │   │   └── pyproject.toml      # Package metadata
 │   └── client/                 # Client service package
-│       ├── src/lablink_client_service/
-│       │   ├── subscribe.py    # Allocator subscription
-│       │   ├── check_gpu.py    # GPU health checks
-│       │   ├── update_inuse_status.py  # Status updates
+│       ├── src/lablink_client/
+│       │   ├── subscribe.py    # Allocator subscription (HTTPS support)
+│       │   ├── check_gpu.py    # GPU health checks (HTTPS support)
+│       │   ├── update_inuse_status.py  # Status updates (HTTPS support)
 │       │   └── conf/           # Configuration
 │       ├── tests/              # Unit tests
+│       ├── Dockerfile          # Client Docker image
+│       ├── start.sh            # Container entry point
 │       └── pyproject.toml      # Package metadata
-├── lablink-client-base/        # Client Docker image
-│   └── lablink-client-base-image/
-│       ├── Dockerfile          # Client Docker image (production)
-│       └── Dockerfile.dev      # Client Docker image (development)
-├── terraform/                  # Shared Terraform modules
 ├── mkdocs.yml                  # Documentation configuration
-├── pyproject.toml              # Python dependencies (docs extra)
+├── pyproject.toml              # Workspace dependencies (docs, dev tools)
 ├── README.md                   # Repository README
-└── CLAUDE.md                   # This file
+├── CLAUDE.md                   # This file
+└── MIGRATION_PLAN.md           # Migration status and history
 ```
+
+**Note**: Old directories (`lablink-allocator/`, `lablink-client-base/`, `terraform/`) are deprecated and being removed as part of the monorepo migration.
 
 ## Technology Stack
 
@@ -113,27 +115,39 @@ lablink/
 
 Configuration uses **Hydra** with structured configs.
 
-### Allocator Configuration
-**Location**: `lablink-infrastructure/config/config.yaml`
+### Production Configuration
+**Location**: `lablink-infrastructure/config/config.yaml` (primary source for deployments)
 
 **Key sections**:
 - `db`: PostgreSQL connection settings
-- `machine`: Client VM specifications (instance type, AMI, Docker image, repository)
+- `machine`: Client VM specifications (instance type, AMI ID, Docker image, repository)
 - `app`: Admin credentials, AWS region
+- `dns`: DNS configuration (enabled, terraform_managed, domain, zone_id, pattern, etc.)
+- `eip`: Elastic IP strategy (persistent or dynamic)
+- `ssl`: SSL provider configuration (letsencrypt, cloudflare, or none)
 - `bucket_name`: S3 bucket for Terraform state
 
+### Local Development Configuration
+**Location**: `packages/allocator/src/lablink_allocator/conf/config.yaml` (fallback for local dev)
+
+The allocator uses `get_config()` which:
+1. First tries to load `/config/config.yaml` (mounted in Docker from infrastructure config)
+2. Falls back to the bundled `conf/config.yaml` for local development
+
 ### Client Configuration
-**Location**: `packages/client/src/lablink_client_service/conf/config.yaml`
+**Location**: `packages/client/src/lablink_client/conf/config.yaml`
 
 **Key sections**:
-- `allocator`: Allocator host and port
+- `allocator`: Allocator host and port (overridden by `ALLOCATOR_URL` env var for HTTPS)
 - `client`: Software identifier
 
+**HTTPS Support**: Client services (subscribe.py, check_gpu.py, update_inuse_status.py) use `ALLOCATOR_URL` environment variable to support HTTPS allocators, falling back to `http://host:port` if not set.
+
 ### Overriding Configuration
-- Edit YAML files directly
-- Environment variables
+- Edit YAML files directly (infrastructure config for production)
+- Environment variables (`ALLOCATOR_URL`, `CONFIG_DIR`, `CONFIG_NAME`)
 - Hydra command-line overrides: `python main.py db.password=newpass`
-- Docker environment variables
+- Docker environment variables (passed via user_data.sh)
 
 ## Development Workflow
 
