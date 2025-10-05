@@ -66,6 +66,9 @@ lablink/
 
 ### Core Technologies
 - **Python 3.9+**: Backend services
+  - Allocator: Python 3.11 (from `uv:python3.11` base image)
+  - Client: Python 3.10 (Ubuntu 22.04 default)
+  - Both meet `pyproject.toml` requirement: `>=3.9`
 - **Flask**: Web framework for allocator
 - **PostgreSQL**: Database for VM state
 - **Docker**: Containerization
@@ -272,15 +275,23 @@ docker build -t lablink-client:0.0.7a0 \
 
 ### Virtual Environment Setup
 
+Both services use **explicit venv paths** to avoid path resolution issues.
+
 **Allocator:**
-- `Dockerfile.dev`: Creates venv at `/app/lablink-allocator-service/.venv` with symlink at `/app/.venv`
-- `Dockerfile`: Creates venv at `/app/.venv` from PyPI package
-- `start.sh` activates venv with `source /app/.venv/bin/activate`
+- **Location**: `/app/.venv` (both dev and production)
+- **Python**: 3.11 (from `ghcr.io/astral-sh/uv:python3.11` base image)
+- **Dockerfile.dev**: `uv sync --extra dev` in `/app/lablink-allocator`, symlink to `/app/.venv`
+- **Dockerfile**: `uv venv /app/.venv && uv pip install --python=/app/.venv/bin/python lablink-allocator==${VERSION}`
+- **start.sh** activates: `source /app/.venv/bin/activate`
 
 **Client:**
-- `Dockerfile.dev`: Creates venv at `/home/client/.venv` with editable install
-- `Dockerfile`: Creates venv at `/home/client/.venv` from PyPI package
-- `start.sh` activates venv with `source /home/client/.venv/bin/activate`
+- **Location**: `/home/client/.venv` (both dev and production)
+- **Python**: 3.10 (Ubuntu 22.04 default from `nvidia/cuda:12.8.1` base image)
+- **Dockerfile.dev**: `uv pip install -e ".[dev]"` with explicit venv creation
+- **Dockerfile**: `uv venv /home/client/.venv && uv pip install --python=/home/client/.venv/bin/python lablink-client==${VERSION}`
+- **start.sh** activates: `source /home/client/.venv/bin/activate`
+
+**Important**: Both use `--python=/path/to/venv/bin/python` flag to explicitly specify which Python interpreter to use, ensuring consistency regardless of system PATH.
 
 ### Console Scripts
 
