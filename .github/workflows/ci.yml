@@ -89,8 +89,8 @@ jobs:
       - name: Build allocator dev Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: packages/allocator/Dockerfile.dev
+          context: ./packages/allocator
+          file: ./packages/allocator/Dockerfile.dev
           tags: lablink-allocator-dev:test
           push: false
           load: true
