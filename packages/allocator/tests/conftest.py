@@ -33,11 +33,21 @@ def omega_config():
             },
             "dns": {
                 "enabled": False,
+                "terraform_managed": False,
                 "domain": "",
+                "zone_id": "",
                 "app_name": "lablink",
                 "pattern": "auto",
                 "custom_subdomain": "",
                 "create_zone": False,
+            },
+            "eip": {
+                "strategy": "dynamic",
+                "tag_name": "lablink-eip",
+            },
+            "ssl": {
+                "provider": "none",
+                "email": "",
             },
             "bucket_name": "test-bucket",
         }

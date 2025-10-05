@@ -1,31 +1,58 @@
+# LabLink Allocator Configuration (Local Development)
+# This file is used as fallback for local development when /config/config.yaml doesn't exist
+# Production deployments should use lablink-infrastructure/config/config.yaml
+
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "lablink"
+  password: "lablink"  # Change in production!
   host: "localhost"
   port: 5432
   table_name: "vms"
   message_channel: "vm_updates"
 
 machine:
-  machine_type: "g4dn.xlarge"
+  # Client VM instance type (must support your workload)
+  machine_type: "g4dn.xlarge"  # GPU instance for ML workloads
+
+  # Docker image for client VMs (use version tags for production)
   image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test"
-  ami_id: "ami-067cc81f948e50e06"
+
+  # AMI ID for your AWS region (Ubuntu 24.04 with Docker + Nvidia)
+  ami_id: "ami-0601752c11b394251"  # us-west-2 Ubuntu 24.04 custom AMI
+
+  # Git repository with your data/code
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+
+  # Software identifier for your application
   software: "sleap"
+
+  # File extension for your data files
   extension: "slp"
 
 app:
   admin_user: "admin"
-  admin_password: "IwanttoSLEAP"
-  region: "us-west-2"
+  admin_password: "IwanttoSLEAP"  # Change in production!
+  region: "us-west-2"  # Your AWS region
 
 dns:
-  enabled: true
-  domain: "sleap.ai"
-  app_name: "lablink"
-  pattern: "auto"  # prod: lablink.sleap.ai, test: test.lablink.sleap.ai, dev: dev.lablink.sleap.ai
-  custom_subdomain: ""
-  create_zone: false
+  enabled: true  # true = use DNS for allocator URL, false = IP-only access
+  terraform_managed: false  # false = manual DNS records, true = Terraform creates/destroys records
+  domain: "lablink.sleap.ai"  # Your Route53 hosted zone domain
+  zone_id: ""  # (Optional) Hardcode zone ID to skip lookup
+  app_name: ""  # Not used with custom pattern
+  pattern: "custom"  # "auto" = {env}.{app_name}.{domain}, "custom" = {custom_subdomain}.{domain}
+  custom_subdomain: "dev"  # Will create: dev.lablink.sleap.ai
+  create_zone: false  # false = use existing zone, true = create new zone
 
+eip:
+  strategy: "dynamic"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
+  tag_name: "lablink-eip"  # Tag Name to identify reusable EIP (used with persistent strategy)
+
+ssl:
+  provider: "letsencrypt"  # "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "none" = HTTP only
+  email: "admin@sleap.ai"  # Email for Let's Encrypt notifications
+
+# S3 bucket for Terraform state (must be unique globally)
+# Only used for test/prod environments with S3 backend (not used in dev)
 bucket_name: "tf-state-lablink-allocator-bucket"
