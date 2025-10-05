@@ -45,7 +45,7 @@ jobs:
 
       - name: Remove backend config
         run: |
-          rm -f packages/allocator/tests/terraform/backend.tf
+          rm -f packages/allocator/src/lablink_allocator/terraform/backend.tf
 
       - name: Run tests
         working-directory: packages/allocator/tests/terraform
