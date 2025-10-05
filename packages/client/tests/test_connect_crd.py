@@ -119,7 +119,8 @@ def test_whole_connection_workflow(mock_subprocess_run):
 
     expected_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
     "--code='hidden_code' " \
-    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' --name=test_vm"
+    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+    "--name=test_vm"
     mock_subprocess_run.assert_called_once_with(
         expected_command,
         input="123456\n123456\n",

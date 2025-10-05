@@ -556,7 +556,7 @@ class PostgresqlDatabase:
             message_channel (str): The name of the message channel to listen to.
 
         Returns:
-            PostgresqlDtabase: An instance of the PostgresqlDtabase class.
+            PostgresqlDatabase: An instance of the PostgresqlDatabase class.
         """
         return cls(dbname, user, password, host, port, table_name, message_channel)
 
