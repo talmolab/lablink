@@ -1,6 +1,6 @@
 # Infrastructure Repository Migration Plan
 
-> **STATUS UPDATE (January 2025)**: Migration to separate repository is **ACTIVE**.
+> **STATUS UPDATE (October 2025)**: Migration to separate repository is **ACTIVE**.
 > The infrastructure code will be moved to `lablink-template` as a template repository.
 > This document tracks the migration progress and strategy.
 
@@ -388,7 +388,7 @@ Migration is successful when:
 - [Terraform State Migration](https://www.terraform.io/docs/language/state/remote-state-data.html)
 - [GitHub OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
 
-## Recent Progress (January 2025)
+## Recent Progress (October 2025)
 
 ### Repository Restructure ✅
 - Moved allocator to `packages/allocator/`
