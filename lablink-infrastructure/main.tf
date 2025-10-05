@@ -16,7 +16,7 @@ locals {
 
   # DNS configuration from config.yaml
   dns_enabled           = try(local.config_file.dns.enabled, false)
-  dns_terraform_managed = try(local.config_file.dns.terraform_managed, true)  # default true for backwards compatibility
+  dns_terraform_managed = try(local.config_file.dns.terraform_managed, true) # default true for backwards compatibility
   dns_domain            = try(local.config_file.dns.domain, "")
   dns_zone_id           = try(local.config_file.dns.zone_id, "")
   dns_app_name          = try(local.config_file.dns.app_name, "lablink")
