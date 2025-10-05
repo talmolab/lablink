@@ -352,14 +352,76 @@ terraform init
 
 **Error**: `Error acquiring the state lock`
 
-**Solution**:
-```bash
-# If no other Terraform process is running:
-terraform force-unlock <lock-id>
+**Cause**: A previous Terraform operation didn't complete cleanly, leaving the state locked in DynamoDB.
 
-# If using S3 backend, check DynamoDB table for locks
-aws dynamodb scan --table-name terraform-lock-table
+**Diagnosis**:
+
+1. **Identify the lock**:
+   ```bash
+   # Check for locks in DynamoDB
+   aws dynamodb scan --table-name lock-table --region us-west-2
+   ```
+
+2. **Check if a process is actually running**:
+   ```bash
+   # Look for terraform processes
+   ps aux | grep terraform
+
+   # In allocator container
+   sudo docker exec <container-id> ps aux | grep terraform
+   ```
+
+**Solutions**:
+
+**Option 1: Unlock via AWS CLI** (Recommended - works from anywhere)
+```bash
+# Delete the lock from DynamoDB
+aws dynamodb delete-item \
+    --profile <your-profile> \
+    --table-name lock-table \
+    --key '{"LockID":{"S":"tf-state-lablink-allocator-bucket/test/client/terraform.tfstate-md5"}}' \
+    --region us-west-2
 ```
+
+**Option 2: Unlock from allocator** (Requires DynamoDB IAM permissions)
+```bash
+# SSH into allocator
+ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+
+# Enter container
+sudo docker exec -it <container-id> bash
+
+# Navigate to terraform directory
+cd /app/lablink-allocator/src/lablink_allocator/terraform
+
+# Force unlock (using lock ID from error message)
+terraform force-unlock <lock-id>
+```
+
+**Common Error**: `AccessDeniedException: User is not authorized to perform: dynamodb:GetItem`
+
+**Cause**: The allocator IAM role lacks DynamoDB permissions.
+
+**Solution**: Ensure the allocator IAM role includes these permissions:
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "dynamodb:GetItem",
+    "dynamodb:PutItem",
+    "dynamodb:DeleteItem"
+  ],
+  "Resource": "arn:aws:dynamodb:us-west-2:<account-id>:table/lock-table"
+}
+```
+
+After updating IAM permissions, redeploy infrastructure for changes to take effect.
+
+**Prevention**:
+- Don't manually terminate EC2 instances while Terraform is running
+- Always let Terraform operations complete fully
+- Use destroy workflows instead of manual AWS console deletions
+- Monitor allocator logs during VM creation/destruction
 
 #### Resource Already Exists
 
