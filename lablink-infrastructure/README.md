@@ -227,6 +227,20 @@ Each environment maintains separate Terraform state to avoid conflicts.
 ### SSL Configuration (`ssl`)
 - `provider`: SSL provider (`letsencrypt`, `cloudflare`, or `none`)
 - `email`: Email for Let's Encrypt notifications
+- `staging`: When `true`, serve HTTP only for unlimited testing. When `false`, serve HTTPS with trusted Let's Encrypt certificates (rate limited to 5 duplicate certificates per week)
+
+**Staging Mode:**
+- Use `staging: true` for rapid infrastructure testing without SSL complications
+- Caddy serves HTTP only (no certificates, no redirects)
+- Client VMs connect via HTTP
+- Unlimited deployments per day
+- **Not for production use** - no encryption
+
+**Production Mode:**
+- Use `staging: false` for production deployments
+- Caddy obtains trusted Let's Encrypt certificates
+- Serves HTTPS with automatic HTTP→HTTPS redirects
+- Subject to Let's Encrypt rate limits
 
 ### Terraform State (`bucket_name`)
 - S3 bucket name for Terraform state storage (test/prod only)

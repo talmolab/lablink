@@ -41,7 +41,7 @@ class TestGetAllocatorUrl:
     """Test get_allocator_url function."""
 
     def test_https_production_with_dns(self):
-        """Test HTTPS URL with production Let's Encrypt and DNS."""
+        """Test HTTPS URL with production mode (trusted certificates)."""
         cfg = MockConfig(
             ssl=MockSSLConfig(provider="letsencrypt", staging=False),
             dns=MockDNSConfig(
@@ -53,7 +53,7 @@ class TestGetAllocatorUrl:
         assert protocol == "https"
 
     def test_http_staging_with_dns(self):
-        """Test HTTP URL with staging Let's Encrypt and DNS."""
+        """Test HTTP URL with staging mode (HTTP only, no SSL)."""
         cfg = MockConfig(
             ssl=MockSSLConfig(provider="letsencrypt", staging=True),
             dns=MockDNSConfig(

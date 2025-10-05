@@ -33,15 +33,15 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
             ("https://test.lablink.sleap.ai", "https")
     """
     # Determine protocol based on SSL provider
-    # Note: Client VMs should use HTTP when Let's Encrypt staging is enabled
-    # because staging certificates are not trusted by Python requests library
+    # When staging=true, Caddy serves HTTP only (no SSL certificates)
+    # When staging=false, Caddy serves HTTPS with trusted Let's Encrypt certs
     if hasattr(cfg, "ssl") and cfg.ssl.provider != "none":
-        # Check if using Let's Encrypt staging server
         is_staging = hasattr(cfg.ssl, "staging") and cfg.ssl.staging
         if is_staging:
-            # Use HTTP for client VM connections when staging certs are enabled
+            # Staging mode: HTTP only
             protocol = "http"
         else:
+            # Production mode: HTTPS with trusted certificates
             protocol = "https"
     else:
         protocol = "http"
