@@ -74,11 +74,14 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                         "hostname": os.getenv("VM_NAME"),
                         "gpu_status": curr_status,
                     },
-                    timeout=(10, 20),  # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                    # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                    timeout=(10, 20),
                 )
             except requests.exceptions.Timeout:
-                logger.error(f"GPU health report timed out after 30 seconds")
+                logger.error("GPU health report timed out after 30 seconds")
             except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to report GPU health: {e}")
+            except Exception as e:
                 logger.error(f"Failed to report GPU health: {e}")
             last_status = curr_status
 
@@ -94,7 +97,8 @@ def main(cfg: Config) -> None:
         module_name="check_gpu",
     )
     # Check GPU health
-    # Use ALLOCATOR_URL env var if set (supports HTTPS), otherwise use host:port with HTTP
+    # Use ALLOCATOR_URL env var if set (supports HTTPS),
+    # otherwise use host:port with HTTP
     allocator_url_env = os.getenv("ALLOCATOR_URL")
     if allocator_url_env:
         allocator_url = allocator_url_env

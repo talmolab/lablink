@@ -41,7 +41,9 @@ def test_run_success(
     subscribe(cfg)
 
     mock_post.assert_called_once_with(
-        "http://localhost:5000/vm_startup", json={"hostname": "vm-1"}, timeout=(30, 604800)
+        "http://localhost:5000/vm_startup",
+        json={"hostname": "vm-1"},
+        timeout=(30, 604800),
     )
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
 
@@ -76,7 +78,14 @@ def test_run_server_error_payload(
 @patch("lablink_client.subscribe.set_logger")
 @patch("lablink_client.subscribe.CloudAndConsoleLogger")
 def test_run_http_failure(
-    mock_logger_cls, _set_logger, mock_connect, mock_post, mock_sleep, cfg, vm_env, caplog
+    mock_logger_cls,
+    _set_logger,
+    mock_connect,
+    mock_post,
+    mock_sleep,
+    cfg,
+    vm_env,
+    caplog,
 ):
     """Test that HTTP 500 errors trigger retry logic."""
     mock_logger_cls.return_value = logging.getLogger("subscribe-test")

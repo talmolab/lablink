@@ -217,7 +217,7 @@ def test_check_gpu_with_internal_error(
     caplog.set_level(logging.ERROR, logger="lablink_client.check_gpu")
 
     with pytest.raises(KeyboardInterrupt):
-        check_gpu_health("localhost", 5000, interval=0)
+        check_gpu_health("http://localhost:5000", interval=0)
 
     # We posted exactly once (on the first iteration)
     assert mock_post.call_count == 1

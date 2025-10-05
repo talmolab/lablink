@@ -1,5 +1,6 @@
 import requests
 import os
+import time
 
 import hydra
 from omegaconf import OmegaConf
@@ -21,7 +22,8 @@ def subscribe(cfg: Config) -> None:
     logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
 
     # Define the URL for the POST request
-    # Use ALLOCATOR_URL env var if set (supports HTTPS), otherwise use host:port with HTTP
+    # Use ALLOCATOR_URL env var if set (supports HTTPS),
+    # otherwise use host:port with HTTP
     allocator_url = os.getenv("ALLOCATOR_URL")
     if allocator_url:
         base_url = allocator_url.rstrip('/')
@@ -36,7 +38,6 @@ def subscribe(cfg: Config) -> None:
 
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
-    import time
     retry_count = 0
     max_retries = None  # Infinite retries
     retry_delay = 60  # Wait 1 minute between retries
@@ -44,11 +45,17 @@ def subscribe(cfg: Config) -> None:
     while True:
         try:
             # Send a POST request to the specified URL
-            # Note: This endpoint blocks until a user assigns a CRD command, so we use a very long timeout
-            # The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM assignment
-            # Timeout is (connect_timeout, read_timeout): 30s to connect, 7 days to wait for assignment
-            logger.debug(f"Attempting to connect to allocator (attempt {retry_count + 1})")
-            response = requests.post(url, json={"hostname": hostname}, timeout=(30, 604800))
+            # Note: This endpoint blocks until a user assigns a CRD command,
+            # so we use a very long timeout.
+            # The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM
+            # assignment. Timeout tuple: (connect, read) = (30s, 7 days)
+            logger.debug(
+                f"Attempting to connect to allocator "
+                f"(attempt {retry_count + 1})"
+            )
+            response = requests.post(
+                url, json={"hostname": hostname}, timeout=(30, 604800)
+            )
 
             # Check if the request was successful
             if response.status_code == 200:
@@ -70,7 +77,10 @@ def subscribe(cfg: Config) -> None:
                     logger.error(f"Error message: {data.get('message')}")
                     break  # Server explicitly rejected - don't retry
             else:
-                logger.error(f"POST request failed with status code: {response.status_code}")
+                logger.error(
+                    f"POST request failed with status code: "
+                    f"{response.status_code}"
+                )
                 # Will retry after delay
 
         except requests.exceptions.Timeout as e:
