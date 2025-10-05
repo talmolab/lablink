@@ -1,10 +1,15 @@
 # Infrastructure Repository Migration Plan
 
-**Goal**: Separate infrastructure deployment code into a standalone repository for easier management and clearer separation of concerns.
+> **STATUS UPDATE (October 2025)**: Migration to separate repository is **ON HOLD**.
+> The team has decided to keep everything in a **monorepo structure** for now.
+> Infrastructure code remains in `lablink-infrastructure/` directory within the main repository.
+> This document is kept for historical reference and future consideration.
 
-**Target Repository**: `talmolab/lablink-infrastructure` (to be created)
+**Original Goal**: Separate infrastructure deployment code into a standalone repository for easier management and clearer separation of concerns.
 
-**Current Status**: Infrastructure code exists in `lablink-infrastructure/` directory within main repository
+**Target Repository**: `talmolab/lablink-infrastructure` (to be created - POSTPONED)
+
+**Current Status**: Infrastructure code exists in `lablink-infrastructure/` directory within main repository - **STAYING IN MONOREPO**
 
 ## Migration Overview
 
