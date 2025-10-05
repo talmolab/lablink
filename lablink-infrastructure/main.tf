@@ -63,6 +63,19 @@ data "aws_iam_policy_document" "s3_backend_doc" {
       "arn:aws:s3:::${local.bucket_name}/${var.resource_suffix}/*"
     ]
   }
+
+  # DynamoDB permissions for Terraform state locking
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:DeleteItem"
+    ]
+    resources = [
+      "arn:aws:dynamodb:us-west-2:${data.aws_caller_identity.current.account_id}:table/lock-table"
+    ]
+  }
 }
 
 
