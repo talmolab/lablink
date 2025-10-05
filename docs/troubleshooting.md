@@ -374,14 +374,43 @@ terraform init
 **Solutions**:
 
 **Option 1: Unlock via AWS CLI** (Recommended - works from anywhere)
+
+**Step 1:** First, scan the lock table to find the exact LockID:
 ```bash
-# Delete the lock from DynamoDB
+# List all locks
+aws dynamodb scan --profile <your-profile> --table-name lock-table --region us-west-2
+```
+
+**Step 2:** Look for entries with an `Info` field (these are actual locks, not just digests). Copy the exact `LockID` value.
+
+**Step 3:** Delete the lock:
+
+**Linux/macOS:**
+```bash
 aws dynamodb delete-item \
     --profile <your-profile> \
     --table-name lock-table \
-    --key '{"LockID":{"S":"tf-state-lablink-allocator-bucket/test/client/terraform.tfstate-md5"}}' \
+    --key '{"LockID":{"S":"<exact-lock-id-from-scan>"}}' \
     --region us-west-2
 ```
+
+**Windows PowerShell:**
+```powershell
+# Create key.json file with:
+# {
+#   "LockID": {
+#     "S": "<exact-lock-id-from-scan>"
+#   }
+# }
+
+aws dynamodb delete-item --profile <your-profile> --table-name lock-table --key file://key.json --region us-west-2
+```
+
+**Common lock paths:**
+- Infrastructure: `tf-state-lablink-allocator-bucket/test/terraform.tfstate`
+- Client VMs: `tf-state-lablink-allocator-bucket/test/client/terraform.tfstate`
+
+Note: Lock IDs do NOT always have `-md5` suffix - use the exact value from the scan!
 
 **Option 2: Unlock from allocator** (Requires DynamoDB IAM permissions)
 ```bash
