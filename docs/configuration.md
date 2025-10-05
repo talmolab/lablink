@@ -85,7 +85,7 @@ bucket_name: "tf-state-lablink-allocator-bucket"
 
 ### Client Configuration
 
-**Location**: `lablink-client-base/lablink-client-service/lablink_client_service/conf/config.yaml`
+**Location**: `packages/client/src/lablink_client/conf/config.yaml`
 
 ```yaml
 allocator:

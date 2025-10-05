@@ -41,7 +41,7 @@
 
     ```bash
     docker build -t lablink-allocator \
-      -f lablink-infrastructure/Dockerfile .
+      -f packages/allocator/Dockerfile .
     docker run -d -p 5000:5000 lablink-allocator
     ```
 
@@ -49,7 +49,7 @@
 
     ```bash
     docker build -t lablink-client \
-      -f lablink-client-base/lablink-client-base-image/Dockerfile .
+      -f packages/client/Dockerfile .
     ```
 
 ## Python development

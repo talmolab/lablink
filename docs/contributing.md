@@ -97,8 +97,8 @@ PYTHONPATH=. pytest
 ruff check .
 
 # Build Docker images (development)
-docker build -t lablink-allocator:dev -f lablink-infrastructure/Dockerfile.dev .
-docker build -t lablink-client:dev -f lablink-client-base/lablink-client-base-image/Dockerfile.dev lablink-client-base
+docker build -t lablink-allocator:dev -f packages/allocator/Dockerfile.dev .
+docker build -t lablink-client:dev -f packages/client/Dockerfile.dev .
 ```
 
 ## How to Contribute
