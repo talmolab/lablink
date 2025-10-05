@@ -1,452 +1,424 @@
 # Infrastructure Repository Migration Plan
 
-> **STATUS UPDATE (October 2025)**: Migration to separate repository is **ON HOLD**.
-> The team has decided to keep everything in a **monorepo structure** for now.
-> Infrastructure code remains in `lablink-infrastructure/` directory within the main repository.
-> This document is kept for historical reference and future consideration.
+> **STATUS UPDATE (January 2025)**: Migration to separate repository is **ACTIVE**.
+> The infrastructure code will be moved to `lablink-template` as a template repository.
+> This document tracks the migration progress and strategy.
 
-**Original Goal**: Separate infrastructure deployment code into a standalone repository for easier management and clearer separation of concerns.
+**Goal**: Separate infrastructure deployment code into a template repository that users can clone and customize for their own LabLink deployments.
 
-**Target Repository**: `talmolab/lablink-infrastructure` (to be created - POSTPONED)
+**Target Repository**: `talmolab/lablink-template` (to be created)
 
-**Current Status**: Infrastructure code exists in `lablink-infrastructure/` directory within main repository - **STAYING IN MONOREPO**
+**Example Deployment**: `talmolab/sleap-lablink` (SLEAP-specific deployment from template)
 
-## Migration Overview
+## Migration Strategy
 
-### What Will Move
-- `/lablink-infrastructure/` → Entire directory to new repo root
-- Terraform configurations
-- Deployment scripts
-- Configuration templates
-- Documentation specific to infrastructure
+### What Will Move to `lablink-template`
 
-### What Will Stay
-- `/packages/` → Python packages remain in main repo
-- `/lablink-client-base/` → Client Docker images
-- `/lablink-allocator/` → Old structure (deprecated but kept for reference)
-- `/docs/` → Main documentation (with links updated)
-- `/tests/` → Package tests
+**Infrastructure code:**
+- `/lablink-infrastructure/` → Template repository root
+- Terraform configurations (`main.tf`, `variables.tf`, `outputs.tf`, etc.)
+- Configuration files (`config/config.yaml`)
+- User data scripts
+- Deployment verification scripts
 
-## Current State Analysis
-
-### Repository Structure
-```
-lablink/
-├── lablink-infrastructure/      # → MOVE TO NEW REPO
-│   ├── main.tf
-│   ├── backend.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   ├── user_data.sh
-│   ├── config/
-│   │   └── config.yaml
-│   ├── verify-deployment.sh
-│   └── README-VERIFY.md
-├── packages/                     # KEEP
-│   ├── allocator/
-│   └── client/
-├── lablink-client-base/         # KEEP
-├── lablink-allocator/           # KEEP (deprecated)
-├── docs/                        # KEEP (update links)
-└── .github/workflows/           # SPLIT: some move, some stay
-```
-
-### GitHub Actions Workflows
-
-**Move to new repo**:
+**GitHub Actions workflows:**
 - `lablink-allocator-terraform.yml` → Infrastructure deployment
 - `lablink-allocator-destroy.yml` → Infrastructure teardown
-- `client-vm-infrastructure-test.yml` → E2E infrastructure tests
+- `client-vm-infrastructure-test.yml` → E2E testing (optional)
 
-**Keep in main repo**:
-- `ci.yml` → Python package testing
-- `docs.yml` → Documentation deployment
-- `lablink-images.yml` → Docker image building
+**Documentation:**
+- Deployment guide
+- Configuration guide
+- DNS setup
+- AWS setup
+- Troubleshooting specific to deployment
+
+### What Will Stay in Main Repo (`talmolab/lablink`)
+
+**Python packages:**
+- `/packages/allocator/` → Allocator service package
+- `/packages/client/` → Client service package
+
+**Documentation:**
+- `/docs/` → Package development docs, API reference, contributing guides
+- Links will be added to template repo where appropriate
+
+**GitHub Actions workflows:**
+- `ci.yml` → Python package testing and linting
+- `docs.yml` → Documentation deployment to GitHub Pages
+- `lablink-images.yml` → Docker image building and publishing
+- `publish-packages.yml` → Python package publishing to PyPI
+
+### What Will Be Removed
+
+**Deprecated old structure:**
+- `/lablink-allocator/` → Old allocator structure (superseded by `/packages/allocator/`)
+- `/lablink-client-base/` → Old client structure (superseded by `/packages/client/`)
+
+## Template Repository Structure
+
+```
+lablink-template/
+├── main.tf                          # Core infrastructure
+├── variables.tf                     # Input variables
+├── outputs.tf                       # Output values
+├── backend.tf                       # Terraform backend config
+├── backend-dev.hcl                  # Dev backend
+├── backend-test.hcl                 # Test backend
+├── backend-prod.hcl                 # Prod backend
+├── user_data.sh                     # EC2 initialization
+├── config/
+│   ├── config.yaml                  # Configuration file
+│   └── config-template.yaml         # Template with comments
+├── .github/
+│   └── workflows/
+│       ├── deploy.yml               # Deploy infrastructure
+│       ├── destroy.yml              # Destroy infrastructure
+│       └── test.yml                 # E2E testing (optional)
+├── scripts/
+│   ├── verify-deployment.sh         # Deployment verification
+│   └── setup-secrets.sh             # GitHub secrets setup helper
+├── docs/
+│   ├── README.md                    # Main documentation
+│   ├── deployment.md                # Deployment guide
+│   ├── configuration.md             # Configuration reference
+│   ├── dns-setup.md                 # DNS configuration
+│   ├── aws-setup.md                 # AWS prerequisites
+│   └── troubleshooting.md           # Common issues
+├── .gitignore
+├── LICENSE
+└── README.md                        # Template README
+```
+
+## Example: SLEAP Deployment
+
+Once the template is working, we'll create `talmolab/sleap-lablink` from it:
+
+```
+sleap-lablink/ (created from lablink-template)
+├── [Same structure as template]
+├── config/
+│   └── config.yaml                  # SLEAP-specific configuration
+│       machine:
+│         image: "ghcr.io/talmolab/lablink-client-base-image:latest"
+│         repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+│         software: "sleap"
+└── README.md                        # SLEAP deployment documentation
+```
+
+## Required Configuration & Environment Variables
+
+### GitHub Repository Secrets
+
+**Required for GitHub Actions:**
+- None (uses OIDC for AWS authentication)
+
+**Optional (can override defaults):**
+- `ADMIN_PASSWORD` → Override admin password
+- `DB_PASSWORD` → Override database password
+
+### GitHub Repository Variables
+
+**Required:**
+- None (configured in `config/config.yaml`)
+
+### AWS Prerequisites
+
+**IAM Role for OIDC:**
+- Role ARN with trust policy for GitHub Actions
+- Permissions: EC2, VPC, S3, Route53 (if using DNS)
+
+**S3 Bucket:**
+- Terraform state storage
+- Bucket name specified in `backend-*.hcl` files
+
+**Route 53 (optional):**
+- Hosted zone for DNS management
+- Zone ID in configuration
+
+### Configuration File (`config/config.yaml`)
+
+**Required settings:**
+```yaml
+db:
+  password: "CHANGE_ME"              # Database password
+
+machine:
+  ami_id: "ami-..."                  # Region-specific AMI
+  image: "ghcr.io/..."               # Docker image
+  repository: "https://github.com/..." # Optional: code repository
+
+app:
+  admin_password: "CHANGE_ME"        # Admin UI password
+  region: "us-west-2"                # AWS region
+
+bucket_name: "tf-state-your-deployment" # S3 bucket name
+
+dns:
+  enabled: true/false                # DNS management
+  zone_id: "Z..."                    # Route 53 zone (if enabled)
+  domain: "your-domain.com"          # Domain name
+
+ssl:
+  provider: "letsencrypt"/"none"     # SSL certificate provider
+  email: "admin@example.com"         # For Let's Encrypt
+```
 
 ## Migration Steps
 
-### Phase 1: Preparation (Current)
-- [x] Create VM_REGISTRATION_ISSUE.md documenting current bug
-- [x] Create DNS configuration documentation
-- [x] Update troubleshooting guide with DNS and VM issues
-- [x] Review and test all infrastructure deployment paths
-- [x] Fix HTTPS support for client services (VM registration, GPU health, status updates)
-- [x] Update DNS verification workflow to use curl instead of dig
-- [x] Test Chrome Remote Desktop workflow with HTTPS allocator
-- [ ] Document all environment variables and secrets
-- [ ] List all GitHub repository settings/secrets needed
+### Phase 1: Preparation ✅ COMPLETED
+- [x] Fix VM registration bug (HTTPS support)
+- [x] Update documentation structure
+- [x] Standardize Dockerfiles and virtual environments
+- [x] Update AMI configurations
+- [x] Format Terraform files
+- [x] Test current deployment workflow
 
-### Phase 2: Repository Setup
-- [ ] Create `talmolab/lablink-infrastructure` repository
+### Phase 2: Template Repository Creation 🔄 IN PROGRESS
+- [ ] Create `talmolab/lablink-template` repository
+- [ ] Mark as template repository in GitHub settings
 - [ ] Set up branch protection rules
-- [ ] Configure GitHub Actions secrets:
-  - AWS_REGION
-  - AWS_ACCOUNT_ID
-  - GITHUB_TOKEN (automatic)
-- [ ] Set up OIDC provider for AWS authentication
-- [ ] Create IAM role for GitHub Actions
+- [ ] Configure OIDC for AWS (document IAM role ARN pattern)
+- [ ] Copy `lablink-infrastructure/` contents to template root
+- [ ] Move deployment workflows to template
+- [ ] Create comprehensive README for template users
+- [ ] Add configuration examples and templates
+- [ ] Document all required secrets and variables
 
-### Phase 3: Code Migration
-- [ ] Copy `lablink-infrastructure/` to new repo root
-- [ ] Move relevant workflows to new repo `.github/workflows/`
-- [ ] Update terraform backend configurations
-- [ ] Create new repo README.md
-- [ ] Set up issue/PR templates
-- [ ] Configure branch protection
+### Phase 3: Template Documentation
+- [ ] Write deployment guide for template users
+- [ ] Document AWS setup requirements
+- [ ] Create DNS configuration guide
+- [ ] Write SSL/TLS setup guide
+- [ ] Create troubleshooting guide
+- [ ] Add quickstart guide
+- [ ] Document environment-specific configs (dev/test/prod)
 
-### Phase 4: Documentation Updates
-- [ ] Update main repo docs with links to infrastructure repo
-- [ ] Move infrastructure-specific docs to new repo
-- [ ] Update CLAUDE.md with new repo structure
-- [ ] Create migration guide for users
-- [ ] Update quickstart guide with new paths
+### Phase 4: Main Repo Cleanup
+- [ ] Remove `/lablink-allocator/` directory
+- [ ] Remove `/lablink-client-base/` directory
+- [ ] Remove infrastructure workflows from main repo
+- [ ] Update main repo README to point to template
+- [ ] Update docs with links to template repo
+- [ ] Add migration guide for existing users
 
-### Phase 5: Testing
-- [ ] Test infrastructure deployment from new repo
-- [ ] Verify GitHub Actions workflows
-- [ ] Test destroy workflow
-- [ ] Run E2E tests
-- [ ] Verify documentation links
+### Phase 5: SLEAP Deployment
+- [ ] Create `talmolab/sleap-lablink` from template
+- [ ] Configure for SLEAP-specific settings
+- [ ] Set up DNS (lablink.sleap.ai or similar)
+- [ ] Deploy and test
+- [ ] Document SLEAP-specific configuration
+- [ ] Use as reference implementation
 
-### Phase 6: Cleanup
-- [ ] Archive `lablink-infrastructure/` in main repo
-- [ ] Remove migrated workflows from main repo
-- [ ] Update main repo README
-- [ ] Create redirect/deprecation notices
-- [ ] Tag release in both repos
+### Phase 6: Testing & Validation
+- [ ] Test fresh deployment from template
+- [ ] Test with different AWS regions
+- [ ] Test with and without DNS
+- [ ] Test with different Docker images
+- [ ] Verify all documentation is accurate
+- [ ] Test SLEAP deployment end-to-end
 
-### Phase 7: Communication
-- [ ] Announce migration to users
-- [ ] Update external documentation
-- [ ] Create migration FAQ
-- [ ] Update deployment guides
-
-## Files to Migrate
-
-### Infrastructure Code
-```
-lablink-infrastructure/
-├── main.tf                  # Core infrastructure
-├── backend.tf               # Terraform state backend
-├── variables.tf             # Input variables
-├── outputs.tf               # Output values
-├── user_data.sh             # EC2 initialization script
-├── config/
-│   ├── config.yaml          # Main configuration
-│   └── config-template.yaml # Template for users
-├── verify-deployment.sh     # Deployment verification
-└── README-VERIFY.md         # Verification documentation
-```
-
-### GitHub Actions
-```
-.github/workflows/
-├── lablink-allocator-terraform.yml  # Deploy infrastructure
-├── lablink-allocator-destroy.yml    # Destroy infrastructure
-└── client-vm-infrastructure-test.yml # E2E tests
-```
-
-### Documentation
-```
-docs/
-├── dns-configuration.md     # DNS setup (move)
-├── deployment.md            # Update with new repo links
-└── troubleshooting.md       # Update with new repo links
-```
-
-## Configuration Changes
-
-### Terraform Backend
-Current backends reference main repo:
-```hcl
-# backend-test.hcl
-bucket = "tf-state-lablink-allocator-bucket"
-key    = "lablink-allocator/test/terraform.tfstate"
-```
-
-New backends will reference infrastructure repo:
-```hcl
-# backend-test.hcl
-bucket = "tf-state-lablink-infrastructure-bucket"
-key    = "lablink-infrastructure/test/terraform.tfstate"
-```
-
-### GitHub Actions Secrets
-**Required in new repo**:
-- AWS_REGION (environment variable)
-- AWS_ACCOUNT_ID (for OIDC)
-- No stored credentials (use OIDC)
-
-**IAM Role Setup**:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": {
-      "Federated": "arn:aws:iam::{account-id}:oidc-provider/token.actions.githubusercontent.com"
-    },
-    "Action": "sts:AssumeRoleWithWebIdentity",
-    "Condition": {
-      "StringEquals": {
-        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:talmolab/lablink-infrastructure:*"
-      }
-    }
-  }]
-}
-```
+### Phase 7: Announcement
+- [ ] Create migration guide for existing deployments
+- [ ] Announce template repository
+- [ ] Update external links and documentation
+- [ ] Create video/written tutorial for template usage
 
 ## Package Dependencies
 
-### Python Packages
-Infrastructure repo will depend on published packages from main repo:
-- `lablink-allocator` → Published to PyPI/GitHub Packages
-- `lablink-client-service` → Published to PyPI/GitHub Packages
-
-### Docker Images
-Infrastructure will reference images from main repo:
-- `ghcr.io/talmolab/lablink-allocator:version`
+### Docker Images (Published from Main Repo)
+Template deployments will use Docker images built and published from `talmolab/lablink`:
+- `ghcr.io/talmolab/lablink-allocator-image:version`
 - `ghcr.io/talmolab/lablink-client-base-image:version`
 
-**Image versioning strategy**:
-- Use semantic versions for production: `v1.0.0`
-- Use branch tags for testing: `linux-amd64-test`
-- Pin specific versions in production configs
+**Versioning strategy:**
+- Production deployments: Pin to specific version (e.g., `v1.0.0`)
+- Testing deployments: Use branch tags (e.g., `linux-amd64-test`)
+- Latest stable: Use `latest` tag
 
-## Known Issues to Address Before Migration
+### Python Packages (Published to PyPI)
+Docker images install packages from PyPI:
+- `lablink-allocator-service`
+- `lablink-client-service`
 
-### Critical Bugs
-1. ~~**VM Registration Issue**~~ - ✅ **FIXED**
-   - ~~`/api/launch` doesn't insert VMs into database~~
-   - Fixed: HTTPS support added to all client services
-   - Client VMs now use `ALLOCATOR_URL` environment variable for HTTPS
-   - Deployed and tested successfully
+## Template Usage Workflow
 
-2. **DNS Zone ID Hardcoding**
-   - Currently requires hardcoded zone_id in config
-   - Consider making zone lookup more robust
-   - Document clearly in new repo
+### For Template Users
 
-3. **DNS Verification Workflow** - ✅ **FIXED**
-   - ~~Old workflow used `dig` which failed with Cloudflare DNS~~
-   - Updated to use `curl` for HTTPS connectivity check
-   - More reliable for proxied domains
-
-### Configuration Management
-1. **Config Schema Validation**
-   - Add validation for config.yaml
-   - Prevent missing required fields
-   - Better error messages
-
-2. **Environment-Specific Configs**
-   - Create templates for dev/test/prod
-   - Document all configuration options
-   - Add config validation script
-
-## Post-Migration Workflow
-
-### Deployment Process (After Migration)
-
-**1. Update Infrastructure**:
+**1. Create deployment from template:**
 ```bash
-# Clone infrastructure repo
-git clone https://github.com/talmolab/lablink-infrastructure
-cd lablink-infrastructure
+# On GitHub: Use "Use this template" button
+# Or via CLI:
+gh repo create my-org/my-lablink-deployment --template talmolab/lablink-template
+cd my-lablink-deployment
+```
 
+**2. Configure deployment:**
+```bash
 # Edit configuration
+cp config/config-template.yaml config/config.yaml
 vim config/config.yaml
 
-# Deploy
-terraform init
+# Update passwords, AMI IDs, domain, etc.
+```
+
+**3. Set up AWS:**
+```bash
+# Create S3 bucket for state
+aws s3 mb s3://tf-state-my-deployment
+
+# Create IAM role for GitHub Actions (see docs/aws-setup.md)
+```
+
+**4. Deploy:**
+```bash
+# Via GitHub Actions (recommended)
+# Go to Actions → Deploy → Run workflow
+
+# Or locally:
+terraform init -backend-config=backend-prod.hcl
 terraform apply
 ```
 
-**2. Update Packages** (if needed):
+### For Main Repo Developers
+
+**1. Update packages:**
 ```bash
-# In main lablink repo
-cd packages/allocator
+cd lablink/packages/allocator
 # Make changes
 git commit && git push
 
-# GitHub Actions builds and publishes new version
-# Wait for package publish
+# CI builds and publishes new version
+```
 
-# Update infrastructure config to use new version
-cd lablink-infrastructure
-vim config/config.yaml  # Update package version
+**2. Update Docker images:**
+```bash
+# Triggered automatically by package publish
+# Or manually via GitHub Actions
+```
+
+**3. Template users update their deployments:**
+```bash
+# In their deployment repo
+vim config/config.yaml  # Update image tag
 terraform apply
 ```
 
-### Version Pinning Strategy
+## Known Issues & Solutions
 
-**Production**:
-```yaml
-machine:
-  image: "ghcr.io/talmolab/lablink-allocator:v1.2.3"
-  repository: "https://github.com/talmolab/lablink"
-```
+### Issue: VM Registration with HTTPS ✅ FIXED
+- **Solution**: HTTPS support added to all client services
+- **Status**: Resolved, deployed, tested
 
-**Testing**:
-```yaml
-machine:
-  image: "ghcr.io/talmolab/lablink-allocator:linux-amd64-test"
-  repository: "https://github.com/talmolab/lablink"
-```
+### Issue: DNS Verification ✅ FIXED
+- **Solution**: Changed from `dig` to `curl` for verification
+- **Status**: Resolved
 
-## Risk Assessment
+### Issue: Terraform State Management
+- **Challenge**: Each deployment needs separate state
+- **Solution**: Template includes backend config examples
+- **Documentation**: Clear guide on S3 bucket setup
 
-### High Risk
-- **State file migration** - Terraform state must be preserved
-  - Mitigation: Backup state files before migration
-  - Test migration in non-production first
-
-- **Broken dependencies** - Infrastructure depends on packages/images
-  - Mitigation: Pin versions explicitly
-  - Test with current versions before migration
-
-### Medium Risk
-- **Documentation links** - Many docs reference current structure
-  - Mitigation: Update all links systematically
-  - Add redirects where possible
-
-- **User confusion** - Two repos instead of one
-  - Mitigation: Clear migration guide
-  - Update all external documentation
-
-### Low Risk
-- **CI/CD workflows** - May need debugging in new repo
-  - Mitigation: Test thoroughly before announcing
-  - Keep old workflows temporarily
+### Issue: AMI Region Specificity
+- **Challenge**: AMI IDs are region-specific
+- **Solution**: Document AMI lookup process
+- **Future**: Consider automated AMI lookup by region
 
 ## Testing Checklist
 
 Before declaring migration complete:
 
-- [ ] Fresh deployment works from new repo
-- [ ] Existing deployment can be updated
-- [ ] Destroy workflow works
-- [ ] DNS configuration works
+**Template Repository:**
+- [ ] Fresh deployment works from template
+- [ ] All workflows run successfully
+- [ ] Documentation is complete and accurate
+- [ ] Configuration validation works
+- [ ] DNS setup works
 - [ ] SSL certificates obtain successfully
-- [ ] Client VMs register (after bug fix)
-- [ ] All documentation links work
-- [ ] GitHub Actions run successfully
-- [ ] Terraform state is accessible
-- [ ] Rollback procedure tested
+- [ ] Client VMs register correctly
 
-## Rollback Plan
+**SLEAP Deployment:**
+- [ ] SLEAP-specific deployment works
+- [ ] SLEAP tutorial data clones correctly
+- [ ] Chrome Remote Desktop works
+- [ ] All SLEAP workflows function
 
-If migration causes issues:
+**Main Repository:**
+- [ ] Package CI/CD still works
+- [ ] Docker images still build
+- [ ] Documentation builds successfully
+- [ ] All links updated correctly
 
-1. **Keep old structure temporarily**:
-   - Don't delete `lablink-infrastructure/` from main repo immediately
-   - Keep old workflows disabled but present
+## Success Criteria
 
-2. **State file access**:
-   - Ensure S3 buckets accessible from both repos
-   - Document how to point terraform at old state
-
-3. **Documentation**:
-   - Keep old documentation accessible
-   - Add notes about where to find current info
+Migration is successful when:
+- ✅ Template repository is functional and documented
+- ✅ Users can create deployments from template
+- ✅ SLEAP deployment works as reference implementation
+- ✅ Main repo focuses solely on package development
+- ✅ No functionality regressions
+- ✅ Clear separation of concerns
+- ✅ Documentation is comprehensive
 
 ## Timeline
 
 **Estimated Duration**: 2-3 weeks
 
-**Week 1**: Preparation and Setup
-- Fix VM registration bug
-- Review and document everything
-- Create new repository
-- Set up AWS resources
+**Week 1**: Template Creation
+- Create template repository
+- Move infrastructure code
+- Set up workflows
+- Create initial documentation
 
-**Week 2**: Migration and Testing
-- Copy code to new repo
-- Update workflows and docs
-- Test all deployment scenarios
+**Week 2**: Testing & Documentation
+- Test template deployment
+- Complete documentation
+- Create SLEAP deployment
 - Fix issues found during testing
 
-**Week 3**: Finalization and Communication
-- Final testing
+**Week 3**: Main Repo Cleanup & Launch
+- Clean up main repository
 - Update all documentation
-- Announce migration
+- Announce template availability
 - Monitor for issues
-
-## Success Criteria
-
-Migration is successful when:
-- ✅ Infrastructure can be deployed from new repo
-- ✅ All GitHub Actions workflows pass
-- ✅ Documentation is complete and accurate
-- ✅ No regressions in functionality
-- ✅ Users can follow migration guide successfully
-- ✅ Old repo clearly indicates where to find new code
-
-## Open Questions
-
-1. **Package Publishing**: Should infrastructure repo trigger package builds in main repo?
-   - Option A: Keep separate (infrastructure uses published versions)
-   - Option B: Add workflow to trigger builds
-   - **Recommendation**: Keep separate for cleaner separation
-
-2. **Version Coordination**: How to ensure infrastructure uses compatible package versions?
-   - Option A: Manual version updates in config
-   - Option B: Automated compatibility checking
-   - **Recommendation**: Start with manual, add automation later
-
-3. **Documentation Split**: Where should each doc live?
-   - Main repo: Package development, API docs, contributing
-   - Infrastructure repo: Deployment, DNS, AWS setup
-   - **Recommendation**: Document in both with cross-links
-
-4. **State File Location**: Keep current S3 bucket or create new one?
-   - Current: `tf-state-lablink-allocator-bucket`
-   - **Recommendation**: Create new bucket for infrastructure repo
 
 ## Resources
 
-- [Terraform State Migration Guide](https://www.terraform.io/docs/language/state/remote-state-data.html)
+- [GitHub Template Repositories](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository)
+- [Terraform State Migration](https://www.terraform.io/docs/language/state/remote-state-data.html)
 - [GitHub OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
-- [Repository Migration Best Practices](https://docs.github.com/en/github/administering-a-repository)
 
-## Recent Progress (October 2025)
+## Recent Progress (January 2025)
 
-### HTTPS Support Implementation ✅
-- **Problem**: Client VMs couldn't communicate with HTTPS allocator
-- **Solution**:
-  - Added `ALLOCATOR_URL` environment variable support to all client services
-  - Updated subscribe.py, check_gpu.py, update_inuse_status.py
-  - Implemented timeout tuples for better error handling
-  - Added retry logic with 60s delays for transient failures
-- **Files Changed**:
-  - `packages/client/src/lablink_client/subscribe.py`
-  - `packages/client/src/lablink_client/check_gpu.py`
-  - `packages/client/src/lablink_client/update_inuse_status.py`
-  - `packages/client/tests/test_subscribe.py`
-  - `packages/client/tests/test_check_gpu.py`
+### Repository Restructure ✅
+- Moved allocator to `packages/allocator/`
+- Moved client to `packages/client/`
+- Standardized Dockerfiles with explicit venv paths
+- Updated all documentation
 
-### DNS Verification Fix ✅
-- **Problem**: GitHub Actions DNS check using `dig` failed with Cloudflare
-- **Solution**: Changed to `curl` for HTTPS connectivity check
-- **File Changed**: `.github/workflows/lablink-allocator-terraform.yml`
+### HTTPS Support ✅
+- Added ALLOCATOR_URL support to all client services
+- Tested with production HTTPS deployment
+- All services working correctly
 
-## Next Actions
+### AMI Updates ✅
+- Updated to Ubuntu 24.04 custom AMIs
+- Client: ami-0601752c11b394251 (with Docker + Nvidia)
+- Allocator: ami-0bd08c9d4aa9f0bc6 (with Docker)
 
-**Immediate** (Before Migration):
-1. ~~Fix VM registration bug~~ ✅ COMPLETED
-2. ~~Test fix in current setup~~ ✅ COMPLETED
-3. Test client VM launch and Chrome Remote Desktop connection ⏳ IN PROGRESS
-4. Document all environment variables and secrets
-5. Create infrastructure repo
+## Next Steps
 
-**Short Term** (During Migration):
-1. Copy infrastructure code
-2. Set up GitHub Actions
-3. Test deployment pipeline
-4. Update documentation
+**Immediate:**
+1. Create `lablink-template` repository
+2. Copy infrastructure code
+3. Write template README and documentation
 
-**Long Term** (After Migration):
-1. Deprecate old structure
-2. Monitor for issues
-3. Improve infrastructure code
-4. Add more automation
+**Short Term:**
+4. Test template deployment
+5. Create SLEAP deployment from template
+6. Clean up main repository
+
+**Long Term:**
+7. Announce template availability
+8. Support users creating deployments
+9. Iterate based on feedback
