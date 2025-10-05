@@ -17,8 +17,11 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
         Tuple of (base_url, protocol)
 
     Examples:
-        DNS enabled + Let's Encrypt SSL:
+        DNS enabled + Let's Encrypt SSL (production):
             ("https://test.lablink.sleap.ai", "https")
+
+        DNS enabled + Let's Encrypt SSL (staging):
+            ("http://test.lablink.sleap.ai", "http")
 
         DNS disabled + No SSL:
             ("http://52.40.142.146", "http")
@@ -30,8 +33,16 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
             ("https://test.lablink.sleap.ai", "https")
     """
     # Determine protocol based on SSL provider
+    # Note: Client VMs should use HTTP when Let's Encrypt staging is enabled
+    # because staging certificates are not trusted by Python requests library
     if hasattr(cfg, "ssl") and cfg.ssl.provider != "none":
-        protocol = "https"
+        # Check if using Let's Encrypt staging server
+        is_staging = hasattr(cfg.ssl, "staging") and cfg.ssl.staging
+        if is_staging:
+            # Use HTTP for client VM connections when staging certs are enabled
+            protocol = "http"
+        else:
+            protocol = "https"
     else:
         protocol = "http"
 
