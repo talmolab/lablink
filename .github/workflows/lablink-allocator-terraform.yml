@@ -250,7 +250,23 @@ jobs:
           # Wait for DNS propagation (max 5 minutes)
           MAX_ATTEMPTS=30
           for i in $(seq 1 $MAX_ATTEMPTS); do
-            RESOLVED_IP=$(nslookup "$FQDN" 8.8.8.8 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
+            # Try multiple DNS resolution methods for reliability
+            RESOLVED_IP=""
+
+            # Method 1: dig (most reliable)
+            if command -v dig &> /dev/null; then
+              RESOLVED_IP=$(dig +short "$FQDN" @8.8.8.8 | grep -E '^[0-9.]+$' | head -1)
+            fi
+
+            # Method 2: host (fallback)
+            if [ -z "$RESOLVED_IP" ] && command -v host &> /dev/null; then
+              RESOLVED_IP=$(host "$FQDN" 8.8.8.8 2>/dev/null | grep "has address" | awk '{print $4}' | head -1)
+            fi
+
+            # Method 3: nslookup (last resort)
+            if [ -z "$RESOLVED_IP" ]; then
+              RESOLVED_IP=$(nslookup "$FQDN" 8.8.8.8 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
+            fi
 
             if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
               echo "✓ DNS resolution successful!"
@@ -259,14 +275,14 @@ jobs:
             fi
 
             if [ $i -lt $MAX_ATTEMPTS ]; then
-              echo "⏳ Waiting for DNS propagation (attempt $i/$MAX_ATTEMPTS)..."
+              echo "⏳ Waiting for DNS propagation (attempt $i/$MAX_ATTEMPTS, resolved: ${RESOLVED_IP:-none})..."
               sleep 10
             fi
           done
 
-          echo "⚠ Warning: DNS resolution delayed"
+          echo "⚠ Warning: DNS resolution delayed (resolved to: ${RESOLVED_IP:-none}, expected: $PUBLIC_IP)"
           echo "   This may be normal for newly created DNS records"
-          echo "   Manual verification recommended: nslookup $FQDN"
+          echo "   Manual verification recommended: dig $FQDN"
 
       - name: Verify Service Health
         if: steps.apply.outcome == 'success'
