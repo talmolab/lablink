@@ -6,10 +6,69 @@ Deploy your own LabLink VM allocation system for computational research workflow
 
 ## Quick Start
 
+### Step 0: GitHub Secrets Setup (Required for GitHub Actions)
+
+If you plan to deploy via GitHub Actions workflows, you must configure one repository secret:
+
+1. **Go to your repository Settings** → Secrets and variables → Actions
+2. **Click "New repository secret"**
+3. **Add the following secret:**
+
+   | Name | Value | Description |
+   |------|-------|-------------|
+   | `AWS_ROLE_ARN` | `arn:aws:iam::YOUR-ACCOUNT-ID:role/YOUR-ROLE-NAME` | IAM role ARN for OIDC authentication |
+
+**How to create the AWS IAM role for OIDC:**
+
+```bash
+# 1. Create a trust policy file
+cat > trust-policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::YOUR-ACCOUNT-ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:YOUR-ORG/YOUR-REPO:*"
+        }
+      }
+    }
+  ]
+}
+EOF
+
+# 2. Create the IAM role
+aws iam create-role \
+  --role-name github-actions-lablink-deploy \
+  --assume-role-policy-document file://trust-policy.json
+
+# 3. Attach required policies
+aws iam attach-role-policy \
+  --role-name github-actions-lablink-deploy \
+  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
+
+# 4. Get the role ARN (use this for AWS_ROLE_ARN secret)
+aws iam get-role \
+  --role-name github-actions-lablink-deploy \
+  --query 'Role.Arn' \
+  --output text
+```
+
+**Note:** If deploying locally with Terraform (not via GitHub Actions), you don't need this secret. Just configure AWS CLI credentials instead.
+
 ### Prerequisites
 - AWS account with credentials configured
-- Terraform installed (v1.6.6+)
+- Terraform installed (v1.6.6+) for local deployments
 - Docker images available on GHCR (or use public LabLink images)
+- GitHub repository secret `AWS_ROLE_ARN` configured (for GitHub Actions deployments)
 
 ### 1. Configure
 
