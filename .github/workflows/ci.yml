@@ -126,12 +126,12 @@ jobs:
           warnings.filterwarnings(\"ignore\")
           import logging
           logging.basicConfig(level=logging.ERROR)
-          print(\"Importing lablink-allocator-service packages:\")
-          from lablink_allocator_service.main import main
+          print(\"Importing lablink-allocator packages:\")
+          from lablink_allocator.main import main
           print(\"  - main.main imported\")
-          from lablink_allocator_service.database import PostgresqlDatabase
+          from lablink_allocator.database import PostgresqlDatabase
           print(\"  - database.PostgresqlDatabase imported\")
-          from lablink_allocator_service.get_config import get_config
+          from lablink_allocator.get_config import get_config
           print(\"  - get_config.get_config imported\")
           print(\"Package imports successful\")
           "'
