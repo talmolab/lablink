@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 
-import pytest
 
 from lablink_allocator.utils.config_helpers import (
     get_allocator_url,
