@@ -215,8 +215,10 @@ jobs:
 
             DNS_DOMAIN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "domain:" | awk '{print $2}' | tr -d '"')
             DNS_PATTERN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "pattern:" | awk '{print $2}' | tr -d '"')
+            DNS_SUBDOMAIN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "custom_subdomain:" | awk '{print $2}' | tr -d '"')
 
             echo "   Domain: $DNS_DOMAIN"
+            echo "   Subdomain: $DNS_SUBDOMAIN"
             echo "   Pattern: $DNS_PATTERN"
 
             # Validate required fields are not empty
