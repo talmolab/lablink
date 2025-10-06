@@ -5,6 +5,13 @@
     "aliases": []
   },
   {
+    "version": "lablink-client-service_v0.0.8a3",
+    "title": "lablink-client-service_v0.0.8a3",
+    "aliases": [
+      "latest"
+    ]
+  },
+  {
     "version": "lablink-client-service_v0.0.8a2",
     "title": "lablink-client-service_v0.0.8a2",
     "aliases": []
@@ -27,9 +34,7 @@
   {
     "version": "lablink-allocator-service_v0.0.3a2",
     "title": "lablink-allocator-service_v0.0.3a2",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "lablink-allocator-service_v0.0.3a1",
