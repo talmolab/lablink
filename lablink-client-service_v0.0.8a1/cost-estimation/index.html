@@ -1,0 +1,2902 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Dynamic VM allocation and management system for computational research">
+      
+      
+        <meta name="author" content="Talmo Lab">
+      
+      
+      
+        <link rel="prev" href="../security/">
+      
+      
+        <link rel="next" href="../reference/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.21">
+    
+    
+      
+        <title>Cost estimation - LabLink</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.2a3383ac.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cost-estimation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LabLink
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Cost estimation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/talmolab/lablink" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    talmolab/lablink
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../prerequisites/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../aws-setup/" class="md-tabs__link">
+          
+  
+  
+  AWS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../contributing/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    LabLink
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/talmolab/lablink" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    talmolab/lablink
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prerequisites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Prerequisites
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adapting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Adapting for your software
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ssh-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SSH access
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Database
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    AWS
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            AWS
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security and credentials
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Cost estimation
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost estimation
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cost-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aws-pricing-calculator" class="md-nav__link">
+    <span class="md-ellipsis">
+      AWS Pricing Calculator
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure-costs-minimal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infrastructure Costs (Minimal)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Infrastructure Costs (Minimal)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#s3-bucket-terraform-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      S3 Bucket (Terraform State)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elastic-ips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Elastic IPs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-53-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route 53 (Optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#total-infrastructure-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      Total Infrastructure Cost
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compute-costs-variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compute Costs (Variable)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compute Costs (Variable)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#allocator-instance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allocator Instance
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allocator Instance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#instance-type-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Instance Type Options
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-instances" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Instances
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM Instances">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gpu-instance-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      GPU Instance Types
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-optimization-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization Strategies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cpu-only-instance-types-non-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      CPU-Only Instance Types (Non-GPU)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Storage Costs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Storage Costs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ebs-volumes-ec2-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      EBS Volumes (EC2 Storage)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s3-storage-backups" class="md-nav__link">
+    <span class="md-ellipsis">
+      S3 Storage (Backups)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-transfer-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Transfer Costs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Transfer Costs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inbound-free" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inbound (Free)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outbound" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outbound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inter-region-transfer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inter-Region Transfer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-cost-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Cost Scenarios
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Cost Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-1-developmenttesting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 1: Development/Testing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-2-light-production-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 2: Light Production Use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-3-heavy-production-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 3: Heavy Production Use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-4-minimal-cost-conscious" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 4: Minimal (Cost-Conscious)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Monitoring
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cost Monitoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-up-billing-alerts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Set Up Billing Alerts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-current-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      View Current Costs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-optimization-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization Checklist
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#free-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      Free Tier
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hidden-costs-to-watch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hidden Costs to Watch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Comparison
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cost Comparison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink-vs-self-managed" class="md-nav__link">
+    <span class="md-ellipsis">
+      LabLink vs Self-Managed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink-vs-managed-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      LabLink vs Managed Services
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#budget-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Budget Recommendations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Budget Recommendations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Use Case
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#questions-about-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Questions About Costs?
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Development
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Documentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-allocator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Allocator changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Client changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Releases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cost-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aws-pricing-calculator" class="md-nav__link">
+    <span class="md-ellipsis">
+      AWS Pricing Calculator
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure-costs-minimal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infrastructure Costs (Minimal)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Infrastructure Costs (Minimal)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#s3-bucket-terraform-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      S3 Bucket (Terraform State)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elastic-ips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Elastic IPs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-53-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route 53 (Optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#total-infrastructure-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      Total Infrastructure Cost
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compute-costs-variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compute Costs (Variable)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compute Costs (Variable)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#allocator-instance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allocator Instance
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allocator Instance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#instance-type-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Instance Type Options
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-instances" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Instances
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM Instances">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gpu-instance-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      GPU Instance Types
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-optimization-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization Strategies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cpu-only-instance-types-non-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      CPU-Only Instance Types (Non-GPU)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Storage Costs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Storage Costs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ebs-volumes-ec2-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      EBS Volumes (EC2 Storage)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s3-storage-backups" class="md-nav__link">
+    <span class="md-ellipsis">
+      S3 Storage (Backups)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-transfer-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Transfer Costs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Transfer Costs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inbound-free" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inbound (Free)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outbound" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outbound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inter-region-transfer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inter-Region Transfer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-cost-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Cost Scenarios
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Cost Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-1-developmenttesting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 1: Development/Testing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-2-light-production-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 2: Light Production Use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-3-heavy-production-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 3: Heavy Production Use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-4-minimal-cost-conscious" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scenario 4: Minimal (Cost-Conscious)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Monitoring
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cost Monitoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-up-billing-alerts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Set Up Billing Alerts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-current-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      View Current Costs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-optimization-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Optimization Checklist
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#free-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      Free Tier
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hidden-costs-to-watch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hidden Costs to Watch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Comparison
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cost Comparison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink-vs-self-managed" class="md-nav__link">
+    <span class="md-ellipsis">
+      LabLink vs Self-Managed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink-vs-managed-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      LabLink vs Managed Services
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#budget-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Budget Recommendations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Budget Recommendations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Use Case
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#questions-about-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Questions About Costs?
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cost-estimation">Cost Estimation<a class="headerlink" href="#cost-estimation" title="Permanent link">&para;</a></h1>
+<p>This guide helps you understand and estimate AWS costs for running LabLink.</p>
+<h2 id="cost-overview">Cost Overview<a class="headerlink" href="#cost-overview" title="Permanent link">&para;</a></h2>
+<p>LabLink costs consist of:</p>
+<ol>
+<li><strong>Infrastructure costs</strong> (one-time or monthly)</li>
+<li><strong>Compute costs</strong> (per hour, based on usage)</li>
+<li><strong>Storage costs</strong> (monthly)</li>
+<li><strong>Data transfer costs</strong> (per GB)</li>
+</ol>
+<h2 id="aws-pricing-calculator">AWS Pricing Calculator<a class="headerlink" href="#aws-pricing-calculator" title="Permanent link">&para;</a></h2>
+<p>For exact pricing, use the <a href="https://calculator.aws/">AWS Pricing Calculator</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Prices shown are for <strong>us-west-2</strong> region as of January 2025. Check current AWS pricing for your region.</p>
+</div>
+<h2 id="infrastructure-costs-minimal">Infrastructure Costs (Minimal)<a class="headerlink" href="#infrastructure-costs-minimal" title="Permanent link">&para;</a></h2>
+<h3 id="s3-bucket-terraform-state">S3 Bucket (Terraform State)<a class="headerlink" href="#s3-bucket-terraform-state" title="Permanent link">&para;</a></h3>
+<p><strong>Purpose</strong>: Store Terraform state files</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Usage</th>
+<th>Monthly Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Storage</td>
+<td>&lt; 1 GB</td>
+<td>$0.02</td>
+</tr>
+<tr>
+<td>Requests</td>
+<td>~ 100/month</td>
+<td>$0.01</td>
+</tr>
+<tr>
+<td>Versioning</td>
+<td>Enabled</td>
+<td>Included</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated Monthly Cost</strong>: <strong>$0.05</strong></p>
+<h3 id="elastic-ips">Elastic IPs<a class="headerlink" href="#elastic-ips" title="Permanent link">&para;</a></h3>
+<p><strong>Purpose</strong>: Static IP addresses for allocators</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Quantity</th>
+<th>Monthly Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Elastic IP (associated)</td>
+<td>2 (test, prod)</td>
+<td>$0.00</td>
+</tr>
+<tr>
+<td>Elastic IP (unassociated)</td>
+<td>0</td>
+<td>$0.00</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Unassociated Elastic IPs cost <strong>$0.005/hour</strong> ($3.60/month). Always associate or release unused IPs.</p>
+</div>
+<p><strong>Estimated Monthly Cost</strong>: <strong>$0.00</strong> (when associated)</p>
+<h3 id="route-53-optional">Route 53 (Optional)<a class="headerlink" href="#route-53-optional" title="Permanent link">&para;</a></h3>
+<p><strong>Purpose</strong>: DNS management for custom domains</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Quantity</th>
+<th>Monthly Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hosted Zone</td>
+<td>1</td>
+<td>$0.50</td>
+</tr>
+<tr>
+<td>Queries</td>
+<td>1M</td>
+<td>$0.40</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated Monthly Cost</strong>: <strong>$0.90</strong></p>
+<h3 id="total-infrastructure-cost">Total Infrastructure Cost<a class="headerlink" href="#total-infrastructure-cost" title="Permanent link">&para;</a></h3>
+<p><strong>Without Route 53</strong>: <strong>~$0.05/month</strong>
+<strong>With Route 53</strong>: <strong>~$0.95/month</strong></p>
+<h2 id="compute-costs-variable">Compute Costs (Variable)<a class="headerlink" href="#compute-costs-variable" title="Permanent link">&para;</a></h2>
+<h3 id="allocator-instance">Allocator Instance<a class="headerlink" href="#allocator-instance" title="Permanent link">&para;</a></h3>
+<p>Costs for running the allocator EC2 instance.</p>
+<h4 id="instance-type-options">Instance Type Options<a class="headerlink" href="#instance-type-options" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Instance Type</th>
+<th>vCPUs</th>
+<th>RAM</th>
+<th>Price (On-Demand)</th>
+<th>Monthly (24/7)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>t2.micro</strong></td>
+<td>1</td>
+<td>1 GB</td>
+<td>$0.0116/hour</td>
+<td>$8.50</td>
+</tr>
+<tr>
+<td><strong>t2.small</strong></td>
+<td>1</td>
+<td>2 GB</td>
+<td>$0.023/hour</td>
+<td>$16.79</td>
+</tr>
+<tr>
+<td><strong>t2.medium</strong></td>
+<td>2</td>
+<td>4 GB</td>
+<td>$0.0464/hour</td>
+<td>$33.87</td>
+</tr>
+<tr>
+<td><strong>t3.micro</strong></td>
+<td>2</td>
+<td>1 GB</td>
+<td>$0.0104/hour</td>
+<td>$7.59</td>
+</tr>
+<tr>
+<td><strong>t3.small</strong></td>
+<td>2</td>
+<td>2 GB</td>
+<td>$0.0208/hour</td>
+<td>$15.18</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommended</strong>: <strong>t2.micro</strong> for dev/test, <strong>t2.small</strong> for production</p>
+<p><strong>Estimated Monthly Cost</strong>: <strong>$8.50 - $17</strong> (if running 24/7)</p>
+<h4 id="cost-optimization">Cost Optimization<a class="headerlink" href="#cost-optimization" title="Permanent link">&para;</a></h4>
+<p><strong>Option 1: Terminate When Not Needed</strong>
+- Stop allocator during off-hours
+- Cost: Only when running
+- Example: 8 hours/day × 20 days = 160 hours = $1.86/month (t2.micro)</p>
+<p><strong>Option 2: Reserved Instances</strong> (1-year commitment)
+- Up to 75% savings
+- t2.micro: $5.03/month (vs $8.50)</p>
+<p><strong>Option 3: Savings Plans</strong>
+- Flexible commitment
+- Similar savings to Reserved Instances</p>
+<h3 id="client-vm-instances">Client VM Instances<a class="headerlink" href="#client-vm-instances" title="Permanent link">&para;</a></h3>
+<p>Costs for running research workload VMs.</p>
+<h4 id="gpu-instance-types">GPU Instance Types<a class="headerlink" href="#gpu-instance-types" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Instance Type</th>
+<th>GPU</th>
+<th>vCPUs</th>
+<th>RAM</th>
+<th>GPU Memory</th>
+<th>Price/Hour</th>
+<th>Monthly (24/7)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>g4dn.xlarge</strong></td>
+<td>T4</td>
+<td>4</td>
+<td>16 GB</td>
+<td>16 GB</td>
+<td>$0.526</td>
+<td>$384</td>
+</tr>
+<tr>
+<td><strong>g4dn.2xlarge</strong></td>
+<td>T4</td>
+<td>8</td>
+<td>32 GB</td>
+<td>16 GB</td>
+<td>$0.752</td>
+<td>$549</td>
+</tr>
+<tr>
+<td><strong>g4dn.4xlarge</strong></td>
+<td>T4</td>
+<td>16</td>
+<td>64 GB</td>
+<td>16 GB</td>
+<td>$1.204</td>
+<td>$879</td>
+</tr>
+<tr>
+<td><strong>g5.xlarge</strong></td>
+<td>A10G</td>
+<td>4</td>
+<td>16 GB</td>
+<td>24 GB</td>
+<td>$1.006</td>
+<td>$735</td>
+</tr>
+<tr>
+<td><strong>g5.2xlarge</strong></td>
+<td>A10G</td>
+<td>8</td>
+<td>32 GB</td>
+<td>24 GB</td>
+<td>$1.212</td>
+<td>$885</td>
+</tr>
+<tr>
+<td><strong>p3.2xlarge</strong></td>
+<td>V100</td>
+<td>8</td>
+<td>61 GB</td>
+<td>16 GB</td>
+<td>$3.06</td>
+<td>$2,234</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Most Common</strong>: <strong>g4dn.xlarge</strong> (good balance of performance and cost)</p>
+<h4 id="cost-optimization-strategies">Cost Optimization Strategies<a class="headerlink" href="#cost-optimization-strategies" title="Permanent link">&para;</a></h4>
+<p><strong>Option 1: Spot Instances</strong> (Up to 90% savings)</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># terraform/main.tf</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;client&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nb">instance_market_options</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="na">market_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;spot&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nb">spot_options</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="na">max_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.20&quot;</span><span class="c1">  # Max price you&#39;re willing to pay</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>g4dn.xlarge Spot</strong>: ~$0.158/hour (vs $0.526 on-demand)</li>
+<li><strong>Savings</strong>: 70%</li>
+<li><strong>Risk</strong>: Can be terminated if capacity needed</li>
+</ul>
+<p><strong>Option 2: Terminate After Use</strong>
+- Only run VMs when actively working
+- Cost: Per-hour usage only</p>
+<p><strong>Example</strong>: 10 VMs × 8 hours = 80 hours × $0.526 = <strong>$42.08</strong></p>
+<p><strong>Option 3: Right-Size Instance Types</strong>
+- Use smallest instance that meets requirements
+- Test on smaller instances first</p>
+<h4 id="cpu-only-instance-types-non-gpu">CPU-Only Instance Types (Non-GPU)<a class="headerlink" href="#cpu-only-instance-types-non-gpu" title="Permanent link">&para;</a></h4>
+<p>For non-GPU workloads:</p>
+<table>
+<thead>
+<tr>
+<th>Instance Type</th>
+<th>vCPUs</th>
+<th>RAM</th>
+<th>Price/Hour</th>
+<th>Monthly (24/7)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>c5.xlarge</strong></td>
+<td>4</td>
+<td>8 GB</td>
+<td>$0.17</td>
+<td>$124</td>
+</tr>
+<tr>
+<td><strong>c5.2xlarge</strong></td>
+<td>8</td>
+<td>16 GB</td>
+<td>$0.34</td>
+<td>$248</td>
+</tr>
+<tr>
+<td><strong>c6i.xlarge</strong></td>
+<td>4</td>
+<td>8 GB</td>
+<td>$0.17</td>
+<td>$124</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Case</strong>: Data processing without GPU requirements</p>
+<h2 id="storage-costs">Storage Costs<a class="headerlink" href="#storage-costs" title="Permanent link">&para;</a></h2>
+<h3 id="ebs-volumes-ec2-storage">EBS Volumes (EC2 Storage)<a class="headerlink" href="#ebs-volumes-ec2-storage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Volume Type</th>
+<th>Allocator</th>
+<th>Client VM</th>
+<th>Price/GB-Month</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>gp3</strong></td>
+<td>30 GB</td>
+<td>100 GB</td>
+<td>$0.08</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Allocator</strong>: 30 GB × $0.08 = <strong>$2.40/month</strong>
+<strong>Client VM</strong>: 100 GB × $0.08 = <strong>$8.00/month per VM</strong></p>
+<p><strong>Note</strong>: EBS charges apply even for stopped instances. Terminate to avoid charges.</p>
+<h3 id="s3-storage-backups">S3 Storage (Backups)<a class="headerlink" href="#s3-storage-backups" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Usage</th>
+<th>Monthly Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Standard Storage</td>
+<td>10 GB</td>
+<td>$0.23</td>
+</tr>
+<tr>
+<td>Glacier (Archive)</td>
+<td>100 GB</td>
+<td>$0.40</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Case</strong>: Database backups, logs, artifacts</p>
+<h2 id="data-transfer-costs">Data Transfer Costs<a class="headerlink" href="#data-transfer-costs" title="Permanent link">&para;</a></h2>
+<h3 id="inbound-free">Inbound (Free)<a class="headerlink" href="#inbound-free" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Data transfer <strong>into</strong> AWS is free</li>
+<li>Pulling Docker images: Free</li>
+<li>SSH/API calls into instances: Free</li>
+</ul>
+<h3 id="outbound">Outbound<a class="headerlink" href="#outbound" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Destination</th>
+<th>Price per GB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>First 100 GB/month</td>
+<td>Free</td>
+</tr>
+<tr>
+<td>Next 10 TB/month</td>
+<td>$0.09</td>
+</tr>
+<tr>
+<td>Internet (general)</td>
+<td>$0.09</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical Usage</strong>: &lt; 100 GB/month (covered by free tier)</p>
+<h3 id="inter-region-transfer">Inter-Region Transfer<a class="headerlink" href="#inter-region-transfer" title="Permanent link">&para;</a></h3>
+<p>If using resources across regions:</p>
+<table>
+<thead>
+<tr>
+<th>Transfer Type</th>
+<th>Price per GB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cross-region</td>
+<td>$0.02</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Avoid</strong>: Keep all resources in same region</p>
+<h2 id="example-cost-scenarios">Example Cost Scenarios<a class="headerlink" href="#example-cost-scenarios" title="Permanent link">&para;</a></h2>
+<h3 id="scenario-1-developmenttesting">Scenario 1: Development/Testing<a class="headerlink" href="#scenario-1-developmenttesting" title="Permanent link">&para;</a></h3>
+<p><strong>Setup</strong>:
+- 1 allocator (t2.micro)
+- 2 client VMs (g4dn.xlarge)
+- Running 40 hours/month</p>
+<p><strong>Costs</strong>:
+- Infrastructure: $0.05/month
+- Allocator: 40 hours × $0.0116 = $0.46
+- Client VMs: 2 × 40 hours × $0.526 = $42.08
+- Storage: $2.40 (allocator) + $16.00 (2 clients) = $18.40</p>
+<p><strong>Total</strong>: <strong>~$61/month</strong></p>
+<h3 id="scenario-2-light-production-use">Scenario 2: Light Production Use<a class="headerlink" href="#scenario-2-light-production-use" title="Permanent link">&para;</a></h3>
+<p><strong>Setup</strong>:
+- 1 allocator (t2.small, 24/7)
+- 5 client VMs (g4dn.xlarge)
+- VMs running 160 hours/month each</p>
+<p><strong>Costs</strong>:
+- Infrastructure: $0.95/month (with Route 53)
+- Allocator: $16.79/month
+- Client VMs: 5 × 160 hours × $0.526 = $420.80
+- Storage: $2.40 + (5 × $8.00) = $42.40</p>
+<p><strong>Total</strong>: <strong>~$481/month</strong></p>
+<h3 id="scenario-3-heavy-production-use">Scenario 3: Heavy Production Use<a class="headerlink" href="#scenario-3-heavy-production-use" title="Permanent link">&para;</a></h3>
+<p><strong>Setup</strong>:
+- 1 allocator (t2.small, 24/7, Reserved Instance)
+- 20 client VMs (g4dn.xlarge, Spot Instances)
+- VMs running 320 hours/month each</p>
+<p><strong>Costs</strong>:
+- Infrastructure: $0.95/month
+- Allocator: $5.03/month (Reserved Instance)
+- Client VMs: 20 × 320 hours × $0.158 (Spot) = $1,011.20
+- Storage: $2.40 + (20 × $8.00) = $162.40</p>
+<p><strong>Total</strong>: <strong>~$1,182/month</strong></p>
+<p><strong>Savings vs On-Demand</strong>: ~$3,200/month (70% reduction)</p>
+<h3 id="scenario-4-minimal-cost-conscious">Scenario 4: Minimal (Cost-Conscious)<a class="headerlink" href="#scenario-4-minimal-cost-conscious" title="Permanent link">&para;</a></h3>
+<p><strong>Setup</strong>:
+- 1 allocator (t2.micro)
+- 3 client VMs (g4dn.xlarge, Spot)
+- Only running when actively working (40 hours/month)</p>
+<p><strong>Costs</strong>:
+- Infrastructure: $0.05/month
+- Allocator: 40 hours × $0.0116 = $0.46
+- Client VMs: 3 × 40 hours × $0.158 (Spot) = $18.96
+- Storage: Minimal (terminate when done) = $0.50</p>
+<p><strong>Total</strong>: <strong>~$20/month</strong></p>
+<h2 id="cost-monitoring">Cost Monitoring<a class="headerlink" href="#cost-monitoring" title="Permanent link">&para;</a></h2>
+<h3 id="set-up-billing-alerts">Set Up Billing Alerts<a class="headerlink" href="#set-up-billing-alerts" title="Permanent link">&para;</a></h3>
+<p><strong>Step 1: Create SNS Topic</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>create-topic<span class="w"> </span>--name<span class="w"> </span>lablink-billing-alerts
+</code></pre></div></p>
+<p><strong>Step 2: Subscribe Email</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>subscribe<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--topic-arn<span class="w"> </span>arn:aws:sns:us-west-2:ACCOUNT_ID:lablink-billing-alerts<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--protocol<span class="w"> </span>email<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--notification-endpoint<span class="w"> </span>your-email@example.com
+</code></pre></div></p>
+<p><strong>Step 3: Create Budget</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>aws<span class="w"> </span>budgets<span class="w"> </span>create-budget<span class="w"> </span>--account-id<span class="w"> </span>ACCOUNT_ID<span class="w"> </span>--budget<span class="w"> </span>file://budget.json
+</code></pre></div></p>
+<p><strong><code>budget.json</code></strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;BudgetName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Monthly Budget&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;BudgetLimit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">&quot;Amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">&quot;Unit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">&quot;TimeUnit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">&quot;BudgetType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COST&quot;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="view-current-costs">View Current Costs<a class="headerlink" href="#view-current-costs" title="Permanent link">&para;</a></h3>
+<p><strong>AWS Console</strong>:
+1. Navigate to <strong>Billing Dashboard</strong>
+2. View <strong>Cost Explorer</strong>
+3. Filter by tag <code>Project: LabLink</code></p>
+<p><strong>AWS CLI</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>get-cost-and-usage<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--time-period<span class="w"> </span><span class="nv">Start</span><span class="o">=</span><span class="m">2025</span>-01-01,End<span class="o">=</span><span class="m">2025</span>-01-31<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--granularity<span class="w"> </span>MONTHLY<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--metrics<span class="w"> </span>UnblendedCost<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>--filter<span class="w"> </span>file://filter.json
+</code></pre></div></p>
+<p><strong><code>filter.json</code></strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;Tags&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">&quot;Key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Project&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">&quot;Values&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LabLink&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="tag-resources">Tag Resources<a class="headerlink" href="#tag-resources" title="Permanent link">&para;</a></h3>
+<p>Tag all resources for cost tracking:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># terraform/main.tf</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink_allocator&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1">  # ... other config</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="na">Name</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;lablink-allocator-${var.environment}&quot;</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="na">Project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;LabLink&quot;</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Terraform&quot;</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>View costs by tag in Cost Explorer.</p>
+<h2 id="cost-optimization-checklist">Cost Optimization Checklist<a class="headerlink" href="#cost-optimization-checklist" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] Use Spot Instances for client VMs (70-90% savings)</li>
+<li>[ ] Terminate VMs when not in use</li>
+<li>[ ] Use Reserved Instances for always-on allocators (75% savings)</li>
+<li>[ ] Right-size instance types (don't over-provision)</li>
+<li>[ ] Use gp3 volumes instead of gp2 (20% cheaper)</li>
+<li>[ ] Set up billing alerts</li>
+<li>[ ] Monitor costs weekly in Cost Explorer</li>
+<li>[ ] Tag all resources for cost attribution</li>
+<li>[ ] Use Lifecycle Policies to delete old S3 backups</li>
+<li>[ ] Terminate (not stop) unused instances</li>
+<li>[ ] Release unused Elastic IPs</li>
+<li>[ ] Clean up old EBS snapshots</li>
+</ul>
+<h2 id="free-tier">Free Tier<a class="headerlink" href="#free-tier" title="Permanent link">&para;</a></h2>
+<p>New AWS accounts get 12 months of free tier:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Free Tier (Monthly)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EC2 (t2.micro)</td>
+<td>750 hours</td>
+</tr>
+<tr>
+<td>EBS (gp2/gp3)</td>
+<td>30 GB</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>5 GB storage</td>
+</tr>
+<tr>
+<td>Data Transfer</td>
+<td>100 GB out</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note</strong>: GPU instances (g4dn, g5, p3) are <strong>not</strong> included in free tier.</p>
+<h2 id="hidden-costs-to-watch">Hidden Costs to Watch<a class="headerlink" href="#hidden-costs-to-watch" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Unassociated Elastic IPs</strong>: $3.60/month each</li>
+<li><strong>Stopped instances with EBS</strong>: Storage charges still apply</li>
+<li><strong>Old EBS snapshots</strong>: Accumulate over time</li>
+<li><strong>Unused load balancers</strong>: $16-18/month</li>
+<li><strong>NAT Gateways</strong>: $32/month + data transfer</li>
+<li><strong>Idle RDS instances</strong>: $15-200/month</li>
+</ol>
+<p><strong>Solution</strong>: Regular cleanup and monitoring</p>
+<h2 id="cost-comparison">Cost Comparison<a class="headerlink" href="#cost-comparison" title="Permanent link">&para;</a></h2>
+<h3 id="lablink-vs-self-managed">LabLink vs Self-Managed<a class="headerlink" href="#lablink-vs-self-managed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>LabLink</th>
+<th>Self-Managed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Infrastructure setup</td>
+<td>$0-1/month</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>Allocator runtime</td>
+<td>$8-17/month</td>
+<td>$0 (your time)</td>
+</tr>
+<tr>
+<td>Client VMs</td>
+<td>Same</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Management time</td>
+<td>Minimal</td>
+<td>Significant</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LabLink advantage</strong>: Time savings outweigh small infrastructure costs</p>
+<h3 id="lablink-vs-managed-services">LabLink vs Managed Services<a class="headerlink" href="#lablink-vs-managed-services" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Monthly Cost (5 VMs)</th>
+<th>Setup Complexity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LabLink</strong></td>
+<td>~$481</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td><strong>AWS Batch</strong></td>
+<td>~$500+</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>SageMaker</strong></td>
+<td>~$600+</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td><strong>Cloud GPUs (vast.ai)</strong></td>
+<td>~$200-400</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LabLink advantage</strong>: Balance of cost, features, and control</p>
+<h2 id="budget-recommendations">Budget Recommendations<a class="headerlink" href="#budget-recommendations" title="Permanent link">&para;</a></h2>
+<h3 id="by-use-case">By Use Case<a class="headerlink" href="#by-use-case" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Use Case</th>
+<th>Recommended Monthly Budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Individual researcher (occasional)</td>
+<td>$50-100</td>
+</tr>
+<tr>
+<td>Individual researcher (regular)</td>
+<td>$200-500</td>
+</tr>
+<tr>
+<td>Small research group</td>
+<td>$500-1,500</td>
+</tr>
+<tr>
+<td>Large research group</td>
+<td>$1,500-5,000+</td>
+</tr>
+</tbody>
+</table>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><a href="../aws-setup/">AWS Setup</a></strong>: Set up billing alerts</li>
+<li><strong><a href="../configuration/">Configuration</a></strong>: Choose cost-effective instance types</li>
+<li><strong><a href="../deployment/">Deployment</a></strong>: Deploy with cost optimization</li>
+</ul>
+<h2 id="questions-about-costs">Questions About Costs?<a class="headerlink" href="#questions-about-costs" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Check <a href="https://aws.amazon.com/pricing/">AWS Pricing</a></li>
+<li>Use <a href="https://calculator.aws/">AWS Pricing Calculator</a></li>
+<li>Contact AWS Support for enterprise pricing</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/talmolab/lablink" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
