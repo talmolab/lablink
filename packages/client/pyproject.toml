@@ -19,7 +19,7 @@ dependencies = [
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
 keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
-name = "lablink-client"
+name = "lablink-client-service"
 readme = "README.md"
 requires-python = ">=3.9"
 version = "0.0.8a0"
