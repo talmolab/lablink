@@ -33,7 +33,7 @@ RUN uv venv /app/.venv && \
     uv pip install --python=/app/.venv/bin/python lablink-allocator-service==${PACKAGE_VERSION}
 
 # Ensure terraform directory has write permissions for state files
-RUN chmod -R 777 /app/.venv/lib/python*/site-packages/lablink_allocator/terraform/
+RUN chmod -R 777 /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform/
 
 # Expose ports for Flask
 EXPOSE 5000
