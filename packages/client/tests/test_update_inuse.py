@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from lablink_client.update_inuse_status import (
+from lablink_client_service.update_inuse_status import (
     is_process_running,
     listen_for_process,
     call_api,

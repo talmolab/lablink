@@ -2,7 +2,7 @@ import logging
 from unittest.mock import patch, MagicMock
 from omegaconf import OmegaConf
 import pytest
-from lablink_client.subscribe import subscribe
+from lablink_client_service.subscribe import subscribe
 
 
 @pytest.fixture
@@ -18,10 +18,10 @@ def vm_env(monkeypatch):
     yield
 
 
-@patch("lablink_client.subscribe.requests.post")
-@patch("lablink_client.subscribe.connect_to_crd")
-@patch("lablink_client.subscribe.set_logger")
-@patch("lablink_client.subscribe.CloudAndConsoleLogger")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
 def test_run_success(
     mock_logger_cls, _set_logger, mock_connect, mock_post, cfg, vm_env
 ):
@@ -48,10 +48,10 @@ def test_run_success(
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
 
 
-@patch("lablink_client.subscribe.requests.post")
-@patch("lablink_client.subscribe.connect_to_crd")
-@patch("lablink_client.subscribe.set_logger")
-@patch("lablink_client.subscribe.CloudAndConsoleLogger")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
 def test_run_server_error_payload(
     mock_logger_cls, _set_logger, mock_connect, mock_post, cfg, vm_env, caplog
 ):
@@ -63,7 +63,7 @@ def test_run_server_error_payload(
     resp.json.return_value = {"status": "error", "message": "no available VM"}
     mock_post.return_value = resp
 
-    caplog.set_level(logging.ERROR, logger="lablink_client.subscribe")
+    caplog.set_level(logging.ERROR, logger="lablink_client_service.subscribe")
     subscribe(cfg)
 
     mock_connect.assert_not_called()
@@ -72,11 +72,11 @@ def test_run_server_error_payload(
     assert "no available VM" in caplog.text
 
 
-@patch("lablink_client.subscribe.time.sleep")
-@patch("lablink_client.subscribe.requests.post")
-@patch("lablink_client.subscribe.connect_to_crd")
-@patch("lablink_client.subscribe.set_logger")
-@patch("lablink_client.subscribe.CloudAndConsoleLogger")
+@patch("lablink_client_service.subscribe.time.sleep")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
 def test_run_http_failure(
     mock_logger_cls,
     _set_logger,
@@ -102,7 +102,7 @@ def test_run_http_failure(
     }
     mock_post.side_effect = [resp_fail, resp_fail, resp_success]
 
-    caplog.set_level(logging.ERROR, logger="lablink_client.subscribe")
+    caplog.set_level(logging.ERROR, logger="lablink_client_service.subscribe")
     subscribe(cfg)
 
     # Should have been called 3 times (2 failures + 1 success)

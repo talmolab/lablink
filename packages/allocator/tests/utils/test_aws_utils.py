@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
-import lablink_allocator.utils.aws_utils as aws_utils
+import lablink_allocator_service.utils.aws_utils as aws_utils
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_validate_aws_credentials_success(mock_boto_client):
     mock_sts = MagicMock()
     mock_sts.get_caller_identity.return_value = {
@@ -19,7 +19,7 @@ def test_validate_aws_credentials_success(mock_boto_client):
     mock_sts.get_caller_identity.assert_called_once()
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_validate_aws_credentials_failure_invalid_token(mock_boto_client):
     mock_sts = MagicMock()
     mock_sts.get_caller_identity.side_effect = ClientError(
@@ -35,7 +35,7 @@ def test_validate_aws_credentials_failure_invalid_token(mock_boto_client):
     assert "temporary but no session token" in result["message"]
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_validate_aws_credentials_failure_invalid_keys_and_ids(mock_boto_client):
     mock_sts = MagicMock()
     mock_sts.get_caller_identity.side_effect = ClientError(
@@ -55,7 +55,7 @@ def test_validate_aws_credentials_failure_invalid_keys_and_ids(mock_boto_client)
     assert "authorization header" in result["message"].lower()
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_get_all_instance_types(mock_boto_client):
     paginator = MagicMock()
     paginator.paginate.return_value = [
@@ -76,7 +76,7 @@ def test_get_all_instance_types(mock_boto_client):
     assert "g4dn.xlarge" in result
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_check_support_nvidia_true(mock_boto_client):
     mock_ec2 = MagicMock()
     mock_ec2.describe_instance_types.return_value = {
@@ -89,7 +89,7 @@ def test_check_support_nvidia_true(mock_boto_client):
     assert aws_utils.check_support_nvidia("g4dn.xlarge") is True
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_check_support_nvidia_false(mock_boto_client):
     mock_ec2 = MagicMock()
     mock_ec2.describe_instance_types.return_value = {
@@ -100,7 +100,7 @@ def test_check_support_nvidia_false(mock_boto_client):
     assert aws_utils.check_support_nvidia("t2.micro") is False
 
 
-@patch("lablink_allocator.utils.aws_utils.boto3.client")
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_check_support_nvidia_no_gpuinfo(mock_boto_client):
     mock_ec2 = MagicMock()
     mock_ec2.describe_instance_types.return_value = {

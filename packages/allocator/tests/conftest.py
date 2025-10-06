@@ -63,12 +63,12 @@ def app(monkeypatch, omega_config):
 
     # Patch the module-level cfg to use our test OmegaConf
     monkeypatch.setattr(
-        "lablink_allocator.get_config.get_config",
+        "lablink_allocator_service.get_config.get_config",
         lambda: omega_config,
         raising=True,
     )
 
-    from lablink_allocator import main
+    from lablink_allocator_service import main
 
     # Patch the cfg to use test config
     monkeypatch.setattr(main, "cfg", omega_config, raising=False)

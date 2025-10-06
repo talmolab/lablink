@@ -4,7 +4,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from lablink_client.connect_crd import (
+from lablink_client_service.connect_crd import (
     construct_command,
     reconstruct_command,
     connect_to_crd,
@@ -48,8 +48,8 @@ def test_construct_command_without_code():
         construct_command(args)
 
 
-@patch("lablink_client.connect_crd.construct_command")
-@patch("lablink_client.connect_crd.create_parser")
+@patch("lablink_client_service.connect_crd.construct_command")
+@patch("lablink_client_service.connect_crd.create_parser")
 def test_reconstruct_command(mock_create_parser, mock_construct_command):
     mock_parser = MagicMock()
     mock_args = argparse.Namespace(code="test_code")
@@ -84,8 +84,8 @@ def test_whole_reconstruction():
     assert command == crd_command
 
 
-@patch("lablink_client.connect_crd.subprocess.run")
-@patch("lablink_client.connect_crd.reconstruct_command")
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.reconstruct_command")
 def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
     input_command = CRD_COMMAND_WITH_CODE
     reconstructed_command = CRD_COMMAND_WITH_CODE
@@ -109,7 +109,7 @@ def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
     )
 
 
-@patch("lablink_client.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.subprocess.run")
 def test_whole_connection_workflow(mock_subprocess_run):
     input_command = CRD_COMMAND_WITH_CODE
     pin = "123456"

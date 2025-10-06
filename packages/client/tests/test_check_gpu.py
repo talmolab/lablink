@@ -3,17 +3,17 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock
 
-from lablink_client.check_gpu import check_gpu_health
+from lablink_client_service.check_gpu import check_gpu_health
 
 
 @pytest.fixture
 def mock_environment(monkeypatch):
     monkeypatch.setenv("VM_NAME", "vm-1")
-    monkeypatch.setattr("lablink_client.check_gpu.time.sleep", lambda s: None)
+    monkeypatch.setattr("lablink_client_service.check_gpu.time.sleep", lambda s: None)
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_health_machine_with_no_gpu(mock_run, mock_post, mock_environment):
     """Test GPU health check with no GPU present"""
     mock_run.side_effect = [
@@ -31,8 +31,8 @@ def test_check_gpu_health_machine_with_no_gpu(mock_run, mock_post, mock_environm
     )
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_health_machine_with_gpu(
     mock_run, mock_post, mock_environment, monkeypatch
 ):
@@ -43,7 +43,7 @@ def test_check_gpu_health_machine_with_gpu(
         raise StopIteration
 
     monkeypatch.setattr(
-        "lablink_client.check_gpu.time.sleep", stop_after_first_sleep
+        "lablink_client_service.check_gpu.time.sleep", stop_after_first_sleep
     )
 
     mock_run.side_effect = [
@@ -64,8 +64,8 @@ def test_check_gpu_health_machine_with_gpu(
     )
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_health_machine_with_gpu_multiple(
     mock_run, mock_post, mock_environment, monkeypatch
 ):
@@ -76,7 +76,7 @@ def test_check_gpu_health_machine_with_gpu_multiple(
         raise StopIteration
 
     monkeypatch.setattr(
-        "lablink_client.check_gpu.time.sleep", stop_after_first_sleep
+        "lablink_client_service.check_gpu.time.sleep", stop_after_first_sleep
     )
 
     mock_run.side_effect = [
@@ -107,8 +107,8 @@ def test_check_gpu_health_machine_with_gpu_multiple(
     )
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_health_from_health_change(mock_run, mock_post, mock_environment):
     """Test multiple GPU health status changes"""
     mock_run.side_effect = [
@@ -146,8 +146,8 @@ def test_check_gpu_health_from_health_change(mock_run, mock_post, mock_environme
     assert third_call.kwargs["json"]["gpu_status"] == "Healthy"
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_health_from_health_change_with_exception(
     mock_run, mock_post, mock_environment
 ):
@@ -185,8 +185,8 @@ def test_check_gpu_health_from_health_change_with_exception(
     assert third_call.kwargs["json"]["gpu_status"] == "Healthy"
 
 
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_with_no_file_found(mock_run, mock_post, mock_environment):
     """Test GPU check when no file is found"""
     mock_run.side_effect = FileNotFoundError("File not found")
@@ -197,9 +197,9 @@ def test_check_gpu_with_no_file_found(mock_run, mock_post, mock_environment):
     assert mock_post.call_count == 1
 
 
-@patch("lablink_client.check_gpu.time.sleep", return_value=None)  # no waiting
-@patch("lablink_client.check_gpu.requests.post")
-@patch("lablink_client.check_gpu.subprocess.run")
+@patch("lablink_client_service.check_gpu.time.sleep", return_value=None)  # no waiting
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
 def test_check_gpu_with_internal_error(
     mock_run, mock_post, _sleep, mock_environment, caplog
 ):
@@ -214,7 +214,7 @@ def test_check_gpu_with_internal_error(
     # Fail the first POST once (use a single exception, not a one-item list)
     mock_post.side_effect = Exception("Network error")
 
-    caplog.set_level(logging.ERROR, logger="lablink_client.check_gpu")
+    caplog.set_level(logging.ERROR, logger="lablink_client_service.check_gpu")
 
     with pytest.raises(KeyboardInterrupt):
         check_gpu_health("http://localhost:5000", interval=0)
