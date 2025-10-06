@@ -113,10 +113,12 @@ def main(cfg: Config) -> None:
     # otherwise use host:port with HTTP
     allocator_url = os.getenv("ALLOCATOR_URL")
     if allocator_url:
-        base_url = allocator_url.rstrip('/')
+        base_url = allocator_url.rstrip("/")
     else:
         base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
     url = f"{base_url}/api/update_inuse_status"
+
+    url = url.replace("://.", "://")
 
     # Start listening for the process
     listen_for_process(

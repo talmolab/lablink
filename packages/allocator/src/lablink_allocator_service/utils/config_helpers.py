@@ -74,6 +74,10 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
         host = allocator_ip
 
     base_url = f"{protocol}://{host}"
+
+    # Sanitize URL to remove prepended dots
+    base_url = base_url.replace("://.", "://")
+
     return base_url, protocol
 
 
