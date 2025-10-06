@@ -22,7 +22,8 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
     """
     logger.debug("Starting GPU health check...")
     last_status = None
-    base_url = allocator_url.rstrip('/')
+    base_url = allocator_url.rstrip("/")
+    base_url = base_url.replace("://.", "://")
 
     while True:
         curr_status = None
@@ -104,6 +105,8 @@ def main(cfg: Config) -> None:
         allocator_url = allocator_url_env
     else:
         allocator_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
+
+    allocator_url_env = allocator_url_env.replace("://.", "://")
 
     check_gpu_health(allocator_url=allocator_url)
 
