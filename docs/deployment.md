@@ -33,7 +33,11 @@ Automated deployment via CI/CD pipelines.
    Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository.
 
    Required secrets:
-   - None! (Uses OIDC for AWS authentication)
+   - `AWS_ROLE_ARN`: IAM role ARN for GitHub Actions authentication
+     Example: `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`
+   - `AWS_REGION`: AWS region for deployment
+     Example: `us-west-2`, `eu-west-1`, `ap-northeast-1`
+     **Note:** Must match region in `config/config.yaml`
 
    Optional secrets:
    - `ADMIN_PASSWORD`: Override default admin password
@@ -41,7 +45,13 @@ Automated deployment via CI/CD pipelines.
 
 2. **Verify OIDC Configuration**
 
-   Ensure AWS IAM role trusts your GitHub repository. See [AWS Setup → OIDC](aws-setup.md#step-4-oidc-configuration).
+   Ensure AWS IAM role exists and trusts your GitHub repository:
+
+   - OIDC provider exists: `token.actions.githubusercontent.com`
+   - IAM role trust policy includes your repository: `repo:YOUR_ORG/YOUR_REPO:*`
+   - Role has PowerUserAccess or equivalent permissions
+
+   See detailed setup instructions: [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration)
 
 ### Deploy to Test Environment
 

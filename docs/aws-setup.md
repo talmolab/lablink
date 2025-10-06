@@ -17,6 +17,81 @@ To deploy LabLink, you'll need:
 - AWS account with admin access (or appropriate IAM permissions)
 - [AWS CLI installed and configured](prerequisites.md#2-aws-cli)
 - Basic understanding of AWS services
+- Chosen AWS region for deployment
+
+## Choosing an AWS Region
+
+Before starting, select the AWS region where you'll deploy LabLink. This is an important decision that affects performance, cost, and compliance.
+
+### Region Selection Criteria
+
+**1. Latency & Geographic Proximity**
+- Choose a region closest to your users for best performance
+- Lower latency = better user experience for VM access
+- Test latency: `ping ec2.{region}.amazonaws.com`
+
+**2. Instance Availability**
+- Not all instance types are available in all regions
+- GPU instances (g4dn, g5, p3) have limited regional availability
+- Check availability: [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/)
+
+**3. Pricing**
+- EC2 pricing varies by region (5-30% difference)
+- US regions are typically cheaper than EU/Asia
+- Check pricing: [EC2 Pricing Calculator](https://calculator.aws/)
+
+**4. Compliance & Data Residency**
+- GDPR (Europe): Use `eu-west-1`, `eu-central-1`
+- HIPAA (US Healthcare): Any US region with BAA
+- Data sovereignty requirements may mandate specific regions
+
+**5. Service Availability**
+- All LabLink features require: EC2, VPC, S3, Route 53
+- These are available in all commercial regions
+
+### Recommended Regions
+
+| Region | Code | Best For | Notes |
+|--------|------|----------|-------|
+| **US East (N. Virginia)** | `us-east-1` | US East Coast, lowest cost | Largest region, occasional availability issues |
+| **US West (Oregon)** | `us-west-2` | US West Coast, default | Good balance of cost and stability |
+| **Europe (Ireland)** | `eu-west-1` | Europe, GDPR | Best EU region for cost and availability |
+| **Asia Pacific (Tokyo)** | `ap-northeast-1` | Asia | Good for Asian users |
+| **Asia Pacific (Singapore)** | `ap-southeast-1` | Southeast Asia | Alternative for Asian users |
+
+### List All Available Regions
+
+```bash
+# AWS CLI
+aws ec2 describe-regions --output table
+
+# Or with region names
+aws ec2 describe-regions --query "Regions[*].[RegionName,OptInStatus]" --output table
+```
+
+### Test Latency to Regions
+
+```bash
+# Test ping to various regions (macOS/Linux)
+for region in us-east-1 us-west-2 eu-west-1 ap-northeast-1; do
+  echo -n "$region: "
+  ping -c 3 ec2.$region.amazonaws.com | grep avg | awk -F'/' '{print $5 " ms"}'
+done
+```
+
+### Configure Your Region Choice
+
+Once you've selected a region, you'll need to configure it in two places:
+
+1. **GitHub Secret**: `AWS_REGION` (covered in Step 4.6)
+2. **config.yaml**: Must match the secret (covered later)
+
+**Example:**
+```yaml
+# lablink-infrastructure/config/config.yaml
+app:
+  region: "us-west-2"  # Must match AWS_REGION secret
+```
 
 ## Step 1: IAM Permissions Setup
 
@@ -189,11 +264,35 @@ terraform apply \
   -var="allocated_eip=eipalloc-test-xxxxx"
 ```
 
-## Step 4: OIDC Configuration
+## Step 4: GitHub Actions OIDC Configuration
 
-Set up OpenID Connect for GitHub Actions to authenticate to AWS without storing credentials.
+Set up OpenID Connect (OIDC) for GitHub Actions to authenticate to AWS without storing long-term credentials. This is the **recommended and most secure** method for CI/CD authentication.
 
-### Create OIDC Provider
+### 4.1: Check for Existing OIDC Provider
+
+Before creating a new OIDC provider, check if one already exists:
+
+#### AWS CLI
+
+```bash
+# Check your current AWS account
+aws sts get-caller-identity
+
+# List OIDC providers
+aws iam list-open-id-connect-providers
+```
+
+Look for a provider with URL `token.actions.githubusercontent.com`.
+
+#### AWS Console
+
+1. Go to **IAM → Identity providers**
+2. Look for provider with URL `token.actions.githubusercontent.com`
+3. If it exists, note the ARN and skip to Step 4.2
+
+### 4.2: Create OIDC Provider (If Needed)
+
+#### AWS CLI
 
 ```bash
 aws iam create-open-id-connect-provider \
@@ -202,9 +301,29 @@ aws iam create-open-id-connect-provider \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 ```
 
-### Create IAM Role for GitHub Actions
+**Note:** If you get `EntityAlreadyExists` error, the provider already exists. You can proceed to create the IAM role.
 
-Save this as `github-trust-policy.json`:
+#### AWS Console
+
+1. Go to **IAM → Identity providers**
+2. Click **Add provider**
+3. Select **OpenID Connect**
+4. Provider URL: `https://token.actions.githubusercontent.com`
+5. Click **Get thumbprint** (should show `6938fd4d98bab03faadb97b34396831e3780aea1`)
+6. Audience: `sts.amazonaws.com`
+7. Click **Add provider**
+
+### 4.3: Create IAM Role for GitHub Actions
+
+#### Option A: AWS CLI (Recommended for Multiple Repositories)
+
+**Step 1:** Get your AWS account ID:
+
+```bash
+aws sts get-caller-identity --query "Account" --output text
+```
+
+**Step 2:** Create trust policy file `github-trust-policy.json`:
 
 ```json
 {
@@ -221,7 +340,11 @@ Save this as `github-trust-policy.json`:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:talmolab/lablink:*"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:YOUR_ORG/lablink:*",
+            "repo:YOUR_ORG/lablink-template:*",
+            "repo:YOUR_ORG/sleap-lablink:*"
+          ]
         }
       }
     }
@@ -229,19 +352,46 @@ Save this as `github-trust-policy.json`:
 }
 ```
 
-Replace `YOUR_ACCOUNT_ID` with your AWS account ID (find with `aws sts get-caller-identity`).
+**Important:** Replace:
+- `YOUR_ACCOUNT_ID` with your AWS account ID (from Step 1)
+- `YOUR_ORG` with your GitHub organization/username (e.g., `talmolab`)
 
-Create the role:
+**Step 3:** Create the IAM role:
 
 ```bash
 aws iam create-role \
-  --role-name github-lablink-deploy \
-  --assume-role-policy-document file://github-trust-policy.json
+  --role-name GitHubActionsLabLinkRole \
+  --assume-role-policy-document file://github-trust-policy.json \
+  --description "Role for GitHub Actions to deploy LabLink infrastructure"
 ```
 
-### Attach Permissions to Role
+**Step 4:** Note the role ARN from the output (format: `arn:aws:iam::ACCOUNT_ID:role/GitHubActionsLabLinkRole`)
 
-Create permissions policy `github-lablink-permissions.json`:
+#### Option B: AWS Console
+
+**Step 1:** Create the role
+
+1. Go to **IAM → Roles**
+2. Click **Create role**
+3. Select **Web identity** as trusted entity type
+4. Choose:
+   - Identity provider: `token.actions.githubusercontent.com`
+   - Audience: `sts.amazonaws.com`
+5. Click **Next**
+
+**Step 2:** Skip permissions for now (we'll add them in Step 4.4)
+
+6. Click **Next**
+7. Role name: `GitHubActionsLabLinkRole`
+8. Description: `Role for GitHub Actions to deploy LabLink infrastructure`
+9. Click **Create role**
+
+**Step 3:** Edit trust policy for multiple repositories
+
+1. Click on the newly created role
+2. Go to **Trust relationships** tab
+3. Click **Edit trust policy**
+4. Replace the trust policy with:
 
 ```json
 {
@@ -249,50 +399,419 @@ Create permissions policy `github-lablink-permissions.json`:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "ec2:*",
-        "s3:*",
-        "iam:GetRole",
-        "iam:PassRole",
-        "route53:*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": "arn:aws:s3:::tf-state-lablink-*/*"
+      "Principal": {
+        "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:YOUR_ORG/lablink:*",
+            "repo:YOUR_ORG/lablink-template:*",
+            "repo:YOUR_ORG/sleap-lablink:*"
+          ]
+        }
+      }
     }
   ]
 }
 ```
 
-Attach policy:
+5. Replace `YOUR_ACCOUNT_ID` and `YOUR_ORG` with your values
+6. Click **Update policy**
+
+### 4.4: Attach Permissions to Role
+
+The role needs permissions to manage EC2, S3, Route53, and IAM resources for infrastructure deployment.
+
+#### Option A: AWS CLI - Use PowerUserAccess (Recommended)
+
+This provides broad permissions suitable for infrastructure management:
+
+```bash
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
+```
+
+**Note:** PowerUserAccess allows all AWS services except IAM user/group management, which is appropriate for infrastructure deployment.
+
+#### Option B: AWS CLI - Create Custom Policy
+
+For more restrictive permissions, create a custom policy:
+
+Create `lablink-terraform-policy.json`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformStateManagement",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::lablink-terraform-state-*",
+        "arn:aws:s3:::lablink-terraform-state-*/*",
+        "arn:aws:s3:::tf-state-lablink-*",
+        "arn:aws:s3:::tf-state-lablink-*/*"
+      ]
+    },
+    {
+      "Sid": "EC2FullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMInstanceProfile",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/lablink-*",
+        "arn:aws:iam::*:instance-profile/lablink-*"
+      ]
+    },
+    {
+      "Sid": "Route53DNS",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:GetHostedZone",
+        "route53:ListResourceRecordSets",
+        "route53:ChangeResourceRecordSets",
+        "route53:GetChange"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+Attach the custom policy:
 
 ```bash
 aws iam put-role-policy \
-  --role-name github-lablink-deploy \
-  --policy-name lablink-deploy-permissions \
-  --policy-document file://github-lablink-permissions.json
+  --role-name GitHubActionsLabLinkRole \
+  --policy-name LabLinkTerraformPolicy \
+  --policy-document file://lablink-terraform-policy.json
 ```
 
-### Update GitHub Workflow
+#### Option C: AWS Console
 
-Update the role ARN in `.github/workflows/lablink-allocator-terraform.yml`:
+1. Go to **IAM → Roles**
+2. Click on `GitHubActionsLabLinkRole`
+3. Click **Add permissions** → **Attach policies**
+4. Search for `PowerUserAccess`
+5. Select the checkbox
+6. Click **Add permissions**
+
+### 4.5: Verify Role Configuration
+
+#### AWS CLI
+
+Check the role exists and has correct trust policy:
+
+```bash
+# Get role details
+aws iam get-role --role-name GitHubActionsLabLinkRole
+
+# Check trust policy
+aws iam get-role --role-name GitHubActionsLabLinkRole \
+  --query "Role.AssumeRolePolicyDocument" --output json
+
+# List attached policies
+aws iam list-attached-role-policies --role-name GitHubActionsLabLinkRole
+
+# List inline policies
+aws iam list-role-policies --role-name GitHubActionsLabLinkRole
+```
+
+Verify the trust policy includes all your deployment repositories.
+
+#### AWS Console
+
+1. Go to **IAM → Roles** → `GitHubActionsLabLinkRole`
+2. **Trust relationships** tab: Verify repositories are listed
+3. **Permissions** tab: Verify `PowerUserAccess` or custom policy is attached
+4. Copy the **ARN** (e.g., `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`)
+
+### 4.6: Add GitHub Secrets
+
+Two secrets are required for GitHub Actions workflows to deploy infrastructure.
+
+#### For Template Repository (`lablink-template`)
+
+1. Go to repository **Settings** → **Secrets and variables** → **Actions**
+
+2. **Add AWS_ROLE_ARN secret:**
+   - Click **New repository secret**
+   - Name: `AWS_ROLE_ARN`
+   - Value: `arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsLabLinkRole`
+   - Click **Add secret**
+
+3. **Add AWS_REGION secret:**
+   - Click **New repository secret**
+   - Name: `AWS_REGION`
+   - Value: Your chosen region (e.g., `us-west-2`, `eu-west-1`, `ap-northeast-1`)
+   - Click **Add secret**
+
+**Note:** The template repository can safely include these secrets because:
+- Repository permissions control who can trigger workflows
+- Secrets are NOT copied when creating repos from the template
+- External users must configure their own AWS credentials and region
+
+#### For Deployment Repositories (e.g., `sleap-lablink`)
+
+After creating a repository from the template:
+
+1. Go to the new repository **Settings** → **Secrets and variables** → **Actions**
+
+2. **Add both secrets** (same process as above):
+   - `AWS_ROLE_ARN`: Same ARN as template repository
+   - `AWS_REGION`: Your chosen region for this deployment
+
+**Important:**
+- Each deployment repository needs these secrets added manually after creation
+- Different deployments can use different regions if needed
+- Region in secret must match region in `config/config.yaml`
+
+### 4.7: Update Trust Policy for New Repositories
+
+When you create new deployment repositories, update the trust policy to include them:
+
+#### AWS CLI
+
+```bash
+# Edit trust-policy.json to add new repository:
+# "repo:YOUR_ORG/new-deployment:*"
+
+# Update the role
+aws iam update-assume-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-document file://trust-policy.json
+
+# Verify update
+aws iam get-role --role-name GitHubActionsLabLinkRole \
+  --query "Role.AssumeRolePolicyDocument.Statement[0].Condition.StringLike"
+```
+
+#### AWS Console
+
+1. Go to **IAM → Roles** → `GitHubActionsLabLinkRole`
+2. **Trust relationships** tab
+3. Click **Edit trust policy**
+4. Add new repository to the `token.actions.githubusercontent.com:sub` array:
+   ```json
+   "token.actions.githubusercontent.com:sub": [
+     "repo:YOUR_ORG/lablink:*",
+     "repo:YOUR_ORG/lablink-template:*",
+     "repo:YOUR_ORG/sleap-lablink:*",
+     "repo:YOUR_ORG/new-deployment:*"
+   ]
+   ```
+5. Click **Update policy**
+
+### 4.8: Verify GitHub Actions Can Assume Role
+
+The workflows already include the OIDC authentication step:
 
 ```yaml
 - name: Configure AWS credentials via OIDC
   uses: aws-actions/configure-aws-credentials@v3
   with:
-    role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/github-lablink-deploy
+    role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
     aws-region: us-west-2
 ```
 
-## Step 5: Security Groups (Optional Pre-Creation)
+Test by triggering a workflow:
+
+1. Go to **Actions** tab in GitHub
+2. Select a workflow (e.g., **Terraform Deploy**)
+3. Click **Run workflow**
+4. Check the logs for successful AWS authentication
+
+### Troubleshooting OIDC Setup
+
+#### Error: "Not authorized to perform sts:AssumeRoleWithWebIdentity"
+
+**Cause:** Repository not in trust policy
+
+**Solution:** Add repository to trust policy (Step 4.7)
+
+#### Error: "No OpenID Connect provider found"
+
+**Cause:** OIDC provider doesn't exist
+
+**Solution:** Create OIDC provider (Step 4.2)
+
+#### Error: "Access Denied" during deployment
+
+**Cause:** Role lacks required permissions
+
+**Solution:** Attach PowerUserAccess or verify custom policy (Step 4.4)
+
+#### Verify Trust Policy Includes Repository
+
+```bash
+# CLI: Check which repos can use the role
+aws iam get-role --role-name GitHubActionsLabLinkRole \
+  --query "Role.AssumeRolePolicyDocument.Statement[0].Condition.StringLike" \
+  --output json
+```
+
+**Console:** IAM → Roles → GitHubActionsLabLinkRole → Trust relationships
+
+## Step 5: Find AMI IDs for Your Region
+
+AMI IDs are region-specific. You'll need to find the correct Ubuntu 24.04 AMI IDs for your chosen region.
+
+### Find Ubuntu 24.04 AMIs
+
+#### AWS CLI Method (Recommended)
+
+**For Allocator (Ubuntu 24.04 with Docker):**
+```bash
+aws ec2 describe-images \
+  --region YOUR_REGION \
+  --owners 099720109477 \
+  --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
+            "Name=state,Values=available" \
+  --query 'sort_by(Images, &CreationDate)[-1].[ImageId,Name,CreationDate]' \
+  --output table
+```
+
+**For Client VMs (Ubuntu 24.04 with Docker + NVIDIA):**
+```bash
+# First, find latest Ubuntu 24.04
+aws ec2 describe-images \
+  --region YOUR_REGION \
+  --owners 099720109477 \
+  --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
+            "Name=state,Values=available" \
+  --query 'sort_by(Images, &CreationDate)[-1].[ImageId,Name]' \
+  --output table
+
+# Note: For GPU instances, you may need to use NVIDIA's Deep Learning AMI
+# or install NVIDIA drivers via user_data
+```
+
+#### AWS Console Method
+
+1. Go to **EC2 → AMI Catalog** in your chosen region
+2. Search for "ubuntu 24.04"
+3. Select "AWS Marketplace AMIs" or "Community AMIs"
+4. Filter by:
+   - Owner: Canonical (099720109477)
+   - Architecture: 64-bit (x86)
+   - Root device type: EBS
+5. Choose the most recent "ubuntu-noble-24.04" AMI
+6. Copy the AMI ID (e.g., `ami-0bd08c9d4aa9f0bc6`)
+
+### Update Configuration with AMI IDs
+
+Once you have the AMI IDs for your region, update `config/config.yaml`:
+
+```yaml
+# lablink-infrastructure/config/config.yaml
+machine:
+  ami_id: "ami-XXXXXXXXX"  # Client VM AMI for your region
+  # ...
+
+allocator_instance:
+  ami_id: "ami-YYYYYYYYY"  # Allocator AMI for your region
+```
+
+### LabLink Custom AMIs (us-west-2 only)
+
+LabLink maintains custom AMIs with Docker and NVIDIA drivers pre-installed, **only available in us-west-2**:
+
+**Client VM AMI (Ubuntu 24.04 + Docker + NVIDIA):**
+- AMI ID: `ami-0601752c11b394251`
+- Description: Custom Ubuntu image with Docker and Nvidia GPU Driver pre-installed
+- Architecture: x86_64
+- Source: Ubuntu Server 24.04 LTS (HVM), SSD Volume Type
+
+**Allocator VM AMI (Ubuntu 24.04 + Docker):**
+- AMI ID: `ami-0bd08c9d4aa9f0bc6`
+- Description: Custom Ubuntu image with Docker pre-installed
+- Architecture: x86_64
+- Source: Ubuntu Server 24.04 LTS (HVM), SSD Volume Type
+
+### Using LabLink in Other Regions
+
+If you're deploying to a region other than `us-west-2`, you have two options:
+
+**Option 1: Copy Custom AMIs to Your Region (Recommended)**
+
+Copy the LabLink custom AMIs to your preferred region:
+
+```bash
+# Copy Client AMI from us-west-2
+aws ec2 copy-image \
+  --source-region us-west-2 \
+  --source-image-id ami-0601752c11b394251 \
+  --name "lablink-client-ubuntu-24.04-docker-nvidia" \
+  --description "Custom Ubuntu image with Docker and Nvidia GPU Driver" \
+  --region YOUR_REGION
+
+# Copy Allocator AMI from us-west-2
+aws ec2 copy-image \
+  --source-region us-west-2 \
+  --source-image-id ami-0bd08c9d4aa9f0bc6 \
+  --name "lablink-allocator-ubuntu-24.04-docker" \
+  --description "Custom Ubuntu image with Docker" \
+  --region YOUR_REGION
+```
+
+The copy process takes 10-30 minutes. Note the new AMI IDs from the output and update your `config/config.yaml`.
+
+**Option 2: Use Standard Ubuntu 24.04 AMIs**
+
+Use standard Ubuntu AMIs (Docker and NVIDIA drivers will be installed via user_data):
+
+```bash
+# Find latest Ubuntu 24.04 in your region
+aws ec2 describe-images \
+  --region YOUR_REGION \
+  --owners 099720109477 \
+  --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
+            "Name=state,Values=available" \
+  --query 'sort_by(Images, &CreationDate)[-1].[ImageId,Name]' \
+  --output table
+```
+
+**Note:** Standard AMIs require modifying user_data scripts to install Docker and NVIDIA drivers on first boot, increasing deployment time by ~5-10 minutes.
+
+## Step 6: Security Groups (Optional Pre-Creation)
 
 Terraform creates security groups automatically, but you can pre-create them for more control.
 

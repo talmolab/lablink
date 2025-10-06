@@ -110,8 +110,22 @@ sleap-lablink/ (created from lablink-template)
 
 ### GitHub Repository Secrets
 
-**Required for GitHub Actions:**
-- None (uses OIDC for AWS authentication)
+**For Template Repository (`lablink-template`):**
+- `AWS_ROLE_ARN` → IAM role ARN for GitHub Actions OIDC authentication
+  - Template repository will have read-only access (public or private)
+  - Only TalmoLab maintainers can trigger workflows
+  - Secrets are NOT copied when users create repos from template
+- `AWS_REGION` → AWS region for deployment (e.g., `us-west-2`, `eu-west-1`)
+  - Must match region in `config/config.yaml`
+  - Different deployments can use different regions
+
+**For Deployment Repositories (e.g., `sleap-lablink`):**
+- `AWS_ROLE_ARN` → Same IAM role ARN (must be added after creating from template)
+  - Each deployment repository needs this secret configured manually
+  - IAM role trust policy must include the repository path
+- `AWS_REGION` → AWS region for this specific deployment
+  - Can be different from template repository's region
+  - Must match region in deployment's `config/config.yaml`
 
 **Optional (can override defaults):**
 - `ADMIN_PASSWORD` → Override admin password
@@ -126,7 +140,17 @@ sleap-lablink/ (created from lablink-template)
 
 **IAM Role for OIDC:**
 - Role ARN with trust policy for GitHub Actions
-- Permissions: EC2, VPC, S3, Route53 (if using DNS)
+- Trust policy must include all deployment repositories:
+  ```json
+  "StringLike": {
+    "token.actions.githubusercontent.com:sub": [
+      "repo:talmolab/lablink:*",
+      "repo:talmolab/lablink-template:*",
+      "repo:talmolab/sleap-lablink:*"
+    ]
+  }
+  ```
+- Permissions: PowerUserAccess or EC2, VPC, S3, Route53, IAM (for instance profiles)
 
 **S3 Bucket:**
 - Terraform state storage
@@ -135,6 +159,22 @@ sleap-lablink/ (created from lablink-template)
 **Route 53 (optional):**
 - Hosted zone for DNS management
 - Zone ID in configuration
+
+### Security Model
+
+**Template Repository Security:**
+- Template can include `AWS_ROLE_ARN` secret safely
+- Repository permissions control who can trigger workflows
+- External users cannot access secrets when using template
+- Secrets are NOT inherited when creating from template
+- Users must configure their own AWS credentials after creating their deployment
+
+**Deployment Repository Setup:**
+1. Create repository from `lablink-template`
+2. Add `AWS_ROLE_ARN` secret to new repository
+3. Update IAM role trust policy to include new repository
+4. Configure `config/config.yaml` for deployment
+5. Run deployment workflow
 
 ### Configuration File (`config/config.yaml`)
 
@@ -178,12 +218,15 @@ ssl:
 - [ ] Create `talmolab/lablink-template` repository
 - [ ] Mark as template repository in GitHub settings
 - [ ] Set up branch protection rules
-- [ ] Configure OIDC for AWS (document IAM role ARN pattern)
+- [ ] Set repository permissions (read-only for external users)
+- [ ] Add `AWS_ROLE_ARN` secret to template repository
+- [ ] Update IAM role trust policy to include template repository
 - [ ] Copy `lablink-infrastructure/` contents to template root
 - [ ] Move deployment workflows to template
 - [ ] Create comprehensive README for template users
 - [ ] Add configuration examples and templates
 - [ ] Document all required secrets and variables
+- [ ] Document AWS setup process (OIDC role creation, trust policy)
 
 ### Phase 3: Template Documentation
 - [ ] Write deployment guide for template users
@@ -204,6 +247,8 @@ ssl:
 
 ### Phase 5: SLEAP Deployment
 - [ ] Create `talmolab/sleap-lablink` from template
+- [ ] Add `AWS_ROLE_ARN` secret to sleap-lablink repository
+- [ ] Verify IAM role trust policy includes sleap-lablink (already done)
 - [ ] Configure for SLEAP-specific settings
 - [ ] Set up DNS (lablink.sleap.ai or similar)
 - [ ] Deploy and test
