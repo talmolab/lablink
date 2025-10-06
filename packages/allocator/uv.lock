@@ -701,7 +701,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lablink-allocator"
+name = "lablink-allocator-service"
 version = "0.0.3a0"
 source = { editable = "." }
 dependencies = [

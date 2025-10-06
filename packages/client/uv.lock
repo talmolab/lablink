@@ -536,7 +536,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lablink-client"
+name = "lablink-client-service"
 version = "0.0.8a0"
 source = { editable = "." }
 dependencies = [
