@@ -145,8 +145,8 @@ jobs:
         run: |
           echo "Testing console script entry points can be imported..."
           docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
-          from lablink_allocator.main import main as allocator_main
-          from lablink_allocator.generate_init_sql import main as generate_sql_main
+          from lablink_allocator_service.main import main as allocator_main
+          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
           assert callable(allocator_main), \"allocator main() is not callable\"
           assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
           print(\"✓ All entry points are importable and callable\")
