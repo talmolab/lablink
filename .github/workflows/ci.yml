@@ -52,7 +52,7 @@ jobs:
           - package: lablink-client
             python-version: "3.10"
             working-directory: packages/client
-            test-command: "uv run pytest tests --cov=src/lablink_client --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
           - package: lablink-allocator
             python-version: "3.10"
             working-directory: packages/allocator
@@ -127,11 +127,11 @@ jobs:
           import logging
           logging.basicConfig(level=logging.ERROR)
           print(\"Importing lablink-allocator packages:\")
-          from lablink_allocator.main import main
+          from lablink_allocator_service.main import main
           print(\"  - main.main imported\")
-          from lablink_allocator.database import PostgresqlDatabase
+          from lablink_allocator_service.database import PostgresqlDatabase
           print(\"  - database.PostgresqlDatabase imported\")
-          from lablink_allocator.get_config import get_config
+          from lablink_allocator_service.get_config import get_config
           print(\"  - get_config.get_config imported\")
           print(\"Package imports successful\")
           "'
