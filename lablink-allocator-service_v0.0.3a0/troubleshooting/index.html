@@ -1,0 +1,4232 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Dynamic VM allocation and management system for computational research">
+      
+      
+        <meta name="author" content="Talmo Lab">
+      
+      
+      
+        <link rel="prev" href="../reference/client/lablink_client/update_inuse_status/">
+      
+      
+        <link rel="next" href="../faq/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.21">
+    
+    
+      
+        <title>Troubleshooting - LabLink</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.2a3383ac.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#troubleshooting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LabLink
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Troubleshooting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/talmolab/lablink" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    talmolab/lablink
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../prerequisites/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../aws-setup/" class="md-tabs__link">
+          
+  
+  
+  AWS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../reference/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../contributing/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    LabLink
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/talmolab/lablink" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    talmolab/lablink
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prerequisites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Prerequisites
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adapting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Adapting for your software
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ssh-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SSH access
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Database
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    AWS
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            AWS
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security and credentials
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cost-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    API reference
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1" id="__nav_5_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            API reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1_1" id="__nav_5_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Allocator
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            Allocator
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/allocator/lablink_allocator/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    lablink_allocator
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1_1_1" id="__nav_5_1_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_1_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            lablink_allocator
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/allocator/lablink_allocator/conf/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    conf
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1_1_1_1" id="__nav_5_1_1_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_1_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_1_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            conf
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/conf/structured_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    structured_config
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    database
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/generate_init_sql/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    generate_init_sql
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/get_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    get_config
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/main/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    main
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/allocator/lablink_allocator/utils/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    utils
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1_1_1_6" id="__nav_5_1_1_1_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_1_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_1_1_6">
+            <span class="md-nav__icon md-icon"></span>
+            utils
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/utils/aws_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    aws_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/utils/config_helpers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    config_helpers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/utils/scp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    scp
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator/utils/terraform_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    terraform_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1_2" id="__nav_5_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Client
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            Client
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/client/lablink_client/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    lablink_client
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1_2_1" id="__nav_5_1_2_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_1_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            lablink_client
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/check_gpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    check_gpu
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2_1_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/client/lablink_client/conf/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    conf
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_1_2_1_2" id="__nav_5_1_2_1_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_2_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1_2_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            conf
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/conf/structured_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    structured_config
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/connect_crd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    connect_crd
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/logger_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    logger_config
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/logger_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    logger_utils
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/subscribe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    subscribe
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/client/lablink_client/update_inuse_status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    update_inuse_status
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#general-troubleshooting-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      General Troubleshooting Workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docker-and-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker and Installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docker and Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docker-permission-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Permission Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docker-daemon-not-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Daemon Not Running
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-access-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Access Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SSH Access Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#permission-denied-publickey" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permission Denied (publickey)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-connection-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Connection Timeout
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flask-server-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flask Server Problems
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flask Server Problems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cannot-access-web-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cannot Access Web Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#browser-cannot-access-http-staging-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Browser Cannot Access HTTP (Staging Mode)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flask-app-not-starting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flask App Not Starting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostgreSQL Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgreSQL Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-not-accessible" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostgreSQL Not Accessible
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-connection-refused" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Connection Refused
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vm-spawning-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      VM Spawning Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VM Spawning Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vms-not-being-created" class="md-nav__link">
+    <span class="md-ellipsis">
+      VMs Not Being Created
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-apply-failed-inside-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Apply Failed Inside Container
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terraform Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terraform-init-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Init Fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-state-locked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform State Locked
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resource Already Exists
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cannot-destroy-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cannot Destroy Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-workflow-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub Actions Workflow Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GitHub Actions Workflow Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workflow-wont-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workflow Won't Trigger
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-authentication-fails-in-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      AWS Authentication Fails in Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-apply-fails-in-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Apply Fails in Workflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-not-registering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Not Registering
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpu-not-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      GPU Not Available
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns-and-domain-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS and Domain Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DNS and Domain Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-record-not-resolving" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS Record Not Resolving
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns-record-in-wrong-zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS Record in Wrong Zone
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ns-delegation-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      NS Delegation Not Working
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpsssl-certificate-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      HTTPS/SSL Certificate Not Working
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-hosted-zones-causing-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiple Hosted Zones Causing Conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-verification-failing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deployment Verification Failing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Diagnostic Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostic Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-overall-system-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Overall System Health
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-flask-app-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Flask App Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-database-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Database Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-aws-connectivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check AWS Connectivity
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Help
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-troubleshooting-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Troubleshooting Checklist
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Development
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Documentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-allocator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Allocator changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Client changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Releases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#general-troubleshooting-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      General Troubleshooting Workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docker-and-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker and Installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docker and Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docker-permission-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Permission Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docker-daemon-not-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Daemon Not Running
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-access-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Access Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SSH Access Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#permission-denied-publickey" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permission Denied (publickey)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-connection-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Connection Timeout
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flask-server-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flask Server Problems
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flask Server Problems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cannot-access-web-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cannot Access Web Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#browser-cannot-access-http-staging-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Browser Cannot Access HTTP (Staging Mode)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flask-app-not-starting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flask App Not Starting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostgreSQL Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgreSQL Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-not-accessible" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostgreSQL Not Accessible
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-connection-refused" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Connection Refused
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vm-spawning-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      VM Spawning Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VM Spawning Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vms-not-being-created" class="md-nav__link">
+    <span class="md-ellipsis">
+      VMs Not Being Created
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-apply-failed-inside-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Apply Failed Inside Container
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terraform Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terraform-init-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Init Fails
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-state-locked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform State Locked
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resource Already Exists
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cannot-destroy-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cannot Destroy Resources
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-workflow-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub Actions Workflow Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GitHub Actions Workflow Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workflow-wont-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workflow Won't Trigger
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-authentication-fails-in-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      AWS Authentication Fails in Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terraform-apply-fails-in-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terraform Apply Fails in Workflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-vm-not-registering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client VM Not Registering
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpu-not-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      GPU Not Available
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns-and-domain-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS and Domain Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DNS and Domain Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-record-not-resolving" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS Record Not Resolving
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns-record-in-wrong-zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      DNS Record in Wrong Zone
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ns-delegation-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      NS Delegation Not Working
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpsssl-certificate-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      HTTPS/SSL Certificate Not Working
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-hosted-zones-causing-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiple Hosted Zones Causing Conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-verification-failing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deployment Verification Failing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Diagnostic Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostic Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-overall-system-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Overall System Health
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-flask-app-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Flask App Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-database-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check Database Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-aws-connectivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Check AWS Connectivity
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Help
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-troubleshooting-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Troubleshooting Checklist
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
+<p>This guide covers common issues and their solutions when deploying and operating LabLink.</p>
+<h2 id="general-troubleshooting-workflow">General Troubleshooting Workflow<a class="headerlink" href="#general-troubleshooting-workflow" title="Permanent link">&para;</a></h2>
+<p>When encountering issues, follow this systematic approach:</p>
+<ol>
+<li><strong>Initialize Terraform state locally</strong> (if not already done)</li>
+<li><strong>Plan terraform resources</strong> using AWS CLI</li>
+<li><strong>Apply changes</strong></li>
+<li><strong>Retrieve PEM key</strong> for SSH access</li>
+<li><strong>Check admin website</strong> or SSH into EC2 instance</li>
+<li><strong>Review logs</strong> for errors</li>
+<li><strong>Destroy resources</strong> when done troubleshooting</li>
+</ol>
+<h2 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h2>
+<h3 id="docker-and-installation">Docker and Installation<a class="headerlink" href="#docker-and-installation" title="Permanent link">&para;</a></h3>
+<h4 id="docker-permission-error">Docker Permission Error<a class="headerlink" href="#docker-permission-error" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Got permission denied while trying to connect to the Docker daemon socket
+</code></pre></div></p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Add user to docker group</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-aG<span class="w"> </span>docker<span class="w"> </span><span class="nv">$USER</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Apply group changes</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>newgrp<span class="w"> </span>docker
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Verify</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>docker<span class="w"> </span>ps
+</code></pre></div></p>
+<h4 id="docker-daemon-not-running">Docker Daemon Not Running<a class="headerlink" href="#docker-daemon-not-running" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Cannot connect to the Docker daemon at unix:///var/run/docker.sock
+</code></pre></div></p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Start Docker (Linux)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>docker
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>docker
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># macOS/Windows</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Start Docker Desktop application</span>
+</code></pre></div></p>
+<h3 id="ssh-access-issues">SSH Access Issues<a class="headerlink" href="#ssh-access-issues" title="Permanent link">&para;</a></h3>
+<h4 id="permission-denied-publickey">Permission Denied (publickey)<a class="headerlink" href="#permission-denied-publickey" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Permission denied (publickey).
+</code></pre></div></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Check key permissions</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>~/lablink-key.pem
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Should show: -rw-------</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify correct key</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Extract key from Terraform</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check correct user</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Try ubuntu user</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ip&gt;
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Or ec2-user</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ec2-user@&lt;ip&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify security group allows SSH</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-security-groups<span class="w"> </span>--group-ids<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;SecurityGroups[0].IpPermissions[?FromPort==`22`]&#39;</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h4 id="ssh-connection-timeout">SSH Connection Timeout<a class="headerlink" href="#ssh-connection-timeout" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ssh: connect to host X.X.X.X port 22: Connection timed out
+</code></pre></div></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Verify security group allows port 22</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">22</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check instance is running</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;instance-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].State.Name&#39;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify correct public IP</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>terraform<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check network ACLs</strong>:</p>
+</li>
+<li>Verify VPC network ACLs allow inbound/outbound on port 22</li>
+</ol>
+<h3 id="flask-server-problems">Flask Server Problems<a class="headerlink" href="#flask-server-problems" title="Permanent link">&para;</a></h3>
+<h4 id="cannot-access-web-interface">Cannot Access Web Interface<a class="headerlink" href="#cannot-access-web-interface" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: Browser shows "Connection refused" or "Cannot connect"</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Check if container is running</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ip&gt;
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>View container logs</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container-id&gt;
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># Follow logs in real-time</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;container-id&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test locally from instance</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># From within the EC2 instance</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>curl<span class="w"> </span>localhost:80
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test connectivity from outside</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># From your local machine</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>nc<span class="w"> </span>-vz<span class="w"> </span>&lt;ec2-public-ip&gt;<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Or</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>curl<span class="w"> </span>http://&lt;ec2-public-ip&gt;:80
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check security group allows port 80</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+</code></pre></div></p>
+</li>
+</ol>
+<h4 id="browser-cannot-access-http-staging-mode">Browser Cannot Access HTTP (Staging Mode)<a class="headerlink" href="#browser-cannot-access-http-staging-mode" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>:
+- Browser cannot connect to <code>http://your-domain.com</code> when using staging mode
+- "This site can't be reached"
+- "Connection refused"
+- "ERR_CONNECTION_REFUSED"</p>
+<p><strong>Cause</strong>: Your browser previously accessed the site via HTTPS and cached the HSTS (HTTP Strict Transport Security) policy. This forces all future requests to automatically upgrade to HTTPS. Since staging mode only serves HTTP (port 443 is closed), the browser cannot connect.</p>
+<p><strong>Solution - Clear HSTS Cache:</strong></p>
+<p><strong>Chrome / Edge:</strong></p>
+<ol>
+<li>
+<p>Open a new tab and navigate to:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>chrome://net-internals/#hsts
+</code></pre></div>
+   (For Edge use: <code>edge://net-internals/#hsts</code>)</p>
+</li>
+<li>
+<p>Scroll down to "Delete domain security policies"</p>
+</li>
+<li>
+<p>Enter your full domain name:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+<li>
+<p>Click "Delete"</p>
+</li>
+<li>
+<p>Access the site again, explicitly typing <code>http://</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>http://test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Firefox:</strong></p>
+<ol>
+<li>
+<p>Close all Firefox windows</p>
+</li>
+<li>
+<p>Navigate to your Firefox profile directory:</p>
+</li>
+<li>Windows: <code>%APPDATA%\Mozilla\Firefox\Profiles\</code></li>
+<li>macOS: <code>~/Library/Application Support/Firefox/Profiles/</code></li>
+<li>
+<p>Linux: <code>~/.mozilla/firefox/</code></p>
+</li>
+<li>
+<p>Find your profile folder (e.g., <code>abc123.default-release</code>)</p>
+</li>
+<li>
+<p>Delete the file: <code>SiteSecurityServiceState.txt</code></p>
+</li>
+<li>
+<p>Restart Firefox and access with <code>http://</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>http://test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Safari:</strong></p>
+<ol>
+<li>
+<p>Close Safari completely</p>
+</li>
+<li>
+<p>Open Terminal and run:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>rm<span class="w"> </span>~/Library/Cookies/HSTS.plist
+</code></pre></div></p>
+</li>
+<li>
+<p>Restart Safari and access with <code>http://</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>http://test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Quick Workarounds:</strong></p>
+<p>If you don't want to clear HSTS cache:</p>
+<ol>
+<li><strong>Use Incognito/Private Browsing</strong></li>
+<li>HSTS cache doesn't apply in incognito mode</li>
+<li>
+<p>Access <code>http://test.lablink.sleap.ai</code></p>
+</li>
+<li>
+<p><strong>Access via IP Address</strong>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>http://54.214.215.124
+</code></pre></div>
+   (Find IP in Terraform outputs: <code>terraform output allocator_public_ip</code>)</p>
+</li>
+<li>
+<p><strong>Use curl for testing</strong>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>curl<span class="w"> </span>http://test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Verify Staging Mode is Working:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># HTTP should return 200 OK</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>curl<span class="w"> </span>-I<span class="w"> </span>http://test.lablink.sleap.ai
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># HTTPS should fail (connection refused)</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>curl<span class="w"> </span>-I<span class="w"> </span>https://test.lablink.sleap.ai
+</code></pre></div>
+<p><strong>Expected behavior</strong>: When using staging mode (<code>ssl.staging: true</code>), your browser will show "Not Secure" in the address bar. This is normal and expected - staging mode uses unencrypted HTTP for testing.</p>
+<p>To get a secure HTTPS connection, set <code>ssl.staging: false</code> in your configuration. See <a href="../configuration/#ssltls-options-ssl">Configuration - SSL Options</a>.</p>
+<h4 id="flask-app-not-starting">Flask App Not Starting<a class="headerlink" href="#flask-app-not-starting" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: Container runs but Flask doesn't start</p>
+<p><strong>Check</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># View full logs</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container-id&gt;
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># Look for errors like:</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="c1"># - Port already in use</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="c1"># - Module import errors</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="c1"># - Configuration errors</span>
+</code></pre></div>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Restart container</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>restart<span class="w"> </span>&lt;container-id&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check for port conflicts</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5000</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify configuration</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>cat<span class="w"> </span>/app/config/config.yaml
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="postgresql-issues">PostgreSQL Issues<a class="headerlink" href="#postgresql-issues" title="Permanent link">&para;</a></h3>
+<h4 id="postgresql-not-accessible">PostgreSQL Not Accessible<a class="headerlink" href="#postgresql-not-accessible" title="Permanent link">&para;</a></h4>
+<p><strong>Known Issue</strong>: PostgreSQL server may need manual restart after first deployment.</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2-public-ip&gt;
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="c1"># Get container name</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
+<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
+<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="c1"># Enter container</span>
+<a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container-name&gt;<span class="w"> </span>bash
+<a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a>
+<a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="c1"># Inside container, restart PostgreSQL</span>
+<a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a>/etc/init.d/postgresql<span class="w"> </span>restart
+<a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a>
+<a id="__codelineno-31-13" name="__codelineno-31-13" href="#__codelineno-31-13"></a><span class="c1"># Verify it&#39;s running</span>
+<a id="__codelineno-31-14" name="__codelineno-31-14" href="#__codelineno-31-14"></a>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+</code></pre></div></p>
+<p><strong>Verify manually</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="c1"># Test connection</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT 1;&quot;</span>
+</code></pre></div></p>
+<h4 id="database-connection-refused">Database Connection Refused<a class="headerlink" href="#database-connection-refused" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>psycopg2.OperationalError: could not connect to server</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Check PostgreSQL is running</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check PostgreSQL logs</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-*-main.log
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify configuration</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="c1"># Check pg_hba.conf</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>cat<span class="w"> </span>/etc/postgresql/*/main/pg_hba.conf
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="c1"># Should contain:</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="c1"># host    all             all             0.0.0.0/0            md5</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Restart PostgreSQL</strong> (see above)</p>
+</li>
+</ol>
+<h3 id="vm-spawning-issues">VM Spawning Issues<a class="headerlink" href="#vm-spawning-issues" title="Permanent link">&para;</a></h3>
+<h4 id="vms-not-being-created">VMs Not Being Created<a class="headerlink" href="#vms-not-being-created" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: Click "Create VMs" but nothing happens</p>
+<p><strong>Check</strong>:</p>
+<ol>
+<li>
+<p><strong>Allocator container logs</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container-id&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>AWS credentials configured</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="c1"># Inside container</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Terraform installed in container</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>terraform<span class="w"> </span>version
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li><strong>Set AWS credentials</strong> (if not using IAM role):</li>
+<li>Navigate to <code>/admin/set-aws-credentials</code> in web interface</li>
+<li>Enter AWS access key and secret key</li>
+<li>
+<p>Submit</p>
+</li>
+<li>
+<p><strong>Check Terraform errors</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="c1"># Inside container</span>
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>cat<span class="w"> </span>/tmp/terraform-*.log
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify IAM permissions</strong>:</p>
+</li>
+<li>EC2 permissions (RunInstances, DescribeInstances)</li>
+<li>VPC permissions (CreateSecurityGroup, etc.)</li>
+</ol>
+<h4 id="terraform-apply-failed-inside-container">Terraform Apply Failed Inside Container<a class="headerlink" href="#terraform-apply-failed-inside-container" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: Terraform operations fail when triggered from allocator</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Check AWS credentials</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>AWS
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test Terraform manually</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>bash
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="nb">cd</span><span class="w"> </span>/app/.venv/lib/python*/site-packages/lablink_allocator/terraform
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>terraform<span class="w"> </span>init
+<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>terraform<span class="w"> </span>plan
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify Docker socket access</strong> (if using Docker-in-Docker):
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>docker<span class="w"> </span>ps
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="terraform-issues">Terraform Issues<a class="headerlink" href="#terraform-issues" title="Permanent link">&para;</a></h3>
+<h4 id="terraform-init-fails">Terraform Init Fails<a class="headerlink" href="#terraform-init-fails" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>Error configuring the backend "s3": ... bucket does not exist</code></p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="c1"># Create S3 bucket first</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>mb<span class="w"> </span>s3://tf-state-lablink-allocator-bucket<span class="w"> </span>--region<span class="w"> </span>us-west-2
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>
+<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="c1"># Enable versioning</span>
+<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-versioning<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a><span class="w">  </span>--bucket<span class="w"> </span>tf-state-lablink-allocator-bucket<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="w">  </span>--versioning-configuration<span class="w"> </span><span class="nv">Status</span><span class="o">=</span>Enabled
+<a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a>
+<a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="c1"># Re-init</span>
+<a id="__codelineno-43-10" name="__codelineno-43-10" href="#__codelineno-43-10"></a>terraform<span class="w"> </span>init
+</code></pre></div></p>
+<h4 id="terraform-state-locked">Terraform State Locked<a class="headerlink" href="#terraform-state-locked" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>Error acquiring the state lock</code></p>
+<p><strong>Cause</strong>: A previous Terraform operation didn't complete cleanly, leaving the state locked in DynamoDB.</p>
+<p><strong>Diagnosis</strong>:</p>
+<ol>
+<li>
+<p><strong>Identify the lock</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="c1"># Check for locks in DynamoDB</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>scan<span class="w"> </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span>--region<span class="w"> </span>us-west-2
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check if a process is actually running</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="c1"># Look for terraform processes</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>terraform
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a>
+<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="c1"># In allocator container</span>
+<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>terraform
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<p><strong>Option 1: Unlock via AWS CLI</strong> (Recommended - works from anywhere)</p>
+<p><strong>Step 1:</strong> First, scan the lock table to find the exact LockID:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="c1"># List all locks</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>scan<span class="w"> </span>--profile<span class="w"> </span>&lt;your-profile&gt;<span class="w"> </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span>--region<span class="w"> </span>us-west-2
+</code></pre></div></p>
+<p><strong>Step 2:</strong> Look for entries with an <code>Info</code> field (these are actual locks, not just digests). Copy the exact <code>LockID</code> value.</p>
+<p><strong>Step 3:</strong> Delete the lock:</p>
+<p><strong>Linux/macOS:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>delete-item<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="w">    </span>--profile<span class="w"> </span>&lt;your-profile&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="w">    </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a><span class="w">    </span>--key<span class="w"> </span><span class="s1">&#39;{&quot;LockID&quot;:{&quot;S&quot;:&quot;&lt;exact-lock-id-from-scan&gt;&quot;}}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="w">    </span>--region<span class="w"> </span>us-west-2
+</code></pre></div></p>
+<p><strong>Windows PowerShell:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c"># Create key.json file with:</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="c"># {</span>
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="c">#   &quot;LockID&quot;: {</span>
+<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="c">#     &quot;S&quot;: &quot;&lt;exact-lock-id-from-scan&gt;&quot;</span>
+<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="c">#   }</span>
+<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="c"># }</span>
+<a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a>
+<a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a><span class="n">aws</span> <span class="n">dynamodb</span> <span class="n">delete-item</span> <span class="p">-</span><span class="n">-profile</span> <span class="p">&lt;</span><span class="n">your-profile</span><span class="p">&gt;</span> <span class="p">-</span><span class="n">-table-name</span> <span class="nb">lock-table</span> <span class="p">-</span><span class="n">-key</span> <span class="n">file</span><span class="p">://</span><span class="n">key</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-region</span> <span class="n">us-west</span><span class="p">-</span><span class="n">2</span>
+</code></pre></div></p>
+<p><strong>Common lock paths:</strong>
+- Infrastructure: <code>tf-state-lablink-allocator-bucket/test/terraform.tfstate</code>
+- Client VMs: <code>tf-state-lablink-allocator-bucket/test/client/terraform.tfstate</code></p>
+<p>Note: Lock IDs do NOT always have <code>-md5</code> suffix - use the exact value from the scan!</p>
+<p><strong>Option 2: Unlock from allocator</strong> (Requires DynamoDB IAM permissions)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>
+<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a><span class="c1"># Enter container</span>
+<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>bash
+<a id="__codelineno-49-6" name="__codelineno-49-6" href="#__codelineno-49-6"></a>
+<a id="__codelineno-49-7" name="__codelineno-49-7" href="#__codelineno-49-7"></a><span class="c1"># Navigate to terraform directory</span>
+<a id="__codelineno-49-8" name="__codelineno-49-8" href="#__codelineno-49-8"></a><span class="nb">cd</span><span class="w"> </span>/app/lablink_allocator/terraform
+<a id="__codelineno-49-9" name="__codelineno-49-9" href="#__codelineno-49-9"></a>
+<a id="__codelineno-49-10" name="__codelineno-49-10" href="#__codelineno-49-10"></a><span class="c1"># Force unlock (using lock ID from error message)</span>
+<a id="__codelineno-49-11" name="__codelineno-49-11" href="#__codelineno-49-11"></a>terraform<span class="w"> </span>force-unlock<span class="w"> </span>&lt;lock-id&gt;
+</code></pre></div></p>
+<p><strong>Common Error</strong>: <code>AccessDeniedException: User is not authorized to perform: dynamodb:GetItem</code></p>
+<p><strong>Cause</strong>: The allocator IAM role lacks DynamoDB permissions.</p>
+<p><strong>Solution</strong>: Ensure the allocator IAM role includes these permissions:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="p">{</span>
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a><span class="w">  </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a><span class="w">  </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a><span class="w">    </span><span class="s2">&quot;dynamodb:GetItem&quot;</span><span class="p">,</span>
+<a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a><span class="w">    </span><span class="s2">&quot;dynamodb:PutItem&quot;</span><span class="p">,</span>
+<a id="__codelineno-50-6" name="__codelineno-50-6" href="#__codelineno-50-6"></a><span class="w">    </span><span class="s2">&quot;dynamodb:DeleteItem&quot;</span>
+<a id="__codelineno-50-7" name="__codelineno-50-7" href="#__codelineno-50-7"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-50-8" name="__codelineno-50-8" href="#__codelineno-50-8"></a><span class="w">  </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;arn:aws:dynamodb:us-west-2:&lt;account-id&gt;:table/lock-table&quot;</span>
+<a id="__codelineno-50-9" name="__codelineno-50-9" href="#__codelineno-50-9"></a><span class="p">}</span>
+</code></pre></div></p>
+<p>After updating IAM permissions, redeploy infrastructure for changes to take effect.</p>
+<p><strong>Prevention</strong>:
+- Don't manually terminate EC2 instances while Terraform is running
+- Always let Terraform operations complete fully
+- Use destroy workflows instead of manual AWS console deletions
+- Monitor allocator logs during VM creation/destruction</p>
+<h4 id="resource-already-exists">Resource Already Exists<a class="headerlink" href="#resource-already-exists" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>Error creating ... already exists</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Import existing resource</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>terraform<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>terraform<span class="w"> </span>import<span class="w"> </span>aws_instance.lablink_allocator<span class="w"> </span>i-xxxxx
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Delete resource manually</strong> (if safe):
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>terminate-instances<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>delete-security-group<span class="w"> </span>--group-id<span class="w"> </span>sg-xxxxx
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Use different resource names</strong>:</p>
+</li>
+<li>Change <code>resource_suffix</code> variable: <code>-dev</code>, <code>-test</code>, <code>-prod</code></li>
+</ol>
+<h4 id="cannot-destroy-resources">Cannot Destroy Resources<a class="headerlink" href="#cannot-destroy-resources" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: Resources won't destroy cleanly</p>
+<p><strong>Solution</strong>:</p>
+<ol>
+<li>
+<p><strong>Destroy in order</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a><span class="c1"># Terminate instances first</span>
+<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>terminate-instances<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
+<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a>
+<a id="__codelineno-53-4" name="__codelineno-53-4" href="#__codelineno-53-4"></a><span class="c1"># Wait for termination</span>
+<a id="__codelineno-53-5" name="__codelineno-53-5" href="#__codelineno-53-5"></a>aws<span class="w"> </span>ec2<span class="w"> </span><span class="nb">wait</span><span class="w"> </span>instance-terminated<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
+<a id="__codelineno-53-6" name="__codelineno-53-6" href="#__codelineno-53-6"></a>
+<a id="__codelineno-53-7" name="__codelineno-53-7" href="#__codelineno-53-7"></a><span class="c1"># Delete security group</span>
+<a id="__codelineno-53-8" name="__codelineno-53-8" href="#__codelineno-53-8"></a>aws<span class="w"> </span>ec2<span class="w"> </span>delete-security-group<span class="w"> </span>--group-id<span class="w"> </span>sg-xxxxx
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check dependencies</strong>:</p>
+</li>
+<li>Network interfaces attached</li>
+<li>Elastic IPs associated</li>
+<li>
+<p>Security group rules referencing each other</p>
+</li>
+<li>
+<p><strong>Force destroy</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-auto-approve
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="github-actions-workflow-issues">GitHub Actions Workflow Issues<a class="headerlink" href="#github-actions-workflow-issues" title="Permanent link">&para;</a></h3>
+<h4 id="workflow-wont-trigger">Workflow Won't Trigger<a class="headerlink" href="#workflow-wont-trigger" title="Permanent link">&para;</a></h4>
+<p><strong>Check</strong>:</p>
+<ol>
+<li>
+<p><strong>Workflow file syntax</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="c1"># Use YAML validator</span>
+<a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>yamllint<span class="w"> </span>.github/workflows/*.yml
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Branch protection rules</strong>:</p>
+</li>
+<li>Check repository settings</li>
+<li>
+<p>Ensure workflows are enabled</p>
+</li>
+<li>
+<p><strong>Trigger conditions</strong>:</p>
+</li>
+<li>Verify branch name matches trigger</li>
+<li>Check file path filters</li>
+</ol>
+<h4 id="aws-authentication-fails-in-workflow">AWS Authentication Fails in Workflow<a class="headerlink" href="#aws-authentication-fails-in-workflow" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>Error: Could not assume role with OIDC</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>Verify OIDC provider exists</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>list-open-id-connect-providers
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check IAM role trust policy</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>get-role<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Role.AssumeRolePolicyDocument&#39;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify repository in trust policy</strong>:</p>
+</li>
+<li>
+<p>Trust policy must include: <code>repo:talmolab/lablink:*</code></p>
+</li>
+<li>
+<p><strong>Check role ARN in workflow</strong>:</p>
+</li>
+<li>Ensure ARN matches your account ID</li>
+</ol>
+<h4 id="terraform-apply-fails-in-workflow">Terraform Apply Fails in Workflow<a class="headerlink" href="#terraform-apply-fails-in-workflow" title="Permanent link">&para;</a></h4>
+<p><strong>Check workflow logs</strong> for specific error:</p>
+<ol>
+<li><strong>Permission errors</strong>: Update IAM role permissions</li>
+<li><strong>Resource limits</strong>: Check AWS service quotas</li>
+<li><strong>State lock</strong>: Clear lock if safe</li>
+</ol>
+<h3 id="client-vm-issues">Client VM Issues<a class="headerlink" href="#client-vm-issues" title="Permanent link">&para;</a></h3>
+<h4 id="client-vm-not-registering">Client VM Not Registering<a class="headerlink" href="#client-vm-not-registering" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: VM created but doesn't appear in allocator database</p>
+<p><strong>Root Cause</strong>: VMs are not being inserted into the database after Terraform creates them.</p>
+<p><strong>Step-by-Step Diagnosis</strong>:</p>
+<ol>
+<li>
+<p><strong>Verify VMs were created by Terraform</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a><span class="c1"># Check terraform outputs from allocator</span>
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-58-3" name="__codelineno-58-3" href="#__codelineno-58-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>terraform<span class="w"> </span>-chdir<span class="o">=</span>/app/.venv/lib/python*/site-packages/lablink_allocator/terraform<span class="w"> </span>output<span class="w"> </span>vm_instance_names
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check if VMs exist in database</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a>
+<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="c1"># Query database</span>
+<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, inuse, status FROM vms;&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check client VM container logs</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container-id&gt;
+<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a>
+<a id="__codelineno-60-4" name="__codelineno-60-4" href="#__codelineno-60-4"></a><span class="c1"># Look for errors like:</span>
+<a id="__codelineno-60-5" name="__codelineno-60-5" href="#__codelineno-60-5"></a><span class="c1"># &quot;POST request failed with status code: 404&quot;</span>
+<a id="__codelineno-60-6" name="__codelineno-60-6" href="#__codelineno-60-6"></a><span class="c1"># &quot;VM not found&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check allocator logs for /vm_startup requests</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container-id&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>vm_startup
+<a id="__codelineno-61-3" name="__codelineno-61-3" href="#__codelineno-61-3"></a>
+<a id="__codelineno-61-4" name="__codelineno-61-4" href="#__codelineno-61-4"></a><span class="c1"># Look for:</span>
+<a id="__codelineno-61-5" name="__codelineno-61-5" href="#__codelineno-61-5"></a><span class="c1"># POST /vm_startup - 404 errors</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test network connectivity</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a><span class="c1"># From client VM</span>
+<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>curl<span class="w"> </span>http://&lt;allocator-ip&gt;/vm_startup<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-62-4" name="__codelineno-62-4" href="#__codelineno-62-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;hostname&quot;: &quot;lablink-vm-test-1&quot;}&#39;</span>
+<a id="__codelineno-62-5" name="__codelineno-62-5" href="#__codelineno-62-5"></a>
+<a id="__codelineno-62-6" name="__codelineno-62-6" href="#__codelineno-62-6"></a><span class="c1"># Expected if VM not in DB: {&quot;error&quot;:&quot;VM not found.&quot;}</span>
+<a id="__codelineno-62-7" name="__codelineno-62-7" href="#__codelineno-62-7"></a><span class="c1"># Expected if VM in DB: Success response</span>
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<p><strong>Option A: Manual Database Insertion (Temporary Fix)</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-63-3" name="__codelineno-63-3" href="#__codelineno-63-3"></a>
+<a id="__codelineno-63-4" name="__codelineno-63-4" href="#__codelineno-63-4"></a><span class="c1"># Get container ID</span>
+<a id="__codelineno-63-5" name="__codelineno-63-5" href="#__codelineno-63-5"></a><span class="nv">CONTAINER_ID</span><span class="o">=</span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span>
+<a id="__codelineno-63-6" name="__codelineno-63-6" href="#__codelineno-63-6"></a>
+<a id="__codelineno-63-7" name="__codelineno-63-7" href="#__codelineno-63-7"></a><span class="c1"># Insert VMs manually</span>
+<a id="__codelineno-63-8" name="__codelineno-63-8" href="#__codelineno-63-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-9" name="__codelineno-63-9" href="#__codelineno-63-9"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-1&#39;, FALSE);&quot;</span>
+<a id="__codelineno-63-10" name="__codelineno-63-10" href="#__codelineno-63-10"></a>
+<a id="__codelineno-63-11" name="__codelineno-63-11" href="#__codelineno-63-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-12" name="__codelineno-63-12" href="#__codelineno-63-12"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-2&#39;, FALSE);&quot;</span>
+<a id="__codelineno-63-13" name="__codelineno-63-13" href="#__codelineno-63-13"></a>
+<a id="__codelineno-63-14" name="__codelineno-63-14" href="#__codelineno-63-14"></a><span class="c1"># Verify</span>
+<a id="__codelineno-63-15" name="__codelineno-63-15" href="#__codelineno-63-15"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-16" name="__codelineno-63-16" href="#__codelineno-63-16"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, inuse FROM vms;&quot;</span>
+</code></pre></div></p>
+<p><strong>Option B: Code Fix (Permanent Solution)</strong></p>
+<p>The <code>/api/launch</code> endpoint needs to be updated to insert VMs after Terraform succeeds. See <a href="../VM_REGISTRATION_ISSUE.md">VM_REGISTRATION_ISSUE.md</a> for details.</p>
+<p><strong>After Fix - Verify Registration</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="c1"># Watch client VM logs</span>
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-64-3" name="__codelineno-64-3" href="#__codelineno-64-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;client-container-id&gt;
+<a id="__codelineno-64-4" name="__codelineno-64-4" href="#__codelineno-64-4"></a>
+<a id="__codelineno-64-5" name="__codelineno-64-5" href="#__codelineno-64-5"></a><span class="c1"># Should see:</span>
+<a id="__codelineno-64-6" name="__codelineno-64-6" href="#__codelineno-64-6"></a><span class="c1"># &quot;POST request was successful.&quot;</span>
+<a id="__codelineno-64-7" name="__codelineno-64-7" href="#__codelineno-64-7"></a><span class="c1"># &quot;Received success response from server.&quot;</span>
+</code></pre></div></p>
+<p><strong>Preventive Measures</strong>:
+- Always verify VMs appear in database after creation
+- Check allocator logs during VM creation
+- Monitor client VM registration within 5 minutes of creation</p>
+<h4 id="gpu-not-available">GPU Not Available<a class="headerlink" href="#gpu-not-available" title="Permanent link">&para;</a></h4>
+<p><strong>Error</strong>: <code>RuntimeError: CUDA not available</code></p>
+<p><strong>Check</strong>:</p>
+<ol>
+<li>
+<p><strong>GPU instance type</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a><span class="c1"># Verify instance has GPU</span>
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].InstanceType&#39;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>NVIDIA drivers installed</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>nvidia-smi
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Docker GPU support</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:11.0-base<span class="w"> </span>nvidia-smi
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solution</strong>:</p>
+<ol>
+<li>
+<p><strong>Use GPU-enabled AMI</strong> or install drivers:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="c1"># Ubuntu Deep Learning AMI</span>
+<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a><span class="nv">ami_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ami-0c2b0d3fb02824d92&quot;</span><span class="w">  </span><span class="c1"># us-west-2</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify Docker GPU runtime</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>cat<span class="w"> </span>/etc/docker/daemon.json
+<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a><span class="c1"># Should have: &quot;default-runtime&quot;: &quot;nvidia&quot;</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="dns-and-domain-issues">DNS and Domain Issues<a class="headerlink" href="#dns-and-domain-issues" title="Permanent link">&para;</a></h3>
+<p>For detailed DNS configuration, see <a href="../dns-configuration/">DNS Configuration Guide</a>.</p>
+<h4 id="dns-record-not-resolving">DNS Record Not Resolving<a class="headerlink" href="#dns-record-not-resolving" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: Domain doesn't resolve to allocator IP</p>
+<p><strong>Step-by-Step Diagnosis</strong>:</p>
+<ol>
+<li>
+<p><strong>Verify DNS is enabled in config</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>cat<span class="w"> </span>lablink-infrastructure/config/config.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-A<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="s2">&quot;^dns:&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check Route53 record exists</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a><span class="w">  </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-71-3" name="__codelineno-71-3" href="#__codelineno-71-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?Name==&#39;test.lablink.sleap.ai.&#39;]&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Query authoritative nameservers directly</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a><span class="c1"># Should return the allocator IP</span>
+<a id="__codelineno-72-2" name="__codelineno-72-2" href="#__codelineno-72-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>ns-158.awsdns-19.com
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check public DNS propagation</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a><span class="c1"># Google DNS</span>
+<a id="__codelineno-73-2" name="__codelineno-73-2" href="#__codelineno-73-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+<a id="__codelineno-73-3" name="__codelineno-73-3" href="#__codelineno-73-3"></a>
+<a id="__codelineno-73-4" name="__codelineno-73-4" href="#__codelineno-73-4"></a><span class="c1"># Cloudflare DNS</span>
+<a id="__codelineno-73-5" name="__codelineno-73-5" href="#__codelineno-73-5"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">1</span>.1.1.1
+<a id="__codelineno-73-6" name="__codelineno-73-6" href="#__codelineno-73-6"></a>
+<a id="__codelineno-73-7" name="__codelineno-73-7" href="#__codelineno-73-7"></a><span class="c1"># Local DNS</span>
+<a id="__codelineno-73-8" name="__codelineno-73-8" href="#__codelineno-73-8"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify IP matches</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a><span class="c1"># Get terraform output</span>
+<a id="__codelineno-74-2" name="__codelineno-74-2" href="#__codelineno-74-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-74-3" name="__codelineno-74-3" href="#__codelineno-74-3"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
+<a id="__codelineno-74-4" name="__codelineno-74-4" href="#__codelineno-74-4"></a>
+<a id="__codelineno-74-5" name="__codelineno-74-5" href="#__codelineno-74-5"></a><span class="c1"># Compare with DNS resolution</span>
+<a id="__codelineno-74-6" name="__codelineno-74-6" href="#__codelineno-74-6"></a>dig<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>+short
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<p><strong>If record doesn't exist</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a><span class="c1"># Re-run terraform to create DNS record</span>
+<a id="__codelineno-75-2" name="__codelineno-75-2" href="#__codelineno-75-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-75-3" name="__codelineno-75-3" href="#__codelineno-75-3"></a>terraform<span class="w"> </span>apply
+</code></pre></div></p>
+<p><strong>If DNS not propagating</strong>:
+- Wait 5-15 minutes for global propagation
+- Check NS delegation is correct (see below)
+- Try flushing local DNS cache:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a><span class="c1"># macOS</span>
+<a id="__codelineno-76-2" name="__codelineno-76-2" href="#__codelineno-76-2"></a>sudo<span class="w"> </span>dscacheutil<span class="w"> </span>-flushcache<span class="p">;</span><span class="w"> </span>sudo<span class="w"> </span>killall<span class="w"> </span>-HUP<span class="w"> </span>mDNSResponder
+<a id="__codelineno-76-3" name="__codelineno-76-3" href="#__codelineno-76-3"></a>
+<a id="__codelineno-76-4" name="__codelineno-76-4" href="#__codelineno-76-4"></a><span class="c1"># Linux</span>
+<a id="__codelineno-76-5" name="__codelineno-76-5" href="#__codelineno-76-5"></a>sudo<span class="w"> </span>systemd-resolve<span class="w"> </span>--flush-caches
+<a id="__codelineno-76-6" name="__codelineno-76-6" href="#__codelineno-76-6"></a>
+<a id="__codelineno-76-7" name="__codelineno-76-7" href="#__codelineno-76-7"></a><span class="c1"># Windows</span>
+<a id="__codelineno-76-8" name="__codelineno-76-8" href="#__codelineno-76-8"></a>ipconfig<span class="w"> </span>/flushdns
+</code></pre></div></p>
+<h4 id="dns-record-in-wrong-zone">DNS Record in Wrong Zone<a class="headerlink" href="#dns-record-in-wrong-zone" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: DNS record created in <code>sleap.ai</code> zone instead of <code>lablink.sleap.ai</code> zone</p>
+<p><strong>Root Cause</strong>: Terraform data source matched parent zone</p>
+<p><strong>Diagnosis</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a><span class="c1"># Check both zones</span>
+<a id="__codelineno-77-2" name="__codelineno-77-2" href="#__codelineno-77-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;sleap.ai-zone-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-77-3" name="__codelineno-77-3" href="#__codelineno-77-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;lablink&#39;)]&quot;</span>
+<a id="__codelineno-77-4" name="__codelineno-77-4" href="#__codelineno-77-4"></a>
+<a id="__codelineno-77-5" name="__codelineno-77-5" href="#__codelineno-77-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-77-6" name="__codelineno-77-6" href="#__codelineno-77-6"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;test&#39;)]&quot;</span>
+</code></pre></div></p>
+<p><strong>Solution</strong>:</p>
+<ol>
+<li>
+<p><strong>Add zone_id to config.yaml</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-78-1" name="__codelineno-78-1" href="#__codelineno-78-1"></a><span class="nt">dns</span><span class="p">:</span>
+<a id="__codelineno-78-2" name="__codelineno-78-2" href="#__codelineno-78-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-78-3" name="__codelineno-78-3" href="#__codelineno-78-3"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink.sleap.ai&quot;</span>
+<a id="__codelineno-78-4" name="__codelineno-78-4" href="#__codelineno-78-4"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span><span class="w">  </span><span class="c1"># Force correct zone</span>
+<a id="__codelineno-78-5" name="__codelineno-78-5" href="#__codelineno-78-5"></a><span class="w">  </span><span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;custom&quot;</span>
+<a id="__codelineno-78-6" name="__codelineno-78-6" href="#__codelineno-78-6"></a><span class="w">  </span><span class="nt">custom_subdomain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Delete record from wrong zone</strong> (if exists):
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a><span class="c1"># Use AWS console or CLI to delete A record from sleap.ai zone</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Re-run terraform</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a>terraform<span class="w"> </span>apply
+</code></pre></div></p>
+</li>
+</ol>
+<h4 id="ns-delegation-not-working">NS Delegation Not Working<a class="headerlink" href="#ns-delegation-not-working" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>:
+- nslookup returns Cloudflare nameservers instead of AWS
+- DNS queries fail even though record exists in Route53</p>
+<p><strong>Diagnosis</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a><span class="c1"># Check NS delegation</span>
+<a id="__codelineno-81-2" name="__codelineno-81-2" href="#__codelineno-81-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
+<a id="__codelineno-81-3" name="__codelineno-81-3" href="#__codelineno-81-3"></a>
+<a id="__codelineno-81-4" name="__codelineno-81-4" href="#__codelineno-81-4"></a><span class="c1"># Should show AWS nameservers:</span>
+<a id="__codelineno-81-5" name="__codelineno-81-5" href="#__codelineno-81-5"></a><span class="c1"># ns-158.awsdns-19.com</span>
+<a id="__codelineno-81-6" name="__codelineno-81-6" href="#__codelineno-81-6"></a><span class="c1"># ns-697.awsdns-23.net</span>
+<a id="__codelineno-81-7" name="__codelineno-81-7" href="#__codelineno-81-7"></a><span class="c1"># ns-1839.awsdns-37.co.uk</span>
+<a id="__codelineno-81-8" name="__codelineno-81-8" href="#__codelineno-81-8"></a><span class="c1"># ns-1029.awsdns-00.org</span>
+</code></pre></div></p>
+<p><strong>Solution</strong>:</p>
+<ol>
+<li>
+<p><strong>Get Route53 nameservers</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-82-2" name="__codelineno-82-2" href="#__codelineno-82-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;DelegationSet.NameServers&#39;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Add NS records in Cloudflare</strong>:</p>
+</li>
+<li>Log into Cloudflare</li>
+<li>Navigate to DNS for <code>sleap.ai</code></li>
+<li>
+<p>Add 4 NS records:</p>
+<ul>
+<li>Type: NS</li>
+<li>Name: <code>lablink</code></li>
+<li>Content: Each of the 4 AWS nameservers</li>
+<li>TTL: 300 (or Auto)</li>
+</ul>
+</li>
+<li>
+<p><strong>Verify delegation</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a><span class="c1"># Wait 5-15 minutes, then check</span>
+<a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test resolution</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a><span class="c1"># Should now resolve via AWS</span>
+<a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+</code></pre></div></p>
+</li>
+</ol>
+<h4 id="httpsssl-certificate-not-working">HTTPS/SSL Certificate Not Working<a class="headerlink" href="#httpsssl-certificate-not-working" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>:
+- HTTP works but HTTPS fails
+- Browser shows "Connection refused" or "SSL error"</p>
+<p><strong>Step-by-Step Diagnosis</strong>:</p>
+<ol>
+<li>
+<p><strong>Check DNS is resolving</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+<a id="__codelineno-85-2" name="__codelineno-85-2" href="#__codelineno-85-2"></a><span class="c1"># Must resolve before Let&#39;s Encrypt can issue certificate</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check Caddy is running</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-86-2" name="__codelineno-86-2" href="#__codelineno-86-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>caddy
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check Caddy logs</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-87-1" name="__codelineno-87-1" href="#__codelineno-87-1"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
+<a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a>
+<a id="__codelineno-87-3" name="__codelineno-87-3" href="#__codelineno-87-3"></a><span class="c1"># Look for:</span>
+<a id="__codelineno-87-4" name="__codelineno-87-4" href="#__codelineno-87-4"></a><span class="c1"># - &quot;certificate obtained successfully&quot; (success)</span>
+<a id="__codelineno-87-5" name="__codelineno-87-5" href="#__codelineno-87-5"></a><span class="c1"># - &quot;challenge failed&quot; (DNS not ready)</span>
+<a id="__codelineno-87-6" name="__codelineno-87-6" href="#__codelineno-87-6"></a><span class="c1"># - &quot;timeout&quot; (network issue)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Test HTTPS manually</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>curl<span class="w"> </span>-v<span class="w"> </span>https://test.lablink.sleap.ai
+<a id="__codelineno-88-2" name="__codelineno-88-2" href="#__codelineno-88-2"></a>
+<a id="__codelineno-88-3" name="__codelineno-88-3" href="#__codelineno-88-3"></a><span class="c1"># Look for SSL handshake or certificate errors</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check ports are open</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a><span class="c1"># Port 80 (HTTP-01 challenge)</span>
+<a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a>
+<a id="__codelineno-89-4" name="__codelineno-89-4" href="#__codelineno-89-4"></a><span class="c1"># Port 443 (HTTPS)</span>
+<a id="__codelineno-89-5" name="__codelineno-89-5" href="#__codelineno-89-5"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">443</span>
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<p><strong>If DNS not propagated</strong>:
+- Wait 5-10 more minutes
+- Verify DNS resolves to correct IP
+- Caddy will automatically retry every 2 minutes</p>
+<p><strong>If ports blocked</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a><span class="c1"># Check security group</span>
+<a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-security-groups<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-3" name="__codelineno-90-3" href="#__codelineno-90-3"></a><span class="w">  </span>--filters<span class="w"> </span><span class="s2">&quot;Name=tag:Name,Values=lablink-allocator-*&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-4" name="__codelineno-90-4" href="#__codelineno-90-4"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;SecurityGroups[0].IpPermissions&#39;</span>
+<a id="__codelineno-90-5" name="__codelineno-90-5" href="#__codelineno-90-5"></a>
+<a id="__codelineno-90-6" name="__codelineno-90-6" href="#__codelineno-90-6"></a><span class="c1"># Add rules if missing</span>
+<a id="__codelineno-90-7" name="__codelineno-90-7" href="#__codelineno-90-7"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-8" name="__codelineno-90-8" href="#__codelineno-90-8"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-9" name="__codelineno-90-9" href="#__codelineno-90-9"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-10" name="__codelineno-90-10" href="#__codelineno-90-10"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-11" name="__codelineno-90-11" href="#__codelineno-90-11"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+<a id="__codelineno-90-12" name="__codelineno-90-12" href="#__codelineno-90-12"></a>
+<a id="__codelineno-90-13" name="__codelineno-90-13" href="#__codelineno-90-13"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-14" name="__codelineno-90-14" href="#__codelineno-90-14"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-15" name="__codelineno-90-15" href="#__codelineno-90-15"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-16" name="__codelineno-90-16" href="#__codelineno-90-16"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-90-17" name="__codelineno-90-17" href="#__codelineno-90-17"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+</code></pre></div></p>
+<p><strong>If Caddy configuration error</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a><span class="c1"># Check Caddyfile</span>
+<a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-91-3" name="__codelineno-91-3" href="#__codelineno-91-3"></a>cat<span class="w"> </span>/etc/caddy/Caddyfile
+<a id="__codelineno-91-4" name="__codelineno-91-4" href="#__codelineno-91-4"></a>
+<a id="__codelineno-91-5" name="__codelineno-91-5" href="#__codelineno-91-5"></a><span class="c1"># Should contain:</span>
+<a id="__codelineno-91-6" name="__codelineno-91-6" href="#__codelineno-91-6"></a><span class="c1"># test.lablink.sleap.ai {</span>
+<a id="__codelineno-91-7" name="__codelineno-91-7" href="#__codelineno-91-7"></a><span class="c1">#     reverse_proxy localhost:5000</span>
+<a id="__codelineno-91-8" name="__codelineno-91-8" href="#__codelineno-91-8"></a><span class="c1"># }</span>
+<a id="__codelineno-91-9" name="__codelineno-91-9" href="#__codelineno-91-9"></a>
+<a id="__codelineno-91-10" name="__codelineno-91-10" href="#__codelineno-91-10"></a><span class="c1"># Restart Caddy</span>
+<a id="__codelineno-91-11" name="__codelineno-91-11" href="#__codelineno-91-11"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>caddy
+</code></pre></div></p>
+<p><strong>Manual certificate check</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a><span class="c1"># View certificate details</span>
+<a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-92-3" name="__codelineno-92-3" href="#__codelineno-92-3"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-92-4" name="__codelineno-92-4" href="#__codelineno-92-4"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-text
+<a id="__codelineno-92-5" name="__codelineno-92-5" href="#__codelineno-92-5"></a>
+<a id="__codelineno-92-6" name="__codelineno-92-6" href="#__codelineno-92-6"></a><span class="c1"># Check issuer and expiration</span>
+<a id="__codelineno-92-7" name="__codelineno-92-7" href="#__codelineno-92-7"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-92-8" name="__codelineno-92-8" href="#__codelineno-92-8"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-92-9" name="__codelineno-92-9" href="#__codelineno-92-9"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-issuer<span class="w"> </span>-dates
+</code></pre></div></p>
+<h4 id="multiple-hosted-zones-causing-conflicts">Multiple Hosted Zones Causing Conflicts<a class="headerlink" href="#multiple-hosted-zones-causing-conflicts" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: Unpredictable DNS behavior, records in multiple zones</p>
+<p><strong>Diagnosis</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-93-1" name="__codelineno-93-1" href="#__codelineno-93-1"></a><span class="c1"># List all zones</span>
+<a id="__codelineno-93-2" name="__codelineno-93-2" href="#__codelineno-93-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span>--query<span class="w"> </span><span class="s1">&#39;HostedZones[*].[Name,Id]&#39;</span><span class="w"> </span>--output<span class="w"> </span>table
+<a id="__codelineno-93-3" name="__codelineno-93-3" href="#__codelineno-93-3"></a>
+<a id="__codelineno-93-4" name="__codelineno-93-4" href="#__codelineno-93-4"></a><span class="c1"># Check for duplicates or parent/child conflicts</span>
+</code></pre></div></p>
+<p><strong>Solution</strong>:</p>
+<ol>
+<li><strong>Identify which zone to keep</strong>:</li>
+<li>Keep <code>lablink.sleap.ai</code> in Route53 (managed by LabLink)</li>
+<li>
+<p>Delete <code>sleap.ai</code> from Route53 (managed in Cloudflare)</p>
+</li>
+<li>
+<p><strong>Delete conflicting zone</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-94-1" name="__codelineno-94-1" href="#__codelineno-94-1"></a><span class="c1"># ONLY if sleap.ai is managed in Cloudflare</span>
+<a id="__codelineno-94-2" name="__codelineno-94-2" href="#__codelineno-94-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>delete-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;sleap-ai-zone-id&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify NS delegation in Cloudflare</strong> (see above)</p>
+</li>
+</ol>
+<h4 id="deployment-verification-failing">Deployment Verification Failing<a class="headerlink" href="#deployment-verification-failing" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: <code>verify-deployment.sh</code> reports failures</p>
+<p><strong>Run verification</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-95-1" name="__codelineno-95-1" href="#__codelineno-95-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-95-2" name="__codelineno-95-2" href="#__codelineno-95-2"></a>./verify-deployment.sh<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">52</span>.40.142.146
+</code></pre></div></p>
+<p><strong>Common failures</strong>:</p>
+<ol>
+<li><strong>DNS timeout</strong> - Wait longer and retry</li>
+<li><strong>HTTP not responding</strong> - Check allocator container logs</li>
+<li><strong>SSL not ready</strong> - Check Caddy logs, may need more time</li>
+</ol>
+<p><strong>Interpret results</strong>:
+- ✓ Green checkmarks = Success
+- ⚠ Yellow warnings = May need more time
+- ✗ Red errors = Actual problem requiring action</p>
+<h2 id="diagnostic-commands">Diagnostic Commands<a class="headerlink" href="#diagnostic-commands" title="Permanent link">&para;</a></h2>
+<h3 id="check-overall-system-health">Check Overall System Health<a class="headerlink" href="#check-overall-system-health" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-96-1" name="__codelineno-96-1" href="#__codelineno-96-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-96-2" name="__codelineno-96-2" href="#__codelineno-96-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-96-3" name="__codelineno-96-3" href="#__codelineno-96-3"></a>
+<a id="__codelineno-96-4" name="__codelineno-96-4" href="#__codelineno-96-4"></a><span class="c1"># System resources</span>
+<a id="__codelineno-96-5" name="__codelineno-96-5" href="#__codelineno-96-5"></a>df<span class="w"> </span>-h<span class="w">              </span><span class="c1"># Disk usage</span>
+<a id="__codelineno-96-6" name="__codelineno-96-6" href="#__codelineno-96-6"></a>free<span class="w"> </span>-h<span class="w">            </span><span class="c1"># Memory usage</span>
+<a id="__codelineno-96-7" name="__codelineno-96-7" href="#__codelineno-96-7"></a>top<span class="w">                </span><span class="c1"># CPU usage</span>
+<a id="__codelineno-96-8" name="__codelineno-96-8" href="#__codelineno-96-8"></a>
+<a id="__codelineno-96-9" name="__codelineno-96-9" href="#__codelineno-96-9"></a><span class="c1"># Docker</span>
+<a id="__codelineno-96-10" name="__codelineno-96-10" href="#__codelineno-96-10"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">  </span><span class="c1"># All containers</span>
+<a id="__codelineno-96-11" name="__codelineno-96-11" href="#__codelineno-96-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats<span class="w">  </span><span class="c1"># Resource usage</span>
+<a id="__codelineno-96-12" name="__codelineno-96-12" href="#__codelineno-96-12"></a>
+<a id="__codelineno-96-13" name="__codelineno-96-13" href="#__codelineno-96-13"></a><span class="c1"># Network</span>
+<a id="__codelineno-96-14" name="__codelineno-96-14" href="#__codelineno-96-14"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w">    </span><span class="c1"># Listening ports</span>
+<a id="__codelineno-96-15" name="__codelineno-96-15" href="#__codelineno-96-15"></a>ip<span class="w"> </span>addr<span class="w"> </span>show<span class="w">           </span><span class="c1"># Network interfaces</span>
+<a id="__codelineno-96-16" name="__codelineno-96-16" href="#__codelineno-96-16"></a>
+<a id="__codelineno-96-17" name="__codelineno-96-17" href="#__codelineno-96-17"></a><span class="c1"># Logs</span>
+<a id="__codelineno-96-18" name="__codelineno-96-18" href="#__codelineno-96-18"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span>-n<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># Docker service logs</span>
+<a id="__codelineno-96-19" name="__codelineno-96-19" href="#__codelineno-96-19"></a>dmesg<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w">                      </span><span class="c1"># Kernel messages</span>
+</code></pre></div>
+<h3 id="check-flask-app-status">Check Flask App Status<a class="headerlink" href="#check-flask-app-status" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-97-1" name="__codelineno-97-1" href="#__codelineno-97-1"></a><span class="c1"># From allocator instance</span>
+<a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a>curl<span class="w"> </span>localhost:80
+<a id="__codelineno-97-3" name="__codelineno-97-3" href="#__codelineno-97-3"></a>
+<a id="__codelineno-97-4" name="__codelineno-97-4" href="#__codelineno-97-4"></a><span class="c1"># Expected: HTML response with LabLink interface</span>
+</code></pre></div>
+<h3 id="check-database-status">Check Database Status<a class="headerlink" href="#check-database-status" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-98-1" name="__codelineno-98-1" href="#__codelineno-98-1"></a><span class="c1"># PostgreSQL running?</span>
+<a id="__codelineno-98-2" name="__codelineno-98-2" href="#__codelineno-98-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-98-3" name="__codelineno-98-3" href="#__codelineno-98-3"></a>
+<a id="__codelineno-98-4" name="__codelineno-98-4" href="#__codelineno-98-4"></a><span class="c1"># Can connect?</span>
+<a id="__codelineno-98-5" name="__codelineno-98-5" href="#__codelineno-98-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT version();&quot;</span>
+<a id="__codelineno-98-6" name="__codelineno-98-6" href="#__codelineno-98-6"></a>
+<a id="__codelineno-98-7" name="__codelineno-98-7" href="#__codelineno-98-7"></a><span class="c1"># View VMs</span>
+<a id="__codelineno-98-8" name="__codelineno-98-8" href="#__codelineno-98-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT * FROM vms;&quot;</span>
+</code></pre></div>
+<h3 id="check-aws-connectivity">Check AWS Connectivity<a class="headerlink" href="#check-aws-connectivity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-99-1" name="__codelineno-99-1" href="#__codelineno-99-1"></a><span class="c1"># From allocator container</span>
+<a id="__codelineno-99-2" name="__codelineno-99-2" href="#__codelineno-99-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a>
+<a id="__codelineno-99-4" name="__codelineno-99-4" href="#__codelineno-99-4"></a><span class="c1"># List EC2 instances</span>
+<a id="__codelineno-99-5" name="__codelineno-99-5" href="#__codelineno-99-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--region<span class="w"> </span>us-west-2
+</code></pre></div>
+<h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
+<p>If issues persist:</p>
+<ol>
+<li><strong>Check logs thoroughly</strong>: Most issues have error messages in logs</li>
+<li><strong>Search existing issues</strong>: <a href="https://github.com/talmolab/lablink/issues">GitHub Issues</a></li>
+<li><strong>Open new issue</strong>: Provide:</li>
+<li>Error messages</li>
+<li>Logs</li>
+<li>Steps to reproduce</li>
+<li>Environment (OS, versions)</li>
+<li>What you've tried</li>
+</ol>
+<h2 id="related-documentation">Related Documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><a href="../installation/">Installation</a></strong>: Setup instructions</li>
+<li><strong><a href="../deployment/">Deployment</a></strong>: Deployment guides</li>
+<li><strong><a href="../ssh-access/">SSH Access</a></strong>: Connection help</li>
+<li><strong><a href="../database/">Database</a></strong>: Database issues</li>
+<li><strong><a href="../security/">Security</a></strong>: Security problems</li>
+</ul>
+<h2 id="quick-troubleshooting-checklist">Quick Troubleshooting Checklist<a class="headerlink" href="#quick-troubleshooting-checklist" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] Docker is running</li>
+<li>[ ] Container is running (<code>docker ps</code>)</li>
+<li>[ ] Security groups allow required ports (22, 80, 5432)</li>
+<li>[ ] SSH key has correct permissions (600)</li>
+<li>[ ] AWS credentials are configured</li>
+<li>[ ] PostgreSQL has been restarted (if needed)</li>
+<li>[ ] Terraform state is not locked</li>
+<li>[ ] S3 bucket exists for Terraform state</li>
+<li>[ ] IAM role/user has necessary permissions</li>
+<li>[ ] Network connectivity between components</li>
+<li>[ ] Logs have been checked for errors</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/talmolab/lablink" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
