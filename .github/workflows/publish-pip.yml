@@ -5,13 +5,13 @@ on:
     types: [published]
   push:
     tags:
-      - lablink-allocator_v*
-      - lablink-client_v*
+      - lablink-allocator-service_v*
+      - lablink-client-service_v*
   workflow_dispatch:
     inputs:
       package:
         type: choice
-        options: [lablink-allocator, lablink-client]
+        options: [lablink-allocator-service, lablink-client-service]
         required: true
         description: Which package to publish
       dry_run:
@@ -34,13 +34,13 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - package: lablink-allocator
+          - package: lablink-allocator-service
             dir: packages/allocator
-            tag_prefix: lablink-allocator_v
+            tag_prefix: lablink-allocator-service_v
             path_filter: packages/allocator
-          - package: lablink-client
+          - package: lablink-client-service
             dir: packages/client
-            tag_prefix: lablink-client_v
+            tag_prefix: lablink-client-service_v
             path_filter: packages/client
 
     steps:
@@ -167,6 +167,7 @@ jobs:
           source .venv/bin/activate
           echo "Running test suite..."
           uv run pytest tests \
+            --ignore=tests/terraform \
             --cov=src/${{ matrix.package }} \
             --cov-report=term-missing \
             --cov-fail-under=0

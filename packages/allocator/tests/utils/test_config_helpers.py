@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 
 
-from lablink_allocator.utils.config_helpers import (
+from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
     should_use_dns,
     should_use_https,

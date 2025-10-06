@@ -3,7 +3,7 @@ import subprocess
 from unittest.mock import patch, mock_open
 import pytest
 
-from lablink_allocator.utils.terraform_utils import (
+from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
 )

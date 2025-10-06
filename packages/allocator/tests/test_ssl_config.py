@@ -1,6 +1,6 @@
 """Unit tests for SSL configuration functionality."""
 
-from lablink_allocator.conf.structured_config import SSLConfig
+from lablink_allocator_service.conf.structured_config import SSLConfig
 
 
 class TestSSLConfig:

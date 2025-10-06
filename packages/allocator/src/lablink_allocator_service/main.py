@@ -28,6 +28,7 @@ from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
     upload_to_s3,
 )
+from lablink_allocator_service.utils.config_helpers import get_allocator_url
 from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
@@ -41,8 +42,8 @@ from lablink_allocator_service.utils.terraform_utils import (
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
-# Define the terraform directory relative to this file
-TERRAFORM_DIR = (Path(__file__).parent.parent.parent / "terraform").resolve()
+# Define the terraform directory relative to this file (now inside the package)
+TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
 
 # Load the configuration
 cfg = get_config()
@@ -375,9 +376,14 @@ def launch():
             logger.info("GPU support is not enabled for the machine type.")
             gpu_support = "false"
 
+        # Generate allocator URL based on DNS and SSL configuration
+        allocator_url, protocol = get_allocator_url(cfg, allocator_ip)
+        logger.info(f"Using allocator URL: {allocator_url} (protocol: {protocol})")
+
         # Write the runtime variables to the file
         with runtime_file.open("w") as f:
             f.write(f'allocator_ip = "{allocator_ip}"\n')
+            f.write(f'allocator_url = "{allocator_url}"\n')
             f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
             f.write(f'image_name = "{cfg.machine.image}"\n')
             f.write(f'repository = "{cfg.machine.repository}"\n')
@@ -758,11 +764,18 @@ def main():
                 check=True,
             )
         else:
+            # Use bucket_name from config for client VM terraform state
+            default_bucket = "tf-state-lablink-allocator-bucket"
+            bucket_name = (
+                cfg.bucket_name if hasattr(cfg, "bucket_name") else default_bucket
+            )
+            logger.info(f"Initializing Terraform with S3 backend: {bucket_name}")
             subprocess.run(
                 [
                     "terraform",
                     "init",
                     f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
+                    f"-backend-config=bucket={bucket_name}",
                 ],
                 cwd=TERRAFORM_DIR,
                 check=True,

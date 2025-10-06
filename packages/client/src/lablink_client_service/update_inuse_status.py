@@ -85,9 +85,13 @@ def call_api(process_name, url):
         response = requests.post(
             url,
             json={"hostname": hostname, "status": status},
+            # (connect_timeout, read_timeout): 10s to connect, 20s to read
+            timeout=(10, 20),
         )
         response.raise_for_status()
         logger.debug(f"API call successful: {response.json()}")
+    except requests.exceptions.Timeout:
+        logger.error("Status update timed out after 30 seconds")
     except requests.RequestException as e:
         logger.error(f"API call failed: {e}")
 
@@ -105,7 +109,14 @@ def main(cfg: Config) -> None:
     logger.debug("Starting the update_inuse_status service...")
 
     # Define the URL for the POST request
-    url = f"http://{cfg.allocator.host}:{cfg.allocator.port}/api/update_inuse_status"
+    # Use ALLOCATOR_URL env var if set (supports HTTPS),
+    # otherwise use host:port with HTTP
+    allocator_url = os.getenv("ALLOCATOR_URL")
+    if allocator_url:
+        base_url = allocator_url.rstrip('/')
+    else:
+        base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
+    url = f"{base_url}/api/update_inuse_status"
 
     # Start listening for the process
     listen_for_process(
