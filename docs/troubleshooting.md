@@ -520,7 +520,7 @@ ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
 sudo docker exec -it <container-id> bash
 
 # Navigate to terraform directory
-cd /app/lablink-allocator/src/lablink_allocator/terraform
+cd /app/lablink_allocator/terraform
 
 # Force unlock (using lock ID from error message)
 terraform force-unlock <lock-id>

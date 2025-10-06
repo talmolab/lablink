@@ -402,6 +402,8 @@ Deploys LabLink infrastructure to AWS using Terraform.
 | `environment` | Environment to deploy (`dev`, `test`, `prod`) | Yes | `dev` |
 | `image_tag` | Docker image tag (required for prod) | For prod only | N/A |
 
+All deployments use the `lablink-infrastructure/` directory structure with configuration at `lablink-infrastructure/config/config.yaml`.
+
 ### Workflow Steps
 
 #### 1. Environment Determination

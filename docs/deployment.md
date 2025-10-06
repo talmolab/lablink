@@ -140,6 +140,8 @@ git clone https://github.com/talmolab/lablink.git
 cd lablink/lablink-infrastructure
 ```
 
+All infrastructure configurations are in the `lablink-infrastructure/` directory.
+
 ### Step 2: Configure AWS Credentials
 
 **Option A: AWS CLI Profiles**
@@ -527,7 +529,7 @@ Use the destroy workflow:
 ### Via Terraform CLI
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 
 terraform destroy \
   -var="resource_suffix=dev" \

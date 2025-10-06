@@ -9,26 +9,26 @@ root = Path(__file__).parent.parent.parent
 # Define the Python packages to document
 packages = {
     "allocator": {
-        "path": root / "lablink-allocator" / "lablink-allocator-service" / "src",
-        "module_name": "lablink_allocator_service",
+        "path": root / "packages" / "allocator" / "src",
+        "module_name": "lablink_allocator",
     },
     "client": {
-        "path": root / "lablink-client-base" / "lablink-client-service" / "src",
-        "module_name": "lablink_client_service",
+        "path": root / "packages" / "client" / "src",
+        "module_name": "lablink_client",
     },
 }
 
 # Check if packages are installed (for full API generation)
 try:
-    import lablink_allocator_service  # noqa: F401
-    import lablink_client_service  # noqa: F401
+    import lablink_allocator  # noqa: F401
+    import lablink_client  # noqa: F401
     packages_installed = True
 except ImportError:
     packages_installed = False
     print("⚠️  LabLink packages not installed - skipping API reference generation", file=sys.stderr)
     print("   For full docs with API reference, install packages:", file=sys.stderr)
-    print("   uv pip install -e lablink-allocator/lablink-allocator-service", file=sys.stderr)
-    print("   uv pip install -e lablink-client-base/lablink-client-service", file=sys.stderr)
+    print("   uv pip install -e packages/allocator", file=sys.stderr)
+    print("   uv pip install -e packages/client", file=sys.stderr)
 
 if packages_installed:
     for pkg_name, pkg_info in packages.items():
@@ -93,7 +93,7 @@ else:
         index.write("API reference generation requires LabLink packages to be installed.\n\n")
         index.write("To generate full API documentation:\n\n")
         index.write("```bash\n")
-        index.write("uv pip install -e lablink-allocator/lablink-allocator-service\n")
-        index.write("uv pip install -e lablink-client-base/lablink-client-service\n")
+        index.write("uv pip install -e packages/allocator\n")
+        index.write("uv pip install -e packages/client\n")
         index.write("mkdocs build\n")
         index.write("```\n")
