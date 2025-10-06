@@ -1,4 +1,4 @@
-from lablink_allocator.get_config import get_config
+from lablink_allocator_service.get_config import get_config
 
 
 def main():

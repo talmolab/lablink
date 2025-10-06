@@ -6,9 +6,9 @@ import hydra
 from omegaconf import OmegaConf
 import logging
 
-from lablink_client.conf.structured_config import Config
-from lablink_client.connect_crd import connect_to_crd, set_logger
-from lablink_client.logger_utils import CloudAndConsoleLogger
+from lablink_client_service.conf.structured_config import Config
+from lablink_client_service.connect_crd import connect_to_crd, set_logger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 logger = logging.getLogger(__name__)
 
