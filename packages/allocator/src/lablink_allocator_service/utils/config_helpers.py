@@ -65,6 +65,10 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
         else:
             # Default to just the domain
             host = cfg.dns.domain
+
+        # Just to be safe
+        if host.startswith("."):
+            host = host[1:]
     else:
         # Use IP address
         host = allocator_ip
