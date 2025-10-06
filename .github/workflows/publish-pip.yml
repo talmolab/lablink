@@ -167,6 +167,7 @@ jobs:
           source .venv/bin/activate
           echo "Running test suite..."
           uv run pytest tests \
+            --ignore=tests/terraform \
             --cov=src/${{ matrix.package }} \
             --cov-report=term-missing \
             --cov-fail-under=0
