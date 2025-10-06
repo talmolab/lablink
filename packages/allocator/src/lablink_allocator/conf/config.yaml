@@ -5,7 +5,7 @@
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "lablink"  # Change in production!
+  password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
   host: "localhost"
   port: 5432
   table_name: "vms"
@@ -32,7 +32,7 @@ machine:
 
 app:
   admin_user: "admin"
-  admin_password: "IwanttoSLEAP"  # Change in production!
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Injected from GitHub secret at deploy time
   region: "us-west-2"  # Your AWS region
 
 dns:

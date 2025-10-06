@@ -90,6 +90,41 @@ jobs:
           echo "Using environment: ${{ steps.setenv.outputs.env }}"
           echo "Working directory: ${{ steps.setenv.outputs.workdir }}"
 
+      - name: Inject Password Secrets
+        working-directory: ${{ steps.setenv.outputs.workdir }}
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'CHANGEME_admin_password' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'CHANGEME_db_password' }}
+        run: |
+          # Find config file location
+          if [ -f "config/config.yaml" ]; then
+            CONFIG_FILE="config/config.yaml"
+          elif [ -f "lablink-allocator-service/conf/config.yaml" ]; then
+            CONFIG_FILE="lablink-allocator-service/conf/config.yaml"
+          else
+            echo "Error: config.yaml not found"
+            exit 1
+          fi
+
+          echo "Injecting secrets into $CONFIG_FILE"
+
+          # Replace placeholders with actual values
+          sed -i "s/PLACEHOLDER_ADMIN_PASSWORD/${ADMIN_PASSWORD}/g" "$CONFIG_FILE"
+          sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"
+
+          # Verify no placeholders remain
+          if grep -q "PLACEHOLDER_" "$CONFIG_FILE"; then
+            echo "ERROR: Failed to replace all placeholders in $CONFIG_FILE"
+            exit 1
+          fi
+
+          # Warn if using default passwords
+          if [[ "$ADMIN_PASSWORD" == "CHANGEME_"* ]] || [[ "$DB_PASSWORD" == "CHANGEME_"* ]]; then
+            echo "::warning::Using default passwords! Set ADMIN_PASSWORD and DB_PASSWORD secrets for security."
+          fi
+
+          echo "Passwords injected successfully"
+
       - name: Terraform Init
         working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
