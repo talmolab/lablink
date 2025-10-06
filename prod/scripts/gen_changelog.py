@@ -151,14 +151,14 @@ generate_package_changelog(
     "lablink-allocator-service",
     "allocator",
     "lablink-allocator-service_v",
-    "lablink-allocator/lablink-allocator-service"
+    "packages/allocator"
 )
 
 generate_package_changelog(
     "lablink-client-service",
     "client",
     "lablink-client-service_v",
-    "lablink-client-base/lablink-client-service"
+    "packages/client"
 )
 
 # Generate unified changelog index
