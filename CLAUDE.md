@@ -60,7 +60,7 @@ lablink/
 └── MIGRATION_PLAN.md           # Migration status and history
 ```
 
-**Note**: Old directories (`lablink-allocator/`, `lablink-client-base/`, `terraform/`) are deprecated and being removed as part of the monorepo migration.
+**Note**: Infrastructure deployment has been separated into the [lablink-template](https://github.com/talmolab/lablink-template) repository. This repository contains the Python packages and Docker images only.
 
 ## Technology Stack
 
@@ -230,12 +230,10 @@ See [Image Tagging Strategy](https://talmolab.github.io/lablink/workflows/#image
 **Development Builds (Local Code)**:
 ```bash
 # Allocator (dev) - uses local code
-docker build -t lablink-allocator:dev -f lablink-infrastructure/Dockerfile.dev .
+docker build -t lablink-allocator:dev -f packages/allocator/Dockerfile.dev .
 
 # Client (dev) - uses local code
-docker build -t lablink-client:dev \
-  -f lablink-client-base/lablink-client-base-image/Dockerfile.dev \
-  lablink-client-base
+docker build -t lablink-client:dev -f packages/client/Dockerfile.dev .
 ```
 
 **Production Builds (From PyPI)**:
@@ -243,13 +241,12 @@ docker build -t lablink-client:dev \
 # Allocator (prod) - installs from PyPI
 docker build -t lablink-allocator:0.0.2a0 \
   --build-arg PACKAGE_VERSION=0.0.2a0 \
-  -f lablink-infrastructure/Dockerfile .
+  -f packages/allocator/Dockerfile .
 
 # Client (prod) - installs from PyPI
 docker build -t lablink-client:0.0.7a0 \
   --build-arg PACKAGE_VERSION=0.0.7a0 \
-  -f lablink-client-base/lablink-client-base-image/Dockerfile \
-  lablink-client-base
+  -f packages/client/Dockerfile .
 ```
 
 ## Docker Strategy

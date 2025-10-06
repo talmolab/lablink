@@ -107,22 +107,22 @@ See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) f
 
 ```
 lablink/
-├── lablink-allocator/
-│   ├── lablink-allocator-service/   # Allocator Python package
-│   ├── Dockerfile                   # Production image (from PyPI)
-│   └── Dockerfile.dev               # Development image (local code)
-├── lablink-client-base/
-│   ├── lablink-client-service/      # Client Python package
-│   └── lablink-client-base-image/
+├── packages/
+│   ├── allocator/                   # Allocator Python package
+│   │   ├── src/lablink_allocator/   # Source code
+│   │   ├── Dockerfile               # Production image (from PyPI)
+│   │   └── Dockerfile.dev           # Development image (local code)
+│   └── client/                      # Client Python package
+│       ├── src/lablink_client/      # Source code
 │       ├── Dockerfile               # Production image (from PyPI)
 │       └── Dockerfile.dev           # Development image (local code)
+├── lablink-infrastructure/          # Infrastructure deployment (template)
 ├── docs/                            # MkDocs documentation
-├── .github/workflows/               # CI/CD workflows
-│   ├── ci.yml                       # Tests, linting, Docker builds
-│   ├── publish-pip.yml              # PyPI publishing
-│   ├── lablink-images.yml           # Docker image builds & pushes
-│   └── docs.yml                     # Documentation deployment
-└── terraform/                       # (Infrastructure - being moved to template repo)
+└── .github/workflows/               # CI/CD workflows
+    ├── ci.yml                       # Tests, linting, Docker builds
+    ├── publish-pip.yml              # PyPI publishing
+    ├── lablink-images.yml           # Docker image builds & pushes
+    └── docs.yml                     # Documentation deployment
 ```
 
 ---
@@ -151,7 +151,7 @@ We welcome contributions! Please see:
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make changes and add tests
-4. Run tests: `cd lablink-allocator/lablink-allocator-service && uv run pytest`
+4. Run tests: `cd packages/allocator && uv run pytest`
 5. Commit: `git commit -m "feat: add my feature"`
 6. Push and open a Pull Request
 
@@ -159,7 +159,7 @@ We welcome contributions! Please see:
 
 ## 🔗 Related Repositories
 
-- **[LabLink Template](https://github.com/talmolab/lablink-template)** _(coming soon)_ - Infrastructure deployment template using LabLink packages
+- **[LabLink Template](https://github.com/talmolab/lablink-template)** - Infrastructure deployment template using LabLink packages
 
 ---
 

@@ -242,13 +242,13 @@ ssl:
 - [ ] Add quickstart guide
 - [ ] Document environment-specific configs (dev/test/prod)
 
-### Phase 4: Main Repo Cleanup
-- [ ] Remove `/lablink-allocator/` directory
-- [ ] Remove `/lablink-client-base/` directory
-- [ ] Remove infrastructure workflows from main repo
-- [ ] Update main repo README to point to template
-- [ ] Update docs with links to template repo
-- [ ] Add migration guide for existing users
+### Phase 4: Main Repo Cleanup ✅ COMPLETED
+- [x] Remove `/lablink-allocator/` directory
+- [x] Remove `/lablink-client-base/` directory
+- [x] Remove `/terraform/` directory
+- [x] Update main repo README to point to template
+- [x] Update CLAUDE.md with new structure
+- [x] Update documentation to use packages/ directory structure
 
 ### Phase 5: SLEAP Deployment
 - [ ] Create `talmolab/sleap-lablink` from template
