@@ -4,8 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "lablink-client-base/lablink-client-service/**"
-      - "lablink-allocator/lablink-allocator-service/**"
+      - "packages/**"
       - ".github/workflows/ci.yml"
 
 permissions:
@@ -19,13 +18,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - package: lablink-client-service
+          - package: lablink-client
             python-version: "3.10"
-            working-directory: lablink-client-base/lablink-client-service
+            working-directory: packages/client
             ruff-command: "uv run ruff check src tests"
-          - package: lablink-allocator-service
+          - package: lablink-allocator
             python-version: "3.10"
-            working-directory: lablink-allocator/lablink-allocator-service
+            working-directory: packages/allocator
             ruff-command: "uv run ruff check src tests"
     steps:
       - name: Checkout code
@@ -50,14 +49,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - package: lablink-client-service
+          - package: lablink-client
             python-version: "3.10"
-            working-directory: lablink-client-base/lablink-client-service
-            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
-          - package: lablink-allocator-service
+            working-directory: packages/client
+            test-command: "uv run pytest tests --cov=src/lablink_client --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
+          - package: lablink-allocator
             python-version: "3.10"
-            working-directory: lablink-allocator/lablink-allocator-service
-            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term"
+            working-directory: packages/allocator
+            test-command: "uv run pytest tests --ignore=tests/terraform --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term"
 
     steps:
       - name: Checkout code
@@ -90,8 +89,8 @@ jobs:
       - name: Build allocator dev Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: lablink-allocator/Dockerfile.dev
+          context: ./packages/allocator
+          file: ./packages/allocator/Dockerfile.dev
           tags: lablink-allocator-dev:test
           push: false
           load: true
@@ -99,7 +98,7 @@ jobs:
       - name: Verify venv activation
         run: |
           echo "Testing venv activation..."
-          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"Venv activated:\", sys.prefix); print(\"Python executable:\", sys.executable); assert \"lablink-allocator-service/.venv\" in sys.prefix'"
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && python -c 'import sys; print(\"Venv activated:\", sys.prefix); print(\"Python executable:\", sys.executable); assert \"/app/.venv\" in sys.prefix'"
 
       - name: Verify console scripts exist
         run: |
@@ -127,12 +126,12 @@ jobs:
           warnings.filterwarnings(\"ignore\")
           import logging
           logging.basicConfig(level=logging.ERROR)
-          print(\"Importing lablink-allocator-service packages:\")
-          from lablink_allocator_service.main import main
+          print(\"Importing lablink-allocator packages:\")
+          from lablink_allocator.main import main
           print(\"  - main.main imported\")
-          from lablink_allocator_service.database import PostgresqlDatabase
+          from lablink_allocator.database import PostgresqlDatabase
           print(\"  - database.PostgresqlDatabase imported\")
-          from lablink_allocator_service.get_config import get_config
+          from lablink_allocator.get_config import get_config
           print(\"  - get_config.get_config imported\")
           print(\"Package imports successful\")
           "'
@@ -140,14 +139,14 @@ jobs:
       - name: Verify uv sync created proper installation
         run: |
           echo "Testing uv sync installation..."
-          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && pip list 2>/dev/null | grep lablink-allocator-service | head -1 && echo \"Package installed via uv sync\""
+          docker run --rm lablink-allocator-dev:test bash -c "source /app/.venv/bin/activate && pip list 2>/dev/null | grep lablink-allocator | head -1 && echo \"Package installed via uv sync\""
 
       - name: Verify console script entry points are importable
         run: |
           echo "Testing console script entry points can be imported..."
           docker run --rm lablink-allocator-dev:test bash -c 'source /app/.venv/bin/activate && python -c "
-          from lablink_allocator_service.main import main as allocator_main
-          from lablink_allocator_service.generate_init_sql import main as generate_sql_main
+          from lablink_allocator.main import main as allocator_main
+          from lablink_allocator.generate_init_sql import main as generate_sql_main
           assert callable(allocator_main), \"allocator main() is not callable\"
           assert callable(generate_sql_main), \"generate_init_sql main() is not callable\"
           print(\"✓ All entry points are importable and callable\")

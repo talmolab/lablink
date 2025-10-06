@@ -1,0 +1,11 @@
+instance_count              = 3
+allocator_ip                = "10.0.0.1"
+allocator_url               = "http://10.0.0.1"
+machine_type                = "t2.micro"
+image_name                  = "ghcr.io/test-image"
+repository                  = "https://github.com/example/repo.git"
+client_ami_id               = "ami-067cc81f948e50e06"
+resource_suffix             = "ci-test"
+subject_software            = "test-software"
+gpu_support                 = "true"
+cloud_init_output_log_group = "lablink-cloud-init-logs"

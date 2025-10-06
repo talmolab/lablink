@@ -9,10 +9,13 @@ on:
         default: "no"
         type: string
       environment:
-        description: "Environment to destroy (dev, test, prod)"
+        description: "Environment to destroy (test or prod) - dev uses local state and should only be used locally"
         required: true
-        default: "dev"
-        type: string
+        default: "test"
+        type: choice
+        options:
+          - test
+          - prod
       allocator_image_tag:
         description: "Docker image tag used in deployment (required for prod)"
         required: false
@@ -35,7 +38,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-2
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -56,34 +59,46 @@ jobs:
           fi
 
       - name: Terraform Init Client VMs
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
-          terraform init -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl
+          # Extract bucket name from config.yaml
+          BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
+          terraform init \
+            -backend-config=backend-client-${{ github.event.inputs.environment }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
 
       - name: Extract Variable File
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
-            cp variables-dev.tfvars variables.tfvars
+          # Extract bucket name from config.yaml
+          BUCKET_NAME=$(grep "^bucket_name:" ../conf/config.yaml | awk '{print $2}' | tr -d '"')
+          # Try to download tfvars, but don't fail if it doesn't exist (no VMs were created)
+          if aws s3 cp s3://${BUCKET_NAME}/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars 2>/dev/null; then
+            echo "Found existing client VM state"
+            echo "has_client_vms=true" >> "$GITHUB_ENV"
           else
-            aws s3 cp s3://tf-state-lablink-allocator-bucket/${{ github.event.inputs.environment }}/client/terraform.runtime.tfvars variables.tfvars
+            echo "No client VM state found - skipping client VM destruction"
+            echo "has_client_vms=false" >> "$GITHUB_ENV"
           fi
+
       - name: Terraform Destroy Client VMs
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        if: env.has_client_vms == 'true'
+        continue-on-error: true
+        working-directory: packages/allocator/src/lablink_allocator/terraform
         run: |
           terraform destroy -auto-approve -var-file=variables.tfvars
 
-      - name: Terraform Init
-        working-directory: lablink-allocator
+      - name: Terraform Init Infrastructure
+        working-directory: lablink-infrastructure
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
-            terraform init
-          else
-            terraform init -backend-config=backend-${{ github.event.inputs.environment }}.hcl
-          fi
+          # Extract bucket name from config.yaml for S3 backend
+          BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
+          terraform init \
+            -backend-config=backend-${{ github.event.inputs.environment }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
 
-      - name: Terraform Destroy
-        working-directory: lablink-allocator
+      - name: Terraform Destroy Infrastructure
+        working-directory: lablink-infrastructure
         run: |
           terraform destroy -auto-approve \
             -var="resource_suffix=${{ github.event.inputs.environment }}" \

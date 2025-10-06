@@ -127,7 +127,7 @@ your-research-repo/
 
 Edit the allocator configuration to use your custom image and repository.
 
-**`lablink-allocator/lablink-allocator-service/conf/config.yaml`**:
+**`lablink-infrastructure/config/config.yaml`**:
 
 ```yaml
 machine:
@@ -200,7 +200,7 @@ Once local testing succeeds, deploy to AWS.
 Commit your configuration changes:
 
 ```bash
-git add lablink-allocator/lablink-allocator-service/conf/config.yaml
+git add lablink-infrastructure/config/config.yaml
 git commit -m "Configure LabLink for [your software]"
 git push
 ```
@@ -208,7 +208,7 @@ git push
 #### Deploy via Terraform
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 
 terraform init
 

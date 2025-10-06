@@ -75,7 +75,7 @@ Permission denied (publickey).
 2. **Verify correct key**:
    ```bash
    # Extract key from Terraform
-   cd lablink-allocator
+   cd lablink-infrastructure
    terraform output -raw private_key_pem > ~/lablink-key.pem
    chmod 600 ~/lablink-key.pem
    ```
@@ -173,6 +173,105 @@ ssh: connect to host X.X.X.X port 22: Connection timed out
      --cidr 0.0.0.0/0
    ```
 
+#### Browser Cannot Access HTTP (Staging Mode)
+
+**Symptoms**:
+- Browser cannot connect to `http://your-domain.com` when using staging mode
+- "This site can't be reached"
+- "Connection refused"
+- "ERR_CONNECTION_REFUSED"
+
+**Cause**: Your browser previously accessed the site via HTTPS and cached the HSTS (HTTP Strict Transport Security) policy. This forces all future requests to automatically upgrade to HTTPS. Since staging mode only serves HTTP (port 443 is closed), the browser cannot connect.
+
+**Solution - Clear HSTS Cache:**
+
+**Chrome / Edge:**
+
+1. Open a new tab and navigate to:
+   ```
+   chrome://net-internals/#hsts
+   ```
+   (For Edge use: `edge://net-internals/#hsts`)
+
+2. Scroll down to "Delete domain security policies"
+
+3. Enter your full domain name:
+   ```
+   test.lablink.sleap.ai
+   ```
+
+4. Click "Delete"
+
+5. Access the site again, explicitly typing `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Firefox:**
+
+1. Close all Firefox windows
+
+2. Navigate to your Firefox profile directory:
+   - Windows: `%APPDATA%\Mozilla\Firefox\Profiles\`
+   - macOS: `~/Library/Application Support/Firefox/Profiles/`
+   - Linux: `~/.mozilla/firefox/`
+
+3. Find your profile folder (e.g., `abc123.default-release`)
+
+4. Delete the file: `SiteSecurityServiceState.txt`
+
+5. Restart Firefox and access with `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Safari:**
+
+1. Close Safari completely
+
+2. Open Terminal and run:
+   ```bash
+   rm ~/Library/Cookies/HSTS.plist
+   ```
+
+3. Restart Safari and access with `http://`:
+   ```
+   http://test.lablink.sleap.ai
+   ```
+
+**Quick Workarounds:**
+
+If you don't want to clear HSTS cache:
+
+1. **Use Incognito/Private Browsing**
+   - HSTS cache doesn't apply in incognito mode
+   - Access `http://test.lablink.sleap.ai`
+
+2. **Access via IP Address**
+   ```
+   http://54.214.215.124
+   ```
+   (Find IP in Terraform outputs: `terraform output allocator_public_ip`)
+
+3. **Use curl for testing**
+   ```bash
+   curl http://test.lablink.sleap.ai
+   ```
+
+**Verify Staging Mode is Working:**
+
+```bash
+# HTTP should return 200 OK
+curl -I http://test.lablink.sleap.ai
+
+# HTTPS should fail (connection refused)
+curl -I https://test.lablink.sleap.ai
+```
+
+**Expected behavior**: When using staging mode (`ssl.staging: true`), your browser will show "Not Secure" in the address bar. This is normal and expected - staging mode uses unencrypted HTTP for testing.
+
+To get a secure HTTPS connection, set `ssl.staging: false` in your configuration. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
+
 #### Flask App Not Starting
 
 **Symptoms**: Container runs but Flask doesn't start
@@ -203,7 +302,7 @@ sudo docker logs <container-id>
 
 3. **Verify configuration**:
    ```bash
-   sudo docker exec <container-id> cat /app/lablink-allocator-service/conf/config.yaml
+   sudo docker exec <container-id> cat /app/config/config.yaml
    ```
 
 ### PostgreSQL Issues
@@ -318,7 +417,7 @@ sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT 1;"
 2. **Test Terraform manually**:
    ```bash
    sudo docker exec -it <container-id> bash
-   cd /app/lablink-allocator-service/terraform
+   cd /app/.venv/lib/python*/site-packages/lablink_allocator/terraform
    terraform init
    terraform plan
    ```
@@ -352,14 +451,105 @@ terraform init
 
 **Error**: `Error acquiring the state lock`
 
-**Solution**:
-```bash
-# If no other Terraform process is running:
-terraform force-unlock <lock-id>
+**Cause**: A previous Terraform operation didn't complete cleanly, leaving the state locked in DynamoDB.
 
-# If using S3 backend, check DynamoDB table for locks
-aws dynamodb scan --table-name terraform-lock-table
+**Diagnosis**:
+
+1. **Identify the lock**:
+   ```bash
+   # Check for locks in DynamoDB
+   aws dynamodb scan --table-name lock-table --region us-west-2
+   ```
+
+2. **Check if a process is actually running**:
+   ```bash
+   # Look for terraform processes
+   ps aux | grep terraform
+
+   # In allocator container
+   sudo docker exec <container-id> ps aux | grep terraform
+   ```
+
+**Solutions**:
+
+**Option 1: Unlock via AWS CLI** (Recommended - works from anywhere)
+
+**Step 1:** First, scan the lock table to find the exact LockID:
+```bash
+# List all locks
+aws dynamodb scan --profile <your-profile> --table-name lock-table --region us-west-2
 ```
+
+**Step 2:** Look for entries with an `Info` field (these are actual locks, not just digests). Copy the exact `LockID` value.
+
+**Step 3:** Delete the lock:
+
+**Linux/macOS:**
+```bash
+aws dynamodb delete-item \
+    --profile <your-profile> \
+    --table-name lock-table \
+    --key '{"LockID":{"S":"<exact-lock-id-from-scan>"}}' \
+    --region us-west-2
+```
+
+**Windows PowerShell:**
+```powershell
+# Create key.json file with:
+# {
+#   "LockID": {
+#     "S": "<exact-lock-id-from-scan>"
+#   }
+# }
+
+aws dynamodb delete-item --profile <your-profile> --table-name lock-table --key file://key.json --region us-west-2
+```
+
+**Common lock paths:**
+- Infrastructure: `tf-state-lablink-allocator-bucket/test/terraform.tfstate`
+- Client VMs: `tf-state-lablink-allocator-bucket/test/client/terraform.tfstate`
+
+Note: Lock IDs do NOT always have `-md5` suffix - use the exact value from the scan!
+
+**Option 2: Unlock from allocator** (Requires DynamoDB IAM permissions)
+```bash
+# SSH into allocator
+ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+
+# Enter container
+sudo docker exec -it <container-id> bash
+
+# Navigate to terraform directory
+cd /app/lablink_allocator/terraform
+
+# Force unlock (using lock ID from error message)
+terraform force-unlock <lock-id>
+```
+
+**Common Error**: `AccessDeniedException: User is not authorized to perform: dynamodb:GetItem`
+
+**Cause**: The allocator IAM role lacks DynamoDB permissions.
+
+**Solution**: Ensure the allocator IAM role includes these permissions:
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "dynamodb:GetItem",
+    "dynamodb:PutItem",
+    "dynamodb:DeleteItem"
+  ],
+  "Resource": "arn:aws:dynamodb:us-west-2:<account-id>:table/lock-table"
+}
+```
+
+After updating IAM permissions, redeploy infrastructure for changes to take effect.
+
+**Prevention**:
+- Don't manually terminate EC2 instances while Terraform is running
+- Always let Terraform operations complete fully
+- Use destroy workflows instead of manual AWS console deletions
+- Monitor allocator logs during VM creation/destruction
 
 #### Resource Already Exists
 
@@ -465,34 +655,99 @@ aws dynamodb scan --table-name terraform-lock-table
 
 #### Client VM Not Registering
 
-**Symptoms**: VM created but doesn't appear in allocator
+**Symptoms**: VM created but doesn't appear in allocator database
 
-**Check**:
+**Root Cause**: VMs are not being inserted into the database after Terraform creates them.
 
-1. **Client VM logs**:
+**Step-by-Step Diagnosis**:
+
+1. **Verify VMs were created by Terraform**:
+   ```bash
+   # Check terraform outputs from allocator
+   ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+   sudo docker exec <container-id> terraform -chdir=/app/.venv/lib/python*/site-packages/lablink_allocator/terraform output vm_instance_names
+   ```
+
+2. **Check if VMs exist in database**:
+   ```bash
+   # SSH into allocator
+   ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+
+   # Query database
+   sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, inuse, status FROM vms;"
+   ```
+
+3. **Check client VM container logs**:
    ```bash
    ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
    sudo docker logs <client-container-id>
+
+   # Look for errors like:
+   # "POST request failed with status code: 404"
+   # "VM not found"
    ```
 
-2. **Network connectivity**:
+4. **Check allocator logs for /vm_startup requests**:
+   ```bash
+   ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+   sudo docker logs <allocator-container-id> | grep vm_startup
+
+   # Look for:
+   # POST /vm_startup - 404 errors
+   ```
+
+5. **Test network connectivity**:
    ```bash
    # From client VM
-   curl http://<allocator-ip>:80
+   curl http://<allocator-ip>/vm_startup \
+     -H "Content-Type: application/json" \
+     -d '{"hostname": "lablink-vm-test-1"}'
+
+   # Expected if VM not in DB: {"error":"VM not found."}
+   # Expected if VM in DB: Success response
    ```
 
-3. **Security group allows outbound**:
-   - Client needs to reach allocator on port 80
+**Solutions**:
 
-**Solution**:
+**Option A: Manual Database Insertion (Temporary Fix)**
 ```bash
-# Update client VM security group
-aws ec2 authorize-security-group-egress \
-  --group-id <client-sg-id> \
-  --protocol tcp \
-  --port 80 \
-  --cidr <allocator-ip>/32
+# SSH into allocator
+ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+
+# Get container ID
+CONTAINER_ID=$(sudo docker ps -q)
+
+# Insert VMs manually
+sudo docker exec $CONTAINER_ID psql -U lablink -d lablink_db -c \
+  "INSERT INTO vms (hostname, inuse) VALUES ('lablink-vm-test-1', FALSE);"
+
+sudo docker exec $CONTAINER_ID psql -U lablink -d lablink_db -c \
+  "INSERT INTO vms (hostname, inuse) VALUES ('lablink-vm-test-2', FALSE);"
+
+# Verify
+sudo docker exec $CONTAINER_ID psql -U lablink -d lablink_db -c \
+  "SELECT hostname, inuse FROM vms;"
 ```
+
+**Option B: Code Fix (Permanent Solution)**
+
+The `/api/launch` endpoint needs to be updated to insert VMs after Terraform succeeds. See [VM_REGISTRATION_ISSUE.md](../VM_REGISTRATION_ISSUE.md) for details.
+
+**After Fix - Verify Registration**:
+```bash
+# Watch client VM logs
+ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+sudo docker logs -f <client-container-id>
+
+# Should see:
+# "POST request was successful."
+# "Received success response from server."
+```
+
+**Preventive Measures**:
+- Always verify VMs appear in database after creation
+- Check allocator logs during VM creation
+- Monitor client VM registration within 5 minutes of creation
 
 #### GPU Not Available
 
@@ -531,6 +786,315 @@ aws ec2 authorize-security-group-egress \
    cat /etc/docker/daemon.json
    # Should have: "default-runtime": "nvidia"
    ```
+
+### DNS and Domain Issues
+
+For detailed DNS configuration, see [DNS Configuration Guide](dns-configuration.md).
+
+#### DNS Record Not Resolving
+
+**Symptoms**: Domain doesn't resolve to allocator IP
+
+**Step-by-Step Diagnosis**:
+
+1. **Verify DNS is enabled in config**:
+   ```bash
+   cat lablink-infrastructure/config/config.yaml | grep -A 10 "^dns:"
+   ```
+
+2. **Check Route53 record exists**:
+   ```bash
+   aws route53 list-resource-record-sets \
+     --hosted-zone-id Z010760118DSWF5IYKMOM \
+     --query "ResourceRecordSets[?Name=='test.lablink.sleap.ai.']"
+   ```
+
+3. **Query authoritative nameservers directly**:
+   ```bash
+   # Should return the allocator IP
+   nslookup test.lablink.sleap.ai ns-158.awsdns-19.com
+   ```
+
+4. **Check public DNS propagation**:
+   ```bash
+   # Google DNS
+   nslookup test.lablink.sleap.ai 8.8.8.8
+
+   # Cloudflare DNS
+   nslookup test.lablink.sleap.ai 1.1.1.1
+
+   # Local DNS
+   nslookup test.lablink.sleap.ai
+   ```
+
+5. **Verify IP matches**:
+   ```bash
+   # Get terraform output
+   cd lablink-infrastructure
+   terraform output allocator_public_ip
+
+   # Compare with DNS resolution
+   dig test.lablink.sleap.ai +short
+   ```
+
+**Solutions**:
+
+**If record doesn't exist**:
+```bash
+# Re-run terraform to create DNS record
+cd lablink-infrastructure
+terraform apply
+```
+
+**If DNS not propagating**:
+- Wait 5-15 minutes for global propagation
+- Check NS delegation is correct (see below)
+- Try flushing local DNS cache:
+  ```bash
+  # macOS
+  sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+
+  # Linux
+  sudo systemd-resolve --flush-caches
+
+  # Windows
+  ipconfig /flushdns
+  ```
+
+#### DNS Record in Wrong Zone
+
+**Symptoms**: DNS record created in `sleap.ai` zone instead of `lablink.sleap.ai` zone
+
+**Root Cause**: Terraform data source matched parent zone
+
+**Diagnosis**:
+```bash
+# Check both zones
+aws route53 list-resource-record-sets --hosted-zone-id <sleap.ai-zone-id> \
+  --query "ResourceRecordSets[?contains(Name, 'lablink')]"
+
+aws route53 list-resource-record-sets --hosted-zone-id Z010760118DSWF5IYKMOM \
+  --query "ResourceRecordSets[?contains(Name, 'test')]"
+```
+
+**Solution**:
+
+1. **Add zone_id to config.yaml**:
+   ```yaml
+   dns:
+     enabled: true
+     domain: "lablink.sleap.ai"
+     zone_id: "Z010760118DSWF5IYKMOM"  # Force correct zone
+     pattern: "custom"
+     custom_subdomain: "test"
+   ```
+
+2. **Delete record from wrong zone** (if exists):
+   ```bash
+   # Use AWS console or CLI to delete A record from sleap.ai zone
+   ```
+
+3. **Re-run terraform**:
+   ```bash
+   cd lablink-infrastructure
+   terraform apply
+   ```
+
+#### NS Delegation Not Working
+
+**Symptoms**:
+- nslookup returns Cloudflare nameservers instead of AWS
+- DNS queries fail even though record exists in Route53
+
+**Diagnosis**:
+```bash
+# Check NS delegation
+dig NS lablink.sleap.ai
+
+# Should show AWS nameservers:
+# ns-158.awsdns-19.com
+# ns-697.awsdns-23.net
+# ns-1839.awsdns-37.co.uk
+# ns-1029.awsdns-00.org
+```
+
+**Solution**:
+
+1. **Get Route53 nameservers**:
+   ```bash
+   aws route53 get-hosted-zone --id Z010760118DSWF5IYKMOM \
+     --query 'DelegationSet.NameServers'
+   ```
+
+2. **Add NS records in Cloudflare**:
+   - Log into Cloudflare
+   - Navigate to DNS for `sleap.ai`
+   - Add 4 NS records:
+     - Type: NS
+     - Name: `lablink`
+     - Content: Each of the 4 AWS nameservers
+     - TTL: 300 (or Auto)
+
+3. **Verify delegation**:
+   ```bash
+   # Wait 5-15 minutes, then check
+   dig NS lablink.sleap.ai
+   ```
+
+4. **Test resolution**:
+   ```bash
+   # Should now resolve via AWS
+   nslookup test.lablink.sleap.ai 8.8.8.8
+   ```
+
+#### HTTPS/SSL Certificate Not Working
+
+**Symptoms**:
+- HTTP works but HTTPS fails
+- Browser shows "Connection refused" or "SSL error"
+
+**Step-by-Step Diagnosis**:
+
+1. **Check DNS is resolving**:
+   ```bash
+   nslookup test.lablink.sleap.ai 8.8.8.8
+   # Must resolve before Let's Encrypt can issue certificate
+   ```
+
+2. **Check Caddy is running**:
+   ```bash
+   ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+   sudo systemctl status caddy
+   ```
+
+3. **Check Caddy logs**:
+   ```bash
+   sudo journalctl -u caddy -f
+
+   # Look for:
+   # - "certificate obtained successfully" (success)
+   # - "challenge failed" (DNS not ready)
+   # - "timeout" (network issue)
+   ```
+
+4. **Test HTTPS manually**:
+   ```bash
+   curl -v https://test.lablink.sleap.ai
+
+   # Look for SSL handshake or certificate errors
+   ```
+
+5. **Check ports are open**:
+   ```bash
+   # Port 80 (HTTP-01 challenge)
+   nc -vz test.lablink.sleap.ai 80
+
+   # Port 443 (HTTPS)
+   nc -vz test.lablink.sleap.ai 443
+   ```
+
+**Solutions**:
+
+**If DNS not propagated**:
+- Wait 5-10 more minutes
+- Verify DNS resolves to correct IP
+- Caddy will automatically retry every 2 minutes
+
+**If ports blocked**:
+```bash
+# Check security group
+aws ec2 describe-security-groups \
+  --filters "Name=tag:Name,Values=lablink-allocator-*" \
+  --query 'SecurityGroups[0].IpPermissions'
+
+# Add rules if missing
+aws ec2 authorize-security-group-ingress \
+  --group-id <sg-id> \
+  --protocol tcp \
+  --port 80 \
+  --cidr 0.0.0.0/0
+
+aws ec2 authorize-security-group-ingress \
+  --group-id <sg-id> \
+  --protocol tcp \
+  --port 443 \
+  --cidr 0.0.0.0/0
+```
+
+**If Caddy configuration error**:
+```bash
+# Check Caddyfile
+ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+cat /etc/caddy/Caddyfile
+
+# Should contain:
+# test.lablink.sleap.ai {
+#     reverse_proxy localhost:5000
+# }
+
+# Restart Caddy
+sudo systemctl restart caddy
+```
+
+**Manual certificate check**:
+```bash
+# View certificate details
+echo | openssl s_client -servername test.lablink.sleap.ai \
+  -connect test.lablink.sleap.ai:443 2>/dev/null | \
+  openssl x509 -noout -text
+
+# Check issuer and expiration
+echo | openssl s_client -servername test.lablink.sleap.ai \
+  -connect test.lablink.sleap.ai:443 2>/dev/null | \
+  openssl x509 -noout -issuer -dates
+```
+
+#### Multiple Hosted Zones Causing Conflicts
+
+**Symptoms**: Unpredictable DNS behavior, records in multiple zones
+
+**Diagnosis**:
+```bash
+# List all zones
+aws route53 list-hosted-zones --query 'HostedZones[*].[Name,Id]' --output table
+
+# Check for duplicates or parent/child conflicts
+```
+
+**Solution**:
+
+1. **Identify which zone to keep**:
+   - Keep `lablink.sleap.ai` in Route53 (managed by LabLink)
+   - Delete `sleap.ai` from Route53 (managed in Cloudflare)
+
+2. **Delete conflicting zone**:
+   ```bash
+   # ONLY if sleap.ai is managed in Cloudflare
+   aws route53 delete-hosted-zone --id <sleap-ai-zone-id>
+   ```
+
+3. **Verify NS delegation in Cloudflare** (see above)
+
+#### Deployment Verification Failing
+
+**Symptoms**: `verify-deployment.sh` reports failures
+
+**Run verification**:
+```bash
+cd lablink-infrastructure
+./verify-deployment.sh test.lablink.sleap.ai 52.40.142.146
+```
+
+**Common failures**:
+
+1. **DNS timeout** - Wait longer and retry
+2. **HTTP not responding** - Check allocator container logs
+3. **SSL not ready** - Check Caddy logs, may need more time
+
+**Interpret results**:
+- ✓ Green checkmarks = Success
+- ⚠ Yellow warnings = May need more time
+- ✗ Red errors = Actual problem requiring action
 
 ## Diagnostic Commands
 

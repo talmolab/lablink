@@ -8,12 +8,17 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment to deploy (dev, test, prod)"
+        description: "Environment to deploy (test or prod) - dev uses local state and should only be used locally"
         required: true
-        default: dev
+        default: test
+        type: choice
+        options:
+          - test
+          - prod
       image_tag:
         description: "Docker image tag to deploy (only for prod)"
         required: false
+        type: string
 
   repository_dispatch:
     types: [deploy-prod-image]
@@ -34,12 +39,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-2
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.6
+          terraform_wrapper: false
 
       - name: Determine Environment
         id: setenv
@@ -63,25 +69,75 @@ jobs:
             exit 1
           fi
 
+          # Always use lablink-infrastructure directory
+          echo "workdir=lablink-infrastructure" >> "$GITHUB_OUTPUT"
+
       - name: Debug Environment
         run: |
           echo "Using environment: ${{ steps.setenv.outputs.env }}"
+          echo "Working directory: ${{ steps.setenv.outputs.workdir }}"
 
-      - name: Terraform Init
-        working-directory: lablink-allocator
+      - name: Inject Password Secrets
+        working-directory: ${{ steps.setenv.outputs.workdir }}
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'CHANGEME_admin_password' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'CHANGEME_db_password' }}
         run: |
-          if [ "${{ steps.setenv.outputs.env }}" = "dev" ]; then
-            terraform init
-          else
-            terraform init -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE not found"
+            exit 1
           fi
 
+          echo "Injecting secrets into $CONFIG_FILE"
+
+          # Replace placeholders with actual values
+          sed -i "s/PLACEHOLDER_ADMIN_PASSWORD/${ADMIN_PASSWORD}/g" "$CONFIG_FILE"
+          sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"
+
+          # Verify no placeholders remain
+          if grep -q "PLACEHOLDER_" "$CONFIG_FILE"; then
+            echo "ERROR: Failed to replace all placeholders in $CONFIG_FILE"
+            exit 1
+          fi
+
+          # Warn if using default passwords
+          if [[ "$ADMIN_PASSWORD" == "CHANGEME_"* ]] || [[ "$DB_PASSWORD" == "CHANGEME_"* ]]; then
+            echo "::warning::Using default passwords! Set ADMIN_PASSWORD and DB_PASSWORD secrets for security."
+          fi
+
+          echo "Passwords injected successfully"
+
+      - name: Terraform Init
+        working-directory: ${{ steps.setenv.outputs.workdir }}
+        run: |
+          # Extract bucket name from config.yaml for S3 backend
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE not found"
+            exit 1
+          fi
+
+          BUCKET_NAME=$(grep "^bucket_name:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+
+          if [ -z "$BUCKET_NAME" ]; then
+            echo "Error: bucket_name not found in $CONFIG_FILE"
+            exit 1
+          fi
+
+          echo "Using S3 bucket: $BUCKET_NAME"
+          terraform init \
+            -backend-config=backend-${{ steps.setenv.outputs.env }}.hcl \
+            -backend-config="bucket=$BUCKET_NAME"
+
       - name: Terraform Format
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: terraform fmt -check
 
       - name: Terraform Validate
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: terraform validate
 
       - name: Determine Image Tag
@@ -117,7 +173,7 @@ jobs:
           echo "Using image tag: ${{ steps.getimagetag.outputs.tag }}"
 
       - name: Terraform Plan
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform plan \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
@@ -125,7 +181,7 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform apply -auto-approve \
             -var="resource_suffix=${{ steps.setenv.outputs.env }}" \
@@ -135,7 +191,7 @@ jobs:
 
       - name: Save PEM Key to Artifact
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           terraform output -raw private_key_pem > lablink-key.pem
           chmod 600 lablink-key.pem
@@ -147,99 +203,191 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lablink-key-${{ steps.setenv.outputs.env }}
-          path: artifact-output/lablink-key.pem
+          path: ${{ steps.setenv.outputs.workdir }}/artifact-output/lablink-key.pem
           retention-days: 1
 
       - name: Validate DNS Configuration
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator/lablink-allocator-service
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          echo "🔍 Validating DNS configuration..."
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Warning: $CONFIG_FILE not found, skipping DNS validation"
+            exit 0
+          fi
+
+          echo "Validating DNS configuration..."
 
           # Check if config.yaml has valid DNS structure
-          if ! grep -q "^dns:" conf/config.yaml; then
-            echo "⚠️  Warning: DNS configuration not found in config.yaml"
+          if ! grep -q "^dns:" "$CONFIG_FILE"; then
+            echo "Warning: DNS configuration not found in config.yaml"
             exit 0
           fi
 
           # Extract DNS settings
-          DNS_ENABLED=$(grep -A 10 "^dns:" conf/config.yaml | grep "enabled:" | awk '{print $2}')
+          DNS_ENABLED=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "enabled:" | awk '{print $2}')
 
           if [ "$DNS_ENABLED" = "true" ]; then
-            echo "✅ DNS is enabled in configuration"
+            echo "DNS is enabled in configuration"
 
-            DNS_DOMAIN=$(grep -A 10 "^dns:" conf/config.yaml | grep "domain:" | awk '{print $2}' | tr -d '"')
-            DNS_PATTERN=$(grep -A 10 "^dns:" conf/config.yaml | grep "pattern:" | awk '{print $2}' | tr -d '"')
+            DNS_DOMAIN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "domain:" | awk '{print $2}' | tr -d '"')
+            DNS_PATTERN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "pattern:" | awk '{print $2}' | tr -d '"')
+            DNS_SUBDOMAIN=$(grep -A 10 "^dns:" "$CONFIG_FILE" | grep "custom_subdomain:" | awk '{print $2}' | tr -d '"')
 
             echo "   Domain: $DNS_DOMAIN"
+            echo "   Subdomain: $DNS_SUBDOMAIN"
             echo "   Pattern: $DNS_PATTERN"
 
             # Validate required fields are not empty
             if [ -z "$DNS_DOMAIN" ]; then
-              echo "❌ Error: DNS enabled but domain is empty"
+              echo "Error: DNS enabled but domain is empty"
               exit 1
             fi
           else
-            echo "ℹ️  DNS is disabled in configuration"
+            echo "DNS is disabled in configuration"
           fi
 
       - name: Verify DNS Resolution
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          echo "🌐 Verifying DNS resolution..."
+          echo "Verifying DNS and HTTPS connectivity..."
 
           FQDN=$(terraform output -raw allocator_fqdn 2>/dev/null || echo "")
           PUBLIC_IP=$(terraform output -raw ec2_public_ip)
 
           if [ -z "$FQDN" ] || [ "$FQDN" = "N/A" ]; then
-            echo "ℹ️  No DNS configured (using IP address only)"
+            echo "✓ No DNS configured (using IP address only)"
             exit 0
           fi
 
-          echo "Testing DNS resolution for: $FQDN"
-          echo "Expected IP: $PUBLIC_IP"
+          echo "Testing HTTPS connectivity for: $FQDN"
 
-          # Wait for DNS propagation (max 60 seconds)
-          for i in {1..12}; do
-            RESOLVED_IP=$(nslookup "$FQDN" 8.8.8.8 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
-
-            if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
-              echo "✅ DNS resolution successful!"
-              echo "   $FQDN → $RESOLVED_IP"
+          # Wait for DNS and HTTPS to be ready (max 5 minutes)
+          MAX_ATTEMPTS=30
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            # Test HTTPS connectivity with curl (more reliable than DNS checks)
+            if curl -sS --max-time 5 -o /dev/null -w "%{http_code}" "https://$FQDN" | grep -q "200\|301\|302"; then
+              echo "✓ HTTPS connectivity successful!"
+              echo "   https://$FQDN is accessible"
               exit 0
             fi
 
-            if [ $i -lt 12 ]; then
-              echo "⏳ Waiting for DNS propagation (attempt $i/12)..."
-              sleep 5
+            if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo "⏳ Waiting for HTTPS to be ready (attempt $i/$MAX_ATTEMPTS)..."
+              sleep 10
             fi
           done
 
-          echo "⚠️  Warning: DNS resolution failed or propagation delayed"
-          echo "   This may be normal for newly created DNS records"
-          echo "   Manual verification recommended: nslookup $FQDN"
+          echo "⚠ Warning: HTTPS connectivity check timed out"
+          echo "   This may be normal for newly created DNS records or SSL certificates"
+          echo "   Manual verification recommended: curl -I https://$FQDN"
+
+      - name: Verify Service Health
+        if: steps.apply.outcome == 'success'
+        working-directory: ${{ steps.setenv.outputs.workdir }}
+        run: |
+          echo "Verifying allocator service health..."
+
+          FQDN=$(terraform output -raw allocator_fqdn 2>/dev/null || echo "")
+          PUBLIC_IP=$(terraform output -raw ec2_public_ip)
+
+          # Read SSL config from config.yaml
+          if [ -f "config/config.yaml" ]; then
+            SSL_PROVIDER=$(grep -A5 "^ssl:" config/config.yaml | grep "provider:" | awk '{print $2}' | tr -d '"' || echo "letsencrypt")
+          else
+            SSL_PROVIDER="letsencrypt"
+          fi
+
+          # Wait for container to start (60 seconds)
+          echo "⏳ Waiting for allocator container to start..."
+          sleep 60
+
+          # Determine which URL to test
+          if [ -n "$FQDN" ] && [ "$FQDN" != "N/A" ]; then
+            TEST_URL="http://$FQDN"
+            echo "Testing via domain: $TEST_URL"
+          else
+            TEST_URL="http://$PUBLIC_IP:5000"
+            echo "Testing via IP: $TEST_URL"
+          fi
+
+          # Test HTTP (max 2 minutes)
+          echo "Testing HTTP connectivity..."
+          MAX_ATTEMPTS=12
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$TEST_URL" 2>/dev/null || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "308" ] || [ "$HTTP_CODE" = "301" ]; then
+              echo "✓ HTTP responding (status $HTTP_CODE)"
+              break
+            fi
+
+            if [ $i -lt $MAX_ATTEMPTS ]; then
+              echo "⏳ Waiting for allocator to respond (attempt $i/$MAX_ATTEMPTS, status: $HTTP_CODE)..."
+              sleep 10
+            else
+              echo "⚠ Warning: Allocator not responding via HTTP"
+              exit 0  # Don't fail the deployment
+            fi
+          done
+
+          # Test HTTPS if Let's Encrypt is enabled
+          if [ "$SSL_PROVIDER" = "letsencrypt" ] && [ -n "$FQDN" ] && [ "$FQDN" != "N/A" ]; then
+            echo ""
+            echo "Testing HTTPS (Let's Encrypt)..."
+            echo "⏳ Waiting for SSL certificate acquisition..."
+
+            # Wait for Let's Encrypt (max 3 minutes)
+            MAX_ATTEMPTS=18
+            for i in $(seq 1 $MAX_ATTEMPTS); do
+              HTTPS_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$FQDN" 2>/dev/null || echo "000")
+
+              if [ "$HTTPS_CODE" = "200" ] || [ "$HTTPS_CODE" = "302" ]; then
+                echo "✓ HTTPS responding (status $HTTPS_CODE)"
+                echo "✓ SSL certificate obtained successfully"
+                break
+              fi
+
+              if [ $i -lt $MAX_ATTEMPTS ]; then
+                echo "⏳ Waiting for SSL certificate (attempt $i/$MAX_ATTEMPTS, status: $HTTPS_CODE)..."
+                sleep 10
+              else
+                echo "⚠ Warning: SSL certificate not yet available"
+                echo "   Caddy may still be acquiring the certificate"
+                echo "   Check logs: ssh ubuntu@$PUBLIC_IP sudo journalctl -u caddy"
+              fi
+            done
+          elif [ "$SSL_PROVIDER" = "cloudflare" ]; then
+            echo "ℹ CloudFlare SSL enabled - skipping Let's Encrypt checks"
+          elif [ "$SSL_PROVIDER" = "none" ]; then
+            echo "ℹ SSL disabled - skipping HTTPS checks"
+          fi
+
+          echo ""
+          echo "✓ Service health verification complete"
 
       - name: Deployment Summary
         if: steps.apply.outcome == 'success'
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          echo "✅ Deployment succeeded!"
+          echo "Deployment succeeded!"
           echo "Environment: ${{ steps.setenv.outputs.env }}"
 
           echo ""
-          echo "🌐 Allocator FQDN:"
+          echo "Allocator FQDN:"
           terraform output -raw allocator_fqdn
 
           echo ""
-          echo "🔑 EC2 Key Name:"
+          echo "EC2 Key Name:"
           terraform output -raw ec2_key_name
 
           echo ""
-          echo "📡 EC2 Public IP:"
+          echo "EC2 Public IP:"
           terraform output -raw ec2_public_ip
 
       - name: Terraform Destroy on Failure
-        working-directory: lablink-allocator
+        working-directory: ${{ steps.setenv.outputs.workdir }}
         if: steps.apply.outcome == 'failure'
         run: terraform destroy -auto-approve -var="resource_suffix=${{ steps.setenv.outputs.env }}"

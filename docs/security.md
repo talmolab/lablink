@@ -42,18 +42,31 @@ LabLink implements multiple security layers:
 
 #### Allocator Admin Password
 
-**Default**: `IwanttoSLEAP` (from config)
+**Default**: Configuration files use `PLACEHOLDER_ADMIN_PASSWORD` which must be replaced with a secure password.
 
-**Change via configuration**:
+**Method 1: GitHub Secrets (Recommended for CI/CD)**
 
-Edit `lablink-allocator/lablink-allocator-service/conf/config.yaml`:
+For GitHub Actions deployments, add the `ADMIN_PASSWORD` secret to your repository:
+
+1. Go to repository **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `ADMIN_PASSWORD`
+4. Value: Your secure password
+5. Click **Add secret**
+
+The deployment workflow automatically injects this secret into configuration files before Terraform apply, preventing passwords from appearing in logs.
+
+**Method 2: Manual configuration**
+
+Edit `lablink-infrastructure/config/config.yaml`:
 ```yaml
 app:
   admin_user: "admin"
   admin_password: "YOUR_SECURE_PASSWORD_HERE"
 ```
 
-**Change via environment variable**:
+**Method 3: Environment variable**
+
 ```bash
 export ADMIN_PASSWORD="your_secure_password"
 
@@ -72,21 +85,36 @@ docker run -d \
 
 #### Database Password
 
-**Default**: `lablink` (from config)
+**Default**: Configuration files use `PLACEHOLDER_DB_PASSWORD` which must be replaced with a secure password.
 
-**Change via configuration**:
+**Method 1: GitHub Secrets (Recommended for CI/CD)**
+
+For GitHub Actions deployments, add the `DB_PASSWORD` secret to your repository:
+
+1. Go to repository **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `DB_PASSWORD`
+4. Value: Your secure database password
+5. Click **Add secret**
+
+The deployment workflow automatically injects this secret into configuration files before Terraform apply, preventing passwords from appearing in logs.
+
+**Method 2: Manual configuration**
+
+Edit `lablink-infrastructure/config/config.yaml`:
 ```yaml
 db:
   user: "lablink"
   password: "YOUR_SECURE_DB_PASSWORD_HERE"
 ```
 
-**Change via environment variable**:
+**Method 3: Environment variable**
+
 ```bash
 export DB_PASSWORD="your_secure_db_password"
 ```
 
-**Recommended**: Use AWS Secrets Manager:
+**Method 4: AWS Secrets Manager (Advanced)**
 
 ```bash
 # Store in Secrets Manager
@@ -319,6 +347,90 @@ resource "aws_subnet" "private" {
 - Custom network ACLs
 - VPC Flow Logs for monitoring
 
+## Staging Mode Security
+
+**Warning**: Staging mode (`ssl.staging: true`) serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.
+
+### Data Exposed in Staging Mode
+
+When using staging mode, the following information is transmitted unencrypted:
+
+- Admin usernames and passwords
+- Database credentials
+- VM allocation requests
+- Research data filenames and metadata
+- SSH keys and access tokens
+- All HTTP request/response data
+
+### When Staging Mode is Acceptable
+
+Use staging mode only when:
+
+- Testing in isolated VPCs with no internet access
+- Accessing via VPN on private networks
+- Local testing on development machines
+- Short-term infrastructure testing (less than 1 hour)
+- Automated CI/CD testing pipelines
+- No sensitive data is involved
+
+### When Production Mode is Required
+
+Use production mode (`ssl.staging: false`) for:
+
+- Any internet-accessible deployment
+- Handling sensitive research data
+- Multi-user environments
+- Long-running deployments
+- Production or staging environments
+- Compliance requirements (HIPAA, GDPR, etc.)
+
+### Mitigations for Staging Mode
+
+If you must use staging mode with potentially sensitive data:
+
+1. **Restrict access to your IP only**:
+   ```hcl
+   # In Terraform security group
+   ingress {
+     from_port   = 80
+     to_port     = 80
+     protocol    = "tcp"
+     cidr_blocks = ["YOUR_IP/32"]
+   }
+   ```
+
+2. **Use a VPN** - All access through VPN tunnel
+
+3. **Deploy in private VPC** - No internet gateway
+
+4. **Time-limited** - Switch to production mode as soon as testing is complete
+
+5. **Monitor access** - Check CloudWatch logs for unexpected connections
+
+### Switching to Production Mode
+
+To switch a deployment from staging to production:
+
+1. Update configuration:
+   ```yaml
+   ssl:
+     staging: false
+   ```
+
+2. Redeploy:
+   ```bash
+   terraform apply
+   ```
+
+3. Wait for Let's Encrypt certificate (30-60 seconds)
+
+4. Access via HTTPS:
+   ```
+   https://your-domain.com
+   ```
+
+5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-staging-mode))
+
 ## Secrets Management
 
 ### Environment Variables
@@ -383,29 +495,37 @@ admin_password = secrets['admin_password']
 
 ### GitHub Secrets
 
-For CI/CD workflows:
+For CI/CD workflows, GitHub Secrets provide secure password storage.
 
 **Add secrets**:
 1. Go to repository **Settings → Secrets and variables → Actions**
 2. Click **New repository secret**
-3. Name: `ADMIN_PASSWORD`
-4. Value: `your-secure-password`
-5. Click **Add secret**
+3. Add both required secrets:
+   - Name: `ADMIN_PASSWORD`, Value: your secure admin password
+   - Name: `DB_PASSWORD`, Value: your secure database password
+4. Click **Add secret** for each
 
-**Use in workflows**:
+**How it works**:
+
+The deployment workflow automatically injects secrets into configuration files before Terraform runs:
+
 ```yaml
-- name: Deploy
+- name: Inject Password Secrets
   env:
-    ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-    DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'CHANGEME_admin_password' }}
+    DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'CHANGEME_db_password' }}
   run: |
-    terraform apply -auto-approve
+    sed -i "s/PLACEHOLDER_ADMIN_PASSWORD/${ADMIN_PASSWORD}/g" "$CONFIG_FILE"
+    sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"
 ```
+
+This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with actual values from secrets, preventing passwords from appearing in Terraform logs.
 
 **Pros**:
 - Integrated with GitHub Actions
-- Encrypted
-- Not visible in logs
+- Encrypted at rest and in transit
+- Not visible in workflow logs
+- Prevents password exposure in Terraform apply output
 
 **Cons**:
 - Only available in workflows

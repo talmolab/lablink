@@ -1,0 +1,59 @@
+# LabLink Allocator Configuration
+# This file configures the allocator service and client VM specifications
+# Copy to config.yaml and customize for your deployment
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  # Client VM instance type (must support your workload)
+  machine_type: "g4dn.xlarge"  # GPU instance for ML workloads
+
+  # Docker image for client VMs (use version tags for production)
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+
+  # AMI ID for your AWS region (Ubuntu 24.04 with Docker + Nvidia GPU Driver)
+  ami_id: "ami-0601752c11b394251"  # us-west-2 Ubuntu 24.04 custom AMI
+
+  # Git repository with your data/code
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+
+  # Software identifier for your application
+  software: "sleap"
+
+  # File extension for your data files
+  extension: "slp"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Injected from GitHub secret at deploy time
+  region: "us-west-2"  # Your AWS region
+
+dns:
+  enabled: true  # true = use DNS for allocator URL, false = IP-only access
+  terraform_managed: false  # false = manual DNS records (you create in Route53), true = Terraform creates/destroys records
+  domain: "lablink.sleap.ai"  # Your Route53 hosted zone domain
+  zone_id: "Z010760118DSWF5IYKMOM"  # (Optional) Hardcode zone ID to skip lookup
+  app_name: ""  # Not used with custom pattern
+  pattern: "custom"  # "auto" = {env}.{app_name}.{domain}, "custom" = {custom_subdomain}.{domain}
+  custom_subdomain: "test"  # Will create: test.lablink.sleap.ai
+  create_zone: false  # false = use existing zone, true = create new zone
+
+eip:
+  strategy: "persistent"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
+  tag_name: "lablink-eip"  # Tag Name to identify reusable EIP (used with persistent strategy)
+
+ssl:
+  provider: "letsencrypt"  # "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "none" = HTTP only
+  email: "admin@sleap.ai"  # Email for Let's Encrypt notifications
+  staging: true  # true = HTTP only (unlimited testing), false = HTTPS with trusted Let's Encrypt certs (rate limited)
+
+# S3 bucket for Terraform state (must be unique globally)
+# Only used for test/prod environments with S3 backend (not used in dev)
+bucket_name: "tf-state-lablink-allocator-bucket"

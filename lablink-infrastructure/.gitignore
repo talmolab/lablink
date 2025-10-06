@@ -1,0 +1,15 @@
+# Local working configs (don't commit with real bucket names)
+*.working
+
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Environment files with secrets
+.env
+
+# Keep only examples and test config
+!config/example.*
+!config/config.yaml

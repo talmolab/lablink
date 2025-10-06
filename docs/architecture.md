@@ -103,7 +103,7 @@ This page describes LabLink's architecture, components, and how they interact.
    - Manages AWS credentials
    - Handles security group configuration
 
-**Configuration**: See `lablink-allocator/lablink-allocator-service/conf/structured_config.py`
+**Configuration**: See `packages/allocator/src/lablink_allocator/conf/structured_config.py`
 
 ### Client Service
 
@@ -131,7 +131,7 @@ This page describes LabLink's architecture, components, and how they interact.
    - Runs containerized research software
    - Executes user-defined CRD commands
 
-**Configuration**: See `lablink-client-base/lablink-client-service/lablink_client_service/conf/structured_config.py`
+**Configuration**: See `packages/client/src/lablink_client/conf/structured_config.py`
 
 ### Database Schema
 

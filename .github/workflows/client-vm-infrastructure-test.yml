@@ -4,7 +4,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "lablink-allocator/lablink-allocator-service/terraform/**"
+      - "packages/allocator/tests/terraform/**"
+      - "lablink-infrastructure/**"
       - ".github/workflows/client-vm-infrastructure-test.yml"
 
 permissions:
@@ -24,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-2
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -38,15 +39,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: lablink-allocator/lablink-allocator-service
+        working-directory: packages/allocator
         run: |
           uv sync --all-extras
 
       - name: Remove backend config
         run: |
-          rm -f lablink-allocator/lablink-allocator-service/terraform/backend.tf
+          rm -f packages/allocator/src/lablink_allocator/terraform/backend.tf
 
       - name: Run tests
-        working-directory: lablink-allocator/lablink-allocator-service/terraform
+        working-directory: packages/allocator/tests/terraform
         run: |
           uv run pytest tests --maxfail=1 --disable-warnings

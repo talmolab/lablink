@@ -33,15 +33,27 @@ Automated deployment via CI/CD pipelines.
    Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository.
 
    Required secrets:
-   - None! (Uses OIDC for AWS authentication)
+   - `AWS_ROLE_ARN`: IAM role ARN for GitHub Actions authentication
+     Example: `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`
+   - `AWS_REGION`: AWS region for deployment
+     Example: `us-west-2`, `eu-west-1`, `ap-northeast-1`
+     **Note:** Must match region in `config/config.yaml`
+   - `ADMIN_PASSWORD`: Admin password for allocator web interface
+     Example: Generate a secure password using a password manager
+   - `DB_PASSWORD`: Database password for PostgreSQL
+     Example: Generate a secure password using a password manager
 
-   Optional secrets:
-   - `ADMIN_PASSWORD`: Override default admin password
-   - `DB_PASSWORD`: Override default database password
+   **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before Terraform runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
 
 2. **Verify OIDC Configuration**
 
-   Ensure AWS IAM role trusts your GitHub repository. See [AWS Setup → OIDC](aws-setup.md#step-4-oidc-configuration).
+   Ensure AWS IAM role exists and trusts your GitHub repository:
+
+   - OIDC provider exists: `token.actions.githubusercontent.com`
+   - IAM role trust policy includes your repository: `repo:YOUR_ORG/YOUR_REPO:*`
+   - Role has PowerUserAccess or equivalent permissions
+
+   See detailed setup instructions: [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration)
 
 ### Deploy to Test Environment
 
@@ -106,13 +118,16 @@ The GitHub Actions workflow (`.github/workflows/lablink-allocator-terraform.yml`
 2. **Configure AWS credentials** via OIDC
 3. **Setup Terraform** (version 1.6.6)
 4. **Determine environment** from trigger
-5. **Initialize Terraform** with environment-specific backend
-6. **Validate** Terraform configuration
-7. **Plan** infrastructure changes
-8. **Apply** changes to AWS
-9. **Save SSH key** as artifact
-10. **Output** deployment details
-11. **Destroy on failure** (if apply fails)
+5. **Inject password secrets** - Replace placeholders in config files with GitHub secrets
+6. **Initialize Terraform** with environment-specific backend
+7. **Validate** Terraform configuration
+8. **Plan** infrastructure changes
+9. **Apply** changes to AWS
+10. **Save SSH key** as artifact
+11. **Output** deployment details
+12. **Destroy on failure** (if apply fails)
+
+**Password Injection Step**: Before Terraform runs, the workflow finds the config file and uses `sed` to replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` with values from GitHub secrets. This ensures passwords never appear in Terraform logs while maintaining secure configuration.
 
 ## Method 2: Manual Terraform Deployment
 
@@ -122,8 +137,10 @@ Deploy directly from your local machine using Terraform CLI.
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
-cd lablink/lablink-allocator
+cd lablink/lablink-infrastructure
 ```
+
+All infrastructure configurations are in the `lablink-infrastructure/` directory.
 
 ### Step 2: Configure AWS Credentials
 
@@ -512,7 +529,7 @@ Use the destroy workflow:
 ### Via Terraform CLI
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 
 terraform destroy \
   -var="resource_suffix=dev" \

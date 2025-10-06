@@ -35,8 +35,8 @@ Runs tests, linting, and Docker build verification on every pull request affecti
 ### Triggers
 
 - Pull requests with changes to:
-  - `lablink-client-base/lablink-client-service/**`
-  - `lablink-allocator/lablink-allocator-service/**`
+  - `packages/client/**`
+  - `packages/allocator/**`
   - `.github/workflows/ci.yml`
 
 ### Jobs
@@ -50,7 +50,7 @@ Runs tests, linting, and Docker build verification on every pull request affecti
    - Client: `uv run pytest tests --cov=src/lablink_client_service --cov-report=xml`
 
 3. **Docker Build Test (Allocator Only)**
-   - Builds `Dockerfile.dev` using `uv sync --extra dev`
+   - Builds `packages/allocator/Dockerfile.dev` using `uv sync --extra dev`
    - Verifies virtual environment activation
    - Verifies console script entry points are importable and callable
    - Verifies console scripts exist (`lablink-allocator`, `generate-init-sql`)
@@ -307,12 +307,12 @@ allocator_image_tag = "latest"
 
 2. **Build Allocator Image**
    - Context: Repository root
-   - Dockerfile: `lablink-allocator/Dockerfile[.dev]`
+   - Dockerfile: `packages/allocator/Dockerfile[.dev]`
    - Tags: `ghcr.io/talmolab/lablink-allocator-image:<tags>`
 
 3. **Build Client Image**
-   - Context: `lablink-client-base/`
-   - Dockerfile: `lablink-client-base/lablink-client-base-image/Dockerfile[.dev]`
+   - Context: Repository root
+   - Dockerfile: `packages/client/Dockerfile[.dev]`
    - Tags: `ghcr.io/talmolab/lablink-client-base-image:<tags>`
 
 4. **Push to Registry**
@@ -401,6 +401,8 @@ Deploys LabLink infrastructure to AWS using Terraform.
 |-----------|-------------|----------|---------|
 | `environment` | Environment to deploy (`dev`, `test`, `prod`) | Yes | `dev` |
 | `image_tag` | Docker image tag (required for prod) | For prod only | N/A |
+
+All deployments use the `lablink-infrastructure/` directory structure with configuration at `lablink-infrastructure/config/config.yaml`.
 
 ### Workflow Steps
 

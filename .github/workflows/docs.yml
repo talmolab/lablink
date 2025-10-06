@@ -12,8 +12,8 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
-      - 'lablink-allocator/lablink-allocator-service/**/*.py'
-      - 'lablink-client-base/lablink-client-service/**/*.py'
+      - 'packages/allocator/**/*.py'
+      - 'packages/client/**/*.py'
   workflow_dispatch:
   pull_request:
     paths:
@@ -41,8 +41,8 @@ jobs:
         run: |
           uv sync --extra docs
           source .venv/bin/activate
-          uv pip install -e lablink-allocator/lablink-allocator-service
-          uv pip install -e lablink-client-base/lablink-client-service
+          uv pip install -e packages/allocator
+          uv pip install -e packages/client
 
       - name: Print environment info
         run: |

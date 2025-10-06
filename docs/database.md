@@ -93,7 +93,7 @@ sudo docker exec -it $CONTAINER_ID psql -U lablink -d lablink_db
 
 ### Connection Parameters
 
-From config (`lablink-allocator/lablink-allocator-service/conf/config.yaml`):
+From config (`lablink-infrastructure/config/config.yaml`):
 
 ```yaml
 db:

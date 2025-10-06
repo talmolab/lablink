@@ -5,28 +5,48 @@ LabLink uses structured configuration files to customize behavior. This guide co
 ## First Steps: Change Default Passwords
 
 !!! danger "Critical Security Step"
-    **Before deploying LabLink or creating any VMs, you MUST change the default passwords!**
+    **Before deploying LabLink or creating any VMs, you MUST configure secure passwords!**
 
-Default credentials are:
-- **Admin password**: `IwanttoSLEAP`
-- **Database password**: `lablink`
+Configuration files use placeholder values that must be replaced with secure passwords:
+- **Admin password placeholder**: `PLACEHOLDER_ADMIN_PASSWORD`
+- **Database password placeholder**: `PLACEHOLDER_DB_PASSWORD`
 
-### How to Change Passwords
+### How to Configure Passwords
 
-**Before deploying**, edit the configuration file:
+**Method 1: GitHub Secrets (Recommended for CI/CD)**
+
+For GitHub Actions deployments, add secrets to your repository:
+
+1. Go to repository **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Add `ADMIN_PASSWORD` with your secure admin password
+4. Add `DB_PASSWORD` with your secure database password
+
+The deployment workflow automatically replaces placeholders with these secret values before Terraform runs, preventing passwords from appearing in logs.
+
+**Method 2: Manual Configuration**
+
+For local deployments, edit the configuration file:
 
 ```bash
 # Edit allocator configuration
-vi lablink-allocator/lablink-allocator-service/conf/config.yaml
+vi lablink-infrastructure/config/config.yaml
 ```
 
 Update these values:
 ```yaml
 db:
-  password: "YOUR_SECURE_DB_PASSWORD_HERE"  # Change from "lablink"
+  password: "YOUR_SECURE_DB_PASSWORD_HERE"  # Replace PLACEHOLDER_DB_PASSWORD
 
 app:
-  admin_password: "YOUR_SECURE_PASSWORD_HERE"  # Change from "IwanttoSLEAP"
+  admin_password: "YOUR_SECURE_PASSWORD_HERE"  # Replace PLACEHOLDER_ADMIN_PASSWORD
+```
+
+**Method 3: Environment Variables**
+
+```bash
+export ADMIN_PASSWORD="your_secure_password"
+export DB_PASSWORD="your_secure_db_password"
 ```
 
 **Password requirements**:
@@ -34,12 +54,6 @@ app:
 - Mix of uppercase, lowercase, numbers, symbols
 - Not a dictionary word
 - Use a password manager to generate and store
-
-**After deploying**, you can also override via environment variables:
-```bash
-export ADMIN_PASSWORD="your_secure_password"
-export DB_PASSWORD="your_secure_db_password"
-```
 
 See [Security → Change Default Passwords](security.md#change-default-passwords) for detailed security guidance.
 
@@ -56,13 +70,13 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 
 ### Allocator Configuration
 
-**Location**: `lablink-allocator/lablink-allocator-service/conf/config.yaml`
+**Location**: `lablink-infrastructure/config/config.yaml`
 
 ```yaml
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
   host: "localhost"
   port: 5432
   table_name: "vms"
@@ -77,7 +91,7 @@ machine:
 
 app:
   admin_user: "admin"
-  admin_password: "IwanttoSLEAP"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Injected from GitHub secret at deploy time
   region: "us-west-2"
 
 bucket_name: "tf-state-lablink-allocator-bucket"
@@ -85,7 +99,7 @@ bucket_name: "tf-state-lablink-allocator-bucket"
 
 ### Client Configuration
 
-**Location**: `lablink-client-base/lablink-client-service/lablink_client_service/conf/config.yaml`
+**Location**: `packages/client/src/lablink_client/conf/config.yaml`
 
 ```yaml
 allocator:
@@ -106,14 +120,14 @@ Configuration for the PostgreSQL database.
 |--------|------|---------|-------------|
 | `dbname` | string | `lablink_db` | Database name |
 | `user` | string | `lablink` | Database username |
-| `password` | string | `lablink` | Database password |
+| `password` | string | `PLACEHOLDER_DB_PASSWORD` | Database password (injected from GitHub secret) |
 | `host` | string | `localhost` | Database host |
 | `port` | int | `5432` | PostgreSQL port |
 | `table_name` | string | `vms` | VM table name |
 | `message_channel` | string | `vm_updates` | PostgreSQL NOTIFY channel |
 
 !!! warning "Production Security"
-    Change `password` in production! See [Security](security.md#database-password).
+    Configure `DB_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#database-password).
 
 ### Machine Options (`machine`)
 
@@ -202,11 +216,11 @@ General application settings.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `admin_user` | string | `admin` | Admin username for web UI |
-| `admin_password` | string | `IwanttoSLEAP` | Admin password for web UI |
+| `admin_password` | string | `PLACEHOLDER_ADMIN_PASSWORD` | Admin password (injected from GitHub secret) |
 | `region` | string | `us-west-2` | AWS region for deployments |
 
-!!! danger "Change Default Passwords"
-    The default password is insecure. Change it immediately for any deployment. See [Security](security.md#change-default-passwords).
+!!! danger "Configure Passwords"
+    Configure `ADMIN_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#change-default-passwords).
 
 ### Allocator Options (`allocator`)
 
@@ -216,6 +230,127 @@ Client configuration for connecting to allocator.
 |--------|------|---------|-------------|
 | `host` | string | `localhost` | Allocator hostname or IP |
 | `port` | int | `80` | Allocator port |
+
+### DNS Options (`dns`)
+
+Controls DNS configuration for allocator hostname.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable DNS-based URLs |
+| `terraform_managed` | boolean | `false` | Let Terraform manage Route 53 records |
+| `domain` | string | `""` | Your Route 53 hosted zone domain |
+| `zone_id` | string | `""` | Route 53 zone ID (optional, skips lookup if provided) |
+| `app_name` | string | `""` | Application name for auto pattern |
+| `pattern` | string | `"auto"` | DNS pattern: `auto` or `custom` |
+| `custom_subdomain` | string | `""` | Custom subdomain for custom pattern |
+| `create_zone` | boolean | `false` | Create new Route 53 zone |
+
+See [DNS Configuration](dns-configuration.md) for detailed setup instructions.
+
+### EIP Options (`eip`)
+
+Controls Elastic IP allocation strategy.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `strategy` | string | `"dynamic"` | `persistent` = reuse tagged EIP, `dynamic` = create new |
+| `tag_name` | string | `"lablink-eip"` | Tag name for persistent EIP lookup |
+
+### SSL/TLS Options (`ssl`)
+
+Controls HTTPS/SSL certificate management.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `provider` | string | `"letsencrypt"` | SSL provider: `letsencrypt`, `cloudflare`, or `none` |
+| `email` | string | `""` | Email for Let's Encrypt notifications |
+| `staging` | boolean | `false` | HTTP-only mode for testing (unlimited deployments) |
+
+#### SSL Providers
+
+**`letsencrypt`** - Automatic SSL via Caddy + Let's Encrypt
+
+- Staging mode (`staging: true`): HTTP only, unlimited deployments
+- Production mode (`staging: false`): HTTPS with trusted certificates
+
+**`cloudflare`** - CloudFlare proxy handles SSL
+
+- Requires CloudFlare DNS configuration
+- Not affected by `staging` setting
+
+**`none`** - No SSL, HTTP only
+
+- Similar to staging mode but explicit
+
+#### Staging vs Production Mode
+
+**Staging Mode** (`staging: true`)
+
+Use for testing and development:
+
+- Serves HTTP only on port 80 (port 443 closed)
+- Unlimited deployments per day
+- No SSL certificate issuance delays
+- **No encryption** - all traffic is plaintext
+- Browser shows "Not Secure" warning
+- May require clearing browser HSTS cache (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-staging-mode))
+
+Configuration example:
+```yaml
+ssl:
+  provider: "letsencrypt"
+  email: "admin@example.com"
+  staging: true
+```
+
+**Production Mode** (`staging: false`)
+
+Use for production deployments:
+
+- HTTPS with trusted Let's Encrypt certificates
+- Browser shows secure padlock
+- Full TLS 1.3 encryption
+- Automatic HTTP → HTTPS redirects
+- Rate limited (5 duplicate certificates per week)
+- Certificate issuance takes 30-60 seconds
+
+Configuration example:
+```yaml
+ssl:
+  provider: "letsencrypt"
+  email: "admin@example.com"  # Receives cert expiry notifications
+  staging: false
+```
+
+#### Browser Access
+
+**With staging mode:**
+
+1. Type `http://` explicitly in address bar (e.g., `http://test.lablink.sleap.ai`)
+2. Clear HSTS cache if you previously accessed via HTTPS
+3. Expect "Not Secure" warning (this is normal)
+
+Alternatives:
+- Use incognito/private browsing
+- Access via IP: `http://<allocator-ip>`
+- Use curl: `curl http://test.lablink.sleap.ai`
+
+**With production mode:**
+
+Access via `https://your-domain.com` - browser shows secure padlock.
+
+#### Let's Encrypt Rate Limits
+
+Production mode is subject to Let's Encrypt limits:
+
+- 50 certificates per domain per week
+- **5 duplicate certificates per week** (same hostnames)
+- 300 pending authorizations per account
+
+Use staging mode for frequent testing to avoid these limits.
+
+**Warning:** Staging mode serves unencrypted HTTP. Never use for production or sensitive data. See [Security](security.md#staging-mode-security).
 
 ### Bucket Name
 
@@ -231,7 +366,7 @@ S3 bucket for Terraform state storage. Must be globally unique.
 Directly modify the configuration files:
 
 ```bash
-nano lablink-allocator/lablink-allocator-service/conf/config.yaml
+nano lablink-infrastructure/config/config.yaml
 ```
 
 ### Method 2: Environment Variables
@@ -345,14 +480,14 @@ python -c "import yaml; yaml.safe_load(open('conf/config.yaml'))"
 
 ```bash
 # Run allocator with custom config
-cd lablink-allocator/lablink-allocator-service
-python main.py
+cd packages/allocator
+python src/lablink_allocator/main.py
 ```
 
 ### Terraform Validation
 
 ```bash
-cd lablink-allocator
+cd lablink-infrastructure
 terraform validate
 terraform plan  # Preview changes
 ```
