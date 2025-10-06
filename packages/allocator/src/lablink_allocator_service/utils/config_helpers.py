@@ -50,11 +50,18 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
     if hasattr(cfg, "dns") and cfg.dns.enabled:
         # Use DNS hostname
         if cfg.dns.pattern == "custom":
-            host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
+            # Only add subdomain if it's non-empty
+            if cfg.dns.custom_subdomain:
+                host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
+            else:
+                host = cfg.dns.domain
         elif cfg.dns.pattern == "auto":
             # For auto pattern, would need environment/resource_suffix
             # For now, fall back to custom_subdomain if available
-            host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
+            if cfg.dns.custom_subdomain:
+                host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
+            else:
+                host = cfg.dns.domain
         else:
             # Default to just the domain
             host = cfg.dns.domain

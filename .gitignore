@@ -224,3 +224,5 @@ outputs
 
 # Ignore lambda zip files
 lambda_package.zip
+.claude/settings.local.json
+uv.lock
