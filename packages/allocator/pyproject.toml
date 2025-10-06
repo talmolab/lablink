@@ -30,11 +30,11 @@ version = "0.0.3a0"
 dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
 
 [project.scripts]
-lablink-allocator = "lablink_allocator.main:main"
-generate-init-sql = "lablink_allocator.generate_init_sql:main"
+lablink-allocator = "lablink_allocator_service.main:main"
+generate-init-sql = "lablink_allocator_service.generate_init_sql:main"
 
 [tool.setuptools.package-data]
-lablink_allocator = ["terraform/**/*", "conf/*.yaml"]
+lablink_allocator_service = ["terraform/**/*", "conf/*.yaml"]
 
 [project.urls]
 Homepage = "https://github.com/talmolab/lablink"

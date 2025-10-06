@@ -32,12 +32,12 @@ Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
 
 [project.scripts]
-check_gpu = "lablink_client.check_gpu:main"
-subscribe = "lablink_client.subscribe:main"
-update_inuse_status = "lablink_client.update_inuse_status:main"
+check_gpu = "lablink_client_service.check_gpu:main"
+subscribe = "lablink_client_service.subscribe:main"
+update_inuse_status = "lablink_client_service.update_inuse_status:main"
 
 [tool.setuptools.package-data]
-lablink_client = ["conf/*.yaml"]
+lablink_client_service = ["conf/*.yaml"]
 
 [tool.ruff.lint]
 ignore = [
