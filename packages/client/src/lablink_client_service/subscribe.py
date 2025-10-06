@@ -25,10 +25,21 @@ def subscribe(cfg: Config) -> None:
     # Use ALLOCATOR_URL env var if set (supports HTTPS),
     # otherwise use host:port with HTTP
     allocator_url = os.getenv("ALLOCATOR_URL")
+    logger.debug(f"Allocator URL from env: {allocator_url}")
     if allocator_url:
-        base_url = allocator_url.rstrip('/')
+        base_url = allocator_url.rstrip("/")
     else:
         base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
+
+    # Sanitize URL to remove prepended dots
+    # Handles cases like:
+    # - http://.lablink.sleap.ai -> http://lablink.sleap.ai
+    # - https://.lablink.sleap.ai -> https://lablink.sleap.ai
+    # - .lablink.sleap.ai -> lablink.sleap.ai
+    base_url = base_url.replace("://.", "://")
+    if base_url.startswith("."):
+        base_url = base_url[1:]
+
     url = f"{base_url}/vm_startup"
     logger.debug(f"URL: {url}")
 
@@ -50,8 +61,7 @@ def subscribe(cfg: Config) -> None:
             # The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM
             # assignment. Timeout tuple: (connect, read) = (30s, 7 days)
             logger.debug(
-                f"Attempting to connect to allocator "
-                f"(attempt {retry_count + 1})"
+                f"Attempting to connect to allocator " f"(attempt {retry_count + 1})"
             )
             response = requests.post(
                 url, json={"hostname": hostname}, timeout=(30, 604800)
@@ -78,8 +88,7 @@ def subscribe(cfg: Config) -> None:
                     break  # Server explicitly rejected - don't retry
             else:
                 logger.error(
-                    f"POST request failed with status code: "
-                    f"{response.status_code}"
+                    f"POST request failed with status code: " f"{response.status_code}"
                 )
                 # Will retry after delay
 

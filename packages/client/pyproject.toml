@@ -22,7 +22,7 @@ keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
 name = "lablink-client-service"
 readme = "README.md"
 requires-python = ">=3.8"
-version = "0.0.8a1"
+version = "0.0.8a2"
 
 [project.optional-dependencies]
 dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
