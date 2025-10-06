@@ -19,14 +19,6 @@ on:
         description: "Docker image tag to deploy (only for prod)"
         required: false
         type: string
-      working_directory:
-        description: "Infrastructure directory (lablink-allocator or lablink-infrastructure)"
-        required: false
-        default: "lablink-infrastructure"
-        type: choice
-        options:
-          - lablink-allocator
-          - lablink-infrastructure
 
   repository_dispatch:
     types: [deploy-prod-image]
@@ -55,7 +47,7 @@ jobs:
           terraform_version: 1.6.6
           terraform_wrapper: false
 
-      - name: Determine Environment and Directory
+      - name: Determine Environment
         id: setenv
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -68,22 +60,17 @@ jobs:
                 exit 1
                 ;;
             esac
-            echo "workdir=${{ github.event.inputs.working_directory }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "env=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
-            # Allow specifying working directory in payload, default to lablink-infrastructure
-            WORKDIR="${{ github.event.client_payload.working_directory }}"
-            if [ -z "$WORKDIR" ]; then
-              WORKDIR="lablink-infrastructure"
-            fi
-            echo "workdir=$WORKDIR" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "test" ]; then
             echo "env=test" >> "$GITHUB_OUTPUT"
-            echo "workdir=lablink-allocator" >> "$GITHUB_OUTPUT"
           else
             echo "Unsupported branch or manual input"
             exit 1
           fi
+
+          # Always use lablink-infrastructure directory
+          echo "workdir=lablink-infrastructure" >> "$GITHUB_OUTPUT"
 
       - name: Debug Environment
         run: |
@@ -96,13 +83,10 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'CHANGEME_admin_password' }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'CHANGEME_db_password' }}
         run: |
-          # Find config file location
-          if [ -f "config/config.yaml" ]; then
-            CONFIG_FILE="config/config.yaml"
-          elif [ -f "lablink-allocator-service/conf/config.yaml" ]; then
-            CONFIG_FILE="lablink-allocator-service/conf/config.yaml"
-          else
-            echo "Error: config.yaml not found"
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE not found"
             exit 1
           fi
 
@@ -129,17 +113,17 @@ jobs:
         working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
           # Extract bucket name from config.yaml for S3 backend
-          if [ -f "config/config.yaml" ]; then
-            BUCKET_NAME=$(grep "^bucket_name:" config/config.yaml | awk '{print $2}' | tr -d '"')
-          elif [ -f "lablink-allocator-service/conf/config.yaml" ]; then
-            BUCKET_NAME=$(grep "^bucket_name:" lablink-allocator-service/conf/config.yaml | awk '{print $2}' | tr -d '"')
-          else
-            echo "Error: config.yaml not found"
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE not found"
             exit 1
           fi
 
+          BUCKET_NAME=$(grep "^bucket_name:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+
           if [ -z "$BUCKET_NAME" ]; then
-            echo "Error: bucket_name not found in config.yaml"
+            echo "Error: bucket_name not found in $CONFIG_FILE"
             exit 1
           fi
 
@@ -226,15 +210,13 @@ jobs:
         if: steps.apply.outcome == 'success'
         working-directory: ${{ steps.setenv.outputs.workdir }}
         run: |
-          # Find config.yaml in either old or new structure
-          if [ -f "lablink-allocator-service/conf/config.yaml" ]; then
-            CONFIG_FILE="lablink-allocator-service/conf/config.yaml"
-          elif [ -f "config/config.yaml" ]; then
-            CONFIG_FILE="config/config.yaml"
-          else
-            echo "Warning: No config.yaml found, skipping DNS validation"
+          CONFIG_FILE="config/config.yaml"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Warning: $CONFIG_FILE not found, skipping DNS validation"
             exit 0
           fi
+
           echo "Validating DNS configuration..."
 
           # Check if config.yaml has valid DNS structure

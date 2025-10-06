@@ -215,6 +215,11 @@ ssl:
 - [x] Test current deployment workflow
 
 ### Phase 2: Template Repository Creation 🔄 IN PROGRESS
+- [x] Create `lablink-infrastructure/` folder with template structure
+- [x] Simplify deployment workflows to use only `lablink-infrastructure/`
+- [x] Implement password secret injection via GitHub Actions
+- [x] Remove old directory references (`lablink-allocator`, `lablink-allocator-service`) from workflows
+- [x] Update workflows to always use `config/config.yaml` path
 - [ ] Create `talmolab/lablink-template` repository
 - [ ] Mark as template repository in GitHub settings
 - [ ] Set up branch protection rules
