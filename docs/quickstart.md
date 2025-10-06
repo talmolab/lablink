@@ -76,10 +76,10 @@ chmod 600 ~/lablink-key.pem
 
 **Admin login**:
 - Username: `admin`
-- Password: `IwanttoSLEAP`
+- Password: Set via `ADMIN_PASSWORD` in config (placeholder must be replaced)
 
-!!! warning "Change Password"
-    Change the default password immediately in production.
+!!! warning "Configure Password"
+    For GitHub Actions deployments, set the `ADMIN_PASSWORD` secret. For local deployments, manually replace `PLACEHOLDER_ADMIN_PASSWORD` in `config/config.yaml`. See [Configuration](configuration.md#first-steps-change-default-passwords).
 
 ## Step 5: Create Client VMs
 

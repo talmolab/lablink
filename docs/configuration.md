@@ -5,15 +5,28 @@ LabLink uses structured configuration files to customize behavior. This guide co
 ## First Steps: Change Default Passwords
 
 !!! danger "Critical Security Step"
-    **Before deploying LabLink or creating any VMs, you MUST change the default passwords!**
+    **Before deploying LabLink or creating any VMs, you MUST configure secure passwords!**
 
-Default credentials are:
-- **Admin password**: `IwanttoSLEAP`
-- **Database password**: `lablink`
+Configuration files use placeholder values that must be replaced with secure passwords:
+- **Admin password placeholder**: `PLACEHOLDER_ADMIN_PASSWORD`
+- **Database password placeholder**: `PLACEHOLDER_DB_PASSWORD`
 
-### How to Change Passwords
+### How to Configure Passwords
 
-**Before deploying**, edit the configuration file:
+**Method 1: GitHub Secrets (Recommended for CI/CD)**
+
+For GitHub Actions deployments, add secrets to your repository:
+
+1. Go to repository **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Add `ADMIN_PASSWORD` with your secure admin password
+4. Add `DB_PASSWORD` with your secure database password
+
+The deployment workflow automatically replaces placeholders with these secret values before Terraform runs, preventing passwords from appearing in logs.
+
+**Method 2: Manual Configuration**
+
+For local deployments, edit the configuration file:
 
 ```bash
 # Edit allocator configuration
@@ -23,10 +36,17 @@ vi lablink-infrastructure/config/config.yaml
 Update these values:
 ```yaml
 db:
-  password: "YOUR_SECURE_DB_PASSWORD_HERE"  # Change from "lablink"
+  password: "YOUR_SECURE_DB_PASSWORD_HERE"  # Replace PLACEHOLDER_DB_PASSWORD
 
 app:
-  admin_password: "YOUR_SECURE_PASSWORD_HERE"  # Change from "IwanttoSLEAP"
+  admin_password: "YOUR_SECURE_PASSWORD_HERE"  # Replace PLACEHOLDER_ADMIN_PASSWORD
+```
+
+**Method 3: Environment Variables**
+
+```bash
+export ADMIN_PASSWORD="your_secure_password"
+export DB_PASSWORD="your_secure_db_password"
 ```
 
 **Password requirements**:
@@ -34,12 +54,6 @@ app:
 - Mix of uppercase, lowercase, numbers, symbols
 - Not a dictionary word
 - Use a password manager to generate and store
-
-**After deploying**, you can also override via environment variables:
-```bash
-export ADMIN_PASSWORD="your_secure_password"
-export DB_PASSWORD="your_secure_db_password"
-```
 
 See [Security → Change Default Passwords](security.md#change-default-passwords) for detailed security guidance.
 
@@ -62,7 +76,7 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
   host: "localhost"
   port: 5432
   table_name: "vms"
@@ -77,7 +91,7 @@ machine:
 
 app:
   admin_user: "admin"
-  admin_password: "IwanttoSLEAP"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Injected from GitHub secret at deploy time
   region: "us-west-2"
 
 bucket_name: "tf-state-lablink-allocator-bucket"
@@ -106,14 +120,14 @@ Configuration for the PostgreSQL database.
 |--------|------|---------|-------------|
 | `dbname` | string | `lablink_db` | Database name |
 | `user` | string | `lablink` | Database username |
-| `password` | string | `lablink` | Database password |
+| `password` | string | `PLACEHOLDER_DB_PASSWORD` | Database password (injected from GitHub secret) |
 | `host` | string | `localhost` | Database host |
 | `port` | int | `5432` | PostgreSQL port |
 | `table_name` | string | `vms` | VM table name |
 | `message_channel` | string | `vm_updates` | PostgreSQL NOTIFY channel |
 
 !!! warning "Production Security"
-    Change `password` in production! See [Security](security.md#database-password).
+    Configure `DB_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#database-password).
 
 ### Machine Options (`machine`)
 
@@ -202,11 +216,11 @@ General application settings.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `admin_user` | string | `admin` | Admin username for web UI |
-| `admin_password` | string | `IwanttoSLEAP` | Admin password for web UI |
+| `admin_password` | string | `PLACEHOLDER_ADMIN_PASSWORD` | Admin password (injected from GitHub secret) |
 | `region` | string | `us-west-2` | AWS region for deployments |
 
-!!! danger "Change Default Passwords"
-    The default password is insecure. Change it immediately for any deployment. See [Security](security.md#change-default-passwords).
+!!! danger "Configure Passwords"
+    Configure `ADMIN_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#change-default-passwords).
 
 ### Allocator Options (`allocator`)
 

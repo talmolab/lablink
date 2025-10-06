@@ -566,7 +566,7 @@ Verify the trust policy includes all your deployment repositories.
 
 ### 4.6: Add GitHub Secrets
 
-Two secrets are required for GitHub Actions workflows to deploy infrastructure.
+Four secrets are required for GitHub Actions workflows to deploy infrastructure securely.
 
 #### For Template Repository (`lablink-template`)
 
@@ -584,10 +584,24 @@ Two secrets are required for GitHub Actions workflows to deploy infrastructure.
    - Value: Your chosen region (e.g., `us-west-2`, `eu-west-1`, `ap-northeast-1`)
    - Click **Add secret**
 
+4. **Add ADMIN_PASSWORD secret:**
+   - Click **New repository secret**
+   - Name: `ADMIN_PASSWORD`
+   - Value: Your secure admin password (use a password manager to generate)
+   - Click **Add secret**
+
+5. **Add DB_PASSWORD secret:**
+   - Click **New repository secret**
+   - Name: `DB_PASSWORD`
+   - Value: Your secure database password (use a password manager to generate)
+   - Click **Add secret**
+
 **Note:** The template repository can safely include these secrets because:
 - Repository permissions control who can trigger workflows
 - Secrets are NOT copied when creating repos from the template
-- External users must configure their own AWS credentials and region
+- External users must configure their own AWS credentials, region, and passwords
+
+**Security:** The workflow automatically injects `ADMIN_PASSWORD` and `DB_PASSWORD` into configuration files before Terraform runs, replacing `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. This prevents passwords from appearing in Terraform logs.
 
 #### For Deployment Repositories (e.g., `sleap-lablink`)
 
@@ -595,14 +609,17 @@ After creating a repository from the template:
 
 1. Go to the new repository **Settings** → **Secrets and variables** → **Actions**
 
-2. **Add both secrets** (same process as above):
+2. **Add all four secrets** (same process as above):
    - `AWS_ROLE_ARN`: Same ARN as template repository
    - `AWS_REGION`: Your chosen region for this deployment
+   - `ADMIN_PASSWORD`: Your secure admin password
+   - `DB_PASSWORD`: Your secure database password
 
 **Important:**
 - Each deployment repository needs these secrets added manually after creation
 - Different deployments can use different regions if needed
 - Region in secret must match region in `config/config.yaml`
+- Use strong, unique passwords for each deployment
 
 ### 4.7: Update Trust Policy for New Repositories
 
