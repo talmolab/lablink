@@ -131,8 +131,16 @@ if [ "$HAS_GPU" = true ]; then
     DOCKER_GPU_ARGS="--runtime=nvidia --gpus all"
 fi
 
+echo ">> Creating config directory…"
+mkdir -p /etc/config
+cat <<EOF > /etc/config/startup.sh
+${startup_content}
+EOF
+
+
 echo ">> Starting container..."
 if docker run -dit $DOCKER_GPU_ARGS \
+    --mount type=bind,src=/etc/config,dst=/docker_scripts/,ro \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e ALLOCATOR_URL="${allocator_url}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
 # Install Docker
 apt-get update
 apt-get install -y docker.io debian-keyring debian-archive-keyring apt-transport-https curl
@@ -18,6 +21,12 @@ mkdir -p /etc/lablink-allocator
 cat <<EOF > /etc/lablink-allocator/config.yaml
 ${CONFIG_CONTENT}
 EOF
+
+# Create startup script file in /etc/lablink-allocator in EC2 instance
+cat <<'EOF' > /etc/lablink-allocator/start.sh
+${CLIENT_STARTUP_SCRIPT}
+EOF
+chmod +x /etc/lablink-allocator/start.sh
 
 # Start allocator container on port 5000 (Caddy will proxy to it)
 IMAGE="ghcr.io/talmolab/lablink-allocator-image:${ALLOCATOR_IMAGE_TAG}"
