@@ -44,9 +44,6 @@ until pg_isready -U lablink -d lablink_db; do
     sleep 2
 done
 
-# Run database migrations (if applicable)
-flask db upgrade
-
 CONFIG_DIR="${CONFIG_DIR:-/config}"
 CONFIG_NAME="${CONFIG_NAME:-config.yaml}"
 mkdir -p "$CONFIG_DIR"
