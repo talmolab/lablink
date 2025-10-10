@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 from omegaconf import OmegaConf
 import base64
 import yaml
-from pathlib import Path
 
 
 @pytest.fixture(scope="session")
