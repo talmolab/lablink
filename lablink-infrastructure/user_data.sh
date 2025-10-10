@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
 # Install Docker
 apt-get update
 apt-get install -y docker.io debian-keyring debian-archive-keyring apt-transport-https curl
