@@ -5,7 +5,7 @@
 # This config will be read and passed to the Docker container
 # DNS, bucket, and other settings are configured in this file
 config_path         = "config/config.yaml"
-startup_script_path = "config/start.sh"
+startup_script_path = "config/startup.sh"
 
 # Note: All configuration including DNS, machine type, AMI, bucket name, etc.
 # should be set in config/config.yaml, not here.
