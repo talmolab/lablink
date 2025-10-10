@@ -133,6 +133,7 @@ fi
 
 echo ">> Starting container..."
 if docker run -dit $DOCKER_GPU_ARGS \
+    --mount type=bind,src=/config,dst=/etc/lablink-allocator,ro \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e ALLOCATOR_URL="${allocator_url}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
