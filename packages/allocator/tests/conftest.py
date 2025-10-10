@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import MagicMock
 from omegaconf import OmegaConf
 import base64
+import yaml
+from pathlib import Path
 
 
 @pytest.fixture(scope="session")
@@ -113,3 +115,166 @@ def admin_headers(omega_config):
     pw = omega_config.app.admin_password
     token = base64.b64encode(f"{user}:{pw}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
+
+
+@pytest.fixture
+def valid_config_dict():
+    """Valid configuration dictionary including allocator section."""
+    return {
+        "db": {
+            "dbname": "lablink_db",
+            "user": "lablink",
+            "password": "test_password",
+            "host": "localhost",
+            "port": 5432,
+            "table_name": "vms",
+            "message_channel": "vm_updates",
+        },
+        "machine": {
+            "machine_type": "g4dn.xlarge",
+            "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+            "ami_id": "ami-0601752c11b394251",
+            "repository": "https://github.com/talmolab/sleap-tutorial-data.git",
+            "software": "sleap",
+            "extension": "slp",
+        },
+        "app": {
+            "admin_user": "admin",
+            "admin_password": "test_admin_password",
+            "region": "us-west-2",
+        },
+        "dns": {
+            "enabled": False,
+            "terraform_managed": False,
+            "domain": "lablink.example.com",
+            "zone_id": "",
+            "app_name": "lablink",
+            "pattern": "auto",
+            "custom_subdomain": "",
+            "create_zone": False,
+        },
+        "eip": {
+            "strategy": "dynamic",
+            "tag_name": "lablink-eip-dynamic",
+        },
+        "ssl": {
+            "provider": "none",
+            "email": "admin@example.com",
+            "staging": True,
+        },
+        "allocator": {
+            "image_tag": "linux-amd64-latest-test",
+        },
+        "bucket_name": "tf-state-lablink-allocator-bucket",
+    }
+
+
+@pytest.fixture
+def invalid_config_dict():
+    """Invalid configuration with unknown key (recreates Docker error)."""
+    return {
+        "db": {
+            "dbname": "lablink_db",
+            "user": "lablink",
+            "password": "test_password",
+            "host": "localhost",
+            "port": 5432,
+            "table_name": "vms",
+            "message_channel": "vm_updates",
+        },
+        "machine": {
+            "machine_type": "g4dn.xlarge",
+            "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+            "ami_id": "ami-0601752c11b394251",
+            "software": "sleap",
+            "extension": "slp",
+        },
+        "app": {
+            "admin_user": "admin",
+            "admin_password": "test_admin_password",
+            "region": "us-west-2",
+        },
+        # This key does not exist in the schema
+        "unknown_section": {
+            "unknown_key": "unknown_value",
+        },
+        "bucket_name": "tf-state-lablink-allocator-bucket",
+    }
+
+
+@pytest.fixture
+def config_with_unknown_top_level_key():
+    """Config with unknown top-level section (terraform_vars doesn't exist in schema)."""
+    return {
+        "db": {
+            "dbname": "lablink_db",
+            "user": "lablink",
+            "password": "test_password",
+            "host": "localhost",
+            "port": 5432,
+            "table_name": "vms",
+            "message_channel": "vm_updates",
+        },
+        "machine": {
+            "machine_type": "g4dn.xlarge",
+            "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+            "ami_id": "ami-test",
+            "software": "sleap",
+            "extension": "slp",
+        },
+        "app": {
+            "admin_user": "admin",
+            "admin_password": "test_password",
+            "region": "us-west-2",
+        },
+        # This top-level key does NOT exist in Config schema
+        "terraform_vars": {
+            "instance_count": 5,
+            "custom_setting": "value",
+        },
+        "bucket_name": "test-bucket",
+    }
+
+
+@pytest.fixture
+def config_with_unknown_nested_key():
+    """Config with unknown nested field (db.unknown_field doesn't exist in schema)."""
+    return {
+        "db": {
+            "dbname": "lablink_db",
+            "user": "lablink",
+            "password": "test_password",
+            "host": "localhost",
+            "port": 5432,
+            "table_name": "vms",
+            "message_channel": "vm_updates",
+            # This nested key does NOT exist in DatabaseConfig schema
+            "unknown_field": "this_should_fail",
+        },
+        "machine": {
+            "machine_type": "g4dn.xlarge",
+            "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+            "ami_id": "ami-test",
+            "software": "sleap",
+            "extension": "slp",
+        },
+        "app": {
+            "admin_user": "admin",
+            "admin_password": "test_password",
+            "region": "us-west-2",
+        },
+        "bucket_name": "test-bucket",
+    }
+
+
+@pytest.fixture
+def write_config_file(tmp_path):
+    """Helper function to write config dict to a temporary YAML file."""
+
+    def _write(config_dict, filename="config.yaml"):
+        config_file = tmp_path / filename
+        with open(config_file, "w") as f:
+            yaml.dump(config_dict, f)
+        return str(config_file)
+
+    return _write

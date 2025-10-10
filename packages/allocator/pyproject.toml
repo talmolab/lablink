@@ -32,6 +32,7 @@ dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
 [project.scripts]
 lablink-allocator = "lablink_allocator_service.main:main"
 generate-init-sql = "lablink_allocator_service.generate_init_sql:main"
+lablink-validate-config = "lablink_allocator_service.validate_config:main"
 
 [tool.setuptools.package-data]
 lablink_allocator_service = ["terraform/**/*", "conf/*.yaml"]

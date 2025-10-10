@@ -54,6 +54,11 @@ ssl:
   email: "admin@sleap.ai"  # Email for Let's Encrypt notifications
   staging: false  # true = HTTP only (unlimited testing), false = HTTPS with trusted Let's Encrypt certs (rate limited)
 
+allocator:
+  # Docker image tag for the allocator service
+  # Used by infrastructure deployment (Terraform)
+  image_tag: "linux-amd64-latest-test"
+
 # S3 bucket for Terraform state (must be unique globally)
 # Only used for test/prod environments with S3 backend (not used in dev)
 bucket_name: "tf-state-lablink-allocator-bucket"
