@@ -142,6 +142,23 @@ class SSLConfig:
 
 
 @dataclass
+class AllocatorConfig:
+    """Configuration for allocator service deployment.
+
+    This section is used by infrastructure deployment (Terraform) to specify
+    which Docker image tag to use for the allocator service. The allocator
+    service itself doesn't use this field, but it must be present in the
+    schema to accept infrastructure configuration files.
+
+    Attributes:
+        image_tag (str): Docker image tag for the allocator service.
+            Examples: "linux-amd64-latest-test", "linux-amd64-v1.2.3"
+    """
+
+    image_tag: str = field(default="linux-amd64-latest")
+
+
+@dataclass
 class Config:
     """Configuration for the LabLink Allocator Service.
     This class aggregates the database, machine, and application configurations.
@@ -153,6 +170,7 @@ class Config:
         dns (DNSConfig): The DNS configuration.
         eip (EIPConfig): The EIP management configuration.
         ssl (SSLConfig): The SSL certificate configuration.
+        allocator (AllocatorConfig): The allocator deployment configuration.
         bucket_name (str): The S3 bucket name for Terraform state.
     """
 
@@ -162,6 +180,7 @@ class Config:
     dns: DNSConfig = field(default_factory=DNSConfig)
     eip: EIPConfig = field(default_factory=EIPConfig)
     ssl: SSLConfig = field(default_factory=SSLConfig)
+    allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
 
 
