@@ -400,6 +400,9 @@ docker run -d \
   ghcr.io/talmolab/lablink-allocator-image:latest
 ```
 
+!!! warning "Config Validation and Custom Filenames"
+    The allocator supports `CONFIG_NAME` environment variable to override the config filename. However, the validation CLI (`lablink-validate-config`) requires the filename to be `config.yaml` to enable strict schema checking. If you override `CONFIG_NAME` to use a different filename, validation will not perform strict schema checks and unknown keys may not be caught until runtime.
+
 ### Method 5: Terraform Variables
 
 Override during infrastructure deployment:
@@ -469,11 +472,44 @@ bucket_name: "tf-state-lablink-prod"
 
 After modifying configuration, validate it:
 
+### Schema Validation (Recommended)
+
+Use the built-in validation CLI to check your config against the schema:
+
+```bash
+# Validate config file
+lablink-validate-config lablink-infrastructure/config/config.yaml
+
+# Output on success:
+# ✓ Config validation passed
+
+# Output on error:
+# ✗ Config validation failed: Error merging config with schema
+#   Unknown keys found: ['unknown_section']
+```
+
+The validator checks:
+
+- File exists and is named `config.yaml`
+- All keys match the structured config schema
+- Required fields are present
+- Type mismatches (strings vs integers, etc.)
+- Unknown configuration sections
+
+**Important**: The validator requires the filename to be `config.yaml` to enable Hydra's strict schema matching. Using a different filename will bypass schema validation.
+
+**Usage in CI/CD:**
+
+```bash
+# Validate before deployment
+lablink-validate-config config/config.yaml && terraform apply || exit 1
+```
+
 ### Check Syntax
 
 ```bash
 # YAML syntax check
-python -c "import yaml; yaml.safe_load(open('conf/config.yaml'))"
+python -c "import yaml; yaml.safe_load(open('lablink-infrastructure/config/config.yaml'))"
 ```
 
 ### Test Locally
@@ -481,7 +517,7 @@ python -c "import yaml; yaml.safe_load(open('conf/config.yaml'))"
 ```bash
 # Run allocator with custom config
 cd packages/allocator
-python src/lablink_allocator/main.py
+python src/lablink_allocator_service/main.py
 ```
 
 ### Terraform Validation
