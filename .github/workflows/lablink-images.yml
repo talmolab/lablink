@@ -12,11 +12,11 @@ on:
           - test
           - prod
       allocator_version:
-        description: "Allocator package version (e.g., 0.0.2a0)"
+        description: "Allocator package version (REQUIRED for prod, leave empty for test)"
         required: false
         type: string
       client_version:
-        description: "Client package version (e.g., 0.0.7a0)"
+        description: "Client package version (REQUIRED for prod, leave empty for test)"
         required: false
         type: string
   pull_request:
@@ -52,12 +52,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate production build requirements
+        if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+        run: |
+          if [ -z "${{ inputs.allocator_version }}" ] || [ -z "${{ inputs.client_version }}" ]; then
+            echo "❌ ERROR: Production builds require both allocator_version and client_version"
+            echo "Please provide versions or use environment=test for development builds"
+            exit 1
+          fi
+
       - name: Select Dockerfile and build args
         id: docker_config
         run: |
           # Determine if this is a dev build (use Dockerfile.dev with local code)
           # or prod build (use Dockerfile with PyPI package)
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
             echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
             echo "build_args=" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
@@ -89,9 +98,15 @@ jobs:
       - name: Set environment suffix
         id: set_env_suffix
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ inputs.environment }}" == "test" ]; then
+          # Add -test suffix for all dev builds (not for manual prod builds)
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            # Manual prod build - no suffix
+            echo "env_suffix=" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
+            # All other cases - dev builds with -test suffix
             echo "env_suffix=-test" >> $GITHUB_OUTPUT
           else
+            # Fallback - no suffix
             echo "env_suffix=" >> $GITHUB_OUTPUT
           fi
 
@@ -130,7 +145,7 @@ jobs:
           fi
 
           if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then
@@ -142,7 +157,7 @@ jobs:
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-12.8.1-cudnn8-devel-ubuntu22.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu22.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then
@@ -198,7 +213,7 @@ jobs:
           SHA="${{ needs.build.outputs.git_sha }}"
           PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
 
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
             TAG="${PLATFORM}-test"
           else
             TAG="${PLATFORM}-latest"
@@ -234,7 +249,7 @@ jobs:
           "'
 
       - name: Verify allocator dev dependencies (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
         run: |
           echo "Testing allocator dev dependencies..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
@@ -245,7 +260,7 @@ jobs:
           "'
 
       - name: Run allocator tests (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
         run: |
           echo "Running allocator pytest tests..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests --ignore=tests/terraform -v --tb=short'
@@ -283,7 +298,7 @@ jobs:
           SHA="${{ needs.build.outputs.git_sha }}"
           PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
 
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
             TAG="${PLATFORM}-test"
           else
             TAG="${PLATFORM}-latest"
@@ -320,7 +335,7 @@ jobs:
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && echo \"uv version:\" && uv --version"
 
       - name: Verify client dev dependencies (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
         run: |
           echo "Testing client dev dependencies..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
@@ -331,7 +346,7 @@ jobs:
           "'
 
       - name: Run client tests (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test'
+        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
         run: |
           echo "Running client pytest tests..."
           docker run --rm --user client ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client && source /home/client/.venv/bin/activate && pytest tests -v --tb=short'

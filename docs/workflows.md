@@ -148,7 +148,15 @@ gh workflow run lablink-images.yml \
 
 ### Building Docker Images After Publishing
 
-After successfully publishing to PyPI, you must manually trigger Docker image builds to create production images with the new package version.
+**CRITICAL**: After successfully publishing to PyPI, you **MUST** manually trigger Docker image builds to create production images with the new package version. This is NOT automatic.
+
+**Why manual?** Production images should only be built with explicit version numbers to ensure traceability. Automatic builds use local code and `-test` suffix - they are NOT production images.
+
+**Step-by-Step Process:**
+
+1. **Publish packages to PyPI** (either via git tags or manual dispatch of `publish-pip.yml`)
+2. **Wait for publish workflow to complete** - Verify packages are on PyPI
+3. **Manually trigger Docker image build** using one of the methods below
 
 **Option 1: Using GitHub CLI** (recommended):
 ```bash
@@ -163,12 +171,22 @@ gh workflow run lablink-images.yml \
 1. Go to [Actions → Build and Push Docker Images](https://github.com/talmolab/lablink/actions/workflows/lablink-images.yml)
 2. Click "Run workflow"
 3. Select branch: `main`
-4. Set environment: `prod`
-5. Enter allocator version: `0.0.2a0`
-6. Enter client version: `0.0.7a0`
+4. **Set environment: `prod`** (required!)
+5. **Enter allocator version: `0.0.2a0`** (required!)
+6. **Enter client version: `0.0.7a0`** (required!)
 7. Click "Run workflow"
 
-This creates Docker images tagged with the specific package versions (see [Image Tagging Strategy](#image-tagging-strategy) below).
+**What happens:**
+- Pulls packages from PyPI with specified versions
+- Builds Docker images using production `Dockerfile`
+- Tags images with version numbers (e.g., `:0.0.2a0`, `:linux-amd64-0.0.2a0`)
+- Tags images with `:latest` for convenience
+- Verifies images work correctly
+- **No `-test` suffix** on production images
+
+**Common mistake**: Forgetting this step means your packages exist on PyPI but there are no corresponding Docker images, causing deployment failures.
+
+**Important Note**: Pushing to `main` branch will NOT create production images. It will create development images with `-test` suffix using local code, not published packages.
 
 ## Image Building Workflow
 
@@ -182,18 +200,173 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 
 - **Pull requests**: Build dev images with `-test` tag
 - **Push to `test` branch**: Build dev images with `-test` tag
-- **Push to `main`**: Build prod images from latest PyPI packages
-- **Repository dispatch** (from package publish): Build prod images with specific package version
-- **Manual dispatch**: Build with optional package version
+- **Push to `main`**: Build dev images with `-test` tag
+- **Manual dispatch with `environment=test`**: Build dev images with `-test` tag
+- **Manual dispatch with `environment=prod`**: Build production images from PyPI (REQUIRES version parameters)
+
+### Workflow Decision Logic
+
+The workflow automatically selects between development (`Dockerfile.dev`) and production (`Dockerfile`) builds based on the trigger type and inputs.
+
+**Key Principle**: Production images from PyPI are ONLY created via manual dispatch with `environment=prod` and explicit version numbers. All automatic builds (PR, push to test/main) use local code.
+
+#### Decision Flow Diagram
+
+```
+┌─────────────────────────────────────────────────┐
+│   How was the workflow triggered?              │
+└─────────────────────────────────────────────────┘
+                    │
+        ┌───────────┼─────────────┐
+        │           │             │
+   Pull Request   Push       Manual Dispatch
+                              (workflow_dispatch)
+        │           │             │
+        │      ┌────┴────┐        │
+        │      │         │        │
+        │    main      test       │
+        │   branch   branch       │
+        │      │         │        │
+        │      └────┬────┘        │
+        │           │        ┌────┴────┐
+        │           │        │         │
+        │           │   environment environment
+        │           │     = test      = prod
+        │           │        │           │
+        └─────┬─────┴────────┘           │
+              │                          │
+              ▼                          ▼
+       Use Dockerfile.dev         Use Dockerfile
+       (Local Code)               (PyPI Package)
+       + dev dependencies         + REQUIRES version
+       + -test suffix             + version tag
+       + runs tests               + no tests (already tested)
+```
+
+#### Complete Decision Table
+
+| Trigger Type | Branch/Ref | Environment Input | Dockerfile Used | Package Source | Version Required? | Tag Suffix | Dev Tests Run? | Use Case |
+|--------------|------------|-------------------|-----------------|----------------|-------------------|------------|----------------|----------|
+| **Pull Request** | any | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | CI validation |
+| **Push** | `test` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Staging/testing |
+| **Push** | `main` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Latest development |
+| **Manual Dispatch** | any | `test` | `Dockerfile.dev` | Local code | No | `-test` | Yes | Test specific changes |
+| **Manual Dispatch** | any | `prod` | `Dockerfile` | PyPI (explicit version) | **YES** | none | No | **Production releases** |
+
+#### Key Points
+
+- **Development builds** (`Dockerfile.dev`):
+  - Copy local source code into image
+  - Install with `uv sync --extra dev` from lockfile
+  - Include dev dependencies (pytest, ruff)
+  - Run verification tests in CI
+  - **Always** have `-test` suffix
+  - Fast iteration, reproducible via lockfile
+
+- **Production builds** (`Dockerfile`):
+  - Install packages from PyPI using `uv pip install`
+  - **ONLY** created via manual dispatch with `environment=prod`
+  - **REQUIRES** explicit `allocator_version` and `client_version`
+  - No dev dependencies (smaller image)
+  - No tests run (package already tested before publishing)
+  - Tagged with version number for traceability
+  - **No suffix** - clean version tags
+  - Directly traceable to specific package release
+
+- **Version Validation**:
+  - Manual dispatch with `environment=prod` **requires** both `allocator_version` and `client_version`
+  - Workflow fails with clear error if versions are missing
+  - Prevents untrackable production images
+
+#### Production Release Workflow
+
+**IMPORTANT**: Production Docker images must be built AFTER publishing packages to PyPI. This is a **manual two-step process**:
+
+**Step 1: Publish packages to PyPI**
+```bash
+# Create and push git tags
+git tag lablink-allocator-service_v0.0.2a0
+git tag lablink-client-service_v0.0.7a0
+git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
+
+# publish-pip.yml workflow automatically:
+#   - Runs tests
+#   - Publishes to PyPI
+#   - Displays manual Docker build command
+```
+
+**Step 2: Manually trigger Docker image build** (required)
+```bash
+# After packages are published, build production images
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
+
+**Critical**: Do NOT skip Step 2. Without it, your published packages won't have corresponding Docker images, and deployments will fail.
+
+#### Development/Testing Workflows
+
+**Automatic (no action needed):**
+```bash
+# Push to test branch → automatically builds dev images with -test suffix
+git push origin test
+
+# Push to main → automatically builds dev images with -test suffix
+git push origin main
+```
+
+**Manual testing:**
+```bash
+# Test specific changes without pushing
+gh workflow run lablink-images.yml -f environment=test
+```
+
+#### Common Mistakes
+
+**Forgetting to build Docker images after publishing packages**
+```bash
+# Published to PyPI but forgot Step 2
+git push origin lablink-allocator-service_v0.0.2a0
+# Result: Package exists but no Docker image with version tag
+```
+
+**Trying to build production images without versions**
+```bash
+gh workflow run lablink-images.yml -f environment=prod
+# Error: Production builds require both allocator_version and client_version
+```
+
+**Correct production release**
+```bash
+# 1. Publish packages
+git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
+
+# 2. Wait for publish-pip.yml to complete successfully
+
+# 3. Build Docker images with explicit versions
+gh workflow run lablink-images.yml \
+  -f environment=prod \
+  -f allocator_version=0.0.2a0 \
+  -f client_version=0.0.7a0
+```
 
 ### Smart Dockerfile Selection
 
-| Trigger | Dockerfile Used | Package Source | Installation Method | Virtual Environment |
-|---------|----------------|----------------|---------------------|---------------------|
-| PR / test branch | `Dockerfile.dev` | Local code (copied) | `uv venv` + editable install | `/home/client/.venv` (client), `/app/.venv` (allocator) |
-| Main branch | `Dockerfile` | PyPI (default version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
-| After package publish | `Dockerfile` | PyPI (specific version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
-| Manual with version | `Dockerfile` | PyPI (specified version) | `uv venv` + `uv pip install` | `/home/client/.venv` (client), `/app/.venv` (allocator) |
+The workflow uses different Dockerfiles depending on whether you're building for development/testing or production:
+
+| Trigger | Dockerfile Used | Package Source | Installation Method | Tests Run? | Suffix | Version Tagged? |
+|---------|----------------|----------------|---------------------|------------|--------|-----------------|
+| PR | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Push to `test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Push to `main` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Manual `environment=test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Manual `environment=prod` | `Dockerfile` | **PyPI (explicit version)** | `uv pip install` | No | none | **Yes** |
+
+**Key Distinction**:
+- All automatic builds = Development images with `-test` suffix
+- Manual production builds = Production images without suffix, with version tags
 
 ### Image Tagging Strategy
 
