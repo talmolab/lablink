@@ -496,6 +496,7 @@ allocator_image_tag = "latest"
 
 Runs after successful build, pulls and tests the allocator image:
 
+- **Image Selection**: Pulls using SHA-based tag (e.g., `:linux-amd64-<sha>-test`) to ensure exact image match and prevent race conditions from concurrent builds
 - **Virtual Environment**: Activates venv at `/app/.venv`
 - **Entry Points**: Verifies `main()` and `generate_init_sql.main()` are importable and callable
 - **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist and execute
@@ -506,6 +507,7 @@ Runs after successful build, pulls and tests the allocator image:
 
 Runs after successful build, pulls and tests the client image:
 
+- **Image Selection**: Pulls using SHA-based tag (e.g., `:linux-amd64-<sha>-test`) to ensure exact image match and prevent race conditions from concurrent builds
 - **Virtual Environment**: Activates venv at `/home/client/.venv`
 - **Entry Points**: Verifies `check_gpu.main()`, `subscribe.main()`, `update_inuse_status.main()` are importable and callable
 - **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist and execute
@@ -522,14 +524,14 @@ PR opened → lablink-images.yml triggered
      ├─ Build client dev image ✓
      └─ Push to ghcr.io ✓
   └─ Verify Allocator Job
-     ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-test
+     ├─ Pull ghcr.io/.../lablink-allocator-image:linux-amd64-abc1234-test
      ├─ Venv activated: /app/.venv ✓
      ├─ Entry points callable: main(), generate_init_sql.main() ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
      ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
      └─ Dev deps: pytest 8.4.2, ruff ✓
   └─ Verify Client Job
-     ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-test
+     ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-abc1234-test
      ├─ Venv activated: /home/client/.venv ✓
      ├─ Entry points callable: check_gpu.main(), subscribe.main(), update_inuse_status.main() ✓
      ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
