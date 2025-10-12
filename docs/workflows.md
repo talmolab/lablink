@@ -385,31 +385,33 @@ gh workflow run lablink-images.yml \
 Creates images tagged with:
 - `ghcr.io/talmolab/lablink-allocator-image:0.0.2a0` - **Version-specific tag**
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.0.2a0` - Platform + version
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest` - Latest for platform
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64` - Platform tag
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-<sha>` - Platform + git commit SHA
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6` - Metadata tag
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15` - Metadata tag
-- `ghcr.io/talmolab/lablink-allocator-image:latest` - Latest stable (convenience)
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>` - Git commit SHA
+- `ghcr.io/talmolab/lablink-allocator-image:latest` - Latest stable
 
 **Push to main branch (automatic):**
 ```bash
 git push origin main
 ```
 
-Creates development images with `-test` suffix (no version-specific tags):
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test`
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-<sha>-test`
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6-test`
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15-test`
+Creates images tagged with (no version-specific tags):
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest`
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64`
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>`
+- `ghcr.io/talmolab/lablink-allocator-image:latest`
+- Plus metadata tags
 
 **Pull requests / test branch (automatic):**
 ```bash
 git push origin test
 ```
 
-Creates same development images as main (with `-test` suffix):
+Creates images tagged with `-test` suffix:
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-test`
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-<sha>-test`
+- `ghcr.io/talmolab/lablink-allocator-image:<sha>-test`
 - Plus metadata tags with `-test` suffix
 
 #### Client Image Tags
@@ -425,22 +427,19 @@ gh workflow run lablink-images.yml \
 Creates images tagged with:
 - `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` - **Version-specific tag**
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.0.7a0` - Platform + version
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64` - Platform tag
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-<sha>` - Platform + git commit SHA
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-12.8.1-cudnn8-devel-ubuntu22.04` - CUDA metadata
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu22.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3` - Tool versions
-- `ghcr.io/talmolab/lablink-client-base-image:latest` - Latest stable (convenience)
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest` - Latest for platform
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04`
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3`
+- `ghcr.io/talmolab/lablink-client-base-image:<sha>` - Git commit SHA
+- `ghcr.io/talmolab/lablink-client-base-image:latest` - Latest stable
 
 **Push to main branch (automatic):**
 
-Creates development images with `-test` suffix (no version-specific tags):
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-test`
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-<sha>-test`
-- Plus metadata tags with `-test` suffix
+Creates same tags as manual trigger except without version-specific tags (`0.0.7a0`, `linux-amd64-0.0.7a0`)
 
 **Pull requests / test branch (automatic):**
 
-Creates same development images as main (with `-test` suffix)
+Creates same tags as main but with `-test` suffix
 
 #### Tag Usage in Terraform
 
@@ -464,12 +463,12 @@ allocator_image_tag = "latest"
 
 #### Summary Table
 
-| Trigger Type | Environment | Dockerfile | Version Tag? | Suffix | Use Case |
-|--------------|-------------|------------|--------------|--------|----------|
-| Manual w/ version | `prod` | Production | ✅ Yes | None | Production releases |
-| Push to main | `test` | Dev | ❌ No | `-test` | Latest development |
-| Push to test | `test` | Dev | ❌ No | `-test` | Staging/testing |
-| Pull request | `test` | Dev | ❌ No | `-test` | CI/CD validation |
+| Trigger Type | Environment | Version Tag? | Suffix | Use Case |
+|--------------|-------------|--------------|--------|----------|
+| Manual w/ version | `prod` | ✅ Yes | None | Production releases |
+| Push to main | `prod` | ❌ No | None | Latest development |
+| Push to test | `test` | ❌ No | `-test` | Staging/testing |
+| Pull request | `test` | ❌ No | `-test` | CI/CD validation |
 
 ### Workflow Jobs
 
