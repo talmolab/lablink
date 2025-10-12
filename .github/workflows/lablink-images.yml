@@ -213,11 +213,17 @@ jobs:
           SHA="${{ needs.build.outputs.git_sha }}"
           PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
 
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
-            TAG="${PLATFORM}-test"
+          # Determine ENV_SUFFIX (matches build job logic)
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            ENV_SUFFIX=""
+          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
+            ENV_SUFFIX="-test"
           else
-            TAG="${PLATFORM}-latest"
+            ENV_SUFFIX=""
           fi
+
+          # Use SHA tag for exact image match (prevents race conditions)
+          TAG="${PLATFORM}-${SHA}${ENV_SUFFIX}"
 
           IMAGE="ghcr.io/$REPO_OWNER/lablink-allocator-image:$TAG"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -298,11 +304,17 @@ jobs:
           SHA="${{ needs.build.outputs.git_sha }}"
           PLATFORM="${{ needs.build.outputs.sanitized_platform }}"
 
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
-            TAG="${PLATFORM}-test"
+          # Determine ENV_SUFFIX (matches build job logic)
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            ENV_SUFFIX=""
+          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
+            ENV_SUFFIX="-test"
           else
-            TAG="${PLATFORM}-latest"
+            ENV_SUFFIX=""
           fi
+
+          # Use SHA tag for exact image match (prevents race conditions)
+          TAG="${PLATFORM}-${SHA}${ENV_SUFFIX}"
 
           IMAGE="ghcr.io/$REPO_OWNER/lablink-client-base-image:$TAG"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
