@@ -4,13 +4,15 @@ Dynamic VM allocation system for computational research workflows. Deploy resear
 
 ## Quick Start
 
-Get running in 15 minutes: [Quickstart Guide](quickstart.md)
+**For Deployment**: Get running in 15 minutes using the [LabLink Template](https://github.com/talmolab/lablink-template)
 
 ```bash
-git clone https://github.com/talmolab/lablink.git
-cd lablink/lablink-infrastructure
+git clone https://github.com/talmolab/lablink-template.git
+cd lablink-template/lablink-infrastructure
 terraform init && terraform apply
 ```
+
+**For Development**: See the [Contributing Guide](contributing.md) to develop LabLink packages
 
 ## What is LabLink?
 
@@ -23,11 +25,11 @@ LabLink automatically provisions and manages cloud-based virtual machines for re
 
 ## Core Components
 
-**Allocator** - Web service managing VM requests and database
+**Allocator** - Web service managing VM requests and database (Python package + Docker image)
 
-**Client VMs** - EC2 instances running your research software
+**Client VMs** - EC2 instances running your research software (Python package + Docker image)
 
-**Infrastructure** - Terraform templates for AWS deployment
+**Infrastructure** - Terraform templates for AWS deployment ([lablink-template](https://github.com/talmolab/lablink-template))
 
 ## Documentation
 
