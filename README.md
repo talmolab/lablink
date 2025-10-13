@@ -64,9 +64,9 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 
 ### For Users
 
-**Using the LabLink infrastructure:**
+**Using LabLink:**
 
-This repository provides the packages and images. For deploying LabLink infrastructure, see the **[LabLink Template Repository](https://github.com/talmolab/lablink-template)** (coming soon).
+This repository provides the **Python packages and Docker images**. To deploy LabLink infrastructure (allocator EC2, DNS, etc.), use the **[LabLink Template Repository](https://github.com/talmolab/lablink-template)**.
 
 ### For Developers
 
@@ -110,13 +110,15 @@ lablink/
 ├── packages/
 │   ├── allocator/                   # Allocator Python package
 │   │   ├── src/lablink_allocator/   # Source code
+│   │   │   └── terraform/           # Client VM Terraform (part of package)
+│   │   ├── tests/                   # Unit tests including Terraform tests
 │   │   ├── Dockerfile               # Production image (from PyPI)
 │   │   └── Dockerfile.dev           # Development image (local code)
 │   └── client/                      # Client Python package
 │       ├── src/lablink_client/      # Source code
+│       ├── tests/                   # Unit tests
 │       ├── Dockerfile               # Production image (from PyPI)
 │       └── Dockerfile.dev           # Development image (local code)
-├── lablink-infrastructure/          # Infrastructure deployment (template)
 ├── docs/                            # MkDocs documentation
 └── .github/workflows/               # CI/CD workflows
     ├── ci.yml                       # Tests, linting, Docker builds
@@ -124,6 +126,8 @@ lablink/
     ├── lablink-images.yml           # Docker image builds & pushes
     └── docs.yml                     # Documentation deployment
 ```
+
+**Note**: Infrastructure deployment code (allocator EC2, DNS, etc.) has been moved to [lablink-template](https://github.com/talmolab/lablink-template).
 
 ---
 
