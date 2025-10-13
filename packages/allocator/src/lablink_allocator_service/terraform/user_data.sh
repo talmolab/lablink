@@ -136,6 +136,7 @@ mkdir -p /etc/config
 cat <<EOF > /etc/config/startup.sh
 ${startup_content}
 EOF
+chmod +x /etc/config/startup.sh
 
 
 echo ">> Starting container..."
