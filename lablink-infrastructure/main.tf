@@ -10,17 +10,9 @@ variable "config_path" {
   default     = "config/config.yaml"
 }
 
-variable "startup_script_path" {
-  description = "Path to the client startup script"
-  type        = string
-  default     = "config/start.sh"
-}
-
 # Read configuration from YAML file
 locals {
   config_file = yamldecode(file("${path.module}/${var.config_path}"))
-
-  startup_script_path = try(local.config_file.startup_script_path, "/home/client/start.sh")
 
   # DNS configuration from config.yaml
   dns_enabled           = try(local.config_file.dns.enabled, false)
@@ -167,7 +159,7 @@ resource "aws_instance" "lablink_allocator_server" {
     CONFIG_CONTENT        = file("${path.module}/${var.config_path}")
     DOMAIN_NAME           = local.fqdn
     SSL_STAGING           = local.ssl_staging
-    CLIENT_STARTUP_SCRIPT = file("${path.module}/${var.startup_script_path}")
+    CLIENT_STARTUP_SCRIPT = file("${path.module}/config/start.sh")
   })
 
   tags = {
