@@ -10,6 +10,7 @@ echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
 echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
+echo "  - Allocator URL: ${allocator_url}"
 
 VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
