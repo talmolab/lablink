@@ -146,7 +146,7 @@ RUN uv venv /home/${USERNAME}/.venv && \
 
 ENV START_SCRIPT=/docker_scripts/startup.sh
 
-ENTRYPOINT ["/bin/bash","-lc"]
+ENTRYPOINT ["/bin/bash", "-lc"]
 
 # Run the startup script
 CMD ["exec ${START_SCRIPT}"]
