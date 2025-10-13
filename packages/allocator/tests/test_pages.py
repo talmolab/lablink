@@ -71,7 +71,7 @@ def test_admin_delete_instance(client, admin_headers):
     response = client.get("/admin/instances/delete", headers=admin_headers)
     assert response.status_code == 200
     assert b"Run terraform destroy" in response.data
-    assert b"Extract and Download .slp Files" in response.data
+    assert b"Extract and Download Files" in response.data
 
 
 def test_admin_delete_instance_no_auth(client):
