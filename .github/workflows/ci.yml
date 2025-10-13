@@ -69,6 +69,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Configure AWS credentials for Terraform tests
+        if: matrix.needs-terraform
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
+
       - name: Setup Terraform
         if: matrix.needs-terraform
         uses: hashicorp/setup-terraform@v3
@@ -88,10 +95,6 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ matrix.working-directory }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ matrix.needs-terraform && 'fake-access-key' || '' }}
-          AWS_SECRET_ACCESS_KEY: ${{ matrix.needs-terraform && 'fake-secret-key' || '' }}
-          AWS_DEFAULT_REGION: ${{ matrix.needs-terraform && 'us-west-2' || '' }}
         run: ${{ matrix.test-command }}
 
   docker-build-test-allocator:
