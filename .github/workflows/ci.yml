@@ -88,6 +88,10 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ matrix.working-directory }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ matrix.needs-terraform && 'fake-access-key' || '' }}
+          AWS_SECRET_ACCESS_KEY: ${{ matrix.needs-terraform && 'fake-secret-key' || '' }}
+          AWS_DEFAULT_REGION: ${{ matrix.needs-terraform && 'us-west-2' || '' }}
         run: ${{ matrix.test-command }}
 
   docker-build-test-allocator:
