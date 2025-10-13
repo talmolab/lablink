@@ -133,14 +133,14 @@ The GitHub Actions workflow (`.github/workflows/lablink-allocator-terraform.yml`
 
 Deploy directly from your local machine using Terraform CLI.
 
-### Step 1: Clone Repository
+### Step 1: Clone Template Repository
 
 ```bash
-git clone https://github.com/talmolab/lablink.git
-cd lablink/lablink-infrastructure
+git clone https://github.com/talmolab/lablink-template.git
+cd lablink-template/lablink-infrastructure
 ```
 
-All infrastructure configurations are in the `lablink-infrastructure/` directory.
+All infrastructure configurations are in the `lablink-infrastructure/` directory within the template repository.
 
 ### Step 2: Configure AWS Credentials
 
