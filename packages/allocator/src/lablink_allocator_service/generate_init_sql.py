@@ -15,13 +15,9 @@ def main():
     template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
 
-DO $
-BEGIN
-   IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{DB_USER}') THEN
-      DROP USER {DB_USER};
-   END IF;
-END
-$;
+SET client_min_messages TO WARNING;
+DROP USER IF EXISTS {DB_USER};
+SET client_min_messages TO NOTICE;
 CREATE USER {DB_USER} WITH ENCRYPTED PASSWORD '{DB_PASSWORD}';
 ALTER USER {DB_USER} WITH LOGIN;
 CREATE DATABASE {DB_NAME} OWNER {DB_USER};
