@@ -272,7 +272,7 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    return render_template("delete-instances.html")
+    return render_template("delete-instances.html", extension=cfg.machine.extension)
 
 
 @app.route("/api/request_vm", methods=["POST"])
