@@ -147,7 +147,7 @@ RUN sudo UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
     sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client
 WORKDIR /home/${USERNAME}
 
-ENV START_SCRIPT=/docker_scripts/start.sh
+ENV START_SCRIPT=/docker_scripts/startup.sh
 
 ENTRYPOINT ["/bin/bash","-lc"]
 

@@ -144,7 +144,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN uv venv /home/${USERNAME}/.venv && \
     uv pip install --python=/home/${USERNAME}/.venv/bin/python lablink-client-service==${PACKAGE_VERSION}
 
-ENV START_SCRIPT=/docker_scripts/start.sh
+ENV START_SCRIPT=/docker_scripts/startup.sh
 
 ENTRYPOINT ["/bin/bash","-lc"]
 
