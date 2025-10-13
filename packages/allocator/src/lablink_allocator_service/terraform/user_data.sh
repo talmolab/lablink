@@ -152,6 +152,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
     -e AWS_REGION="${region}" \
+    -e START_SCRIPT="/docker_scripts/startup.sh" \
     --network host \
     "${image_name}"; then
     send_status "running"
