@@ -1,8 +1,8 @@
 # Infrastructure Repository Migration Plan
 
-> **STATUS UPDATE (October 2025)**: Migration to separate repository is **ACTIVE**.
-> The infrastructure code will be moved to `lablink-template` as a template repository.
-> This document tracks the migration progress and strategy.
+> **STATUS UPDATE (October 12, 2025)**: Migration to separate repository is **COMPLETE**.
+> Infrastructure code has been successfully moved to [lablink-template](https://github.com/talmolab/lablink-template).
+> This repository now focuses exclusively on Python packages, Docker images, and documentation.
 
 **Goal**: Separate infrastructure deployment code into a template repository that users can clone and customize for their own LabLink deployments.
 
@@ -242,13 +242,20 @@ ssl:
 - [ ] Add quickstart guide
 - [ ] Document environment-specific configs (dev/test/prod)
 
-### Phase 4: Main Repo Cleanup ✅ COMPLETED
+### Phase 4: Main Repo Cleanup ✅ COMPLETED (October 12, 2025)
 - [x] Remove `/lablink-allocator/` directory
 - [x] Remove `/lablink-client-base/` directory
 - [x] Remove `/terraform/` directory
+- [x] Remove `/lablink-infrastructure/` directory
+- [x] Remove infrastructure GitHub Actions workflows (3 files)
+  - [x] `lablink-allocator-terraform.yml`
+  - [x] `lablink-allocator-destroy.yml`
+  - [x] `client-vm-infrastructure-test.yml`
+- [x] Enable client VM Terraform tests in CI
 - [x] Update main repo README to point to template
 - [x] Update CLAUDE.md with new structure
 - [x] Update documentation to use packages/ directory structure
+- [x] Repository now focused exclusively on packages and images
 
 ### Phase 5: SLEAP Deployment
 - [ ] Create `talmolab/sleap-lablink` from template
