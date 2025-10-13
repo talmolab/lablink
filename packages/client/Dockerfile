@@ -144,9 +144,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN uv venv /home/${USERNAME}/.venv && \
     uv pip install --python=/home/${USERNAME}/.venv/bin/python lablink-client-service==${PACKAGE_VERSION}
 
-# Copy the startup script
-COPY start.sh /home/${USERNAME}/start.sh
-RUN sudo chmod +x /home/${USERNAME}/start.sh
+ENV START_SCRIPT=/docker_scripts/start.sh
+
+ENTRYPOINT ["/bin/bash","-lc"]
 
 # Run the startup script
-CMD ["/home/client/start.sh"]
+CMD ["exec ${START_SCRIPT}"]
