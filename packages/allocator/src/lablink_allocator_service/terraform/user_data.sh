@@ -134,7 +134,11 @@ fi
 
 echo ">> Creating config directory…"
 mkdir -p /etc/config
-printf '%s' "$startup_content" > /etc/config/startup.sh
+
+cat <<'EOF' > /etc/config/startup.sh
+${startup_content}
+EOF
+
 chmod +x /etc/config/startup.sh
 
 
