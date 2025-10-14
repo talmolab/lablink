@@ -159,7 +159,7 @@ resource "aws_instance" "lablink_allocator_server" {
     CONFIG_CONTENT        = file("${path.module}/${var.config_path}")
     DOMAIN_NAME           = local.fqdn
     SSL_STAGING           = local.ssl_staging
-    CLIENT_STARTUP_SCRIPT = file("${path.module}/config/start.sh")
+    CLIENT_STARTUP_SCRIPT = file("${path.module}/config/startup.sh")
   })
 
   tags = {
