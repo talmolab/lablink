@@ -135,8 +135,10 @@ This is the local development configuration used when developing the allocator p
 - `bucket_name`: S3 bucket for Terraform state
 
 The allocator uses `get_config()` which:
-1. First tries to load `/config/config.yaml` (mounted in Docker from infrastructure deployment)
-2. Falls back to the bundled `conf/config.yaml` for local development
+1. First tries to load `/config/config.yaml` (mounted in Docker from infrastructure deployment via template)
+2. Falls back to the bundled `conf/config.yaml` for local package development and testing
+
+**Note**: The bundled config is used when developing the allocator package itself, not for infrastructure deployment. For infrastructure deployment, configuration comes from the template repository.
 
 ### Client Configuration
 **Location**: `packages/client/src/lablink_client/conf/config.yaml`
@@ -546,7 +548,8 @@ Always set: `chmod 600 ~/lablink-key.pem`
 - Validate client VM Terraform configurations
 - Run `terraform plan` with fixture data
 - Test resource creation, variables, and outputs
-- No AWS credentials required (plan-only)
+- Uses AWS OIDC credentials for provider validation
+- Plan-only operation (no resources created)
 - Run in CI as part of unit tests
 
 ## Package Release Process
