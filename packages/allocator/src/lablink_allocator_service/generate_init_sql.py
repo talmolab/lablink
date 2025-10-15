@@ -15,6 +15,7 @@ def main():
     template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
 
+SET client_min_messages TO WARNING;
 DROP USER IF EXISTS {DB_USER};
 CREATE USER {DB_USER} WITH ENCRYPTED PASSWORD '{DB_PASSWORD}';
 ALTER USER {DB_USER} WITH LOGIN;
