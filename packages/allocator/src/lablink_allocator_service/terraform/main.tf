@@ -81,6 +81,8 @@ resource "aws_instance" "lablink_vm" {
     gpu_support                 = var.gpu_support
     cloud_init_output_log_group = var.cloud_init_output_log_group
     region                      = var.region
+    startup_content             = file("/config/start.sh")
+    startup_on_error            = var.startup_on_error
   })
 
   tags = {
