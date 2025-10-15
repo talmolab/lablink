@@ -51,6 +51,11 @@ def omega_config():
                 "email": "",
             },
             "bucket_name": "test-bucket",
+            "startup_script": {
+                "enabled": False,
+                "path": "",
+                "on_error": "continue",
+            },
         }
     )
 
