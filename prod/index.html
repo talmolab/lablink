@@ -1391,11 +1391,18 @@
 <h1 id="lablink">LabLink<a class="headerlink" href="#lablink" title="Permanent link">&para;</a></h1>
 <p>Dynamic VM allocation system for computational research workflows. Deploy research software to AWS in minutes.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<p>Get running in 15 minutes: <a href="quickstart/">Quickstart Guide</a></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>lablink/lablink-infrastructure
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>terraform<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>apply
+<p><strong>For Deployment</strong>: Deploy LabLink infrastructure to AWS in 15 minutes</p>
+<p>Use the <a href="https://github.com/talmolab/lablink-template">LabLink Template Repository</a> to deploy the allocator and client VMs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Clone the template repository</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink-template.git
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">cd</span><span class="w"> </span>lablink-template/lablink-infrastructure
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Deploy infrastructure (requires AWS credentials)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>terraform<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>apply
 </code></pre></div>
+<p>See the <a href="quickstart/">Quickstart Guide</a> for detailed deployment instructions.</p>
+<p><strong>For Development</strong>: Develop LabLink packages</p>
+<p>This repository contains the Python packages and Docker images. See the <a href="contributing/">Contributing Guide</a> to develop packages locally.</p>
 <h2 id="what-is-lablink">What is LabLink?<a class="headerlink" href="#what-is-lablink" title="Permanent link">&para;</a></h2>
 <p>LabLink automatically provisions and manages cloud-based virtual machines for research software. It handles:</p>
 <ul>
@@ -1405,9 +1412,9 @@
 <li><strong>Custom Software</strong> - Deploy any Docker image or GitHub repo</li>
 </ul>
 <h2 id="core-components">Core Components<a class="headerlink" href="#core-components" title="Permanent link">&para;</a></h2>
-<p><strong>Allocator</strong> - Web service managing VM requests and database</p>
-<p><strong>Client VMs</strong> - EC2 instances running your research software</p>
-<p><strong>Infrastructure</strong> - Terraform templates for AWS deployment</p>
+<p><strong>Allocator</strong> - Web service managing VM requests and database (Python package + Docker image)</p>
+<p><strong>Client VMs</strong> - EC2 instances running your research software (Python package + Docker image)</p>
+<p><strong>Infrastructure</strong> - Terraform templates for AWS deployment (<a href="https://github.com/talmolab/lablink-template">lablink-template</a>)</p>
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="prerequisites/">Prerequisites</a> - AWS account setup</li>

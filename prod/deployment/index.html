@@ -807,9 +807,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#step-1-clone-repository" class="md-nav__link">
+  <a href="#step-1-clone-template-repository" class="md-nav__link">
     <span class="md-ellipsis">
-      Step 1: Clone Repository
+      Step 1: Clone Template Repository
     </span>
   </a>
   
@@ -1784,9 +1784,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#step-1-clone-repository" class="md-nav__link">
+  <a href="#step-1-clone-template-repository" class="md-nav__link">
     <span class="md-ellipsis">
-      Step 1: Clone Repository
+      Step 1: Clone Template Repository
     </span>
   </a>
   
@@ -2269,11 +2269,11 @@ Production deployments use pinned image tags for reproducibility and require exp
 <p><strong>Password Injection Step</strong>: Before Terraform runs, the workflow finds the config file and uses <code>sed</code> to replace <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> with values from GitHub secrets. This ensures passwords never appear in Terraform logs while maintaining secure configuration.</p>
 <h2 id="method-2-manual-terraform-deployment">Method 2: Manual Terraform Deployment<a class="headerlink" href="#method-2-manual-terraform-deployment" title="Permanent link">&para;</a></h2>
 <p>Deploy directly from your local machine using Terraform CLI.</p>
-<h3 id="step-1-clone-repository">Step 1: Clone Repository<a class="headerlink" href="#step-1-clone-repository" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>lablink/lablink-infrastructure
+<h3 id="step-1-clone-template-repository">Step 1: Clone Template Repository<a class="headerlink" href="#step-1-clone-template-repository" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink-template.git
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-template/lablink-infrastructure
 </code></pre></div>
-<p>All infrastructure configurations are in the <code>lablink-infrastructure/</code> directory.</p>
+<p>All infrastructure configurations are in the <code>lablink-infrastructure/</code> directory within the template repository.</p>
 <h3 id="step-2-configure-aws-credentials">Step 2: Configure AWS Credentials<a class="headerlink" href="#step-2-configure-aws-credentials" title="Permanent link">&para;</a></h3>
 <p><strong>Option A: AWS CLI Profiles</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-profile
