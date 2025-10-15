@@ -39,27 +39,27 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
 
     # Check if file exists
     if not path.exists():
-        return False, f"✗ Config file not found: {config_path}"
+        return False, f"[FAIL] Config file not found: {config_path}"
 
     if not path.is_file():
-        return False, f"✗ Config path is not a file: {config_path}"
+        return False, f"[FAIL] Config path is not a file: {config_path}"
 
     # Require config.yaml filename for Hydra schema matching
     if path.name != "config.yaml":
         return False, (
-            f"✗ Config file must be named 'config.yaml'\n"
-            f"  Found: {path.name}\n"
-            f"  Rename your file to enable strict schema validation"
+            f"[FAIL] Config file must be named 'config.yaml'\n"
+            f"       Found: {path.name}\n"
+            f"       Rename your file to enable strict schema validation"
         )
 
     try:
         # Use get_config() with explicit path - it validates automatically
         get_config(config_path=str(path))
-        return True, "✓ Config validation passed"
+        return True, "[PASS] Config validation passed"
 
     except ConfigCompositionException as e:
         # This is the error from your Docker logs - extract the key info
-        error_msg = "✗ Config validation failed: Error merging config with schema\n"
+        error_msg = "[FAIL] Config validation failed: Error merging config with schema\n"
         error_str = str(e)
 
         # Try to extract the key that caused the problem
@@ -68,35 +68,37 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
             key_start = error_str.find("Key '") + 5
             key_end = error_str.find("'", key_start)
             bad_key = error_str[key_start:key_end]
-            error_msg += f"  Unknown key: '{bad_key}'\n"
-            error_msg += "  This key is not defined in the Config schema"
+            error_msg += f"       Unknown key: '{bad_key}'\n"
+            error_msg += "       This key is not defined in the Config schema\n"
         else:
-            error_msg += f"  {error_str}"
+            error_msg += f"       {error_str}\n"
 
         return False, error_msg
 
     except ConfigKeyError as e:
-        error_msg = "✗ Config validation failed: Unknown configuration key\n"
-        error_msg += f"  Key '{e.key}' not found in schema"
+        error_msg = "[FAIL] Config validation failed: Unknown configuration key\n"
+        error_msg += f"       Key '{e.key}' not found in schema"
         if hasattr(e, "full_key") and e.full_key:
-            error_msg += f"\n  Full key path: {e.full_key}"
+            error_msg += f"\n       Full key path: {e.full_key}"
         if hasattr(e, "object_type") and e.object_type:
             type_name = (
                 e.object_type.__name__
                 if hasattr(e.object_type, "__name__")
                 else str(e.object_type)
             )
-            error_msg += f"\n  Expected in schema: {type_name}"
+            error_msg += f"\n       Expected in schema: {type_name}"
+        error_msg += "\n"
         return False, error_msg
 
     except ValidationError as e:
-        error_msg = "✗ Config validation failed: Schema validation error\n"
-        error_msg += f"  {str(e)}"
+        error_msg = "[FAIL] Config validation failed: Schema validation error\n"
+        error_msg += f"       {str(e)}\n"
         return False, error_msg
 
     except Exception as e:
-        error_msg = f"✗ Config validation failed: {type(e).__name__}\n"
-        error_msg += f"  {str(e)}"
+        logger.exception("Unexpected error during config validation")
+        error_msg = f"[FAIL] Config validation failed: {type(e).__name__}\n"
+        error_msg += f"       {str(e)}\n"
         return False, error_msg
 
 

@@ -11,7 +11,7 @@ def test_validate_valid_config(valid_config_dict, write_config_file):
     is_valid, message = validate_config(config_path)
 
     assert is_valid is True
-    assert "✓" in message
+    assert "[PASS]" in message
     assert "passed" in message.lower()
 
 
@@ -22,7 +22,7 @@ def test_validate_invalid_config_unknown_key(invalid_config_dict, write_config_f
     is_valid, message = validate_config(config_path)
 
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
     assert "failed" in message.lower()
     # Should mention the unknown key
     assert "unknown" in message.lower() or "schema" in message.lower()
@@ -56,7 +56,7 @@ def test_validate_invalid_yaml_syntax(tmp_path):
     is_valid, message = validate_config(str(invalid_yaml_path))
 
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
 
 
 def test_validate_config_with_allocator_image_tag(valid_config_dict, write_config_file):
@@ -69,7 +69,7 @@ def test_validate_config_with_allocator_image_tag(valid_config_dict, write_confi
     is_valid, message = validate_config(config_path)
 
     assert is_valid is True
-    assert "✓" in message
+    assert "[PASS]" in message
 
 
 def test_unknown_top_level_key_behavior(
@@ -90,7 +90,7 @@ def test_unknown_top_level_key_behavior(
 
     # Validation should FAIL for unknown keys (Hydra catches them)
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
     assert "schema" in message.lower() or "merging" in message.lower()
 
 
@@ -112,7 +112,7 @@ def test_unknown_nested_key_behavior(
 
     # Validation should FAIL for unknown nested keys (Hydra catches them)
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
     assert "schema" in message.lower() or "merging" in message.lower()
 
 
@@ -138,7 +138,7 @@ def test_type_mismatch_validation_error(valid_config_dict, write_config_file):
 
     # This should fail validation
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
     # Could be ValidationError or ConfigCompositionException
     assert "failed" in message.lower()
 
@@ -157,6 +157,6 @@ def test_generic_exception_handling(monkeypatch, valid_config_dict, write_config
     is_valid, message = validate_config(config_path)
 
     assert is_valid is False
-    assert "✗" in message
+    assert "[FAIL]" in message
     assert "RuntimeError" in message
     assert "unexpected error" in message.lower()
