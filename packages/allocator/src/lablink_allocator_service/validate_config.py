@@ -59,7 +59,9 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
 
     except ConfigCompositionException as e:
         # This is the error from your Docker logs - extract the key info
-        error_msg = "[FAIL] Config validation failed: Error merging config with schema\n"
+        error_msg = (
+            "[FAIL] Config validation failed: Error merging config with schema\n"
+        )
         error_str = str(e)
 
         # Try to extract the key that caused the problem
