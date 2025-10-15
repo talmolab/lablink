@@ -42,12 +42,12 @@
     <form id="extract-form">
       <div class="d-grid mb-3">
         <button id="extract-btn" type="submit" class="btn btn-primary">
-          Extract and Download .slp Files
+          Extract and Download {{ extension }} Files
         </button>
       </div>
       <div id="extract-loading" class="text-muted text-center d-none">
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-        Extracting .slp files from VMs... please wait.
+        Extracting {{ extension }} files from VMs... please wait.
       </div>
       <div id="extract-success" class="alert alert-success py-2 px-3 mt-3 d-none mx-auto text-center" role="alert" style="max-width: 400px;">
         Download complete.
@@ -139,7 +139,7 @@
         extractError.classList.remove("d-none");
       } finally {
         extractBtn.disabled = false;
-        extractBtn.innerText = "Extract and Download .slp Files";
+        extractBtn.innerText = "Extract and Download Files";
         extractBtn.classList.remove("disabled");
         destroyBtn.disabled = false;
         destroyBtn.classList.remove("disabled");
