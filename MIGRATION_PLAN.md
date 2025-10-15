@@ -1,8 +1,8 @@
 # Infrastructure Repository Migration Plan
 
-> **STATUS UPDATE (October 2025)**: Migration to separate repository is **ACTIVE**.
-> The infrastructure code will be moved to `lablink-template` as a template repository.
-> This document tracks the migration progress and strategy.
+> **STATUS UPDATE (October 12, 2025)**: Migration to separate repository is **COMPLETE**.
+> Infrastructure code has been successfully moved to [lablink-template](https://github.com/talmolab/lablink-template).
+> This repository now focuses exclusively on Python packages, Docker images, and documentation.
 
 **Goal**: Separate infrastructure deployment code into a template repository that users can clone and customize for their own LabLink deployments.
 
@@ -220,14 +220,13 @@ ssl:
 - [x] Implement password secret injection via GitHub Actions
 - [x] Remove old directory references (`lablink-allocator`, `lablink-allocator-service`) from workflows
 - [x] Update workflows to always use `config/config.yaml` path
-- [ ] Create `talmolab/lablink-template` repository
-- [ ] Mark as template repository in GitHub settings
+- [x] Create `talmolab/lablink-template` repository
+- [x] Mark as template repository in GitHub settings
 - [ ] Set up branch protection rules
 - [ ] Set repository permissions (read-only for external users)
-- [ ] Add `AWS_ROLE_ARN` secret to template repository
-- [ ] Update IAM role trust policy to include template repository
-- [ ] Copy `lablink-infrastructure/` contents to template root
-- [ ] Move deployment workflows to template
+- [x] Add `AWS_ROLE_ARN` secret to template repository
+- [x] Update IAM role trust policy to include template repository
+- [x] Move deployment workflows to template
 - [ ] Create comprehensive README for template users
 - [ ] Add configuration examples and templates
 - [ ] Document all required secrets and variables
@@ -242,18 +241,25 @@ ssl:
 - [ ] Add quickstart guide
 - [ ] Document environment-specific configs (dev/test/prod)
 
-### Phase 4: Main Repo Cleanup ✅ COMPLETED
+### Phase 4: Main Repo Cleanup ✅ COMPLETED (October 12, 2025)
 - [x] Remove `/lablink-allocator/` directory
 - [x] Remove `/lablink-client-base/` directory
 - [x] Remove `/terraform/` directory
+- [x] Remove `/lablink-infrastructure/` directory
+- [x] Remove infrastructure GitHub Actions workflows (3 files)
+  - [x] `lablink-allocator-terraform.yml`
+  - [x] `lablink-allocator-destroy.yml`
+  - [x] `client-vm-infrastructure-test.yml`
+- [x] Enable client VM Terraform tests in CI
 - [x] Update main repo README to point to template
 - [x] Update CLAUDE.md with new structure
 - [x] Update documentation to use packages/ directory structure
+- [x] Repository now focused exclusively on packages and images
 
 ### Phase 5: SLEAP Deployment
-- [ ] Create `talmolab/sleap-lablink` from template
-- [ ] Add `AWS_ROLE_ARN` secret to sleap-lablink repository
-- [ ] Verify IAM role trust policy includes sleap-lablink (already done)
+- [x] Create `talmolab/sleap-lablink` from template
+- [x] Add `AWS_ROLE_ARN` secret to sleap-lablink repository
+- [x] Verify IAM role trust policy includes sleap-lablink (already done)
 - [ ] Configure for SLEAP-specific settings
 - [ ] Set up DNS (lablink.sleap.ai or similar)
 - [ ] Deploy and test

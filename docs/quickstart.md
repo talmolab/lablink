@@ -8,11 +8,11 @@ Get LabLink running in 15 minutes.
 - **AWS CLI** configured locally ([setup guide](prerequisites.md#2-aws-cli))
 - **Terraform** installed ([setup guide](prerequisites.md#3-terraform))
 
-## Step 1: Clone Repository
+## Step 1: Clone Template Repository
 
 ```bash
-git clone https://github.com/talmolab/lablink.git
-cd lablink/lablink-infrastructure
+git clone https://github.com/talmolab/lablink-template.git
+cd lablink-template/lablink-infrastructure
 ```
 
 ## Step 2: Configure Settings

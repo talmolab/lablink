@@ -12,22 +12,14 @@ This file provides context and guidance for Claude (or other AI assistants) work
 lablink/
 ├── .github/
 │   └── workflows/              # GitHub Actions CI/CD
-│       ├── ci.yml              # Unit tests and linting
+│       ├── ci.yml              # Unit tests, linting, Terraform tests
 │       ├── docs.yml            # Documentation deployment
 │       ├── lablink-images.yml  # Docker image building
-│       └── lablink-allocator-terraform.yml  # Infrastructure deployment
+│       └── publish-pip.yml     # PyPI package publishing
 ├── docs/                       # MkDocs documentation
 │   ├── *.md                    # Documentation pages
 │   ├── scripts/                # Doc generation scripts
 │   └── assets/                 # Images, diagrams
-├── lablink-infrastructure/     # Infrastructure deployment (PRODUCTION CONFIG)
-│   ├── main.tf                 # Allocator EC2, DNS, EIP, Lambda
-│   ├── user_data.sh            # EC2 initialization script
-│   ├── lambda_function.py      # CloudWatch log processor
-│   ├── backend-test.hcl        # S3 backend for test env
-│   ├── backend-prod.hcl        # S3 backend for prod env
-│   └── config/
-│       └── config.yaml         # Production configuration
 ├── packages/                   # Python packages (monorepo)
 │   ├── allocator/              # Allocator service package
 │   │   ├── src/lablink_allocator/
@@ -37,11 +29,16 @@ lablink/
 │   │   │   ├── conf/
 │   │   │   │   ├── structured_config.py  # Hydra config schema
 │   │   │   │   └── config.yaml # Local dev fallback config
-│   │   │   ├── terraform/      # Terraform for client VMs
-│   │   │   │   └── main.tf     # Client VM provisioning
+│   │   │   ├── terraform/      # Terraform for client VMs (part of package)
+│   │   │   │   ├── main.tf     # Client VM provisioning
+│   │   │   │   ├── variables.tf
+│   │   │   │   └── outputs.tf
 │   │   │   └── utils/          # Utility modules
 │   │   ├── tests/              # Unit tests
-│   │   ├── Dockerfile          # Allocator Docker image
+│   │   │   ├── terraform/      # Client VM Terraform tests
+│   │   │   └── *.py            # Other unit tests
+│   │   ├── Dockerfile          # Allocator Docker image (production)
+│   │   ├── Dockerfile.dev      # Allocator Docker image (development)
 │   │   └── pyproject.toml      # Package metadata
 │   └── client/                 # Client service package
 │       ├── src/lablink_client/
@@ -50,7 +47,8 @@ lablink/
 │       │   ├── update_inuse_status.py  # Status updates (HTTPS support)
 │       │   └── conf/           # Configuration
 │       ├── tests/              # Unit tests
-│       ├── Dockerfile          # Client Docker image
+│       ├── Dockerfile          # Client Docker image (production)
+│       ├── Dockerfile.dev      # Client Docker image (development)
 │       ├── start.sh            # Container entry point
 │       └── pyproject.toml      # Package metadata
 ├── mkdocs.yml                  # Documentation configuration
@@ -60,7 +58,7 @@ lablink/
 └── MIGRATION_PLAN.md           # Migration status and history
 ```
 
-**Note**: Infrastructure deployment has been separated into the [lablink-template](https://github.com/talmolab/lablink-template) repository. This repository contains the Python packages and Docker images only.
+**Note**: Allocator infrastructure deployment (EC2, DNS, EIP, Lambda, etc.) has been moved to the [lablink-template](https://github.com/talmolab/lablink-template) repository. This repository contains only the Python packages and Docker images. The allocator package includes client VM Terraform as part of its core functionality.
 
 ## Technology Stack
 
@@ -118,24 +116,29 @@ lablink/
 
 Configuration uses **Hydra** with structured configs.
 
-### Production Configuration
-**Location**: `lablink-infrastructure/config/config.yaml` (primary source for deployments)
+### Infrastructure Deployment Configuration
+**Location**: [lablink-template](https://github.com/talmolab/lablink-template) repository
+
+The template repository contains production configuration for deploying the allocator infrastructure (EC2, DNS, SSL, etc.).
+
+### Package Development Configuration
+**Location**: `packages/allocator/src/lablink_allocator/conf/config.yaml`
+
+This is the local development configuration used when developing the allocator package.
 
 **Key sections**:
 - `db`: PostgreSQL connection settings
 - `machine`: Client VM specifications (instance type, AMI ID, Docker image, repository)
 - `app`: Admin credentials, AWS region
-- `dns`: DNS configuration (enabled, terraform_managed, domain, zone_id, pattern, etc.)
-- `eip`: Elastic IP strategy (persistent or dynamic)
-- `ssl`: SSL provider configuration (letsencrypt, cloudflare, or none)
+- `dns`: DNS configuration
+- `ssl`: SSL provider configuration
 - `bucket_name`: S3 bucket for Terraform state
 
-### Local Development Configuration
-**Location**: `packages/allocator/src/lablink_allocator/conf/config.yaml` (fallback for local dev)
-
 The allocator uses `get_config()` which:
-1. First tries to load `/config/config.yaml` (mounted in Docker from infrastructure config)
-2. Falls back to the bundled `conf/config.yaml` for local development
+1. First tries to load `/config/config.yaml` (mounted in Docker from infrastructure deployment via template)
+2. Falls back to the bundled `conf/config.yaml` for local package development and testing
+
+**Note**: The bundled config is used when developing the allocator package itself, not for infrastructure deployment. For infrastructure deployment, configuration comes from the template repository.
 
 ### Client Configuration
 **Location**: `packages/client/src/lablink_client/conf/config.yaml`
@@ -315,6 +318,9 @@ These are automatically installed when the package is installed and available in
 - **Jobs**:
   - **Lint**: Run `ruff check` on both packages
   - **Test**: Run `pytest` with coverage on both packages
+    - Includes Terraform plan tests for client VM creation
+    - Terraform installed automatically for allocator tests
+    - Backend config removed for testing (no S3 required)
   - **Docker Build Test** (allocator only):
     - Build `Dockerfile.dev` image
     - Verify venv activation and paths
@@ -531,18 +537,22 @@ Always set: `chmod 600 ~/lablink-key.pem`
 - Mock external dependencies (AWS, database)
 - Test individual functions in isolation
 - Run in CI on every PR
+- Includes Terraform plan tests for client VM creation
 
 ### Integration Tests
 - Test component interactions
 - Require actual database (Docker)
 - Run manually or in dedicated CI job
 
-### E2E Tests
-- Test full workflow (allocator → client VM creation)
-- Run in `client-vm-infrastructure-test.yml`
-- Manual trigger or scheduled
+### Terraform Tests
+- Validate client VM Terraform configurations
+- Run `terraform plan` with fixture data
+- Test resource creation, variables, and outputs
+- Uses AWS OIDC credentials for provider validation
+- Plan-only operation (no resources created)
+- Run in CI as part of unit tests
 
-## Deployment Process
+## Package Release Process
 
 ### Image Building
 1. Push to branch → GitHub Actions builds images
@@ -550,11 +560,9 @@ Always set: `chmod 600 ~/lablink-key.pem`
 3. Push to ghcr.io
 
 ### Infrastructure Deployment
-1. Manual: `terraform apply` in `lablink-infrastructure/`
-2. GitHub Actions: Workflow dispatch or push to `test` branch
-3. Environments determined by branch or manual selection
+See the [lablink-template](https://github.com/talmolab/lablink-template) repository for infrastructure deployment documentation.
 
-### Versioning
+### Package Versioning
 - Use semantic versioning: `v1.0.0`, `v1.1.0`
 - Tag releases in GitHub
 - Pin production deployments to specific tags
@@ -622,19 +630,22 @@ mkdocs serve
 ## Important Files
 
 ### Configuration
-- `lablink-infrastructure/config/config.yaml`: Main allocator config
-- `packages/client/src/lablink_client_service/conf/config.yaml`: Client config
+- `packages/allocator/src/lablink_allocator_service/conf/config.yaml`: Allocator package config (local dev)
+- `packages/client/src/lablink_client_service/conf/config.yaml`: Client package config
 
 ### Entry Points
 - `packages/allocator/src/lablink_allocator_service/main.py`: Allocator Flask app
 - `packages/client/src/lablink_client_service/subscribe.py`: Client subscription service
 
 ### Infrastructure
-- `lablink-infrastructure/main.tf`: Allocator EC2 provisioning
-- `packages/allocator/src/lablink_allocator_service/terraform/main.tf`: Client VM provisioning
+- `packages/allocator/src/lablink_allocator_service/terraform/main.tf`: Client VM Terraform (part of allocator package)
+- For allocator infrastructure deployment, see [lablink-template](https://github.com/talmolab/lablink-template)
 
 ### CI/CD
-- `.github/workflows/`: All GitHub Actions workflows
+- `.github/workflows/ci.yml`: Tests, linting, Docker builds
+- `.github/workflows/lablink-images.yml`: Docker image publishing
+- `.github/workflows/publish-pip.yml`: PyPI package publishing
+- `.github/workflows/docs.yml`: Documentation deployment
 
 ## Resources
 
