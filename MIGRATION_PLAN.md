@@ -220,14 +220,13 @@ ssl:
 - [x] Implement password secret injection via GitHub Actions
 - [x] Remove old directory references (`lablink-allocator`, `lablink-allocator-service`) from workflows
 - [x] Update workflows to always use `config/config.yaml` path
-- [ ] Create `talmolab/lablink-template` repository
-- [ ] Mark as template repository in GitHub settings
+- [x] Create `talmolab/lablink-template` repository
+- [x] Mark as template repository in GitHub settings
 - [ ] Set up branch protection rules
 - [ ] Set repository permissions (read-only for external users)
-- [ ] Add `AWS_ROLE_ARN` secret to template repository
-- [ ] Update IAM role trust policy to include template repository
-- [ ] Copy `lablink-infrastructure/` contents to template root
-- [ ] Move deployment workflows to template
+- [x] Add `AWS_ROLE_ARN` secret to template repository
+- [x] Update IAM role trust policy to include template repository
+- [x] Move deployment workflows to template
 - [ ] Create comprehensive README for template users
 - [ ] Add configuration examples and templates
 - [ ] Document all required secrets and variables
@@ -258,9 +257,9 @@ ssl:
 - [x] Repository now focused exclusively on packages and images
 
 ### Phase 5: SLEAP Deployment
-- [ ] Create `talmolab/sleap-lablink` from template
-- [ ] Add `AWS_ROLE_ARN` secret to sleap-lablink repository
-- [ ] Verify IAM role trust policy includes sleap-lablink (already done)
+- [x] Create `talmolab/sleap-lablink` from template
+- [x] Add `AWS_ROLE_ARN` secret to sleap-lablink repository
+- [x] Verify IAM role trust policy includes sleap-lablink (already done)
 - [ ] Configure for SLEAP-specific settings
 - [ ] Set up DNS (lablink.sleap.ai or similar)
 - [ ] Deploy and test
