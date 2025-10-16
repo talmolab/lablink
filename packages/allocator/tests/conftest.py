@@ -170,6 +170,11 @@ def valid_config_dict():
             "image_tag": "linux-amd64-latest-test",
         },
         "bucket_name": "tf-state-lablink-allocator-bucket",
+        "startup_script": {
+            "enabled": False,
+            "path": "",
+            "on_error": "continue",
+        },
     }
 
 
