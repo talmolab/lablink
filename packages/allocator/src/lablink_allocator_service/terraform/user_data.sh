@@ -134,11 +134,11 @@ fi
 echo "> Creating config directory…"
 sudo mkdir -p /etc/config
 
-cat <<'EOF' > /etc/config/startup.sh
+cat <<'EOF' > /etc/config/custom-startup.sh
 ${startup_content}
 EOF
 
-chmod +x /etc/config/startup.sh
+chmod +x /etc/config/custom-startup.sh
 
 
 echo ">> Starting container..."

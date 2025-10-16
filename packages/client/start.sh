@@ -27,9 +27,9 @@ else
 fi
 
 # Run the custom startup script if it exists
-if [ -f "/docker_scripts/startup.sh"]; then
+if [ -f "/docker_scripts/custom-startup.sh" ]; then
   echo "Running custom startup script..."
-  bash /docker_scripts/startup.sh
+  bash /docker_scripts/custom-startup.sh
   rc=$?
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script exited with code $rc"
