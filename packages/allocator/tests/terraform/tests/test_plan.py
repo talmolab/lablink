@@ -171,11 +171,7 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Get the first instance to check its user_data
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
-    user_data_base64 = instances[first_instance_addr]["values"]["user_data"]
-
-    # Decode the base64 user_data
-    import base64
-    user_data_decoded = base64.b64decode(user_data_base64).decode("utf-8")
+    user_data_content = instances[first_instance_addr]["values"]["user_data"]
 
     # Read the expected custom-startup.sh content from the fixture
     expected_script_path = fixture_dir / "custom-startup.sh"
@@ -183,4 +179,4 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Verify that the user_data contains the custom-startup.sh content
     # The user_data.sh template wraps the custom script in a heredoc
-    assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_decoded
+    assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_content
