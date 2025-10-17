@@ -385,3 +385,27 @@ jobs:
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'
+
+      - name: Verify custom-startup.sh execution
+        run: |
+          echo "Testing custom-startup.sh execution..."
+          CUSTOM_STARTUP_SCRIPT_CONTENT="echo CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY"
+          TEMP_SCRIPT_FILE=$(mktemp)
+          echo "$CUSTOM_STARTUP_SCRIPT_CONTENT" > "$TEMP_SCRIPT_FILE"
+          chmod +x "$TEMP_SCRIPT_FILE"
+
+          # Run the client container, mounting the temporary custom-startup.sh
+          # The client's start.sh expects custom-startup.sh at /docker_scripts/custom-startup.sh
+          # We override the entrypoint to ensure start.sh is executed, which in turn runs custom-startup.sh
+          OUTPUT=$(docker run --rm -v "$TEMP_SCRIPT_FILE":/docker_scripts/custom-startup.sh ${{ steps.get_tag.outputs.image }} bash -c "/usr/local/bin/start.sh")
+
+          echo "Docker container output:"
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY"; then
+            echo "✓ custom-startup.sh executed successfully!"
+          else
+            echo "custom-startup.sh did NOT execute or its output was not found."
+            exit 1
+          fi
+          rm "$TEMP_SCRIPT_FILE"
