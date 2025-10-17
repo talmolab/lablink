@@ -397,7 +397,7 @@ jobs:
           # Run the client container, mounting the temporary custom-startup.sh
           # The client's start.sh expects custom-startup.sh at /docker_scripts/custom-startup.sh
           # We override the entrypoint to ensure start.sh is executed, which in turn runs custom-startup.sh
-          OUTPUT=$(docker run --rm -u client -v "$TEMP_SCRIPT_FILE":/docker_scripts/custom-startup.sh:ro ${{ steps.get_tag.outputs.image }} bash -c "bash /docker_scripts/custom-startup.sh")
+          OUTPUT=$(docker run --rm -u client -v "$TEMP_SCRIPT_FILE":/docker_scripts/custom-startup.sh:ro ${{ steps.get_tag.outputs.image }} bash -c "sudo bash /docker_scripts/custom-startup.sh")
 
           echo "Docker container output:"
           echo "$OUTPUT"
