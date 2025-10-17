@@ -55,6 +55,7 @@ def test_variables(plan):
     )
     assert plan["variables"]["region"]["value"] == "us-west-2"
     assert plan["variables"]["ssh_user"]["value"] == "ubuntu"
+    assert plan["variables"]["custom_startup_script_path"]["value"] == "../../../tests/terraform/fixtures/custom-startup.sh"
 
 
 def _resource_map(plan):
@@ -179,4 +180,5 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Verify that the user_data contains the custom-startup.sh content
     # The user_data.sh template wraps the custom script in a heredoc
+    print(user_data_content)
     assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_content
