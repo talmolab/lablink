@@ -29,6 +29,7 @@ fi
 # Run the custom startup script if it exists
 if [ -f "/docker_scripts/custom-startup.sh" ]; then
   echo "Running custom startup script..."
+  chmod +x /docker_scripts/custom-startup.sh
   bash /docker_scripts/custom-startup.sh
   rc=$?
   if [ $rc -ne 0 ]; then
