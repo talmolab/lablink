@@ -75,3 +75,9 @@ variable "startup_on_error" {
   description = "Whether to abort or continue on error of the custom startup script"
   default     = "continue"
 }
+
+variable "custom_startup_script_path" {
+  type        = string
+  description = "Path to a custom startup script to be executed on instance launch within EC2 Instance"
+  default     = "/config/custom-startup.sh"
+}

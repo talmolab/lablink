@@ -155,5 +155,5 @@ locals {
 
   min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds...) : 0
 
-  startup_content = fileexists("/config/custom-startup.sh") ? file("/config/custom-startup.sh") : ""
+  startup_content = fileexists(var.custom_startup_script_path) ? file(var.custom_startup_script_path) : ""
 }
