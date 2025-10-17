@@ -168,11 +168,13 @@ Located in `packages/client/tests/`:
 
 ### Terraform Tests
 
-Located in `packages/allocator/src/lablink_allocator/terraform/tests/`:
+Located in `packages/allocator/tests/terraform/tests/`:
 
 | Test File | Purpose |
 |-----------|---------|
 | `test_plan.py` | Test Terraform plan validation |
+
+The Terraform tests use a local backend for testing purposes, which is configured by passing `-backend=false` to the `terraform init` command. This avoids the need for a configured S3 backend during testing.
 
 ## Feature Testing
 

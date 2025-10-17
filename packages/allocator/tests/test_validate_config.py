@@ -72,6 +72,22 @@ def test_validate_config_with_allocator_image_tag(valid_config_dict, write_confi
     assert "[PASS]" in message
 
 
+def test_validate_config_with_startup_script(valid_config_dict, write_config_file):
+    """Test that startup_script field is accepted in schema."""
+    config = valid_config_dict.copy()
+    config["startup_script"] = {
+        "enabled": True,
+        "path": "/path/to/script.sh",
+        "on_error": "fail",
+    }
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is True
+    assert "[PASS]" in message
+
+
 def test_unknown_top_level_key_behavior(
     config_with_unknown_top_level_key, write_config_file
 ):

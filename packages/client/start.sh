@@ -26,6 +26,22 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
+# Run the custom startup script if it exists
+if [ -f "/docker_scripts/custom-startup.sh" ]; then
+  echo "Running custom startup script..."
+  sudo chmod +x /docker_scripts/custom-startup.sh
+  bash /docker_scripts/custom-startup.sh
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    echo "Warning: custom startup script exited with code $rc"
+    if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
+      exit $rc
+    fi
+  fi
+else
+  echo "No custom startup script found. Skipping."
+fi
+
 # Create a logs directory
 LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"

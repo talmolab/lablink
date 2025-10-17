@@ -362,6 +362,29 @@ Use staging mode for frequent testing to avoid these limits.
 
 S3 bucket for Terraform state storage. Must be globally unique.
 
+### Startup Script Options (`startup_script`)
+
+Controls a custom startup script to be run on client VMs after the container starts.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Enable custom startup script |
+| `path` | string | `""` | Path to the startup script file |
+| `on_error` | string | `continue` | Behavior on script error: `continue` or `fail` |
+
+**Example:**
+
+```yaml
+startup_script:
+  enabled: true
+  path: "/path/to/your/script.sh"
+  on_error: "fail"
+```
+
+When `enabled` is `true`, the content of the script specified by `path` will be executed on the client VM.
+- If `on_error` is `continue`, any errors in the script will be logged, but the VM will continue to run.
+- If `on_error` is `fail`, the VM setup will be aborted if the script returns a non-zero exit code.
+
 ## Overriding Configuration
 
 ### Method 1: Edit YAML Files

@@ -131,8 +131,19 @@ if [ "$HAS_GPU" = true ]; then
     DOCKER_GPU_ARGS="--runtime=nvidia --gpus all"
 fi
 
+echo "> Creating config directory…"
+sudo mkdir -p /etc/config
+
+cat <<'EOF' > /etc/config/custom-startup.sh
+${startup_content}
+EOF
+
+chmod +x /etc/config/custom-startup.sh
+
+
 echo ">> Starting container..."
 if docker run -dit $DOCKER_GPU_ARGS \
+    --mount type=bind,src=/etc/config,dst=/docker_scripts/,ro \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e ALLOCATOR_URL="${allocator_url}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
@@ -140,6 +151,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
     -e AWS_REGION="${region}" \
+    -e STARTUP_ON_ERROR="${startup_on_error}" \
     --network host \
     "${image_name}"; then
     send_status "running"
