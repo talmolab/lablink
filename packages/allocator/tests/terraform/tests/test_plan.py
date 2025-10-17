@@ -162,3 +162,25 @@ def test_output(plan):
         "startup_time_max_seconds",
     ]:
         assert k in outs
+
+
+def test_custom_startup_script_in_user_data(plan, fixture_dir):
+    """Test that the custom startup script content is correctly embedded in user_data."""
+    instances = _collect_resources(plan, "aws_instance", "lablink_vm")
+    assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
+
+    # Get the first instance to check its user_data
+    first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
+    user_data_base64 = instances[first_instance_addr]["values"]["user_data"]
+
+    # Decode the base64 user_data
+    import base64
+    user_data_decoded = base64.b64decode(user_data_base64).decode("utf-8")
+
+    # Read the expected custom-startup.sh content from the fixture
+    expected_script_path = fixture_dir / "custom-startup.sh"
+    expected_script_content = expected_script_path.read_text().strip()
+
+    # Verify that the user_data contains the custom-startup.sh content
+    # The user_data.sh template wraps the custom script in a heredoc
+    assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_decoded
