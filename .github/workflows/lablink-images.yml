@@ -388,30 +388,32 @@ jobs:
 
       - name: Verify custom-startup.sh execution
         run: |
-          run: |
           echo "Testing custom-startup.sh execution..."
-          # Create a temporary script that the container's start.sh will execute
           CUSTOM_STARTUP_SCRIPT_CONTENT=$(cat <<'EOF'
           #!/bin/bash
           echo "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY"
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+          echo "JQ_VERSION: $(jq --version)"
           EOF
           )
           TEMP_SCRIPT_FILE=$(mktemp)
           echo "$CUSTOM_STARTUP_SCRIPT_CONTENT" > "$TEMP_SCRIPT_FILE"
           chmod +x "$TEMP_SCRIPT_FILE"
 
-          # Run the client container, mounting the temporary custom-startup.sh.
-          # The container's default entrypoint (start.sh) should find and execute this script.
-          OUTPUT=$(docker run --rm -v "$TEMP_SCRIPT_FILE":/docker_scripts/custom-startup.sh:ro ${{ steps.get_tag.outputs.image }})
+          # Run the client container, mounting the temporary custom-startup.sh
+          # The client's start.sh expects custom-startup.sh at /docker_scripts/custom-startup.sh
+          # We override the entrypoint to ensure start.sh is executed, which in turn runs custom-startup.sh
+          OUTPUT=$(docker run --rm -u client -v "$TEMP_SCRIPT_FILE":/docker_scripts/custom-startup.sh:ro ${{ steps.get_tag.outputs.image }} bash -c "source /home/client/.venv/bin/activate && sudo bash /docker_scripts/custom-startup.sh")
 
           echo "Docker container output:"
           echo "$OUTPUT"
 
-          # Verify that the start.sh script within the container executed our custom script
-          if echo "$OUTPUT" | grep -q "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY"; then
-            echo "✓ custom-startup.sh executed successfully by start.sh!"
+          if echo "$OUTPUT" | grep -q "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY" && 
+             echo "$OUTPUT" | grep -q "JQ_VERSION: jq-"; then
+            echo "✓ custom-startup.sh executed successfully and jq installed!"
           else
-            echo "❌ ERROR: custom-startup.sh was NOT executed by start.sh."
+            echo "custom-startup.sh did NOT execute or jq was not installed."
             exit 1
           fi
           rm "$TEMP_SCRIPT_FILE"
