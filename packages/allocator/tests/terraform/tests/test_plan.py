@@ -182,3 +182,120 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
     # The user_data.sh template wraps the custom script in a heredoc
     print(user_data_content)
     assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_content
+
+def test_multiline_special_chars_custom_startup_script(fixture_dir):
+    """Test that a multi-line script with special characters is correctly embedded."""
+    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    base_dir = pkg_root / "terraform"
+    var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
+    script_path = (Path(fixture_dir) / "multiline-special-chars-startup.sh").resolve()
+
+    subprocess.run(
+        [
+            "terraform",
+            "plan",
+            f"-var-file={var_path}",
+            f"-var=custom_startup_script_path={script_path}",
+            "-out=plan.tfplan",
+            "-no-color",
+        ],
+        cwd=base_dir,
+        check=True,
+    )
+    result = subprocess.run(
+        [
+            "terraform",
+            "show",
+            "-json",
+            "plan.tfplan"
+        ],
+        cwd=base_dir,
+        check=True,
+        capture_output=True,
+    )
+    tfplan = json.loads(result.stdout)
+
+    instances = _collect_resources(tfplan, "aws_instance", "lablink_vm")
+    assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
+
+    first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
+    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+
+    expected_script_content = script_path.read_text()
+
+    assert expected_script_content in user_data_content
+
+
+def test_variable_interpolation_in_custom_startup_script(fixture_dir):
+    """Test that variables in the custom startup script are not interpolated by Terraform."""
+    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    base_dir = pkg_root / "terraform"
+    var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
+    script_path = (Path(fixture_dir) / "multiline-special-chars-startup.sh").resolve()
+
+    subprocess.run(
+        [
+            "terraform",
+            "plan",
+            f"-var-file={var_path}",
+            f"-var=custom_startup_script_path={script_path}",
+            "-out=plan.tfplan",
+            "-no-color",
+        ],
+        cwd=base_dir,
+        check=True,
+    )
+    result = subprocess.run(
+        ["terraform", "show", "-json", "plan.tfplan"],
+        cwd=base_dir,
+        check=True,
+        capture_output=True,
+    )
+    tfplan = json.loads(result.stdout)
+
+    instances = _collect_resources(tfplan, "aws_instance", "lablink_vm")
+    assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
+
+    first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
+    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+
+    # The script contains shell variables like $dollarsigns and $VAR.
+    # Terraform should not interpolate these.
+    assert "$dollarsigns" in user_data_content
+    assert 'export VAR="some_value"' in user_data_content
+    assert 'if [ "$VAR" = "some_value" ]; then' in user_data_content
+
+def test_missing_custom_startup_script(fixture_dir):
+    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    base_dir = pkg_root / "terraform"
+    var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
+    script_path = (Path(fixture_dir) / "missing-file.sh").resolve()
+
+    subprocess.run(
+        [
+            "terraform",
+            "plan",
+            f"-var-file={var_path}",
+            f"-var=custom_startup_script_path={script_path}",
+            "-out=plan.tfplan",
+            "-no-color",
+        ],
+        cwd=base_dir,
+        check=True,
+    )
+    result = subprocess.run(
+        ["terraform", "show", "-json", "plan.tfplan"],
+        cwd=base_dir,
+        check=True,
+        capture_output=True,
+    )
+    tfplan = json.loads(result.stdout)
+
+    instances = _collect_resources(tfplan, "aws_instance", "lablink_vm")
+    assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
+
+    first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
+    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+
+    # Empty startup script
+    assert "cat <<'EOF' > /etc/config/custom-startup.sh\n\nEOF" in user_data_content
