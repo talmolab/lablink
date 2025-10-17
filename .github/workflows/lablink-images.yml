@@ -386,7 +386,7 @@ jobs:
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'
 
-      - name: Verify custom-startup.sh transfer
+      - name: Verify custom-startup.sh execution
         run: |
           run: |
           echo "Testing custom-startup.sh execution..."
