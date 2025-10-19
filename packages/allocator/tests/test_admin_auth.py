@@ -186,7 +186,7 @@ def test_admin_unset_aws_credentials(client, admin_headers, monkeypatch):
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret_key")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "test_session_token")
 
-    client.delete(
+    client.post(
         "/api/admin/unset-aws-credentials",
         headers=admin_headers,
     )
