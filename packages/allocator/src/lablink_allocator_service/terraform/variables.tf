@@ -69,3 +69,9 @@ variable "ssh_user" {
   description = "SSH user for the EC2 instance"
   default     = "ubuntu"
 }
+
+variable "retry_number" {
+  type        = number
+  description = "Number of retries for cloud-init log retrieval"
+  default     = 5
+}

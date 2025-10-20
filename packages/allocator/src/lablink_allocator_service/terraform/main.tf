@@ -110,10 +110,8 @@ resource "null_resource" "cloud_init_ready" {
   }
 
   provisioner "remote-exec" {
-    on_failure = "continue"
-
     inline = [
-      "for i in {1..5}; do sudo cloud-init status --wait && break || sleep 30; done",
+      "for i in {1..${var.retry_number}}; do sudo cloud-init status --wait && break || sleep 30; done",
       "sudo tail -n 80 /var/log/cloud-init-output.log || true"
     ]
 
