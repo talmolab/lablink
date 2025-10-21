@@ -81,6 +81,8 @@ resource "aws_instance" "lablink_vm" {
     gpu_support                 = var.gpu_support
     cloud_init_output_log_group = var.cloud_init_output_log_group
     region                      = var.region
+    startup_content             = local.startup_content
+    startup_on_error            = var.startup_on_error
   })
 
   tags = {
@@ -152,4 +154,6 @@ locals {
   max_seconds = length(local.per_instance_seconds) > 0 ? max(local.per_instance_seconds...) : 0
 
   min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds...) : 0
+
+  startup_content = fileexists(var.custom_startup_script_path) ? file(var.custom_startup_script_path) : ""
 }

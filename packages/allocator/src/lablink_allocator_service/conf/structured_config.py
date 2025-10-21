@@ -157,6 +157,19 @@ class AllocatorConfig:
 
     image_tag: str = field(default="linux-amd64-latest")
 
+@dataclass
+class StartupConfig:
+    """Configuration for startup behavior of the allocator service.
+    Attributes:
+        enabled (bool): Whether startup script execution is enabled.
+        path (str): Path to the startup script to be executed.
+        on_error (str): Behavior on startup script error. Options:
+            - "continue": Log the error and continue startup.
+            - "fail": Abort startup on error.
+    """
+    enabled: bool = field(default=False)
+    path: str = field(default="")
+    on_error: str = field(default="continue")  # Options: "continue", "fail"
 
 @dataclass
 class Config:
@@ -182,6 +195,7 @@ class Config:
     ssl: SSLConfig = field(default_factory=SSLConfig)
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
+    startup_script: StartupConfig = field(default_factory=StartupConfig)
 
 
 cs = ConfigStore.instance()
