@@ -393,6 +393,7 @@ def launch():
             f.write(f'gpu_support = "{gpu_support}"\n')
             f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
             f.write(f'region = "{cfg.app.region}"\n')
+            f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [

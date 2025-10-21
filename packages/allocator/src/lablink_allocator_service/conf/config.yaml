@@ -62,3 +62,8 @@ allocator:
 # S3 bucket for Terraform state (must be unique globally)
 # Only used for test/prod environments with S3 backend (not used in dev)
 bucket_name: "tf-state-lablink-allocator-bucket"
+
+startup_script:
+  enabled: false # true = run custom startup script on client VMs, false = no script
+  path: ""  # Path to custom startup script (optional)
+  on_error: "continue"  # "continue" = ignore errors, "fail" = stop VM setup on error
