@@ -53,7 +53,7 @@ def test_get_row_count(db_instance):
 
 def test_get_column_names(db_instance):
     """Test getting column names from a table."""
-    expected_columns = ["id", "hostname", "status"]
+    expected_columns = ["hostname", "pin", "useremail", "crdcommand", "inuse", "healthy", "status", "logs"]
     db_instance.cursor.fetchall.return_value = [(col,) for col in expected_columns]
     columns = db_instance.get_column_names("vms")
     db_instance.cursor.execute.assert_called_with(
@@ -203,13 +203,13 @@ def test_get_vm_details_found(db_instance):
     email = "user@example.com"
     vm_details_data = (
         "vm-assigned-1",
-        "1234",
+        "123456",
         "command",
         email,
         True,
         True,
         "running",
-        "logs",
+        "sample-logs",
     )
     db_instance.cursor.fetchone.return_value = vm_details_data
 
@@ -218,7 +218,7 @@ def test_get_vm_details_found(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "SELECT * FROM vms WHERE useremail = %s", (email,)
     )
-    assert result == ["vm-assigned-1", "1234", "command"]
+    assert result == ["vm-assigned-1", "123456", "command"]
 
 
 def test_get_vm_details_not_found(db_instance):
