@@ -161,9 +161,9 @@ class AllocatorConfig:
 class StartupConfig:
     """Configuration for startup behavior of the allocator service.
     Attributes:
-        startup_enabled (bool): Whether startup script execution is enabled.
-        startup_path (str): Path to the startup script to be executed.
-        startup_on_error (str): Behavior on startup script error. Options:
+        enabled (bool): Whether startup script execution is enabled.
+        path (str): Path to the startup script to be executed.
+        on_error (str): Behavior on startup script error. Options:
             - "continue": Log the error and continue startup.
             - "fail": Abort startup on error.
     """
