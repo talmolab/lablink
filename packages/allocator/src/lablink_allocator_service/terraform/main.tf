@@ -102,34 +102,9 @@ resource "aws_key_pair" "lablink_key_pair" {
   public_key = tls_private_key.lablink_key.public_key_openssh
 }
 
-# Wait for the cloud-init to finish
-resource "null_resource" "cloud_init_ready" {
-  count      = var.instance_count
-  depends_on = [aws_instance.lablink_vm]
-
-  triggers = {
-    instance_id = aws_instance.lablink_vm[count.index].id
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "for i in {1..${var.retry_number}}; do sudo cloud-init status --wait && break || sleep 30; done",
-      "sudo tail -n 80 /var/log/cloud-init-output.log || true"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = var.ssh_user
-      host        = aws_instance.lablink_vm[count.index].public_ip
-      private_key = tls_private_key.lablink_key.private_key_pem
-      timeout     = "15m"
-    }
-  }
-}
-
 resource "time_static" "end" {
   count      = var.instance_count
-  depends_on = [null_resource.cloud_init_ready]
+  depends_on = [aws_instance.lablink_vm]
 }
 
 locals {
