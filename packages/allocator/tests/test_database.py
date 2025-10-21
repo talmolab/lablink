@@ -391,6 +391,7 @@ def test_load_database():
 
     assert isinstance(inst, PostgresqlDatabase)
 
+
 def test_del(db_instance):
     """Test that the destructor closes the database connection and cursor."""
     cursor = db_instance.cursor
@@ -401,3 +402,79 @@ def test_del(db_instance):
 
     cursor.close.assert_called_once()
     conn.close.assert_called_once()
+
+
+def test_get_crd_command_no_vm(db_instance):
+    """Test getting CRD command for a non-existent VM."""
+    hostname = "non-existent-vm"
+    db_instance.vm_exists = MagicMock(return_value=False)
+    result = db_instance.get_crd_command(hostname)
+    assert result is None
+
+
+def test_get_unassigned_vms_error(db_instance, caplog):
+    """Test error handling in get_unassigned_vms."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    result = db_instance.get_unassigned_vms()
+    assert result == []
+    assert "Error retrieving unassigned VMs: DB error" in caplog.text
+
+
+def test_get_assigned_vms_error(db_instance, caplog):
+    """Test error handling in get_assigned_vms."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    result = db_instance.get_assigned_vms()
+    assert result is None
+    assert "Error retrieving assigned VMs: DB error" in caplog.text
+
+
+def test_assign_vm_db_error(db_instance, caplog):
+    """Test error handling in assign_vm."""
+    hostname = "available-vm"
+    db_instance.get_first_available_vm = MagicMock(return_value=hostname)
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    db_instance.assign_vm("user@example.com", "cmd", "123")
+    assert "Error assigning VM: DB error" in caplog.text
+    db_instance.conn.rollback.assert_called_once()
+
+
+def test_get_gpu_health_not_found(db_instance):
+    """Test getting GPU health for a non-existent VM."""
+    hostname = "non-existent-vm"
+    db_instance.cursor.fetchone.return_value = None
+    result = db_instance.get_gpu_health(hostname)
+    assert result is None
+
+
+def test_get_status_by_hostname_not_found(db_instance):
+    """Test getting status for a non-existent VM."""
+    hostname = "non-existent-vm"
+    db_instance.cursor.fetchone.return_value = None
+    result = db_instance.get_status_by_hostname(hostname)
+    assert result is None
+
+
+def test_get_vm_logs_not_found(db_instance):
+    """Test getting logs for a non-existent VM."""
+    hostname = "non-existent-vm"
+    db_instance.cursor.fetchone.return_value = None
+    result = db_instance.get_vm_logs(hostname)
+    assert result is None
+
+
+def test_get_all_vm_status_error(db_instance, caplog):
+    """Test error handling in get_all_vm_status."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    result = db_instance.get_all_vm_status()
+    assert result is None
+    assert "Error retrieving all VM status: DB error" in caplog.text
+
+
+def test_update_vm_status_db_error(db_instance, caplog):
+    """Test error handling in update_vm_status."""
+    hostname = "vm-to-update"
+    status = "running"
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    db_instance.update_vm_status(hostname, status)
+    assert "Error updating VM status: DB error" in caplog.text
+    db_instance.conn.rollback.assert_called_once()
