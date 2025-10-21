@@ -180,7 +180,6 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Verify that the user_data contains the custom-startup.sh content
     # The user_data.sh template wraps the custom script in a heredoc
-    print(user_data_content)
     assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_content
 
 def test_multiline_special_chars_custom_startup_script(fixture_dir):
@@ -221,7 +220,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
     user_data_content = instances[first_instance_addr]["values"]["user_data"]
 
-    expected_script_content = script_path.read_text()
+    expected_script_content = script_path.read_text().strip()
 
     assert expected_script_content in user_data_content
 
