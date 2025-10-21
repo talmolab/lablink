@@ -223,6 +223,20 @@ def admin():
         return render_template("admin.html", error=error)
 
 
+@app.route("/api/admin/unset-aws-credentials", methods=["POST"])
+@auth.login_required
+def unset_aws_credentials():
+    # Remove AWS credentials from environment variables
+    os.environ.pop("AWS_ACCESS_KEY_ID", None)
+    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
+    os.environ.pop("AWS_SESSION_TOKEN", None)
+
+    return render_template(
+        "admin.html",
+        unset_message="AWS credentials unset successfully."
+    )
+
+
 @app.route("/api/admin/set-aws-credentials", methods=["POST"])
 @auth.login_required
 def set_aws_credentials():

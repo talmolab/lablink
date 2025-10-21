@@ -110,10 +110,18 @@
     </div>
 
     <h3>Set AWS Credentials</h3>
+    {% if unset_message %}
+      <div style="background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+        {{ unset_message }}
+      </div>
+    {% endif %}
     {% if message %}
       <div style="background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
         {{ message }}
       </div>
+      <form>
+        <input type="submit" value="Unset AWS Credentials" formaction="/api/admin/unset-aws-credentials" formmethod="post" />
+      </form>
     {% endif %}
     {% if error %}
       <div style="background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center;">

@@ -177,3 +177,21 @@ def test_admin_set_aws_credentials_failure_no_token(
     # env vars should be set on success
     assert os.environ.get("AWS_ACCESS_KEY_ID") is None
     assert os.environ.get("AWS_SECRET_ACCESS_KEY") is None
+
+
+def test_admin_unset_aws_credentials(client, admin_headers, monkeypatch):
+    """Test unsetting AWS credentials as an admin."""
+    # Set env variables
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test_access_key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test_secret_key")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "test_session_token")
+
+    client.post(
+        "/api/admin/unset-aws-credentials",
+        headers=admin_headers,
+    )
+
+    # env vars should be unset
+    assert os.environ.get("AWS_ACCESS_KEY_ID") is None
+    assert os.environ.get("AWS_SECRET_ACCESS_KEY") is None
+    assert os.environ.get("AWS_SESSION_TOKEN") is None
