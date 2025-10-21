@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, ANY
 import json
-import select
 
 # Mock psycopg2 before importing the database module
 # This allows us to avoid the real psycopg2 import raising an error if it's not installed
@@ -379,17 +378,18 @@ def test_update_vm_status_invalid(db_instance, caplog):
 
 def test_load_database():
     """Test the class method for loading a database instance."""
-    with patch(
-        "tests.test_database.PostgresqlDatabase.__init__",
-        return_value=None,
+    with patch.object(
+        PostgresqlDatabase, "__init__", return_value=None,
     ) as mock_init:
-        PostgresqlDatabase.load_database(
-            "db", "user", "pass", "host", 5432, "table", "channel"
-        )
-        mock_init.assert_called_once_with(
+        inst = PostgresqlDatabase.load_database(
             "db", "user", "pass", "host", 5432, "table", "channel"
         )
 
+    mock_init.assert_called_once_with(
+        "db", "user", "pass", "host", 5432, "table", "channel"
+    )
+
+    assert isinstance(inst, PostgresqlDatabase)
 
 def test_del(db_instance):
     """Test that the destructor closes the database connection and cursor."""
