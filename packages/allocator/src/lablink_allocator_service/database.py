@@ -91,13 +91,12 @@ class PostgresqlDatabase:
             table_name = self.table_name
 
         # Query to get the column names from the information schema
-        with self.conn.cursor() as cursor:
-            cursor.execute(
+        self.cursor.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_name = %s",
                 (table_name,),
             )
-            return [row[0] for row in cursor.fetchall()]
+        return [row[0] for row in self.cursor.fetchall()]
 
     def insert_vm(self, hostname) -> None:
         """Insert a new row into the table.
