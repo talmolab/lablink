@@ -70,6 +70,12 @@ variable "ssh_user" {
   default     = "ubuntu"
 }
 
+variable "retry_number" {
+  type        = number
+  description = "Number of retries for cloud-init log retrieval"
+  default     = 5
+}
+
 variable "startup_on_error" {
   type        = string
   description = "Whether to abort or continue on error of the custom startup script"
