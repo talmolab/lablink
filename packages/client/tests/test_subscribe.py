@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from omegaconf import OmegaConf
 import pytest
 from lablink_client_service.subscribe import subscribe
+import requests
 
 
 @pytest.fixture
@@ -113,3 +114,33 @@ def test_run_http_failure(
     assert "POST request failed with status code: 500" in caplog.text
     # Should have slept between retries (2 times)
     assert mock_sleep.call_count == 2
+
+
+@patch("lablink_client_service.subscribe.time.sleep")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
+def test_run_timeout_exception(
+    mock_logger_cls,
+    _set_logger,
+    mock_connect,
+    mock_post,
+    mock_sleep,
+    cfg,
+    vm_env,
+    caplog
+):
+    """Test that a timeout exception triggers retry logic."""
+    mock_logger_cls.return_value = logging.getLogger("subscribe-test")
+    mock_post.side_effect = [requests.exceptions.Timeout, MagicMock(
+        status_code=200,
+        json=lambda: {"status": "success", "command": "CRD_COMMAND", "pin": "123456"}
+    )]
+
+    subscribe(cfg)
+
+    assert mock_post.call_count == 2
+    mock_connect.assert_called_once()
+    assert "timed out" in caplog.text
+    mock_sleep.assert_called_once()

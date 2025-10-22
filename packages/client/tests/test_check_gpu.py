@@ -2,6 +2,7 @@ import subprocess
 import logging
 import pytest
 from unittest.mock import patch, MagicMock
+import requests
 
 from lablink_client_service.check_gpu import check_gpu_health
 
@@ -224,3 +225,21 @@ def test_check_gpu_with_internal_error(
 
     # Optional: verify the error was logged
     assert "Failed to report GPU health" in caplog.text
+
+
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
+def test_check_gpu_health_timeout(mock_run, mock_post, mock_environment, caplog):
+    """Test that a requests timeout is handled gracefully."""
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(
+            args=["nvidia-smi"], returncode=0, stdout="OK", stderr=""
+        ),
+        KeyboardInterrupt(),
+    ]
+    mock_post.side_effect = requests.exceptions.Timeout
+
+    with pytest.raises(KeyboardInterrupt):
+        check_gpu_health("http://localhost:5000")
+
+    assert "GPU health report timed out" in caplog.text
