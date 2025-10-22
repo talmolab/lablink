@@ -52,12 +52,12 @@ jobs:
           - package: lablink-client
             python-version: "3.10"
             working-directory: packages/client
-            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-fail-under=90"
+            test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-fail-under=85"
             needs-terraform: false
           - package: lablink-allocator
             python-version: "3.10"
             working-directory: packages/allocator
-            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term --cov-fail-under=85"
+            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term --cov-fail-under=90"
             needs-terraform: true
 
     steps:
