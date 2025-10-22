@@ -1,6 +1,6 @@
 
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
 from lablink_allocator_service.validate_config import main
 
