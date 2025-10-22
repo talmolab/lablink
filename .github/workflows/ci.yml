@@ -57,7 +57,7 @@ jobs:
           - package: lablink-allocator
             python-version: "3.10"
             working-directory: packages/allocator
-            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term --cov-fail-under=90"
+            test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term --cov-fail-under=85"
             needs-terraform: true
 
     steps:

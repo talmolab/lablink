@@ -90,14 +90,3 @@ def test_is_process_running_psutil_exception(mock_process_iter):
     mock_process.cmdline.side_effect = psutil.NoSuchProcess(pid=123)
     mock_process_iter.return_value = [mock_process]
     assert is_process_running("myproc") is False
-
-
-@patch("lablink_client_service.update_inuse_status.listen_for_process")
-@patch.dict(os.environ, {"ALLOCATOR_URL": "https://fake-allocator.com"})
-@patch("hydra.main")
-def test_main_with_allocator_url(hydra_main_mock, mock_listen):
-    """Test main function when ALLOCATOR_URL is set."""
-    # This test is complex to set up due to Hydra. A more direct approach
-    # would be to refactor the main function to be more testable.
-    # For now, we are not testing the main function.
-    pass
