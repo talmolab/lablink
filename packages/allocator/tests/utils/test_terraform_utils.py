@@ -6,6 +6,8 @@ import pytest
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
+    get_instance_names,
+    get_instance_ids,
 )
 
 
@@ -88,3 +90,90 @@ def test_get_ssh_private_key_failure(mock_run):
     )
     with pytest.raises(RuntimeError, match="Error running terraform output"):
         get_ssh_private_key("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_ids_success(mock_run):
+    """Test getting instance IDs successfully."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["terraform", "output", "-json", "vm_instance_ids"],
+        returncode=0,
+        stdout=json.dumps(["i-12345", "i-67890"]),
+        stderr="",
+    )
+    ids = get_instance_ids("/fake/terraform/dir")
+    assert ids == ["i-12345", "i-67890"]
+    mock_run.assert_called_once()
+
+
+@patch("subprocess.run")
+def test_get_instance_names_success(mock_run):
+    """Test getting instance names successfully."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["terraform", "output", "-json", "vm_instance_names"],
+        returncode=0,
+        stdout=json.dumps(["instance-1", "instance-2"]),
+        stderr="",
+    )
+    names = get_instance_names("/fake/terraform/dir")
+    assert names == ["instance-1", "instance-2"]
+    mock_run.assert_called_once()
+
+
+@patch("subprocess.run")
+def test_get_instance_ids_failure(mock_run):
+    """Test handling failure when getting instance IDs."""
+    mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
+    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
+        get_instance_ids("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_names_failure(mock_run):
+    """Test handling failure when getting instance names."""
+    mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
+    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
+        get_instance_names("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_ids_invalid_json(mock_run):
+    """Test handling invalid JSON output when getting instance IDs."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="not-json", stderr=""
+    )
+    with pytest.raises(RuntimeError, match="Error decoding JSON output"):
+        get_instance_ids("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_names_invalid_json(mock_run):
+    """Test handling invalid JSON output when getting instance names."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="not-json", stderr=""
+    )
+    with pytest.raises(RuntimeError, match="Error decoding JSON output"):
+        get_instance_names("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_ids_not_a_list(mock_run):
+    """Test handling non-list output when getting instance IDs."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=json.dumps({"id": "i-12345"}), stderr=""
+    )
+    with pytest.raises(ValueError, match="Expected output to be a list"):
+        get_instance_ids("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_names_not_a_list(mock_run):
+    """Test handling non-list output when getting instance names."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps({"name": "instance-1"}),
+        stderr="",
+    )
+    with pytest.raises(ValueError, match="Expected output to be a list"):
+        get_instance_names("/fake/terraform/dir")
