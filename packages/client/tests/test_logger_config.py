@@ -1,7 +1,7 @@
 
 import logging
 import sys
-from src.lablink_client_service.logger_config import setup_logger
+from lablink_client_service.logger_config import setup_logger
 
 def test_setup_logger_basic():
     """Test basic logger setup."""

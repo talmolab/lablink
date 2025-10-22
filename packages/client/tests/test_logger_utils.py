@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, patch, call
 
 import pytest
-from src.lablink_client_service.logger_utils import CloudAndConsoleLogger
+from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
 class ComparableMagicMock(MagicMock):
@@ -142,7 +142,7 @@ def test_cloud_logging_setup_failure(mock_boto_client):
     console_logger = logging.getLogger("test_fallback")
     with patch.object(console_logger, "error") as mock_error:
         with patch(
-            "src.lablink_client_service.logger_utils.logging.getLogger",
+            "lablink_client_service.logger_utils.logging.getLogger",
             return_value=console_logger,
         ):
             logger = CloudAndConsoleLogger("test_fallback_module")
