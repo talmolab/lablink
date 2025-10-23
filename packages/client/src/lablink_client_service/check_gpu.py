@@ -106,7 +106,7 @@ def main(cfg: Config) -> None:
     else:
         allocator_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
 
-    allocator_url_env = allocator_url_env.replace("://.", "://")
+    allocator_url = allocator_url.replace("://.", "://")
 
     check_gpu_health(allocator_url=allocator_url)
 

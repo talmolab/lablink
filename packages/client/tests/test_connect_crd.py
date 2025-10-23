@@ -4,11 +4,13 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
+from lablink_client_service import connect_crd
 from lablink_client_service.connect_crd import (
     construct_command,
     reconstruct_command,
     connect_to_crd,
 )
+
 
 CRD_COMMAND_WITH_CODE = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
     "--code='hidden_code' " \
@@ -128,3 +130,40 @@ def test_whole_connection_workflow(mock_subprocess_run):
         capture_output=True,
         text=True,
     )
+
+
+def test_set_logger():
+    """Test that the logger can be set."""
+    mock_logger = MagicMock()
+    connect_crd.set_logger(mock_logger)
+    assert connect_crd.logger is mock_logger
+
+
+@patch("lablink_client_service.connect_crd.logging.shutdown")
+@patch("lablink_client_service.connect_crd.time.sleep")
+def test_cleanup_logs(mock_sleep, mock_shutdown):
+    """Test that logs are cleaned up properly."""
+    mock_handler = MagicMock()
+    mock_handler.flush = MagicMock()
+
+    with patch.object(connect_crd, "logger") as mock_logger:
+        mock_logger.handlers = [mock_handler]
+        connect_crd.cleanup_logs()
+        mock_handler.flush.assert_called_once()
+        mock_sleep.assert_called_once_with(1.5)
+        mock_shutdown.assert_called_once()
+
+
+@patch("lablink_client_service.connect_crd.logging.shutdown")
+@patch("lablink_client_service.connect_crd.time.sleep")
+def test_cleanup_logs_exception(mock_sleep, mock_shutdown):
+    """Test that an exception during log cleanup is handled."""
+    mock_handler = MagicMock()
+    mock_handler.flush.side_effect = Exception("test error")
+
+    with patch.object(connect_crd, "logger") as mock_logger:
+        mock_logger.handlers = [mock_handler]
+        mock_logger.error = MagicMock()
+        connect_crd.cleanup_logs()
+        mock_logger.error.assert_called_once()
+        mock_sleep.assert_not_called()

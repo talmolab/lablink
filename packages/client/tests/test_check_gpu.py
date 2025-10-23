@@ -3,8 +3,16 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock
 import requests
+from omegaconf import OmegaConf
 
-from lablink_client_service.check_gpu import check_gpu_health
+from lablink_client_service.check_gpu import check_gpu_health, main
+
+
+@pytest.fixture
+def cfg():
+    """Fixture to provide a mock configuration object."""
+    return OmegaConf.create({"allocator": {"host": "localhost", "port": 80}})
+
 
 
 @pytest.fixture
@@ -243,3 +251,50 @@ def test_check_gpu_health_timeout(mock_run, mock_post, mock_environment, caplog)
         check_gpu_health("http://localhost:5000")
 
     assert "GPU health report timed out" in caplog.text
+
+
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
+def test_check_gpu_health_request_exception(
+    mock_run, mock_post, mock_environment, caplog
+):
+    """Test that a requests.RequestException is handled gracefully."""
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(
+            args=["nvidia-smi"], returncode=0, stdout="OK", stderr=""
+        ),
+        KeyboardInterrupt(),
+    ]
+    mock_post.side_effect = requests.exceptions.RequestException("Some request error")
+
+    with pytest.raises(KeyboardInterrupt):
+        check_gpu_health("http://localhost:5000")
+
+    assert "Failed to report GPU health: Some request error" in caplog.text
+
+
+@patch("lablink_client_service.check_gpu.check_gpu_health")
+@patch("lablink_client_service.check_gpu.CloudAndConsoleLogger")
+def test_check_gpu_main_with_env_var(
+    mock_logger, mock_check_gpu_health, monkeypatch, cfg
+):
+    """Test main function with ALLOCATOR_URL environment variable."""
+    monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    main(cfg)
+    mock_check_gpu_health.assert_called_once_with(allocator_url="https://test.com")
+
+
+@patch("lablink_client_service.check_gpu.check_gpu_health")
+@patch("lablink_client_service.check_gpu.CloudAndConsoleLogger")
+def test_check_gpu_main_without_env_var(
+    mock_logger, mock_check_gpu_health, monkeypatch, cfg
+):
+    """Test main function without ALLOCATOR_URL environment variable."""
+    monkeypatch.delenv("ALLOCATOR_URL", raising=False)
+    main(cfg)
+    mock_check_gpu_health.assert_called_once_with(
+        allocator_url="http://localhost:80"
+    )
+
+
+
