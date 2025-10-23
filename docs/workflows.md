@@ -201,7 +201,7 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 - **Pull requests**: Build dev images with `-test` tag
 - **Push to `test` branch**: Build dev images with `-test` tag
 - **Push to `main`**: Build dev images with `-test` tag
-- **Manual dispatch with `environment=test`**: Build dev images with `-test` tag
+- **Manual dispatch with `environment=test` or `environment=ci-test`**: Build dev images with `-test` tag
 - **Manual dispatch with `environment=prod`**: Build production images from PyPI (REQUIRES version parameters)
 
 ### Workflow Decision Logic
@@ -322,6 +322,9 @@ git push origin main
 ```bash
 # Test specific changes without pushing
 gh workflow run lablink-images.yml -f environment=test
+
+# For CI testing with S3 backend (e.g., testing Terraform configurations)
+gh workflow run lablink-images.yml -f environment=ci-test
 ```
 
 #### Common Mistakes
@@ -363,6 +366,7 @@ The workflow uses different Dockerfiles depending on whether you're building for
 | Push to `test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Push to `main` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Manual `environment=test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Manual `environment=ci-test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Manual `environment=prod` | `Dockerfile` | **PyPI (explicit version)** | `uv pip install` | No | none | **Yes** |
 
 **Key Distinction**:
