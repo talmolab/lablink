@@ -3356,7 +3356,7 @@
 <li><strong>Pull requests</strong>: Build dev images with <code>-test</code> tag</li>
 <li><strong>Push to <code>test</code> branch</strong>: Build dev images with <code>-test</code> tag</li>
 <li><strong>Push to <code>main</code></strong>: Build dev images with <code>-test</code> tag</li>
-<li><strong>Manual dispatch with <code>environment=test</code></strong>: Build dev images with <code>-test</code> tag</li>
+<li><strong>Manual dispatch with <code>environment=test</code> or <code>environment=ci-test</code></strong>: Build dev images with <code>-test</code> tag</li>
 <li><strong>Manual dispatch with <code>environment=prod</code></strong>: Build production images from PyPI (REQUIRES version parameters)</li>
 </ul>
 <h3 id="workflow-decision-logic">Workflow Decision Logic<a class="headerlink" href="#workflow-decision-logic" title="Permanent link">&para;</a></h3>
@@ -3455,6 +3455,17 @@
 <tr>
 <td><strong>Manual Dispatch</strong></td>
 <td>any</td>
+<td><code>ci-test</code></td>
+<td><code>Dockerfile.dev</code></td>
+<td>Local code</td>
+<td>No</td>
+<td><code>-test</code></td>
+<td>Yes</td>
+<td>CI testing with S3 backend</td>
+</tr>
+<tr>
+<td><strong>Manual Dispatch</strong></td>
+<td>any</td>
 <td><code>prod</code></td>
 <td><code>Dockerfile</code></td>
 <td>PyPI (explicit version)</td>
@@ -3528,6 +3539,9 @@
 <p><strong>Manual testing:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Test specific changes without pushing</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span><span class="nb">test</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># For CI testing with S3 backend (e.g., testing Terraform configurations)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>ci-test
 </code></pre></div></p>
 <h4 id="common-mistakes">Common Mistakes<a class="headerlink" href="#common-mistakes" title="Permanent link">&para;</a></h4>
 <p><strong>Forgetting to build Docker images after publishing packages</strong>
@@ -3595,6 +3609,15 @@
 </tr>
 <tr>
 <td>Manual <code>environment=test</code></td>
+<td><code>Dockerfile.dev</code></td>
+<td>Local code (copied)</td>
+<td><code>uv sync --extra dev</code></td>
+<td>Yes</td>
+<td><code>-test</code></td>
+<td>No</td>
+</tr>
+<tr>
+<td>Manual <code>environment=ci-test</code></td>
 <td><code>Dockerfile.dev</code></td>
 <td>Local code (copied)</td>
 <td><code>uv sync --extra dev</code></td>
@@ -3703,24 +3726,38 @@
 </tr>
 <tr>
 <td>Push to main</td>
-<td><code>prod</code></td>
+<td>N/A</td>
 <td>❌ No</td>
-<td>None</td>
+<td><code>-test</code></td>
 <td>Latest development</td>
 </tr>
 <tr>
 <td>Push to test</td>
-<td><code>test</code></td>
+<td>N/A</td>
 <td>❌ No</td>
 <td><code>-test</code></td>
 <td>Staging/testing</td>
 </tr>
 <tr>
 <td>Pull request</td>
-<td><code>test</code></td>
+<td>N/A</td>
 <td>❌ No</td>
 <td><code>-test</code></td>
 <td>CI/CD validation</td>
+</tr>
+<tr>
+<td>Manual dispatch</td>
+<td><code>test</code></td>
+<td>❌ No</td>
+<td><code>-test</code></td>
+<td>Test specific changes</td>
+</tr>
+<tr>
+<td>Manual dispatch</td>
+<td><code>ci-test</code></td>
+<td>❌ No</td>
+<td><code>-test</code></td>
+<td>CI testing with S3 backend</td>
 </tr>
 </tbody>
 </table>

@@ -2128,7 +2128,7 @@
 <h1 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h1>
 <p>This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (Terraform CLI) methods.</p>
 <h2 id="deployment-overview">Deployment Overview<a class="headerlink" href="#deployment-overview" title="Permanent link">&para;</a></h2>
-<p>LabLink supports three deployment environments:</p>
+<p>LabLink supports four deployment environments:</p>
 <table>
 <thead>
 <tr>
@@ -2149,6 +2149,12 @@
 <td><strong>test</strong></td>
 <td>Staging, pre-production testing</td>
 <td>Push to <code>test</code> branch</td>
+<td><code>*-test</code></td>
+</tr>
+<tr>
+<td><strong>ci-test</strong></td>
+<td>CI testing with S3 backend</td>
+<td>Manual workflow dispatch</td>
 <td><code>*-test</code></td>
 </tr>
 <tr>
