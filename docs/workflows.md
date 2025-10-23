@@ -471,9 +471,10 @@ allocator_image_tag = "latest"
 | Trigger Type | Environment | Version Tag? | Suffix | Use Case |
 |--------------|-------------|--------------|--------|----------|
 | Manual w/ version | `prod` | ✅ Yes | None | Production releases |
-| Push to main | `prod` | ❌ No | None | Latest development |
-| Push to test | `test` | ❌ No | `-test` | Staging/testing |
-| Pull request | `test` | ❌ No | `-test` | CI/CD validation |
+| Push to main | N/A | ❌ No | `-test` | Latest development |
+| Push to test | N/A | ❌ No | `-test` | Staging/testing |
+| Pull request | N/A | ❌ No | `-test` | CI/CD validation |
+| Manual dispatch | `test` | ❌ No | `-test` | Test specific changes |
 | Manual dispatch | `ci-test` | ❌ No | `-test` | CI testing with S3 backend |
 
 ### Workflow Jobs
