@@ -771,7 +771,7 @@ def main():
     # Terraform initialization
     if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
         logger.info("Initializing Terraform...")
-        if ENVIRONMENT not in ["prod", "test"]:
+        if ENVIRONMENT not in ["prod", "test", "ci-test"]:
             (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
             subprocess.run(
                 ["terraform", "init"],

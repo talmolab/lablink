@@ -251,6 +251,7 @@ The workflow automatically selects between development (`Dockerfile.dev`) and pr
 | **Push** | `test` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Staging/testing |
 | **Push** | `main` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Latest development |
 | **Manual Dispatch** | any | `test` | `Dockerfile.dev` | Local code | No | `-test` | Yes | Test specific changes |
+| **Manual Dispatch** | any | `ci-test` | `Dockerfile.dev` | Local code | No | `-test` | Yes | CI testing with S3 backend |
 | **Manual Dispatch** | any | `prod` | `Dockerfile` | PyPI (explicit version) | **YES** | none | No | **Production releases** |
 
 #### Key Points
@@ -469,6 +470,7 @@ allocator_image_tag = "latest"
 | Push to main | `prod` | ❌ No | None | Latest development |
 | Push to test | `test` | ❌ No | `-test` | Staging/testing |
 | Pull request | `test` | ❌ No | `-test` | CI/CD validation |
+| Manual dispatch | `ci-test` | ❌ No | `-test` | CI testing with S3 backend |
 
 ### Workflow Jobs
 

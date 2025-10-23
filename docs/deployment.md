@@ -4,12 +4,13 @@ This guide covers deploying LabLink to AWS using both automated (GitHub Actions)
 
 ## Deployment Overview
 
-LabLink supports three deployment environments:
+LabLink supports four deployment environments:
 
 | Environment | Purpose | Trigger | Image Tag |
 |-------------|---------|---------|-----------|
 | **dev** | Local/personal development | Manual | `*-test` |
 | **test** | Staging, pre-production testing | Push to `test` branch | `*-test` |
+| **ci-test** | CI testing with S3 backend | Manual workflow dispatch | `*-test` |
 | **prod** | Production workloads | Manual workflow dispatch | Pinned version tags |
 
 ## Prerequisites

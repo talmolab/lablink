@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - test
+          - ci-test
           - prod
       allocator_version:
         description: "Allocator package version (REQUIRED for prod, leave empty for test)"
@@ -66,8 +67,8 @@ jobs:
         run: |
           # Determine if this is a dev build (use Dockerfile.dev with local code)
           # or prod build (use Dockerfile with PyPI package)
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
-            # Dev builds: PR, push to test/main, or manual test
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ] || [ "${{ inputs.environment }}" == "ci-test" ]; then
+            # Dev builds: PR, push to test/main, or manual test/ci-test
             echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
             echo "build_args=" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
@@ -104,7 +105,7 @@ jobs:
           if [ "${{ inputs.environment }}" == "prod" ]; then
             # Manual prod build - no suffix
             echo "env_suffix=" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ]; then
+          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ] || [ "${{ inputs.environment }}" == "ci-test" ]; then
             # All other cases - dev builds with -test suffix
             echo "env_suffix=-test" >> $GITHUB_OUTPUT
           else

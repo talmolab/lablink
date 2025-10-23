@@ -110,6 +110,7 @@ lablink/
 ### Environments
 - **dev**: Local development, local Terraform state
 - **test**: Staging environment, S3 backend
+- **ci-test**: CI testing environment, S3 backend, for automated testing
 - **prod**: Production, S3 backend, pinned image versions
 
 ## Configuration System
