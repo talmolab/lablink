@@ -201,7 +201,7 @@ Builds and publishes Docker images to GitHub Container Registry (ghcr.io) using 
 - **Pull requests**: Build dev images with `-test` tag
 - **Push to `test` branch**: Build dev images with `-test` tag
 - **Push to `main`**: Build dev images with `-test` tag
-- **Manual dispatch with `environment=test`**: Build dev images with `-test` tag
+- **Manual dispatch with `environment=test` or `environment=ci-test`**: Build dev images with `-test` tag
 - **Manual dispatch with `environment=prod`**: Build production images from PyPI (REQUIRES version parameters)
 
 ### Workflow Decision Logic
@@ -251,6 +251,7 @@ The workflow automatically selects between development (`Dockerfile.dev`) and pr
 | **Push** | `test` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Staging/testing |
 | **Push** | `main` | N/A | `Dockerfile.dev` | Local code | No | `-test` | Yes | Latest development |
 | **Manual Dispatch** | any | `test` | `Dockerfile.dev` | Local code | No | `-test` | Yes | Test specific changes |
+| **Manual Dispatch** | any | `ci-test` | `Dockerfile.dev` | Local code | No | `-test` | Yes | CI testing with S3 backend |
 | **Manual Dispatch** | any | `prod` | `Dockerfile` | PyPI (explicit version) | **YES** | none | No | **Production releases** |
 
 #### Key Points
@@ -321,6 +322,9 @@ git push origin main
 ```bash
 # Test specific changes without pushing
 gh workflow run lablink-images.yml -f environment=test
+
+# For CI testing with S3 backend (e.g., testing Terraform configurations)
+gh workflow run lablink-images.yml -f environment=ci-test
 ```
 
 #### Common Mistakes
@@ -362,6 +366,7 @@ The workflow uses different Dockerfiles depending on whether you're building for
 | Push to `test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Push to `main` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Manual `environment=test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
+| Manual `environment=ci-test` | `Dockerfile.dev` | Local code (copied) | `uv sync --extra dev` | Yes | `-test` | No |
 | Manual `environment=prod` | `Dockerfile` | **PyPI (explicit version)** | `uv pip install` | No | none | **Yes** |
 
 **Key Distinction**:
@@ -466,9 +471,11 @@ allocator_image_tag = "latest"
 | Trigger Type | Environment | Version Tag? | Suffix | Use Case |
 |--------------|-------------|--------------|--------|----------|
 | Manual w/ version | `prod` | ✅ Yes | None | Production releases |
-| Push to main | `prod` | ❌ No | None | Latest development |
-| Push to test | `test` | ❌ No | `-test` | Staging/testing |
-| Pull request | `test` | ❌ No | `-test` | CI/CD validation |
+| Push to main | N/A | ❌ No | `-test` | Latest development |
+| Push to test | N/A | ❌ No | `-test` | Staging/testing |
+| Pull request | N/A | ❌ No | `-test` | CI/CD validation |
+| Manual dispatch | `test` | ❌ No | `-test` | Test specific changes |
+| Manual dispatch | `ci-test` | ❌ No | `-test` | CI testing with S3 backend |
 
 ### Workflow Jobs
 

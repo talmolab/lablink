@@ -110,6 +110,7 @@ lablink/
 ### Environments
 - **dev**: Local development, local Terraform state
 - **test**: Staging environment, S3 backend
+- **ci-test**: CI testing environment, S3 backend, for automated testing
 - **prod**: Production, S3 backend, pinned image versions
 
 ## Configuration System
@@ -555,9 +556,10 @@ Always set: `chmod 600 ~/lablink-key.pem`
 ## Package Release Process
 
 ### Image Building
-1. Push to branch → GitHub Actions builds images
-2. Tags: `linux-amd64-latest` (main), `linux-amd64-<branch>-test` (others)
+1. Push to branch → GitHub Actions builds dev images with local code
+2. Tags: `latest-test`, `linux-amd64-latest-test` (all branches including main get `-test` suffix)
 3. Push to ghcr.io
+4. Production images (without `-test` suffix) only created via manual dispatch with `environment=prod`
 
 ### Infrastructure Deployment
 See the [lablink-template](https://github.com/talmolab/lablink-template) repository for infrastructure deployment documentation.
