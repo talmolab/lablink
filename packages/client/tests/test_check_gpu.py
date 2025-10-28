@@ -296,5 +296,3 @@ def test_check_gpu_main_without_env_var(
         allocator_url="http://localhost:80"
     )
 
-
-

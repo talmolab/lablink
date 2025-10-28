@@ -1,4 +1,3 @@
-
 import logging
 import sys
 from lablink_client_service.logger_config import setup_logger

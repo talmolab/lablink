@@ -143,6 +143,3 @@ def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
             "sleap", "https://test.com/api/update_inuse_status"
         )
 
-
-
-

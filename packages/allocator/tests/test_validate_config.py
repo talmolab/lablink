@@ -1,5 +1,3 @@
-"""Tests for config validation CLI."""
-
 import lablink_allocator_service.validate_config as vc_module
 from lablink_allocator_service.validate_config import validate_config
 
