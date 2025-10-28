@@ -791,6 +791,7 @@ def main():
                     "init",
                     f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
                     f"-backend-config=bucket={bucket_name}",
+                    f"-backend-config=region={cfg.app.region}",
                 ],
                 cwd=TERRAFORM_DIR,
                 check=True,
