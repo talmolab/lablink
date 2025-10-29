@@ -594,8 +594,8 @@ class PostgresqlDatabase:
         query = f"""
         UPDATE {self.table_name}
         SET
-            TerraformApplyEndTime = {end_time},
-            TotalStartupDurationSeconds = %s
+            terraformapplyendtime = {end_time},
+            totalstartupdurationseconds = %s
         WHERE hostname = %s;
         """
         try:
