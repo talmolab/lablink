@@ -19,15 +19,6 @@ output "vm_instance_names" {
   value       = [for instance in aws_instance.lablink_vm : instance.tags["Name"]]
 }
 
-output "startup_time_seconds_per_instance" {
-  description = "Time from apply-start to cloud-init finished, per instance (seconds)"
-  value       = local.per_instance_seconds
-}
-
-output "startup_time_hms_per_instance" {
-  value = local.per_instance_hms
-}
-
 output "startup_time_avg_seconds" {
   description = "Average startup time across all instances (seconds)"
   value       = local.avg_seconds
@@ -39,4 +30,15 @@ output "startup_time_max_seconds" {
 output "startup_time_min_seconds" {
   description = "Minimum startup time across all instances (seconds)"
   value       = local.min_seconds
+}
+
+output "instance_startup_times" {
+  description = "The Terraform apply time to cloud-init finished per instance"
+  value = {
+    for i in range(var.instance_count) :
+    aws_instance.lablink_vm[i].tags.Name => {
+      seconds = local.per_instance_seconds[i]
+      formatted = local.per_instance_hms[i]
+    }
+  }
 }
