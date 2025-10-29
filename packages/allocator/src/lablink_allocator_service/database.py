@@ -70,6 +70,17 @@ class PostgresqlDatabase:
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
+    def get_all_vms(self) -> list:
+        """Get all VMs from the table.
+
+        Returns:
+            list: A list of all VMs in the table in the form of dictionaries.
+        """
+        self.cursor.execute(f"SELECT * FROM {self.table_name};")
+        rows = self.cursor.fetchall()
+        column_names = [desc[0] for desc in self.cursor.description]
+        return [dict(zip(column_names, row)) for row in rows]
+
     def get_row_count(self) -> int:
         """Get the number of rows in the table.
         Returns:
