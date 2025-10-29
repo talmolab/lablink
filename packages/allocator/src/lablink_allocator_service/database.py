@@ -152,6 +152,17 @@ class PostgresqlDatabase:
                 "healthy": row[5],
                 "status": row[6],
                 "logs": row[7],
+                "terraform_apply_start_time": row[8],
+                "terraform_apply_end_time": row[9],
+                "terraform_apply_duration_seconds": row[10],
+                "cloud_init_start_time": row[11],
+                "cloud_init_end_time": row[12],
+                "cloud_init_duration_seconds": row[13],
+                "container_start_time": row[14],
+                "container_end_time": row[15],
+                "container_startup_duration_seconds": row[16],
+                "total_startup_duration_seconds": row[17],
+                "created_at": row[18],
             }
         else:
             logger.error(f"No VM found with hostname '{hostname}'.")
@@ -558,6 +569,35 @@ class PostgresqlDatabase:
             PostgresqlDatabase: An instance of the PostgresqlDatabase class.
         """
         return cls(dbname, user, password, host, port, table_name, message_channel)
+    
+    def update_terraform_timing(
+        self, hostname: str, startup_time_seconds: float, end_time: str
+    ) -> None:
+        """Update the Terraform timing metrics for a VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            startup_time_seconds (float): The total startup duration in seconds.
+            end_time (str): The end time of the Terraform apply process.
+        """
+        query = f"""
+        UPDATE {self.table_name}
+        SET 
+            TerraformApplyEndTime = {end_time},
+            TotalStartupDurationSeconds = %s
+        WHERE hostname = %s;
+        """
+        try:
+            self.cursor.execute(query, (startup_time_seconds, hostname))
+            self.conn.commit()
+            logger.debug(
+                f"Updated Terraform timing for VM '{hostname}': "
+                f"TotalStartupDurationSeconds={startup_time_seconds}, "
+                f"TerraformApplyEndTime={end_time}."
+            )
+        except Exception as e:
+            logger.error(f"Error updating Terraform timing: {e}")
+            self.conn.rollback()
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
