@@ -129,17 +129,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class vms(db.Model):
-    hostname = db.Column(db.String(1024), primary_key=True)
-    pin = db.Column(db.String(1024), nullable=True)
-    crdcommand = db.Column(db.String(1024), nullable=True)
-    useremail = db.Column(db.String(1024), nullable=True)
-    inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
-    healthy = db.Column(db.String(1024), nullable=True)
-    status = db.Column(db.String(1024), nullable=True)
-    logs = db.Column(db.Text, nullable=True)
-
-
 @auth.verify_password
 def verify_password(username, password):
     """Verify the username and password against the stored users.
@@ -280,7 +269,7 @@ def set_aws_credentials():
 @app.route("/admin/instances")
 @auth.login_required
 def view_instances():
-    instances = vms.query.all()
+    instances = database.get_all_vms()
     return render_template("instances.html", instances=instances)
 
 
