@@ -6,6 +6,7 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
+import json
 
 from flask import (
     Flask,
@@ -436,6 +437,25 @@ def launch():
             bucket_name=cfg.bucket_name,
             region=cfg.app.region,
         )
+
+        # Store timing outputs in the database
+        timing_output = subprocess.run(
+            ["terraform", "output", "-json", "instance_startup_times"],
+            cwd=TERRAFORM_DIR,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        timing_data = json.loads(timing_output.stdout)
+
+        logger.debug(f"Timing data: {timing_data}")
+
+        for hostname, times in timing_data["value"].items():
+            database.update_terraform_timing(
+                hostname=hostname,
+                startup_time_seconds=times["seconds"],
+                end_time = 'NOW()'
+            )
 
         return render_template("dashboard.html", output=clean_output)
 
