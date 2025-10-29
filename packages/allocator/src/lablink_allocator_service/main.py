@@ -450,7 +450,7 @@ def launch():
 
         logger.debug(f"Timing data: {timing_data}")
 
-        for hostname, times in timing_data["value"].items():
+        for hostname, times in timing_data.items():
             database.update_terraform_timing(
                 hostname=hostname,
                 startup_time_seconds=times["seconds"],
