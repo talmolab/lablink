@@ -156,11 +156,10 @@ def test_output(plan):
         "vm_public_ips",
         "lablink_private_key_pem",
         "vm_instance_names",
-        "startup_time_seconds_per_instance",
-        "startup_time_hms_per_instance",
         "startup_time_avg_seconds",
         "startup_time_min_seconds",
         "startup_time_max_seconds",
+        "instance_startup_times",
     ]:
         assert k in outs
 
