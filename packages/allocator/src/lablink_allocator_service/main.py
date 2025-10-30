@@ -38,6 +38,7 @@ from lablink_allocator_service.utils.scp import (
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
+    get_instance_timings
 )
 
 app = Flask(__name__)
@@ -427,15 +428,7 @@ def launch():
         )
 
         # Store timing outputs in the database
-        timing_output = subprocess.run(
-            ["terraform", "output", "-json", "instance_terraform_apply_times"],
-            cwd=TERRAFORM_DIR,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        timing_data = json.loads(timing_output.stdout)
-
+        timing_data = get_instance_timings(terraform_dir=TERRAFORM_DIR)
         logger.debug(f"Timing data: {timing_data}")
 
         for hostname, times in timing_data.items():
