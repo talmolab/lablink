@@ -601,7 +601,10 @@ class PostgresqlDatabase:
             SET terraformapplydurationseconds = %s,
                 terraformapplystarttime = %s,
                 terraformapplyendtime = %s
-            WHERE hostname = %s;
+            WHERE hostname = %s
+            RETURNING terraformapplydurationseconds,
+                      terraformapplystarttime,
+                      terraformapplyendtime;
         """
         with self.conn.cursor() as cursor:
             try:
@@ -614,10 +617,14 @@ class PostgresqlDatabase:
                         hostname,
                     ),
                 )
+                if cursor.rowcount == 0:
+                    logger.error(f"No VM found with hostname '{hostname}'.")
+                    return
+                updated = cursor.fetchone()
                 self.conn.commit()
                 logger.debug(
                     f"Updated Terraform timing for VM '{hostname}': "
-                    f"{per_instance_seconds}s."
+                    f"{updated['terraformapplydurationseconds']}s."
                 )
             except Exception as e:
                 logger.error(f"Error updating Terraform timing: {e}")
