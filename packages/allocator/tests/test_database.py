@@ -53,7 +53,16 @@ def test_get_row_count(db_instance):
 
 def test_get_column_names(db_instance):
     """Test getting column names from a table."""
-    expected_columns = ["hostname", "pin", "useremail", "crdcommand", "inuse", "healthy", "status", "logs"]
+    expected_columns = [
+        "hostname",
+        "pin",
+        "useremail",
+        "crdcommand",
+        "inuse",
+        "healthy",
+        "status",
+        "logs",
+    ]
     db_instance.cursor.fetchall.return_value = [(col,) for col in expected_columns]
     columns = db_instance.get_column_names("vms")
     db_instance.cursor.execute.assert_called_with(
@@ -68,7 +77,16 @@ def test_insert_vm(db_instance):
     hostname = "test-vm-01"
     # Mock the get_column_names method to return a specific set of columns
     db_instance.get_column_names = MagicMock(
-        return_value=["hostname", "inuse", "status", "email", "pin", "crdcommand", "healthy", "logs"]
+        return_value=[
+            "hostname",
+            "inuse",
+            "status",
+            "email",
+            "pin",
+            "crdcommand",
+            "healthy",
+            "logs",
+        ]
     )
     db_instance.insert_vm(hostname)
 
@@ -379,7 +397,9 @@ def test_update_vm_status_invalid(db_instance, caplog):
 def test_load_database():
     """Test the class method for loading a database instance."""
     with patch.object(
-        PostgresqlDatabase, "__init__", return_value=None,
+        PostgresqlDatabase,
+        "__init__",
+        return_value=None,
     ) as mock_init:
         inst = PostgresqlDatabase.load_database(
             "db", "user", "pass", "host", 5432, "table", "channel"

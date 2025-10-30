@@ -30,9 +30,15 @@ def test_launch_vm_success(
         MagicMock(get_row_count=MagicMock(return_value=3)),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.key_name", "my-key", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
 
     # Fake terraform calls
     class R:
@@ -92,7 +98,9 @@ def test_launch_missing_allocator_outputs_returns_error(
         MagicMock(get_row_count=lambda: 0),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "", raising=False
+    )
     monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
 
     mock_run.return_value = MagicMock(stdout="INIT", stderr="")
@@ -119,9 +127,13 @@ def test_launch_apply_failure(
         MagicMock(get_row_count=lambda: 1),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False
+    )
     monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
 
     def side_effect(cmd, **kwargs):
         if cmd[1] == "init":
@@ -153,7 +165,9 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
 
     # Mock DB and attach to app module via string target
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
 
     # Call the destroy endpoint
     resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
