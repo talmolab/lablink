@@ -600,12 +600,17 @@ class PostgresqlDatabase:
         Args:
             hostname (str): The hostname of the VM.
             per_instance_seconds (float): The total startup duration in seconds.
-            per_instance_start_time (datetime): The start time of the Terraform apply process.
-            per_instance_end_time (datetime): The end time of the Terraform apply process.
+            per_instance_start_time (datetime): The start time of the Terraform apply.
+            per_instance_end_time (datetime): The end time of the Terraform apply.
         """
 
         query = f"""
-            INSERT INTO {self.table_name} (hostname, terraformapplydurationseconds, terraformapplystarttime, terraformapplyendtime)
+            INSERT INTO {self.table_name} (
+                hostname,
+                terraformapplydurationseconds,
+                terraformapplystarttime,
+                terraformapplyendtime
+            )
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (hostname) DO UPDATE
             SET terraformapplydurationseconds = EXCLUDED.terraformapplydurationseconds,
@@ -655,7 +660,7 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query,
                     (
-                        metrics.get("cloud_init_duration_seconds"),
+                        float(metrics.get("cloud_init_duration_seconds")),
                         cloud_init_start,
                         cloud_init_end,
                         hostname,
