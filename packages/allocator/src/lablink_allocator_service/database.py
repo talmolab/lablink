@@ -603,21 +603,25 @@ class PostgresqlDatabase:
                 terraformapplyendtime = %s
             WHERE hostname = %s;
         """
-        try:
-            self.cursor.execute(
-                query,
-                (
-                    per_instance_seconds,
-                    per_instance_start_time,
-                    per_instance_end_time,
-                    hostname,
-                ),
-            )
-            self.conn.commit()
-            logger.debug(f"Updated Terraform timing for '{hostname}'.")
-        except Exception as e:
-            logger.error(f"Error updating Terraform timing: {e}")
-            self.conn.rollback()
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query,
+                    (
+                        per_instance_seconds,
+                        per_instance_start_time,
+                        per_instance_end_time,
+                        hostname,
+                    ),
+                )
+                self.conn.commit()
+                logger.debug(
+                    f"Updated Terraform timing for VM '{hostname}': "
+                    f"{per_instance_seconds}s."
+                )
+            except Exception as e:
+                logger.error(f"Error updating Terraform timing: {e}")
+                self.conn.rollback()
 
 
     def update_cloud_init_metrics(self, hostname: str, metrics: dict) -> None:
@@ -633,21 +637,22 @@ class PostgresqlDatabase:
                 cloudinitendtime = %s
             WHERE hostname = %s;
         """
-        try:
-            self.cursor.execute(
-                query,
-                (
-                    metrics.get("cloud_init_duration_seconds"),
-                    metrics.get("cloud_init_start"),
-                    metrics.get("cloud_init_end"),
-                    hostname,
-                ),
-            )
-            self.conn.commit()
-            logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
-        except Exception as e:
-            logger.error(f"Error updating VM metrics: {e}")
-            self.conn.rollback()
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query,
+                    (
+                        metrics.get("cloud_init_duration_seconds"),
+                        metrics.get("cloud_init_start"),
+                        metrics.get("cloud_init_end"),
+                        hostname,
+                    ),
+                )
+                self.conn.commit()
+                logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
+            except Exception as e:
+                logger.error(f"Error updating VM metrics: {e}")
+                self.conn.rollback()
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
