@@ -623,6 +623,36 @@ class PostgresqlDatabase:
             logger.error(f"Error updating Terraform timing: {e}")
             self.conn.rollback()
 
+
+    def update_cloud_init_metrics(self, hostname: str, metrics: dict) -> None:
+        """Update various timing metrics for a VM.
+        Args:
+            hostname (str): The hostname of the VM.
+            metrics (dict): A dictionary containing the timing metrics to update.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET cloudinitdurationseconds = %s,
+                cloudinitendtime = %s,
+                cloudinitstarttime = %s,
+            WHERE hostname = %s;
+        """
+        try:
+            self.cursor.execute(
+                query,
+                (
+                    metrics.get("cloud_init_duration_seconds"),
+                    metrics.get("cloud_init_end"),
+                    metrics.get("cloud_init_start"),
+                    hostname,
+                ),
+            )
+            self.conn.commit()
+            logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
+        except Exception as e:
+            logger.error(f"Error updating VM metrics: {e}")
+            self.conn.rollback()
+
     def __del__(self):
         """Close the database connection when the object is deleted."""
         self.cursor.close()
