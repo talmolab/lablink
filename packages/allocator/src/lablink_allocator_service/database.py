@@ -582,18 +582,21 @@ class PostgresqlDatabase:
         return cls(dbname, user, password, host, port, table_name, message_channel)
 
     def update_terraform_timing(
-        self, hostname: str, startup_time_seconds: float, end_time: str = "NOW()"
+        self, hostname: str, startup_time_seconds: float, start_time: str, end_time: str
     ) -> None:
         """Update the Terraform timing metrics for a VM.
 
         Args:
             hostname (str): The hostname of the VM.
             startup_time_seconds (float): The total startup duration in seconds.
+            start_time (str): The start time of the Terraform apply process.
             end_time (str): The end time of the Terraform apply process.
         """
         query = f"""
             UPDATE {self.table_name}
-            SET terraformapplyendtime = {end_time}, totalstartupdurationseconds = %s
+            SET terraformapplystarttime = {start_time},
+                terraformapplyendtime = {end_time},
+                totalstartupdurationseconds = %s
             WHERE hostname = %s;
         """
         try:

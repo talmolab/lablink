@@ -443,7 +443,8 @@ def launch():
             database.update_terraform_timing(
                 hostname=hostname,
                 startup_time_seconds=times["seconds"],
-                end_time = 'NOW()'
+                start_time=f"'{times['start_time']}'",
+                end_time=f"'{times['end_time']}'",
             )
 
         return render_template("dashboard.html", output=clean_output)

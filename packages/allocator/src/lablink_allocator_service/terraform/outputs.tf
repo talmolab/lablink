@@ -39,6 +39,8 @@ output "instance_startup_times" {
     aws_instance.lablink_vm[i].tags.Name => {
       seconds = local.per_instance_seconds[i]
       formatted = local.per_instance_hms[i]
+      start_time = local.per_instance_start_time[i]
+      end_time = local.per_instance_end_time[i]
     }
   }
 }
