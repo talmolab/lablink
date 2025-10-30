@@ -99,7 +99,10 @@ def test_insert_vm(db_instance):
 
 def test_get_vm_by_hostname_found(db_instance):
     """Test retrieving a VM by its hostname when it exists."""
+    from datetime import datetime
     hostname = "test-vm-01"
+    start_time = datetime(2023, 1, 1, 12, 0, 0)
+    end_time = datetime(2023, 1, 1, 12, 2, 3)
     # Simulate a row returned from the database
     vm_data = (
         hostname,
@@ -110,6 +113,17 @@ def test_get_vm_by_hostname_found(db_instance):
         True,
         "running",
         "log data",
+        start_time,  # terraform_apply_start_time
+        end_time,  # terraform_apply_end_time
+        123.0,  # terraform_apply_duration_seconds
+        start_time,  # cloud_init_start_time
+        end_time,  # cloud_init_end_time
+        123.0,  # cloud_init_duration_seconds
+        start_time,  # container_start_time
+        end_time,  # container_end_time
+        123.0,  # container_startup_duration_seconds
+        369.0,  # total_startup_duration_seconds
+        start_time,  # created_at
     )
     db_instance.cursor.fetchone.return_value = vm_data
     vm = db_instance.get_vm_by_hostname(hostname)
@@ -119,6 +133,17 @@ def test_get_vm_by_hostname_found(db_instance):
     )
     assert vm["hostname"] == hostname
     assert vm["pin"] == "123456"
+    assert vm["terraform_apply_start_time"] == start_time
+    assert vm["terraform_apply_end_time"] == end_time
+    assert vm["terraform_apply_duration_seconds"] == 123.0
+    assert vm["cloud_init_start_time"] == start_time
+    assert vm["cloud_init_end_time"] == end_time
+    assert vm["cloud_init_duration_seconds"] == 123.0
+    assert vm["container_start_time"] == start_time
+    assert vm["container_end_time"] == end_time
+    assert vm["container_startup_duration_seconds"] == 123.0
+    assert vm["total_startup_duration_seconds"] == 369.0
+    assert vm["created_at"] == start_time
 
 
 def test_get_vm_by_hostname_not_found(db_instance):
@@ -498,3 +523,44 @@ def test_update_vm_status_db_error(db_instance, caplog):
     db_instance.update_vm_status(hostname, status)
     assert "Error updating VM status: DB error" in caplog.text
     db_instance.conn.rollback.assert_called_once()
+
+def test_get_all_vms(db_instance):
+    """Test getting all VMs from the database."""
+    with patch.object(db_instance, 'get_column_names') as mock_get_columns:
+        vm_data = [
+            ("vm1", "pin1", "cmd1", "email1", False, True, "running"),
+            ("vm2", "pin2", "cmd2", "email2", True, False, "error"),
+        ]
+        column_names = ["hostname", "pin", "crdcommand", "useremail", "inuse", "healthy", "status"]
+        mock_get_columns.return_value = column_names
+        db_instance.cursor.fetchall.return_value = vm_data
+
+        vms = db_instance.get_all_vms()
+
+        # Construct the expected query, excluding the 'logs' column
+        query_columns = ", ".join([col for col in column_names if col != "logs"])
+        expected_query = f"SELECT {query_columns} FROM vms;"
+        db_instance.cursor.execute.assert_called_with(expected_query)
+
+        # The result should be a list of dictionaries, without the 'logs' key
+        expected_vms = [
+            {"hostname": "vm1", "pin": "pin1", "crdcommand": "cmd1", "useremail": "email1", "inuse": False, "healthy": True, "status": "running"},
+            {"hostname": "vm2", "pin": "pin2", "crdcommand": "cmd2", "useremail": "email2", "inuse": True, "healthy": False, "status": "error"},
+        ]
+        assert vms == expected_vms
+
+def test_naive_utc():
+    """Test the _naive_utc static method."""
+    from datetime import datetime, timezone, timedelta
+    
+    # Test with timezone-aware datetime
+    aware_dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+    naive_utc_dt = PostgresqlDatabase._naive_utc(aware_dt)
+    assert naive_utc_dt.tzinfo is None
+    assert naive_utc_dt == datetime(2023, 1, 1, 17, 0, 0)
+
+    # Test with naive datetime
+    naive_dt = datetime(2023, 1, 1, 12, 0, 0)
+    naive_utc_dt = PostgresqlDatabase._naive_utc(naive_dt)
+    assert naive_utc_dt.tzinfo is None
+    assert naive_utc_dt == naive_dt
