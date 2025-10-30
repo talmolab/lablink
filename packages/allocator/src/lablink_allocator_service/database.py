@@ -148,7 +148,7 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
 
         Returns:
-            dict: A dictionary containing the VM details.
+            dict: A dictionary containing the VM details without logs.
         """
         query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
         self.cursor.execute(query, (hostname,))
@@ -162,7 +162,6 @@ class PostgresqlDatabase:
                 "inuse": row[4],
                 "healthy": row[5],
                 "status": row[6],
-                "logs": row[7],
                 "terraform_apply_start_time": row[8],
                 "terraform_apply_end_time": row[9],
                 "terraform_apply_duration_seconds": row[10],
