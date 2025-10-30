@@ -72,14 +72,15 @@ class PostgresqlDatabase:
         self.cursor = self.conn.cursor()
 
     def get_all_vms(self) -> list:
-        """Get all VMs from the table.
+        """Get all VMs from the table, excluding logs.
 
         Returns:
             list: A list of all VMs in the table in the form of dictionaries.
         """
-        self.cursor.execute(f"SELECT * FROM {self.table_name};")
+        column_names = [col for col in self.get_column_names() if col != "logs"]
+        query_columns = ", ".join(column_names)
+        self.cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
         rows = self.cursor.fetchall()
-        column_names = [desc[0] for desc in self.cursor.description]
         return [dict(zip(column_names, row)) for row in rows]
 
     def get_row_count(self) -> int:
@@ -670,6 +671,8 @@ class PostgresqlDatabase:
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
-        self.cursor.close()
-        self.conn.close()
+        if hasattr(self, "cursor") and self.cursor:
+            self.cursor.close()
+        if hasattr(self, "conn") and self.conn:
+            self.conn.close()
         logger.debug("Database connection closed.")
