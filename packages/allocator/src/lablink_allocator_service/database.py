@@ -596,9 +596,6 @@ class PostgresqlDatabase:
             per_instance_start_time (datetime): The start time of the Terraform apply process.
             per_instance_end_time (datetime): The end time of the Terraform apply process.
         """
-        if not self.vm_exists(hostname):
-            logger.error(f"VM with hostname '{hostname}' does not exist.")
-            return
 
         query = f"""
             INSERT INTO {self.table_name} (hostname, terraformapplydurationseconds, terraformapplystarttime, terraformapplyendtime)
