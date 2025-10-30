@@ -1,3 +1,4 @@
+from datetime import datetime
 import select
 import json
 import logging
@@ -582,30 +583,41 @@ class PostgresqlDatabase:
         return cls(dbname, user, password, host, port, table_name, message_channel)
 
     def update_terraform_timing(
-        self, hostname: str, startup_time_seconds: float, start_time: str, end_time: str
+        self,
+        hostname: str,
+        per_instance_seconds: float,
+        per_instance_start_time: datetime,
+        per_instance_end_time: datetime,
     ) -> None:
         """Update the Terraform timing metrics for a VM.
-
         Args:
             hostname (str): The hostname of the VM.
-            startup_time_seconds (float): The total startup duration in seconds.
-            start_time (str): The start time of the Terraform apply process.
-            end_time (str): The end time of the Terraform apply process.
+            per_instance_seconds (float): The total startup duration in seconds.
+            per_instance_start_time (datetime): The start time of the Terraform apply process.
+            per_instance_end_time (datetime): The end time of the Terraform apply process.
         """
         query = f"""
             UPDATE {self.table_name}
-            SET terraformapplystarttime = {start_time},
-                terraformapplyendtime = {end_time},
-                totalstartupdurationseconds = %s
+            SET terraformapplydurationseconds = %s,
+                terraformapplyendtime = %s,
+                terraformapplystarttime = %s
             WHERE hostname = %s;
         """
         try:
-            self.cursor.execute(query, (startup_time_seconds, hostname))
+            self.cursor.execute(
+                query,
+                (
+                    per_instance_seconds,
+                    per_instance_start_time,
+                    per_instance_end_time,
+                    hostname,
+                ),
+            )
             self.conn.commit()
             logger.debug(
                 f"Updated Terraform timing for VM '{hostname}': "
-                f"TotalStartupDurationSeconds={startup_time_seconds}, "
-                f"TerraformApplyEndTime={end_time}."
+                f"TerraformApplyDurationSeconds={per_instance_seconds}, "
+                f"TerraformApplyEndTime={per_instance_end_time}."
             )
         except Exception as e:
             logger.error(f"Error updating Terraform timing: {e}")

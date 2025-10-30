@@ -429,7 +429,7 @@ def launch():
 
         # Store timing outputs in the database
         timing_output = subprocess.run(
-            ["terraform", "output", "-json", "instance_startup_times"],
+            ["terraform", "output", "-json", "instance_terraform_apply_times"],
             cwd=TERRAFORM_DIR,
             check=True,
             capture_output=True,
@@ -440,11 +440,15 @@ def launch():
         logger.debug(f"Timing data: {timing_data}")
 
         for hostname, times in timing_data.items():
+            start_time = datetime.fromisoformat(
+                times["start_time"].replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(times["end_time"].replace("Z", "+00:00"))
             database.update_terraform_timing(
                 hostname=hostname,
-                startup_time_seconds=times["seconds"],
-                start_time=f"'{times['start_time']}'",
-                end_time=f"'{times['end_time']}'",
+                per_instance_seconds=times["seconds"],
+                per_instance_start_time=start_time,
+                per_instance_end_time=end_time,
             )
 
         return render_template("dashboard.html", output=clean_output)
