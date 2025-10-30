@@ -787,7 +787,7 @@ def receive_vm_metrics(hostname):
             return jsonify({"error": "VM not found."}), 404
 
         # Update the database with the metrics
-        database.update_vm_metrics(hostname=hostname, metrics=data)
+        database.update_cloud_init_metrics(hostname=hostname, metrics=data)
 
         logger.info(f"Received metrics for {hostname}: {data}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
