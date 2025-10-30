@@ -596,15 +596,17 @@ class PostgresqlDatabase:
             per_instance_start_time (datetime): The start time of the Terraform apply process.
             per_instance_end_time (datetime): The end time of the Terraform apply process.
         """
+        if not self.vm_exists(hostname):
+            logger.error(f"VM with hostname '{hostname}' does not exist.")
+            return
+
         query = f"""
-            UPDATE {self.table_name}
-            SET terraformapplydurationseconds = %s,
-                terraformapplystarttime = %s,
-                terraformapplyendtime = %s
-            WHERE hostname = %s
-            RETURNING terraformapplydurationseconds,
-                      terraformapplystarttime,
-                      terraformapplyendtime;
+            INSERT INTO {self.table_name} (hostname, terraformapplydurationseconds, terraformapplystarttime, terraformapplyendtime)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (hostname) DO UPDATE
+            SET terraformapplydurationseconds = EXCLUDED.terraformapplydurationseconds,
+                terraformapplystarttime = EXCLUDED.terraformapplystarttime,
+                terraformapplyendtime = EXCLUDED.terraformapplyendtime
         """
         with self.conn.cursor() as cursor:
             try:
@@ -617,14 +619,10 @@ class PostgresqlDatabase:
                         hostname,
                     ),
                 )
-                if cursor.rowcount == 0:
-                    logger.error(f"No VM found with hostname '{hostname}'.")
-                    return
-                updated = cursor.fetchone()
                 self.conn.commit()
                 logger.debug(
                     f"Updated Terraform timing for VM '{hostname}': "
-                    f"{updated['terraformapplydurationseconds']}s."
+                    f"{per_instance_seconds}s."
                 )
             except Exception as e:
                 logger.error(f"Error updating Terraform timing: {e}")
