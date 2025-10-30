@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import select
 import json
 import logging
@@ -600,7 +600,7 @@ class PostgresqlDatabase:
         def _naive_utc(dt: datetime) -> datetime:
             """Convert a datetime to naive UTC."""
             if dt.tzinfo is not None:
-                return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
             return dt
 
         query = f"""
