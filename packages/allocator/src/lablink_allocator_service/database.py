@@ -582,6 +582,13 @@ class PostgresqlDatabase:
         """
         return cls(dbname, user, password, host, port, table_name, message_channel)
 
+    @staticmethod
+    def _naive_utc(dt: datetime) -> datetime:
+            """Convert a datetime to naive UTC."""
+            if dt.tzinfo is not None:
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+
     def update_terraform_timing(
         self,
         hostname: str,
@@ -596,12 +603,6 @@ class PostgresqlDatabase:
             per_instance_start_time (datetime): The start time of the Terraform apply process.
             per_instance_end_time (datetime): The end time of the Terraform apply process.
         """
-
-        def _naive_utc(dt: datetime) -> datetime:
-            """Convert a datetime to naive UTC."""
-            if dt.tzinfo is not None:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
-            return dt
 
         query = f"""
             INSERT INTO {self.table_name} (hostname, terraformapplydurationseconds, terraformapplystarttime, terraformapplyendtime)
@@ -618,8 +619,8 @@ class PostgresqlDatabase:
                     (
                         hostname,
                         per_instance_seconds,
-                        _naive_utc(per_instance_start_time),
-                        _naive_utc(per_instance_end_time),
+                        self._naive_utc(per_instance_start_time),
+                        self._naive_utc(per_instance_end_time),
                     ),
                 )
                 self.conn.commit()
@@ -646,14 +647,17 @@ class PostgresqlDatabase:
                 cloudinitendtime = %s
             WHERE hostname = %s;
         """
+        cloud_init_start = self._naive_utc(metrics.get("cloud_init_start"))
+        cloud_init_end = self._naive_utc(metrics.get("cloud_init_end"))
+
         with self.conn.cursor() as cursor:
             try:
                 cursor.execute(
                     query,
                     (
                         metrics.get("cloud_init_duration_seconds"),
-                        metrics.get("cloud_init_start"),
-                        metrics.get("cloud_init_end"),
+                        cloud_init_start,
+                        cloud_init_end,
                         hostname,
                     ),
                 )
