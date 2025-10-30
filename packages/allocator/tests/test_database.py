@@ -100,6 +100,7 @@ def test_insert_vm(db_instance):
 def test_get_vm_by_hostname_found(db_instance):
     """Test retrieving a VM by its hostname when it exists."""
     from datetime import datetime
+
     hostname = "test-vm-01"
     start_time = datetime(2023, 1, 1, 12, 0, 0)
     end_time = datetime(2023, 1, 1, 12, 2, 3)
@@ -524,14 +525,23 @@ def test_update_vm_status_db_error(db_instance, caplog):
     assert "Error updating VM status: DB error" in caplog.text
     db_instance.conn.rollback.assert_called_once()
 
+
 def test_get_all_vms(db_instance):
     """Test getting all VMs from the database."""
-    with patch.object(db_instance, 'get_column_names') as mock_get_columns:
+    with patch.object(db_instance, "get_column_names") as mock_get_columns:
         vm_data = [
             ("vm1", "pin1", "cmd1", "email1", False, True, "running"),
             ("vm2", "pin2", "cmd2", "email2", True, False, "error"),
         ]
-        column_names = ["hostname", "pin", "crdcommand", "useremail", "inuse", "healthy", "status"]
+        column_names = [
+            "hostname",
+            "pin",
+            "crdcommand",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+        ]
         mock_get_columns.return_value = column_names
         db_instance.cursor.fetchall.return_value = vm_data
 
@@ -544,10 +554,27 @@ def test_get_all_vms(db_instance):
 
         # The result should be a list of dictionaries, without the 'logs' key
         expected_vms = [
-            {"hostname": "vm1", "pin": "pin1", "crdcommand": "cmd1", "useremail": "email1", "inuse": False, "healthy": True, "status": "running"},
-            {"hostname": "vm2", "pin": "pin2", "crdcommand": "cmd2", "useremail": "email2", "inuse": True, "healthy": False, "status": "error"},
+            {
+                "hostname": "vm1",
+                "pin": "pin1",
+                "crdcommand": "cmd1",
+                "useremail": "email1",
+                "inuse": False,
+                "healthy": True,
+                "status": "running",
+            },
+            {
+                "hostname": "vm2",
+                "pin": "pin2",
+                "crdcommand": "cmd2",
+                "useremail": "email2",
+                "inuse": True,
+                "healthy": False,
+                "status": "error",
+            },
         ]
         assert vms == expected_vms
+
 
 def test_naive_utc():
     """Test the _naive_utc static method."""

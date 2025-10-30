@@ -6,7 +6,6 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime, timezone
 import re
-import json
 
 from flask import (
     Flask,
@@ -38,7 +37,7 @@ from lablink_allocator_service.utils.scp import (
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
-    get_instance_timings
+    get_instance_timings,
 )
 
 app = Flask(__name__)

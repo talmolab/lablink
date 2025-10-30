@@ -44,6 +44,7 @@ def test_launch_vm_success(
     class R:
         def __init__(self, out="OK"):
             self.stdout, self.stderr = out, ""
+            self.returncode = 0
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
