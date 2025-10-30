@@ -599,8 +599,8 @@ class PostgresqlDatabase:
         query = f"""
             UPDATE {self.table_name}
             SET terraformapplydurationseconds = %s,
-                terraformapplyendtime = %s,
-                terraformapplystarttime = %s
+                terraformapplystarttime = %s,
+                terraformapplyendtime = %s
             WHERE hostname = %s;
         """
         try:
@@ -614,11 +614,7 @@ class PostgresqlDatabase:
                 ),
             )
             self.conn.commit()
-            logger.debug(
-                f"Updated Terraform timing for VM '{hostname}': "
-                f"TerraformApplyDurationSeconds={per_instance_seconds}, "
-                f"TerraformApplyEndTime={per_instance_end_time}."
-            )
+            logger.debug(f"Updated Terraform timing for '{hostname}'.")
         except Exception as e:
             logger.error(f"Error updating Terraform timing: {e}")
             self.conn.rollback()
@@ -633,8 +629,8 @@ class PostgresqlDatabase:
         query = f"""
             UPDATE {self.table_name}
             SET cloudinitdurationseconds = %s,
-                cloudinitendtime = %s,
                 cloudinitstarttime = %s,
+                cloudinitendtime = %s
             WHERE hostname = %s;
         """
         try:
@@ -642,8 +638,8 @@ class PostgresqlDatabase:
                 query,
                 (
                     metrics.get("cloud_init_duration_seconds"),
-                    metrics.get("cloud_init_end"),
                     metrics.get("cloud_init_start"),
+                    metrics.get("cloud_init_end"),
                     hostname,
                 ),
             )

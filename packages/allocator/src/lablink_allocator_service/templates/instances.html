@@ -72,12 +72,12 @@
           <td>{{ "Yes" if vm.inuse else "No" }}</td>
           <td>{{ vm.status or "Unknown" }}</td>
           <td>{{ vm.healthy or "—" }}</td>
-          <td>{{ "%.1f"|format(vm.TerraformApplyDurationSeconds or 0) }}s</td>
-          <td>{{ "%.1f"|format(vm.CloudInitDurationSeconds or 0) }}s</td>
-          <td>{{ "%.1f"|format(vm.ContainerStartupDurationSeconds or 0) }}s</td>
+          <td>{{ "%.1f"|format(vm.terraformapplydurationseconds or 0) }}s</td>
+          <td>{{ "%.1f"|format(vm.cloudinitdurationseconds or 0) }}s</td>
+          <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
           <td>
             <strong
-              >{{ "%.1f"|format(vm.TotalStartupDurationSeconds or 0) }}s</strong
+              >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
             >
           </td>
           <td>

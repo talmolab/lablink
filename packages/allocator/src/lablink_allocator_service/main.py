@@ -446,7 +446,7 @@ def launch():
             end_time = datetime.fromisoformat(times["end_time"].replace("Z", "+00:00"))
             database.update_terraform_timing(
                 hostname=hostname,
-                per_instance_seconds=times["seconds"],
+                per_instance_seconds=float(times["seconds"]),
                 per_instance_start_time=start_time,
                 per_instance_end_time=end_time,
             )
