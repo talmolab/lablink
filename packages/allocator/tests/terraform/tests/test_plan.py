@@ -156,10 +156,10 @@ def test_output(plan):
         "vm_public_ips",
         "lablink_private_key_pem",
         "vm_instance_names",
-        "startup_time_avg_seconds",
-        "startup_time_min_seconds",
-        "startup_time_max_seconds",
-        "instance_startup_times",
+        "terraform_apply_avg_seconds",
+            "terraform_apply_min_seconds",
+            "terraform_apply_max_seconds",
+            "instance_terraform_apply_times",
     ]:
         assert k in outs
 
