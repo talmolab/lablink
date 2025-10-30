@@ -104,10 +104,9 @@ class PostgresqlDatabase:
 
         # Query to get the column names from the information schema
         self.cursor.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = %s",
-                (table_name,),
-            )
+            "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+            (table_name,),
+        )
         return [row[0] for row in self.cursor.fetchall()]
 
     def insert_vm(self, hostname) -> None:
@@ -584,10 +583,10 @@ class PostgresqlDatabase:
 
     @staticmethod
     def _naive_utc(dt: datetime) -> datetime:
-            """Convert a datetime to naive UTC."""
-            if dt.tzinfo is not None:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
-            return dt
+        """Convert a datetime to naive UTC."""
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
 
     def update_terraform_timing(
         self,
@@ -636,8 +635,6 @@ class PostgresqlDatabase:
             except Exception as e:
                 logger.error(f"Error updating Terraform timing: {e}")
                 self.conn.rollback()
-
-
 
     def update_cloud_init_metrics(self, hostname: str, metrics: dict) -> None:
         """Update various timing metrics for a VM.

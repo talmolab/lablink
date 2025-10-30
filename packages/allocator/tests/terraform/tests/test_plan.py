@@ -11,7 +11,9 @@ def plan(fixture_dir):
     Fixture to validate the Terraform plan using the provided fixtures.
     """
     # Find the Terraform directory in the package (not in tests)
-    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    pkg_root = (
+        Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    )
     base_dir = pkg_root / "terraform"
     var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
 
@@ -55,7 +57,10 @@ def test_variables(plan):
     )
     assert plan["variables"]["region"]["value"] == "us-west-2"
     assert plan["variables"]["ssh_user"]["value"] == "ubuntu"
-    assert plan["variables"]["custom_startup_script_path"]["value"] == "../../../tests/terraform/fixtures/custom-startup.sh"
+    assert (
+        plan["variables"]["custom_startup_script_path"]["value"]
+        == "../../../tests/terraform/fixtures/custom-startup.sh"
+    )
 
 
 def _resource_map(plan):
@@ -157,9 +162,9 @@ def test_output(plan):
         "lablink_private_key_pem",
         "vm_instance_names",
         "terraform_apply_avg_seconds",
-            "terraform_apply_min_seconds",
-            "terraform_apply_max_seconds",
-            "instance_terraform_apply_times",
+        "terraform_apply_min_seconds",
+        "terraform_apply_max_seconds",
+        "instance_terraform_apply_times",
     ]:
         assert k in outs
 
@@ -179,11 +184,17 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Verify that the user_data contains the custom-startup.sh content
     # The user_data.sh template wraps the custom script in a heredoc
-    assert f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF" in user_data_content
+    assert (
+        f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF"
+        in user_data_content
+    )
+
 
 def test_multiline_special_chars_custom_startup_script(fixture_dir):
     """Test that a multi-line script with special characters is correctly embedded."""
-    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    pkg_root = (
+        Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    )
     base_dir = pkg_root / "terraform"
     var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
     script_path = (Path(fixture_dir) / "multiline-special-chars-startup.sh").resolve()
@@ -201,12 +212,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        [
-            "terraform",
-            "show",
-            "-json",
-            "plan.tfplan"
-        ],
+        ["terraform", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -226,7 +232,9 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
 
 def test_variable_interpolation_in_custom_startup_script(fixture_dir):
     """Test that variables in the custom startup script are not interpolated by Terraform."""
-    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    pkg_root = (
+        Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    )
     base_dir = pkg_root / "terraform"
     var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
     script_path = (Path(fixture_dir) / "multiline-special-chars-startup.sh").resolve()
@@ -263,8 +271,11 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
     assert 'export VAR="some_value"' in user_data_content
     assert 'if [ "$VAR" = "some_value" ]; then' in user_data_content
 
+
 def test_missing_custom_startup_script(fixture_dir):
-    pkg_root = Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    pkg_root = (
+        Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
+    )
     base_dir = pkg_root / "terraform"
     var_path = (Path(fixture_dir) / "plan.auto.tfvars").resolve()
     script_path = (Path(fixture_dir) / "missing-file.sh").resolve()

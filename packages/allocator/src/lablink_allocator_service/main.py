@@ -222,8 +222,7 @@ def unset_aws_credentials():
     os.environ.pop("AWS_SESSION_TOKEN", None)
 
     return render_template(
-        "admin.html",
-        unset_message="AWS credentials unset successfully."
+        "admin.html", unset_message="AWS credentials unset successfully."
     )
 
 
@@ -798,7 +797,6 @@ def receive_vm_metrics(hostname):
 
         # Update the database with the metrics
         database.update_cloud_init_metrics(hostname=hostname, metrics=data)
-
 
         logger.info(f"Received metrics for {hostname}: {data}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
