@@ -597,6 +597,12 @@ class PostgresqlDatabase:
             per_instance_end_time (datetime): The end time of the Terraform apply process.
         """
 
+        def _naive_utc(dt: datetime) -> datetime:
+            """Convert a datetime to naive UTC."""
+            if dt.tzinfo is not None:
+                return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            return dt
+
         query = f"""
             INSERT INTO {self.table_name} (hostname, terraformapplydurationseconds, terraformapplystarttime, terraformapplyendtime)
             VALUES (%s, %s, %s, %s)
@@ -610,10 +616,10 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query,
                     (
-                        per_instance_seconds,
-                        per_instance_start_time,
-                        per_instance_end_time,
                         hostname,
+                        per_instance_seconds,
+                        _naive_utc(per_instance_start_time),
+                        _naive_utc(per_instance_end_time),
                     ),
                 )
                 self.conn.commit()
@@ -624,6 +630,7 @@ class PostgresqlDatabase:
             except Exception as e:
                 logger.error(f"Error updating Terraform timing: {e}")
                 self.conn.rollback()
+
 
 
     def update_cloud_init_metrics(self, hostname: str, metrics: dict) -> None:
