@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 from zipfile import ZipFile
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import json
 
@@ -786,8 +786,19 @@ def receive_vm_metrics(hostname):
             logger.error(f"VM with hostname {hostname} not found.")
             return jsonify({"error": "VM not found."}), 404
 
+        # Convert datetime strings to datetime objects
+        if "cloud_init_start" in data:
+            data["cloud_init_start"] = datetime.fromtimestamp(
+                data["cloud_init_start"], tz=timezone.utc
+            )
+        if "cloud_init_end" in data:
+            data["cloud_init_end"] = datetime.fromtimestamp(
+                data["cloud_init_end"], tz=timezone.utc
+            )
+
         # Update the database with the metrics
         database.update_cloud_init_metrics(hostname=hostname, metrics=data)
+
 
         logger.info(f"Received metrics for {hostname}: {data}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
