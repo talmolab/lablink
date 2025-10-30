@@ -552,7 +552,7 @@ def test_get_all_vms(db_instance):
 def test_naive_utc():
     """Test the _naive_utc static method."""
     from datetime import datetime, timezone, timedelta
-    
+
     # Test with timezone-aware datetime
     aware_dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
     naive_utc_dt = PostgresqlDatabase._naive_utc(aware_dt)
