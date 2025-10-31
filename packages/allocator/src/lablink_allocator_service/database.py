@@ -669,6 +669,45 @@ class PostgresqlDatabase:
                 logger.error(f"Error updating VM metrics: {e}")
                 self.conn.rollback()
 
+    def update_container_startup_metrics(
+        self, hostname: str, metrics: dict
+    ) -> None:
+        """Update container startup timing metrics for a VM.
+        Args:
+            hostname (str): The hostname of the VM.
+            metrics (dict): A dictionary containing the timing metrics to update.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET containerstartupdurationseconds = %s,
+                containerstarttime = %s,
+                containerendtime = %s,
+                totalstartupdurationseconds = %s
+            WHERE hostname = %s;
+        """
+        container_start = self._naive_utc(metrics.get("container_start"))
+        container_end = self._naive_utc(metrics.get("container_end"))
+
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query,
+                    (
+                        float(metrics.get("container_startup_duration_seconds")),
+                        container_start,
+                        container_end,
+                        float(metrics.get("total_startup_duration_seconds")),
+                        hostname,
+                    ),
+                )
+                self.conn.commit()
+                logger.debug(
+                    f"Updated container startup metrics for VM '{hostname}': {metrics}."
+                )
+            except Exception as e:
+                logger.error(f"Error updating container startup metrics: {e}")
+                self.conn.rollback()
+
     def __del__(self):
         """Close the database connection when the object is deleted."""
         if hasattr(self, "cursor") and self.cursor:

@@ -798,6 +798,27 @@ def receive_vm_metrics(hostname):
         return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
+@app.route("/api/vm-container-metrics/<hostname>", methods=["POST"])
+def receive_vm_container_metrics(hostname):
+    """Receive and store VM container metrics."""
+    try:
+        data = request.get_json()
+
+        if not database.vm_exists(hostname=hostname):
+            logger.error(f"VM with hostname {hostname} not found.")
+            return jsonify({"error": "VM not found."}), 404
+
+        # Update the database with the container metrics
+        database.update_container_startup_metrics(hostname=hostname, metrics=data)
+
+        logger.info(f"Received container metrics for {hostname}: {data}")
+        return jsonify({"message": "VM container metrics posted successfully."}), 200
+
+    except Exception as e:
+        logger.error(f"Error receiving VM container metrics: {e}")
+        return jsonify({"error": "Failed to post VM container metrics."}), 500
+
+
 def main():
     """Main entry point for the allocator service."""
     with app.app_context():

@@ -29,8 +29,6 @@ def get_instance_ips(terraform_dir: str) -> list:
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error running terraform output: {e.stderr}")
-    if result.returncode != 0:
-        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
         output = json.loads(result.stdout)
     except json.JSONDecodeError as e:
@@ -60,8 +58,6 @@ def get_ssh_private_key(terraform_dir: str) -> str:
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error running terraform output: {e.stderr}")
-    if result.returncode != 0:
-        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     key_path = "/tmp/lablink_key.pem"
     with open(key_path, "w") as f:
         f.write(result.stdout)
@@ -91,8 +87,6 @@ def get_instance_ids(terraform_dir: str) -> list:
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error running terraform output: {e.stderr}")
-    if result.returncode != 0:
-        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
         output = json.loads(result.stdout)
     except json.JSONDecodeError as e:
@@ -124,8 +118,6 @@ def get_instance_names(terraform_dir: str) -> list:
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error running terraform output: {e.stderr}")
-    if result.returncode != 0:
-        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
         output = json.loads(result.stdout)
     except json.JSONDecodeError as e:
@@ -135,14 +127,14 @@ def get_instance_names(terraform_dir: str) -> list:
     return output
 
 
-def get_instance_timings(terraform_dir: str) -> list:
+def get_instance_timings(terraform_dir: str) -> dict:
     """Get the launch times of the instances created by Terraform.
     Args:
         terraform_dir (str): The directory where the Terraform configuration is located.
     Raises:
         RuntimeError: Error running terraform output command.
         RuntimeError: Error decoding JSON output.
-        ValueError: Expected output to be a list of launch times.
+        ValueError: Expected output to be a dictionary of launch times.
     Returns:
         dict: A dictionary mapping instance names to their launch times.
     """
@@ -155,16 +147,13 @@ def get_instance_timings(terraform_dir: str) -> list:
             text=True,
             check=True,
         )
-        timing_data = json.loads(result.stdout)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error running terraform output: {e.stderr}")
-    if result.returncode != 0:
-        raise RuntimeError(f"Error running terraform output: {result.stderr}")
     try:
-        output = json.loads(result.stdout)
+        timing_data = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Error decoding JSON output: {e}")
-    if not isinstance(output, dict):
+    if not isinstance(timing_data, dict):
         raise ValueError("Expected output to be a dictionary.")
 
     return timing_data
