@@ -682,21 +682,19 @@ class PostgresqlDatabase:
             SET containerstartupdurationseconds = %s,
                 containerstarttime = %s,
                 containerendtime = %s,
-                totalstartupdurationseconds = %s
             WHERE hostname = %s;
         """
-        container_start = self._naive_utc(metrics.get("container_start"))
-        container_end = self._naive_utc(metrics.get("container_end"))
+        container_start = self._naive_utc(metrics.get("container_start_time"))
+        container_end = self._naive_utc(metrics.get("container_end_time"))
 
         with self.conn.cursor() as cursor:
             try:
                 cursor.execute(
                     query,
                     (
-                        float(metrics.get("container_startup_duration_seconds")),
+                        float(metrics.get("container_duration")),
                         container_start,
                         container_end,
-                        float(metrics.get("total_startup_duration_seconds")),
                         hostname,
                     ),
                 )

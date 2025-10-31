@@ -154,6 +154,6 @@ def get_instance_timings(terraform_dir: str) -> dict:
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Error decoding JSON output: {e}")
     if not isinstance(timing_data, dict):
-        raise ValueError("Expected output to be a dictionary.")
+        raise ValueError("Expected output to be a dictionary of launch times.")
 
     return timing_data
