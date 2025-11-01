@@ -123,6 +123,16 @@ locals {
     )
   ]
 
+  per_instance_end_time = [
+    for t in time_static.end :
+    t.rfc3339
+  ]
+
+  per_instance_start_time = [
+    for t in time_static.start :
+    t.rfc3339
+  ]
+
   avg_seconds = length(local.per_instance_seconds) > 0 ? floor(sum(local.per_instance_seconds) / length(local.per_instance_seconds)) : 0
 
   max_seconds = length(local.per_instance_seconds) > 0 ? max(local.per_instance_seconds...) : 0

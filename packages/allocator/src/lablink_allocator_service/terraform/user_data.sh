@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Start time
+CLOUD_INIT_START_TIME=$(date +%s)
+
 echo ">> Configuration:"
 echo "  - Allocator IP: ${allocator_ip}"
 echo "  - Resource Suffix: ${resource_suffix}"
@@ -107,7 +110,8 @@ JSON
 
     systemctl restart docker
 
-    until docker info >/dev/null 2>&1; do
+    until docker info >/dev/null 2>&1;
+        do
         sleep 1
     done
 
@@ -160,5 +164,18 @@ else
     send_status "error"
     exit 1
 fi
+
+# End time
+CLOUD_INIT_END=$(date +%s)
+CLOUD_INIT_DURATION=$((CLOUD_INIT_END - CLOUD_INIT_START_TIME))
+
+# Send timing data to allocator
+curl -s -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
+    -H "Content-Type: application/json" \
+    -d "{
+        \"cloud_init_start\": $CLOUD_INIT_START_TIME,
+        \"cloud_init_end\": $CLOUD_INIT_END,
+        \"cloud_init_duration_seconds\": $CLOUD_INIT_DURATION
+    }" --max-time 5 || true
 
 echo ">> $(date -Is) Container launched successfully."

@@ -8,6 +8,7 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_ssh_private_key,
     get_instance_names,
     get_instance_ids,
+    get_instance_timings,
 )
 
 
@@ -35,13 +36,10 @@ def test_get_instance_ips_success(mock_run):
 @patch("subprocess.run")
 def test_get_instance_ips_nonzero_returncode(mock_run):
     """Test handling non-zero return code when getting instance IPs."""
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-json", "vm_public_ips"],
-        returncode=1,
-        stdout="",
-        stderr="error message",
+    mock_run.side_effect = subprocess.CalledProcessError(
+        1, "terraform", stderr="error message"
     )
-    with pytest.raises(RuntimeError, match="Error running terraform output"):
+    with pytest.raises(RuntimeError, match="Error running terraform output: error message"):
         get_instance_ips("/fake/terraform/dir")
 
 
@@ -61,7 +59,7 @@ def test_get_instance_ips_not_a_list(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout=json.dumps({"ip": "1.2.3.4"}), stderr=""
     )
-    with pytest.raises(ValueError, match="Expected output to be a list"):
+    with pytest.raises(ValueError, match="Expected output to be a list of IP addresses"):
         get_instance_ips("/fake/terraform/dir")
 
 
@@ -82,13 +80,10 @@ def test_get_ssh_private_key_success(mock_run, mock_file, mock_chmod, tmp_path):
 @patch("subprocess.run")
 def test_get_ssh_private_key_failure(mock_run):
     """Test handling failure when getting SSH private key."""
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-raw", "lablink_private_key_pem"],
-        returncode=1,
-        stdout="",
-        stderr="error message",
+    mock_run.side_effect = subprocess.CalledProcessError(
+        1, "terraform", stderr="error message"
     )
-    with pytest.raises(RuntimeError, match="Error running terraform output"):
+    with pytest.raises(RuntimeError, match="Error running terraform output: error message"):
         get_ssh_private_key("/fake/terraform/dir")
 
 
@@ -162,7 +157,7 @@ def test_get_instance_ids_not_a_list(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout=json.dumps({"id": "i-12345"}), stderr=""
     )
-    with pytest.raises(ValueError, match="Expected output to be a list"):
+    with pytest.raises(ValueError, match="Expected output to be a list of instance IDs"):
         get_instance_ids("/fake/terraform/dir")
 
 
@@ -175,5 +170,50 @@ def test_get_instance_names_not_a_list(mock_run):
         stdout=json.dumps({"name": "instance-1"}),
         stderr="",
     )
-    with pytest.raises(ValueError, match="Expected output to be a list"):
+    with pytest.raises(ValueError, match="Expected output to be a list of instance names"):
         get_instance_names("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_timings_not_a_dict(mock_run):
+    """Test handling non-dict output when getting instance timings."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps(["timing-1", "timing-2"]),
+        stderr="",
+    )
+    with pytest.raises(ValueError, match="Expected output to be a dictionary of launch times"):
+        get_instance_timings("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_timings_failure(mock_run):
+    """Test handling failure when getting instance timings."""
+    mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
+    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
+        get_instance_timings("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_timings_invalid_json(mock_run):
+    """Test handling invalid JSON output when getting instance timings."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="not-json", stderr=""
+    )
+    with pytest.raises(RuntimeError, match="Error decoding JSON output"):
+        get_instance_timings("/fake/terraform/dir")
+
+
+@patch("subprocess.run")
+def test_get_instance_timings_success(mock_run):
+    """Test getting instance timings successfully."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["terraform", "output", "-json", "instance_terraform_apply_times"],
+        returncode=0,
+        stdout=json.dumps({"instance-1": "time-1", "instance-2": "time-2"}),
+        stderr="",
+    )
+    timings = get_instance_timings("/fake/terraform/dir")
+    assert timings == {"instance-1": "time-1", "instance-2": "time-2"}
+    mock_run.assert_called_once()

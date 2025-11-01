@@ -34,7 +34,18 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
     Healthy VARCHAR(1024),
     Status   VARCHAR(1024),
-    Logs TEXT
+    Logs TEXT,
+    TerraformApplyStartTime TIMESTAMP,
+    TerraformApplyEndTime TIMESTAMP,
+    TerraformApplyDurationSeconds FLOAT,
+    CloudInitStartTime TIMESTAMP,
+    CloudInitEndTime TIMESTAMP,
+    CloudInitDurationSeconds FLOAT,
+    ContainerStartTime TIMESTAMP,
+    ContainerEndTime TIMESTAMP,
+    ContainerStartupDurationSeconds FLOAT,
+    TotalStartupDurationSeconds FLOAT,
+    CreatedAt TIMESTAMP DEFAULT NOW()
 );
 
 CREATE OR REPLACE FUNCTION notify_crd_command_update()

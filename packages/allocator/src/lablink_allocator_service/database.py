@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import select
 import json
 import logging
@@ -70,6 +71,18 @@ class PostgresqlDatabase:
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.cursor = self.conn.cursor()
 
+    def get_all_vms(self) -> list:
+        """Get all VMs from the table, excluding logs.
+
+        Returns:
+            list: A list of all VMs in the table in the form of dictionaries.
+        """
+        column_names = [col for col in self.get_column_names() if col != "logs"]
+        query_columns = ", ".join(column_names)
+        self.cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
+        rows = self.cursor.fetchall()
+        return [dict(zip(column_names, row)) for row in rows]
+
     def get_row_count(self) -> int:
         """Get the number of rows in the table.
         Returns:
@@ -92,10 +105,9 @@ class PostgresqlDatabase:
 
         # Query to get the column names from the information schema
         self.cursor.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = %s",
-                (table_name,),
-            )
+            "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+            (table_name,),
+        )
         return [row[0] for row in self.cursor.fetchall()]
 
     def insert_vm(self, hostname) -> None:
@@ -137,7 +149,7 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
 
         Returns:
-            dict: A dictionary containing the VM details.
+            dict: A dictionary containing the VM details without logs.
         """
         query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
         self.cursor.execute(query, (hostname,))
@@ -151,7 +163,17 @@ class PostgresqlDatabase:
                 "inuse": row[4],
                 "healthy": row[5],
                 "status": row[6],
-                "logs": row[7],
+                "terraform_apply_start_time": row[8],
+                "terraform_apply_end_time": row[9],
+                "terraform_apply_duration_seconds": row[10],
+                "cloud_init_start_time": row[11],
+                "cloud_init_end_time": row[12],
+                "cloud_init_duration_seconds": row[13],
+                "container_start_time": row[14],
+                "container_end_time": row[15],
+                "container_startup_duration_seconds": row[16],
+                "total_startup_duration_seconds": row[17],
+                "created_at": row[18],
             }
         else:
             logger.error(f"No VM found with hostname '{hostname}'.")
@@ -314,11 +336,14 @@ class PostgresqlDatabase:
             list: A list containing the hostname, pin, and CRD command of the VM
             assigned to the given user.
         """
-        query = f"SELECT * FROM {self.table_name} WHERE useremail = %s"
+        query = (
+            f"SELECT hostname, pin, crdcommand FROM {self.table_name}"
+            " WHERE useremail = %s"
+        )
         self.cursor.execute(query, (email,))
         row = self.cursor.fetchone()
         if row:
-            hostname, pin, crdcommand, user_email, inuse, healthy, status, logs = row
+            hostname, pin, crdcommand = row
             return [
                 hostname,
                 pin,
@@ -559,8 +584,149 @@ class PostgresqlDatabase:
         """
         return cls(dbname, user, password, host, port, table_name, message_channel)
 
+    @staticmethod
+    def _naive_utc(dt: datetime) -> datetime:
+        """Convert a datetime to naive UTC."""
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+
+    def update_terraform_timing(
+        self,
+        hostname: str,
+        per_instance_seconds: float,
+        per_instance_start_time: datetime,
+        per_instance_end_time: datetime,
+    ) -> None:
+        """Update the Terraform timing metrics for a VM.
+        Args:
+            hostname (str): The hostname of the VM.
+            per_instance_seconds (float): The total startup duration in seconds.
+            per_instance_start_time (datetime): The start time of the Terraform apply.
+            per_instance_end_time (datetime): The end time of the Terraform apply.
+        """
+
+        query = f"""
+            INSERT INTO {self.table_name} (
+                hostname,
+                terraformapplydurationseconds,
+                terraformapplystarttime,
+                terraformapplyendtime
+            )
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (hostname) DO UPDATE
+            SET terraformapplydurationseconds = EXCLUDED.terraformapplydurationseconds,
+                terraformapplystarttime = EXCLUDED.terraformapplystarttime,
+                terraformapplyendtime = EXCLUDED.terraformapplyendtime
+        """
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query,
+                    (
+                        hostname,
+                        per_instance_seconds,
+                        self._naive_utc(per_instance_start_time),
+                        self._naive_utc(per_instance_end_time),
+                    ),
+                )
+                self.conn.commit()
+                logger.debug(
+                    f"Updated Terraform timing for VM '{hostname}': "
+                    f"{per_instance_seconds}s."
+                )
+            except Exception as e:
+                logger.error(f"Error updating Terraform timing: {e}")
+                self.conn.rollback()
+
+    def update_vm_metrics(self, hostname: str, metrics: dict) -> None:
+        """Update total startup duration metrics for a VM.
+        Args:
+            hostname (str): The hostname of the VM.
+            metrics (dict): A dictionary containing the timing metrics to update.
+        """
+        updates = []
+        values = []
+
+        if "cloud_init_start" in metrics:
+            updates.append("CloudInitStartTime = to_timestamp(%s)")
+            values.append(metrics["cloud_init_start"])
+        if "cloud_init_end" in metrics:
+            updates.append("CloudInitEndTime = to_timestamp(%s)")
+            values.append(metrics["cloud_init_end"])
+        if "cloud_init_duration_seconds" in metrics:
+            updates.append("CloudInitDurationSeconds = %s")
+            values.append(metrics["cloud_init_duration_seconds"])
+
+        if "container_start" in metrics:
+            updates.append("ContainerStartTime = to_timestamp(%s)")
+            values.append(metrics["container_start"])
+        if "container_end" in metrics:
+            updates.append("ContainerEndTime = to_timestamp(%s)")
+            values.append(metrics["container_end"])
+        if "container_startup_duration_seconds" in metrics:
+            updates.append("ContainerStartupDurationSeconds = %s")
+            values.append(metrics["container_startup_duration_seconds"])
+
+        if not updates:
+            logger.debug("No metrics to update.")
+            return
+
+        query = f"""
+            UPDATE {self.table_name}
+            SET {', '.join(updates)}
+            WHERE hostname = %s;
+        """
+        values.append(hostname)
+
+        try:
+            self.cursor.execute(query, tuple(values))
+            self.conn.commit()
+            logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
+        except Exception as e:
+            logger.error(f"Error updating VM metrics: {e}")
+            self.conn.rollback()
+
+    def calculate_total_startup_time(self, hostname: str) -> None:
+        """Calculate and update the total startup duration for a VM.
+        Args:
+            hostname (str): The hostname of the VM.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET TotalStartupDurationSeconds =
+                COALESCE(TerraformApplyDurationSeconds, 0) +
+                COALESCE(CloudInitDurationSeconds, 0) +
+                COALESCE(ContainerStartupDurationSeconds, 0)
+            WHERE hostname = %s AND
+                TerraformApplyDurationSeconds IS NOT NULL AND
+                CloudInitDurationSeconds IS NOT NULL AND
+                ContainerStartupDurationSeconds IS NOT NULL
+        """
+        try:
+            self.cursor.execute(query, (hostname,))
+            self.conn.commit()
+
+            result_query = f"""
+            SELECT TotalStartupDurationSeconds
+            FROM {self.table_name}
+            WHERE hostname = %s;
+            """
+            self.cursor.execute(result_query, (hostname,))
+            total_startup_time = self.cursor.fetchone()
+            if total_startup_time and total_startup_time[0]:
+                logger.debug(
+                    f"Total startup time for VM '{hostname}': "
+                    f"{total_startup_time[0]:.1f} seconds."
+                )
+        except Exception as e:
+            logger.error(f"Error calculating total startup time: {e}")
+            self.conn.rollback()
+
     def __del__(self):
         """Close the database connection when the object is deleted."""
-        self.cursor.close()
-        self.conn.close()
+        if hasattr(self, "cursor") and self.cursor:
+            self.cursor.close()
+        if hasattr(self, "conn") and self.conn:
+            self.conn.close()
         logger.debug("Database connection closed.")
