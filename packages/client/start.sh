@@ -72,7 +72,8 @@ CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 
 # Send container startup completion to allocator
-curl -X POST "http://$ALLOCATOR_URL:80/api/vm-container-metrics/$VM_NAME" \
+# The ALLOCATOR_URL variable includes the protocol (http/https), so it can be used directly.
+curl -X POST "$ALLOCATOR_URL/api/vm-container-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -d "{
     \"container_start_time\": $CONTAINER_START_TIME,
