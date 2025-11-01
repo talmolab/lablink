@@ -260,7 +260,7 @@ def test_get_vm_details_found(db_instance):
     result = db_instance.get_vm_details(email)
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM vms WHERE useremail = %s", (email,)
+        "SELECT hostname, pin, crdcommand FROM vms WHERE useremail = %s", (email,)
     )
     assert result == ["vm-assigned-1", "123456", "command"]
 
@@ -591,3 +591,60 @@ def test_naive_utc():
     naive_utc_dt = PostgresqlDatabase._naive_utc(naive_dt)
     assert naive_utc_dt.tzinfo is None
     assert naive_utc_dt == naive_dt
+
+def test_update_vm_metrics(db_instance):
+    """Test updating VM metrics in the database."""
+    hostname = "test-vm-01"
+    metrics = {
+        "cloud_init_start": 1672531200,
+        "cloud_init_end": 1672531320,
+        "cloud_init_duration_seconds": 120,
+        "container_start": 1672531320,
+        "container_end": 1672531380,
+        "container_startup_duration_seconds": 60,
+    }
+    db_instance.update_vm_metrics(hostname, metrics)
+
+    expected_query = (
+        "UPDATE vms SET CloudInitStartTime = to_timestamp(%s), "
+        "CloudInitEndTime = to_timestamp(%s), "
+        "CloudInitDurationSeconds = %s, "
+        "ContainerStartTime = to_timestamp(%s), "
+        "ContainerEndTime = to_timestamp(%s), "
+        "ContainerStartupDurationSeconds = %s "
+        "WHERE hostname = %s;"
+    )
+
+    db_instance.cursor.execute.assert_called_once()
+    args = db_instance.cursor.execute.call_args[0]
+    # Remove whitespace and compare queries
+    assert "".join(args[0].split()) == "".join(expected_query.split())
+    assert args[1] == (
+        1672531200,
+        1672531320,
+        120,
+        1672531320,
+        1672531380,
+        60,
+        hostname,
+    )
+    db_instance.conn.commit.assert_called_once()
+
+def test_calculate_total_startup_time(db_instance):
+    """Test calculating the total startup time for a VM."""
+    hostname = "test-vm-01"
+    db_instance.calculate_total_startup_time(hostname)
+
+    expected_query = """
+            UPDATE vms
+            SET TotalStartupDurationSeconds =
+                COALESCE(TerraformApplyDurationSeconds, 0) +
+                COALESCE(CloudInitDurationSeconds, 0) +
+                COALESCE(ContainerStartupDurationSeconds, 0)
+            WHERE hostname = %s AND
+                TerraformApplyDurationSeconds IS NOT NULL AND
+                CloudInitDurationSeconds IS NOT NULL AND
+                ContainerStartupDurationSeconds IS NOT NULL
+        """
+    db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
+    db_instance.conn.commit.assert_called_once()

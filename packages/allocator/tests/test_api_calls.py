@@ -13,6 +13,7 @@ REQUEST_VM_ENDPOINT = "/api/request_vm"
 SCP_ENDPOINT = "/api/scp-client"
 VM_STATUS_UPDATE_ENDPOINT = "/api/vm-status"
 VM_LOGS_ENDPOINT = "/api/vm-logs"
+METRICS_ENDPOINT = "/api/vm-metrics"
 
 
 def test_vm_startup_success(client, monkeypatch):
@@ -1052,3 +1053,82 @@ def test_vm_logs_by_hostname_internal_error(client, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"error": "Failed to get VM logs."}
     fake_db.get_vm_logs.assert_not_called()
+
+def test_receive_vm_metrics_success(client, monkeypatch):
+    """Test the /api/vm-metrics/<hostname> endpoint with valid data."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API
+    hostname = "test-vm-01"
+    metrics_data = {
+        "cloud_init_start": 1672531200,
+        "cloud_init_end": 1672531320,
+        "cloud_init_duration_seconds": 120,
+    }
+    resp = client.post(f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data)
+
+    # Assert the response
+    assert resp.status_code == 200
+    assert resp.get_json() == {"message": "VM metrics posted successfully."}
+    fake_db.vm_exists.assert_called_once_with(hostname=hostname)
+    fake_db.update_vm_metrics.assert_called_once_with(
+        hostname=hostname, metrics=metrics_data
+    )
+    fake_db.calculate_total_startup_time.assert_called_once_with(hostname=hostname)
+
+def test_receive_vm_metrics_vm_not_found(client, monkeypatch):
+    """Test the /api/vm-metrics/<hostname> endpoint when the VM is not found."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = False
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API
+    hostname = "non-existent-vm"
+    metrics_data = {"cloud_init_duration_seconds": 120}
+    resp = client.post(f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data)
+
+    # Assert the response
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": "VM not found."}
+    fake_db.vm_exists.assert_called_once_with(hostname=hostname)
+    fake_db.update_vm_metrics.assert_not_called()
+    fake_db.calculate_total_startup_time.assert_not_called()
+
+
+def test_receive_vm_metrics_internal_error(client, monkeypatch):
+    """Test the /api/vm-metrics/<hostname> endpoint with an internal error."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    fake_db.update_vm_metrics.side_effect = Exception("Database error")
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API
+    hostname = "test-vm-01"
+    metrics_data = {"cloud_init_duration_seconds": 120}
+    resp = client.post(f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data)
+
+    # Assert the response
+    assert resp.status_code == 500
+    assert resp.get_json() == {"error": "Failed to post VM metrics."}
+    fake_db.vm_exists.assert_called_once_with(hostname=hostname)
+    fake_db.update_vm_metrics.assert_called_once_with(
+        hostname=hostname, metrics=metrics_data
+    )
+    fake_db.calculate_total_startup_time.assert_not_called()
