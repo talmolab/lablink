@@ -681,7 +681,7 @@ class PostgresqlDatabase:
             UPDATE {self.table_name}
             SET containerstartupdurationseconds = %s,
                 containerstarttime = %s,
-                containerendtime = %s,
+                containerendtime = %s
             WHERE hostname = %s;
         """
         container_start = self._naive_utc(metrics.get("container_start_time"))

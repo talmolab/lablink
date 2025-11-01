@@ -808,6 +808,16 @@ def receive_vm_container_metrics(hostname):
             logger.error(f"VM with hostname {hostname} not found.")
             return jsonify({"error": "VM not found."}), 404
 
+        # Convert datetime strings to datetime objects
+        if "container_start_time" in data:
+            data["container_start_time"] = datetime.fromtimestamp(
+                data["container_start_time"], tz=timezone.utc
+            )
+        if "container_end_time" in data:
+            data["container_end_time"] = datetime.fromtimestamp(
+                data["container_end_time"], tz=timezone.utc
+            )
+
         # Update the database with the container metrics
         database.update_container_startup_metrics(hostname=hostname, metrics=data)
 
