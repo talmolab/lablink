@@ -336,11 +336,14 @@ class PostgresqlDatabase:
             list: A list containing the hostname, pin, and CRD command of the VM
             assigned to the given user.
         """
-        query = f"SELECT * FROM {self.table_name} WHERE useremail = %s"
+        query = (
+            f"SELECT hostname, pin, crdcommand FROM {self.table_name}"
+            " WHERE useremail = %s"
+        )
         self.cursor.execute(query, (email,))
         row = self.cursor.fetchone()
         if row:
-            hostname, pin, crdcommand, user_email, inuse, healthy, status, logs = row
+            hostname, pin, crdcommand = row
             return [
                 hostname,
                 pin,

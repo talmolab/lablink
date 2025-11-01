@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 from zipfile import ZipFile
-from datetime import datetime, timezone
+from datetime import datetime
 import re
 
 from flask import (
