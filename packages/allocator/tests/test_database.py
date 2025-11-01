@@ -249,11 +249,6 @@ def test_get_vm_details_found(db_instance):
         "vm-assigned-1",
         "123456",
         "command",
-        email,
-        True,
-        True,
-        "running",
-        "sample-logs",
     )
     db_instance.cursor.fetchone.return_value = vm_details_data
 
