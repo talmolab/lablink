@@ -774,21 +774,14 @@ def receive_vm_metrics(hostname):
         data = request.get_json()
 
         if not database.vm_exists(hostname=hostname):
-            logger.error(f"VM with hostname {hostname} not found.")
+            logger.error(f"VM with hostname {hostname} does not exist.")
             return jsonify({"error": "VM not found."}), 404
 
-        # Convert datetime strings to datetime objects
-        if "cloud_init_start" in data:
-            data["cloud_init_start"] = datetime.fromtimestamp(
-                data["cloud_init_start"], tz=timezone.utc
-            )
-        if "cloud_init_end" in data:
-            data["cloud_init_end"] = datetime.fromtimestamp(
-                data["cloud_init_end"], tz=timezone.utc
-            )
+        # Update the VM metrics in the database
+        database.update_vm_metrics(hostname=hostname, metrics=data)
 
-        # Update the database with the metrics
-        database.update_cloud_init_metrics(hostname=hostname, metrics=data)
+        # Calculate the total startup time
+        database.calculate_total_startup_time(hostname=hostname)
 
         logger.info(f"Received metrics for {hostname}: {data}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
@@ -796,37 +789,6 @@ def receive_vm_metrics(hostname):
     except Exception as e:
         logger.error(f"Error receiving VM metrics: {e}")
         return jsonify({"error": "Failed to post VM metrics."}), 500
-
-
-@app.route("/api/vm-container-metrics/<hostname>", methods=["POST"])
-def receive_vm_container_metrics(hostname):
-    """Receive and store VM container metrics."""
-    try:
-        data = request.get_json()
-
-        if not database.vm_exists(hostname=hostname):
-            logger.error(f"VM with hostname {hostname} not found.")
-            return jsonify({"error": "VM not found."}), 404
-
-        # Convert datetime strings to datetime objects
-        if "container_start_time" in data:
-            data["container_start_time"] = datetime.fromtimestamp(
-                data["container_start_time"], tz=timezone.utc
-            )
-        if "container_end_time" in data:
-            data["container_end_time"] = datetime.fromtimestamp(
-                data["container_end_time"], tz=timezone.utc
-            )
-
-        # Update the database with the container metrics
-        database.update_container_startup_metrics(hostname=hostname, metrics=data)
-
-        logger.info(f"Received container metrics for {hostname}: {data}")
-        return jsonify({"message": "VM container metrics posted successfully."}), 200
-
-    except Exception as e:
-        logger.error(f"Error receiving VM container metrics: {e}")
-        return jsonify({"error": "Failed to post VM container metrics."}), 500
 
 
 def main():

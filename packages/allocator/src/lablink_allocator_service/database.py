@@ -636,75 +636,89 @@ class PostgresqlDatabase:
                 logger.error(f"Error updating Terraform timing: {e}")
                 self.conn.rollback()
 
-    def update_cloud_init_metrics(self, hostname: str, metrics: dict) -> None:
-        """Update various timing metrics for a VM.
+    def update_vm_metrics(self, hostname: str, metrics: dict) -> None:
+        """Update total startup duration metrics for a VM.
         Args:
             hostname (str): The hostname of the VM.
             metrics (dict): A dictionary containing the timing metrics to update.
         """
+        updates = []
+        values = []
+
+        if "cloud_init_start" in metrics:
+            updates.append("CloudInitStartTime = to_timestamp(%s)")
+            values.append(metrics["cloud_init_start"])
+        if "cloud_init_end" in metrics:
+            updates.append("CloudInitEndTime = to_timestamp(%s)")
+            values.append(metrics["cloud_init_end"])
+        if "cloud_init_duration_seconds" in metrics:
+            updates.append("CloudInitDurationSeconds = %s")
+            values.append(metrics["cloud_init_duration_seconds"])
+
+        if "container_start" in metrics:
+            updates.append("ContainerStartTime = to_timestamp(%s)")
+            values.append(metrics["container_start"])
+        if "container_end" in metrics:
+            updates.append("ContainerEndTime = to_timestamp(%s)")
+            values.append(metrics["container_end"])
+        if "container_startup_duration_seconds" in metrics:
+            updates.append("ContainerStartupDurationSeconds = %s")
+            values.append(metrics["container_startup_duration_seconds"])
+
+        if not updates:
+            logger.debug("No metrics to update.")
+            return
+
         query = f"""
             UPDATE {self.table_name}
-            SET cloudinitdurationseconds = %s,
-                cloudinitstarttime = %s,
-                cloudinitendtime = %s
+            SET {', '.join(updates)}
             WHERE hostname = %s;
         """
-        cloud_init_start = self._naive_utc(metrics.get("cloud_init_start"))
-        cloud_init_end = self._naive_utc(metrics.get("cloud_init_end"))
+        values.append(hostname)
 
-        with self.conn.cursor() as cursor:
-            try:
-                cursor.execute(
-                    query,
-                    (
-                        float(metrics.get("cloud_init_duration_seconds")),
-                        cloud_init_start,
-                        cloud_init_end,
-                        hostname,
-                    ),
-                )
-                self.conn.commit()
-                logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
-            except Exception as e:
-                logger.error(f"Error updating VM metrics: {e}")
-                self.conn.rollback()
+        try:
+            self.cursor.execute(query, tuple(values))
+            self.conn.commit()
+            logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
+        except Exception as e:
+            logger.error(f"Error updating VM metrics: {e}")
+            self.conn.rollback()
 
-    def update_container_startup_metrics(
-        self, hostname: str, metrics: dict
-    ) -> None:
-        """Update container startup timing metrics for a VM.
+    def calculate_total_startup_time(self, hostname: str) -> None:
+        """Calculate and update the total startup duration for a VM.
         Args:
             hostname (str): The hostname of the VM.
-            metrics (dict): A dictionary containing the timing metrics to update.
         """
         query = f"""
             UPDATE {self.table_name}
-            SET containerstartupdurationseconds = %s,
-                containerstarttime = %s,
-                containerendtime = %s
-            WHERE hostname = %s;
+            SET TotalStartupDurationSeconds =
+                COALESCE(TerraformApplyDurationSeconds, 0) +
+                COALESCE(CloudInitDurationSeconds, 0) +
+                COALESCE(ContainerStartupDurationSeconds, 0)
+            WHERE hostname = %s AND
+                TerraformApplyDurationSeconds IS NOT NULL AND
+                CloudInitDurationSeconds IS NOT NULL AND
+                ContainerStartupDurationSeconds IS NOT NULL
         """
-        container_start = self._naive_utc(metrics.get("container_start_time"))
-        container_end = self._naive_utc(metrics.get("container_end_time"))
+        try:
+            self.cursor.execute(query, (hostname,))
+            self.conn.commit()
 
-        with self.conn.cursor() as cursor:
-            try:
-                cursor.execute(
-                    query,
-                    (
-                        float(metrics.get("container_duration")),
-                        container_start,
-                        container_end,
-                        hostname,
-                    ),
-                )
-                self.conn.commit()
+            result_query = f"""
+            SELECT TotalStartupDurationSeconds
+            FROM {self.table_name}
+            WHERE hostname = %s;
+            """
+            self.cursor.execute(result_query, (hostname,))
+            total_startup_time = self.cursor.fetchone()
+            if total_startup_time and total_startup_time[0]:
                 logger.debug(
-                    f"Updated container startup metrics for VM '{hostname}': {metrics}."
+                    f"Total startup time for VM '{hostname}': "
+                    f"{total_startup_time[0]:.1f} seconds."
                 )
-            except Exception as e:
-                logger.error(f"Error updating container startup metrics: {e}")
-                self.conn.rollback()
+        except Exception as e:
+            logger.error(f"Error calculating total startup time: {e}")
+            self.conn.rollback()
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
