@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
-from botocore.exceptions import ClientError
 import lablink_allocator_service.utils.aws_utils as aws_utils
 
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")

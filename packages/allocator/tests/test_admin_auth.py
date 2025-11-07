@@ -1,6 +1,4 @@
-from unittest.mock import patch
 import base64
-import os
 
 
 def get_basic_auth_header(username, password):
