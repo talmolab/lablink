@@ -636,10 +636,7 @@ def test_calculate_total_startup_time(db_instance):
                 COALESCE(TerraformApplyDurationSeconds, 0) +
                 COALESCE(CloudInitDurationSeconds, 0) +
                 COALESCE(ContainerStartupDurationSeconds, 0)
-            WHERE hostname = %s AND
-                TerraformApplyDurationSeconds IS NOT NULL AND
-                CloudInitDurationSeconds IS NOT NULL AND
-                ContainerStartupDurationSeconds IS NOT NULL
+            WHERE hostname = %s
         """
     db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
     db_instance.conn.commit.assert_called_once()
