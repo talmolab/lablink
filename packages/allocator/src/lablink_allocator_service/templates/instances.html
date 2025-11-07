@@ -1,81 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>VM Instances</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background-color: #f9f9f9;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VM Instances</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 2rem;
+        background-color: #f9f9f9;
+      }
 
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+      h2 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
 
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
 
-    th {
-      background-color: #007bff;
-      color: white;
-    }
+      th {
+        background-color: #007bff;
+        color: white;
+      }
 
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-  </style>
-</head>
-<body>
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Existing VM Instances</h2>
 
-  <h2>Existing VM Instances</h2>
-
-  <table>
-    <thead>
-      <tr>
-        <th>No.</th>
-        <th>Hostname</th>
-        <th>PIN</th>
-        <th>CRD Command</th>
-        <th>User Email</th>
-        <th>In Use</th>
-        <th>VM Status</th>
-        <th>GPU Health Status</th>
-        <th>Logs</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for vm in instances %}
-      <tr>
-        <td>{{ loop.index }}</td>
-        <td>{{ vm.hostname }}</td>
-        <td>{{ vm.pin or "—" }}</td>
-        <td>{{ vm.crdcommand or "—" }}</td>
-        <td>{{ vm.useremail or "—" }}</td>
-        <td>{{ "Yes" if vm.inuse else "No" }}</td>
-        <td>{{ vm.status or "Unknown" }}</td>
-        <td>{{ vm.healthy or "—" }}</td>
-        <td>
-          <a href="/admin/logs/{{ vm.hostname }}" class="btn btn-sm btn-outline-primary" target="_blank">
-            <i class="bi bi-file-text"></i> View Logs
-          </a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</body>
+    <table>
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Hostname</th>
+          <th>PIN</th>
+          <th>CRD Command</th>
+          <th>User Email</th>
+          <th>In Use</th>
+          <th>VM Status</th>
+          <th>GPU Health Status</th>
+          <th>Terraform Apply Duration</th>
+          <th>Cloud-Init Duration</th>
+          <th>Container Startup Duration</th>
+          <th>Total Startup Duration</th>
+          <th>Logs</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vm in instances %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ vm.hostname }}</td>
+          <td>{{ vm.pin or "—" }}</td>
+          <td>{{ vm.crdcommand or "—" }}</td>
+          <td>{{ vm.useremail or "—" }}</td>
+          <td>{{ "Yes" if vm.inuse else "No" }}</td>
+          <td>{{ vm.status or "Unknown" }}</td>
+          <td>{{ vm.healthy or "—" }}</td>
+          <td>{{ "%.1f"|format(vm.terraformapplydurationseconds or 0) }}s</td>
+          <td>{{ "%.1f"|format(vm.cloudinitdurationseconds or 0) }}s</td>
+          <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
+          <td>
+            <strong
+              >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
+            >
+          </td>
+          <td>
+            <a
+              href="/admin/logs/{{ vm.hostname }}"
+              class="btn btn-sm btn-outline-primary"
+              target="_blank"
+            >
+              <i class="bi bi-file-text"></i> View Logs
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
 </html>

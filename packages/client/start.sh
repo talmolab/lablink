@@ -1,6 +1,9 @@
 #!/bin/bash
 export PYTHONUNBUFFERED=1
 
+# Start
+CONTAINER_START_TIME=$(date +%s)
+
 # Activate virtual environment
 source /home/client/.venv/bin/activate
 
@@ -63,6 +66,20 @@ check_gpu \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
 touch "$LOG_DIR/placeholder.log"
+
+# End time
+CONTAINER_END_TIME=$(date +%s)
+CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
+
+# Send container startup completion to allocator
+# The ALLOCATOR_URL variable includes the protocol (http/https), so it can be used directly.
+curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"container_start_time\": $CONTAINER_START_TIME,
+    \"container_end_time\": $CONTAINER_END_TIME,
+    \"container_startup_duration_seconds\": $CONTAINER_DURATION
+  }" --max-time 5 || true
 
 # Keep container alive
 tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/placeholder.log"

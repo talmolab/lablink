@@ -30,16 +30,27 @@ def test_launch_vm_success(
         MagicMock(get_row_count=MagicMock(return_value=3)),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.key_name", "my-key", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
 
     # Fake terraform calls
     class R:
         def __init__(self, out="OK"):
             self.stdout, self.stderr = out, ""
+            self.returncode = 0
 
-    mock_run.side_effect = [R("INIT OK"), R("\x1b[32mapply success\x1b[0m")]
+    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
+    mock_run.side_effect = [
+        R("\x1b[32mapply success\x1b[0m"),
+        R(timing_json),
+    ]
 
     # Call route
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "2"})
@@ -47,10 +58,22 @@ def test_launch_vm_success(
     assert b"Output Dashboard" in resp.data
 
     # Assert calls
-    assert mock_run.call_count == 1
-    apply_cmd, apply_kwargs = mock_run.call_args_list[0]
-    assert "-var=instance_count=5" in apply_cmd[0]
+    assert mock_run.call_count == 2
+
+    # Check apply call
+    apply_args, apply_kwargs = mock_run.call_args_list[0]
+    apply_cmd_list = apply_args[0]
+    assert "apply" in apply_cmd_list
+    assert "-var=instance_count=5" in apply_cmd_list
     assert apply_kwargs["cwd"] == terraform_dir
+
+    # Check output call
+    output_args, output_kwargs = mock_run.call_args_list[1]
+    output_cmd_list = output_args[0]
+    assert "output" in output_cmd_list
+    assert "-json" in output_cmd_list
+    assert "instance_terraform_apply_times" in output_cmd_list
+    assert output_kwargs["cwd"] == terraform_dir
 
     expected_lines = [
         'allocator_ip = "1.2.3.4"',
@@ -92,7 +115,9 @@ def test_launch_missing_allocator_outputs_returns_error(
         MagicMock(get_row_count=lambda: 0),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "", raising=False
+    )
     monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
 
     mock_run.return_value = MagicMock(stdout="INIT", stderr="")
@@ -119,9 +144,13 @@ def test_launch_apply_failure(
         MagicMock(get_row_count=lambda: 1),
         raising=False,
     )
-    monkeypatch.setattr("lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "9.9.9.9", raising=False
+    )
     monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
-    monkeypatch.setattr("lablink_allocator_service.main.ENVIRONMENT", "test", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
 
     def side_effect(cmd, **kwargs):
         if cmd[1] == "init":
@@ -153,7 +182,9 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
 
     # Mock DB and attach to app module via string target
     fake_db = MagicMock()
-    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db, raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
 
     # Call the destroy endpoint
     resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)

@@ -37,6 +37,7 @@ from lablink_allocator_service.utils.scp import (
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
+    get_instance_timings,
 )
 
 app = Flask(__name__)
@@ -126,17 +127,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-class vms(db.Model):
-    hostname = db.Column(db.String(1024), primary_key=True)
-    pin = db.Column(db.String(1024), nullable=True)
-    crdcommand = db.Column(db.String(1024), nullable=True)
-    useremail = db.Column(db.String(1024), nullable=True)
-    inuse = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
-    healthy = db.Column(db.String(1024), nullable=True)
-    status = db.Column(db.String(1024), nullable=True)
-    logs = db.Column(db.Text, nullable=True)
 
 
 @auth.verify_password
@@ -232,8 +222,7 @@ def unset_aws_credentials():
     os.environ.pop("AWS_SESSION_TOKEN", None)
 
     return render_template(
-        "admin.html",
-        unset_message="AWS credentials unset successfully."
+        "admin.html", unset_message="AWS credentials unset successfully."
     )
 
 
@@ -279,7 +268,7 @@ def set_aws_credentials():
 @app.route("/admin/instances")
 @auth.login_required
 def view_instances():
-    instances = vms.query.all()
+    instances = database.get_all_vms()
     return render_template("instances.html", instances=instances)
 
 
@@ -436,6 +425,22 @@ def launch():
             bucket_name=cfg.bucket_name,
             region=cfg.app.region,
         )
+
+        # Store timing outputs in the database
+        timing_data = get_instance_timings(terraform_dir=TERRAFORM_DIR)
+        logger.debug(f"Timing data: {timing_data}")
+
+        for hostname, times in timing_data.items():
+            start_time = datetime.fromisoformat(
+                times["start_time"].replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(times["end_time"].replace("Z", "+00:00"))
+            database.update_terraform_timing(
+                hostname=hostname,
+                per_instance_seconds=float(times["seconds"]),
+                per_instance_start_time=start_time,
+                per_instance_end_time=end_time,
+            )
 
         return render_template("dashboard.html", output=clean_output)
 
@@ -760,6 +765,30 @@ def get_vm_logs(hostname):
         logger.error(f"VM with hostname {hostname} not found.")
         return jsonify({"error": "VM not found."}), 404
     return render_template("instance-logs.html", hostname=hostname)
+
+
+@app.route("/api/vm-metrics/<hostname>", methods=["POST"])
+def receive_vm_metrics(hostname):
+    """Receive and store VM Cloud init metrics."""
+    try:
+        data = request.get_json()
+
+        if not database.vm_exists(hostname=hostname):
+            logger.error(f"VM with hostname {hostname} does not exist.")
+            return jsonify({"error": "VM not found."}), 404
+
+        # Update the VM metrics in the database
+        database.update_vm_metrics(hostname=hostname, metrics=data)
+
+        # Calculate the total startup time
+        database.calculate_total_startup_time(hostname=hostname)
+
+        logger.info(f"Received metrics for {hostname}: {data}")
+        return jsonify({"message": "VM metrics posted successfully."}), 200
+
+    except Exception as e:
+        logger.error(f"Error receiving VM metrics: {e}")
+        return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
 def main():

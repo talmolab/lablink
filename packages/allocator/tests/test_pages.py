@@ -29,16 +29,16 @@ def test_admin_instances_no_auth(client):
     assert response.status_code == 401
 
 
-@patch("lablink_allocator_service.main.vms.query")
-def test_admin_instances(mock_query, client, admin_headers):
+@patch("lablink_allocator_service.main.database")
+def test_admin_instances(mock_database, client, admin_headers):
     """Test the admin instances endpoint without any instances."""
-    mock_query.all.return_value = []
+    mock_database.get_all_vms.return_value = []
     response = client.get("/admin/instances", headers=admin_headers)
     assert response.status_code == 200
 
 
-@patch("lablink_allocator_service.main.vms.query")
-def test_view_instances_with_rows(mock_query, client, admin_headers):
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_with_rows(mock_database, client, admin_headers):
     """Test the admin instances endpoint with rows."""
     rows = [
         SimpleNamespace(
@@ -58,7 +58,7 @@ def test_view_instances_with_rows(mock_query, client, admin_headers):
             healthy="Healthy",
         ),
     ]
-    mock_query.all.return_value = rows
+    mock_database.get_all_vms.return_value = rows
 
     resp = client.get("/admin/instances", headers=admin_headers)
     assert resp.status_code == 200

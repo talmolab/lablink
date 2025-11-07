@@ -108,9 +108,7 @@ def test_unknown_top_level_key_behavior(
     assert "schema" in message.lower() or "merging" in message.lower()
 
 
-def test_unknown_nested_key_behavior(
-    config_with_unknown_nested_key, write_config_file
-):
+def test_unknown_nested_key_behavior(config_with_unknown_nested_key, write_config_file):
     """Test validation behavior with unknown nested key (db.unknown_field).
 
     This test documents whether Hydra catches unknown nested fields.
