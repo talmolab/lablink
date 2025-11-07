@@ -591,7 +591,7 @@ class PostgresqlDatabase:
             return dt.astimezone(timezone.utc).replace(tzinfo=None)
         return dt
 
-    def update_terraform_timing(
+    def upsert_time_for_terraform_apply(
         self,
         hostname: str,
         per_instance_seconds: float,
