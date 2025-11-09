@@ -67,24 +67,58 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
             logger.error(f"An unexpected error occurred: {e}")
 
         if curr_status != last_status or break_now:
-            logger.info(f"GPU health status changed: {curr_status}")
-            try:
-                requests.post(
-                    f"{base_url}/api/gpu_health",
-                    json={
-                        "hostname": os.getenv("VM_NAME"),
-                        "gpu_status": curr_status,
-                    },
-                    # (connect_timeout, read_timeout): 10s to connect, 20s to read
-                    timeout=(10, 20),
+            logger.info(
+                f"GPU health status changed: {curr_status}. Reporting to allocator."
+            )
+
+            report_retry_count = 0
+            MAX_REPORT_RETRIES = 5
+            REPORT_RETRY_DELAY = 10  # seconds
+
+            while report_retry_count < MAX_REPORT_RETRIES:
+                try:
+                    response = requests.post(
+                        f"{base_url}/api/gpu_health",
+                        json={
+                            "hostname": os.getenv("VM_NAME"),
+                            "gpu_status": curr_status,
+                        },
+                        # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                        timeout=(10, 20),
+                    )
+                    response.raise_for_status()
+                    logger.info(
+                        f"Successfully reported GPU health status: {curr_status}"
+                    )
+                    last_status = curr_status
+                    break  # Break out of the report retry loop on success
+                except requests.exceptions.Timeout:
+                    logger.error(
+                        f"GPU health report timed out "
+                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
+                        f"Retrying..."
+                    )
+                except requests.exceptions.RequestException as e:
+                    logger.error(
+                        f"Failed to report GPU health: {e} "
+                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
+                        f"Retrying..."
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"An unexpected error occurred while reporting GPU health: {e} "
+                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
+                        f"Retrying..."
+                    )
+
+                report_retry_count += 1
+                if report_retry_count < MAX_REPORT_RETRIES:
+                    time.sleep(REPORT_RETRY_DELAY)
+            else:
+                logger.error(
+                    f"Failed to report GPU health status after {MAX_REPORT_RETRIES} "
+                    f"attempts. Allocator might be unreachable or experiencing issues."
                 )
-            except requests.exceptions.Timeout:
-                logger.error("GPU health report timed out after 30 seconds")
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Failed to report GPU health: {e}")
-            except Exception as e:
-                logger.error(f"Failed to report GPU health: {e}")
-            last_status = curr_status
 
         if break_now:
             break

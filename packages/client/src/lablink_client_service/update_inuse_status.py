@@ -81,19 +81,43 @@ def call_api(process_name, url):
     hostname = os.getenv("VM_NAME")
     status = is_process_running(process_name=process_name)
 
-    try:
-        response = requests.post(
-            url,
-            json={"hostname": hostname, "status": status},
-            # (connect_timeout, read_timeout): 10s to connect, 20s to read
-            timeout=(10, 20),
+    retry_count = 0
+    MAX_API_RETRIES = 5
+    API_RETRY_DELAY = 10  # seconds
+
+    while retry_count < MAX_API_RETRIES:
+        try:
+            response = requests.post(
+                url,
+                json={"hostname": hostname, "status": status},
+                # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                timeout=(10, 20),
+            )
+            response.raise_for_status()
+            logger.debug(f"API call successful: {response.json()}")
+            logger.info(
+                f"Successfully updated in-use status for {process_name} to {status}"
+            )
+            break  # Success, exit retry loop
+        except requests.exceptions.Timeout:
+            logger.error(
+                f"Status update timed out after 30 seconds "
+                f"(Attempt {retry_count + 1}/{MAX_API_RETRIES}). Retrying..."
+            )
+        except requests.RequestException as e:
+            logger.error(
+                f"API call failed: {e} "
+                f"(Attempt {retry_count + 1}/{MAX_API_RETRIES}). Retrying..."
+            )
+
+        retry_count += 1
+        if retry_count < MAX_API_RETRIES:
+            time.sleep(API_RETRY_DELAY)
+    else:
+        logger.error(
+            f"Failed to update in-use status after {MAX_API_RETRIES} attempts. "
+            "Allocator might be unreachable."
         )
-        response.raise_for_status()
-        logger.debug(f"API call successful: {response.json()}")
-    except requests.exceptions.Timeout:
-        logger.error("Status update timed out after 30 seconds")
-    except requests.RequestException as e:
-        logger.error(f"API call failed: {e}")
 
 
 def api_callback(process_name: str, url: str):
