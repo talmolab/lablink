@@ -70,7 +70,9 @@ def test_call_api_retry_logic(mock_post, mock_sleep, caplog):
     mock_post.side_effect = [
         requests.exceptions.RequestException("Network Error"),
         requests.exceptions.RequestException("Another Network Error"),
-        MagicMock(status_code=200, json=lambda: {"ok": True}),
+        MagicMock(
+            status_code=200, json=lambda: {"ok": True}, raise_for_status=lambda: None
+        ),
     ]
 
     call_api("myproc", "http://fake.url")

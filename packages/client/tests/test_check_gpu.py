@@ -228,7 +228,8 @@ def test_check_gpu_with_internal_error(
     with pytest.raises(KeyboardInterrupt):
         check_gpu_health("http://localhost:5000", interval=0)
 
-    # We posted exactly once (on the first iteration)
+    # The POST request is retried up to 5 times due to the retry logic when an
+    # exception is raised.
     assert mock_post.call_count == 5
 
     # Optional: verify the error was logged
@@ -294,7 +295,7 @@ def test_gpu_report_retry_logic(
     mock_post.side_effect = [
         requests.exceptions.RequestException("Network Error"),
         requests.exceptions.RequestException("Another Network Error"),
-        MagicMock(status_code=200),
+        MagicMock(status_code=200, raise_for_status=MagicMock()),
     ]
 
     with pytest.raises(KeyboardInterrupt):
