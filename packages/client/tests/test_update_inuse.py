@@ -60,20 +60,35 @@ def test_call_api_success(mock_post):
     mock_post.assert_called_once()
 
 
+@patch("lablink_client_service.update_inuse_status.time.sleep")
 @patch("requests.post")
-def test_call_api_timeout(mock_post, caplog):
-    """Test that a requests timeout is handled gracefully."""
-    mock_post.side_effect = requests.exceptions.Timeout
-    call_api("myproc", "http://fake.url")
-    assert "Status update timed out" in caplog.text
+def test_call_api_retry_logic(mock_post, mock_sleep, caplog):
+    """Test the retry logic in the call_api function."""
+    caplog.set_level("INFO")
 
+    # Simulate `requests.post` failing twice then succeeding
+    mock_post.side_effect = [
+        requests.exceptions.RequestException("Network Error"),
+        requests.exceptions.RequestException("Another Network Error"),
+        MagicMock(status_code=200, json=lambda: {"ok": True}),
+    ]
 
-@patch("requests.post")
-def test_call_api_request_exception(mock_post, caplog):
-    """Test that a generic request exception is handled."""
-    mock_post.side_effect = requests.exceptions.RequestException("Test error")
     call_api("myproc", "http://fake.url")
-    assert "API call failed: Test error" in caplog.text
+
+    # Assert that `requests.post` was called 3 times
+    assert mock_post.call_count == 3
+
+    # Assert that `time.sleep` was called twice with the correct delay
+    assert mock_sleep.call_count == 2
+    mock_sleep.assert_called_with(10)  # API_RETRY_DELAY is 10
+
+    # Assert that the log messages show the retry attempts
+    assert "API call failed: Network Error (Attempt 1/5). Retrying..." in caplog.text
+    assert (
+        "API call failed: Another Network Error (Attempt 2/5). Retrying..."
+        in caplog.text
+    )
+    assert "Successfully updated in-use status for myproc to" in caplog.text
 
 
 @patch("psutil.process_iter")

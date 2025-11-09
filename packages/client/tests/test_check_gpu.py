@@ -229,7 +229,7 @@ def test_check_gpu_with_internal_error(
         check_gpu_health("http://localhost:5000", interval=0)
 
     # We posted exactly once (on the first iteration)
-    assert mock_post.call_count == 1
+    assert mock_post.call_count == 5
 
     # Optional: verify the error was logged
     assert "Failed to report GPU health" in caplog.text
@@ -271,6 +271,54 @@ def test_check_gpu_health_request_exception(
         check_gpu_health("http://localhost:5000")
 
     assert "Failed to report GPU health: Some request error" in caplog.text
+
+
+@patch("lablink_client_service.check_gpu.time.sleep")
+@patch("lablink_client_service.check_gpu.requests.post")
+@patch("lablink_client_service.check_gpu.subprocess.run")
+def test_gpu_report_retry_logic(
+    mock_run, mock_post, mock_sleep, mock_environment, caplog
+):
+    """Test the retry logic for reporting GPU health."""
+    caplog.set_level(logging.INFO)
+
+    # Simulate a healthy GPU status check
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(
+            args=["nvidia-smi"], returncode=0, stdout="OK", stderr=""
+        ),
+        KeyboardInterrupt,  # To stop the infinite loop
+    ]
+
+    # Simulate `requests.post` failing twice then succeeding
+    mock_post.side_effect = [
+        requests.exceptions.RequestException("Network Error"),
+        requests.exceptions.RequestException("Another Network Error"),
+        MagicMock(status_code=200),
+    ]
+
+    with pytest.raises(KeyboardInterrupt):
+        check_gpu_health("http://localhost:5000")
+
+    # Assert that `requests.post` was called 3 times
+    assert mock_post.call_count == 3
+
+    # Assert that `time.sleep` was called twice for retries, and once
+    # in the main loop before KeyboardInterrupt
+    assert mock_sleep.call_count == 3
+    mock_sleep.assert_any_call(10)  # REPORT_RETRY_DELAY is 10
+    mock_sleep.assert_any_call(20)  # Default interval
+
+    # Assert that the log messages show the retry attempts
+    assert (
+        "Failed to report GPU health: Network Error (Attempt 1/5). Retrying..."
+        in caplog.text
+    )
+    assert (
+        "Failed to report GPU health: Another Network Error (Attempt 2/5). Retrying..."
+        in caplog.text
+    )
+    assert "Successfully reported GPU health status: Healthy" in caplog.text
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")

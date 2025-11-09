@@ -183,6 +183,71 @@ def test_run_request_exception(
     mock_sleep.assert_called_once()
 
 
+@patch("lablink_client_service.subscribe.time.sleep")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
+def test_run_request_exception_with_detailed_logging(
+    mock_logger_cls,
+    _set_logger,
+    mock_connect,
+    mock_post,
+    mock_sleep,
+    cfg,
+    vm_env,
+    caplog,
+):
+    """Test that a request exception triggers retry logic with detailed logging."""
+    mock_logger_cls.return_value = logging.getLogger("subscribe-test")
+    caplog.set_level(logging.DEBUG)
+
+    # Simulate two failures then a success
+    mock_post.side_effect = [
+        requests.exceptions.RequestException("Connection error"),
+        requests.exceptions.RequestException("Another connection error"),
+        MagicMock(
+            status_code=200,
+            json=lambda: {
+                "status": "success",
+                "command": "CRD_COMMAND",
+                "pin": "123456",
+            },
+        ),
+    ]
+
+    subscribe(cfg)
+
+    assert mock_post.call_count == 3
+    mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
+
+    # Check for detailed log messages
+    assert "Attempting to connect to allocator (attempt 1)" in caplog.text
+    assert (
+        "Request to http://localhost:5000/vm_startup failed: "
+        "Connection error. Retrying..." in caplog.text
+    )
+
+    assert ("Retrying connection to allocator in 10 seconds... (Attempt 2)" in
+            caplog.text)
+    assert "Attempting to connect to allocator (attempt 2)" in caplog.text
+    assert (
+        "Request to http://localhost:5000/vm_startup failed: "
+        "Another connection error. Retrying..." in caplog.text
+    )
+
+    assert ("Retrying connection to allocator in 10 seconds... (Attempt 3)" in
+            caplog.text)
+    assert "Attempting to connect to allocator (attempt 3)" in caplog.text
+
+    assert "Successfully connected to allocator and received command." in caplog.text
+    assert "Command executed successfully. Exiting retry loop." in caplog.text
+
+    # Check that sleep was called with the correct delay
+    assert mock_sleep.call_count == 2
+    mock_sleep.assert_called_with(10)
+
+
 @patch("lablink_client_service.subscribe.requests.post")
 @patch("lablink_client_service.subscribe.connect_to_crd")
 @patch("lablink_client_service.subscribe.set_logger")
@@ -216,3 +281,5 @@ def test_url_sanitization(
         json={"hostname": "vm-1"},
         timeout=(30, 604800),
     )
+
+
