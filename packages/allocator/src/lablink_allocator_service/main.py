@@ -24,7 +24,6 @@ from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.conf.structured_config import DNSConfig
 from lablink_allocator_service.utils.aws_utils import (
-    validate_aws_credentials,
     check_support_nvidia,
     upload_to_s3,
 )
@@ -184,86 +183,7 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
-    # If credentials are not set, render the admin page without a message
-    if not all(
-        [
-            os.getenv("AWS_ACCESS_KEY_ID"),
-            os.getenv("AWS_SECRET_ACCESS_KEY"),
-        ]
-    ):
-        return render_template("admin.html")
-
-    # Check if AWS credentials are set and valid
-    credential_response = validate_aws_credentials()
-    logger.debug(f"Credential response: {credential_response}")
-
-    # Check if the credentials are valid
-    is_credentials_valid = credential_response.get("valid", False)
-
-    # If credentials are set and valid, display the admin dashboard
-    if is_credentials_valid:
-        message = "AWS credentials are already set and valid."
-        return render_template("admin.html", message=message)
-
-    # If credentials are not set or invalid, prompt the user to set them
-    else:
-        error = credential_response.get(
-            "message", "Invalid AWS credentials. Please set them."
-        )
-        return render_template("admin.html", error=error)
-
-
-@app.route("/api/admin/unset-aws-credentials", methods=["POST"])
-@auth.login_required
-def unset_aws_credentials():
-    # Remove AWS credentials from environment variables
-    os.environ.pop("AWS_ACCESS_KEY_ID", None)
-    os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
-    os.environ.pop("AWS_SESSION_TOKEN", None)
-
-    return render_template(
-        "admin.html", unset_message="AWS credentials unset successfully."
-    )
-
-
-@app.route("/api/admin/set-aws-credentials", methods=["POST"])
-@auth.login_required
-def set_aws_credentials():
-    aws_access_key = request.form.get("aws_access_key_id", "").strip()
-    aws_secret_key = request.form.get("aws_secret_access_key", "").strip()
-    aws_token = request.form.get("aws_token", "").strip()
-
-    if not aws_access_key or not aws_secret_key:
-        return jsonify({"error": "AWS Access Key and Secret Key are required"}), 400
-
-    # also set the environment variables
-    os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
-    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
-    os.environ["AWS_SESSION_TOKEN"] = aws_token
-
-    # Check if the AWS credentials are valid
-    credentials_response = validate_aws_credentials()
-    is_credentials_valid = credentials_response.get("valid", False)
-    if not is_credentials_valid:
-        logger.error("Invalid AWS credentials provided.")
-
-        # Remove environment variables if credentials are invalid
-        del os.environ["AWS_ACCESS_KEY_ID"]
-        del os.environ["AWS_SECRET_ACCESS_KEY"]
-        del os.environ["AWS_SESSION_TOKEN"]
-
-        error = credentials_response.get(
-            "message",
-            "Invalid AWS credentials provided. Please check your credentials.",
-        )
-
-        return render_template(
-            "admin.html",
-            error=error,
-        )
-
-    return render_template("admin.html", message="AWS credentials set successfully.")
-
+    return render_template("admin.html")
 
 @app.route("/admin/instances")
 @auth.login_required

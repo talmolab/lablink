@@ -1,59 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
-from botocore.exceptions import ClientError
 import lablink_allocator_service.utils.aws_utils as aws_utils
-
-
-@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
-def test_validate_aws_credentials_success(mock_boto_client):
-    mock_sts = MagicMock()
-    mock_sts.get_caller_identity.return_value = {
-        "UserId": "ABC123",
-        "Account": "456789",
-        "Arn": "arn:aws:iam::456789:user/Test",
-    }
-    mock_boto_client.return_value = mock_sts
-
-    result = aws_utils.validate_aws_credentials()
-    assert result == {"valid": True}
-    mock_sts.get_caller_identity.assert_called_once()
-
-
-@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
-def test_validate_aws_credentials_failure_invalid_token(mock_boto_client):
-    mock_sts = MagicMock()
-    mock_sts.get_caller_identity.side_effect = ClientError(
-        error_response={
-            "Error": {"Code": "InvalidClientTokenId", "Message": "Invalid token"}
-        },
-        operation_name="GetCallerIdentity",
-    )
-    mock_boto_client.return_value = mock_sts
-
-    result = aws_utils.validate_aws_credentials()
-    assert result["valid"] is False
-    assert "temporary but no session token" in result["message"]
-
-
-@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
-def test_validate_aws_credentials_failure_invalid_keys_and_ids(mock_boto_client):
-    mock_sts = MagicMock()
-    mock_sts.get_caller_identity.side_effect = ClientError(
-        error_response={
-            "Error": {
-                "Code": "AuthorizationHeaderMalformed",
-                "Message": "The authorization header that you provided is not valid.",
-            }
-        },
-        operation_name="GetCallerIdentity",
-    )
-    mock_boto_client.return_value = mock_sts
-
-    result = aws_utils.validate_aws_credentials()
-
-    assert result["valid"] is False
-    assert "authorization header" in result["message"].lower()
-
 
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_get_all_instance_types(mock_boto_client):

@@ -34,42 +34,6 @@ def get_all_instance_types(region="us-west-2"):
     return instance_types
 
 
-def validate_aws_credentials() -> dict:
-    """Validate AWS credentials by attempting to list EC2 instance types.
-    Returns:
-        dict: A dictionary indicating whether the credentials are valid.
-              If invalid, it includes an error message.
-    Raises:
-        ClientError: If there is an issue with the AWS credentials.
-    """
-    try:
-        # Prepare the kwargs for boto3 client
-        kwargs = {
-            "region_name": os.getenv("AWS_REGION", "us-west-2"),
-            "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-            "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-        }
-        if os.getenv("AWS_SESSION_TOKEN"):
-            kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
-
-        # Attempt to create a client and call a simple API to validate credentials
-        client = boto3.client("sts", **kwargs)
-        client.get_caller_identity()
-        logger.info("AWS credentials are valid.")
-        return {"valid": True}
-    except ClientError as e:
-        if "InvalidClientTokenId" in str(e):
-            message = "AWS credentials are temporary but no session token provided."
-            logger.error(message)
-            return {
-                "valid": False,
-                "message": message,
-            }
-        else:
-            logger.error(f"Error validating AWS credentials: {e}")
-            return {"valid": False, "message": str(e)}
-
-
 def check_support_nvidia(machine_type) -> bool:
     """Check if a given EC2 instance type supports NVIDIA GPUs.
     Args:
