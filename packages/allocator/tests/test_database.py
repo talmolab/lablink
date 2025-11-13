@@ -53,7 +53,16 @@ def test_get_row_count(db_instance):
 
 def test_get_column_names(db_instance):
     """Test getting column names from a table."""
-    expected_columns = ["hostname", "pin", "useremail", "crdcommand", "inuse", "healthy", "status", "logs"]
+    expected_columns = [
+        "hostname",
+        "pin",
+        "useremail",
+        "crdcommand",
+        "inuse",
+        "healthy",
+        "status",
+        "logs",
+    ]
     db_instance.cursor.fetchall.return_value = [(col,) for col in expected_columns]
     columns = db_instance.get_column_names("vms")
     db_instance.cursor.execute.assert_called_with(
@@ -68,7 +77,16 @@ def test_insert_vm(db_instance):
     hostname = "test-vm-01"
     # Mock the get_column_names method to return a specific set of columns
     db_instance.get_column_names = MagicMock(
-        return_value=["hostname", "inuse", "status", "email", "pin", "crdcommand", "healthy", "logs"]
+        return_value=[
+            "hostname",
+            "inuse",
+            "status",
+            "email",
+            "pin",
+            "crdcommand",
+            "healthy",
+            "logs",
+        ]
     )
     db_instance.insert_vm(hostname)
 
@@ -81,7 +99,11 @@ def test_insert_vm(db_instance):
 
 def test_get_vm_by_hostname_found(db_instance):
     """Test retrieving a VM by its hostname when it exists."""
+    from datetime import datetime
+
     hostname = "test-vm-01"
+    start_time = datetime(2023, 1, 1, 12, 0, 0)
+    end_time = datetime(2023, 1, 1, 12, 2, 3)
     # Simulate a row returned from the database
     vm_data = (
         hostname,
@@ -92,6 +114,17 @@ def test_get_vm_by_hostname_found(db_instance):
         True,
         "running",
         "log data",
+        start_time,  # terraform_apply_start_time
+        end_time,  # terraform_apply_end_time
+        123.0,  # terraform_apply_duration_seconds
+        start_time,  # cloud_init_start_time
+        end_time,  # cloud_init_end_time
+        123.0,  # cloud_init_duration_seconds
+        start_time,  # container_start_time
+        end_time,  # container_end_time
+        123.0,  # container_startup_duration_seconds
+        369.0,  # total_startup_duration_seconds
+        start_time,  # created_at
     )
     db_instance.cursor.fetchone.return_value = vm_data
     vm = db_instance.get_vm_by_hostname(hostname)
@@ -101,6 +134,17 @@ def test_get_vm_by_hostname_found(db_instance):
     )
     assert vm["hostname"] == hostname
     assert vm["pin"] == "123456"
+    assert vm["terraform_apply_start_time"] == start_time
+    assert vm["terraform_apply_end_time"] == end_time
+    assert vm["terraform_apply_duration_seconds"] == 123.0
+    assert vm["cloud_init_start_time"] == start_time
+    assert vm["cloud_init_end_time"] == end_time
+    assert vm["cloud_init_duration_seconds"] == 123.0
+    assert vm["container_start_time"] == start_time
+    assert vm["container_end_time"] == end_time
+    assert vm["container_startup_duration_seconds"] == 123.0
+    assert vm["total_startup_duration_seconds"] == 369.0
+    assert vm["created_at"] == start_time
 
 
 def test_get_vm_by_hostname_not_found(db_instance):
@@ -205,18 +249,13 @@ def test_get_vm_details_found(db_instance):
         "vm-assigned-1",
         "123456",
         "command",
-        email,
-        True,
-        True,
-        "running",
-        "sample-logs",
     )
     db_instance.cursor.fetchone.return_value = vm_details_data
 
     result = db_instance.get_vm_details(email)
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM vms WHERE useremail = %s", (email,)
+        "SELECT hostname, pin, crdcommand FROM vms WHERE useremail = %s", (email,)
     )
     assert result == ["vm-assigned-1", "123456", "command"]
 
@@ -379,7 +418,9 @@ def test_update_vm_status_invalid(db_instance, caplog):
 def test_load_database():
     """Test the class method for loading a database instance."""
     with patch.object(
-        PostgresqlDatabase, "__init__", return_value=None,
+        PostgresqlDatabase,
+        "__init__",
+        return_value=None,
     ) as mock_init:
         inst = PostgresqlDatabase.load_database(
             "db", "user", "pass", "host", 5432, "table", "channel"
@@ -478,3 +519,127 @@ def test_update_vm_status_db_error(db_instance, caplog):
     db_instance.update_vm_status(hostname, status)
     assert "Error updating VM status: DB error" in caplog.text
     db_instance.conn.rollback.assert_called_once()
+
+
+def test_get_all_vms(db_instance):
+    """Test getting all VMs from the database."""
+    with patch.object(db_instance, "get_column_names") as mock_get_columns:
+        vm_data = [
+            ("vm1", "pin1", "cmd1", "email1", False, True, "running"),
+            ("vm2", "pin2", "cmd2", "email2", True, False, "error"),
+        ]
+        column_names = [
+            "hostname",
+            "pin",
+            "crdcommand",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+        ]
+        mock_get_columns.return_value = column_names
+        db_instance.cursor.fetchall.return_value = vm_data
+
+        vms = db_instance.get_all_vms()
+
+        # Construct the expected query, excluding the 'logs' column
+        query_columns = ", ".join([col for col in column_names if col != "logs"])
+        expected_query = f"SELECT {query_columns} FROM vms;"
+        db_instance.cursor.execute.assert_called_with(expected_query)
+
+        # The result should be a list of dictionaries, without the 'logs' key
+        expected_vms = [
+            {
+                "hostname": "vm1",
+                "pin": "pin1",
+                "crdcommand": "cmd1",
+                "useremail": "email1",
+                "inuse": False,
+                "healthy": True,
+                "status": "running",
+            },
+            {
+                "hostname": "vm2",
+                "pin": "pin2",
+                "crdcommand": "cmd2",
+                "useremail": "email2",
+                "inuse": True,
+                "healthy": False,
+                "status": "error",
+            },
+        ]
+        assert vms == expected_vms
+
+
+def test_naive_utc():
+    """Test the _naive_utc static method."""
+    from datetime import datetime, timezone, timedelta
+
+    # Test with timezone-aware datetime
+    aware_dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+    naive_utc_dt = PostgresqlDatabase._naive_utc(aware_dt)
+    assert naive_utc_dt.tzinfo is None
+    assert naive_utc_dt == datetime(2023, 1, 1, 17, 0, 0)
+
+    # Test with naive datetime
+    naive_dt = datetime(2023, 1, 1, 12, 0, 0)
+    naive_utc_dt = PostgresqlDatabase._naive_utc(naive_dt)
+    assert naive_utc_dt.tzinfo is None
+    assert naive_utc_dt == naive_dt
+
+def test_update_vm_metrics(db_instance):
+    """Test updating VM metrics in the database."""
+    hostname = "test-vm-01"
+    metrics = {
+        "cloud_init_start": 1672531200,
+        "cloud_init_end": 1672531320,
+        "cloud_init_duration_seconds": 120,
+        "container_start": 1672531320,
+        "container_end": 1672531380,
+        "container_startup_duration_seconds": 60,
+    }
+    db_instance.update_vm_metrics(hostname, metrics)
+
+    expected_query = (
+        "UPDATE vms SET CloudInitStartTime = to_timestamp(%s), "
+        "CloudInitEndTime = to_timestamp(%s), "
+        "CloudInitDurationSeconds = %s, "
+        "ContainerStartTime = to_timestamp(%s), "
+        "ContainerEndTime = to_timestamp(%s), "
+        "ContainerStartupDurationSeconds = %s "
+        "WHERE hostname = %s;"
+    )
+
+    db_instance.cursor.execute.assert_called_once()
+    args = db_instance.cursor.execute.call_args[0]
+    # Remove whitespace and compare queries
+    assert "".join(args[0].split()) == "".join(expected_query.split())
+    assert args[1] == (
+        1672531200,
+        1672531320,
+        120,
+        1672531320,
+        1672531380,
+        60,
+        hostname,
+    )
+    db_instance.conn.commit.assert_called_once()
+
+def test_calculate_total_startup_time(db_instance):
+    """Test calculating the total startup time for a VM."""
+    hostname = "test-vm-01"
+    db_instance.calculate_total_startup_time(hostname)
+
+    expected_query = """
+            UPDATE vms
+            SET TotalStartupDurationSeconds =
+                COALESCE(TerraformApplyDurationSeconds, 0) +
+                COALESCE(CloudInitDurationSeconds, 0) +
+                COALESCE(ContainerStartupDurationSeconds, 0)
+            WHERE hostname = %s AND
+                TerraformApplyDurationSeconds IS NOT NULL AND
+                CloudInitDurationSeconds IS NOT NULL AND
+                ContainerStartupDurationSeconds IS NOT NULL
+        """
+    db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
+    db_instance.conn.commit.assert_called_once()
