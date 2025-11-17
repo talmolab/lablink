@@ -173,6 +173,61 @@ class StartupConfig:
     path: str = field(default="")
     on_error: str = field(default="continue")  # Options: "continue", "fail"
 
+@dataclass
+class ThresholdsConfig:
+    """Configuration for resource usage thresholds.
+
+    Attributes:
+        max_instances_per_5min (int): Maximum number of instances that can be created
+            within a 5-minute window.
+        max_terminations_per_5min (int): Maximum number of instances that can be terminated
+            within a 5-minute window.
+        max_iam_roles_per_hour (int): Maximum number of IAM roles that can be created within an hour.
+        max_security_group_changes_per_hour (int): Maximum number of security group changes that can be made within an hour.
+        max_unauthorized_calls_per_15min (int): Maximum number of unauthorized API calls that can be made within a 15-minute window.
+    """
+
+    max_instances_per_5min: int = field(default=10)
+    max_terminations_per_5min: int = field(default=20)
+    max_iam_roles_per_hour: int = field(default=5)
+    max_security_group_changes_per_hour: int = field(default=10)
+    max_unauthorized_calls_per_15min: int = field(default=5)
+
+@dataclass
+class BudgetConfig:
+    """Configuration for budget limits.
+
+    Attributes:
+        monthly_budget (float): Monthly budget limit in USD.
+        alert_threshold (float): Percentage of the budget at which to send an alert.
+    """
+    enabled: bool = field(default=False)
+    monthly_budget_usd: int = field(default=500)
+
+@dataclass
+class CloudTrailConfig:
+    """Configuration for CloudTrail logging.
+
+    Attributes:
+        enabled (bool): Whether CloudTrail logging is enabled.
+        log_group_name (str): The name of the CloudWatch log group for CloudTrail logs.
+    """
+    retention_days: int = field(default=90)
+
+@dataclass
+class MonitoringConfig:
+    """Configuration for monitoring and logging.
+
+    Attributes:
+        enabled (bool): Whether monitoring is enabled.
+        email (str): Email address to send alerts to.
+        thresholds (ThresholdsConfig): Resource usage thresholds for triggering alerts.
+    """
+    enabled: bool = field(default=False)
+    email: str = field(default="")
+    thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
+    budget: BudgetConfig = field(default_factory=BudgetConfig)
+    cloudtrail: CloudTrailConfig = field(default_factory=CloudTrailConfig)
 
 @dataclass
 class Config:
@@ -199,7 +254,6 @@ class Config:
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
     startup_script: StartupConfig = field(default_factory=StartupConfig)
-
 
 cs = ConfigStore.instance()
 cs.store(name="config", node=Config)
