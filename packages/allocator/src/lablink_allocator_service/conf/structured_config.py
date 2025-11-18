@@ -254,6 +254,7 @@ class Config:
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
     startup_script: StartupConfig = field(default_factory=StartupConfig)
+    monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
 
 cs = ConfigStore.instance()
 cs.store(name="config", node=Config)
