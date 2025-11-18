@@ -178,13 +178,16 @@ class ThresholdsConfig:
     """Configuration for resource usage thresholds.
 
     Attributes:
-        max_instances_per_5min (int): Maximum number of instances that can be created
-            within a 5-minute window.
-        max_terminations_per_5min (int): Maximum number of instances that can be terminated
-            within a 5-minute window.
-        max_iam_roles_per_hour (int): Maximum number of IAM roles that can be created within an hour.
-        max_security_group_changes_per_hour (int): Maximum number of security group changes that can be made within an hour.
-        max_unauthorized_calls_per_15min (int): Maximum number of unauthorized API calls that can be made within a 15-minute window.
+        max_instances_per_5min (int): Maximum number of instances that can be
+            created within a 5-minute window.
+        max_terminations_per_5min (int): Maximum number of instances that can be
+            terminated within a 5-minute window.
+        max_iam_roles_per_hour (int): Maximum number of IAM roles that can be
+            created within an hour.
+        max_security_group_changes_per_hour (int): Maximum number of security
+            group changes that can be made within an hour.
+        max_unauthorized_calls_per_15min (int): Maximum number of unauthorized
+            API calls that can be made within a 15-minute window.
     """
 
     max_instances_per_5min: int = field(default=10)
