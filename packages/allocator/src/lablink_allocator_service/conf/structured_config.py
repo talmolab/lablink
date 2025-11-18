@@ -192,8 +192,6 @@ class ThresholdsConfig:
 
     max_instances_per_5min: int = field(default=10)
     max_terminations_per_5min: int = field(default=20)
-    max_iam_roles_per_hour: int = field(default=5)
-    max_security_group_changes_per_hour: int = field(default=10)
     max_unauthorized_calls_per_15min: int = field(default=5)
 
 @dataclass
