@@ -100,6 +100,7 @@ nav:
       - SSH access: ssh-access.md
       - Database: database.md
       - Testing: testing.md
+      - API Endpoints: api-endpoints.md
   - AWS:
       - AWS setup: aws-setup.md
       - Security and credentials: security.md
