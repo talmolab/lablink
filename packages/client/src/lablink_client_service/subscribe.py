@@ -1,6 +1,7 @@
 import requests
 import os
 import time
+import random
 
 import hydra
 from omegaconf import OmegaConf
@@ -52,6 +53,8 @@ def subscribe(cfg: Config) -> None:
     retry_count = 0
     MAX_RETRIES = None  # Infinite retries
     RETRY_DELAY = 10  # seconds
+    jitter = random.uniform(0, 10)
+    time.sleep(RETRY_DELAY + jitter)  # Add jitter to avoid thundering herd problem
 
     while True:
         if retry_count > 0:

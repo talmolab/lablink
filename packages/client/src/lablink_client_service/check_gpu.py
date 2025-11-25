@@ -2,6 +2,7 @@ import subprocess
 import time
 import logging
 import os
+import random
 
 import requests
 import hydra
@@ -113,12 +114,14 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
 
                 report_retry_count += 1
                 if report_retry_count < MAX_REPORT_RETRIES:
-                    time.sleep(REPORT_RETRY_DELAY)
+                    jitter = random.uniform(0, 5)
+                    time.sleep(REPORT_RETRY_DELAY + jitter)
             else:
                 logger.error(
                     f"Failed to report GPU health status after {MAX_REPORT_RETRIES} "
                     f"attempts. Allocator might be unreachable or experiencing issues."
                 )
+                last_status = curr_status
 
         if break_now:
             break

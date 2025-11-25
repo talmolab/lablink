@@ -2,6 +2,7 @@ import time
 import logging
 import requests
 import os
+import random
 
 import psutil
 import hydra
@@ -73,7 +74,8 @@ def listen_for_process(
         process_running_prev = process_running_curr
 
         # Wait for the specified interval before checking again
-        time.sleep(interval)
+        jitter = random.uniform(0, 5)
+        time.sleep(interval + jitter)
 
 
 def call_api(process_name, url):
