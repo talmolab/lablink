@@ -274,11 +274,12 @@ def test_check_gpu_health_request_exception(
     assert "Failed to report GPU health: Some request error" in caplog.text
 
 
+@patch("lablink_client_service.check_gpu.random.uniform", return_value=0)
 @patch("lablink_client_service.check_gpu.time.sleep")
 @patch("lablink_client_service.check_gpu.requests.post")
 @patch("lablink_client_service.check_gpu.subprocess.run")
 def test_gpu_report_retry_logic(
-    mock_run, mock_post, mock_sleep, mock_environment, caplog
+    mock_run, mock_post, mock_sleep, mock_uniform, mock_environment, caplog
 ):
     """Test the retry logic for reporting GPU health."""
     caplog.set_level(logging.INFO)
@@ -304,10 +305,10 @@ def test_gpu_report_retry_logic(
     # Assert that `requests.post` was called 3 times
     assert mock_post.call_count == 3
 
-    # Assert that `time.sleep` was called twice for retries, and once
-    # in the main loop before KeyboardInterrupt
+    # Assert that `time.sleep` was called twice for retries (with jitter = 0),
+    # and once in the main loop before KeyboardInterrupt
     assert mock_sleep.call_count == 3
-    mock_sleep.assert_any_call(10)  # REPORT_RETRY_DELAY is 10
+    mock_sleep.assert_any_call(10)  # REPORT_RETRY_DELAY is 10 (with jitter = 0)
     mock_sleep.assert_any_call(20)  # Default interval
 
     # Assert that the log messages show the retry attempts
