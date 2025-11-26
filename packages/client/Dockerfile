@@ -31,6 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-xcb1 \
     libxkbcommon-x11-0 \
     curl \
+    # For media playback
+    vlc \
+    # For productivity and general use
+    zip \
+    unzip \
     # Base packages for compatibility with GCC-10 and other software
     gcc-10-base \
     libgcc-s1 \
@@ -141,8 +146,10 @@ ARG PACKAGE_VERSION=0.0.8a0
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install client service package from PyPI in a virtual environment
-RUN uv venv /home/${USERNAME}/.venv && \
-    uv pip install --python=/home/${USERNAME}/.venv/bin/python lablink-client-service==${PACKAGE_VERSION}
+RUN uv init --python 3.11 --no-readme \
+    && uv venv /home/${USERNAME}/.venv && \
+    uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
+    uv sync
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
