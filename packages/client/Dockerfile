@@ -36,8 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # For productivity and general use
     zip \
     unzip \
-    # A more powerful terminal
-    terminator \
     # Base packages for compatibility with GCC-10 and other software
     gcc-10-base \
     libgcc-s1 \
