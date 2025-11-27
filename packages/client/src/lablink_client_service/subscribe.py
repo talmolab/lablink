@@ -12,6 +12,8 @@ from lablink_client_service.connect_crd import connect_to_crd, set_logger
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 logger = logging.getLogger(__name__)
+MAX_RETRIES = None  # No limit on retries
+RETRY_DELAY = 10
 
 
 def subscribe(cfg: Config) -> None:
@@ -51,8 +53,6 @@ def subscribe(cfg: Config) -> None:
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
     retry_count = 0
-    MAX_RETRIES = None  # Infinite retries
-    RETRY_DELAY = 10  # seconds
     jitter = random.uniform(0, 10)
     time.sleep(RETRY_DELAY + jitter)  # Add jitter to avoid thundering herd problem
 
@@ -62,7 +62,8 @@ def subscribe(cfg: Config) -> None:
                 f"Retrying connection to allocator in {RETRY_DELAY} seconds... "
                 f"(Attempt {retry_count + 1})"
             )
-            time.sleep(RETRY_DELAY)
+            jitter = random.uniform(0, 5)
+            time.sleep(RETRY_DELAY + jitter)
 
         try:
             # Send a POST request to the specified URL
@@ -116,9 +117,6 @@ def subscribe(cfg: Config) -> None:
 
         # Increment retry count
         retry_count += 1
-        if MAX_RETRIES is not None and retry_count >= MAX_RETRIES:
-            logger.error(f"Max retries ({MAX_RETRIES}) reached. Giving up.")
-            break
 
 
 @hydra.main(version_base=None, config_name="config")

@@ -12,6 +12,8 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
 logger = logging.getLogger(__name__)
+MAX_REPORT_RETRIES = 5
+REPORT_RETRY_DELAY = 10  # seconds
 
 
 def check_gpu_health(allocator_url: str, interval: int = 20):
@@ -71,10 +73,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
             logger.info(
                 f"GPU health status changed: {curr_status}. Reporting to allocator."
             )
-
             report_retry_count = 0
-            MAX_REPORT_RETRIES = 5
-            REPORT_RETRY_DELAY = 10  # seconds
 
             while report_retry_count < MAX_REPORT_RETRIES:
                 try:
@@ -121,6 +120,8 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                     f"Failed to report GPU health status after {MAX_REPORT_RETRIES} "
                     f"attempts. Allocator might be unreachable or experiencing issues."
                 )
+
+                # Send last known status even if reporting failed
                 last_status = curr_status
 
         if break_now:

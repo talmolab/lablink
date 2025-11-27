@@ -13,6 +13,9 @@ from lablink_client_service.logger_utils import CloudAndConsoleLogger
 # Default logger setup
 logger = logging.getLogger(__name__)
 
+MAX_API_RETRIES = 5
+API_RETRY_DELAY = 10  # seconds
+
 
 def is_process_running(process_name: str) -> bool:
     """
@@ -84,8 +87,6 @@ def call_api(process_name, url):
     status = is_process_running(process_name=process_name)
 
     retry_count = 0
-    MAX_API_RETRIES = 5
-    API_RETRY_DELAY = 10  # seconds
 
     while retry_count < MAX_API_RETRIES:
         try:
@@ -114,7 +115,8 @@ def call_api(process_name, url):
 
         retry_count += 1
         if retry_count < MAX_API_RETRIES:
-            time.sleep(API_RETRY_DELAY)
+            jitter = random.uniform(0, 5)
+            time.sleep(API_RETRY_DELAY + jitter)
     else:
         logger.error(
             f"Failed to update in-use status after {MAX_API_RETRIES} attempts. "
