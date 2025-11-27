@@ -60,9 +60,10 @@ def test_call_api_success(mock_post):
     mock_post.assert_called_once()
 
 
+@patch("lablink_client_service.update_inuse_status.random.uniform", return_value=0)
 @patch("lablink_client_service.update_inuse_status.time.sleep")
 @patch("requests.post")
-def test_call_api_retry_logic(mock_post, mock_sleep, caplog):
+def test_call_api_retry_logic(mock_post, mock_sleep, mock_random, caplog):
     """Test the retry logic in the call_api function."""
     caplog.set_level("INFO")
 
@@ -82,7 +83,7 @@ def test_call_api_retry_logic(mock_post, mock_sleep, caplog):
 
     # Assert that `time.sleep` was called twice with the correct delay
     assert mock_sleep.call_count == 2
-    mock_sleep.assert_called_with(10)  # API_RETRY_DELAY is 10
+    mock_sleep.assert_called_with(10)  # API_RETRY_DELAY is 10 (jitter mocked to 0)
 
     # Assert that the log messages show the retry attempts
     assert "API call failed: Network Error (Attempt 1/5). Retrying..." in caplog.text
