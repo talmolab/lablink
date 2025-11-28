@@ -182,10 +182,6 @@ class ThresholdsConfig:
             created within a 5-minute window.
         max_terminations_per_5min (int): Maximum number of instances that can be
             terminated within a 5-minute window.
-        max_iam_roles_per_hour (int): Maximum number of IAM roles that can be
-            created within an hour.
-        max_security_group_changes_per_hour (int): Maximum number of security
-            group changes that can be made within an hour.
         max_unauthorized_calls_per_15min (int): Maximum number of unauthorized
             API calls that can be made within a 15-minute window.
     """
@@ -199,8 +195,8 @@ class BudgetConfig:
     """Configuration for budget limits.
 
     Attributes:
-        monthly_budget (float): Monthly budget limit in USD.
-        alert_threshold (float): Percentage of the budget at which to send an alert.
+        enabled (bool): Whether budget monitoring is enabled.
+        monthly_budget_usd (int): Monthly budget in USD.
     """
     enabled: bool = field(default=False)
     monthly_budget_usd: int = field(default=500)
@@ -210,8 +206,7 @@ class CloudTrailConfig:
     """Configuration for CloudTrail logging.
 
     Attributes:
-        enabled (bool): Whether CloudTrail logging is enabled.
-        log_group_name (str): The name of the CloudWatch log group for CloudTrail logs.
+        retention_days (int): Number of days to retain CloudTrail logs.
     """
     retention_days: int = field(default=90)
 
@@ -223,6 +218,8 @@ class MonitoringConfig:
         enabled (bool): Whether monitoring is enabled.
         email (str): Email address to send alerts to.
         thresholds (ThresholdsConfig): Resource usage thresholds for triggering alerts.
+        budget (BudgetConfig): Budget limits for monitoring costs.
+        cloudtrail (CloudTrailConfig): CloudTrail logging configuration.
     """
     enabled: bool = field(default=False)
     email: str = field(default="")
