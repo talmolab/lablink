@@ -53,8 +53,6 @@ def subscribe(cfg: Config) -> None:
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
     retry_count = 0
-    jitter = random.uniform(0, 10)
-    time.sleep(RETRY_DELAY + jitter)  # Add jitter to avoid thundering herd problem
 
     while True:
         if retry_count > 0:

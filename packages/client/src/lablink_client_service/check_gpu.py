@@ -121,7 +121,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                     f"attempts. Allocator might be unreachable or experiencing issues."
                 )
 
-                # Send last known status even if reporting failed
+                # Fallback to avoid repeated failed reports
                 last_status = curr_status
 
         if break_now:
