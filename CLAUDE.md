@@ -103,9 +103,10 @@ lablink/
 - Support custom Docker images and repositories
 
 ### VM States
-- **available**: Ready for assignment
-- **in-use**: Currently assigned to user
-- **failed**: Encountered error
+
+- **available**: VM ready, configured software not running
+- **in-use**: Configured software actively running on VM (monitored by `update_inuse_status`)
+- **failed**: Health checks failing or encountered error
 
 ### Environments
 - **dev**: Local development, local Terraform state
