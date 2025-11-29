@@ -50,30 +50,53 @@ erDiagram
 
 #### `vms` Table
 
-Primary table tracking all VM instances.
+Primary table tracking all VM instances with comprehensive timing metrics.
 
-| Column        | Type         | Constraints      | Description                         |
-| ------------- | ------------ | ---------------- | ----------------------------------- |
-| `id`          | SERIAL       | PRIMARY KEY      | Unique VM identifier                |
-| `hostname`    | VARCHAR(255) | NOT NULL, UNIQUE | VM hostname/instance ID             |
-| `email`       | VARCHAR(255) |                  | User email address                  |
-| `status`      | VARCHAR(50)  | NOT NULL         | VM status (available/in-use/failed) |
-| `crd_command` | TEXT         |                  | Command to execute on VM            |
-| `created_at`  | TIMESTAMP    | DEFAULT NOW()    | Creation timestamp                  |
-| `updated_at`  | TIMESTAMP    | DEFAULT NOW()    | Last update timestamp               |
+| Column                             | Type          | Constraints | Description                                      |
+| ---------------------------------- | ------------- | ----------- | ------------------------------------------------ |
+| `HostName`                         | VARCHAR(1024) | PRIMARY KEY | VM hostname/instance ID                          |
+| `Pin`                              | VARCHAR(1024) |             | VM pin/identifier for access                     |
+| `CrdCommand`                       | VARCHAR(1024) |             | Command to execute on VM                         |
+| `UserEmail`                        | VARCHAR(1024) |             | User email address                               |
+| `InUse`                            | BOOLEAN       | NOT NULL    | Whether configured software is running (default: FALSE) |
+| `Healthy`                          | VARCHAR(1024) |             | Health status of the VM                          |
+| `Status`                           | VARCHAR(1024) |             | VM status                                        |
+| `Logs`                             | TEXT          |             | VM logs                                          |
+| `TerraformApplyStartTime`          | TIMESTAMP     |             | When Terraform apply started                     |
+| `TerraformApplyEndTime`            | TIMESTAMP     |             | When Terraform apply completed                   |
+| `TerraformApplyDurationSeconds`    | FLOAT         |             | Duration of Terraform apply in seconds           |
+| `CloudInitStartTime`               | TIMESTAMP     |             | When cloud-init started                          |
+| `CloudInitEndTime`                 | TIMESTAMP     |             | When cloud-init completed                        |
+| `CloudInitDurationSeconds`         | FLOAT         |             | Duration of cloud-init in seconds                |
+| `ContainerStartTime`               | TIMESTAMP     |             | When container startup started                   |
+| `ContainerEndTime`                 | TIMESTAMP     |             | When container became ready                      |
+| `ContainerStartupDurationSeconds`  | FLOAT         |             | Duration of container startup in seconds         |
+| `TotalStartupDurationSeconds`      | FLOAT         |             | Total VM startup duration in seconds             |
+| `CreatedAt`                        | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                            |
 
-**Status Values**:
+**InUse Status**:
 
-- `available`: VM ready for assignment
-- `in-use`: VM currently assigned to user
-- `failed`: VM encountered error
+The `InUse` column indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not just whether a user has been assigned. This is monitored by the `update_inuse_status` service running on the client VM.
+
+- `FALSE`: Software process not running
+- `TRUE`: Software process actively running
+
+**Timing Metrics**:
+
+The table tracks three phases of VM startup:
+
+1. **Terraform Apply**: Infrastructure provisioning (EC2 instance creation)
+2. **Cloud-init**: OS-level initialization and Docker setup
+3. **Container Startup**: Application container becoming ready
+
+These metrics help identify bottlenecks in the VM creation process.
 
 **Example Row**:
 
 ```sql
-id  | hostname          | email            | status    | crd_command      | created_at          | updated_at
-----+-------------------+------------------+-----------+------------------+---------------------+---------------------
-1   | i-0abc123def456   | user@example.com | in-use    | python train.py  | 2025-01-15 10:30:00 | 2025-01-15 10:35:00
+HostName          | UserEmail        | InUse | CrdCommand       | TotalStartupDurationSeconds | CreatedAt
+------------------+------------------+-------+------------------+-----------------------------+---------------------
+i-0abc123def456   | user@example.com | true  | python train.py  | 245.67                      | 2025-01-15 10:30:00
 ```
 
 ### Triggers
