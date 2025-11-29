@@ -157,6 +157,54 @@ graph TB
 
 - `notify_vm_update`: Sends PostgreSQL NOTIFY on row changes
 
+### VM State Machine
+
+The `status` field in the `vms` table follows this lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> available: VM Created<br/>(terraform apply)
+
+    available --> in_use: Software process starts<br/>(detected by update_inuse_status)
+    in_use --> available: Software process stops<br/>(task complete or crash)
+
+    available --> failed: Startup failure<br/>(boot error)
+    in_use --> failed: Health check failed<br/>(GPU error, system crash)
+
+    failed --> available: Admin intervention<br/>(manual reset)
+    failed --> [*]: VM Destroyed<br/>(terraform destroy)
+    available --> [*]: VM Destroyed<br/>(terraform destroy)
+    in_use --> [*]: Force destroy<br/>(admin action)
+
+    note right of available
+        VM ready, waiting
+        Software not running
+        Heartbeat active
+    end note
+
+    note right of in_use
+        Configured software running
+        User workload active
+        Sending status updates
+    end note
+
+    note right of failed
+        Requires attention
+        Health checks failing
+        Removed from pool
+    end note
+```
+
+**State Transitions**:
+
+- **available → in_use**: Configured software process starts running on the VM
+- **in_use → available**: Software process stops (task complete or process ends)
+- **available/in_use → failed**: Health checks fail or errors occur
+- **failed → available**: Admin manually resets and fixes the VM
+- **any → [*]**: VM is destroyed via Terraform
+
+**Note**: The `in_use` status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the `update_inuse_status` service which checks for the configured process.
+
 ### Infrastructure Components
 
 #### Security Groups
@@ -194,64 +242,92 @@ graph TB
 
 ### VM Request Flow
 
-```
-1. User submits request via Web UI or API
-   │
-   ▼
-2. Flask app receives request
-   │
-   ▼
-3. Query database for available VM
-   │
-   ├─ If available:
-   │  ├─ Update VM status to "in-use"
-   │  ├─ Return VM details to user
-   │  └─ Notify client via PostgreSQL NOTIFY
-   │
-   └─ If none available:
-      └─ Return error / queue request
+```mermaid
+sequenceDiagram
+    actor User
+    participant WebUI as Web UI/API
+    participant Flask as Flask App
+    participant DB as PostgreSQL
+    participant Client as Client VM
+
+    User->>WebUI: Submit VM request
+    WebUI->>Flask: POST /request_vm
+    Flask->>DB: SELECT * FROM vms<br/>WHERE status='available'<br/>LIMIT 1
+
+    alt VM Available
+        DB-->>Flask: Return VM details
+        Flask-->>WebUI: Return VM hostname<br/>and connection details
+        WebUI-->>User: Display VM info
+        Flask->>DB: PostgreSQL NOTIFY<br/>vm_update
+        DB-->>Client: Notify event
+    else No VM Available
+        DB-->>Flask: No results
+        Flask-->>WebUI: Error: No VMs available
+        WebUI-->>User: Queue request or<br/>show error message
+    end
+
+    Note over Client: Later: update_inuse_status service<br/>monitors for software process
+    Client->>Client: Software process starts
+    Client->>Flask: Update status to in-use
+    Flask->>DB: UPDATE vms<br/>SET status='in-use'
 ```
 
 ### VM Creation Flow
 
-```
-1. Admin creates VMs via /admin/create
-   │
-   ▼
-2. Flask app calls Terraform subprocess
-   │
-   ▼
-3. Terraform provisions EC2 instances
-   │
-   ├─ Creates security group
-   ├─ Generates SSH key pair
-   ├─ Launches EC2 with user_data script
-   └─ Returns instance details
-   │
-   ▼
-4. User data script runs on boot:
-   │
-   ├─ Pulls Docker image
-   ├─ Clones repository
-   ├─ Starts client service
-   └─ Registers with allocator
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant Flask as Flask App
+    participant Terraform
+    participant AWS as AWS EC2
+    participant VM as Client VM Instance
+    participant Docker as Docker Container
+
+    Admin->>Flask: POST /admin/create<br/>(instance_count)
+    Flask->>Terraform: Execute terraform apply<br/>(subprocess)
+
+    Terraform->>AWS: Create security group
+    Terraform->>AWS: Generate SSH key pair
+    Terraform->>AWS: Launch EC2 instance<br/>with user_data script
+    AWS-->>Terraform: Return instance details<br/>(hostname, IP, etc.)
+    Terraform-->>Flask: Provisioning complete
+
+    Note over VM: Boot sequence begins
+    VM->>VM: Execute user_data script
+
+    VM->>Docker: Pull Docker image<br/>from ghcr.io
+    VM->>VM: Clone user repository<br/>(if configured)
+    VM->>Docker: Start client service<br/>(subscribe, check_gpu, etc.)
+    Docker->>Flask: POST /vm_startup<br/>(hostname registration)
+
+    Flask-->>Admin: VMs created successfully<br/>(show instance details)
 ```
 
 ### Health Check Flow
 
-```
-Client VM (every 20s):
-│
-├─ Check GPU status
-├─ Check system resources
-│
-▼
-Send status to allocator API
-│
-▼
-Allocator updates database
-│
-└─ If unhealthy: Mark as "failed"
+```mermaid
+sequenceDiagram
+    participant Client as Client VM
+    participant Flask as Flask App
+    participant DB as PostgreSQL
+
+    Note over Client: Every 20 seconds
+
+    loop Health Check Cycle
+        Client->>Client: Check GPU status
+        Client->>Client: Check system resources
+
+        alt GPU/System Healthy
+            Client->>Flask: POST /health_check<br/>(status: healthy)
+            Flask->>DB: Verify VM record
+            Flask-->>Client: ACK
+        else GPU/System Unhealthy
+            Client->>Flask: POST /health_check<br/>(status: failed)
+            Flask->>DB: UPDATE vms<br/>SET status='failed'
+            Flask-->>Client: ACK
+            Note over DB: VM marked as failed<br/>removed from available pool
+        end
+    end
 ```
 
 ## Deployment Environments

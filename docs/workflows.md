@@ -13,6 +13,66 @@ LabLink uses GitHub Actions for continuous integration and deployment. The workf
 
 **Note**: Infrastructure deployment workflows (Terraform) have been moved to the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
 
+### CI/CD Pipeline Overview
+
+```mermaid
+flowchart TB
+    subgraph Triggers["Workflow Triggers"]
+        PR[Pull Request]
+        Push[Push to Branch]
+        Tag[Git Tag Push]
+        Manual[Manual Dispatch]
+    end
+
+    subgraph CI["ci.yml - Continuous Integration"]
+        Lint[Lint Code<br/>ruff check]
+        Test[Run Tests<br/>pytest]
+        DockerTest[Docker Build Test<br/>Allocator only]
+        Lint --> Test --> DockerTest
+    end
+
+    subgraph Publish["publish-pip.yml - Package Publishing"]
+        Validate[Validate Version<br/>& Branch]
+        RunTests[Run Tests<br/>& Linting]
+        PyPI[Publish to PyPI]
+        ShowCommand[Display Docker<br/>Build Command]
+        Validate --> RunTests --> PyPI --> ShowCommand
+    end
+
+    subgraph Images["lablink-images.yml - Docker Images"]
+        SelectDockerfile{Select<br/>Dockerfile}
+        BuildDev[Build Dev Image<br/>Dockerfile.dev]
+        BuildProd[Build Prod Image<br/>Dockerfile]
+        VerifyDev[Verify Dev Image]
+        VerifyProd[Verify Prod Image]
+        PushDev[Push with -test tags]
+        PushProd[Push with version tags]
+
+        SelectDockerfile -->|PR/test/main| BuildDev
+        SelectDockerfile -->|prod + versions| BuildProd
+        BuildDev --> VerifyDev --> PushDev
+        BuildProd --> VerifyProd --> PushProd
+    end
+
+    subgraph Docs["docs.yml - Documentation"]
+        BuildDocs[Build MkDocs]
+        DeployPages[Deploy to<br/>GitHub Pages]
+        BuildDocs --> DeployPages
+    end
+
+    PR --> CI
+    Push --> CI
+    Push --> Images
+    Tag --> Publish
+    Manual --> Images
+    Publish -.->|Manual trigger needed| Images
+
+    style CI fill:#e3f2fd
+    style Publish fill:#fff3e0
+    style Images fill:#e8f5e9
+    style Docs fill:#f3e5f5
+```
+
 ## Workflow Files
 
 All workflows are located in `.github/workflows/`:
@@ -288,6 +348,38 @@ flowchart TD
 #### Production Release Workflow
 
 **IMPORTANT**: Production Docker images must be built AFTER publishing packages to PyPI. This is a **manual two-step process**:
+
+```mermaid
+sequenceDiagram
+    actor Developer
+    participant Git as Git Repository
+    participant GHA as GitHub Actions<br/>publish-pip.yml
+    participant PyPI
+    participant Manual as Manual Trigger
+    participant Build as GitHub Actions<br/>lablink-images.yml
+    participant Registry as ghcr.io
+
+    Developer->>Git: Create and push tags<br/>lablink-allocator-service_v0.0.2a0<br/>lablink-client-service_v0.0.7a0
+    Git->>GHA: Trigger publish-pip.yml
+
+    Note over GHA: Step 1: Publish to PyPI
+    GHA->>GHA: Run tests
+    GHA->>GHA: Validate versions
+    GHA->>PyPI: Publish packages
+    PyPI-->>GHA: Confirm published
+    GHA->>Developer: Display manual Docker<br/>build command
+
+    Note over Developer,Manual: CRITICAL: Do NOT skip Step 2
+
+    Developer->>Manual: gh workflow run lablink-images.yml<br/>-f environment=prod<br/>-f allocator_version=0.0.2a0<br/>-f client_version=0.0.7a0
+
+    Note over Build: Step 2: Build Production Images
+    Manual->>Build: Trigger with versions
+    Build->>PyPI: Pull packages<br/>lablink-allocator==0.0.2a0<br/>lablink-client==0.0.7a0
+    Build->>Build: Build from Dockerfile<br/>(PyPI packages)
+    Build->>Registry: Push images with<br/>version tags
+    Registry-->>Developer: Images ready for<br/>deployment
+```
 
 **Step 1: Publish packages to PyPI**
 
