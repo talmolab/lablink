@@ -205,7 +205,7 @@ for i in {1..5}; do
         JITTER=$((RANDOM % BASE_DELAY + 1))
         DELAY=$((BASE_DELAY + JITTER))
 
-        echo ">> $(date -Is) Retrying in ${DELAY}s..."
+        echo ">> $(date -Is) Retrying in $${DELAY}s..."
         sleep $DELAY
     fi
 done
