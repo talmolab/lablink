@@ -639,15 +639,27 @@ class PostgresqlDatabase:
                 logger.error(f"Error updating Terraform timing: {e}")
                 self.conn.rollback()
 
-    def update_vm_metrics(self, hostname: str, metrics: dict) -> None:
-        """Update total startup duration metrics for a VM.
+    def update_vm_metrics_atomic(self, hostname: str, metrics: dict) -> None:
+        """Update VM metrics and calculate total startup time in a single transaction.
+
         Args:
             hostname (str): The hostname of the VM.
             metrics (dict): A dictionary containing the timing metrics to update.
+                Supported keys:
+                - cloud_init_start (int): Unix timestamp
+                - cloud_init_end (int): Unix timestamp
+                - cloud_init_duration_seconds (float)
+                - container_start (int): Unix timestamp
+                - container_end (int): Unix timestamp
+                - container_startup_duration_seconds (float)
+
+        Raises:
+            Exception: If the database operation fails (re-raised after rollback).
         """
         updates = []
         values = []
 
+        # Build metric updates
         if "cloud_init_start" in metrics:
             updates.append("CloudInitStartTime = to_timestamp(%s)")
             values.append(metrics["cloud_init_start"])
@@ -672,56 +684,43 @@ class PostgresqlDatabase:
             logger.debug("No metrics to update.")
             return
 
+        # Add total startup time calculation to the same UPDATE
+        # This recalculates the total whenever any metric is updated
+        updates.append(
+            """TotalStartupDurationSeconds =
+                COALESCE(TerraformApplyDurationSeconds, 0) +
+                COALESCE(CloudInitDurationSeconds, 0) +
+                COALESCE(ContainerStartupDurationSeconds, 0)"""
+        )
+
         query = f"""
             UPDATE {self.table_name}
             SET {', '.join(updates)}
-            WHERE hostname = %s;
+            WHERE hostname = %s
+            RETURNING TotalStartupDurationSeconds;
         """
         values.append(hostname)
 
         try:
             self.cursor.execute(query, tuple(values))
+            result = self.cursor.fetchone()
             self.conn.commit()
+
             logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
-        except Exception as e:
-            logger.error(f"Error updating VM metrics: {e}")
-            self.conn.rollback()
 
-    def calculate_total_startup_time(self, hostname: str) -> None:
-        """Calculate and update the total startup duration for a VM.
-        Args:
-            hostname (str): The hostname of the VM.
-        """
-        query = f"""
-            UPDATE {self.table_name}
-            SET TotalStartupDurationSeconds =
-                COALESCE(TerraformApplyDurationSeconds, 0) +
-                COALESCE(CloudInitDurationSeconds, 0) +
-                COALESCE(ContainerStartupDurationSeconds, 0)
-            WHERE hostname = %s AND
-                TerraformApplyDurationSeconds IS NOT NULL AND
-                CloudInitDurationSeconds IS NOT NULL AND
-                ContainerStartupDurationSeconds IS NOT NULL
-        """
-        try:
-            self.cursor.execute(query, (hostname,))
-            self.conn.commit()
-
-            result_query = f"""
-            SELECT TotalStartupDurationSeconds
-            FROM {self.table_name}
-            WHERE hostname = %s;
-            """
-            self.cursor.execute(result_query, (hostname,))
-            total_startup_time = self.cursor.fetchone()
-            if total_startup_time and total_startup_time[0]:
-                logger.debug(
+            # Log total startup time if all components are present
+            if result and result[0] is not None and result[0] > 0:
+                logger.info(
                     f"Total startup time for VM '{hostname}': "
-                    f"{total_startup_time[0]:.1f} seconds."
+                    f"{result[0]:.1f} seconds."
                 )
         except Exception as e:
-            logger.error(f"Error calculating total startup time: {e}")
+            logger.error(
+                f"Error updating VM metrics atomically for '{hostname}': {e}",
+                exc_info=True,
+            )
             self.conn.rollback()
+            raise  # Re-raise to let caller know the operation failed
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
