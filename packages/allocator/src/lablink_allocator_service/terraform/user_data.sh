@@ -178,7 +178,7 @@ for i in {1..5}; do
     echo "    - Duration (seconds): $CLOUD_INIT_DURATION"
 
     # Capture HTTP status code
-    HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/metrics_response.txt \
+    HTTP_CODE=$(curl -s -w "%%{http_code}" -o /tmp/metrics_response.txt \
         -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
         -H "Content-Type: application/json" \
         -d "{
