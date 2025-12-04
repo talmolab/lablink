@@ -18,7 +18,13 @@ def mock_db_connection():
     """Fixture to create a mock database connection and cursor."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
+
+    # Make cursor() return a context manager that returns the mock cursor
+    mock_cursor_context = MagicMock()
+    mock_cursor_context.__enter__ = MagicMock(return_value=mock_cursor)
+    mock_cursor_context.__exit__ = MagicMock(return_value=False)
+    mock_conn.cursor.return_value = mock_cursor_context
+
     # When PostgresqlDatabase is initialized, it calls psycopg2.connect()
     mock_psycopg2.connect.return_value = mock_conn
     return mock_conn, mock_cursor
@@ -227,6 +233,15 @@ def test_vm_exists(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "SELECT EXISTS (SELECT 1 FROM vms WHERE hostname = %s)", (hostname,)
     )
+
+
+def test_vm_exists_returns_none(db_instance, caplog):
+    """Test vm_exists when fetchone returns None (database error condition)."""
+    hostname = "test-vm"
+    db_instance.cursor.fetchone.return_value = None
+    assert db_instance.vm_exists(hostname) is False
+    assert "vm_exists query returned None" in caplog.text
+    assert "Assuming VM does not exist" in caplog.text
 
 
 def test_get_assigned_vms(db_instance):
@@ -587,59 +602,295 @@ def test_naive_utc():
     assert naive_utc_dt.tzinfo is None
     assert naive_utc_dt == naive_dt
 
-def test_update_vm_metrics(db_instance):
-    """Test updating VM metrics in the database."""
+
+def test_update_vm_metrics_atomic_cloud_init_only(db_instance):
+    """Test updating only cloud_init metrics."""
     hostname = "test-vm-01"
     metrics = {
-        "cloud_init_start": 1672531200,
-        "cloud_init_end": 1672531320,
-        "cloud_init_duration_seconds": 120,
-        "container_start": 1672531320,
-        "container_end": 1672531380,
-        "container_startup_duration_seconds": 60,
+        "cloud_init_start": 1609459200,  # 2021-01-01 00:00:00 UTC
+        "cloud_init_end": 1609459260,  # 2021-01-01 00:01:00 UTC
+        "cloud_init_duration_seconds": 60.0,
     }
-    db_instance.update_vm_metrics(hostname, metrics)
 
-    expected_query = (
-        "UPDATE vms SET CloudInitStartTime = to_timestamp(%s), "
-        "CloudInitEndTime = to_timestamp(%s), "
-        "CloudInitDurationSeconds = %s, "
-        "ContainerStartTime = to_timestamp(%s), "
-        "ContainerEndTime = to_timestamp(%s), "
-        "ContainerStartupDurationSeconds = %s "
-        "WHERE hostname = %s;"
-    )
+    db_instance.cursor.fetchone.return_value = (60.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
 
-    db_instance.cursor.execute.assert_called_once()
-    args = db_instance.cursor.execute.call_args[0]
-    # Remove whitespace and compare queries
-    assert "".join(args[0].split()) == "".join(expected_query.split())
-    assert args[1] == (
-        1672531200,
-        1672531320,
-        120,
-        1672531320,
-        1672531380,
-        60,
-        hostname,
-    )
+    # Verify the query was executed
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
+
+    # Check that cloud_init fields are in the query
+    assert "CloudInitStartTime = to_timestamp(%s)" in query
+    assert "CloudInitEndTime = to_timestamp(%s)" in query
+    assert "CloudInitDurationSeconds = %s" in query
+    assert "TotalStartupDurationSeconds" in query
+    assert "WHERE hostname = %s" in query
+    assert "RETURNING TotalStartupDurationSeconds" in query
+
+    # Check values passed (timestamps and duration, then hostname)
+    assert values == (1609459200, 1609459260, 60.0, hostname)
     db_instance.conn.commit.assert_called_once()
 
-def test_calculate_total_startup_time(db_instance):
-    """Test calculating the total startup time for a VM."""
-    hostname = "test-vm-01"
-    db_instance.calculate_total_startup_time(hostname)
 
-    expected_query = """
-            UPDATE vms
-            SET TotalStartupDurationSeconds =
-                COALESCE(TerraformApplyDurationSeconds, 0) +
-                COALESCE(CloudInitDurationSeconds, 0) +
-                COALESCE(ContainerStartupDurationSeconds, 0)
-            WHERE hostname = %s AND
-                TerraformApplyDurationSeconds IS NOT NULL AND
-                CloudInitDurationSeconds IS NOT NULL AND
-                ContainerStartupDurationSeconds IS NOT NULL
-        """
-    db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
+def test_update_vm_metrics_atomic_container_only(db_instance):
+    """Test updating only container metrics."""
+    hostname = "test-vm-02"
+    metrics = {
+        "container_start": 1609459300,  # 2021-01-01 00:05:00 UTC
+        "container_end": 1609459360,  # 2021-01-01 00:06:00 UTC
+        "container_startup_duration_seconds": 60.0,
+    }
+
+    db_instance.cursor.fetchone.return_value = (60.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
+
+    # Check that container fields are in the query
+    assert "ContainerStartTime = to_timestamp(%s)" in query
+    assert "ContainerEndTime = to_timestamp(%s)" in query
+    assert "ContainerStartupDurationSeconds = %s" in query
+    assert "TotalStartupDurationSeconds" in query
+
+    assert values == (1609459300, 1609459360, 60.0, hostname)
     db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_all_metrics(db_instance):
+    """Test updating both cloud_init and container metrics together."""
+    hostname = "test-vm-03"
+    metrics = {
+        "cloud_init_start": 1609459200,
+        "cloud_init_end": 1609459260,
+        "cloud_init_duration_seconds": 60.0,
+        "container_start": 1609459300,
+        "container_end": 1609459360,
+        "container_startup_duration_seconds": 60.0,
+    }
+
+    db_instance.cursor.fetchone.return_value = (120.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
+
+    # Check all fields are in the query
+    assert "CloudInitStartTime = to_timestamp(%s)" in query
+    assert "CloudInitEndTime = to_timestamp(%s)" in query
+    assert "CloudInitDurationSeconds = %s" in query
+    assert "ContainerStartTime = to_timestamp(%s)" in query
+    assert "ContainerEndTime = to_timestamp(%s)" in query
+    assert "ContainerStartupDurationSeconds = %s" in query
+    assert "TotalStartupDurationSeconds" in query
+
+    assert values == (1609459200, 1609459260, 60.0, 1609459300, 1609459360, 60.0, hostname)
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_partial_metrics(db_instance):
+    """Test updating only start and end times without duration."""
+    hostname = "test-vm-04"
+    metrics = {
+        "cloud_init_start": 1609459200,
+        "container_end": 1609459360,
+    }
+
+    db_instance.cursor.fetchone.return_value = (None,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
+
+    assert "CloudInitStartTime = to_timestamp(%s)" in query
+    assert "ContainerEndTime = to_timestamp(%s)" in query
+    assert "TotalStartupDurationSeconds" in query
+
+    # Should not include metrics that weren't provided
+    assert "CloudInitEndTime" not in query or "to_timestamp(%s)" in query
+    assert values == (1609459200, 1609459360, hostname)
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_empty_metrics(db_instance):
+    """Test that no update occurs when metrics dict is empty."""
+    hostname = "test-vm-05"
+    metrics = {}
+
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # No query should be executed
+    db_instance.cursor.execute.assert_not_called()
+    db_instance.conn.commit.assert_not_called()
+
+
+def test_update_vm_metrics_atomic_total_calculation(db_instance, caplog):
+    """Test that total startup time is calculated and logged correctly."""
+    hostname = "test-vm-06"
+    metrics = {
+        "cloud_init_duration_seconds": 50.0,
+        "container_startup_duration_seconds": 30.0,
+    }
+
+    # Return a non-zero total startup time
+    db_instance.cursor.fetchone.return_value = (100.5,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Verify the total startup time is logged
+    assert f"Total startup time for VM '{hostname}': 100.5 seconds" in caplog.text
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_zero_total(db_instance, caplog):
+    """Test that zero total startup time is not logged."""
+    hostname = "test-vm-07"
+    metrics = {
+        "cloud_init_start": 1609459200,
+    }
+
+    # Return zero total
+    db_instance.cursor.fetchone.return_value = (0.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Should not log total startup time when it's zero
+    assert "Total startup time" not in caplog.text
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_null_total(db_instance, caplog):
+    """Test that null total startup time is not logged."""
+    hostname = "test-vm-08"
+    metrics = {
+        "cloud_init_start": 1609459200,
+    }
+
+    # Return None (no complete data yet)
+    db_instance.cursor.fetchone.return_value = (None,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Should not log total startup time when it's None
+    assert "Total startup time" not in caplog.text
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_vm_metrics_atomic_error_handling(db_instance, caplog):
+    """Test error handling and rollback on database errors."""
+    hostname = "test-vm-09"
+    metrics = {
+        "cloud_init_duration_seconds": 60.0,
+    }
+
+    # Simulate a database error
+    db_instance.cursor.execute.side_effect = Exception("Database constraint violation")
+
+    with pytest.raises(Exception, match="Database constraint violation"):
+        db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Verify rollback was called
+    db_instance.conn.rollback.assert_called_once()
+
+    # Verify error was logged
+    assert f"Error updating VM metrics atomically for '{hostname}'" in caplog.text
+    assert "Database constraint violation" in caplog.text
+
+
+def test_update_vm_metrics_atomic_sql_structure(db_instance):
+    """Test that the generated SQL has correct structure."""
+    hostname = "test-vm-10"
+    metrics = {
+        "cloud_init_start": 1609459200,
+        "cloud_init_duration_seconds": 60.0,
+        "container_end": 1609459360,
+    }
+
+    db_instance.cursor.fetchone.return_value = (60.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+
+    # Verify SQL structure
+    assert query.startswith("\n            UPDATE vms")
+    assert "SET " in query
+    assert "WHERE hostname = %s" in query
+    assert "RETURNING TotalStartupDurationSeconds;" in query
+
+    # Verify COALESCE calculation is present in the total
+    assert "COALESCE(TerraformApplyDurationSeconds, 0)" in query
+    assert "COALESCE(CloudInitDurationSeconds, 0)" in query
+    assert "COALESCE(ContainerStartupDurationSeconds, 0)" in query
+
+
+def test_update_vm_metrics_atomic_commit_behavior(db_instance):
+    """Test that commit is called after successful update."""
+    hostname = "test-vm-11"
+    metrics = {
+        "cloud_init_duration_seconds": 45.0,
+    }
+
+    db_instance.cursor.fetchone.return_value = (45.0,)
+
+    # Reset mock to track calls
+    db_instance.conn.commit.reset_mock()
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Verify commit was called exactly once
+    assert db_instance.conn.commit.call_count == 1
+
+    # Verify rollback was not called
+    db_instance.conn.rollback.assert_not_called()
+
+
+def test_update_vm_metrics_atomic_fetchone_called(db_instance):
+    """Test that fetchone is called to retrieve RETURNING clause result."""
+    hostname = "test-vm-12"
+    metrics = {
+        "container_startup_duration_seconds": 30.0,
+    }
+
+    db_instance.cursor.fetchone.return_value = (30.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    # Verify fetchone was called to get the RETURNING result
+    db_instance.cursor.fetchone.assert_called_once()
+
+
+def test_update_terraform_timing(db_instance):
+    """Test updating Terraform timing metrics."""
+    from datetime import datetime
+
+    hostname = "test-vm-terraform"
+    per_instance_seconds = 123.45
+    start_time = datetime(2023, 1, 1, 12, 0, 0)
+    end_time = datetime(2023, 1, 1, 12, 2, 3)
+
+    with patch.object(db_instance.conn, "cursor") as mock_cursor_context:
+        mock_cursor = MagicMock()
+        mock_cursor_context.return_value.__enter__.return_value = mock_cursor
+
+        db_instance.update_terraform_timing(
+            hostname, per_instance_seconds, start_time, end_time
+        )
+
+        # Verify the correct query was executed
+        call_args = mock_cursor.execute.call_args
+        query = call_args[0][0]
+        values = call_args[0][1]
+
+        assert "INSERT INTO vms" in query
+        assert "terraformapplydurationseconds" in query
+        assert "terraformapplystarttime" in query
+        assert "terraformapplyendtime" in query
+        assert "ON CONFLICT (hostname) DO UPDATE" in query
+
+        assert values[0] == hostname
+        assert values[1] == per_instance_seconds
+        # Times are converted to naive UTC by _naive_utc
+        assert values[2] == start_time
+        assert values[3] == end_time
+
+        db_instance.conn.commit.assert_called_once()

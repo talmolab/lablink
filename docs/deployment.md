@@ -13,6 +13,41 @@ LabLink supports four deployment environments:
 | **ci-test** | CI testing with S3 backend | Manual workflow dispatch | `*-test` |
 | **prod** | Production workloads | Manual workflow dispatch | Pinned version tags |
 
+### Choosing a Deployment Method
+
+```mermaid
+flowchart TD
+    Start{What are you deploying?}
+
+    Start -->|Quick testing<br/>or development| DevEnv[Local Dev Environment]
+    Start -->|Team staging| TestEnv[Test Environment]
+    Start -->|Production| ProdEnv[Production Environment]
+
+    DevEnv --> DevMethod{Preferred method?}
+    TestEnv --> AutoDeploy[GitHub Actions<br/>Recommended]
+    ProdEnv --> ProdMethod{Infrastructure exists?}
+
+    DevMethod -->|Quick & easy| ManualDev[Manual Terraform<br/>Local state]
+    DevMethod -->|CI/CD practice| GHActionsDev[GitHub Actions<br/>workflow_dispatch]
+
+    ProdMethod -->|First time| ManualProd[Manual Terraform<br/>Careful setup]
+    ProdMethod -->|Updates| GHActionsProd[GitHub Actions<br/>workflow_dispatch]
+
+    ManualDev --> DevNotes["✓ No S3 bucket needed<br/>✓ Fast iteration<br/>✗ State not shared"]
+    GHActionsDev --> DevGHNotes["✓ Practice CI/CD<br/>✓ Shared state<br/>⚠ Requires S3 setup"]
+
+    AutoDeploy --> TestNotes["✓ Automatic on push<br/>✓ Team accessible<br/>✓ S3 state storage"]
+
+    ManualProd --> ProdManual["✓ Full control<br/>✓ Step-by-step<br/>⚠ Manual process"]
+    GHActionsProd --> ProdGH["✓ Consistent deploys<br/>✓ Audit trail<br/>✓ Rollback support"]
+
+    style DevEnv fill:#e3f2fd
+    style TestEnv fill:#fff3e0
+    style ProdEnv fill:#ffebee
+    style AutoDeploy fill:#c8e6c9
+    style ManualProd fill:#fff9c4
+```
+
 ## Prerequisites
 
 Before deploying, ensure you have:

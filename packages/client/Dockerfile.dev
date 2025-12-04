@@ -63,6 +63,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libvulkan1 \
     # Allows running commands as root
     sudo \
+    # For media playback
+    vlc \
+    # For productivity and general use
+    zip \
+    unzip \
     # For cloning repositories and managing git
     libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
     libxcb-keysyms1 libxcb-render-util0 libxrender1 libxrandr2 \
@@ -126,6 +131,9 @@ RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
+# Ensure miniforge Python is in PATH for all subsequent commands
+ENV PATH="/home/${USERNAME}/miniforge3/bin:$PATH"
+
 # Create scripts directory with miniforge, uv, and nvm installation scripts
 COPY install_miniforge.sh install_nvm.sh /scripts/
 
@@ -143,7 +151,7 @@ COPY . /home/${USERNAME}/lablink-client
 # Install client service package with dev dependencies using uv sync
 # Use UV_PROJECT_ENVIRONMENT to specify venv location (matches production)
 WORKDIR /home/${USERNAME}/lablink-client
-RUN sudo UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
+RUN sudo -E UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
     sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client
 WORKDIR /home/${USERNAME}
 

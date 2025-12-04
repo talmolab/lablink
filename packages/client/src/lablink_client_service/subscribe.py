@@ -1,6 +1,7 @@
 import requests
 import os
 import time
+import random
 
 import hydra
 from omegaconf import OmegaConf
@@ -11,6 +12,8 @@ from lablink_client_service.connect_crd import connect_to_crd, set_logger
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 logger = logging.getLogger(__name__)
+MAX_RETRIES = None  # No limit on retries
+RETRY_DELAY = 10
 
 
 def subscribe(cfg: Config) -> None:
@@ -50,10 +53,16 @@ def subscribe(cfg: Config) -> None:
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
     retry_count = 0
-    max_retries = None  # Infinite retries
-    retry_delay = 60  # Wait 1 minute between retries
 
     while True:
+        if retry_count > 0:
+            logger.info(
+                f"Retrying connection to allocator in {RETRY_DELAY} seconds... "
+                f"(Attempt {retry_count + 1})"
+            )
+            jitter = random.uniform(0, 5)
+            time.sleep(RETRY_DELAY + jitter)
+
         try:
             # Send a POST request to the specified URL
             # Note: This endpoint blocks until a user assigns a CRD command,
@@ -72,7 +81,9 @@ def subscribe(cfg: Config) -> None:
                 logger.debug("POST request was successful.")
                 data = response.json()
                 if data.get("status") == "success":
-                    logger.debug("Received success response from server.")
+                    logger.info(
+                        "Successfully connected to allocator and received command."
+                    )
                     command = data["command"]
                     pin = data["pin"]
                     logger.debug(f"Command received: {command}")
@@ -80,34 +91,30 @@ def subscribe(cfg: Config) -> None:
 
                     # Execute the command
                     connect_to_crd(pin=pin, command=command)
-                    logger.debug("Command executed successfully.")
+                    logger.info("Command executed successfully. Exiting retry loop.")
                     break  # Success - exit retry loop
                 else:
                     logger.error("Received error response from server.")
                     logger.error(f"Error message: {data.get('message')}")
+                    logger.info("Server explicitly rejected the request. Not retrying.")
                     break  # Server explicitly rejected - don't retry
             else:
                 logger.error(
-                    f"POST request failed with status code: " f"{response.status_code}"
+                    f"POST request failed with status code: "
+                    f"{response.status_code}. Retrying..."
                 )
                 # Will retry after delay
 
         except requests.exceptions.Timeout as e:
-            logger.error(f"Request to {url} timed out: {e}")
+            logger.error(f"Request to {url} timed out: {e}. Retrying...")
             # Will retry after delay
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Request to {url} failed: {e}")
+            logger.error(f"Request to {url} failed: {e}. Retrying...")
             # Will retry after delay
 
-        # Retry logic
+        # Increment retry count
         retry_count += 1
-        if max_retries is not None and retry_count >= max_retries:
-            logger.error(f"Max retries ({max_retries}) reached. Giving up.")
-            break
-
-        logger.info(f"Retrying in {retry_delay} seconds...")
-        time.sleep(retry_delay)
 
 
 @hydra.main(version_base=None, config_name="config")

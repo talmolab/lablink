@@ -73,6 +73,7 @@ def test_run_server_error_payload(
     assert "no available VM" in caplog.text
 
 
+@patch("lablink_client_service.subscribe.random.uniform", return_value=0)
 @patch("lablink_client_service.subscribe.time.sleep")
 @patch("lablink_client_service.subscribe.requests.post")
 @patch("lablink_client_service.subscribe.connect_to_crd")
@@ -84,6 +85,7 @@ def test_run_http_failure(
     mock_connect,
     mock_post,
     mock_sleep,
+    mock_uniform,
     cfg,
     vm_env,
     caplog,
@@ -112,10 +114,11 @@ def test_run_http_failure(
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
     # Should have logged the failures
     assert "POST request failed with status code: 500" in caplog.text
-    # Should have slept between retries (2 times)
+    # Should have slept 2 times: no sleep on first attempt, then 2 retry sleeps
     assert mock_sleep.call_count == 2
 
 
+@patch("lablink_client_service.subscribe.random.uniform", return_value=0)
 @patch("lablink_client_service.subscribe.time.sleep")
 @patch("lablink_client_service.subscribe.requests.post")
 @patch("lablink_client_service.subscribe.connect_to_crd")
@@ -127,6 +130,7 @@ def test_run_timeout_exception(
     mock_connect,
     mock_post,
     mock_sleep,
+    mock_uniform,
     cfg,
     vm_env,
     caplog
@@ -143,9 +147,11 @@ def test_run_timeout_exception(
     assert mock_post.call_count == 2
     mock_connect.assert_called_once()
     assert "timed out" in caplog.text
-    mock_sleep.assert_called_once()
+    # Should have slept 1 time: no sleep on first attempt, then 1 retry sleep
+    assert mock_sleep.call_count == 1
 
 
+@patch("lablink_client_service.subscribe.random.uniform", return_value=0)
 @patch("lablink_client_service.subscribe.time.sleep")
 @patch("lablink_client_service.subscribe.requests.post")
 @patch("lablink_client_service.subscribe.connect_to_crd")
@@ -157,6 +163,7 @@ def test_run_request_exception(
     mock_connect,
     mock_post,
     mock_sleep,
+    mock_uniform,
     cfg,
     vm_env,
     caplog,
@@ -180,7 +187,54 @@ def test_run_request_exception(
     assert mock_post.call_count == 2
     mock_connect.assert_called_once()
     assert "failed: Some error" in caplog.text
-    mock_sleep.assert_called_once()
+    # Should have slept 1 time: no sleep on first attempt, then 1 retry sleep
+    assert mock_sleep.call_count == 1
+
+
+@patch("lablink_client_service.subscribe.random.uniform", return_value=0)
+@patch("lablink_client_service.subscribe.time.sleep")
+@patch("lablink_client_service.subscribe.requests.post")
+@patch("lablink_client_service.subscribe.connect_to_crd")
+@patch("lablink_client_service.subscribe.set_logger")
+@patch("lablink_client_service.subscribe.CloudAndConsoleLogger")
+def test_run_request_exception_with_detailed_logging(
+    mock_logger_cls,
+    _set_logger,
+    mock_connect,
+    mock_post,
+    mock_sleep,
+    mock_uniform,
+    cfg,
+    vm_env,
+    caplog,
+):
+    """Test that a request exception triggers retry logic with detailed logging."""
+    mock_logger_cls.return_value = logging.getLogger("subscribe-test")
+    caplog.set_level(logging.DEBUG)
+
+    # Simulate two failures then a success
+    mock_post.side_effect = [
+        requests.exceptions.RequestException("Connection error"),
+        requests.exceptions.RequestException("Another connection error"),
+        MagicMock(
+            status_code=200,
+            json=lambda: {
+                "status": "success",
+                "command": "CRD_COMMAND",
+                "pin": "123456",
+            },
+        ),
+    ]
+
+    subscribe(cfg)
+
+    assert mock_post.call_count == 3
+    mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
+
+    # Check that sleep was called: no sleep on first attempt, then 2 retry sleeps
+    assert mock_sleep.call_count == 2
+    # Check that retry sleep was called with RETRY_DELAY (10)
+    mock_sleep.assert_any_call(10)
 
 
 @patch("lablink_client_service.subscribe.requests.post")

@@ -70,7 +70,11 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_div_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -100,6 +104,7 @@ nav:
       - SSH access: ssh-access.md
       - Database: database.md
       - Testing: testing.md
+      - API Endpoints: api-endpoints.md
   - AWS:
       - AWS setup: aws-setup.md
       - Security and credentials: security.md
@@ -122,3 +127,6 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/talmolab/lablink
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js

@@ -84,7 +84,7 @@ lablink/
 ### Core Technologies
 - **Python 3.9+**: Backend services
   - Allocator: Python 3.11 (from `uv:python3.11` base image)
-  - Client: Python 3.10 (Ubuntu 22.04 default)
+  - Client: Python 3.11
   - Both meet `pyproject.toml` requirement: `>=3.9`
 - **Flask**: Web framework for allocator
 - **PostgreSQL**: Database for VM state
@@ -122,9 +122,10 @@ lablink/
 - Support custom Docker images and repositories
 
 ### VM States
-- **available**: Ready for assignment
-- **in-use**: Currently assigned to user
-- **failed**: Encountered error
+
+- **available**: VM ready, configured software not running
+- **in-use**: Configured software actively running on VM (monitored by `update_inuse_status`)
+- **failed**: Health checks failing or encountered error
 
 ### Environments
 - **dev**: Local development, local Terraform state
@@ -307,7 +308,7 @@ Both services use **explicit venv paths** to avoid path resolution issues.
 
 **Client:**
 - **Location**: `/home/client/.venv` (both dev and production)
-- **Python**: 3.10 (Ubuntu 22.04 default from `nvidia/cuda:12.8.1` base image)
+- **Python**: 3.11
 - **Dockerfile.dev**: `uv pip install -e ".[dev]"` with explicit venv creation
 - **Dockerfile**: `uv venv /home/client/.venv && uv pip install --python=/home/client/.venv/bin/python lablink-client==${VERSION}`
 - **start.sh** activates: `source /home/client/.venv/bin/activate`
