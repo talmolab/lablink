@@ -43,7 +43,7 @@ erDiagram
         timestamp CreatedAt "Creation timestamp"
     }
 
-    VMS ||--o{ TRIGGER_notify_crd_command_update : "fires on INSERT/UPDATE"
+    VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"
 ```
 
 ### Tables
