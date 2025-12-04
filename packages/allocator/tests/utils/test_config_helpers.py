@@ -16,7 +16,7 @@ class MockSSLConfig:
 
     provider: str = "letsencrypt"
     email: str = "test@example.com"
-    staging: bool = False
+    certificate_arn: str = ""
 
 
 @dataclass
@@ -24,9 +24,9 @@ class MockDNSConfig:
     """Mock DNS configuration."""
 
     enabled: bool = True
+    terraform_managed: bool = True
     domain: str = "example.com"
-    custom_subdomain: str = "test"
-    pattern: str = "custom"
+    zone_id: str = ""
 
 
 @dataclass
@@ -41,36 +41,20 @@ class TestGetAllocatorUrl:
     """Test get_allocator_url function."""
 
     def test_https_production_with_dns(self):
-        """Test HTTPS URL with production mode (trusted certificates)."""
+        """Test HTTPS URL with Let's Encrypt."""
         cfg = MockConfig(
-            ssl=MockSSLConfig(provider="letsencrypt", staging=False),
-            dns=MockDNSConfig(
-                enabled=True, domain="example.com", custom_subdomain="prod"
-            ),
+            ssl=MockSSLConfig(provider="letsencrypt"),
+            dns=MockDNSConfig(enabled=True, domain="prod.example.com"),
         )
         url, protocol = get_allocator_url(cfg, "1.2.3.4")
         assert url == "https://prod.example.com"
         assert protocol == "https"
 
-    def test_http_staging_with_dns(self):
-        """Test HTTP URL with staging mode (HTTP only, no SSL)."""
-        cfg = MockConfig(
-            ssl=MockSSLConfig(provider="letsencrypt", staging=True),
-            dns=MockDNSConfig(
-                enabled=True, domain="example.com", custom_subdomain="test"
-            ),
-        )
-        url, protocol = get_allocator_url(cfg, "1.2.3.4")
-        assert url == "http://test.example.com"
-        assert protocol == "http"
-
     def test_http_no_ssl_with_dns(self):
         """Test HTTP URL with no SSL and DNS."""
         cfg = MockConfig(
             ssl=MockSSLConfig(provider="none"),
-            dns=MockDNSConfig(
-                enabled=True, domain="example.com", custom_subdomain="test"
-            ),
+            dns=MockDNSConfig(enabled=True, domain="test.example.com"),
         )
         url, protocol = get_allocator_url(cfg, "1.2.3.4")
         assert url == "http://test.example.com"
@@ -89,27 +73,33 @@ class TestGetAllocatorUrl:
         """Test HTTPS URL with CloudFlare SSL and DNS."""
         cfg = MockConfig(
             ssl=MockSSLConfig(provider="cloudflare"),
-            dns=MockDNSConfig(
-                enabled=True, domain="example.com", custom_subdomain="prod"
-            ),
+            dns=MockDNSConfig(enabled=True, domain="prod.example.com"),
         )
         url, protocol = get_allocator_url(cfg, "1.2.3.4")
         assert url == "https://prod.example.com"
         assert protocol == "https"
 
-    def test_auto_pattern(self):
-        """Test URL with auto DNS pattern."""
+    def test_https_acm_with_dns(self):
+        """Test HTTPS URL with ACM SSL and DNS."""
         cfg = MockConfig(
-            ssl=MockSSLConfig(provider="none"),
-            dns=MockDNSConfig(
-                enabled=True,
-                domain="example.com",
-                custom_subdomain="dev",
-                pattern="auto",
+            ssl=MockSSLConfig(
+                provider="acm",
+                certificate_arn="arn:aws:acm:us-west-2:123456789012:certificate/abc-123",
             ),
+            dns=MockDNSConfig(enabled=True, domain="prod.example.com"),
         )
         url, protocol = get_allocator_url(cfg, "1.2.3.4")
-        assert url == "http://dev.example.com"
+        assert url == "https://prod.example.com"
+        assert protocol == "https"
+
+    def test_sub_subdomain_support(self):
+        """Test URL with sub-subdomain (e.g., test.lablink.sleap.ai)."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="none"),
+            dns=MockDNSConfig(enabled=True, domain="dev.lablink.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        assert url == "http://dev.lablink.example.com"
         assert protocol == "http"
 
 
@@ -138,6 +128,11 @@ class TestShouldUseHttps:
     def test_cloudflare_enabled(self):
         """Test when CloudFlare is enabled."""
         cfg = MockConfig(ssl=MockSSLConfig(provider="cloudflare"))
+        assert should_use_https(cfg) is True
+
+    def test_acm_enabled(self):
+        """Test when ACM is enabled."""
+        cfg = MockConfig(ssl=MockSSLConfig(provider="acm"))
         assert should_use_https(cfg) is True
 
     def test_ssl_disabled(self):
