@@ -67,7 +67,9 @@ def validate_config_logic(cfg) -> Tuple[bool, str]:
 
     # SSL (non-"none") requires DNS
     if cfg.ssl.provider != "none" and not cfg.dns.enabled:
-        errors.append('SSL requires DNS to be enabled (use provider="none" for HTTP-only)')
+        errors.append(
+            'SSL requires DNS to be enabled (use provider="none" for HTTP-only)'
+        )
 
     # Let's Encrypt requires email
     if cfg.ssl.provider == "letsencrypt" and not cfg.ssl.email:

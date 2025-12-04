@@ -22,7 +22,6 @@ import psycopg2
 
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.database import PostgresqlDatabase
-from lablink_allocator_service.conf.structured_config import DNSConfig
 from lablink_allocator_service.utils.aws_utils import (
     validate_aws_credentials,
     check_support_nvidia,

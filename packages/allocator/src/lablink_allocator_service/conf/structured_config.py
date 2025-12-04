@@ -83,8 +83,10 @@ class DNSConfig:
         terraform_managed (bool): Whether Terraform creates/destroys DNS records.
             - True: Terraform manages Route53 DNS records (creates and destroys)
             - False: External DNS management (CloudFlare, manual Route53, etc.)
-        domain (str): Full domain name for the allocator (e.g., "lablink.sleap.ai", "test.lablink.sleap.ai").
-            Required when enabled=true. Supports sub-subdomains for environment separation.
+        domain (str): Full domain name for the allocator
+            (e.g., "lablink.sleap.ai", "test.lablink.sleap.ai").
+            Required when enabled=true.
+            Supports sub-subdomains for environment separation.
         zone_id (str): Optional Route53 hosted zone ID. If provided, skips zone lookup.
             Use this when zone lookup finds the wrong zone (e.g., parent vs subdomain).
     """
@@ -118,9 +120,11 @@ class SSLConfig:
         provider (str): SSL provider. Options:
             - "none": HTTP only, no SSL
             - "letsencrypt": Automatic SSL via Caddy + Let's Encrypt
-            - "cloudflare": CloudFlare proxy handles SSL (requires terraform_managed=false)
+            - "cloudflare": CloudFlare proxy handles SSL
+              (requires terraform_managed=false)
             - "acm": AWS Certificate Manager (requires ALB, certificate_arn)
-        email (str): Email address for Let's Encrypt notifications (required when provider="letsencrypt")
+        email (str): Email address for Let's Encrypt notifications
+            (required when provider="letsencrypt")
         certificate_arn (str): AWS ACM certificate ARN (required when provider="acm")
     """
 
