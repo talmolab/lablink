@@ -595,24 +595,39 @@ allocator_image_tag = "latest"
 
 #### 1. Build Job
 
-1. **Select Dockerfile**
+1. **Free Disk Space**
+
+   - Removes large pre-installed packages from GitHub Actions runner (~20-30GB freed)
+   - **Why needed**: Client image with CUDA is ~6GB and requires 12-18GB during build
+   - **Problem**: GitHub runners start with only ~14GB free space, causing "No space left on device" errors
+   - **What's removed**:
+     - Android SDK (~11GB) - Not needed for Python/Docker builds
+     - .NET SDK (~2GB) - Not needed
+     - Haskell GHC (~5GB) - Not needed
+     - Swap storage (~4GB) - Not needed for Docker builds
+     - Other cloud SDKs - Not needed
+   - **What's kept**: Tool cache (Python, Node.js) for potential use in later steps
+   - **Impact**: Adds 2-4 minutes to build time, eliminates disk space failures
+   - **Safety**: Runs on separate runners from verification jobs, no impact on image quality
+
+2. **Select Dockerfile**
 
    - Dev: Uses `Dockerfile.dev` (copies local source, uses `uv sync`)
    - Prod: Uses `Dockerfile` (installs from PyPI with `uv pip install`)
 
-2. **Build Allocator Image**
+3. **Build Allocator Image**
 
    - Context: Repository root
    - Dockerfile: `packages/allocator/Dockerfile[.dev]`
    - Tags: `ghcr.io/talmolab/lablink-allocator-image:<tags>`
 
-3. **Build Client Image**
+4. **Build Client Image**
 
    - Context: Repository root
    - Dockerfile: `packages/client/Dockerfile[.dev]`
    - Tags: `ghcr.io/talmolab/lablink-client-base-image:<tags>`
 
-4. **Push to Registry**
+5. **Push to Registry**
    - Authenticates to ghcr.io
    - Pushes images with all applicable tags
 
