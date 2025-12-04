@@ -143,15 +143,13 @@ graph TB
 
 **Table: `vms`**
 
-| Column        | Type         | Description                         |
-| ------------- | ------------ | ----------------------------------- |
-| `id`          | SERIAL       | Primary key                         |
-| `hostname`    | VARCHAR(255) | VM hostname/identifier              |
-| `email`       | VARCHAR(255) | User email                          |
-| `status`      | VARCHAR(50)  | VM status (available/in-use/failed) |
-| `crd_command` | TEXT         | Command to execute on VM            |
-| `created_at`  | TIMESTAMP    | Creation timestamp                  |
-| `updated_at`  | TIMESTAMP    | Last update timestamp               |
+| Column       | Type         | Description                          |
+| ------------ | ------------ | ------------------------------------ |
+| `Hostname`   | VARCHAR(255) | VM hostname/identifier (Primary Key) |
+| `UserEmail`  | VARCHAR(255) | User email                           |
+| `Status`     | VARCHAR(50)  | VM status (available/in-use/failed)  |
+| `CrdCommand` | TEXT         | Command to execute on VM             |
+| `CreatedAt`  | TIMESTAMP    | Creation timestamp                   |
 
 **Triggers**:
 
@@ -203,9 +201,16 @@ stateDiagram-v2
 - **failed → available**: Admin manually resets and fixes the VM
 - **any → [*]**: VM is destroyed via Terraform
 
-**Note**: The `in_use` status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the `update_inuse_status` service which checks for the configured process.
+**State Mapping to Database Columns**
 
-### Infrastructure Components
+| State        | `Status` column value | `InUse` column value | Description### Infrastructure Components           |
+| ------------ | --------------------- | -------------------- | -------------------------------------------------- |
+| available    | "running"             | `False`              | VM is ready and waiting for user workload          |
+| in_use       | "running"             | `True`               | Configured software is running on VM               |
+| failed       | "failed"              | (Any)                | VM has encountered an error or health check failed |
+| initializing | "initializing"        | `False`              | VM is booting up and not yet ready                 |
+
+**Note**: The `in_use` status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the `update_inuse_status` service which checks for the configured process.
 
 #### Security Groups
 

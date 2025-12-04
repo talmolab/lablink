@@ -52,27 +52,27 @@ erDiagram
 
 Primary table tracking all VM instances with comprehensive timing metrics.
 
-| Column                             | Type          | Constraints | Description                                      |
-| ---------------------------------- | ------------- | ----------- | ------------------------------------------------ |
-| `HostName`                         | VARCHAR(1024) | PRIMARY KEY | VM hostname/instance ID                          |
-| `Pin`                              | VARCHAR(1024) |             | VM pin/identifier for access                     |
-| `CrdCommand`                       | VARCHAR(1024) |             | Command to execute on VM                         |
-| `UserEmail`                        | VARCHAR(1024) |             | User email address                               |
-| `InUse`                            | BOOLEAN       | NOT NULL    | Whether configured software is running (default: FALSE) |
-| `Healthy`                          | VARCHAR(1024) |             | Health status of the VM                          |
-| `Status`                           | VARCHAR(1024) |             | VM status                                        |
-| `Logs`                             | TEXT          |             | VM logs                                          |
-| `TerraformApplyStartTime`          | TIMESTAMP     |             | When Terraform apply started                     |
-| `TerraformApplyEndTime`            | TIMESTAMP     |             | When Terraform apply completed                   |
-| `TerraformApplyDurationSeconds`    | FLOAT         |             | Duration of Terraform apply in seconds           |
-| `CloudInitStartTime`               | TIMESTAMP     |             | When cloud-init started                          |
-| `CloudInitEndTime`                 | TIMESTAMP     |             | When cloud-init completed                        |
-| `CloudInitDurationSeconds`         | FLOAT         |             | Duration of cloud-init in seconds                |
-| `ContainerStartTime`               | TIMESTAMP     |             | When container startup started                   |
-| `ContainerEndTime`                 | TIMESTAMP     |             | When container became ready                      |
-| `ContainerStartupDurationSeconds`  | FLOAT         |             | Duration of container startup in seconds         |
-| `TotalStartupDurationSeconds`      | FLOAT         |             | Total VM startup duration in seconds             |
-| `CreatedAt`                        | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                            |
+| Column                            | Type          | Constraints   | Description                                             |
+| --------------------------------- | ------------- | ------------- | ------------------------------------------------------- |
+| `HostName`                        | VARCHAR(1024) | PRIMARY KEY   | VM hostname/instance ID                                 |
+| `Pin`                             | VARCHAR(1024) |               | VM pin/identifier for access                            |
+| `CrdCommand`                      | VARCHAR(1024) |               | Command to execute on VM                                |
+| `UserEmail`                       | VARCHAR(1024) |               | User email address                                      |
+| `InUse`                           | BOOLEAN       | NOT NULL      | Whether configured software is running (default: FALSE) |
+| `Healthy`                         | VARCHAR(1024) |               | Health status of the VM                                 |
+| `Status`                          | VARCHAR(1024) |               | VM status                                               |
+| `Logs`                            | TEXT          |               | VM logs                                                 |
+| `TerraformApplyStartTime`         | TIMESTAMP     |               | When Terraform apply started                            |
+| `TerraformApplyEndTime`           | TIMESTAMP     |               | When Terraform apply completed                          |
+| `TerraformApplyDurationSeconds`   | FLOAT         |               | Duration of Terraform apply in seconds                  |
+| `CloudInitStartTime`              | TIMESTAMP     |               | When cloud-init started                                 |
+| `CloudInitEndTime`                | TIMESTAMP     |               | When cloud-init completed                               |
+| `CloudInitDurationSeconds`        | FLOAT         |               | Duration of cloud-init in seconds                       |
+| `ContainerStartTime`              | TIMESTAMP     |               | When container startup started                          |
+| `ContainerEndTime`                | TIMESTAMP     |               | When container became ready                             |
+| `ContainerStartupDurationSeconds` | FLOAT         |               | Duration of container startup in seconds                |
+| `TotalStartupDurationSeconds`     | FLOAT         |               | Total VM startup duration in seconds                    |
+| `CreatedAt`                       | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                                      |
 
 **InUse Status**:
 
@@ -126,7 +126,7 @@ EXECUTE FUNCTION notify_vm_changes();
 
 **How it works**:
 
-1. Client VM starts up and sends HTTP POST to `/vm_startup` endpoint (with 7-day timeout for long-polling)
+1. Client VM starts up and sends HTTP POST to `/vm_startup` endpoint
 
 2. Allocator validates VM exists in database and establishes `LISTEN vm_updates` connection
 
@@ -158,7 +158,7 @@ sequenceDiagram
 
     Note over Client: Client VM starts up
 
-    Client->>Flask: POST /vm_startup<br/>{hostname: "vm-123"}<br/>(HTTP long-poll, 7-day timeout)
+    Client->>Flask: POST /vm_startup<br/>{hostname: "vm-123"}<br/>
 
     Note over Flask: Allocator validates VM<br/>and establishes LISTEN
 

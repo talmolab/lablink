@@ -77,12 +77,12 @@ flowchart TB
 
 All workflows are located in `.github/workflows/`:
 
-| Workflow File                                          | Purpose                                 | Trigger                                |
-| ------------------------------------------------------ | --------------------------------------- | -------------------------------------- |
-| [`ci.yml`](#continuous-integration-workflow)           | Unit tests, linting, Docker build tests | PRs, pushes                            |
-| [`publish-packages.yml`](#package-publishing-workflow) | Publish Python packages to PyPI         | Git tags, manual dispatch              |
-| [`lablink-images.yml`](#image-building-workflow)       | Build and push Docker images to GHCR    | Push to branches, PRs, package publish |
-| [`docs.yml`](#documentation-workflow)                  | Build and deploy documentation          | Pushes to main, docs changes           |
+| Workflow File                                     | Purpose                                 | Trigger                                |
+| ------------------------------------------------- | --------------------------------------- | -------------------------------------- |
+| [`ci.yml`](#continuous-integration-workflow)      | Unit tests, linting, Docker build tests | PRs, pushes                            |
+| [`publish-pip.yml`](#package-publishing-workflow) | Publish Python packages to PyPI         | Git tags, manual dispatch              |
+| [`lablink-images.yml`](#image-building-workflow)  | Build and push Docker images to GHCR    | Push to branches, PRs, package publish |
+| [`docs.yml`](#documentation-workflow)             | Build and deploy documentation          | Pushes to main, docs changes           |
 
 ## Continuous Integration Workflow
 
