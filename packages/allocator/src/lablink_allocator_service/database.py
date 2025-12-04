@@ -311,7 +311,14 @@ class PostgresqlDatabase:
         """
         query = f"SELECT EXISTS (SELECT 1 FROM {self.table_name} WHERE hostname = %s)"
         self.cursor.execute(query, (hostname,))
-        return self.cursor.fetchone()[0]
+        result = self.cursor.fetchone()
+        if result is None:
+            logger.warning(
+                f"vm_exists query returned None for hostname '{hostname}'."
+                " Assuming VM does not exist."
+            )
+            return False
+        return result[0]
 
     def get_assigned_vms(self) -> list:
         """Get the VMs that are assigned to a command.
@@ -701,26 +708,27 @@ class PostgresqlDatabase:
         """
         values.append(hostname)
 
-        try:
-            self.cursor.execute(query, tuple(values))
-            result = self.cursor.fetchone()
-            self.conn.commit()
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, tuple(values))
+                result = cursor.fetchone()
+                self.conn.commit()
 
-            logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
+                logger.debug(f"Updated VM metrics for '{hostname}': {metrics}.")
 
-            # Log total startup time if all components are present
-            if result and result[0] is not None and result[0] > 0:
-                logger.info(
-                    f"Total startup time for VM '{hostname}': "
-                    f"{result[0]:.1f} seconds."
+                # Log total startup time if all components are present
+                if result and result[0] is not None and result[0] > 0:
+                    logger.info(
+                        f"Total startup time for VM '{hostname}': "
+                        f"{result[0]:.1f} seconds."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error updating VM metrics atomically for '{hostname}': {e}",
+                    exc_info=True,
                 )
-        except Exception as e:
-            logger.error(
-                f"Error updating VM metrics atomically for '{hostname}': {e}",
-                exc_info=True,
-            )
-            self.conn.rollback()
-            raise  # Re-raise to let caller know the operation failed
+                self.conn.rollback()
+                raise  # Re-raise to let caller know the operation failed
 
     def __del__(self):
         """Close the database connection when the object is deleted."""

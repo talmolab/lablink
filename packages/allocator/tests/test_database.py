@@ -18,7 +18,13 @@ def mock_db_connection():
     """Fixture to create a mock database connection and cursor."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
+
+    # Make cursor() return a context manager that returns the mock cursor
+    mock_cursor_context = MagicMock()
+    mock_cursor_context.__enter__ = MagicMock(return_value=mock_cursor)
+    mock_cursor_context.__exit__ = MagicMock(return_value=False)
+    mock_conn.cursor.return_value = mock_cursor_context
+
     # When PostgresqlDatabase is initialized, it calls psycopg2.connect()
     mock_psycopg2.connect.return_value = mock_conn
     return mock_conn, mock_cursor
@@ -227,6 +233,15 @@ def test_vm_exists(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "SELECT EXISTS (SELECT 1 FROM vms WHERE hostname = %s)", (hostname,)
     )
+
+
+def test_vm_exists_returns_none(db_instance, caplog):
+    """Test vm_exists when fetchone returns None (database error condition)."""
+    hostname = "test-vm"
+    db_instance.cursor.fetchone.return_value = None
+    assert db_instance.vm_exists(hostname) is False
+    assert "vm_exists query returned None" in caplog.text
+    assert "Assuming VM does not exist" in caplog.text
 
 
 def test_get_assigned_vms(db_instance):
