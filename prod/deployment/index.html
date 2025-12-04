@@ -792,6 +792,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Deployment Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-deployment-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a Deployment Method
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1986,6 +2003,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Deployment Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-deployment-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a Deployment Method
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2530,6 +2564,37 @@
 </tr>
 </tbody>
 </table>
+<h3 id="choosing-a-deployment-method">Choosing a Deployment Method<a class="headerlink" href="#choosing-a-deployment-method" title="Permanent link">&para;</a></h3>
+<div class="mermaid">flowchart TD
+    Start{What are you deploying?}
+
+    Start --&gt;|Quick testing&lt;br/&gt;or development| DevEnv[Local Dev Environment]
+    Start --&gt;|Team staging| TestEnv[Test Environment]
+    Start --&gt;|Production| ProdEnv[Production Environment]
+
+    DevEnv --&gt; DevMethod{Preferred method?}
+    TestEnv --&gt; AutoDeploy[GitHub Actions&lt;br/&gt;Recommended]
+    ProdEnv --&gt; ProdMethod{Infrastructure exists?}
+
+    DevMethod --&gt;|Quick &amp; easy| ManualDev[Manual Terraform&lt;br/&gt;Local state]
+    DevMethod --&gt;|CI/CD practice| GHActionsDev[GitHub Actions&lt;br/&gt;workflow_dispatch]
+
+    ProdMethod --&gt;|First time| ManualProd[Manual Terraform&lt;br/&gt;Careful setup]
+    ProdMethod --&gt;|Updates| GHActionsProd[GitHub Actions&lt;br/&gt;workflow_dispatch]
+
+    ManualDev --&gt; DevNotes["✓ No S3 bucket needed&lt;br/&gt;✓ Fast iteration&lt;br/&gt;✗ State not shared"]
+    GHActionsDev --&gt; DevGHNotes["✓ Practice CI/CD&lt;br/&gt;✓ Shared state&lt;br/&gt;⚠ Requires S3 setup"]
+
+    AutoDeploy --&gt; TestNotes["✓ Automatic on push&lt;br/&gt;✓ Team accessible&lt;br/&gt;✓ S3 state storage"]
+
+    ManualProd --&gt; ProdManual["✓ Full control&lt;br/&gt;✓ Step-by-step&lt;br/&gt;⚠ Manual process"]
+    GHActionsProd --&gt; ProdGH["✓ Consistent deploys&lt;br/&gt;✓ Audit trail&lt;br/&gt;✓ Rollback support"]
+
+    style DevEnv fill:#e3f2fd
+    style TestEnv fill:#fff3e0
+    style ProdEnv fill:#ffebee
+    style AutoDeploy fill:#c8e6c9
+    style ManualProd fill:#fff9c4</div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before deploying, ensure you have:</p>
 <ul>
@@ -3152,6 +3217,8 @@ Production deployments use pinned image tags for reproducibility and require exp
     
     
       <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       
     
   </body>

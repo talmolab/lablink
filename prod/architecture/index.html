@@ -756,15 +756,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#infrastructure-components" class="md-nav__link">
+  <a href="#vm-state-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Infrastructure Components
+        VM State Machine
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Infrastructure Components">
+    <nav class="md-nav" aria-label="VM State Machine">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1768,15 +1768,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#infrastructure-components" class="md-nav__link">
+  <a href="#vm-state-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Infrastructure Components
+        VM State Machine
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Infrastructure Components">
+    <nav class="md-nav" aria-label="VM State Machine">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1961,79 +1961,83 @@
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <p>This page describes LabLink's architecture, components, and how they interact.</p>
 <h2 id="system-overview">System Overview<a class="headerlink" href="#system-overview" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                         GitHub                               │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│  ┌────────────────┐      ┌──────────────────┐              │
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  │  Source Code   │──────│ GitHub Actions   │              │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  │  Repository    │      │  (CI/CD)         │              │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  └────────────────┘      └────────┬─────────┘              │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>└────────────────────────────────────┼──────────────────────────┘
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                                     │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                    ┌────────────────┴────────────────┐
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                    │                                 │
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>           ┌────────▼────────┐           ┌───────────▼───────────┐
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>           │  Docker Images  │           │   Terraform Apply     │
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>           │  ghcr.io        │           │   Infrastructure      │
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>           └─────────────────┘           └───────────┬───────────┘
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                                                     │
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>┌────────────────────────────────────────────────────┼─────────────┐
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│                        AWS Cloud                   │             │
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│                                                    │             │
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│  ┌─────────────────────────────────────────────────▼──────────┐ │
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│  │              Allocator EC2 Instance                        │ │
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│  │  ┌──────────────────────────────────────────────────────┐  │ │
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│  │  │  Docker Container: lablink-allocator                 │  │ │
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│  │  │  ┌────────────────┐      ┌──────────────────┐       │  │ │
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│  │  │  │  Flask App     │──────│  PostgreSQL DB   │       │  │ │
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│  │  │  │  (Port 80)     │      │  (Port 5432)     │       │  │ │
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│  │  │  │                │      │                  │       │  │ │
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│  │  │  │  - Web UI      │      │  - VM table      │       │  │ │
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│  │  │  │  - API         │      │  - Triggers      │       │  │ │
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│  │  │  │  - Terraform   │      │  - Listen/Notify │       │  │ │
-<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│  │  │  └────────────────┘      └──────────────────┘       │  │ │
-<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│  │  └──────────────────────────────────────────────────────┘  │ │
-<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│  └─────────────────────────────────────────────────────────────┘ │
-<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│                            │                                     │
-<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>│                            │ spawns                              │
-<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>│                            ▼                                     │
-<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>│  ┌──────────────────────────────────────────────────────────┐   │
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>│  │          Client EC2 Instances (Dynamic)                  │   │
-<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>│  │  ┌────────────────────────────────────────────────────┐  │   │
-<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>│  │  │  Docker Container: lablink-client                  │  │   │
-<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>│  │  │  ┌──────────────┐       ┌─────────────────┐       │  │   │
-<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>│  │  │  │  Subscribe   │───────│  Research Code  │       │  │   │
-<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>│  │  │  │  Service     │       │  (User Repo)    │       │  │   │
-<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>│  │  │  │              │       │                 │       │  │   │
-<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>│  │  │  │  - Heartbeat │       │  - SLEAP/Custom │       │  │   │
-<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>│  │  │  │  - GPU Check │       │  - Your Software│       │  │   │
-<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>│  │  │  │  - Status    │       │                 │       │  │   │
-<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>│  │  │  └──────────────┘       └─────────────────┘       │  │   │
-<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>│  │  └────────────────────────────────────────────────────┘  │   │
-<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>│  │                                                           │   │
-<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>│  │  (Multiple instances, dynamically created)               │   │
-<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>│  └──────────────────────────────────────────────────────────┘   │
-<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>│                                                                  │
-<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>│  ┌──────────────────┐  ┌───────────────┐  ┌────────────────┐   │
-<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>│  │  Security Groups │  │  Elastic IPs  │  │  S3 Bucket     │   │
-<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>│  │  - Port 80       │  │  (Static IPs) │  │  (TF State)    │   │
-<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>│  │  - Port 22       │  └───────────────┘  └────────────────┘   │
-<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>│  │  - Port 5432     │                                           │
-<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>│  └──────────────────┘                                           │
-<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>└──────────────────────────────────────────────────────────────────┘
-</code></pre></div>
+<div class="mermaid">graph TB
+    subgraph GitHub["GitHub"]
+        SourceCode[Source Code&lt;br/&gt;Repository]
+        Actions[GitHub Actions&lt;br/&gt;CI/CD]
+        SourceCode --&gt; Actions
+    end
+
+    subgraph Artifacts["Build Artifacts"]
+        DockerImages[Docker Images&lt;br/&gt;ghcr.io]
+        TerraformDeploy[Terraform Apply&lt;br/&gt;Infrastructure]
+    end
+
+    Actions --&gt; DockerImages
+    Actions --&gt; TerraformDeploy
+
+    subgraph AWS["AWS Cloud"]
+        subgraph AllocatorInstance["Allocator EC2 Instance"]
+            subgraph AllocatorContainer["Docker Container: lablink-allocator"]
+                Flask[Flask App&lt;br/&gt;Port 80&lt;br/&gt;&lt;br/&gt;• Web UI&lt;br/&gt;• API&lt;br/&gt;• Terraform]
+                PostgreSQL[(PostgreSQL DB&lt;br/&gt;Port 5432&lt;br/&gt;&lt;br/&gt;• VM table&lt;br/&gt;• Triggers&lt;br/&gt;• Listen/Notify)]
+                Flask &lt;--&gt; PostgreSQL
+            end
+        end
+
+        subgraph ClientInstances["Client EC2 Instances (Dynamic)"]
+            subgraph ClientContainer["Docker Container: lablink-client"]
+                Subscribe[Subscribe Service&lt;br/&gt;&lt;br/&gt;• Heartbeat&lt;br/&gt;• GPU Check&lt;br/&gt;• Status]
+                Research[Research Code&lt;br/&gt;User Repo&lt;br/&gt;&lt;br/&gt;• SLEAP/Custom&lt;br/&gt;• Your Software]
+                Subscribe --&gt; Research
+            end
+            Note[Multiple instances,&lt;br/&gt;dynamically created]
+        end
+
+        subgraph AWSResources["AWS Resources"]
+            SecurityGroups[Security Groups&lt;br/&gt;• Port 80&lt;br/&gt;• Port 22&lt;br/&gt;• Port 5432]
+            ElasticIPs[Elastic IPs&lt;br/&gt;Static IPs]
+            S3[S3 Bucket&lt;br/&gt;TF State]
+        end
+    end
+
+    TerraformDeploy --&gt; AllocatorInstance
+    DockerImages -.-&gt; AllocatorContainer
+    DockerImages -.-&gt; ClientContainer
+    Flask --&gt;|spawns via&lt;br/&gt;Terraform| ClientInstances
+    Subscribe -.-&gt;|heartbeat,&lt;br/&gt;status updates| Flask
+
+    style GitHub fill:#f0f0f0
+    style Artifacts fill:#e1f5ff
+    style AWS fill:#fff4e1
+    style AllocatorInstance fill:#ffe6e6
+    style AllocatorContainer fill:#fff
+    style ClientInstances fill:#e6ffe6
+    style ClientContainer fill:#fff
+    style AWSResources fill:#f0f0f0
+    style Flask fill:#4a90e2,color:#fff
+    style PostgreSQL fill:#336791,color:#fff
+    style Subscribe fill:#4a90e2,color:#fff
+    style Research fill:#8bc34a,color:#fff</div>
 <h2 id="component-details">Component Details<a class="headerlink" href="#component-details" title="Permanent link">&para;</a></h2>
 <h3 id="allocator-service">Allocator Service<a class="headerlink" href="#allocator-service" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Central management server for VM allocation and orchestration.</p>
-<p><strong>Technology Stack</strong>:
-- <strong>Flask</strong>: Web application framework
-- <strong>PostgreSQL</strong>: Relational database for VM state
-- <strong>SQLAlchemy</strong>: ORM for database operations
-- <strong>Terraform</strong>: Infrastructure provisioning
-- <strong>Docker</strong>: Containerization</p>
+<p><strong>Technology Stack</strong>:</p>
+<ul>
+<li><strong>Flask</strong>: Web application framework</li>
+<li><strong>PostgreSQL</strong>: Relational database for VM state</li>
+<li><strong>SQLAlchemy</strong>: ORM for database operations</li>
+<li><strong>Terraform</strong>: Infrastructure provisioning</li>
+<li><strong>Docker</strong>: Containerization</li>
+</ul>
 <p><strong>Key Responsibilities</strong>:</p>
 <ol>
-<li><strong>Web Interface</strong>:</li>
-<li>Admin dashboard for VM management</li>
+<li>
+<p><strong>Web Interface</strong>:</p>
+</li>
+<li>
+<p>Admin dashboard for VM management</p>
+</li>
 <li>VM creation interface</li>
 <li>
 <p>Instance listing and monitoring</p>
@@ -2041,7 +2045,9 @@
 <li>
 <p><strong>API Endpoints</strong>:</p>
 </li>
-<li><code>/request_vm</code>: Allocate VM to user</li>
+<li>
+<p><code>/request_vm</code>: Allocate VM to user</p>
+</li>
 <li><code>/admin/create</code>: Create new VM instances</li>
 <li><code>/admin/instances</code>: List all instances</li>
 <li><code>/admin/destroy</code>: Destroy instances</li>
@@ -2051,7 +2057,9 @@
 <li>
 <p><strong>Database Management</strong>:</p>
 </li>
-<li>Tracks VM states (available, in-use, failed)</li>
+<li>
+<p>Tracks VM states (available, in-use, failed)</p>
+</li>
 <li>PostgreSQL listen/notify for real-time updates</li>
 <li>
 <p>Automated triggers for state changes</p>
@@ -2066,14 +2074,20 @@
 <p><strong>Configuration</strong>: See <code>packages/allocator/src/lablink_allocator/conf/structured_config.py</code></p>
 <h3 id="client-service">Client Service<a class="headerlink" href="#client-service" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Runs on dynamically created VMs to execute research workloads.</p>
-<p><strong>Technology Stack</strong>:
-- <strong>Python</strong>: Service implementation
-- <strong>Docker</strong>: Container runtime
-- <strong>Custom Software</strong>: SLEAP or user-defined</p>
+<p><strong>Technology Stack</strong>:</p>
+<ul>
+<li><strong>Python</strong>: Service implementation</li>
+<li><strong>Docker</strong>: Container runtime</li>
+<li><strong>Custom Software</strong>: SLEAP or user-defined</li>
+</ul>
 <p><strong>Key Responsibilities</strong>:</p>
 <ol>
-<li><strong>Health Monitoring</strong>:</li>
-<li>GPU health checks (every 20 seconds)</li>
+<li>
+<p><strong>Health Monitoring</strong>:</p>
+</li>
+<li>
+<p>GPU health checks (every 20 seconds)</p>
+</li>
 <li>System resource monitoring</li>
 <li>
 <p>Reports status to allocator</p>
@@ -2081,7 +2095,9 @@
 <li>
 <p><strong>Allocator Communication</strong>:</p>
 </li>
-<li>Heartbeat mechanism</li>
+<li>
+<p>Heartbeat mechanism</p>
+</li>
 <li>Status updates (in-use, available)</li>
 <li>
 <p>Failure reporting</p>
@@ -2106,53 +2122,127 @@
 </thead>
 <tbody>
 <tr>
-<td><code>id</code></td>
-<td>SERIAL</td>
-<td>Primary key</td>
-</tr>
-<tr>
-<td><code>hostname</code></td>
+<td><code>Hostname</code></td>
 <td>VARCHAR(255)</td>
-<td>VM hostname/identifier</td>
+<td>VM hostname/identifier (Primary Key)</td>
 </tr>
 <tr>
-<td><code>email</code></td>
+<td><code>UserEmail</code></td>
 <td>VARCHAR(255)</td>
 <td>User email</td>
 </tr>
 <tr>
-<td><code>status</code></td>
+<td><code>Status</code></td>
 <td>VARCHAR(50)</td>
 <td>VM status (available/in-use/failed)</td>
 </tr>
 <tr>
-<td><code>crd_command</code></td>
+<td><code>CrdCommand</code></td>
 <td>TEXT</td>
 <td>Command to execute on VM</td>
 </tr>
 <tr>
-<td><code>created_at</code></td>
+<td><code>CreatedAt</code></td>
 <td>TIMESTAMP</td>
 <td>Creation timestamp</td>
 </tr>
+</tbody>
+</table>
+<p><strong>Triggers</strong>:</p>
+<ul>
+<li><code>notify_vm_update</code>: Sends PostgreSQL NOTIFY on row changes</li>
+</ul>
+<h3 id="vm-state-machine">VM State Machine<a class="headerlink" href="#vm-state-machine" title="Permanent link">&para;</a></h3>
+<p>The <code>status</code> field in the <code>vms</code> table follows this lifecycle:</p>
+<div class="mermaid">stateDiagram-v2
+    [*] --&gt; available: VM Created&lt;br/&gt;(terraform apply)
+
+    available --&gt; in_use: Software process starts&lt;br/&gt;(detected by update_inuse_status)
+    in_use --&gt; available: Software process stops&lt;br/&gt;(task complete or crash)
+
+    available --&gt; failed: Startup failure&lt;br/&gt;(boot error)
+    in_use --&gt; failed: Health check failed&lt;br/&gt;(GPU error, system crash)
+
+    failed --&gt; available: Admin intervention&lt;br/&gt;(manual reset)
+    failed --&gt; [*]: VM Destroyed&lt;br/&gt;(terraform destroy)
+    available --&gt; [*]: VM Destroyed&lt;br/&gt;(terraform destroy)
+    in_use --&gt; [*]: Force destroy&lt;br/&gt;(admin action)
+
+    note right of available
+        VM ready, waiting
+        Software not running
+        Heartbeat active
+    end note
+
+    note right of in_use
+        Configured software running
+        User workload active
+        Sending status updates
+    end note
+
+    note right of failed
+        Requires attention
+        Health checks failing
+        Removed from pool
+    end note</div>
+<p><strong>State Transitions</strong>:</p>
+<ul>
+<li><strong>available → in_use</strong>: Configured software process starts running on the VM</li>
+<li><strong>in_use → available</strong>: Software process stops (task complete or process ends)</li>
+<li><strong>available/in_use → failed</strong>: Health checks fail or errors occur</li>
+<li><strong>failed → available</strong>: Admin manually resets and fixes the VM</li>
+<li><strong>any → [*]</strong>: VM is destroyed via Terraform</li>
+</ul>
+<p><strong>State Mapping to Database Columns</strong></p>
+<table>
+<thead>
 <tr>
-<td><code>updated_at</code></td>
-<td>TIMESTAMP</td>
-<td>Last update timestamp</td>
+<th>State</th>
+<th><code>Status</code> column value</th>
+<th><code>InUse</code> column value</th>
+<th>Description### Infrastructure Components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>available</td>
+<td>"running"</td>
+<td><code>False</code></td>
+<td>VM is ready and waiting for user workload</td>
+</tr>
+<tr>
+<td>in_use</td>
+<td>"running"</td>
+<td><code>True</code></td>
+<td>Configured software is running on VM</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>"failed"</td>
+<td>(Any)</td>
+<td>VM has encountered an error or health check failed</td>
+</tr>
+<tr>
+<td>initializing</td>
+<td>"initializing"</td>
+<td><code>False</code></td>
+<td>VM is booting up and not yet ready</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Triggers</strong>:
-- <code>notify_vm_update</code>: Sends PostgreSQL NOTIFY on row changes</p>
-<h3 id="infrastructure-components">Infrastructure Components<a class="headerlink" href="#infrastructure-components" title="Permanent link">&para;</a></h3>
+<p><strong>Note</strong>: The <code>in_use</code> status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the <code>update_inuse_status</code> service which checks for the configured process.</p>
 <h4 id="security-groups">Security Groups<a class="headerlink" href="#security-groups" title="Permanent link">&para;</a></h4>
-<p><strong>Allocator Security Group</strong>:
-- Port 80 (HTTP): Web interface and API
-- Port 22 (SSH): Administrative access
-- Port 5432 (PostgreSQL): Database connections from clients</p>
-<p><strong>Client Security Groups</strong>:
-- Port 22 (SSH): Administrative access
-- Egress: Full internet access for package downloads</p>
+<p><strong>Allocator Security Group</strong>:</p>
+<ul>
+<li>Port 80 (HTTP): Web interface and API</li>
+<li>Port 22 (SSH): Administrative access</li>
+<li>Port 5432 (PostgreSQL): Database connections from clients</li>
+</ul>
+<p><strong>Client Security Groups</strong>:</p>
+<ul>
+<li>Port 22 (SSH): Administrative access</li>
+<li>Egress: Full internet access for package downloads</li>
+</ul>
 <h4 id="networking">Networking<a class="headerlink" href="#networking" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>Elastic IPs</strong>: Static IPs for allocators (one per environment)</li>
@@ -2161,8 +2251,12 @@
 </ul>
 <h4 id="storage">Storage<a class="headerlink" href="#storage" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>S3 Buckets</strong>: Terraform state storage</li>
-<li>Separate state per environment (dev/test/prod)</li>
+<li>
+<p><strong>S3 Buckets</strong>: Terraform state storage</p>
+</li>
+<li>
+<p>Separate state per environment (dev/test/prod)</p>
+</li>
 <li>Versioning enabled</li>
 <li>
 <p>Encrypted at rest</p>
@@ -2175,58 +2269,83 @@
 </ul>
 <h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
 <h3 id="vm-request-flow">VM Request Flow<a class="headerlink" href="#vm-request-flow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>1. User submits request via Web UI or API
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>   │
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   ▼
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>2. Flask app receives request
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   │
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>   ▼
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>3. Query database for available VM
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>   │
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>   ├─ If available:
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>   │  ├─ Update VM status to &quot;in-use&quot;
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>   │  ├─ Return VM details to user
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>   │  └─ Notify client via PostgreSQL NOTIFY
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>   │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>   └─ If none available:
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>      └─ Return error / queue request
-</code></pre></div>
+<div class="mermaid">sequenceDiagram
+    actor User
+    participant WebUI as Web UI/API
+    participant Flask as Flask App
+    participant DB as PostgreSQL
+    participant Client as Client VM
+
+    User-&gt;&gt;WebUI: Submit VM request
+    WebUI-&gt;&gt;Flask: POST /request_vm
+    Flask-&gt;&gt;DB: SELECT * FROM vms&lt;br/&gt;WHERE status='available'&lt;br/&gt;LIMIT 1
+
+    alt VM Available
+        DB--&gt;&gt;Flask: Return VM details
+        Flask--&gt;&gt;WebUI: Return VM hostname&lt;br/&gt;and connection details
+        WebUI--&gt;&gt;User: Display VM info
+        Flask-&gt;&gt;DB: PostgreSQL NOTIFY&lt;br/&gt;vm_update
+        DB--&gt;&gt;Client: Notify event
+    else No VM Available
+        DB--&gt;&gt;Flask: No results
+        Flask--&gt;&gt;WebUI: Error: No VMs available
+        WebUI--&gt;&gt;User: Queue request or&lt;br/&gt;show error message
+    end
+
+    Note over Client: Later: update_inuse_status service&lt;br/&gt;monitors for software process
+    Client-&gt;&gt;Client: Software process starts
+    Client-&gt;&gt;Flask: Update status to in-use
+    Flask-&gt;&gt;DB: UPDATE vms&lt;br/&gt;SET status='in-use'</div>
 <h3 id="vm-creation-flow">VM Creation Flow<a class="headerlink" href="#vm-creation-flow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>1. Admin creates VMs via /admin/create
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>   │
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>   ▼
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>2. Flask app calls Terraform subprocess
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>   │
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>   ▼
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>3. Terraform provisions EC2 instances
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>   │
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>   ├─ Creates security group
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>   ├─ Generates SSH key pair
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>   ├─ Launches EC2 with user_data script
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>   └─ Returns instance details
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>   │
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>   ▼
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>4. User data script runs on boot:
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>   │
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>   ├─ Pulls Docker image
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>   ├─ Clones repository
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>   ├─ Starts client service
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>   └─ Registers with allocator
-</code></pre></div>
+<div class="mermaid">sequenceDiagram
+    actor Admin
+    participant Flask as Flask App
+    participant Terraform
+    participant AWS as AWS EC2
+    participant VM as Client VM Instance
+    participant Docker as Docker Container
+
+    Admin-&gt;&gt;Flask: POST /admin/create&lt;br/&gt;(instance_count)
+    Flask-&gt;&gt;Terraform: Execute terraform apply&lt;br/&gt;(subprocess)
+
+    Terraform-&gt;&gt;AWS: Create security group
+    Terraform-&gt;&gt;AWS: Generate SSH key pair
+    Terraform-&gt;&gt;AWS: Launch EC2 instance&lt;br/&gt;with user_data script
+    AWS--&gt;&gt;Terraform: Return instance details&lt;br/&gt;(hostname, IP, etc.)
+    Terraform--&gt;&gt;Flask: Provisioning complete
+
+    Note over VM: Boot sequence begins
+    VM-&gt;&gt;VM: Execute user_data script
+
+    VM-&gt;&gt;Docker: Pull Docker image&lt;br/&gt;from ghcr.io
+    VM-&gt;&gt;VM: Clone user repository&lt;br/&gt;(if configured)
+    VM-&gt;&gt;Docker: Start client service&lt;br/&gt;(subscribe, check_gpu, etc.)
+    Docker-&gt;&gt;Flask: POST /vm_startup&lt;br/&gt;(hostname registration)
+
+    Flask--&gt;&gt;Admin: VMs created successfully&lt;br/&gt;(show instance details)</div>
 <h3 id="health-check-flow">Health Check Flow<a class="headerlink" href="#health-check-flow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Client VM (every 20s):
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├─ Check GPU status
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├─ Check system resources
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>▼
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>Send status to allocator API
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>▼
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>Allocator updates database
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>│
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>└─ If unhealthy: Mark as &quot;failed&quot;
-</code></pre></div>
+<div class="mermaid">sequenceDiagram
+    participant Client as Client VM
+    participant Flask as Flask App
+    participant DB as PostgreSQL
+
+    Note over Client: Every 20 seconds
+
+    loop Health Check Cycle
+        Client-&gt;&gt;Client: Check GPU status
+        Client-&gt;&gt;Client: Check system resources
+
+        alt GPU/System Healthy
+            Client-&gt;&gt;Flask: POST /health_check&lt;br/&gt;(status: healthy)
+            Flask-&gt;&gt;DB: Verify VM record
+            Flask--&gt;&gt;Client: ACK
+        else GPU/System Unhealthy
+            Client-&gt;&gt;Flask: POST /health_check&lt;br/&gt;(status: failed)
+            Flask-&gt;&gt;DB: UPDATE vms&lt;br/&gt;SET status='failed'
+            Flask--&gt;&gt;Client: ACK
+            Note over DB: VM marked as failed&lt;br/&gt;removed from available pool
+        end
+    end</div>
 <h2 id="deployment-environments">Deployment Environments<a class="headerlink" href="#deployment-environments" title="Permanent link">&para;</a></h2>
 <p>LabLink supports multiple isolated environments:</p>
 <table>
@@ -2259,16 +2378,22 @@
 </tr>
 </tbody>
 </table>
-<p>Each environment has:
-- Separate Terraform state
-- Unique resource naming (<code>-dev</code>, <code>-test</code>, <code>-prod</code> suffix)
-- Independent AWS resources</p>
+<p>Each environment has:</p>
+<ul>
+<li>Separate Terraform state</li>
+<li>Unique resource naming (<code>-dev</code>, <code>-test</code>, <code>-prod</code> suffix)</li>
+<li>Independent AWS resources</li>
+</ul>
 <h2 id="cicd-pipeline">CI/CD Pipeline<a class="headerlink" href="#cicd-pipeline" title="Permanent link">&para;</a></h2>
 <p>See <a href="../workflows/">Workflows</a> for detailed CI/CD architecture.</p>
 <p><strong>Key Workflows</strong>:</p>
 <ol>
-<li><strong>Build Images</strong> (<code>lablink-images.yml</code>):</li>
-<li>Triggers on code changes</li>
+<li>
+<p><strong>Build Images</strong> (<code>lablink-images.yml</code>):</p>
+</li>
+<li>
+<p>Triggers on code changes</p>
+</li>
 <li>Builds allocator and client Docker images</li>
 <li>
 <p>Pushes to GitHub Container Registry</p>
@@ -2276,7 +2401,9 @@
 <li>
 <p><strong>Terraform Deploy</strong> (<code>lablink-allocator-terraform.yml</code>):</p>
 </li>
-<li>Triggers on branch push or manual dispatch</li>
+<li>
+<p>Triggers on branch push or manual dispatch</p>
+</li>
 <li>Applies infrastructure changes</li>
 <li>
 <p>Supports environment selection</p>
@@ -2296,14 +2423,18 @@
 </ul>
 <p>See <a href="../security/">Security</a> for detailed security considerations.</p>
 <h2 id="scalability-considerations">Scalability Considerations<a class="headerlink" href="#scalability-considerations" title="Permanent link">&para;</a></h2>
-<p><strong>Current Architecture</strong>:
-- Single allocator per environment
-- Multiple clients per allocator
-- Database handles concurrent requests</p>
-<p><strong>Scaling Options</strong>:
-- Horizontal: Multiple allocators with load balancer
-- Vertical: Larger instance types for allocator
-- Database: RDS for managed PostgreSQL at scale</p>
+<p><strong>Current Architecture</strong>:</p>
+<ul>
+<li>Single allocator per environment</li>
+<li>Multiple clients per allocator</li>
+<li>Database handles concurrent requests</li>
+</ul>
+<p><strong>Scaling Options</strong>:</p>
+<ul>
+<li>Horizontal: Multiple allocators with load balancer</li>
+<li>Vertical: Larger instance types for allocator</li>
+<li>Database: RDS for managed PostgreSQL at scale</li>
+</ul>
 <h2 id="technology-choices">Technology Choices<a class="headerlink" href="#technology-choices" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2427,6 +2558,8 @@
     
     
       <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       
     
   </body>

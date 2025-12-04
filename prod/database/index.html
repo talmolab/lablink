@@ -891,6 +891,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#schema-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tables" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -943,6 +954,17 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notifylisten-flow-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY/LISTEN Flow Diagram
+      
+    </span>
+  </a>
   
 </li>
         
@@ -2113,6 +2135,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#schema-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tables" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2165,6 +2198,17 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notifylisten-flow-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY/LISTEN Flow Diagram
+      
+    </span>
+  </a>
   
 </li>
         
@@ -2728,9 +2772,34 @@
 <strong>Location</strong>: Runs in allocator Docker container
 <strong>Access</strong>: Port 5432 (internal)</p>
 <h2 id="database-schema">Database Schema<a class="headerlink" href="#database-schema" title="Permanent link">&para;</a></h2>
+<h3 id="schema-overview">Schema Overview<a class="headerlink" href="#schema-overview" title="Permanent link">&para;</a></h3>
+<div class="mermaid">erDiagram
+    VMS {
+        varchar_1024 HostName PK "VM hostname/instance ID"
+        varchar_1024 Pin "VM pin/identifier"
+        varchar_1024 CrdCommand "Command to execute"
+        varchar_1024 UserEmail "User email address"
+        boolean InUse "Whether software is running"
+        varchar_1024 Healthy "Health status"
+        varchar_1024 Status "VM status"
+        text Logs "VM logs"
+        timestamp TerraformApplyStartTime "Terraform start"
+        timestamp TerraformApplyEndTime "Terraform end"
+        float TerraformApplyDurationSeconds "Terraform duration"
+        timestamp CloudInitStartTime "Cloud-init start"
+        timestamp CloudInitEndTime "Cloud-init end"
+        float CloudInitDurationSeconds "Cloud-init duration"
+        timestamp ContainerStartTime "Container start"
+        timestamp ContainerEndTime "Container end"
+        float ContainerStartupDurationSeconds "Container startup duration"
+        float TotalStartupDurationSeconds "Total startup duration"
+        timestamp CreatedAt "Creation timestamp"
+    }
+
+    VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"</div>
 <h3 id="tables">Tables<a class="headerlink" href="#tables" title="Permanent link">&para;</a></h3>
 <h4 id="vms-table"><code>vms</code> Table<a class="headerlink" href="#vms-table" title="Permanent link">&para;</a></h4>
-<p>Primary table tracking all VM instances.</p>
+<p>Primary table tracking all VM instances with comprehensive timing metrics.</p>
 <table>
 <thead>
 <tr>
@@ -2742,63 +2811,145 @@
 </thead>
 <tbody>
 <tr>
-<td><code>id</code></td>
-<td>SERIAL</td>
+<td><code>HostName</code></td>
+<td>VARCHAR(1024)</td>
 <td>PRIMARY KEY</td>
-<td>Unique VM identifier</td>
-</tr>
-<tr>
-<td><code>hostname</code></td>
-<td>VARCHAR(255)</td>
-<td>NOT NULL, UNIQUE</td>
 <td>VM hostname/instance ID</td>
 </tr>
 <tr>
-<td><code>email</code></td>
-<td>VARCHAR(255)</td>
+<td><code>Pin</code></td>
+<td>VARCHAR(1024)</td>
 <td></td>
-<td>User email address</td>
+<td>VM pin/identifier for access</td>
 </tr>
 <tr>
-<td><code>status</code></td>
-<td>VARCHAR(50)</td>
-<td>NOT NULL</td>
-<td>VM status (available/in-use/failed)</td>
-</tr>
-<tr>
-<td><code>crd_command</code></td>
-<td>TEXT</td>
+<td><code>CrdCommand</code></td>
+<td>VARCHAR(1024)</td>
 <td></td>
 <td>Command to execute on VM</td>
 </tr>
 <tr>
-<td><code>created_at</code></td>
+<td><code>UserEmail</code></td>
+<td>VARCHAR(1024)</td>
+<td></td>
+<td>User email address</td>
+</tr>
+<tr>
+<td><code>InUse</code></td>
+<td>BOOLEAN</td>
+<td>NOT NULL</td>
+<td>Whether configured software is running (default: FALSE)</td>
+</tr>
+<tr>
+<td><code>Healthy</code></td>
+<td>VARCHAR(1024)</td>
+<td></td>
+<td>Health status of the VM</td>
+</tr>
+<tr>
+<td><code>Status</code></td>
+<td>VARCHAR(1024)</td>
+<td></td>
+<td>VM status</td>
+</tr>
+<tr>
+<td><code>Logs</code></td>
+<td>TEXT</td>
+<td></td>
+<td>VM logs</td>
+</tr>
+<tr>
+<td><code>TerraformApplyStartTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When Terraform apply started</td>
+</tr>
+<tr>
+<td><code>TerraformApplyEndTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When Terraform apply completed</td>
+</tr>
+<tr>
+<td><code>TerraformApplyDurationSeconds</code></td>
+<td>FLOAT</td>
+<td></td>
+<td>Duration of Terraform apply in seconds</td>
+</tr>
+<tr>
+<td><code>CloudInitStartTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When cloud-init started</td>
+</tr>
+<tr>
+<td><code>CloudInitEndTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When cloud-init completed</td>
+</tr>
+<tr>
+<td><code>CloudInitDurationSeconds</code></td>
+<td>FLOAT</td>
+<td></td>
+<td>Duration of cloud-init in seconds</td>
+</tr>
+<tr>
+<td><code>ContainerStartTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When container startup started</td>
+</tr>
+<tr>
+<td><code>ContainerEndTime</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When container became ready</td>
+</tr>
+<tr>
+<td><code>ContainerStartupDurationSeconds</code></td>
+<td>FLOAT</td>
+<td></td>
+<td>Duration of container startup in seconds</td>
+</tr>
+<tr>
+<td><code>TotalStartupDurationSeconds</code></td>
+<td>FLOAT</td>
+<td></td>
+<td>Total VM startup duration in seconds</td>
+</tr>
+<tr>
+<td><code>CreatedAt</code></td>
 <td>TIMESTAMP</td>
 <td>DEFAULT NOW()</td>
 <td>Creation timestamp</td>
 </tr>
-<tr>
-<td><code>updated_at</code></td>
-<td>TIMESTAMP</td>
-<td>DEFAULT NOW()</td>
-<td>Last update timestamp</td>
-</tr>
 </tbody>
 </table>
-<p><strong>Status Values</strong>:
-- <code>available</code>: VM ready for assignment
-- <code>in-use</code>: VM currently assigned to user
-- <code>failed</code>: VM encountered error</p>
-<p><strong>Example Row</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">id</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">hostname</span><span class="w">          </span><span class="o">|</span><span class="w"> </span><span class="n">email</span><span class="w">            </span><span class="o">|</span><span class="w"> </span><span class="n">status</span><span class="w">    </span><span class="o">|</span><span class="w"> </span><span class="n">crd_command</span><span class="w">      </span><span class="o">|</span><span class="w"> </span><span class="n">created_at</span><span class="w">          </span><span class="o">|</span><span class="w"> </span><span class="n">updated_at</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1">----+-------------------+------------------+-----------+------------------+---------------------+---------------------</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="mi">1</span><span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="n">i</span><span class="o">-</span><span class="mi">0</span><span class="n">abc123def456</span><span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="k">user</span><span class="o">@</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="k">in</span><span class="o">-</span><span class="n">use</span><span class="w">    </span><span class="o">|</span><span class="w"> </span><span class="n">python</span><span class="w"> </span><span class="n">train</span><span class="p">.</span><span class="n">py</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="mi">2025</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">15</span><span class="w"> </span><span class="mi">10</span><span class="p">:</span><span class="mi">30</span><span class="p">:</span><span class="mi">00</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="mi">2025</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">15</span><span class="w"> </span><span class="mi">10</span><span class="p">:</span><span class="mi">35</span><span class="p">:</span><span class="mi">00</span>
-</code></pre></div></p>
+<p><strong>InUse Status</strong>:</p>
+<p>The <code>InUse</code> column indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not just whether a user has been assigned. This is monitored by the <code>update_inuse_status</code> service running on the client VM.</p>
+<ul>
+<li><code>FALSE</code>: Software process not running</li>
+<li><code>TRUE</code>: Software process actively running</li>
+</ul>
+<p><strong>Timing Metrics</strong>:</p>
+<p>The table tracks three phases of VM startup:</p>
+<ol>
+<li><strong>Terraform Apply</strong>: Infrastructure provisioning (EC2 instance creation)</li>
+<li><strong>Cloud-init</strong>: OS-level initialization and Docker setup</li>
+<li><strong>Container Startup</strong>: Application container becoming ready</li>
+</ol>
+<p>These metrics help identify bottlenecks in the VM creation process.</p>
+<p><strong>Example Row</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">HostName</span><span class="w">          </span><span class="o">|</span><span class="w"> </span><span class="n">UserEmail</span><span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">InUse</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">CrdCommand</span><span class="w">       </span><span class="o">|</span><span class="w"> </span><span class="n">TotalStartupDurationSeconds</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">CreatedAt</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1">------------------+------------------+-------+------------------+-----------------------------+---------------------</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">i</span><span class="o">-</span><span class="mi">0</span><span class="n">abc123def456</span><span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="k">user</span><span class="o">@</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="k">true</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">python</span><span class="w"> </span><span class="n">train</span><span class="p">.</span><span class="n">py</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="mi">245</span><span class="p">.</span><span class="mi">67</span><span class="w">                      </span><span class="o">|</span><span class="w"> </span><span class="mi">2025</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">15</span><span class="w"> </span><span class="mi">10</span><span class="p">:</span><span class="mi">30</span><span class="p">:</span><span class="mi">00</span>
+</code></pre></div>
 <h3 id="triggers">Triggers<a class="headerlink" href="#triggers" title="Permanent link">&para;</a></h3>
 <h4 id="notify_vm_update"><code>notify_vm_update</code><a class="headerlink" href="#notify_vm_update" title="Permanent link">&para;</a></h4>
 <p>Sends PostgreSQL NOTIFY when VM table changes.</p>
 <p><strong>Purpose</strong>: Real-time updates to client VMs</p>
-<p><strong>Definition</strong>:
+<p><strong>Definition</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">notify_vm_changes</span><span class="p">()</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">RETURNS</span><span class="w"> </span><span class="k">trigger</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="err">$$</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">BEGIN</span>
@@ -2811,13 +2962,86 @@
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">AFTER</span><span class="w"> </span><span class="k">INSERT</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vms</span>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">FOR</span><span class="w"> </span><span class="k">EACH</span><span class="w"> </span><span class="k">ROW</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">EXECUTE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">notify_vm_changes</span><span class="p">();</span>
-</code></pre></div></p>
-<p><strong>How it works</strong>:
-1. Row inserted/updated in <code>vms</code> table
-2. Trigger fires
-3. JSON payload sent to <code>vm_updates</code> channel
-4. Listening clients receive notification
-5. Clients query for their specific assignment</p>
+</code></pre></div>
+<p><strong>How it works</strong>:</p>
+<ol>
+<li>
+<p>Client VM starts up and sends HTTP POST to <code>/vm_startup</code> endpoint</p>
+</li>
+<li>
+<p>Allocator validates VM exists in database and establishes <code>LISTEN vm_updates</code> connection</p>
+</li>
+<li>
+<p>HTTP request blocks while allocator waits for VM assignment</p>
+</li>
+<li>
+<p>User requests a VM via web UI (POST <code>/api/request_vm</code>)</p>
+</li>
+<li>
+<p>Allocator assigns first available VM by updating database with <code>CrdCommand</code> and <code>Pin</code></p>
+</li>
+<li>
+<p>Database trigger fires on UPDATE and sends <code>pg_notify()</code> with JSON payload to <code>vm_updates</code> channel</p>
+</li>
+<li>
+<p>Allocator receives notification via PostgreSQL LISTEN connection</p>
+</li>
+<li>
+<p>Allocator parses notification and matches hostname to the pending <code>/vm_startup</code> request</p>
+</li>
+<li>
+<p>HTTP response returns to client with command and pin</p>
+</li>
+<li>
+<p>Client executes the CrdCommand to connect to the configured software</p>
+</li>
+</ol>
+<h3 id="notifylisten-flow-diagram">NOTIFY/LISTEN Flow Diagram<a class="headerlink" href="#notifylisten-flow-diagram" title="Permanent link">&para;</a></h3>
+<div class="mermaid">sequenceDiagram
+    participant User
+    participant Client as Client VM
+    participant Flask as Flask App&lt;br/&gt;(Allocator)
+    participant DB as PostgreSQL
+    participant Trigger as notify_crd_command_update&lt;br/&gt;Trigger
+
+    Note over Client: Client VM starts up
+
+    Client-&gt;&gt;Flask: POST /vm_startup&lt;br/&gt;{hostname: "vm-123"}&lt;br/&gt;
+
+    Note over Flask: Allocator validates VM&lt;br/&gt;and establishes LISTEN
+
+    Flask-&gt;&gt;DB: SELECT * WHERE hostname='vm-123'
+    DB--&gt;&gt;Flask: VM found
+
+    Flask-&gt;&gt;DB: LISTEN vm_updates
+
+    Note over Flask,DB: Allocator waits for notification&lt;br/&gt;(HTTP response blocked)
+
+    Note over User: User requests a VM
+
+    User-&gt;&gt;Flask: POST /api/request_vm&lt;br/&gt;{email: "user@example.com",&lt;br/&gt;crd_command: "..."}
+
+    Note over Flask: Allocator assigns first&lt;br/&gt;available VM
+
+    Flask-&gt;&gt;DB: UPDATE vms&lt;br/&gt;SET UserEmail='user@example.com',&lt;br/&gt;CrdCommand='...', Pin='...'&lt;br/&gt;WHERE hostname='vm-123'
+
+    DB-&gt;&gt;Trigger: Row modified&lt;br/&gt;(AFTER INSERT/UPDATE trigger)
+
+    Trigger-&gt;&gt;Trigger: Build JSON payload&lt;br/&gt;{HostName, CrdCommand, Pin}
+
+    Trigger-&gt;&gt;DB: pg_notify('vm_updates',&lt;br/&gt;JSON payload)
+
+    DB--&gt;&gt;Flask: NOTIFY event received&lt;br/&gt;(on LISTEN connection)
+
+    Flask-&gt;&gt;Flask: Parse notification&lt;br/&gt;Check if HostName matches&lt;br/&gt;pending vm_startup request
+
+    alt Hostname matches
+        Flask--&gt;&gt;Client: HTTP 200 OK&lt;br/&gt;{status: "success",&lt;br/&gt;command: "...", pin: "..."}
+        Flask--&gt;&gt;User: Success page&lt;br/&gt;with VM hostname
+        Client-&gt;&gt;Client: Execute CrdCommand&lt;br/&gt;(connect to software)
+    else Hostname doesn't match
+        Note over Flask: Continue waiting for&lt;br/&gt;matching notification
+    end</div>
 <h2 id="accessing-the-database">Accessing the Database<a class="headerlink" href="#accessing-the-database" title="Permanent link">&para;</a></h2>
 <h3 id="via-ssh-and-psql">Via SSH and psql<a class="headerlink" href="#via-ssh-and-psql" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># SSH into allocator</span>
@@ -2834,7 +3058,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">db</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">dbname</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink_db&quot;</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink&quot;</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink&quot;</span><span class="w">  </span><span class="c1"># Change in production!</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink&quot;</span><span class="w"> </span><span class="c1"># Change in production!</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;localhost&quot;</span>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5432</span>
 </code></pre></div>
@@ -2879,13 +3103,13 @@
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
 </code></pre></div>
-<p>Expected output:
+<p>Expected output:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a> status    | count
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>-----------+-------
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a> available |     5
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a> in-use    |     3
 <a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a> failed    |     1
-</code></pre></div></p>
+</code></pre></div>
 <h3 id="find-vm-by-email">Find VM by Email<a class="headerlink" href="#find-vm-by-email" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">crd_command</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">vms</span>
@@ -2907,8 +3131,8 @@
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Only delete after VM instance is terminated in AWS.</p>
 </div>
+<p>Only delete after VM instance is terminated in AWS.</p>
 <h3 id="clear-all-vms">Clear All VMs<a class="headerlink" href="#clear-all-vms" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1">-- Use with caution!</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">TRUNCATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">vms</span><span class="p">;</span>
@@ -2962,7 +3186,7 @@
 <a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>scp<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;:~/lablink_backup.sql<span class="w"> </span>./
 </code></pre></div>
 <h3 id="automated-backup-script">Automated Backup Script<a class="headerlink" href="#automated-backup-script" title="Permanent link">&para;</a></h3>
-<p><strong><code>backup.sh</code></strong>:
+<p><strong><code>backup.sh</code></strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="ch">#!/bin/bash</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nv">CONTAINER_ID</span><span class="o">=</span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>--filter<span class="w"> </span><span class="s2">&quot;ancestor=ghcr.io/talmolab/lablink-allocator-image&quot;</span><span class="w"> </span>--format<span class="w"> </span><span class="s2">&quot;{{.ID}}&quot;</span><span class="k">)</span>
@@ -2980,14 +3204,14 @@
 <a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>find<span class="w"> </span><span class="nv">$BACKUP_DIR</span><span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;lablink_*.sql&quot;</span><span class="w"> </span>-mtime<span class="w"> </span>+7<span class="w"> </span>-delete
 <a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>
 <a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Backup complete: lablink_</span><span class="nv">$DATE</span><span class="s2">.sql&quot;</span>
-</code></pre></div></p>
-<p><strong>Setup cron job</strong>:
+</code></pre></div>
+<p><strong>Setup cron job</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Edit crontab</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>crontab<span class="w"> </span>-e
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
 <a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Add daily backup at 2 AM</span>
 <a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/home/ubuntu/backup.sh<span class="w"> </span>&gt;&gt;<span class="w"> </span>/var/log/lablink-backup.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-</code></pre></div></p>
+</code></pre></div>
 <h3 id="restore-from-backup">Restore from Backup<a class="headerlink" href="#restore-from-backup" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># SSH into allocator</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
@@ -3090,7 +3314,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">db</span><span class="p">:</span>
 <a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">dbname</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink_db&quot;</span>
 <a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink&quot;</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;${DB_PASSWORD}&quot;</span><span class="w">  </span><span class="c1"># From Secrets Manager</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;${DB_PASSWORD}&quot;</span><span class="w"> </span><span class="c1"># From Secrets Manager</span>
 <a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink-db-prod.xxxxx.us-west-2.rds.amazonaws.com&quot;</span>
 <a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">  </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5432</span>
 </code></pre></div>
@@ -3103,47 +3327,45 @@
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="postgresql-wont-start">PostgreSQL Won't Start<a class="headerlink" href="#postgresql-wont-start" title="Permanent link">&para;</a></h3>
-<p><strong>Check logs</strong>:
+<p><strong>Check logs</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>tail<span class="w"> </span>-f<span class="w"> </span>/var/log/postgresql/postgresql-13-main.log
-</code></pre></div></p>
+</code></pre></div>
 <p><strong>Common issues</strong>:</p>
 <ol>
-<li>
-<p><strong>Port already in use</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5432</span>
+<li><strong>Port already in use</strong>:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">5432</span>
 <a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="c1"># Kill process using port</span>
-</code></pre></div></p>
-</li>
-<li>
-<p><strong>Disk full</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>df<span class="w"> </span>-h
+</code></pre></div>
+<ol>
+<li><strong>Disk full</strong>:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>df<span class="w"> </span>-h
 <a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="c1"># Clean up space</span>
-</code></pre></div></p>
-</li>
-<li>
-<p><strong>Corrupt data files</strong>:
+</code></pre></div>
+<ol>
+<li><strong>Corrupt data files</strong>:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="c1"># Stop container, remove volume, restart</span>
 <a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stop<span class="w"> </span>&lt;container-id&gt;
 <a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>rm<span class="w"> </span>&lt;container-id&gt;
 <a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="c1"># Redeploy with fresh database</span>
-</code></pre></div></p>
-</li>
+</code></pre></div></li>
 </ol>
 <h3 id="cannot-connect-to-database">Cannot Connect to Database<a class="headerlink" href="#cannot-connect-to-database" title="Permanent link">&para;</a></h3>
-<p><strong>Check connection from allocator</strong>:
+<p><strong>Check connection from allocator</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-</code></pre></div></p>
-<p><strong>Test connection</strong>:
+</code></pre></div>
+<p><strong>Test connection</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT 1;&quot;</span>
-</code></pre></div></p>
-<p><strong>Check pg_hba.conf</strong>:
+</code></pre></div>
+<p><strong>Check pg_hba.conf</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>cat<span class="w"> </span>/etc/postgresql/13/main/pg_hba.conf
-</code></pre></div></p>
-<p>Should include:
+</code></pre></div>
+<p>Should include:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>host    all             all             0.0.0.0/0            md5
-</code></pre></div></p>
+</code></pre></div>
 <h3 id="database-performance-issues">Database Performance Issues<a class="headerlink" href="#database-performance-issues" title="Permanent link">&para;</a></h3>
-<p><strong>Check slow queries</strong>:
+<p><strong>Check slow queries</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="k">SELECT</span>
 <a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="w">  </span><span class="n">pid</span><span class="p">,</span>
 <a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">  </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="p">.</span><span class="n">query_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">duration</span><span class="p">,</span>
@@ -3152,12 +3374,12 @@
 <a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a><span class="k">WHERE</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;active&#39;</span>
 <a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="p">.</span><span class="n">query_start</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nb">interval</span><span class="w"> </span><span class="s1">&#39;5 seconds&#39;</span>
 <a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">duration</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
-</code></pre></div></p>
-<p><strong>Enable query logging</strong>:
+</code></pre></div>
+<p><strong>Enable query logging</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="c1"># In postgresql.conf</span>
 <a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="nv">log_min_duration_statement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1000</span><span class="w">  </span><span class="c1"># Log queries &gt; 1 second</span>
-</code></pre></div></p>
-<p><strong>Add indexes</strong>:
+</code></pre></div>
+<p><strong>Add indexes</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="c1">-- Index on email for faster lookups</span>
 <a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vms_email</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vms</span><span class="p">(</span><span class="n">email</span><span class="p">);</span>
 <a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a>
@@ -3166,7 +3388,7 @@
 <a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>
 <a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a><span class="c1">-- Composite index</span>
 <a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vms_status_email</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vms</span><span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">);</span>
-</code></pre></div></p>
+</code></pre></div>
 <h3 id="restart-postgresql">Restart PostgreSQL<a class="headerlink" href="#restart-postgresql" title="Permanent link">&para;</a></h3>
 <p>Known issue requiring manual restart after first boot:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="c1"># SSH into allocator</span>
@@ -3323,6 +3545,8 @@
     
     
       <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       
     
   </body>
