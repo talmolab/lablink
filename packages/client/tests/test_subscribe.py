@@ -114,8 +114,8 @@ def test_run_http_failure(
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
     # Should have logged the failures
     assert "POST request failed with status code: 500" in caplog.text
-    # Should have slept 3 times: 1 initial sleep + 2 retry sleeps
-    assert mock_sleep.call_count == 3
+    # Should have slept 2 times: no sleep on first attempt, then 2 retry sleeps
+    assert mock_sleep.call_count == 2
 
 
 @patch("lablink_client_service.subscribe.random.uniform", return_value=0)
@@ -147,8 +147,8 @@ def test_run_timeout_exception(
     assert mock_post.call_count == 2
     mock_connect.assert_called_once()
     assert "timed out" in caplog.text
-    # Should have slept 2 times: 1 initial sleep + 1 retry sleep
-    assert mock_sleep.call_count == 2
+    # Should have slept 1 time: no sleep on first attempt, then 1 retry sleep
+    assert mock_sleep.call_count == 1
 
 
 @patch("lablink_client_service.subscribe.random.uniform", return_value=0)
@@ -187,8 +187,8 @@ def test_run_request_exception(
     assert mock_post.call_count == 2
     mock_connect.assert_called_once()
     assert "failed: Some error" in caplog.text
-    # Should have slept 2 times: 1 initial sleep + 1 retry sleep
-    assert mock_sleep.call_count == 2
+    # Should have slept 1 time: no sleep on first attempt, then 1 retry sleep
+    assert mock_sleep.call_count == 1
 
 
 @patch("lablink_client_service.subscribe.random.uniform", return_value=0)
@@ -231,8 +231,8 @@ def test_run_request_exception_with_detailed_logging(
     assert mock_post.call_count == 3
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
 
-    # Check that sleep was called: 1 initial sleep + 2 retry sleeps = 3 total
-    assert mock_sleep.call_count == 3
+    # Check that sleep was called: no sleep on first attempt, then 2 retry sleeps
+    assert mock_sleep.call_count == 2
     # Check that retry sleep was called with RETRY_DELAY (10)
     mock_sleep.assert_any_call(10)
 
