@@ -1,7 +1,8 @@
 """Tests for configuration helper functions."""
 
+import os
 from dataclasses import dataclass, field
-
+from unittest.mock import patch
 
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
@@ -101,6 +102,78 @@ class TestGetAllocatorUrl:
         url, protocol = get_allocator_url(cfg, "1.2.3.4")
         assert url == "http://dev.lablink.example.com"
         assert protocol == "http"
+
+    @patch.dict(os.environ, {"ALLOCATOR_FQDN": "https://prod.lablink.sleap.ai"})
+    def test_allocator_fqdn_with_https_prefix(self):
+        """Test ALLOCATOR_FQDN with https:// prefix (highest priority)."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="letsencrypt"),
+            dns=MockDNSConfig(enabled=True, domain="fallback.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        # FQDN should take precedence over DNS config
+        assert url == "https://prod.lablink.sleap.ai"
+        assert protocol == "https"
+
+    @patch.dict(os.environ, {"ALLOCATOR_FQDN": "http://test.lablink.sleap.ai"})
+    def test_allocator_fqdn_with_http_prefix(self):
+        """Test ALLOCATOR_FQDN with http:// prefix."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="letsencrypt"),
+            dns=MockDNSConfig(enabled=True, domain="fallback.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        # FQDN should override SSL config and use http
+        assert url == "http://test.lablink.sleap.ai"
+        assert protocol == "http"
+
+    @patch.dict(os.environ, {"ALLOCATOR_FQDN": "dev.lablink.sleap.ai"})
+    def test_allocator_fqdn_without_protocol(self):
+        """Test ALLOCATOR_FQDN without protocol prefix (defaults to http)."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="letsencrypt"),
+            dns=MockDNSConfig(enabled=True, domain="fallback.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        # Should default to http when no protocol specified
+        assert url == "http://dev.lablink.sleap.ai"
+        assert protocol == "http"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_fallback_to_dns_when_fqdn_not_set(self):
+        """Test fallback to DNS config when ALLOCATOR_FQDN not set."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="letsencrypt"),
+            dns=MockDNSConfig(enabled=True, domain="dns.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        # Should fall back to DNS config
+        assert url == "https://dns.example.com"
+        assert protocol == "https"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_fallback_to_ip_when_fqdn_and_dns_not_set(self):
+        """Test fallback to IP when both ALLOCATOR_FQDN and DNS not available."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="none"),
+            dns=MockDNSConfig(enabled=False),
+        )
+        url, protocol = get_allocator_url(cfg, "52.40.142.146")
+        # Should fall back to IP address
+        assert url == "http://52.40.142.146"
+        assert protocol == "http"
+
+    @patch.dict(os.environ, {"ALLOCATOR_FQDN": "https://prod.example.com"})
+    def test_allocator_fqdn_overrides_all_config(self):
+        """Test that ALLOCATOR_FQDN overrides both SSL and DNS config."""
+        cfg = MockConfig(
+            ssl=MockSSLConfig(provider="none"),  # No SSL in config
+            dns=MockDNSConfig(enabled=True, domain="dns.example.com"),
+        )
+        url, protocol = get_allocator_url(cfg, "1.2.3.4")
+        # FQDN with https should override provider="none"
+        assert url == "https://prod.example.com"
+        assert protocol == "https"
 
 
 class TestShouldUseDns:
