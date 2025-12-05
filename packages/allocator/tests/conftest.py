@@ -56,6 +56,22 @@ def omega_config():
                 "path": "",
                 "on_error": "continue",
             },
+            "monitoring": {
+                "enabled": False,
+                "email": "",
+                "thresholds": {
+                    "max_instances_per_5min": 10,
+                    "max_terminations_per_5min": 20,
+                    "max_unauthorized_calls_per_15min": 5,
+                },
+                "budget": {
+                    "enabled": False,
+                    "monthly_budget_usd": 500,
+                },
+                "cloudtrail": {
+                    "retention_days": 90,
+                },
+            },
         }
     )
 
@@ -174,6 +190,22 @@ def valid_config_dict():
             "enabled": False,
             "path": "",
             "on_error": "continue",
+        },
+        "monitoring": {
+            "enabled": False,
+            "email": "",
+            "thresholds": {
+                "max_instances_per_5min": 10,
+                "max_terminations_per_5min": 20,
+                "max_unauthorized_calls_per_15min": 5,
+            },
+            "budget": {
+                "enabled": False,
+                "monthly_budget_usd": 500,
+            },
+            "cloudtrail": {
+                "retention_days": 90,
+            },
         },
     }
 
