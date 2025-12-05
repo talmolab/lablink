@@ -172,3 +172,133 @@ def test_generic_exception_handling(monkeypatch, valid_config_dict, write_config
     assert "[FAIL]" in message
     assert "RuntimeError" in message
     assert "unexpected error" in message.lower()
+
+
+# New tests for simplified DNS/SSL configuration validation
+
+def test_ssl_requires_dns(valid_config_dict, write_config_file):
+    """Test that SSL requires DNS to be enabled."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = False
+    config["ssl"]["provider"] = "letsencrypt"
+    config["ssl"]["email"] = "test@example.com"
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "SSL requires DNS" in message
+
+
+def test_dns_requires_domain(valid_config_dict, write_config_file):
+    """Test that DNS enabled requires non-empty domain."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = ""
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "domain field" in message.lower()
+
+
+def test_domain_cannot_start_with_dot(valid_config_dict, write_config_file):
+    """Test that domains cannot start with a dot."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = ".lablink.sleap.ai"
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "cannot start with a dot" in message.lower()
+
+
+def test_domain_cannot_end_with_dot(valid_config_dict, write_config_file):
+    """Test that domains cannot end with a dot."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = "lablink.sleap.ai."
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "cannot end with a dot" in message.lower()
+
+
+def test_letsencrypt_requires_email(valid_config_dict, write_config_file):
+    """Test that Let's Encrypt requires email address."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = "test.lablink.sleap.ai"
+    config["ssl"]["provider"] = "letsencrypt"
+    config["ssl"]["email"] = ""
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "Let's Encrypt requires email" in message
+
+
+def test_acm_requires_certificate_arn(valid_config_dict, write_config_file):
+    """Test that ACM requires certificate ARN."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = "test.lablink.sleap.ai"
+    config["ssl"]["provider"] = "acm"
+    config["ssl"]["certificate_arn"] = ""
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "ACM provider requires certificate_arn" in message
+
+
+def test_cloudflare_requires_external_dns(valid_config_dict, write_config_file):
+    """Test that CloudFlare SSL requires terraform_managed=false."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["terraform_managed"] = True  # Should be False for CloudFlare
+    config["dns"]["domain"] = "test.lablink.sleap.ai"
+    config["ssl"]["provider"] = "cloudflare"
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is False
+    assert "CloudFlare" in message
+    assert "terraform_managed=false" in message
+
+
+def test_valid_sub_subdomain(valid_config_dict, write_config_file):
+    """Test that sub-subdomains are allowed."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = True
+    config["dns"]["domain"] = "test.lablink.sleap.ai"  # Sub-subdomain
+    config["ssl"]["provider"] = "letsencrypt"
+    config["ssl"]["email"] = "admin@example.com"
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is True
+    assert "[PASS]" in message
+
+
+def test_ip_only_mode_valid(valid_config_dict, write_config_file):
+    """Test that IP-only mode (no DNS, no SSL) is valid."""
+    config = valid_config_dict.copy()
+    config["dns"]["enabled"] = False
+    config["dns"]["domain"] = ""
+    config["ssl"]["provider"] = "none"
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is True
+    assert "[PASS]" in message

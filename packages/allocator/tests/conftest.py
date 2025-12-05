@@ -37,10 +37,6 @@ def omega_config():
                 "terraform_managed": False,
                 "domain": "",
                 "zone_id": "",
-                "app_name": "lablink",
-                "pattern": "auto",
-                "custom_subdomain": "",
-                "create_zone": False,
             },
             "eip": {
                 "strategy": "dynamic",
@@ -49,6 +45,7 @@ def omega_config():
             "ssl": {
                 "provider": "none",
                 "email": "",
+                "certificate_arn": "",
             },
             "bucket_name": "test-bucket",
             "startup_script": {
@@ -152,10 +149,6 @@ def valid_config_dict():
             "terraform_managed": False,
             "domain": "lablink.example.com",
             "zone_id": "",
-            "app_name": "lablink",
-            "pattern": "auto",
-            "custom_subdomain": "",
-            "create_zone": False,
         },
         "eip": {
             "strategy": "dynamic",
@@ -164,7 +157,7 @@ def valid_config_dict():
         "ssl": {
             "provider": "none",
             "email": "admin@example.com",
-            "staging": True,
+            "certificate_arn": "",
         },
         "allocator": {
             "image_tag": "linux-amd64-latest-test",

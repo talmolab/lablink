@@ -37,22 +37,18 @@ app:
 
 dns:
   enabled: true  # true = use DNS for allocator URL, false = IP-only access
-  terraform_managed: false  # false = manual DNS records, true = Terraform creates/destroys records
-  domain: "lablink.sleap.ai"  # Your Route53 hosted zone domain
-  zone_id: ""  # (Optional) Hardcode zone ID to skip lookup
-  app_name: ""  # Not used with custom pattern
-  pattern: "custom"  # "auto" = {env}.{app_name}.{domain}, "custom" = {custom_subdomain}.{domain}
-  custom_subdomain: "dev"  # Will create: dev.lablink.sleap.ai
-  create_zone: false  # false = use existing zone, true = create new zone
+  terraform_managed: false  # false = manual DNS (CloudFlare, etc.), true = Terraform manages Route53 records
+  domain: "dev.lablink.sleap.ai"  # Full domain name for the allocator (supports sub-subdomains for environments)
+  zone_id: ""  # (Optional) Route53 hosted zone ID to skip auto-lookup
 
 eip:
   strategy: "dynamic"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
   tag_name: "lablink-eip"  # Tag Name to identify reusable EIP (used with persistent strategy)
 
 ssl:
-  provider: "letsencrypt"  # "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "none" = HTTP only
-  email: "admin@sleap.ai"  # Email for Let's Encrypt notifications
-  staging: false  # true = HTTP only (unlimited testing), false = HTTPS with trusted Let's Encrypt certs (rate limited)
+  provider: "letsencrypt"  # "none" = HTTP only, "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "acm" = AWS Certificate Manager
+  email: "admin@sleap.ai"  # Email for Let's Encrypt notifications (required when provider="letsencrypt")
+  certificate_arn: ""  # ACM certificate ARN (required when provider="acm")
 
 allocator:
   # Docker image tag for the allocator service
