@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import select
 import json
 import logging
+from typing import List, Optional
 
 import psycopg2
 
@@ -722,6 +723,102 @@ class PostgresqlDatabase:
         except Exception as e:
             logger.error(f"Error calculating total startup time: {e}")
             self.conn.rollback()
+
+    def create_scheduled_destruction(
+        self,
+        schedule_name: str,
+        destruction_time: datetime,
+        recurrence_rule: str = None,
+        created_by: str = None,
+        notification_enabled: bool = True,
+        notification_hours_before: int = 1,
+    ) -> int:
+        """Create a scheduled destruction entry in the database.
+        Args:
+            schedule_name (str): The name of the destruction schedule.
+            destruction_time (datetime): The time when the destruction is scheduled.
+            recurrence_rule (str, optional): The recurrence rule for the destruction.
+            created_by (str, optional): The user who created the schedule.
+            notification_enabled (bool, optional): Whether notifications are enabled.
+            notification_hours_before (int, optional): Hours before destruction to notify.
+        Returns:
+            int: The ID of the newly created scheduled destruction.
+        """
+        query = """
+            INSERT INTO scheduled_destructions
+            (schedule_name, destruction_time, recurrence_rule, created_by,
+            notification_enabled, notification_hours_before, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
+            RETURNING id;
+        """
+        try:
+            self.cursor.execute(
+                query,
+                (
+                    schedule_name,
+                    self._naive_utc(destruction_time),
+                    recurrence_rule,
+                    created_by,
+                    notification_enabled,
+                    notification_hours_before,
+                ),
+            )
+            destruction_id = self.cursor.fetchone()[0]
+            self.conn.commit()
+            logger.debug(
+                f"Created scheduled destruction '{schedule_name}' with ID {destruction_id}."
+            )
+            return destruction_id
+        except Exception as e:
+            logger.error(f"Error creating scheduled destruction: {e}")
+            self.conn.rollback()
+            return None
+
+    def get_scheduled_destruction(self, schedule_id: int) -> Optional[dict]:
+        """Get scheduled destruction by ID."""
+        query = "SELECT * FROM scheduled_destructions WHERE id = %s;"
+        self.cursor.execute(query, (schedule_id,))
+        row = self.cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+    def get_all_scheduled_destructions(
+        self, status: Optional[str] = None
+    ) -> List[dict]:
+        """Get all scheduled destructions, optionally filtered by status."""
+        if status:
+            query = f"SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;"
+            self.cursor.execute(query, (status,))
+        else:
+            query = f"SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
+            self.cursor.execute(query)
+
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def update_scheduled_destruction_status(
+        self,
+        schedule_id: int,
+        status: str,
+        execution_result: Optional[str] = None,
+    ) -> None:
+        """Update destruction execution status."""
+        query = """
+            UPDATE scheduled_destructions
+            SET status = %s,
+                execution_count = execution_count + 1,
+                last_execution_time = NOW(),
+                last_execution_result = %s
+            WHERE id = %s;
+        """
+        self.cursor.execute(query, (status, execution_result, schedule_id))
+        self.conn.commit()
+
+    def cancel_scheduled_destruction(self, schedule_id: int) -> None:
+        """Cancel a scheduled destruction."""
+        query = "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;"
+        self.cursor.execute(query, (schedule_id,))
+        self.conn.commit()
 
     def __del__(self):
         """Close the database connection when the object is deleted."""

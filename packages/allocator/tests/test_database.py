@@ -643,3 +643,232 @@ def test_calculate_total_startup_time(db_instance):
         """
     db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
     db_instance.conn.commit.assert_called_once()
+
+
+# Scheduled Destruction Tests
+
+
+def test_create_scheduled_destruction(db_instance):
+    """Test creating a new scheduled destruction."""
+    from datetime import datetime, timezone
+
+    schedule_name = "Friday Tutorial End"
+    destruction_time = datetime(2025, 12, 5, 17, 30, 0, tzinfo=timezone.utc)
+    recurrence_rule = "FREQ=WEEKLY;BYDAY=FR"
+    created_by = "admin@example.com"
+
+    db_instance.cursor.fetchone.return_value = (1,)
+
+    schedule_id = db_instance.create_scheduled_destruction(
+        schedule_name=schedule_name,
+        destruction_time=destruction_time,
+        recurrence_rule=recurrence_rule,
+        created_by=created_by,
+        notification_enabled=True,
+        notification_hours_before=1,
+    )
+
+    expected_query = """
+            INSERT INTO scheduled_destructions
+            (schedule_name, destruction_time, recurrence_rule, created_by,
+            notification_enabled, notification_hours_before, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
+            RETURNING id;
+        """
+
+    # Convert to naive UTC for comparison
+    naive_destruction_time = destruction_time.replace(tzinfo=None)
+
+    db_instance.cursor.execute.assert_called_once()
+    args = db_instance.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(expected_query.split())
+    assert args[1] == (
+        schedule_name,
+        naive_destruction_time,
+        recurrence_rule,
+        created_by,
+        True,
+        1,
+    )
+    db_instance.conn.commit.assert_called_once()
+    assert schedule_id == 1
+
+
+def test_create_scheduled_destruction_one_time(db_instance):
+    """Test creating a one-time scheduled destruction (no recurrence)."""
+    from datetime import datetime, timezone
+
+    schedule_name = "One-Time Cleanup"
+    destruction_time = datetime(2025, 12, 6, 18, 0, 0, tzinfo=timezone.utc)
+
+    db_instance.cursor.fetchone.return_value = (2,)
+
+    schedule_id = db_instance.create_scheduled_destruction(
+        schedule_name=schedule_name,
+        destruction_time=destruction_time,
+        recurrence_rule=None,
+        created_by=None,
+        notification_enabled=False,
+        notification_hours_before=0,
+    )
+
+    naive_destruction_time = destruction_time.replace(tzinfo=None)
+
+    db_instance.cursor.execute.assert_called_once()
+    args = db_instance.cursor.execute.call_args[0]
+    assert args[1] == (
+        schedule_name,
+        naive_destruction_time,
+        None,
+        None,
+        False,
+        0,
+    )
+    assert schedule_id == 2
+
+
+def test_create_scheduled_destruction_error(db_instance, caplog):
+    """Test error handling in create_scheduled_destruction."""
+    from datetime import datetime, timezone
+
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+
+    schedule_id = db_instance.create_scheduled_destruction(
+        schedule_name="Test",
+        destruction_time=datetime.now(timezone.utc),
+    )
+
+    assert schedule_id is None
+    assert "Error creating scheduled destruction: DB error" in caplog.text
+    db_instance.conn.rollback.assert_called_once()
+
+
+def test_get_scheduled_destruction(db_instance):
+    """Test getting a scheduled destruction by ID."""
+    schedule_id = 1
+    schedule_data = {
+        "id": 1,
+        "schedule_name": "Friday Tutorial End",
+        "destruction_time": "2025-12-05 17:30:00",
+        "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
+        "created_by": "admin@example.com",
+        "status": "scheduled",
+        "execution_count": 0,
+    }
+
+    # Mock cursor.fetchone to return a dict-like object
+    db_instance.cursor.fetchone.return_value = schedule_data
+
+    result = db_instance.get_scheduled_destruction(schedule_id)
+
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT * FROM scheduled_destructions WHERE id = %s;",
+        (schedule_id,)
+    )
+    assert result == schedule_data
+
+
+def test_get_scheduled_destruction_not_found(db_instance):
+    """Test getting a scheduled destruction that doesn't exist."""
+    schedule_id = 999
+    db_instance.cursor.fetchone.return_value = None
+
+    result = db_instance.get_scheduled_destruction(schedule_id)
+
+    assert result is None
+
+
+def test_get_all_scheduled_destructions(db_instance):
+    """Test getting all scheduled destructions."""
+    schedules_data = [
+        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
+        {"id": 2, "schedule_name": "Schedule 2", "status": "completed"},
+        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
+    ]
+
+    db_instance.cursor.fetchall.return_value = schedules_data
+
+    result = db_instance.get_all_scheduled_destructions()
+
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
+    )
+    assert result == schedules_data
+    assert len(result) == 3
+
+
+def test_get_all_scheduled_destructions_with_status_filter(db_instance):
+    """Test getting scheduled destructions filtered by status."""
+    scheduled_only = [
+        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
+        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
+    ]
+
+    db_instance.cursor.fetchall.return_value = scheduled_only
+
+    result = db_instance.get_all_scheduled_destructions(status="scheduled")
+
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;",
+        ("scheduled",)
+    )
+    assert result == scheduled_only
+    assert len(result) == 2
+
+
+def test_update_scheduled_destruction_status(db_instance):
+    """Test updating the status of a scheduled destruction."""
+    schedule_id = 1
+    status = "completed"
+    execution_result = "All VMs destroyed successfully"
+
+    db_instance.update_scheduled_destruction_status(
+        schedule_id=schedule_id,
+        status=status,
+        execution_result=execution_result,
+    )
+
+    expected_query = """
+            UPDATE scheduled_destructions
+            SET status = %s,
+                execution_count = execution_count + 1,
+                last_execution_time = NOW(),
+                last_execution_result = %s
+            WHERE id = %s;
+        """
+
+    db_instance.cursor.execute.assert_called_once()
+    args = db_instance.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(expected_query.split())
+    assert args[1] == (status, execution_result, schedule_id)
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_update_scheduled_destruction_status_failed(db_instance):
+    """Test updating status to failed with error message."""
+    schedule_id = 2
+    status = "failed"
+    execution_result = "Terraform destroy failed: timeout"
+
+    db_instance.update_scheduled_destruction_status(
+        schedule_id=schedule_id,
+        status=status,
+        execution_result=execution_result,
+    )
+
+    args = db_instance.cursor.execute.call_args[0]
+    assert args[1] == (status, execution_result, schedule_id)
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_cancel_scheduled_destruction(db_instance):
+    """Test cancelling a scheduled destruction."""
+    schedule_id = 1
+
+    db_instance.cancel_scheduled_destruction(schedule_id)
+
+    db_instance.cursor.execute.assert_called_with(
+        "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;",
+        (schedule_id,)
+    )
+    db_instance.conn.commit.assert_called_once()
