@@ -455,33 +455,92 @@ When adding a new page:
 
 ### Diagrams
 
-Use ASCII art for simple diagrams (portable):
+**Preferred: Use Mermaid diagrams** for all documentation visuals. Mermaid is text-based, version-controlled, and fully supported by MkDocs Material.
 
-```
-┌─────────────┐
-│  Allocator  │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  Client VM  │
-└─────────────┘
-```
+#### When to Use Mermaid
 
-For complex diagrams, use tools like:
-- draw.io
-- Mermaid (supported by MkDocs Material)
-- PlantUML
+- **Flowcharts**: Decision trees, process flows, CI/CD pipelines
+- **Sequence Diagrams**: Component interactions, API flows, service communication
+- **State Diagrams**: VM lifecycle, status transitions
+- **ER Diagrams**: Database schemas, table relationships
+- **Graphs**: System architecture, deployment diagrams
 
-**Mermaid Example**:
+#### Mermaid Examples
+
+**Flowchart (Decision Tree)**:
 
 ```markdown
 \`\`\`mermaid
-graph LR
-    A[User] --> B[Allocator]
-    B --> C[Client VM 1]
-    B --> D[Client VM 2]
+flowchart TD
+    Start[User Request] --> Check{VM Available?}
+    Check -->|Yes| Assign[Assign VM]
+    Check -->|No| Error[Return Error]
+    Assign --> Notify[Notify Client]
+    Notify --> End[Return Hostname]
 \`\`\`
+```
+
+**Sequence Diagram (Component Interaction)**:
+
+```markdown
+\`\`\`mermaid
+sequenceDiagram
+    participant User
+    participant Flask as Flask App
+    participant DB as PostgreSQL
+
+    User->>Flask: POST /request_vm
+    Flask->>DB: SELECT available VM
+    DB-->>Flask: Return VM details
+    Flask-->>User: Return hostname
+\`\`\`
+```
+
+**State Diagram (Lifecycle)**:
+
+```markdown
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> available: VM Created
+    available --> in_use: VM Assigned
+    in_use --> available: VM Released
+    in_use --> failed: Health Check Failed
+\`\`\`
+```
+
+**ER Diagram (Database Schema)**:
+
+```markdown
+\`\`\`mermaid
+erDiagram
+    VMS {
+        int id PK
+        string hostname UK
+        string status
+    }
+\`\`\`
+```
+
+#### Mermaid Styling Guidelines
+
+- Use consistent colors for similar components across diagrams
+- Keep diagrams focused (max 10-15 nodes)
+- Use clear, concise labels with action verbs
+- Include HTTP methods for API calls (POST, GET, etc.)
+- Test rendering in both light and dark modes
+
+#### Resources
+
+- [Mermaid Documentation](https://mermaid.js.org/)
+- [Mermaid Live Editor](https://mermaid.live/) - Test diagrams before adding to docs
+- [MkDocs Material Diagrams](https://squidfunk.github.io/mkdocs-material/reference/diagrams/)
+
+#### Alternative: ASCII Art
+
+For very simple diagrams where Mermaid would be overkill, ASCII art is acceptable:
+
+```text
+User → Allocator → Client VM
 ```
 
 ## Versioning Documentation

@@ -18,7 +18,13 @@ def mock_db_connection():
     """Fixture to create a mock database connection and cursor."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
+
+    # Make cursor() return a context manager that returns the mock cursor
+    mock_cursor_context = MagicMock()
+    mock_cursor_context.__enter__ = MagicMock(return_value=mock_cursor)
+    mock_cursor_context.__exit__ = MagicMock(return_value=False)
+    mock_conn.cursor.return_value = mock_cursor_context
+
     # When PostgresqlDatabase is initialized, it calls psycopg2.connect()
     mock_psycopg2.connect.return_value = mock_conn
     return mock_conn, mock_cursor
@@ -227,6 +233,15 @@ def test_vm_exists(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "SELECT EXISTS (SELECT 1 FROM vms WHERE hostname = %s)", (hostname,)
     )
+
+
+def test_vm_exists_returns_none(db_instance, caplog):
+    """Test vm_exists when fetchone returns None (database error condition)."""
+    hostname = "test-vm"
+    db_instance.cursor.fetchone.return_value = None
+    assert db_instance.vm_exists(hostname) is False
+    assert "vm_exists query returned None" in caplog.text
+    assert "Assuming VM does not exist" in caplog.text
 
 
 def test_get_assigned_vms(db_instance):
@@ -587,65 +602,61 @@ def test_naive_utc():
     assert naive_utc_dt.tzinfo is None
     assert naive_utc_dt == naive_dt
 
-def test_update_vm_metrics(db_instance):
-    """Test updating VM metrics in the database."""
+
+def test_update_vm_metrics_atomic_cloud_init_only(db_instance):
+    """Test updating only cloud_init metrics."""
     hostname = "test-vm-01"
     metrics = {
-        "cloud_init_start": 1672531200,
-        "cloud_init_end": 1672531320,
-        "cloud_init_duration_seconds": 120,
-        "container_start": 1672531320,
-        "container_end": 1672531380,
-        "container_startup_duration_seconds": 60,
+        "cloud_init_start": 1609459200,  # 2021-01-01 00:00:00 UTC
+        "cloud_init_end": 1609459260,  # 2021-01-01 00:01:00 UTC
+        "cloud_init_duration_seconds": 60.0,
     }
-    db_instance.update_vm_metrics(hostname, metrics)
 
-    expected_query = (
-        "UPDATE vms SET CloudInitStartTime = to_timestamp(%s), "
-        "CloudInitEndTime = to_timestamp(%s), "
-        "CloudInitDurationSeconds = %s, "
-        "ContainerStartTime = to_timestamp(%s), "
-        "ContainerEndTime = to_timestamp(%s), "
-        "ContainerStartupDurationSeconds = %s "
-        "WHERE hostname = %s;"
-    )
+    db_instance.cursor.fetchone.return_value = (60.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
 
-    db_instance.cursor.execute.assert_called_once()
-    args = db_instance.cursor.execute.call_args[0]
-    # Remove whitespace and compare queries
-    assert "".join(args[0].split()) == "".join(expected_query.split())
-    assert args[1] == (
-        1672531200,
-        1672531320,
-        120,
-        1672531320,
-        1672531380,
-        60,
-        hostname,
-    )
-    db_instance.conn.commit.assert_called_once()
+    # Verify the query was executed
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
 
-def test_calculate_total_startup_time(db_instance):
-    """Test calculating the total startup time for a VM."""
-    hostname = "test-vm-01"
-    db_instance.calculate_total_startup_time(hostname)
+    # Check that cloud_init fields are in the query
+    assert "CloudInitStartTime = to_timestamp(%s)" in query
+    assert "CloudInitEndTime = to_timestamp(%s)" in query
+    assert "CloudInitDurationSeconds = %s" in query
+    assert "TotalStartupDurationSeconds" in query
+    assert "WHERE hostname = %s" in query
+    assert "RETURNING TotalStartupDurationSeconds" in query
 
-    expected_query = """
-            UPDATE vms
-            SET TotalStartupDurationSeconds =
-                COALESCE(TerraformApplyDurationSeconds, 0) +
-                COALESCE(CloudInitDurationSeconds, 0) +
-                COALESCE(ContainerStartupDurationSeconds, 0)
-            WHERE hostname = %s AND
-                TerraformApplyDurationSeconds IS NOT NULL AND
-                CloudInitDurationSeconds IS NOT NULL AND
-                ContainerStartupDurationSeconds IS NOT NULL
-        """
-    db_instance.cursor.execute.assert_any_call(expected_query, (hostname,))
+    # Check values passed (timestamps and duration, then hostname)
+    assert values == (1609459200, 1609459260, 60.0, hostname)
     db_instance.conn.commit.assert_called_once()
 
 
-# Scheduled Destruction Tests
+def test_update_vm_metrics_atomic_container_only(db_instance):
+    """Test updating only container metrics."""
+    hostname = "test-vm-02"
+    metrics = {
+        "container_start": 1609459300,  # 2021-01-01 00:05:00 UTC
+        "container_end": 1609459360,  # 2021-01-01 00:06:00 UTC
+        "container_startup_duration_seconds": 60.0,
+    }
+
+    db_instance.cursor.fetchone.return_value = (60.0,)
+    db_instance.update_vm_metrics_atomic(hostname, metrics)
+
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    values = call_args[0][1]
+
+    # Check that container fields are in the query
+    assert "ContainerStartTime = to_timestamp(%s)" in query
+    assert "ContainerEndTime = to_timestamp(%s)" in query
+    assert "ContainerStartupDurationSeconds = %s" in query
+    assert "TotalStartupDurationSeconds" in query
+
+    assert values == (1609459300, 1609459360, 60.0, hostname)
+    db_instance.conn.commit.assert_called_once()
 
 
 def test_create_scheduled_destruction(db_instance):

@@ -169,13 +169,45 @@ fi
 CLOUD_INIT_END=$(date +%s)
 CLOUD_INIT_DURATION=$((CLOUD_INIT_END - CLOUD_INIT_START_TIME))
 
-# Send timing data to allocator
-curl -s -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
-    -H "Content-Type: application/json" \
-    -d "{
-        \"cloud_init_start\": $CLOUD_INIT_START_TIME,
-        \"cloud_init_end\": $CLOUD_INIT_END,
-        \"cloud_init_duration_seconds\": $CLOUD_INIT_DURATION
-    }" --max-time 5 || true
+# Send timing data to allocator with retry logic
+MAX_ATTEMPTS=5
+for i in {1..5}; do
+    echo ">> $(date -Is) Sending cloud-init timing data to allocator (attempt $i/$MAX_ATTEMPTS)…"
+    echo "    - Start Time: $CLOUD_INIT_START_TIME"
+    echo "    - End Time: $CLOUD_INIT_END"
+    echo "    - Duration (seconds): $CLOUD_INIT_DURATION"
+
+    # Capture HTTP status code
+    HTTP_CODE=$(curl -s -w "%%{http_code}" -o /tmp/metrics_response.txt \
+        -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"cloud_init_start\": $CLOUD_INIT_START_TIME,
+            \"cloud_init_end\": $CLOUD_INIT_END,
+            \"cloud_init_duration_seconds\": $CLOUD_INIT_DURATION
+        }" --max-time 15 2>/dev/null || echo "000")
+
+    # Check if successful (HTTP 2xx)
+    if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+        echo ">> $(date -Is) Metrics sent successfully (HTTP $HTTP_CODE)"
+        break
+    else
+        echo ">> $(date -Is) Metrics send failed (HTTP $HTTP_CODE)"
+
+        # If this was the last attempt, give up
+        if [ $i -eq $MAX_ATTEMPTS ]; then
+            echo ">> $(date -Is) WARNING: Failed to send metrics after $MAX_ATTEMPTS attempts"
+            break
+        fi
+
+        # Exponential backoff with jitter
+        BASE_DELAY=$((2 ** (i - 1)))
+        JITTER=$((RANDOM % BASE_DELAY + 1))
+        DELAY=$((BASE_DELAY + JITTER))
+
+        echo ">> $(date -Is) Retrying in $${DELAY}s..."
+        sleep $DELAY
+    fi
+done
 
 echo ">> $(date -Is) Container launched successfully."

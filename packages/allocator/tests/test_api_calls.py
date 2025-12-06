@@ -1078,10 +1078,10 @@ def test_receive_vm_metrics_success(client, monkeypatch):
     assert resp.status_code == 200
     assert resp.get_json() == {"message": "VM metrics posted successfully."}
     fake_db.vm_exists.assert_called_once_with(hostname=hostname)
-    fake_db.update_vm_metrics.assert_called_once_with(
+    # Updated to use atomic method
+    fake_db.update_vm_metrics_atomic.assert_called_once_with(
         hostname=hostname, metrics=metrics_data
     )
-    fake_db.calculate_total_startup_time.assert_called_once_with(hostname=hostname)
 
 def test_receive_vm_metrics_vm_not_found(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint when the VM is not found."""
@@ -1103,8 +1103,7 @@ def test_receive_vm_metrics_vm_not_found(client, monkeypatch):
     assert resp.status_code == 404
     assert resp.get_json() == {"error": "VM not found."}
     fake_db.vm_exists.assert_called_once_with(hostname=hostname)
-    fake_db.update_vm_metrics.assert_not_called()
-    fake_db.calculate_total_startup_time.assert_not_called()
+    fake_db.update_vm_metrics_atomic.assert_not_called()
 
 
 def test_receive_vm_metrics_internal_error(client, monkeypatch):
@@ -1112,7 +1111,7 @@ def test_receive_vm_metrics_internal_error(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    fake_db.update_vm_metrics.side_effect = Exception("Database error")
+    fake_db.update_vm_metrics_atomic.side_effect = Exception("Database error")
 
     # Patch globals
     monkeypatch.setattr(
@@ -1128,7 +1127,45 @@ def test_receive_vm_metrics_internal_error(client, monkeypatch):
     assert resp.status_code == 500
     assert resp.get_json() == {"error": "Failed to post VM metrics."}
     fake_db.vm_exists.assert_called_once_with(hostname=hostname)
-    fake_db.update_vm_metrics.assert_called_once_with(
+    fake_db.update_vm_metrics_atomic.assert_called_once_with(
         hostname=hostname, metrics=metrics_data
     )
-    fake_db.calculate_total_startup_time.assert_not_called()
+
+
+def test_receive_vm_metrics_concurrent(client, monkeypatch):
+    """Test that concurrent metrics requests are handled correctly."""
+    import concurrent.futures
+
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Create 10 concurrent requests
+    def send_metrics(vm_id):
+        hostname = f"test-vm-{vm_id:02d}"
+        metrics_data = {
+            "cloud_init_start": 1672531200 + vm_id,
+            "cloud_init_end": 1672531320 + vm_id,
+            "cloud_init_duration_seconds": 120,
+        }
+        return client.post(f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data)
+
+    # Send all requests concurrently
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        responses = list(executor.map(send_metrics, range(10)))
+
+    # All should succeed
+    assert all(r.status_code == 200 for r in responses)
+    assert all(
+        r.get_json() == {"message": "VM metrics posted successfully."}
+        for r in responses
+    )
+
+    # Verify all VMs were checked and updated
+    assert fake_db.vm_exists.call_count == 10
+    assert fake_db.update_vm_metrics_atomic.call_count == 10

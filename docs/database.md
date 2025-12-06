@@ -17,32 +17,86 @@ LabLink uses **PostgreSQL** for:
 
 ## Database Schema
 
+### Schema Overview
+
+```mermaid
+erDiagram
+    VMS {
+        varchar_1024 HostName PK "VM hostname/instance ID"
+        varchar_1024 Pin "VM pin/identifier"
+        varchar_1024 CrdCommand "Command to execute"
+        varchar_1024 UserEmail "User email address"
+        boolean InUse "Whether software is running"
+        varchar_1024 Healthy "Health status"
+        varchar_1024 Status "VM status"
+        text Logs "VM logs"
+        timestamp TerraformApplyStartTime "Terraform start"
+        timestamp TerraformApplyEndTime "Terraform end"
+        float TerraformApplyDurationSeconds "Terraform duration"
+        timestamp CloudInitStartTime "Cloud-init start"
+        timestamp CloudInitEndTime "Cloud-init end"
+        float CloudInitDurationSeconds "Cloud-init duration"
+        timestamp ContainerStartTime "Container start"
+        timestamp ContainerEndTime "Container end"
+        float ContainerStartupDurationSeconds "Container startup duration"
+        float TotalStartupDurationSeconds "Total startup duration"
+        timestamp CreatedAt "Creation timestamp"
+    }
+
+    VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"
+```
+
 ### Tables
 
 #### `vms` Table
 
-Primary table tracking all VM instances.
+Primary table tracking all VM instances with comprehensive timing metrics.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | SERIAL | PRIMARY KEY | Unique VM identifier |
-| `hostname` | VARCHAR(255) | NOT NULL, UNIQUE | VM hostname/instance ID |
-| `email` | VARCHAR(255) | | User email address |
-| `status` | VARCHAR(50) | NOT NULL | VM status (available/in-use/failed) |
-| `crd_command` | TEXT | | Command to execute on VM |
-| `created_at` | TIMESTAMP | DEFAULT NOW() | Creation timestamp |
-| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
+| Column                            | Type          | Constraints   | Description                                             |
+| --------------------------------- | ------------- | ------------- | ------------------------------------------------------- |
+| `HostName`                        | VARCHAR(1024) | PRIMARY KEY   | VM hostname/instance ID                                 |
+| `Pin`                             | VARCHAR(1024) |               | VM pin/identifier for access                            |
+| `CrdCommand`                      | VARCHAR(1024) |               | Command to execute on VM                                |
+| `UserEmail`                       | VARCHAR(1024) |               | User email address                                      |
+| `InUse`                           | BOOLEAN       | NOT NULL      | Whether configured software is running (default: FALSE) |
+| `Healthy`                         | VARCHAR(1024) |               | Health status of the VM                                 |
+| `Status`                          | VARCHAR(1024) |               | VM status                                               |
+| `Logs`                            | TEXT          |               | VM logs                                                 |
+| `TerraformApplyStartTime`         | TIMESTAMP     |               | When Terraform apply started                            |
+| `TerraformApplyEndTime`           | TIMESTAMP     |               | When Terraform apply completed                          |
+| `TerraformApplyDurationSeconds`   | FLOAT         |               | Duration of Terraform apply in seconds                  |
+| `CloudInitStartTime`              | TIMESTAMP     |               | When cloud-init started                                 |
+| `CloudInitEndTime`                | TIMESTAMP     |               | When cloud-init completed                               |
+| `CloudInitDurationSeconds`        | FLOAT         |               | Duration of cloud-init in seconds                       |
+| `ContainerStartTime`              | TIMESTAMP     |               | When container startup started                          |
+| `ContainerEndTime`                | TIMESTAMP     |               | When container became ready                             |
+| `ContainerStartupDurationSeconds` | FLOAT         |               | Duration of container startup in seconds                |
+| `TotalStartupDurationSeconds`     | FLOAT         |               | Total VM startup duration in seconds                    |
+| `CreatedAt`                       | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                                      |
 
-**Status Values**:
-- `available`: VM ready for assignment
-- `in-use`: VM currently assigned to user
-- `failed`: VM encountered error
+**InUse Status**:
+
+The `InUse` column indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not just whether a user has been assigned. This is monitored by the `update_inuse_status` service running on the client VM.
+
+- `FALSE`: Software process not running
+- `TRUE`: Software process actively running
+
+**Timing Metrics**:
+
+The table tracks three phases of VM startup:
+
+1. **Terraform Apply**: Infrastructure provisioning (EC2 instance creation)
+2. **Cloud-init**: OS-level initialization and Docker setup
+3. **Container Startup**: Application container becoming ready
+
+These metrics help identify bottlenecks in the VM creation process.
 
 **Example Row**:
+
 ```sql
-id  | hostname          | email            | status    | crd_command      | created_at          | updated_at
-----+-------------------+------------------+-----------+------------------+---------------------+---------------------
-1   | i-0abc123def456   | user@example.com | in-use    | python train.py  | 2025-01-15 10:30:00 | 2025-01-15 10:35:00
+HostName          | UserEmail        | InUse | CrdCommand       | TotalStartupDurationSeconds | CreatedAt
+------------------+------------------+-------+------------------+-----------------------------+---------------------
+i-0abc123def456   | user@example.com | true  | python train.py  | 245.67                      | 2025-01-15 10:30:00
 ```
 
 ### Triggers
@@ -54,6 +108,7 @@ Sends PostgreSQL NOTIFY when VM table changes.
 **Purpose**: Real-time updates to client VMs
 
 **Definition**:
+
 ```sql
 CREATE OR REPLACE FUNCTION notify_vm_changes()
 RETURNS trigger AS $$
@@ -70,11 +125,76 @@ EXECUTE FUNCTION notify_vm_changes();
 ```
 
 **How it works**:
-1. Row inserted/updated in `vms` table
-2. Trigger fires
-3. JSON payload sent to `vm_updates` channel
-4. Listening clients receive notification
-5. Clients query for their specific assignment
+
+1. Client VM starts up and sends HTTP POST to `/vm_startup` endpoint
+
+2. Allocator validates VM exists in database and establishes `LISTEN vm_updates` connection
+
+3. HTTP request blocks while allocator waits for VM assignment
+
+4. User requests a VM via web UI (POST `/api/request_vm`)
+
+5. Allocator assigns first available VM by updating database with `CrdCommand` and `Pin`
+
+6. Database trigger fires on UPDATE and sends `pg_notify()` with JSON payload to `vm_updates` channel
+
+7. Allocator receives notification via PostgreSQL LISTEN connection
+
+8. Allocator parses notification and matches hostname to the pending `/vm_startup` request
+
+9. HTTP response returns to client with command and pin
+
+10. Client executes the CrdCommand to connect to the configured software
+
+### NOTIFY/LISTEN Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client as Client VM
+    participant Flask as Flask App<br/>(Allocator)
+    participant DB as PostgreSQL
+    participant Trigger as notify_crd_command_update<br/>Trigger
+
+    Note over Client: Client VM starts up
+
+    Client->>Flask: POST /vm_startup<br/>{hostname: "vm-123"}<br/>
+
+    Note over Flask: Allocator validates VM<br/>and establishes LISTEN
+
+    Flask->>DB: SELECT * WHERE hostname='vm-123'
+    DB-->>Flask: VM found
+
+    Flask->>DB: LISTEN vm_updates
+
+    Note over Flask,DB: Allocator waits for notification<br/>(HTTP response blocked)
+
+    Note over User: User requests a VM
+
+    User->>Flask: POST /api/request_vm<br/>{email: "user@example.com",<br/>crd_command: "..."}
+
+    Note over Flask: Allocator assigns first<br/>available VM
+
+    Flask->>DB: UPDATE vms<br/>SET UserEmail='user@example.com',<br/>CrdCommand='...', Pin='...'<br/>WHERE hostname='vm-123'
+
+    DB->>Trigger: Row modified<br/>(AFTER INSERT/UPDATE trigger)
+
+    Trigger->>Trigger: Build JSON payload<br/>{HostName, CrdCommand, Pin}
+
+    Trigger->>DB: pg_notify('vm_updates',<br/>JSON payload)
+
+    DB-->>Flask: NOTIFY event received<br/>(on LISTEN connection)
+
+    Flask->>Flask: Parse notification<br/>Check if HostName matches<br/>pending vm_startup request
+
+    alt Hostname matches
+        Flask-->>Client: HTTP 200 OK<br/>{status: "success",<br/>command: "...", pin: "..."}
+        Flask-->>User: Success page<br/>with VM hostname
+        Client->>Client: Execute CrdCommand<br/>(connect to software)
+    else Hostname doesn't match
+        Note over Flask: Continue waiting for<br/>matching notification
+    end
+```
 
 ## Accessing the Database
 
@@ -99,7 +219,7 @@ From config (`lablink-infrastructure/config/config.yaml`):
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "lablink"  # Change in production!
+  password: "lablink" # Change in production!
   host: "localhost"
   port: 5432
 ```
@@ -162,6 +282,7 @@ GROUP BY status;
 ```
 
 Expected output:
+
 ```
  status    | count
 -----------+-------
@@ -199,7 +320,7 @@ DELETE FROM vms WHERE hostname = 'i-0abc123def456';
 ```
 
 !!! warning
-    Only delete after VM instance is terminated in AWS.
+Only delete after VM instance is terminated in AWS.
 
 ### Clear All VMs
 
@@ -270,6 +391,7 @@ scp -i ~/lablink-key.pem ubuntu@<allocator-ip>:~/lablink_backup.sql ./
 ### Automated Backup Script
 
 **`backup.sh`**:
+
 ```bash
 #!/bin/bash
 
@@ -291,6 +413,7 @@ echo "Backup complete: lablink_$DATE.sql"
 ```
 
 **Setup cron job**:
+
 ```bash
 # Edit crontab
 crontab -e
@@ -432,7 +555,7 @@ output "rds_endpoint" {
 db:
   dbname: "lablink_db"
   user: "lablink"
-  password: "${DB_PASSWORD}"  # From Secrets Manager
+  password: "${DB_PASSWORD}" # From Secrets Manager
   host: "lablink-db-prod.xxxxx.us-west-2.rds.amazonaws.com"
   port: 5432
 ```
@@ -452,6 +575,7 @@ psql -h lablink-db-prod.xxxxx.us-west-2.rds.amazonaws.com -U lablink -d lablink_
 ### PostgreSQL Won't Start
 
 **Check logs**:
+
 ```bash
 sudo docker exec <container-id> tail -f /var/log/postgresql/postgresql-13-main.log
 ```
@@ -459,12 +583,14 @@ sudo docker exec <container-id> tail -f /var/log/postgresql/postgresql-13-main.l
 **Common issues**:
 
 1. **Port already in use**:
+
    ```bash
    sudo netstat -tulpn | grep 5432
    # Kill process using port
    ```
 
 2. **Disk full**:
+
    ```bash
    df -h
    # Clean up space
@@ -481,21 +607,25 @@ sudo docker exec <container-id> tail -f /var/log/postgresql/postgresql-13-main.l
 ### Cannot Connect to Database
 
 **Check connection from allocator**:
+
 ```bash
 sudo docker exec <container-id> pg_isready -U lablink
 ```
 
 **Test connection**:
+
 ```bash
 sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT 1;"
 ```
 
 **Check pg_hba.conf**:
+
 ```bash
 sudo docker exec <container-id> cat /etc/postgresql/13/main/pg_hba.conf
 ```
 
 Should include:
+
 ```
 host    all             all             0.0.0.0/0            md5
 ```
@@ -503,6 +633,7 @@ host    all             all             0.0.0.0/0            md5
 ### Database Performance Issues
 
 **Check slow queries**:
+
 ```sql
 SELECT
   pid,
@@ -515,12 +646,14 @@ ORDER BY duration DESC;
 ```
 
 **Enable query logging**:
+
 ```bash
 # In postgresql.conf
 log_min_duration_statement = 1000  # Log queries > 1 second
 ```
 
 **Add indexes**:
+
 ```sql
 -- Index on email for faster lookups
 CREATE INDEX idx_vms_email ON vms(email);

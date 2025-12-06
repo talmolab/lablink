@@ -697,17 +697,18 @@ def receive_vm_metrics(hostname):
             logger.error(f"VM with hostname {hostname} does not exist.")
             return jsonify({"error": "VM not found."}), 404
 
-        # Update the VM metrics in the database
-        database.update_vm_metrics(hostname=hostname, metrics=data)
-
-        # Calculate the total startup time
-        database.calculate_total_startup_time(hostname=hostname)
+        # Update VM metrics and calculate total startup time atomically
+        # This combines two database operations into one for better performance
+        database.update_vm_metrics_atomic(hostname=hostname, metrics=data)
 
         logger.info(f"Received metrics for {hostname}: {data}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
 
     except Exception as e:
-        logger.error(f"Error receiving VM metrics: {e}")
+        logger.error(
+            f"Error receiving VM metrics for {hostname}: {e}",
+            exc_info=True
+        )
         return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
