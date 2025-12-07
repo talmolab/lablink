@@ -806,7 +806,8 @@ def list_scheduled_destructions():
     List all scheduled destructions.
 
     Query parameters:
-        status (optional): Filter by status (scheduled, executing, completed, failed, cancelled)
+        status (optional): Filter by status (scheduled, executing, completed,
+            failed, cancelled)
 
     Returns:
         JSON with list of schedules
@@ -860,7 +861,9 @@ def cancel_scheduled_destruction(schedule_id: int):
         return jsonify(
             {
                 "success": True,
-                "message": f"Scheduled destruction {schedule_id} cancelled successfully",
+                "message": (
+                    f"Scheduled destruction {schedule_id} cancelled successfully"
+                ),
             }
         )
 

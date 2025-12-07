@@ -357,9 +357,6 @@ def test_schedule_retry_exponential_backoff(scheduler_service, mock_database):
 
         # Verify retry job was scheduled
         call_args = scheduler_service.scheduler.add_job.call_args
-        expected_delay = ScheduledDestructionService.RETRY_DELAY_MINUTES * (
-            2**execution_count
-        )
 
         # Check job ID includes retry count
         job_id = call_args[1]["id"]

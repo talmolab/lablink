@@ -757,8 +757,10 @@ class PostgresqlDatabase:
             destruction_time (datetime): The time when the destruction is scheduled.
             recurrence_rule (str, optional): The recurrence rule for the destruction.
             created_by (str, optional): The user who created the schedule.
-            notification_enabled (bool, optional): Whether notifications are enabled.
-            notification_hours_before (int, optional): Hours before destruction to notify.
+            notification_enabled (bool, optional): Whether notifications are
+                enabled.
+            notification_hours_before (int, optional): Hours before destruction
+                to notify.
         Returns:
             int: The ID of the newly created scheduled destruction.
         """
@@ -784,7 +786,8 @@ class PostgresqlDatabase:
             destruction_id = self.cursor.fetchone()[0]
             self.conn.commit()
             logger.debug(
-                f"Created scheduled destruction '{schedule_name}' with ID {destruction_id}."
+                f"Created scheduled destruction '{schedule_name}' "
+                f"with ID {destruction_id}."
             )
             return destruction_id
         except Exception as e:
@@ -806,7 +809,10 @@ class PostgresqlDatabase:
     ) -> List[dict]:
         """Get all scheduled destructions, optionally filtered by status."""
         if status:
-            query = "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;"
+            query = (
+                "SELECT * FROM scheduled_destructions "
+                "WHERE status = %s ORDER BY destruction_time;"
+            )
             self.cursor.execute(query, (status,))
         else:
             query = "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"

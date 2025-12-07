@@ -232,7 +232,7 @@ class ScheduledDestructionService:
                 "-var-file=terraform.runtime.tfvars",
             ]
 
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 cwd=self.terraform_dir,
                 check=True,
