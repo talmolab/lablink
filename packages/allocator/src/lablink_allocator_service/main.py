@@ -6,6 +6,7 @@ import tempfile
 from zipfile import ZipFile
 from datetime import datetime
 import re
+import atexit
 
 from flask import (
     Flask,
@@ -38,6 +39,7 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_ssh_private_key,
     get_instance_timings,
 )
+from lablink_allocator_service.scheduler import ScheduledDestructionService
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -66,6 +68,16 @@ cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
 # Initialize the database connection
 database = None
+
+db_url = (
+    f"postgresql://{cfg.db.user}:{cfg.db.password}"
+    f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+)
+
+scheduler_service = ScheduledDestructionService(database=database, db_url=db_url)
+scheduler_service.start()
+
+atexit.register(scheduler_service.stop)
 
 
 def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
@@ -184,6 +196,7 @@ def create_instances():
 @auth.login_required
 def admin():
     return render_template("admin.html")
+
 
 @app.route("/admin/instances")
 @auth.login_required
@@ -705,11 +718,159 @@ def receive_vm_metrics(hostname):
         return jsonify({"message": "VM metrics posted successfully."}), 200
 
     except Exception as e:
-        logger.error(
-            f"Error receiving VM metrics for {hostname}: {e}",
-            exc_info=True
-        )
+        logger.error(f"Error receiving VM metrics for {hostname}: {e}", exc_info=True)
         return jsonify({"error": "Failed to post VM metrics."}), 500
+
+
+@app.route("/api/schedule-destruction", methods=["POST"])
+@auth.login_required
+def create_scheduled_destruction():
+    """
+    Create a new scheduled destruction.
+
+    Request JSON:
+    {
+        "schedule_name": "Friday Tutorial End",
+        "destruction_time": "2025-12-05T17:30:00Z",
+        "recurrence_rule": null  // or "FREQ=WEEKLY;BYDAY=FR;BYHOUR=17;BYMINUTE=30"
+    }
+
+    Returns:
+        JSON with schedule_id and success status
+    """
+    from datetime import datetime
+
+    data = request.get_json()
+
+    # Validation
+    if not data.get("schedule_name"):
+        return jsonify({"success": False, "message": "schedule_name is required"}), 400
+
+    if not data.get("destruction_time"):
+        return jsonify(
+            {"success": False, "message": "destruction_time is required"}
+        ), 400
+
+    try:
+        destruction_time = datetime.fromisoformat(
+            data["destruction_time"].replace("Z", "+00:00")
+        )
+
+        # Ensure time is in future
+        if destruction_time <= datetime.now(destruction_time.tzinfo):
+            return jsonify(
+                {"success": False, "message": "destruction_time must be in the future"}
+            ), 400
+
+        schedule_id = scheduler_service.schedule_destruction(
+            schedule_name=data["schedule_name"],
+            destruction_time=destruction_time,
+            recurrence_rule=data.get("recurrence_rule"),
+            created_by=auth.current_user(),
+            notification_enabled=data.get("notification_enabled", False),
+            notification_hours_before=data.get("notification_hours_before", 1),
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "schedule_id": schedule_id,
+                "message": "Scheduled destruction created successfully",
+            }
+        ), 201
+
+    except ValueError as e:
+        return jsonify(
+            {"success": False, "message": f"Invalid destruction_time format: {str(e)}"}
+        ), 400
+    except Exception as e:
+        logger.error(f"Failed to create scheduled destruction: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/scheduled-destruction/<int:schedule_id>", methods=["GET"])
+@auth.login_required
+def get_scheduled_destruction(schedule_id: int):
+    """Get details of a scheduled destruction."""
+
+    schedule = database.get_scheduled_destruction(schedule_id)
+
+    if not schedule:
+        return jsonify({"success": False, "message": "Schedule not found"}), 404
+
+    return jsonify({"success": True, "schedule": schedule})
+
+
+@app.route("/api/scheduled-destruction", methods=["GET"])
+@auth.login_required
+def list_scheduled_destructions():
+    """
+    List all scheduled destructions.
+
+    Query parameters:
+        status (optional): Filter by status (scheduled, executing, completed, failed, cancelled)
+
+    Returns:
+        JSON with list of schedules
+    """
+
+    status_filter = request.args.get("status")
+
+    if status_filter and status_filter not in [
+        "scheduled",
+        "executing",
+        "completed",
+        "failed",
+        "cancelled",
+    ]:
+        return jsonify(
+            {"success": False, "message": f"Invalid status filter: {status_filter}"}
+        ), 400
+
+    schedules = database.get_all_scheduled_destructions(status=status_filter)
+
+    return jsonify({"success": True, "schedules": schedules, "count": len(schedules)})
+
+
+@app.route("/api/scheduled-destruction/<int:schedule_id>", methods=["DELETE"])
+@auth.login_required
+def cancel_scheduled_destruction(schedule_id: int):
+    """Cancel a scheduled destruction."""
+
+    # Check if schedule exists
+    schedule = database.get_scheduled_destruction(schedule_id)
+    if not schedule:
+        return jsonify({"success": False, "message": "Schedule not found"}), 404
+
+    # Check if already cancelled or completed
+    if schedule["status"] in ["cancelled", "completed"]:
+        return jsonify(
+            {
+                "success": False,
+                "message": f"Cannot cancel schedule with status '{schedule['status']}'",
+            }
+        ), 400
+
+    try:
+        scheduler_service.cancel_scheduled_destruction(schedule_id)
+
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Scheduled destruction {schedule_id} cancelled successfully",
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to cancel scheduled destruction: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/admin/scheduled-destruction", methods=["GET"])
+@auth.login_required
+def scheduled_destruction_page():
+    """Render scheduled destruction management page."""
+    return render_template("scheduled-destruction.html")
 
 
 def main():

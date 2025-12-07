@@ -431,6 +431,17 @@ class PostgresqlDatabase:
             logger.error(f"Error deleting VMs: {e}")
             self.conn.rollback()
 
+    def clear_scheduled_destructions(self) -> None:
+        """Delete all scheduled destructions from the database."""
+        query = "DELETE FROM scheduled_destructions;"
+        try:
+            self.cursor.execute(query)
+            self.conn.commit()
+            logger.debug("All scheduled destructions deleted from the database.")
+        except Exception as e:
+            logger.error(f"Error deleting scheduled destructions: {e}")
+            self.conn.rollback()
+
     def update_health(self, hostname: str, healthy: str) -> None:
         """Modify the health status of a VM.
 
@@ -703,7 +714,7 @@ class PostgresqlDatabase:
 
         query = f"""
             UPDATE {self.table_name}
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE hostname = %s
             RETURNING TotalStartupDurationSeconds;
         """
@@ -795,10 +806,10 @@ class PostgresqlDatabase:
     ) -> List[dict]:
         """Get all scheduled destructions, optionally filtered by status."""
         if status:
-            query = f"SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;"
+            query = "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;"
             self.cursor.execute(query, (status,))
         else:
-            query = f"SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
+            query = "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
             self.cursor.execute(query)
 
         return [dict(row) for row in self.cursor.fetchall()]
