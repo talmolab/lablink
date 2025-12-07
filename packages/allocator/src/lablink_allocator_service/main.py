@@ -69,15 +69,8 @@ cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 # Initialize the database connection
 database = None
 
-db_url = (
-    f"postgresql://{cfg.db.user}:{cfg.db.password}"
-    f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
-)
-
-scheduler_service = ScheduledDestructionService(database=database, db_url=db_url)
-scheduler_service.start()
-
-atexit.register(scheduler_service.stop)
+# Scheduler service (initialized in main())
+scheduler_service = None
 
 
 def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
@@ -762,6 +755,11 @@ def create_scheduled_destruction():
                 {"success": False, "message": "destruction_time must be in the future"}
             ), 400
 
+        if scheduler_service is None:
+            return jsonify(
+                {"success": False, "message": "Scheduler service not initialized"}
+            ), 500
+
         schedule_id = scheduler_service.schedule_destruction(
             schedule_name=data["schedule_name"],
             destruction_time=destruction_time,
@@ -851,6 +849,11 @@ def cancel_scheduled_destruction(schedule_id: int):
             }
         ), 400
 
+    if scheduler_service is None:
+        return jsonify(
+            {"success": False, "message": "Scheduler service not initialized"}
+        ), 500
+
     try:
         scheduler_service.cancel_scheduled_destruction(schedule_id)
 
@@ -875,9 +878,20 @@ def scheduled_destruction_page():
 
 def main():
     """Main entry point for the allocator service."""
+    global scheduler_service
+
     with app.app_context():
         db.create_all()
         init_database()
+
+    # Initialize scheduler service
+    db_url = (
+        f"postgresql://{cfg.db.user}:{cfg.db.password}"
+        f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+    )
+    scheduler_service = ScheduledDestructionService(database=database, db_url=db_url)
+    scheduler_service.start()
+    atexit.register(scheduler_service.stop)
 
     # Terraform initialization
     if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
