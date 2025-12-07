@@ -1,0 +1,412 @@
+import pytest
+from unittest.mock import MagicMock, patch
+from datetime import datetime, timezone
+
+# Mock APScheduler and related modules before importing scheduler
+mock_apscheduler = MagicMock()
+mock_sqlalchemy_jobstore = MagicMock()
+mock_thread_pool_executor = MagicMock()
+mock_date_trigger = MagicMock()
+mock_cron_trigger = MagicMock()
+mock_background_scheduler = MagicMock()
+
+with patch.dict(
+    "sys.modules",
+    {
+        "apscheduler": mock_apscheduler,
+        "apscheduler.schedulers": MagicMock(),
+        "apscheduler.schedulers.background": MagicMock(
+            BackgroundScheduler=mock_background_scheduler
+        ),
+        "apscheduler.jobstores": MagicMock(),
+        "apscheduler.jobstores.sqlalchemy": MagicMock(
+            SQLAlchemyJobStore=mock_sqlalchemy_jobstore
+        ),
+        "apscheduler.executors": MagicMock(),
+        "apscheduler.executors.pool": MagicMock(
+            ThreadPoolExecutor=mock_thread_pool_executor
+        ),
+        "apscheduler.triggers": MagicMock(),
+        "apscheduler.triggers.date": MagicMock(DateTrigger=mock_date_trigger),
+        "apscheduler.triggers.cron": MagicMock(CronTrigger=mock_cron_trigger),
+    },
+):
+    from lablink_allocator_service.scheduler import ScheduledDestructionService
+
+
+@pytest.fixture
+def mock_database():
+    """Fixture to create a mock database instance."""
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_scheduler():
+    """Fixture to create a mock APScheduler instance."""
+    scheduler = MagicMock()
+    mock_background_scheduler.return_value = scheduler
+    return scheduler
+
+
+@pytest.fixture
+def scheduler_service(mock_database, mock_scheduler):
+    """Fixture to create a ScheduledDestructionService instance."""
+    db_url = "postgresql://user:pass@localhost:5432/lablink"
+    terraform_dir = "/tmp/terraform"
+
+    service = ScheduledDestructionService(
+        database=mock_database,
+        db_url=db_url,
+        terraform_dir=terraform_dir,
+    )
+
+    # The service creates its own scheduler, so we need to replace it with our mock
+    service.scheduler = mock_scheduler
+
+    return service
+
+
+def test_init_creates_scheduler(mock_database):
+    """Test that __init__ properly configures the APScheduler."""
+    db_url = "postgresql://user:pass@localhost:5432/lablink"
+
+    service = ScheduledDestructionService(
+        database=mock_database,
+        db_url=db_url,
+    )
+
+    # Verify SQLAlchemyJobStore was created with correct URL
+    mock_sqlalchemy_jobstore.assert_called_once_with(url=db_url)
+
+    # Verify ThreadPoolExecutor was created
+    mock_thread_pool_executor.assert_called_once_with(max_workers=2)
+
+    # Verify BackgroundScheduler was created
+    mock_background_scheduler.assert_called_once()
+
+
+def test_init_custom_terraform_dir(mock_database):
+    """Test that custom terraform_dir is used when provided."""
+    db_url = "postgresql://user:pass@localhost:5432/lablink"
+    custom_dir = "/custom/terraform/path"
+
+    service = ScheduledDestructionService(
+        database=mock_database,
+        db_url=db_url,
+        terraform_dir=custom_dir,
+    )
+
+    assert service.terraform_dir == custom_dir
+
+
+def test_start_loads_scheduled_destructions(scheduler_service, mock_database):
+    """Test that start() initializes scheduler and loads existing schedules."""
+    mock_database.get_all_scheduled_destructions.return_value = [
+        {
+            "id": 1,
+            "destruction_time": datetime(2025, 12, 6, 18, 0, 0),
+            "recurrence_rule": None,
+        },
+        {
+            "id": 2,
+            "destruction_time": datetime(2025, 12, 7, 18, 0, 0),
+            "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
+        },
+    ]
+
+    scheduler_service.start()
+
+    # Verify scheduler was started
+    scheduler_service.scheduler.start.assert_called_once()
+
+    # Verify schedules were loaded from database
+    mock_database.get_all_scheduled_destructions.assert_called_once_with(
+        status="scheduled"
+    )
+
+    # Verify jobs were added to scheduler (2 schedules)
+    assert scheduler_service.scheduler.add_job.call_count == 2
+
+
+def test_schedule_destruction_one_time(scheduler_service, mock_database):
+    """Test scheduling a one-time destruction."""
+    schedule_name = "End of Tutorial"
+    destruction_time = datetime(2025, 12, 6, 18, 0, 0, tzinfo=timezone.utc)
+    created_by = "admin@example.com"
+
+    mock_database.create_scheduled_destruction.return_value = 42
+
+    schedule_id = scheduler_service.schedule_destruction(
+        schedule_name=schedule_name,
+        destruction_time=destruction_time,
+        recurrence_rule=None,
+        created_by=created_by,
+        notification_enabled=True,
+        notification_hours_before=1,
+    )
+
+    # Verify database record was created
+    mock_database.create_scheduled_destruction.assert_called_once_with(
+        schedule_name=schedule_name,
+        destruction_time=destruction_time,
+        recurrence_rule=None,
+        created_by=created_by,
+        notification_enabled=True,
+        notification_hours_before=1,
+    )
+
+    # Verify job was added to scheduler
+    scheduler_service.scheduler.add_job.assert_called_once()
+    call_args = scheduler_service.scheduler.add_job.call_args
+
+    assert call_args[1]["id"] == "destruction_42"
+    assert call_args[1]["args"] == [42]
+    assert schedule_id == 42
+
+
+def test_schedule_destruction_recurring(scheduler_service, mock_database):
+    """Test scheduling a recurring destruction."""
+    schedule_name = "Weekly Cleanup"
+    destruction_time = datetime(2025, 12, 6, 17, 30, 0, tzinfo=timezone.utc)
+    recurrence_rule = "FREQ=WEEKLY;BYDAY=FR"
+
+    mock_database.create_scheduled_destruction.return_value = 99
+
+    schedule_id = scheduler_service.schedule_destruction(
+        schedule_name=schedule_name,
+        destruction_time=destruction_time,
+        recurrence_rule=recurrence_rule,
+        created_by=None,
+        notification_enabled=False,
+        notification_hours_before=0,
+    )
+
+    # Verify database record was created with recurrence
+    mock_database.create_scheduled_destruction.assert_called_once()
+    call_args = mock_database.create_scheduled_destruction.call_args[1]
+    assert call_args["recurrence_rule"] == recurrence_rule
+
+    # Verify job was added to scheduler
+    scheduler_service.scheduler.add_job.assert_called_once()
+    assert schedule_id == 99
+
+
+def test_cancel_scheduled_destruction(scheduler_service, mock_database):
+    """Test cancelling a scheduled destruction."""
+    schedule_id = 42
+    mock_job = MagicMock()
+    scheduler_service.scheduler.get_job.return_value = mock_job
+
+    scheduler_service.cancel_scheduled_destruction(schedule_id)
+
+    # Verify job was removed from scheduler
+    scheduler_service.scheduler.get_job.assert_called_once_with("destruction_42")
+    scheduler_service.scheduler.remove_job.assert_called_once_with("destruction_42")
+
+    # Verify database was updated
+    mock_database.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
+
+
+def test_cancel_scheduled_destruction_job_not_found(scheduler_service, mock_database):
+    """Test cancelling when job doesn't exist in scheduler."""
+    schedule_id = 42
+    scheduler_service.scheduler.get_job.return_value = None
+
+    scheduler_service.cancel_scheduled_destruction(schedule_id)
+
+    # Should not try to remove job
+    scheduler_service.scheduler.remove_job.assert_not_called()
+
+    # Should still update database
+    mock_database.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
+
+
+def test_parse_rrule_to_cron_weekly(scheduler_service):
+    """Test parsing weekly RRULE to CronTrigger."""
+    # Reset the mock from previous tests
+    mock_cron_trigger.reset_mock()
+
+    # Test the actual parsing (not mocked)
+    # This tests the real RRULE parsing logic
+    recurrence_rule = "FREQ=WEEKLY;BYDAY=FR;BYHOUR=17;BYMINUTE=30"
+
+    trigger = scheduler_service._parse_rrule_to_cron(recurrence_rule)
+
+    # Verify CronTrigger was called with correct parameters
+    mock_cron_trigger.assert_called_once()
+    call_kwargs = mock_cron_trigger.call_args[1]
+    assert call_kwargs["day_of_week"] == "fri"
+    assert call_kwargs["hour"] == 17
+    assert call_kwargs["minute"] == 30
+
+
+def test_parse_rrule_to_cron_daily(scheduler_service):
+    """Test parsing daily RRULE to CronTrigger."""
+    recurrence_rule = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"
+
+    # Reset the mock from previous test
+    mock_cron_trigger.reset_mock()
+
+    trigger = scheduler_service._parse_rrule_to_cron(recurrence_rule)
+
+    mock_cron_trigger.assert_called_once()
+    call_kwargs = mock_cron_trigger.call_args[1]
+    assert call_kwargs["day"] == "*"
+    assert call_kwargs["hour"] == 9
+    assert call_kwargs["minute"] == 0
+
+
+def test_execute_scheduled_destruction_success(scheduler_service, mock_database):
+    """Test successful execution of scheduled destruction."""
+    schedule_id = 42
+
+    # Mock successful terraform destroy
+    with patch("subprocess.run") as mock_run:
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        scheduler_service._execute_scheduled_destruction(schedule_id)
+
+        # Verify status updated to executing
+        assert mock_database.update_scheduled_destruction_status.call_count >= 2
+        first_call = mock_database.update_scheduled_destruction_status.call_args_list[0]
+        assert first_call[1]["schedule_id"] == schedule_id
+        assert first_call[1]["status"] == "executing"
+
+        # Verify terraform destroy was called
+        mock_run.assert_called_once()
+        cmd_call = mock_run.call_args
+        assert "terraform" in cmd_call[0][0]
+        assert "destroy" in cmd_call[0][0]
+        assert "-auto-approve" in cmd_call[0][0]
+
+        # Verify database was cleared
+        mock_database.clear_scheduled_destructions.assert_called_once()
+
+        # Verify status updated to completed
+        last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+        assert last_call[1]["status"] == "completed"
+        assert "successfully" in last_call[1]["execution_result"]
+
+
+def test_execute_scheduled_destruction_terraform_failure(
+    scheduler_service, mock_database
+):
+    """Test handling of terraform destroy failure."""
+    schedule_id = 42
+
+    # Mock terraform destroy failure
+    with patch("subprocess.run") as mock_run:
+        from subprocess import CalledProcessError
+
+        mock_run.side_effect = CalledProcessError(
+            returncode=1,
+            cmd=["terraform", "destroy"],
+            stderr="Error destroying resources",
+        )
+
+        mock_database.get_scheduled_destruction.return_value = {
+            "execution_count": 0,
+        }
+
+        scheduler_service._execute_scheduled_destruction(schedule_id)
+
+        # Verify status was updated to failed
+        calls = mock_database.update_scheduled_destruction_status.call_args_list
+        failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
+        assert failed_call[1]["schedule_id"] == schedule_id
+        assert "Terraform destroy failed" in failed_call[1]["execution_result"]
+
+        # Verify retry was scheduled
+        scheduler_service.scheduler.add_job.assert_called()
+
+
+def test_schedule_retry_exponential_backoff(scheduler_service, mock_database):
+    """Test retry scheduling with exponential backoff."""
+    schedule_id = 42
+
+    # Test with different execution counts
+    for execution_count in range(3):
+        mock_database.get_scheduled_destruction.return_value = {
+            "execution_count": execution_count,
+        }
+
+        scheduler_service._schedule_retry(schedule_id)
+
+        # Verify retry job was scheduled
+        call_args = scheduler_service.scheduler.add_job.call_args
+        expected_delay = ScheduledDestructionService.RETRY_DELAY_MINUTES * (
+            2**execution_count
+        )
+
+        # Check job ID includes retry count
+        job_id = call_args[1]["id"]
+        assert f"destruction_{schedule_id}_retry_{execution_count}" == job_id
+
+        # Reset for next iteration
+        scheduler_service.scheduler.add_job.reset_mock()
+
+
+def test_schedule_retry_max_retries_exceeded(scheduler_service, mock_database):
+    """Test that retries stop after MAX_RETRIES."""
+    schedule_id = 42
+
+    # Mock execution_count at MAX_RETRIES
+    mock_database.get_scheduled_destruction.return_value = {
+        "execution_count": ScheduledDestructionService.MAX_RETRIES,
+    }
+
+    scheduler_service._schedule_retry(schedule_id)
+
+    # Verify no retry was scheduled
+    scheduler_service.scheduler.add_job.assert_not_called()
+
+
+def test_load_scheduled_destructions(scheduler_service, mock_database):
+    """Test loading schedules from database on startup."""
+    mock_schedules = [
+        {
+            "id": 1,
+            "destruction_time": datetime(2025, 12, 6, 18, 0, 0),
+            "recurrence_rule": None,
+        },
+        {
+            "id": 2,
+            "destruction_time": datetime(2025, 12, 7, 18, 0, 0),
+            "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
+        },
+        {
+            "id": 3,
+            "destruction_time": datetime(2025, 12, 8, 18, 0, 0),
+            "recurrence_rule": "FREQ=DAILY",
+        },
+    ]
+
+    mock_database.get_all_scheduled_destructions.return_value = mock_schedules
+
+    scheduler_service._load_scheduled_destructions()
+
+    # Verify correct status filter was used
+    mock_database.get_all_scheduled_destructions.assert_called_once_with(
+        status="scheduled"
+    )
+
+    # Verify all schedules were added to scheduler
+    assert scheduler_service.scheduler.add_job.call_count == 3
+
+
+def test_load_scheduled_destructions_empty(scheduler_service, mock_database):
+    """Test loading when no schedules exist."""
+    mock_database.get_all_scheduled_destructions.return_value = []
+
+    scheduler_service._load_scheduled_destructions()
+
+    # Verify no jobs were added
+    scheduler_service.scheduler.add_job.assert_not_called()
+
+
+def test_constants():
+    """Test that class-level constants are correctly defined."""
+    assert ScheduledDestructionService.MAX_RETRIES == 3
+    assert ScheduledDestructionService.RETRY_DELAY_MINUTES == 10

@@ -773,8 +773,7 @@ def test_get_scheduled_destruction(db_instance):
     result = db_instance.get_scheduled_destruction(schedule_id)
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM scheduled_destructions WHERE id = %s;",
-        (schedule_id,)
+        "SELECT * FROM scheduled_destructions WHERE id = %s;", (schedule_id,)
     )
     assert result == schedule_data
 
@@ -821,7 +820,7 @@ def test_get_all_scheduled_destructions_with_status_filter(db_instance):
 
     db_instance.cursor.execute.assert_called_with(
         "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;",
-        ("scheduled",)
+        ("scheduled",),
     )
     assert result == scheduled_only
     assert len(result) == 2
@@ -880,6 +879,24 @@ def test_cancel_scheduled_destruction(db_instance):
 
     db_instance.cursor.execute.assert_called_with(
         "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;",
-        (schedule_id,)
+        (schedule_id,),
     )
     db_instance.conn.commit.assert_called_once()
+
+
+def test_clear_scheduled_destructions(db_instance):
+    """Test clearing all scheduled destructions from the database."""
+    db_instance.clear_scheduled_destructions()
+
+    db_instance.cursor.execute.assert_called_with("DELETE FROM scheduled_destructions;")
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_clear_scheduled_destructions_error(db_instance, caplog):
+    """Test error handling in clear_scheduled_destructions."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+
+    db_instance.clear_scheduled_destructions()
+
+    assert "Error deleting scheduled destructions: DB error" in caplog.text
+    db_instance.conn.rollback.assert_called_once()

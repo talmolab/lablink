@@ -1054,6 +1054,7 @@ def test_vm_logs_by_hostname_internal_error(client, monkeypatch):
     assert resp.get_json() == {"error": "Failed to get VM logs."}
     fake_db.get_vm_logs.assert_not_called()
 
+
 def test_receive_vm_metrics_success(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint with valid data."""
     # Mock the database
@@ -1082,6 +1083,7 @@ def test_receive_vm_metrics_success(client, monkeypatch):
     fake_db.update_vm_metrics_atomic.assert_called_once_with(
         hostname=hostname, metrics=metrics_data
     )
+
 
 def test_receive_vm_metrics_vm_not_found(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint when the VM is not found."""

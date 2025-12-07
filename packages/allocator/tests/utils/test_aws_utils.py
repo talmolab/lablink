@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 import lablink_allocator_service.utils.aws_utils as aws_utils
 
+
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_get_all_instance_types(mock_boto_client):
     paginator = MagicMock()
