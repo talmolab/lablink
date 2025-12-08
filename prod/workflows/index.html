@@ -4473,6 +4473,27 @@
 <h4 id="1-build-job">1. Build Job<a class="headerlink" href="#1-build-job" title="Permanent link">&para;</a></h4>
 <ol>
 <li>
+<p><strong>Free Disk Space</strong></p>
+</li>
+<li>
+<p>Removes large pre-installed packages from GitHub Actions runner (~20-30GB freed)</p>
+</li>
+<li><strong>Why needed</strong>: Client image with CUDA is ~6GB and requires 12-18GB during build</li>
+<li><strong>Problem</strong>: GitHub runners start with only ~14GB free space, causing "No space left on device" errors</li>
+<li><strong>What's removed</strong>:<ul>
+<li>Android SDK (~11GB) - Not needed for Python/Docker builds</li>
+<li>.NET SDK (~2GB) - Not needed</li>
+<li>Haskell GHC (~5GB) - Not needed</li>
+<li>Swap storage (~4GB) - Not needed for Docker builds</li>
+<li>Other cloud SDKs - Not needed</li>
+</ul>
+</li>
+<li><strong>What's kept</strong>: Tool cache (Python, Node.js) for potential use in later steps</li>
+<li><strong>Impact</strong>: Adds 2-4 minutes to build time, eliminates disk space failures</li>
+<li>
+<p><strong>Safety</strong>: Runs on separate runners from verification jobs, no impact on image quality</p>
+</li>
+<li>
 <p><strong>Select Dockerfile</strong></p>
 </li>
 <li>
