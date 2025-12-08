@@ -76,34 +76,25 @@ class DNSConfig:
     """Configuration for DNS and domain setup.
 
     This class defines DNS settings for Route 53 hosted zones and records.
-    DNS can be disabled entirely, or configured with different naming patterns.
+    DNS can be disabled entirely, or configured with external DNS providers.
 
     Attributes:
         enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
         terraform_managed (bool): Whether Terraform creates/destroys DNS records.
-            If False, DNS records must be created manually in Route53.
-        domain (str): The base domain name (e.g., "sleap.ai").
+            - True: Terraform manages Route53 DNS records (creates and destroys)
+            - False: External DNS management (CloudFlare, manual Route53, etc.)
+        domain (str): Full domain name for the allocator
+            (e.g., "lablink.sleap.ai", "test.lablink.sleap.ai").
+            Required when enabled=true.
+            Supports sub-subdomains for environment separation.
         zone_id (str): Optional Route53 hosted zone ID. If provided, skips zone lookup.
             Use this when zone lookup finds the wrong zone (e.g., parent vs subdomain).
-        app_name (str): The application name used in subdomains (e.g., "lablink").
-        pattern (str): Naming pattern for DNS records. Options:
-            - "auto": Automatically generate based on environment
-                      prod: {app_name}.{domain}
-                      non-prod: {env}.{app_name}.{domain}
-            - "app-only": Always use {app_name}.{domain}
-            - "custom": Use custom_subdomain value
-        custom_subdomain (str): Custom subdomain when pattern="custom"
-        create_zone (bool): Whether to create a new Route 53 hosted zone
     """
 
     enabled: bool = field(default=False)
     terraform_managed: bool = field(default=True)
     domain: str = field(default="")
     zone_id: str = field(default="")
-    app_name: str = field(default="lablink")
-    pattern: str = field(default="auto")
-    custom_subdomain: str = field(default="")
-    create_zone: bool = field(default=False)
 
 
 @dataclass
@@ -127,18 +118,19 @@ class SSLConfig:
 
     Attributes:
         provider (str): SSL provider. Options:
+            - "none": HTTP only, no SSL
             - "letsencrypt": Automatic SSL via Caddy + Let's Encrypt
             - "cloudflare": CloudFlare proxy handles SSL
-            - "none": HTTP only, no SSL
+              (requires terraform_managed=false)
+            - "acm": AWS Certificate Manager (requires ALB, certificate_arn)
         email (str): Email address for Let's Encrypt notifications
-        staging (bool): When true, serve HTTP only for unlimited testing.
-            When false, serve HTTPS with trusted Let's Encrypt certificates
-            (rate limited to 5 duplicate certs per week).
+            (required when provider="letsencrypt")
+        certificate_arn (str): AWS ACM certificate ARN (required when provider="acm")
     """
 
     provider: str = field(default="letsencrypt")
     email: str = field(default="")
-    staging: bool = field(default=False)
+    certificate_arn: str = field(default="")
 
 
 @dataclass

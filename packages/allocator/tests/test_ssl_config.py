@@ -11,48 +11,45 @@ class TestSSLConfig:
         config = SSLConfig()
         assert config.provider == "letsencrypt"
         assert config.email == ""
-        assert config.staging is False
+        assert config.certificate_arn == ""
 
-    def test_ssl_config_custom_values(self):
-        """Test SSLConfig with custom values."""
+    def test_ssl_config_letsencrypt(self):
+        """Test SSLConfig for Let's Encrypt."""
+        config = SSLConfig(
+            provider="letsencrypt",
+            email="admin@example.com",
+        )
+        assert config.provider == "letsencrypt"
+        assert config.email == "admin@example.com"
+        assert config.certificate_arn == ""
+
+    def test_ssl_config_cloudflare(self):
+        """Test SSLConfig for CloudFlare."""
         config = SSLConfig(
             provider="cloudflare",
-            email="admin@example.com",
-            staging=True,
+            email="",
         )
         assert config.provider == "cloudflare"
-        assert config.email == "admin@example.com"
-        assert config.staging is True
+        assert config.email == ""
+        assert config.certificate_arn == ""
 
-    def test_ssl_config_letsencrypt_production(self):
-        """Test SSLConfig for Let's Encrypt production mode."""
+    def test_ssl_config_acm(self):
+        """Test SSLConfig for AWS Certificate Manager."""
         config = SSLConfig(
-            provider="letsencrypt",
-            email="admin@example.com",
-            staging=False,
+            provider="acm",
+            email="",
+            certificate_arn="arn:aws:acm:us-west-2:123456789012:certificate/abc-123",
         )
-        assert config.provider == "letsencrypt"
-        assert config.email == "admin@example.com"
-        assert config.staging is False
-
-    def test_ssl_config_letsencrypt_staging(self):
-        """Test SSLConfig for Let's Encrypt staging mode."""
-        config = SSLConfig(
-            provider="letsencrypt",
-            email="admin@example.com",
-            staging=True,
-        )
-        assert config.provider == "letsencrypt"
-        assert config.email == "admin@example.com"
-        assert config.staging is True
+        assert config.provider == "acm"
+        assert config.email == ""
+        assert config.certificate_arn == "arn:aws:acm:us-west-2:123456789012:certificate/abc-123"
 
     def test_ssl_config_no_ssl(self):
         """Test SSLConfig with SSL disabled."""
         config = SSLConfig(
             provider="none",
             email="",
-            staging=False,
         )
         assert config.provider == "none"
         assert config.email == ""
-        assert config.staging is False
+        assert config.certificate_arn == ""
