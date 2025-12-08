@@ -39,7 +39,7 @@
   - Invalid prefix: `xx-west-2`
 - [ ] Test: Common typos fail validation
   - `us-west-3` (doesn't exist)
-  - `eu-central-2` (doesn't exist as of validation implementation)
+  - `eu-north-2` (doesn't exist)
 
 ### 4. Validation and Testing
 
