@@ -5,28 +5,32 @@ Run ruff linting checks on both packages to ensure code quality and style compli
 ## Quick Command
 
 ```bash
-# Check both packages
-uv run ruff check packages/allocator packages/client
+# Check both packages (run from each package directory)
+cd packages/allocator && uv run ruff check .
+cd packages/client && uv run ruff check .
 ```
 
 ## Individual Package Checks
 
 ```bash
 # Allocator only
-uv run ruff check packages/allocator
+cd packages/allocator
+uv run ruff check .
 
 # Client only
-uv run ruff check packages/client
+cd packages/client
+uv run ruff check .
 ```
 
 ## With Detailed Output
 
 ```bash
 # Show all violations with context
-uv run ruff check packages/allocator packages/client --output-format=full
+cd packages/allocator && uv run ruff check . --output-format=full
+cd packages/client && uv run ruff check . --output-format=full
 
 # Show statistics
-uv run ruff check packages/allocator packages/client --statistics
+cd packages/allocator && uv run ruff check . --statistics
 ```
 
 ## Description
@@ -58,21 +62,23 @@ Found 3 errors.
 ## Check Specific Files
 
 ```bash
-# Check specific file
-uv run ruff check packages/allocator/src/lablink_allocator/main.py
+# Check specific file (from package directory)
+cd packages/allocator
+uv run ruff check src/lablink_allocator/main.py
 
 # Check specific directory
-uv run ruff check packages/allocator/src/lablink_allocator/
+uv run ruff check src/lablink_allocator/
 ```
 
 ## Ignore Specific Rules
 
 ```bash
 # Ignore specific error code
-uv run ruff check packages/allocator --ignore F401
+cd packages/allocator
+uv run ruff check . --ignore F401
 
 # Ignore multiple codes
-uv run ruff check packages/allocator --ignore F401,E501
+uv run ruff check . --ignore F401,E501
 ```
 
 ## Configuration
@@ -97,7 +103,8 @@ Linting runs automatically in `.github/workflows/ci.yml` on all PRs. CI will fai
 ### Too Many Errors
 Start by fixing auto-fixable issues:
 ```bash
-uv run ruff check --fix packages/allocator packages/client
+cd packages/allocator && uv run ruff check --fix .
+cd packages/client && uv run ruff check --fix .
 ```
 
 ### False Positives
@@ -115,7 +122,8 @@ result = long_function_call()  # noqa: E501
 ### Conflicting Rules
 Check ruff configuration:
 ```bash
-uv run ruff check --show-settings packages/allocator
+cd packages/allocator
+uv run ruff check --show-settings .
 ```
 
 ## Related Commands

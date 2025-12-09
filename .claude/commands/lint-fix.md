@@ -5,9 +5,9 @@ Automatically fix linting issues using ruff's auto-fix and formatting capabiliti
 ## Quick Command
 
 ```bash
-# Fix and format both packages
-uv run ruff check --fix packages/allocator packages/client
-uv run ruff format packages/allocator packages/client
+# Fix and format both packages (run from each package directory)
+cd packages/allocator && uv run ruff check --fix . && uv run ruff format .
+cd packages/client && uv run ruff check --fix . && uv run ruff format .
 ```
 
 ## Step-by-Step
@@ -16,26 +16,30 @@ uv run ruff format packages/allocator packages/client
 
 ```bash
 # Fix auto-fixable issues
-uv run ruff check --fix packages/allocator packages/client
+cd packages/allocator && uv run ruff check --fix .
+cd packages/client && uv run ruff check --fix .
 ```
 
 ### Step 2: Format Code
 
 ```bash
 # Format code (consistent spacing, line breaks, etc.)
-uv run ruff format packages/allocator packages/client
+cd packages/allocator && uv run ruff format .
+cd packages/client && uv run ruff format .
 ```
 
 ## Individual Package Fix
 
 ```bash
 # Allocator only
-uv run ruff check --fix packages/allocator
-uv run ruff format packages/allocator
+cd packages/allocator
+uv run ruff check --fix .
+uv run ruff format .
 
 # Client only
-uv run ruff check --fix packages/client
-uv run ruff format packages/client
+cd packages/client
+uv run ruff check --fix .
+uv run ruff format .
 ```
 
 ## What Gets Fixed
@@ -59,22 +63,24 @@ uv run ruff format packages/client
 
 ```bash
 # Show what would be fixed (dry run)
-uv run ruff check --fix --diff packages/allocator
+cd packages/allocator
+uv run ruff check --fix --diff .
 
 # Show formatting changes without applying
-uv run ruff format --diff packages/allocator
+uv run ruff format --diff .
 ```
 
 ## Fix Specific Files
 
 ```bash
-# Fix specific file
-uv run ruff check --fix packages/allocator/src/lablink_allocator/main.py
-uv run ruff format packages/allocator/src/lablink_allocator/main.py
+# Fix specific file (from package directory)
+cd packages/allocator
+uv run ruff check --fix src/lablink_allocator/main.py
+uv run ruff format src/lablink_allocator/main.py
 
 # Fix all Python files in directory
-uv run ruff check --fix packages/allocator/src/
-uv run ruff format packages/allocator/src/
+uv run ruff check --fix src/
+uv run ruff format src/
 ```
 
 ## Unsafe Fixes
@@ -83,7 +89,8 @@ Some fixes are considered "unsafe" and require explicit opt-in:
 
 ```bash
 # Include unsafe fixes
-uv run ruff check --fix --unsafe-fixes packages/allocator
+cd packages/allocator
+uv run ruff check --fix --unsafe-fixes .
 ```
 
 **Warning**: Unsafe fixes may change code behavior. Review changes carefully.
@@ -94,7 +101,8 @@ After auto-fixing, verify no issues remain:
 
 ```bash
 # Check for remaining violations
-uv run ruff check packages/allocator packages/client
+cd packages/allocator && uv run ruff check .
+cd packages/client && uv run ruff check .
 
 # Run tests to ensure fixes didn't break anything
 cd packages/allocator && uv run pytest tests --ignore=tests/terraform
@@ -105,8 +113,8 @@ cd packages/client && uv run pytest
 
 ```bash
 # Before committing
-uv run ruff check --fix packages/allocator packages/client
-uv run ruff format packages/allocator packages/client
+cd packages/allocator && uv run ruff check --fix . && uv run ruff format .
+cd packages/client && uv run ruff check --fix . && uv run ruff format .
 
 # Review changes
 git diff
@@ -123,8 +131,8 @@ Consider adding a pre-commit hook to auto-fix on commit:
 ```bash
 # .git/hooks/pre-commit
 #!/bin/bash
-uv run ruff check --fix packages/allocator packages/client
-uv run ruff format packages/allocator packages/client
+cd packages/allocator && uv run ruff check --fix . && uv run ruff format .
+cd packages/client && uv run ruff check --fix . && uv run ruff format .
 git add -u
 ```
 
@@ -149,7 +157,7 @@ Ensure you have write permissions and the files aren't read-only.
 If manual edits conflict with formatter, let the formatter win:
 ```bash
 # Force format
-uv run ruff format packages/allocator
+cd packages/allocator && uv run ruff format .
 ```
 
 ### Unsafe Fixes Changed Behavior
@@ -157,7 +165,8 @@ Revert unsafe fixes:
 ```bash
 git checkout -- packages/
 # Then re-run without --unsafe-fixes
-uv run ruff check --fix packages/allocator packages/client
+cd packages/allocator && uv run ruff check --fix .
+cd packages/client && uv run ruff check --fix .
 ```
 
 ## Related Commands
