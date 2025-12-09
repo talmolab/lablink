@@ -750,20 +750,8 @@ class PostgresqlDatabase:
         created_by: str = None,
         notification_enabled: bool = True,
         notification_hours_before: int = 1,
-    ) -> int:
-        """Create a scheduled destruction entry in the database.
-        Args:
-            schedule_name (str): The name of the destruction schedule.
-            destruction_time (datetime): The time when the destruction is scheduled.
-            recurrence_rule (str, optional): The recurrence rule for the destruction.
-            created_by (str, optional): The user who created the schedule.
-            notification_enabled (bool, optional): Whether notifications are
-                enabled.
-            notification_hours_before (int, optional): Hours before destruction
-                to notify.
-        Returns:
-            int: The ID of the newly created scheduled destruction.
-        """
+    ) -> int | None:
+        """Create a scheduled destruction entry and return its ID."""
         query = """
             INSERT INTO scheduled_destructions
             (schedule_name, destruction_time, recurrence_rule, created_by,

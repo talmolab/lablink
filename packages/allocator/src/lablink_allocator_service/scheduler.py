@@ -233,6 +233,11 @@ class ScheduledDestructionService:
             notification_hours_before=notification_hours_before,
         )
 
+        if schedule_id is None:
+            error_msg = f"Failed to create scheduled destruction '{schedule_name}'"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
         # Add job to APScheduler
         self._add_scheduler_job(
             schedule_id=schedule_id,

@@ -732,6 +732,14 @@ def create_scheduled_destruction():
             notification_hours_before=data.get("notification_hours_before", 1),
         )
 
+        if schedule_id is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Failed to create schedule",
+                }
+            ), 500
+
         return jsonify(
             {
                 "success": True,
