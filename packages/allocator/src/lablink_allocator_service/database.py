@@ -801,13 +801,44 @@ class PostgresqlDatabase:
         self.cursor.execute(query, (schedule_id,))
         row = self.cursor.fetchone()
         if row:
-            return dict(row)
+            columns = [
+                "id",
+                "schedule_name",
+                "destruction_time",
+                "recurrence_rule",
+                "created_by",
+                "status",
+                "execution_count",
+                "last_execution_time",
+                "last_execution_result",
+                "notification_enabled",
+                "notification_hours_before",
+                "created_at",
+                "updated_at",
+            ]
+            return dict(zip(columns, row))
         return None
 
     def get_all_scheduled_destructions(
         self, status: Optional[str] = None
     ) -> List[dict]:
         """Get all scheduled destructions, optionally filtered by status."""
+        columns = [
+            "id",
+            "schedule_name",
+            "destruction_time",
+            "recurrence_rule",
+            "created_by",
+            "status",
+            "execution_count",
+            "last_execution_time",
+            "last_execution_result",
+            "notification_enabled",
+            "notification_hours_before",
+            "created_at",
+            "updated_at",
+        ]
+
         if status:
             query = (
                 "SELECT * FROM scheduled_destructions "
@@ -818,7 +849,7 @@ class PostgresqlDatabase:
             query = "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
             self.cursor.execute(query)
 
-        return [dict(row) for row in self.cursor.fetchall()]
+        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
     def update_scheduled_destruction_status(
         self,
