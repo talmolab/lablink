@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import subprocess
 import os
 from typing import Optional
@@ -13,125 +13,6 @@ from dateutil import rrule
 from lablink_allocator_service.database import PostgresqlDatabase
 
 logger = logging.getLogger(__name__)
-
-
-# Standalone function for scheduled destruction execution
-# This avoids pickling issues with the database connection
-def execute_scheduled_destruction_job(
-    schedule_id: int,
-    dbname: str,
-    user: str,
-    password: str,
-    host: str,
-    port: int,
-    table_name: str,
-    message_channel: str,
-    terraform_dir: str,
-    max_retries: int = 3,
-    retry_delay_minutes: int = 10,
-):
-    """
-    Execute a scheduled destruction job.
-
-    This is a standalone function (not a method) to avoid pickling issues
-    with APScheduler's SQLAlchemy job store.
-
-    Args:
-        schedule_id: ID of the scheduled destruction
-        dbname: Database name
-        user: Database user
-        password: Database password
-        host: Database host
-        port: Database port
-        table_name: VMs table name
-        message_channel: Message channel name
-        terraform_dir: Path to Terraform directory
-        max_retries: Maximum number of retry attempts
-        retry_delay_minutes: Base delay in minutes for retries
-    """
-    from lablink_allocator_service.database import PostgresqlDatabase
-
-    # Create a fresh database connection for this job
-    database = PostgresqlDatabase(
-        dbname=dbname,
-        user=user,
-        password=password,
-        host=host,
-        port=port,
-        table_name=table_name,
-        message_channel=message_channel,
-    )
-
-    logger.info(f"Executing scheduled destruction ID: {schedule_id}")
-
-    try:
-        # Mark as executing
-        database.update_scheduled_destruction_status(
-            schedule_id=schedule_id,
-            status="executing",
-        )
-
-        # Run terraform destroy
-        logger.info("Running terraform destroy")
-        cmd = [
-            "terraform",
-            "destroy",
-            "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
-        ]
-
-        subprocess.run(
-            cmd,
-            cwd=terraform_dir,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 min timeout
-        )
-
-        # Clear database
-        logger.info("Clearing database")
-        database.clear_scheduled_destructions()
-
-        # Mark as completed
-        database.update_scheduled_destruction_status(
-            schedule_id=schedule_id,
-            status="completed",
-            execution_result="All VMs destroyed successfully",
-        )
-
-        logger.info(f"Scheduled destruction {schedule_id} completed successfully")
-
-    except subprocess.CalledProcessError as e:
-        error_msg = f"Terraform destroy failed: {e.stderr}"
-        logger.error(error_msg)
-
-        database.update_scheduled_destruction_status(
-            schedule_id=schedule_id,
-            status="failed",
-            execution_result=error_msg,
-        )
-
-        # Note: Retry logic would need to be implemented in the scheduler
-        # if this fails, as we can't easily schedule retries from here
-
-    except Exception as e:
-        error_msg = f"Destruction failed: {str(e)}"
-        logger.error(error_msg)
-
-        database.update_scheduled_destruction_status(
-            schedule_id=schedule_id,
-            status="failed",
-            execution_result=error_msg,
-        )
-
-    finally:
-        # Close the database connection manually
-        if hasattr(database, "cursor") and database.cursor:
-            database.cursor.close()
-        if hasattr(database, "conn") and database.conn:
-            database.conn.close()
-        logger.debug("Database connection closed.")
 
 
 class ScheduledDestructionService:
@@ -153,19 +34,6 @@ class ScheduledDestructionService:
             terraform_dir: Path to Terraform directory (optional, auto-detected if None)
         """
         self.database: PostgresqlDatabase = database
-        self.db_url = db_url
-
-        # Store database config for job execution
-        self.db_config = {
-            "dbname": database.dbname,
-            "user": database.user,
-            "password": database.password,
-            "host": database.host,
-            "port": database.port,
-            "table_name": database.table_name,
-            "message_channel": database.message_channel,
-        }
-
         self.terraform_dir = terraform_dir or os.path.join(
             os.path.dirname(__file__), "terraform"
         )
@@ -279,19 +147,9 @@ class ScheduledDestructionService:
             trigger = DateTrigger(run_date=destruction_time)
 
         self.scheduler.add_job(
-            func=execute_scheduled_destruction_job,
+            func=self._execute_scheduled_destruction,
             trigger=trigger,
-            args=[
-                schedule_id,
-                self.db_config["dbname"],
-                self.db_config["user"],
-                self.db_config["password"],
-                self.db_config["host"],
-                self.db_config["port"],
-                self.db_config["table_name"],
-                self.db_config["message_channel"],
-                self.terraform_dir,
-            ],
+            args=[schedule_id],
             id=job_id,
             name=f"Scheduled Destruction {schedule_id}",
             replace_existing=True,
@@ -348,6 +206,107 @@ class ScheduledDestructionService:
                 kwargs["minute"] = ",".join(map(str, byminute_list))
 
         return CronTrigger(**kwargs)
+
+    def _execute_scheduled_destruction(self, schedule_id: int) -> None:
+        """
+        Execute a scheduled destruction (called by APScheduler).
+
+        This runs `terraform destroy` and clears the database.
+        """
+
+        logger.info(f"Executing scheduled destruction ID: {schedule_id}")
+
+        try:
+            # Mark as executing
+            self.database.update_scheduled_destruction_status(
+                schedule_id=schedule_id,
+                status="executing",
+            )
+
+            # Run terraform destroy
+            logger.info("Running terraform destroy")
+            cmd = [
+                "terraform",
+                "destroy",
+                "-auto-approve",
+                "-var-file=terraform.runtime.tfvars",
+            ]
+
+            subprocess.run(
+                cmd,
+                cwd=self.terraform_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 min timeout
+            )
+
+            # Clear database
+            logger.info("Clearing database")
+            self.database.clear_scheduled_destructions()
+
+            # Mark as completed
+            self.database.update_scheduled_destruction_status(
+                schedule_id=schedule_id,
+                status="completed",
+                execution_result="All VMs destroyed successfully",
+            )
+
+            logger.info(f"Scheduled destruction {schedule_id} completed successfully")
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Terraform destroy failed: {e.stderr}"
+            logger.error(error_msg)
+
+            self.database.update_scheduled_destruction_status(
+                schedule_id=schedule_id,
+                status="failed",
+                execution_result=error_msg,
+            )
+
+            # Retry logic
+            self._schedule_retry(schedule_id)
+
+        except Exception as e:
+            error_msg = f"Destruction failed: {str(e)}"
+            logger.error(error_msg)
+
+            self.database.update_scheduled_destruction_status(
+                schedule_id=schedule_id,
+                status="failed",
+                execution_result=error_msg,
+            )
+
+            # Retry logic
+            self._schedule_retry(schedule_id)
+
+    def _schedule_retry(self, schedule_id: int) -> None:
+        """Schedule a retry for failed destruction with exponential backoff."""
+
+        schedule = self.database.get_scheduled_destruction(schedule_id)
+        execution_count = schedule.get("execution_count", 0)
+
+        if execution_count < self.MAX_RETRIES:
+            # Exponential backoff: 10 min, 20 min, 40 min
+            delay_minutes = self.RETRY_DELAY_MINUTES * (2**execution_count)
+            retry_time = datetime.now() + timedelta(minutes=delay_minutes)
+
+            logger.info(
+                f"Scheduling retry {execution_count + 1}/{self.MAX_RETRIES} "
+                f"for destruction {schedule_id} at {retry_time}"
+            )
+
+            self.scheduler.add_job(
+                func=self._execute_scheduled_destruction,
+                trigger=DateTrigger(run_date=retry_time),
+                args=[schedule_id],
+                id=f"destruction_{schedule_id}_retry_{execution_count}",
+            )
+        else:
+            logger.error(
+                f"Scheduled destruction {schedule_id} failed after "
+                f"{self.MAX_RETRIES} retries - giving up"
+            )
 
     def _load_scheduled_destructions(self) -> None:
         """Load existing scheduled destructions from database on startup."""
