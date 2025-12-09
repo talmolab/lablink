@@ -749,7 +749,7 @@ def create_scheduled_destruction():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@app.route("/api/scheduled-destruction/<int:schedule_id>", methods=["GET"])
+@app.route("/api/schedule-destruction/<int:schedule_id>", methods=["GET"])
 @auth.login_required
 def get_scheduled_destruction(schedule_id: int):
     """Get details of a scheduled destruction."""
@@ -762,7 +762,7 @@ def get_scheduled_destruction(schedule_id: int):
     return jsonify({"success": True, "schedule": schedule})
 
 
-@app.route("/api/scheduled-destruction", methods=["GET"])
+@app.route("/api/schedule-destruction", methods=["GET"])
 @auth.login_required
 def list_scheduled_destructions():
     """
@@ -794,7 +794,7 @@ def list_scheduled_destructions():
     return jsonify({"success": True, "schedules": schedules, "count": len(schedules)})
 
 
-@app.route("/api/scheduled-destruction/<int:schedule_id>", methods=["DELETE"])
+@app.route("/api/schedule-destruction/<int:schedule_id>", methods=["DELETE"])
 @auth.login_required
 def cancel_scheduled_destruction(schedule_id: int):
     """Cancel a scheduled destruction."""

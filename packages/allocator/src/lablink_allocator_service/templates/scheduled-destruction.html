@@ -256,11 +256,12 @@
           };
 
           try {
-            const response = await fetch("/api/scheduled-destruction", {
+            const response = await fetch("/api/schedule-destruction", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
+              credentials: "include",
               body: JSON.stringify(data),
             });
 
@@ -283,7 +284,9 @@
       // Load scheduled destructions
       async function loadSchedules() {
         try {
-          const response = await fetch("/api/scheduled-destruction");
+          const response = await fetch("/api/schedule-destruction", {
+            credentials: "include",
+          });
           const result = await response.json();
 
           const tbody = document.querySelector("#schedules-table tbody");
@@ -348,9 +351,10 @@
 
         try {
           const response = await fetch(
-            `/api/scheduled-destruction/${scheduleId}`,
+            `/api/schedule-destruction/${scheduleId}`,
             {
               method: "DELETE",
+              credentials: "include",
             }
           );
 
