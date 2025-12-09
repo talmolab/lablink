@@ -174,7 +174,9 @@ def test_schedule_destruction_one_time(scheduler_service, mock_database):
     call_args = scheduler_service.scheduler.add_job.call_args
 
     assert call_args[1]["id"] == "destruction_42"
-    assert call_args[1]["args"] == [42]
+    # Args now include schedule_id plus all database config params
+    assert call_args[1]["args"][0] == 42  # schedule_id is first arg
+    assert len(call_args[1]["args"]) == 9  # schedule_id + 8 db config params
     assert schedule_id == 42
 
 
@@ -278,16 +280,30 @@ def test_parse_rrule_to_cron_daily(scheduler_service):
 
 
 def test_execute_scheduled_destruction_success(scheduler_service, mock_database):
-    """Test successful execution of scheduled destruction."""
+    """Test successful execution of scheduled destruction via standalone function."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+
     schedule_id = 42
 
     # Mock successful terraform destroy
-    with patch("subprocess.run") as mock_run:
+    with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
 
-        scheduler_service._execute_scheduled_destruction(schedule_id)
+        # Mock PostgresqlDatabase constructor - need to patch where it's imported in the function
+        with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
+            execute_scheduled_destruction_job(
+                schedule_id=schedule_id,
+                dbname="testdb",
+                user="testuser",
+                password="testpass",
+                host="localhost",
+                port=5432,
+                table_name="vms",
+                message_channel="vm_updates",
+                terraform_dir="/test/terraform",
+            )
 
         # Verify status updated to executing
         assert mock_database.update_scheduled_destruction_status.call_count >= 2
@@ -314,11 +330,13 @@ def test_execute_scheduled_destruction_success(scheduler_service, mock_database)
 def test_execute_scheduled_destruction_terraform_failure(
     scheduler_service, mock_database
 ):
-    """Test handling of terraform destroy failure."""
+    """Test handling of terraform destroy failure via standalone function."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+
     schedule_id = 42
 
     # Mock terraform destroy failure
-    with patch("subprocess.run") as mock_run:
+    with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
         from subprocess import CalledProcessError
 
         mock_run.side_effect = CalledProcessError(
@@ -327,11 +345,19 @@ def test_execute_scheduled_destruction_terraform_failure(
             stderr="Error destroying resources",
         )
 
-        mock_database.get_scheduled_destruction.return_value = {
-            "execution_count": 0,
-        }
-
-        scheduler_service._execute_scheduled_destruction(schedule_id)
+        # Mock PostgresqlDatabase constructor - need to patch where it's imported in the function
+        with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
+            execute_scheduled_destruction_job(
+                schedule_id=schedule_id,
+                dbname="testdb",
+                user="testuser",
+                password="testpass",
+                host="localhost",
+                port=5432,
+                table_name="vms",
+                message_channel="vm_updates",
+                terraform_dir="/test/terraform",
+            )
 
         # Verify status was updated to failed
         calls = mock_database.update_scheduled_destruction_status.call_args_list
@@ -339,46 +365,9 @@ def test_execute_scheduled_destruction_terraform_failure(
         assert failed_call[1]["schedule_id"] == schedule_id
         assert "Terraform destroy failed" in failed_call[1]["execution_result"]
 
-        # Verify retry was scheduled
-        scheduler_service.scheduler.add_job.assert_called()
 
-
-def test_schedule_retry_exponential_backoff(scheduler_service, mock_database):
-    """Test retry scheduling with exponential backoff."""
-    schedule_id = 42
-
-    # Test with different execution counts
-    for execution_count in range(3):
-        mock_database.get_scheduled_destruction.return_value = {
-            "execution_count": execution_count,
-        }
-
-        scheduler_service._schedule_retry(schedule_id)
-
-        # Verify retry job was scheduled
-        call_args = scheduler_service.scheduler.add_job.call_args
-
-        # Check job ID includes retry count
-        job_id = call_args[1]["id"]
-        assert f"destruction_{schedule_id}_retry_{execution_count}" == job_id
-
-        # Reset for next iteration
-        scheduler_service.scheduler.add_job.reset_mock()
-
-
-def test_schedule_retry_max_retries_exceeded(scheduler_service, mock_database):
-    """Test that retries stop after MAX_RETRIES."""
-    schedule_id = 42
-
-    # Mock execution_count at MAX_RETRIES
-    mock_database.get_scheduled_destruction.return_value = {
-        "execution_count": ScheduledDestructionService.MAX_RETRIES,
-    }
-
-    scheduler_service._schedule_retry(schedule_id)
-
-    # Verify no retry was scheduled
-    scheduler_service.scheduler.add_job.assert_not_called()
+# NOTE: Retry tests removed - retry logic moved out of scheduler class
+# and would need to be implemented differently if needed in the future
 
 
 def test_load_scheduled_destructions(scheduler_service, mock_database):

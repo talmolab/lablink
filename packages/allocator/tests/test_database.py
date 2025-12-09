@@ -757,25 +757,43 @@ def test_create_scheduled_destruction_error(db_instance, caplog):
 def test_get_scheduled_destruction(db_instance):
     """Test getting a scheduled destruction by ID."""
     schedule_id = 1
-    schedule_data = {
-        "id": 1,
-        "schedule_name": "Friday Tutorial End",
-        "destruction_time": "2025-12-05 17:30:00",
-        "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
-        "created_by": "admin@example.com",
-        "status": "scheduled",
-        "execution_count": 0,
-    }
 
-    # Mock cursor.fetchone to return a dict-like object
-    db_instance.cursor.fetchone.return_value = schedule_data
+    # Mock cursor.fetchone to return a tuple (as real PostgreSQL cursor does)
+    # Column order matches: id, schedule_name, destruction_time, recurrence_rule,
+    # created_by, status, execution_count, last_execution_time, last_execution_result,
+    # notification_enabled, notification_hours_before, created_at, updated_at
+    schedule_tuple = (
+        1,  # id
+        "Friday Tutorial End",  # schedule_name
+        "2025-12-05 17:30:00",  # destruction_time
+        "FREQ=WEEKLY;BYDAY=FR",  # recurrence_rule
+        "admin@example.com",  # created_by
+        "scheduled",  # status
+        0,  # execution_count
+        None,  # last_execution_time
+        None,  # last_execution_result
+        True,  # notification_enabled
+        1,  # notification_hours_before
+        None,  # created_at
+        None,  # updated_at
+    )
+
+    db_instance.cursor.fetchone.return_value = schedule_tuple
 
     result = db_instance.get_scheduled_destruction(schedule_id)
 
     db_instance.cursor.execute.assert_called_with(
         "SELECT * FROM scheduled_destructions WHERE id = %s;", (schedule_id,)
     )
-    assert result == schedule_data
+
+    # Verify the result is a dict with expected values
+    assert result["id"] == 1
+    assert result["schedule_name"] == "Friday Tutorial End"
+    assert result["destruction_time"] == "2025-12-05 17:30:00"
+    assert result["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=FR"
+    assert result["created_by"] == "admin@example.com"
+    assert result["status"] == "scheduled"
+    assert result["execution_count"] == 0
 
 
 def test_get_scheduled_destruction_not_found(db_instance):
@@ -790,31 +808,41 @@ def test_get_scheduled_destruction_not_found(db_instance):
 
 def test_get_all_scheduled_destructions(db_instance):
     """Test getting all scheduled destructions."""
-    schedules_data = [
-        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
-        {"id": 2, "schedule_name": "Schedule 2", "status": "completed"},
-        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
+    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
+    schedules_tuples = [
+        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
+        (2, "Schedule 2", None, None, None, "completed", 0, None, None, True, 1, None, None),
+        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
     ]
 
-    db_instance.cursor.fetchall.return_value = schedules_data
+    db_instance.cursor.fetchall.return_value = schedules_tuples
 
     result = db_instance.get_all_scheduled_destructions()
 
     db_instance.cursor.execute.assert_called_with(
         "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
     )
-    assert result == schedules_data
     assert len(result) == 3
+    assert result[0]["id"] == 1
+    assert result[0]["schedule_name"] == "Schedule 1"
+    assert result[0]["status"] == "scheduled"
+    assert result[1]["id"] == 2
+    assert result[1]["schedule_name"] == "Schedule 2"
+    assert result[1]["status"] == "completed"
+    assert result[2]["id"] == 3
+    assert result[2]["schedule_name"] == "Schedule 3"
+    assert result[2]["status"] == "scheduled"
 
 
 def test_get_all_scheduled_destructions_with_status_filter(db_instance):
     """Test getting scheduled destructions filtered by status."""
-    scheduled_only = [
-        {"id": 1, "schedule_name": "Schedule 1", "status": "scheduled"},
-        {"id": 3, "schedule_name": "Schedule 3", "status": "scheduled"},
+    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
+    scheduled_tuples = [
+        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
+        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
     ]
 
-    db_instance.cursor.fetchall.return_value = scheduled_only
+    db_instance.cursor.fetchall.return_value = scheduled_tuples
 
     result = db_instance.get_all_scheduled_destructions(status="scheduled")
 
@@ -822,8 +850,13 @@ def test_get_all_scheduled_destructions_with_status_filter(db_instance):
         "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;",
         ("scheduled",),
     )
-    assert result == scheduled_only
     assert len(result) == 2
+    assert result[0]["id"] == 1
+    assert result[0]["schedule_name"] == "Schedule 1"
+    assert result[0]["status"] == "scheduled"
+    assert result[1]["id"] == 3
+    assert result[1]["schedule_name"] == "Schedule 3"
+    assert result[1]["status"] == "scheduled"
 
 
 def test_update_scheduled_destruction_status(db_instance):
