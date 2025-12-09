@@ -319,7 +319,7 @@ def test_execute_scheduled_destruction_success(scheduler_service, mock_database)
         assert "-auto-approve" in cmd_call[0][0]
 
         # Verify database was cleared
-        mock_database.clear_scheduled_destructions.assert_called_once()
+        mock_database.clear_database.assert_called_once()
 
         # Verify status updated to completed
         last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
