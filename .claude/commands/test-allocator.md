@@ -6,22 +6,35 @@ Run unit tests for the allocator package using pytest.
 
 ```bash
 cd packages/allocator
-PYTHONPATH=. pytest
+uv run pytest tests --ignore=tests/terraform
 ```
+
+**Note**: Terraform tests are ignored by default because they require an S3 backend configuration. See `/validate-terraform` for running Terraform tests in CI or with proper AWS credentials.
 
 ## With Verbose Output
 
 ```bash
 cd packages/allocator
-PYTHONPATH=. pytest -v
+uv run pytest tests --ignore=tests/terraform -v
 ```
 
 ## Run Specific Test File
 
 ```bash
 cd packages/allocator
-PYTHONPATH=. pytest tests/test_api_calls.py
+uv run pytest tests/test_api_calls.py
 ```
+
+## Run All Tests (Including Terraform)
+
+For CI or when you have AWS credentials configured:
+
+```bash
+cd packages/allocator
+uv run pytest tests
+```
+
+**Warning**: Terraform tests require AWS credentials and will fail locally without proper S3 backend configuration.
 
 ## Description
 
@@ -29,9 +42,10 @@ Runs the allocator service test suite, which includes:
 - API endpoint tests (`test_api_calls.py`)
 - Database operation tests (`test_database.py`)
 - Admin authentication tests (`test_admin_auth.py`)
-- Terraform integration tests (`test_terraform_api.py`)
 - Configuration validation tests (`test_validate_config.py`)
 - DNS and SSL configuration tests
+
+Terraform tests (`tests/terraform/`) are run separately in CI with proper AWS credentials.
 
 ## Expected Output
 
@@ -52,29 +66,31 @@ tests/test_validate_config.py ...                                       [100%]
 
 ```bash
 # Run with coverage
-PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=term-missing
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing
 
 # Run specific test by name
-PYTHONPATH=. pytest -k test_request_vm
+uv run pytest tests --ignore=tests/terraform -k test_request_vm
 
 # Stop on first failure
-PYTHONPATH=. pytest -x
+uv run pytest tests --ignore=tests/terraform -x
 
 # Show local variables on failure
-PYTHONPATH=. pytest -l
+uv run pytest tests --ignore=tests/terraform -l
 
 # Run only failed tests from last run
-PYTHONPATH=. pytest --lf
+uv run pytest tests --ignore=tests/terraform --lf
 ```
 
 ## Troubleshooting
 
 ### Import Errors
-If you see `ModuleNotFoundError`, ensure `PYTHONPATH=.` is set:
+Using `uv run` automatically handles the Python path. If you see `ModuleNotFoundError`:
 ```bash
-export PYTHONPATH=.  # Unix/Mac
-set PYTHONPATH=.     # Windows CMD
-$env:PYTHONPATH="."  # Windows PowerShell
+# Ensure you're in the package directory
+cd packages/allocator
+
+# Re-sync dependencies
+uv sync --extra dev
 ```
 
 ### Missing Dependencies
@@ -85,6 +101,14 @@ uv sync --extra dev
 
 ### Database Connection Errors
 Tests use mocked database connections. If you see connection errors, check that fixtures in `conftest.py` are properly configured.
+
+### Terraform Test Failures
+Terraform tests require S3 backend configuration and AWS credentials. For local development, ignore them:
+```bash
+uv run pytest tests --ignore=tests/terraform
+```
+
+In CI, Terraform tests run with proper AWS OIDC credentials.
 
 ## CI Integration
 

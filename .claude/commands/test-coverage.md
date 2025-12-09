@@ -6,9 +6,11 @@ Run unit tests with coverage analysis for both allocator and client packages.
 
 ```bash
 # Run both packages with coverage
-cd packages/allocator && PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=term-missing && \
-cd ../client && PYTHONPATH=. pytest --cov=lablink_client --cov-report=term-missing
+cd packages/allocator && uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing && \
+cd ../client && uv run pytest --cov=lablink_client --cov-report=term-missing
 ```
+
+**Note**: Allocator terraform tests are ignored by default (require S3 backend configuration).
 
 ## Individual Package Coverage
 
@@ -16,14 +18,14 @@ cd ../client && PYTHONPATH=. pytest --cov=lablink_client --cov-report=term-missi
 
 ```bash
 cd packages/allocator
-PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=term-missing
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing
 ```
 
 ### Client Coverage
 
 ```bash
 cd packages/client
-PYTHONPATH=. pytest --cov=lablink_client --cov-report=term-missing
+uv run pytest --cov=lablink_client --cov-report=term-missing
 ```
 
 ## With HTML Report
@@ -31,12 +33,12 @@ PYTHONPATH=. pytest --cov=lablink_client --cov-report=term-missing
 ```bash
 # Allocator
 cd packages/allocator
-PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=html
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=html
 # Open htmlcov/index.html in browser
 
 # Client
 cd packages/client
-PYTHONPATH=. pytest --cov=lablink_client --cov-report=html
+uv run pytest --cov=lablink_client --cov-report=html
 # Open htmlcov/index.html in browser
 ```
 
@@ -75,16 +77,16 @@ TOTAL                                    260     10    96%
 
 ```bash
 # Terminal with missing lines
-pytest --cov=lablink_allocator --cov-report=term-missing
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing
 
 # HTML report (browsable)
-pytest --cov=lablink_allocator --cov-report=html
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=html
 
 # XML report (for CI tools)
-pytest --cov=lablink_allocator --cov-report=xml
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=xml
 
 # Combined reports
-pytest --cov=lablink_allocator --cov-report=term-missing --cov-report=html
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing --cov-report=html
 ```
 
 ## Focus on Specific Modules
@@ -92,10 +94,10 @@ pytest --cov=lablink_allocator --cov-report=term-missing --cov-report=html
 ```bash
 # Only test coverage for main.py
 cd packages/allocator
-PYTHONPATH=. pytest --cov=lablink_allocator.main --cov-report=term-missing
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator.main --cov-report=term-missing
 
 # Only test coverage for database.py
-PYTHONPATH=. pytest --cov=lablink_allocator.database --cov-report=term-missing
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator.database --cov-report=term-missing
 ```
 
 ## Identify Uncovered Code
@@ -103,7 +105,7 @@ PYTHONPATH=. pytest --cov=lablink_allocator.database --cov-report=term-missing
 ```bash
 # Show only uncovered lines
 cd packages/allocator
-PYTHONPATH=. pytest --cov=lablink_allocator --cov-report=term-missing | grep "src/lablink"
+uv run pytest tests --ignore=tests/terraform --cov=lablink_allocator --cov-report=term-missing | grep "src/lablink"
 ```
 
 ## CI Integration
@@ -122,7 +124,7 @@ If coverage is below 90%, CI will fail. Add tests for uncovered code paths:
 Ensure tests are actually running the code:
 ```bash
 # Run with verbose output to see what's tested
-PYTHONPATH=. pytest -v --cov=lablink_allocator
+uv run pytest tests --ignore=tests/terraform -v --cov=lablink_allocator
 ```
 
 ## Related Commands

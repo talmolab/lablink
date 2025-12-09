@@ -6,21 +6,21 @@ Run unit tests for the client package using pytest.
 
 ```bash
 cd packages/client
-PYTHONPATH=. pytest
+uv run pytest
 ```
 
 ## With Verbose Output
 
 ```bash
 cd packages/client
-PYTHONPATH=. pytest -v
+uv run pytest -v
 ```
 
 ## Run Specific Test File
 
 ```bash
 cd packages/client
-PYTHONPATH=. pytest tests/test_subscribe.py
+uv run pytest tests/test_subscribe.py
 ```
 
 ## Description
@@ -53,29 +53,31 @@ tests/test_connect_crd.py ...                                           [100%]
 
 ```bash
 # Run with coverage
-PYTHONPATH=. pytest --cov=lablink_client --cov-report=term-missing
+uv run pytest --cov=lablink_client --cov-report=term-missing
 
 # Run specific test by name
-PYTHONPATH=. pytest -k test_gpu_check
+uv run pytest -k test_gpu_check
 
 # Stop on first failure
-PYTHONPATH=. pytest -x
+uv run pytest -x
 
 # Show local variables on failure
-PYTHONPATH=. pytest -l
+uv run pytest -l
 
 # Run only failed tests from last run
-PYTHONPATH=. pytest --lf
+uv run pytest --lf
 ```
 
 ## Troubleshooting
 
 ### Import Errors
-If you see `ModuleNotFoundError`, ensure `PYTHONPATH=.` is set:
+Using `uv run` automatically handles the Python path. If you see `ModuleNotFoundError`:
 ```bash
-export PYTHONPATH=.  # Unix/Mac
-set PYTHONPATH=.     # Windows CMD
-$env:PYTHONPATH="."  # Windows PowerShell
+# Ensure you're in the package directory
+cd packages/client
+
+# Re-sync dependencies
+uv sync --extra dev
 ```
 
 ### Missing Dependencies

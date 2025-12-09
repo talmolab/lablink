@@ -6,8 +6,8 @@ Automatically fix linting issues using ruff's auto-fix and formatting capabiliti
 
 ```bash
 # Fix and format both packages
-ruff check --fix packages/allocator packages/client
-ruff format packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
+uv run ruff format packages/allocator packages/client
 ```
 
 ## Step-by-Step
@@ -16,26 +16,26 @@ ruff format packages/allocator packages/client
 
 ```bash
 # Fix auto-fixable issues
-ruff check --fix packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
 ```
 
 ### Step 2: Format Code
 
 ```bash
 # Format code (consistent spacing, line breaks, etc.)
-ruff format packages/allocator packages/client
+uv run ruff format packages/allocator packages/client
 ```
 
 ## Individual Package Fix
 
 ```bash
 # Allocator only
-ruff check --fix packages/allocator
-ruff format packages/allocator
+uv run ruff check --fix packages/allocator
+uv run ruff format packages/allocator
 
 # Client only
-ruff check --fix packages/client
-ruff format packages/client
+uv run ruff check --fix packages/client
+uv run ruff format packages/client
 ```
 
 ## What Gets Fixed
@@ -59,22 +59,22 @@ ruff format packages/client
 
 ```bash
 # Show what would be fixed (dry run)
-ruff check --fix --diff packages/allocator
+uv run ruff check --fix --diff packages/allocator
 
 # Show formatting changes without applying
-ruff format --diff packages/allocator
+uv run ruff format --diff packages/allocator
 ```
 
 ## Fix Specific Files
 
 ```bash
 # Fix specific file
-ruff check --fix packages/allocator/src/lablink_allocator/main.py
-ruff format packages/allocator/src/lablink_allocator/main.py
+uv run ruff check --fix packages/allocator/src/lablink_allocator/main.py
+uv run ruff format packages/allocator/src/lablink_allocator/main.py
 
 # Fix all Python files in directory
-ruff check --fix packages/allocator/src/
-ruff format packages/allocator/src/
+uv run ruff check --fix packages/allocator/src/
+uv run ruff format packages/allocator/src/
 ```
 
 ## Unsafe Fixes
@@ -83,7 +83,7 @@ Some fixes are considered "unsafe" and require explicit opt-in:
 
 ```bash
 # Include unsafe fixes
-ruff check --fix --unsafe-fixes packages/allocator
+uv run ruff check --fix --unsafe-fixes packages/allocator
 ```
 
 **Warning**: Unsafe fixes may change code behavior. Review changes carefully.
@@ -94,19 +94,19 @@ After auto-fixing, verify no issues remain:
 
 ```bash
 # Check for remaining violations
-ruff check packages/allocator packages/client
+uv run ruff check packages/allocator packages/client
 
 # Run tests to ensure fixes didn't break anything
-cd packages/allocator && PYTHONPATH=. pytest
-cd packages/client && PYTHONPATH=. pytest
+cd packages/allocator && uv run pytest tests --ignore=tests/terraform
+cd packages/client && uv run pytest
 ```
 
 ## Git Workflow
 
 ```bash
 # Before committing
-ruff check --fix packages/allocator packages/client
-ruff format packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
+uv run ruff format packages/allocator packages/client
 
 # Review changes
 git diff
@@ -123,8 +123,8 @@ Consider adding a pre-commit hook to auto-fix on commit:
 ```bash
 # .git/hooks/pre-commit
 #!/bin/bash
-ruff check --fix packages/allocator packages/client
-ruff format packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
+uv run ruff format packages/allocator packages/client
 git add -u
 ```
 
@@ -149,7 +149,7 @@ Ensure you have write permissions and the files aren't read-only.
 If manual edits conflict with formatter, let the formatter win:
 ```bash
 # Force format
-ruff format packages/allocator
+uv run ruff format packages/allocator
 ```
 
 ### Unsafe Fixes Changed Behavior
@@ -157,7 +157,7 @@ Revert unsafe fixes:
 ```bash
 git checkout -- packages/
 # Then re-run without --unsafe-fixes
-ruff check --fix packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
 ```
 
 ## Related Commands

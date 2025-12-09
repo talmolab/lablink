@@ -6,27 +6,27 @@ Run ruff linting checks on both packages to ensure code quality and style compli
 
 ```bash
 # Check both packages
-ruff check packages/allocator packages/client
+uv run ruff check packages/allocator packages/client
 ```
 
 ## Individual Package Checks
 
 ```bash
 # Allocator only
-ruff check packages/allocator
+uv run ruff check packages/allocator
 
 # Client only
-ruff check packages/client
+uv run ruff check packages/client
 ```
 
 ## With Detailed Output
 
 ```bash
 # Show all violations with context
-ruff check packages/allocator packages/client --output-format=full
+uv run ruff check packages/allocator packages/client --output-format=full
 
 # Show statistics
-ruff check packages/allocator packages/client --statistics
+uv run ruff check packages/allocator packages/client --statistics
 ```
 
 ## Description
@@ -59,20 +59,20 @@ Found 3 errors.
 
 ```bash
 # Check specific file
-ruff check packages/allocator/src/lablink_allocator/main.py
+uv run ruff check packages/allocator/src/lablink_allocator/main.py
 
 # Check specific directory
-ruff check packages/allocator/src/lablink_allocator/
+uv run ruff check packages/allocator/src/lablink_allocator/
 ```
 
 ## Ignore Specific Rules
 
 ```bash
 # Ignore specific error code
-ruff check packages/allocator --ignore F401
+uv run ruff check packages/allocator --ignore F401
 
 # Ignore multiple codes
-ruff check packages/allocator --ignore F401,E501
+uv run ruff check packages/allocator --ignore F401,E501
 ```
 
 ## Configuration
@@ -97,7 +97,7 @@ Linting runs automatically in `.github/workflows/ci.yml` on all PRs. CI will fai
 ### Too Many Errors
 Start by fixing auto-fixable issues:
 ```bash
-ruff check --fix packages/allocator packages/client
+uv run ruff check --fix packages/allocator packages/client
 ```
 
 ### False Positives
@@ -115,7 +115,7 @@ result = long_function_call()  # noqa: E501
 ### Conflicting Rules
 Check ruff configuration:
 ```bash
-ruff check --show-settings packages/allocator
+uv run ruff check --show-settings packages/allocator
 ```
 
 ## Related Commands

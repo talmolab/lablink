@@ -2,18 +2,29 @@
 
 Validate Terraform configurations for client VM provisioning.
 
-## Quick Validation
+## Quick Validation (Local Development)
+
+For local development without AWS credentials, you need to remove the S3 backend configuration:
 
 ```bash
 # Navigate to Terraform directory
 cd packages/allocator/src/lablink_allocator/terraform
 
-# Initialize Terraform
+# Remove backend configuration for local testing (if backend.tf exists)
+# This is required because the S3 backend requires AWS credentials
+mv backend.tf backend.tf.bak 2>/dev/null || true
+
+# Initialize Terraform (local backend)
 terraform init
 
 # Validate configuration
 terraform validate
+
+# Restore backend.tf when done
+mv backend.tf.bak backend.tf 2>/dev/null || true
 ```
+
+**Note**: The S3 backend configuration in `backend.tf` requires AWS credentials. For local validation, temporarily remove or rename this file.
 
 ## Full Validation Process
 
@@ -73,11 +84,16 @@ terraform plan \
 
 ## CI Testing Pattern
 
-The CI workflow validates Terraform without AWS credentials:
+The CI workflow validates Terraform by removing the S3 backend dependency:
 
 ```bash
 # 1. Remove backend configuration (S3 dependency)
+# On Linux/CI:
 sed -i '/backend "s3"/,/}/d' backend.tf
+# On macOS:
+sed -i '' '/backend "s3"/,/}/d' backend.tf
+# On Windows (PowerShell):
+(Get-Content backend.tf) -notmatch 'backend "s3"' | Set-Content backend.tf
 
 # 2. Initialize with local backend
 terraform init
@@ -85,7 +101,7 @@ terraform init
 # 3. Validate syntax
 terraform validate
 
-# 4. Plan with fixture data
+# 4. Plan with fixture data (requires AWS credentials for provider)
 terraform plan \
   -var="instance_count=2" \
   -var="instance_type=t3.small" \
@@ -93,6 +109,8 @@ terraform plan \
 ```
 
 This validates syntax and logic without creating resources.
+
+**Why remove the backend?** The S3 backend configuration requires AWS credentials to even initialize Terraform. By removing it, we can validate syntax with a local backend.
 
 ## Terraform Files
 
@@ -186,12 +204,23 @@ terraform version
 ```
 
 ### Backend Configuration Error
-**Symptom**: `Error: Backend initialization required`
+**Symptom**: `Error: Backend initialization required` or `Error: Failed to get existing workspaces`
 
-**Solution**:
+**Solution for local testing**:
 ```bash
-# For local testing, remove backend block
-# Or configure S3 backend:
+# Option 1: Temporarily remove backend.tf
+mv backend.tf backend.tf.bak
+terraform init
+terraform validate
+mv backend.tf.bak backend.tf
+
+# Option 2: Use -backend=false (syntax check only)
+terraform init -backend=false
+terraform validate
+```
+
+**Solution with AWS credentials**:
+```bash
 terraform init \
   -backend-config="bucket=lablink-terraform-state" \
   -backend-config="key=terraform.tfstate" \
@@ -248,16 +277,19 @@ Also includes plan tests with fixture data.
 # 1. Format Terraform files
 terraform fmt
 
-# 2. Validate syntax
+# 2. Validate syntax (may need to remove backend.tf first)
+terraform init -backend=false
 terraform validate
 
 # 3. Test plan (if you have AWS credentials)
 terraform plan -out=tfplan
 
-# 4. Run allocator tests (includes Terraform tests)
+# 4. Run allocator unit tests (excludes Terraform tests locally)
 cd packages/allocator
-PYTHONPATH=. pytest tests/terraform/
+uv run pytest tests --ignore=tests/terraform
 ```
+
+**Note**: Terraform integration tests (`tests/terraform/`) require AWS OIDC credentials and are run in CI only.
 
 ### When Modifying Terraform
 
