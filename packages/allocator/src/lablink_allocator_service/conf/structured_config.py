@@ -76,34 +76,25 @@ class DNSConfig:
     """Configuration for DNS and domain setup.
 
     This class defines DNS settings for Route 53 hosted zones and records.
-    DNS can be disabled entirely, or configured with different naming patterns.
+    DNS can be disabled entirely, or configured with external DNS providers.
 
     Attributes:
         enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
         terraform_managed (bool): Whether Terraform creates/destroys DNS records.
-            If False, DNS records must be created manually in Route53.
-        domain (str): The base domain name (e.g., "sleap.ai").
+            - True: Terraform manages Route53 DNS records (creates and destroys)
+            - False: External DNS management (CloudFlare, manual Route53, etc.)
+        domain (str): Full domain name for the allocator
+            (e.g., "lablink.sleap.ai", "test.lablink.sleap.ai").
+            Required when enabled=true.
+            Supports sub-subdomains for environment separation.
         zone_id (str): Optional Route53 hosted zone ID. If provided, skips zone lookup.
             Use this when zone lookup finds the wrong zone (e.g., parent vs subdomain).
-        app_name (str): The application name used in subdomains (e.g., "lablink").
-        pattern (str): Naming pattern for DNS records. Options:
-            - "auto": Automatically generate based on environment
-                      prod: {app_name}.{domain}
-                      non-prod: {env}.{app_name}.{domain}
-            - "app-only": Always use {app_name}.{domain}
-            - "custom": Use custom_subdomain value
-        custom_subdomain (str): Custom subdomain when pattern="custom"
-        create_zone (bool): Whether to create a new Route 53 hosted zone
     """
 
     enabled: bool = field(default=False)
     terraform_managed: bool = field(default=True)
     domain: str = field(default="")
     zone_id: str = field(default="")
-    app_name: str = field(default="lablink")
-    pattern: str = field(default="auto")
-    custom_subdomain: str = field(default="")
-    create_zone: bool = field(default=False)
 
 
 @dataclass
@@ -127,18 +118,19 @@ class SSLConfig:
 
     Attributes:
         provider (str): SSL provider. Options:
+            - "none": HTTP only, no SSL
             - "letsencrypt": Automatic SSL via Caddy + Let's Encrypt
             - "cloudflare": CloudFlare proxy handles SSL
-            - "none": HTTP only, no SSL
+              (requires terraform_managed=false)
+            - "acm": AWS Certificate Manager (requires ALB, certificate_arn)
         email (str): Email address for Let's Encrypt notifications
-        staging (bool): When true, serve HTTP only for unlimited testing.
-            When false, serve HTTPS with trusted Let's Encrypt certificates
-            (rate limited to 5 duplicate certs per week).
+            (required when provider="letsencrypt")
+        certificate_arn (str): AWS ACM certificate ARN (required when provider="acm")
     """
 
     provider: str = field(default="letsencrypt")
     email: str = field(default="")
-    staging: bool = field(default=False)
+    certificate_arn: str = field(default="")
 
 
 @dataclass
@@ -173,6 +165,59 @@ class StartupConfig:
     path: str = field(default="")
     on_error: str = field(default="continue")  # Options: "continue", "fail"
 
+@dataclass
+class ThresholdsConfig:
+    """Configuration for resource usage thresholds.
+
+    Attributes:
+        max_instances_per_5min (int): Maximum number of instances that can be
+            created within a 5-minute window.
+        max_terminations_per_5min (int): Maximum number of instances that can be
+            terminated within a 5-minute window.
+        max_unauthorized_calls_per_15min (int): Maximum number of unauthorized
+            API calls that can be made within a 15-minute window.
+    """
+
+    max_instances_per_5min: int = field(default=10)
+    max_terminations_per_5min: int = field(default=20)
+    max_unauthorized_calls_per_15min: int = field(default=5)
+
+@dataclass
+class BudgetConfig:
+    """Configuration for budget limits.
+
+    Attributes:
+        enabled (bool): Whether budget monitoring is enabled.
+        monthly_budget_usd (int): Monthly budget in USD.
+    """
+    enabled: bool = field(default=False)
+    monthly_budget_usd: int = field(default=500)
+
+@dataclass
+class CloudTrailConfig:
+    """Configuration for CloudTrail logging.
+
+    Attributes:
+        retention_days (int): Number of days to retain CloudTrail logs.
+    """
+    retention_days: int = field(default=90)
+
+@dataclass
+class MonitoringConfig:
+    """Configuration for monitoring and logging.
+
+    Attributes:
+        enabled (bool): Whether monitoring is enabled.
+        email (str): Email address to send alerts to.
+        thresholds (ThresholdsConfig): Resource usage thresholds for triggering alerts.
+        budget (BudgetConfig): Budget limits for monitoring costs.
+        cloudtrail (CloudTrailConfig): CloudTrail logging configuration.
+    """
+    enabled: bool = field(default=False)
+    email: str = field(default="")
+    thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
+    budget: BudgetConfig = field(default_factory=BudgetConfig)
+    cloudtrail: CloudTrailConfig = field(default_factory=CloudTrailConfig)
 
 @dataclass
 class Config:
@@ -199,7 +244,7 @@ class Config:
     allocator: AllocatorConfig = field(default_factory=AllocatorConfig)
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
     startup_script: StartupConfig = field(default_factory=StartupConfig)
-
+    monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
 
 cs = ConfigStore.instance()
 cs.store(name="config", node=Config)

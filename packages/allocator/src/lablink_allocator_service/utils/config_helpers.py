@@ -1,13 +1,20 @@
 """Configuration helper functions for building URLs and determining settings."""
 
+import os
+import logging
 from typing import Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
     """
     Build the allocator URL based on configuration.
 
-    Automatically determines the correct URL based on DNS and SSL settings.
+    Priority order:
+    1. ALLOCATOR_FQDN environment variable (set by Terraform)
+    2. DNS configuration from config
+    3. IP address fallback
 
     Args:
         cfg: Hydra configuration object
@@ -17,66 +24,55 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
         Tuple of (base_url, protocol)
 
     Examples:
-        DNS enabled + Let's Encrypt SSL (production):
+        ALLOCATOR_FQDN environment variable:
             ("https://test.lablink.sleap.ai", "https")
 
-        DNS enabled + Let's Encrypt SSL (staging):
-            ("http://test.lablink.sleap.ai", "http")
+        DNS enabled + Let's Encrypt SSL:
+            ("https://test.lablink.sleap.ai", "https")
 
         DNS disabled + No SSL:
             ("http://52.40.142.146", "http")
-
-        DNS enabled + No SSL:
-            ("http://test.lablink.sleap.ai", "http")
-
-        DNS enabled + Cloudflare SSL:
-            ("https://test.lablink.sleap.ai", "https")
     """
-    # Determine protocol based on SSL provider
-    # When staging=true, Caddy serves HTTP only (no SSL certificates)
-    # When staging=false, Caddy serves HTTPS with trusted Let's Encrypt certs
-    if hasattr(cfg, "ssl") and cfg.ssl.provider != "none":
-        is_staging = hasattr(cfg.ssl, "staging") and cfg.ssl.staging
-        if is_staging:
-            # Staging mode: HTTP only
+    # Priority 1: Check for ALLOCATOR_FQDN environment variable (set by Terraform)
+    allocator_fqdn = os.getenv("ALLOCATOR_FQDN")
+    if allocator_fqdn:
+        # FQDN already includes protocol
+        if allocator_fqdn.startswith("https://"):
+            protocol = "https"
+        elif allocator_fqdn.startswith("http://"):
             protocol = "http"
         else:
-            # Production mode: HTTPS with trusted certificates
-            protocol = "https"
+            # Default to http if no protocol specified
+            protocol = "http"
+            allocator_fqdn = f"{protocol}://{allocator_fqdn}"
+
+        logger.info(f"Using ALLOCATOR_FQDN from environment: {allocator_fqdn}")
+        return allocator_fqdn, protocol
+
+    # Priority 2: Build from DNS configuration
+    # Determine protocol based on SSL provider
+    if hasattr(cfg, "ssl") and cfg.ssl.provider != "none":
+        protocol = "https"
     else:
         protocol = "http"
 
     # Determine host based on DNS configuration
-    if hasattr(cfg, "dns") and cfg.dns.enabled:
-        # Use DNS hostname
-        if cfg.dns.pattern == "custom":
-            # Only add subdomain if it's non-empty
-            if cfg.dns.custom_subdomain:
-                host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
-            else:
-                host = cfg.dns.domain
-        elif cfg.dns.pattern == "auto":
-            # For auto pattern, would need environment/resource_suffix
-            # For now, fall back to custom_subdomain if available
-            if cfg.dns.custom_subdomain:
-                host = f"{cfg.dns.custom_subdomain}.{cfg.dns.domain}"
-            else:
-                host = cfg.dns.domain
-        else:
-            # Default to just the domain
-            host = cfg.dns.domain
+    if hasattr(cfg, "dns") and cfg.dns.enabled and cfg.dns.domain:
+        # Use DNS domain directly (now includes full domain)
+        host = cfg.dns.domain
 
-        # Just to be safe
+        # Remove leading dots if present (safety check)
         if host.startswith("."):
             host = host[1:]
+            logger.warning(f"Removed leading dot from domain: {host}")
+
+        logger.info(f"Using domain from config: {host}")
     else:
-        # Use IP address
+        # Priority 3: Use IP address
         host = allocator_ip
+        logger.info(f"Using IP-only mode: {host}")
 
     base_url = f"{protocol}://{host}"
-
-    # Sanitize URL to remove prepended dots
-    base_url = base_url.replace("://.", "://")
 
     return base_url, protocol
 

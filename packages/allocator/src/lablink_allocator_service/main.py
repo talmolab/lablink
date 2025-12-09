@@ -23,7 +23,6 @@ import psycopg2
 
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.database import PostgresqlDatabase
-from lablink_allocator_service.conf.structured_config import DNSConfig
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
     upload_to_s3,
@@ -71,42 +70,6 @@ database = None
 
 # Scheduler service (initialized in main())
 scheduler_service = None
-
-
-def generate_dns_name(dns_config: DNSConfig, environment: str) -> str:
-    """Generate DNS name based on configuration and environment.
-
-    Args:
-        dns_config: DNSConfig object from configuration
-        environment: Current environment (prod, test, dev, etc.)
-
-    Returns:
-        str: Generated DNS name or empty string if DNS is disabled
-    """
-    if not dns_config.enabled or not dns_config.domain:
-        return ""
-
-    if dns_config.pattern == "auto":
-        # prod: {app_name}.{domain}, others: {env}.{app_name}.{domain}
-        if environment == "prod":
-            return f"{dns_config.app_name}.{dns_config.domain}"
-        else:
-            return f"{environment}.{dns_config.app_name}.{dns_config.domain}"
-    elif dns_config.pattern == "app-only":
-        # Always use {app_name}.{domain}
-        return f"{dns_config.app_name}.{dns_config.domain}"
-    elif dns_config.pattern == "custom":
-        # Use custom subdomain
-        if dns_config.custom_subdomain:
-            return dns_config.custom_subdomain
-        else:
-            logger.warning(
-                "DNS pattern is 'custom' but custom_subdomain is empty. Using IP only."
-            )
-            return ""
-    else:
-        logger.warning(f"Unknown DNS pattern '{dns_config.pattern}'. Using IP only.")
-        return ""
 
 
 def init_database():

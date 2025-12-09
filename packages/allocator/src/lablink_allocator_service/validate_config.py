@@ -24,6 +24,76 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def validate_domain_format(domain: str) -> Tuple[bool, str]:
+    """Validate domain format to prevent malformed domains.
+
+    Args:
+        domain: Domain name to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not domain:
+        return True, ""  # Empty is allowed when DNS disabled
+
+    # Check for leading/trailing dots
+    if domain.startswith("."):
+        return False, "Domain cannot start with a dot"
+    if domain.endswith("."):
+        return False, "Domain cannot end with a dot"
+
+    return True, ""
+
+
+def validate_config_logic(cfg) -> Tuple[bool, str]:
+    """Validate configuration logic and dependencies.
+
+    Args:
+        cfg: Loaded configuration object
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    errors = []
+
+    # DNS enabled requires non-empty domain
+    if cfg.dns.enabled and not cfg.dns.domain:
+        errors.append("DNS enabled requires non-empty domain field")
+
+    # Validate domain format
+    is_valid, error_msg = validate_domain_format(cfg.dns.domain)
+    if not is_valid:
+        errors.append(error_msg)
+
+    # SSL (non-"none") requires DNS
+    if cfg.ssl.provider != "none" and not cfg.dns.enabled:
+        errors.append(
+            'SSL requires DNS to be enabled (use provider="none" for HTTP-only)'
+        )
+
+    # Let's Encrypt requires email
+    if cfg.ssl.provider == "letsencrypt" and not cfg.ssl.email:
+        errors.append("Let's Encrypt requires email address")
+
+    # ACM requires certificate_arn
+    if cfg.ssl.provider == "acm" and not cfg.ssl.certificate_arn:
+        errors.append("ACM provider requires certificate_arn")
+
+    # CloudFlare SSL requires external DNS (terraform_managed=false)
+    if cfg.ssl.provider == "cloudflare" and cfg.dns.terraform_managed:
+        errors.append(
+            "CloudFlare SSL requires terraform_managed=false (external DNS management)"
+        )
+
+    if errors:
+        error_msg = "[FAIL] Config validation failed:\n"
+        for error in errors:
+            error_msg += f"       - {error}\n"
+        return False, error_msg
+
+    return True, ""
+
+
 def validate_config(config_path: str) -> Tuple[bool, str]:
     """Validate a configuration file against the schema.
 
@@ -54,7 +124,13 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
 
     try:
         # Use get_config() with explicit path - it validates automatically
-        get_config(config_path=str(path))
+        cfg = get_config(config_path=path.as_posix())
+
+        # Run logic validation
+        is_valid, error_msg = validate_config_logic(cfg)
+        if not is_valid:
+            return False, error_msg
+
         return True, "[PASS] Config validation passed"
 
     except ConfigCompositionException as e:

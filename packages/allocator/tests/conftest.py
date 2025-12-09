@@ -37,10 +37,6 @@ def omega_config():
                 "terraform_managed": False,
                 "domain": "",
                 "zone_id": "",
-                "app_name": "lablink",
-                "pattern": "auto",
-                "custom_subdomain": "",
-                "create_zone": False,
             },
             "eip": {
                 "strategy": "dynamic",
@@ -49,12 +45,29 @@ def omega_config():
             "ssl": {
                 "provider": "none",
                 "email": "",
+                "certificate_arn": "",
             },
             "bucket_name": "test-bucket",
             "startup_script": {
                 "enabled": False,
                 "path": "",
                 "on_error": "continue",
+            },
+            "monitoring": {
+                "enabled": False,
+                "email": "",
+                "thresholds": {
+                    "max_instances_per_5min": 10,
+                    "max_terminations_per_5min": 20,
+                    "max_unauthorized_calls_per_15min": 5,
+                },
+                "budget": {
+                    "enabled": False,
+                    "monthly_budget_usd": 500,
+                },
+                "cloudtrail": {
+                    "retention_days": 90,
+                },
             },
         }
     )
@@ -152,10 +165,6 @@ def valid_config_dict():
             "terraform_managed": False,
             "domain": "lablink.example.com",
             "zone_id": "",
-            "app_name": "lablink",
-            "pattern": "auto",
-            "custom_subdomain": "",
-            "create_zone": False,
         },
         "eip": {
             "strategy": "dynamic",
@@ -164,7 +173,7 @@ def valid_config_dict():
         "ssl": {
             "provider": "none",
             "email": "admin@example.com",
-            "staging": True,
+            "certificate_arn": "",
         },
         "allocator": {
             "image_tag": "linux-amd64-latest-test",
@@ -174,6 +183,22 @@ def valid_config_dict():
             "enabled": False,
             "path": "",
             "on_error": "continue",
+        },
+        "monitoring": {
+            "enabled": False,
+            "email": "",
+            "thresholds": {
+                "max_instances_per_5min": 10,
+                "max_terminations_per_5min": 20,
+                "max_unauthorized_calls_per_15min": 5,
+            },
+            "budget": {
+                "enabled": False,
+                "monthly_budget_usd": 500,
+            },
+            "cloudtrail": {
+                "retention_days": 90,
+            },
         },
     }
 
