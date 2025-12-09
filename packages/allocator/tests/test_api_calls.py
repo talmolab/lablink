@@ -14,6 +14,7 @@ SCP_ENDPOINT = "/api/scp-client"
 VM_STATUS_UPDATE_ENDPOINT = "/api/vm-status"
 VM_LOGS_ENDPOINT = "/api/vm-logs"
 METRICS_ENDPOINT = "/api/vm-metrics"
+SCHEDULE_DESTRUCTION_ENDPOINT = "/api/schedule-destruction"
 
 
 def test_vm_startup_success(client, monkeypatch):
@@ -1171,3 +1172,586 @@ def test_receive_vm_metrics_concurrent(client, monkeypatch):
     # Verify all VMs were checked and updated
     assert fake_db.vm_exists.call_count == 10
     assert fake_db.update_vm_metrics_atomic.call_count == 10
+
+
+def test_create_scheduled_destruction_success(client, admin_headers, monkeypatch):
+    """Test creating a scheduled destruction with valid data."""
+    from datetime import datetime, timedelta, timezone
+
+    # Mock the database and scheduler
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule_destruction.return_value = 123
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    # Call the API with a future date
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Friday Tutorial End",
+        "destruction_time": future_time,
+        "recurrence_rule": None,
+        "notification_enabled": True,
+        "notification_hours_before": 1,
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    # Assert response
+    assert resp.status_code == 201
+    assert resp.is_json
+    json_data = resp.get_json()
+    assert json_data["success"] is True
+    assert json_data["schedule_id"] == 123
+    assert "successfully" in json_data["message"]
+
+    # Verify scheduler was called correctly
+    fake_scheduler.schedule_destruction.assert_called_once()
+    call_kwargs = fake_scheduler.schedule_destruction.call_args.kwargs
+    assert call_kwargs["schedule_name"] == "Friday Tutorial End"
+    assert isinstance(call_kwargs["destruction_time"], datetime)
+    assert call_kwargs["recurrence_rule"] is None
+    assert call_kwargs["notification_enabled"] is True
+    assert call_kwargs["notification_hours_before"] == 1
+
+
+def test_create_scheduled_destruction_with_recurrence(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a recurring scheduled destruction."""
+    from datetime import datetime, timedelta, timezone
+
+    # Mock the scheduler
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule_destruction.return_value = 456
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    # Call the API with recurrence rule and future date
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Weekly Friday Cleanup",
+        "destruction_time": future_time,
+        "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR;BYHOUR=17;BYMINUTE=30",
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    # Assert response
+    assert resp.status_code == 201
+    assert resp.get_json()["success"] is True
+    assert resp.get_json()["schedule_id"] == 456
+
+    # Verify recurrence rule was passed
+    call_kwargs = fake_scheduler.schedule_destruction.call_args.kwargs
+    assert call_kwargs["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=FR;BYHOUR=17;BYMINUTE=30"
+
+
+def test_create_scheduled_destruction_missing_fields(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a scheduled destruction with missing required fields."""
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    # Missing schedule_name
+    data = {"destruction_time": "2025-12-05T17:30:00Z"}
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "schedule_name is required" in resp.get_json()["message"]
+    fake_scheduler.schedule_destruction.assert_not_called()
+
+
+def test_create_scheduled_destruction_invalid_date_format(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a scheduled destruction with invalid date format."""
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    # Invalid date format
+    data = {
+        "schedule_name": "Bad Date",
+        "destruction_time": "not-a-valid-date",
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "Invalid destruction_time format" in resp.get_json()["message"]
+    fake_scheduler.schedule_destruction.assert_not_called()
+
+
+def test_create_scheduled_destruction_past_date(client, admin_headers, monkeypatch):
+    """Test creating a scheduled destruction with a past date."""
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    # Past date
+    data = {
+        "schedule_name": "Past Date",
+        "destruction_time": "2020-01-01T12:00:00Z",
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "must be in the future" in resp.get_json()["message"]
+    fake_scheduler.schedule_destruction.assert_not_called()
+
+
+def test_create_scheduled_destruction_scheduler_unavailable(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a scheduled destruction when scheduler is unavailable."""
+    from datetime import datetime, timedelta, timezone
+
+    fake_db = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service", None, raising=False
+    )
+
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Test",
+        "destruction_time": future_time,
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    assert resp.status_code == 500
+    assert resp.get_json()["success"] is False
+    assert "not initialized" in resp.get_json()["message"]
+
+
+def test_create_scheduled_destruction_scheduler_error(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a scheduled destruction when scheduler raises error."""
+    from datetime import datetime, timedelta, timezone
+
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule_destruction.side_effect = RuntimeError(
+        "Failed to create scheduled destruction 'Test'"
+    )
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Test",
+        "destruction_time": future_time,
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    assert resp.status_code == 500
+    assert resp.get_json()["success"] is False
+    # API returns str(e) which is the RuntimeError message
+    assert "Failed to create scheduled destruction" in resp.get_json()["message"]
+
+
+def test_create_scheduled_destruction_requires_auth(client, monkeypatch):
+    """Test that creating a scheduled destruction requires authentication."""
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    data = {
+        "schedule_name": "Test",
+        "destruction_time": "2025-12-05T17:30:00Z",
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data)
+
+    assert resp.status_code == 401
+    fake_scheduler.schedule_destruction.assert_not_called()
+
+
+def test_get_scheduled_destruction_success(client, admin_headers, monkeypatch):
+    """Test getting details of a scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Friday Tutorial End",
+        "destruction_time": "2025-12-05T17:30:00Z",
+        "recurrence_rule": None,
+        "status": "scheduled",
+        "created_by": "admin",
+    }
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    json_data = resp.get_json()
+    assert json_data["success"] is True
+    assert json_data["schedule"]["id"] == 123
+    assert json_data["schedule"]["schedule_name"] == "Friday Tutorial End"
+    fake_db.get_scheduled_destruction.assert_called_once_with(123)
+
+
+def test_get_scheduled_destruction_not_found(client, admin_headers, monkeypatch):
+    """Test getting a non-existent scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = None
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/999", headers=admin_headers)
+
+    assert resp.status_code == 404
+    assert resp.get_json()["success"] is False
+    assert "not found" in resp.get_json()["message"]
+
+
+def test_get_scheduled_destruction_requires_auth(client, monkeypatch):
+    """Test that getting a scheduled destruction requires authentication."""
+    fake_db = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123")
+
+    assert resp.status_code == 401
+    fake_db.get_scheduled_destruction.assert_not_called()
+
+
+def test_list_scheduled_destructions_success(client, admin_headers, monkeypatch):
+    """Test listing all scheduled destructions."""
+    fake_db = MagicMock()
+    fake_db.get_all_scheduled_destructions.return_value = [
+        {
+            "id": 1,
+            "schedule_name": "Schedule 1",
+            "status": "scheduled",
+        },
+        {
+            "id": 2,
+            "schedule_name": "Schedule 2",
+            "status": "completed",
+        },
+    ]
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(SCHEDULE_DESTRUCTION_ENDPOINT, headers=admin_headers)
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    json_data = resp.get_json()
+    assert json_data["success"] is True
+    assert len(json_data["schedules"]) == 2
+    fake_db.get_all_scheduled_destructions.assert_called_once_with(status=None)
+
+
+def test_list_scheduled_destructions_with_filter(client, admin_headers, monkeypatch):
+    """Test listing scheduled destructions with status filter."""
+    fake_db = MagicMock()
+    fake_db.get_all_scheduled_destructions.return_value = [
+        {
+            "id": 1,
+            "schedule_name": "Schedule 1",
+            "status": "scheduled",
+        },
+    ]
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(
+        f"{SCHEDULE_DESTRUCTION_ENDPOINT}?status=scheduled", headers=admin_headers
+    )
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    json_data = resp.get_json()
+    assert json_data["success"] is True
+    assert len(json_data["schedules"]) == 1
+    fake_db.get_all_scheduled_destructions.assert_called_once_with(status="scheduled")
+
+
+def test_list_scheduled_destructions_invalid_status(client, admin_headers, monkeypatch):
+    """Test listing scheduled destructions with invalid status filter."""
+    fake_db = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(
+        f"{SCHEDULE_DESTRUCTION_ENDPOINT}?status=invalid_status", headers=admin_headers
+    )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "Invalid status" in resp.get_json()["message"]
+    fake_db.get_all_scheduled_destructions.assert_not_called()
+
+
+def test_list_scheduled_destructions_requires_auth(client, monkeypatch):
+    """Test that listing scheduled destructions requires authentication."""
+    fake_db = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(SCHEDULE_DESTRUCTION_ENDPOINT)
+
+    assert resp.status_code == 401
+    fake_db.get_all_scheduled_destructions.assert_not_called()
+
+
+def test_cancel_scheduled_destruction_success(client, admin_headers, monkeypatch):
+    """Test canceling a scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Test Schedule",
+        "status": "scheduled",
+    }
+
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    assert resp.get_json()["success"] is True
+    assert "cancelled" in resp.get_json()["message"]
+    fake_scheduler.cancel_scheduled_destruction.assert_called_once_with(123)
+
+
+def test_cancel_scheduled_destruction_not_found(client, admin_headers, monkeypatch):
+    """Test canceling a non-existent scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = None
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/999", headers=admin_headers)
+
+    assert resp.status_code == 404
+    assert resp.get_json()["success"] is False
+    assert "not found" in resp.get_json()["message"]
+
+
+def test_cancel_scheduled_destruction_already_completed(
+    client, admin_headers, monkeypatch
+):
+    """Test canceling a completed scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Test Schedule",
+        "status": "completed",
+    }
+
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "Cannot cancel schedule with status 'completed'" in resp.get_json()["message"]
+    fake_scheduler.cancel_scheduled_destruction.assert_not_called()
+
+
+def test_cancel_scheduled_destruction_already_cancelled(
+    client, admin_headers, monkeypatch
+):
+    """Test canceling an already-cancelled scheduled destruction."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Test Schedule",
+        "status": "cancelled",
+    }
+
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert "Cannot cancel schedule with status 'cancelled'" in resp.get_json()["message"]
+    fake_scheduler.cancel_scheduled_destruction.assert_not_called()
+
+
+def test_cancel_scheduled_destruction_scheduler_unavailable(
+    client, admin_headers, monkeypatch
+):
+    """Test canceling when scheduler is unavailable."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Test Schedule",
+        "status": "scheduled",
+    }
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service", None, raising=False
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 500
+    assert resp.get_json()["success"] is False
+    assert "not initialized" in resp.get_json()["message"]
+
+
+def test_cancel_scheduled_destruction_scheduler_error(
+    client, admin_headers, monkeypatch
+):
+    """Test canceling when scheduler raises error."""
+    fake_db = MagicMock()
+    fake_db.get_scheduled_destruction.return_value = {
+        "id": 123,
+        "schedule_name": "Test Schedule",
+        "status": "scheduled",
+    }
+
+    fake_scheduler = MagicMock()
+    fake_scheduler.cancel_scheduled_destruction.side_effect = Exception(
+        "Scheduler error"
+    )
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
+
+    assert resp.status_code == 500
+    assert resp.get_json()["success"] is False
+    # API returns str(e) which is "Scheduler error"
+    assert "Scheduler error" in resp.get_json()["message"]
+
+
+def test_cancel_scheduled_destruction_requires_auth(client, monkeypatch):
+    """Test that canceling a scheduled destruction requires authentication."""
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123")
+
+    assert resp.status_code == 401
+    fake_db.get_scheduled_destruction.assert_not_called()
+    fake_scheduler.cancel_scheduled_destruction.assert_not_called()
