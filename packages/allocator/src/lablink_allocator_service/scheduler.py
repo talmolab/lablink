@@ -27,8 +27,6 @@ def execute_scheduled_destruction_job(
     table_name: str,
     message_channel: str,
     terraform_dir: str,
-    max_retries: int = 3,
-    retry_delay_minutes: int = 10,
 ):
     """
     Execute a scheduled destruction job.
@@ -46,8 +44,6 @@ def execute_scheduled_destruction_job(
         table_name: VMs table name
         message_channel: Message channel name
         terraform_dir: Path to Terraform directory
-        max_retries: Maximum number of retry attempts
-        retry_delay_minutes: Base delay in minutes for retries
     """
     from lablink_allocator_service.database import PostgresqlDatabase
 
@@ -135,10 +131,6 @@ def execute_scheduled_destruction_job(
 
 
 class ScheduledDestructionService:
-    # Hardcoded configuration constants
-    MAX_RETRIES = 3
-    RETRY_DELAY_MINUTES = 10
-
     def __init__(
         self,
         database: PostgresqlDatabase,
@@ -224,6 +216,8 @@ class ScheduledDestructionService:
             ID of the created schedule in the database
         """
         # Create database record
+        # This will raise ValueError for duplicate names or RuntimeError for
+        # other DB errors
         schedule_id = self.database.create_scheduled_destruction(
             schedule_name=schedule_name,
             destruction_time=destruction_time,
@@ -232,11 +226,6 @@ class ScheduledDestructionService:
             notification_enabled=notification_enabled,
             notification_hours_before=notification_hours_before,
         )
-
-        if schedule_id is None:
-            error_msg = f"Failed to create scheduled destruction '{schedule_name}'"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
 
         # Add job to APScheduler
         self._add_scheduler_job(

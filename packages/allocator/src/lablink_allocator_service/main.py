@@ -723,22 +723,22 @@ def create_scheduled_destruction():
                 {"success": False, "message": "Scheduler service not initialized"}
             ), 500
 
-        schedule_id = scheduler_service.schedule_destruction(
-            schedule_name=data["schedule_name"],
-            destruction_time=destruction_time,
-            recurrence_rule=data.get("recurrence_rule"),
-            created_by=auth.current_user(),
-            notification_enabled=data.get("notification_enabled", False),
-            notification_hours_before=data.get("notification_hours_before", 1),
-        )
-
-        if schedule_id is None:
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Failed to create schedule",
-                }
-            ), 500
+        try:
+            schedule_id = scheduler_service.schedule_destruction(
+                schedule_name=data["schedule_name"],
+                destruction_time=destruction_time,
+                recurrence_rule=data.get("recurrence_rule"),
+                created_by=auth.current_user(),
+                notification_enabled=data.get("notification_enabled", False),
+                notification_hours_before=data.get("notification_hours_before", 1),
+            )
+        except ValueError as e:
+            # Duplicate schedule name (from database unique constraint)
+            return jsonify({"success": False, "message": str(e)}), 409
+        except RuntimeError as e:
+            # Database or scheduler error
+            logger.error(f"Failed to create scheduled destruction: {e}")
+            return jsonify({"success": False, "message": str(e)}), 500
 
         return jsonify(
             {
@@ -854,49 +854,71 @@ def main():
     """Main entry point for the allocator service."""
     global scheduler_service
 
-    with app.app_context():
-        db.create_all()
-        init_database()
+    try:
+        with app.app_context():
+            db.create_all()
+            init_database()
 
-    # Initialize scheduler service
-    db_url = (
-        f"postgresql://{cfg.db.user}:{cfg.db.password}"
-        f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
-    )
-    scheduler_service = ScheduledDestructionService(database=database, db_url=db_url)
-    scheduler_service.start()
-    atexit.register(scheduler_service.stop)
+        # Initialize scheduler service
+        logger.info("Initializing scheduler service...")
+        db_url = (
+            f"postgresql://{cfg.db.user}:{cfg.db.password}"
+            f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+        )
+        scheduler_service = ScheduledDestructionService(
+            database=database, db_url=db_url
+        )
+        scheduler_service.start()
+        atexit.register(scheduler_service.stop)
+        logger.info("Scheduler service started successfully")
 
-    # Terraform initialization
-    if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
-        logger.info("Initializing Terraform...")
-        if ENVIRONMENT not in ["prod", "test", "ci-test"]:
-            (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
-            subprocess.run(
-                ["terraform", "init"],
-                cwd=TERRAFORM_DIR,
-                check=True,
-            )
-        else:
-            # Use bucket_name from config for client VM terraform state
-            default_bucket = "tf-state-lablink-allocator-bucket"
-            bucket_name = (
-                cfg.bucket_name if hasattr(cfg, "bucket_name") else default_bucket
-            )
-            logger.info(f"Initializing Terraform with S3 backend: {bucket_name}")
-            subprocess.run(
-                [
-                    "terraform",
-                    "init",
-                    f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
-                    f"-backend-config=bucket={bucket_name}",
-                    f"-backend-config=region={cfg.app.region}",
-                ],
-                cwd=TERRAFORM_DIR,
-                check=True,
-            )
+        # Terraform initialization
+        if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
+            logger.info("Initializing Terraform...")
+            if ENVIRONMENT not in ["prod", "test", "ci-test"]:
+                (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
+                subprocess.run(
+                    ["terraform", "init"],
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                )
+            else:
+                # Use bucket_name from config for client VM terraform state
+                default_bucket = "tf-state-lablink-allocator-bucket"
+                bucket_name = (
+                    cfg.bucket_name if hasattr(cfg, "bucket_name") else default_bucket
+                )
+                logger.info(f"Initializing Terraform with S3 backend: {bucket_name}")
+                subprocess.run(
+                    [
+                        "terraform",
+                        "init",
+                        f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
+                        f"-backend-config=bucket={bucket_name}",
+                        f"-backend-config=region={cfg.app.region}",
+                    ],
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                )
 
-    app.run(host="0.0.0.0", port=5000, threaded=True)
+        logger.info("Starting Flask application...")
+        app.run(host="0.0.0.0", port=5000, threaded=True)
+
+    except Exception as e:
+        logger.error(f"Failed to start allocator service: {e}", exc_info=True)
+
+        # Clean up scheduler if it was initialized
+        if scheduler_service is not None:
+            try:
+                logger.info("Stopping scheduler service due to startup failure...")
+                scheduler_service.stop()
+            except Exception as cleanup_error:
+                logger.error(
+                    f"Error stopping scheduler during cleanup: {cleanup_error}"
+                )
+
+        # Re-raise the exception to exit with error code
+        raise
 
 
 if __name__ == "__main__":

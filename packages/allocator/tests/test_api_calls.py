@@ -1755,3 +1755,90 @@ def test_cancel_scheduled_destruction_requires_auth(client, monkeypatch):
     assert resp.status_code == 401
     fake_db.get_scheduled_destruction.assert_not_called()
     fake_scheduler.cancel_scheduled_destruction.assert_not_called()
+
+
+def test_create_scheduled_destruction_database_returns_none(
+    client, admin_headers, monkeypatch
+):
+    """Test that scheduler raises error when database returns None.
+
+    This tests the fix for the bug where database.create_scheduled_destruction
+    returning None would cause silent failure and orphaned APScheduler jobs.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    # Mock database to return None (simulating database error)
+    fake_scheduler.schedule_destruction.side_effect = RuntimeError(
+        "Failed to create scheduled destruction 'Test Schedule'"
+    )
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Test Schedule",
+        "destruction_time": future_time,
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    # Should return 500 error instead of silently failing
+    assert resp.status_code == 500
+    assert resp.get_json()["success"] is False
+    assert "Failed to create scheduled destruction" in resp.get_json()["message"]
+
+    # Verify scheduler was called (the error happens inside scheduler.schedule_destruction)
+    fake_scheduler.schedule_destruction.assert_called_once()
+
+
+def test_create_scheduled_destruction_duplicate_name(
+    client, admin_headers, monkeypatch
+):
+    """Test creating a scheduled destruction with a duplicate name.
+
+    This tests that duplicate schedule names (unique constraint violation)
+    return a 409 Conflict with a clear error message.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    fake_db = MagicMock()
+    fake_scheduler = MagicMock()
+
+    # Mock scheduler to raise ValueError for duplicate name
+    fake_scheduler.schedule_destruction.side_effect = ValueError(
+        "A schedule with the name 'Daily Cleanup' already exists"
+    )
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.scheduler_service",
+        fake_scheduler,
+        raising=False,
+    )
+
+    future_time = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    data = {
+        "schedule_name": "Daily Cleanup",
+        "destruction_time": future_time,
+    }
+    resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
+
+    # Should return 409 Conflict with clear message
+    assert resp.status_code == 409
+    assert resp.get_json()["success"] is False
+    assert "already exists" in resp.get_json()["message"]
+    assert "Daily Cleanup" in resp.get_json()["message"]
+
+    # Verify scheduler was called
+    fake_scheduler.schedule_destruction.assert_called_once()

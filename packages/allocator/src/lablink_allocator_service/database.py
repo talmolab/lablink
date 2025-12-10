@@ -750,8 +750,13 @@ class PostgresqlDatabase:
         created_by: str = None,
         notification_enabled: bool = True,
         notification_hours_before: int = 1,
-    ) -> int | None:
-        """Create a scheduled destruction entry and return its ID."""
+    ) -> int:
+        """Create a scheduled destruction entry and return its ID.
+
+        Raises:
+            ValueError: If a schedule with the same name already exists
+            RuntimeError: If database operation fails
+        """
         query = """
             INSERT INTO scheduled_destructions
             (schedule_name, destruction_time, recurrence_rule, created_by,
@@ -778,10 +783,21 @@ class PostgresqlDatabase:
                 f"with ID {destruction_id}."
             )
             return destruction_id
-        except Exception as e:
-            logger.error(f"Error creating scheduled destruction: {e}")
+
+        except psycopg2.IntegrityError as e:
             self.conn.rollback()
-            return None
+            if 'schedule_name' in str(e) or 'unique constraint' in str(e).lower():
+                error_msg = f"A schedule with the name '{schedule_name}' already exists"
+                logger.warning(error_msg)
+                raise ValueError(error_msg) from e
+            else:
+                logger.error(f"Database integrity error: {e}")
+                raise RuntimeError(f"Database integrity error: {e}") from e
+
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"Error creating scheduled destruction: {e}")
+            raise RuntimeError(f"Failed to create scheduled destruction: {e}") from e
 
     def get_scheduled_destruction(self, schedule_id: int) -> Optional[dict]:
         """Get scheduled destruction by ID."""
