@@ -6,6 +6,14 @@ import json
 # This allows us to avoid the real psycopg2 import raising an error if it's not installed
 # in the test environment, and to control its behavior for all tests in this file.
 mock_psycopg2 = MagicMock()
+
+# Create proper exception classes for psycopg2
+class MockIntegrityError(Exception):
+    """Mock psycopg2.IntegrityError for testing."""
+    pass
+
+mock_psycopg2.IntegrityError = MockIntegrityError
+
 with patch.dict(
     "sys.modules",
     {"psycopg2": mock_psycopg2, "psycopg2.extensions": MagicMock()},
@@ -741,15 +749,17 @@ def test_create_scheduled_destruction_one_time(db_instance):
 def test_create_scheduled_destruction_error(db_instance, caplog):
     """Test error handling in create_scheduled_destruction."""
     from datetime import datetime, timezone
+    import pytest
 
     db_instance.cursor.execute.side_effect = Exception("DB error")
 
-    schedule_id = db_instance.create_scheduled_destruction(
-        schedule_name="Test",
-        destruction_time=datetime.now(timezone.utc),
-    )
+    # Should raise RuntimeError instead of returning None
+    with pytest.raises(RuntimeError, match="Failed to create scheduled destruction"):
+        db_instance.create_scheduled_destruction(
+            schedule_name="Test",
+            destruction_time=datetime.now(timezone.utc),
+        )
 
-    assert schedule_id is None
     assert "Error creating scheduled destruction: DB error" in caplog.text
     db_instance.conn.rollback.assert_called_once()
 

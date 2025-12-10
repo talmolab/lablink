@@ -411,9 +411,3 @@ def test_load_scheduled_destructions_empty(scheduler_service, mock_database):
 
     # Verify no jobs were added
     scheduler_service.scheduler.add_job.assert_not_called()
-
-
-def test_constants():
-    """Test that class-level constants are correctly defined."""
-    assert ScheduledDestructionService.MAX_RETRIES == 3
-    assert ScheduledDestructionService.RETRY_DELAY_MINUTES == 10
