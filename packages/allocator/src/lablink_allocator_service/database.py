@@ -431,17 +431,6 @@ class PostgresqlDatabase:
             logger.error(f"Error deleting VMs: {e}")
             self.conn.rollback()
 
-    def clear_scheduled_destructions(self) -> None:
-        """Delete all scheduled destructions from the database."""
-        query = "DELETE FROM scheduled_destructions;"
-        try:
-            self.cursor.execute(query)
-            self.conn.commit()
-            logger.debug("All scheduled destructions deleted from the database.")
-        except Exception as e:
-            logger.error(f"Error deleting scheduled destructions: {e}")
-            self.conn.rollback()
-
     def update_health(self, hostname: str, healthy: str) -> None:
         """Modify the health status of a VM.
 

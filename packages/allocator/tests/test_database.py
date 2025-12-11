@@ -925,21 +925,3 @@ def test_cancel_scheduled_destruction(db_instance):
         (schedule_id,),
     )
     db_instance.conn.commit.assert_called_once()
-
-
-def test_clear_scheduled_destructions(db_instance):
-    """Test clearing all scheduled destructions from the database."""
-    db_instance.clear_scheduled_destructions()
-
-    db_instance.cursor.execute.assert_called_with("DELETE FROM scheduled_destructions;")
-    db_instance.conn.commit.assert_called_once()
-
-
-def test_clear_scheduled_destructions_error(db_instance, caplog):
-    """Test error handling in clear_scheduled_destructions."""
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-
-    db_instance.clear_scheduled_destructions()
-
-    assert "Error deleting scheduled destructions: DB error" in caplog.text
-    db_instance.conn.rollback.assert_called_once()
