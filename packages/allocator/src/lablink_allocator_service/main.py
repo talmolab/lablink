@@ -746,7 +746,7 @@ def create_scheduled_destruction():
                 "schedule_id": schedule_id,
                 "message": "Scheduled destruction created successfully",
             }
-        ), 201
+        ), 200
 
     except ValueError as e:
         return jsonify(
