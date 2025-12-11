@@ -315,20 +315,43 @@
               ? parseRecurrenceRule(schedule.recurrence_rule)
               : "One-time";
 
-            // Actions
-            const canCancel = ["scheduled"].includes(schedule.status);
-            const cancelButton = canCancel
-              ? `<button class="cancel" onclick="cancelSchedule(${schedule.id})">Cancel</button>`
-              : "-";
+            // Create cells with textContent to prevent XSS
+            const nameCell = document.createElement("td");
+            nameCell.textContent = schedule.schedule_name;
 
-            row.innerHTML = `
-                        <td>${schedule.schedule_name}</td>
-                        <td>${destructionTime}</td>
-                        <td>${recurrence}</td>
-                        <td><span class="status-${schedule.status}">${schedule.status}</span></td>
-                        <td>${lastExecuted}</td>
-                        <td>${cancelButton}</td>
-                    `;
+            const timeCell = document.createElement("td");
+            timeCell.textContent = destructionTime;
+
+            const recurrenceCell = document.createElement("td");
+            recurrenceCell.textContent = recurrence;
+
+            const statusCell = document.createElement("td");
+            const statusSpan = document.createElement("span");
+            statusSpan.className = `status-${schedule.status}`;
+            statusSpan.textContent = schedule.status;
+            statusCell.appendChild(statusSpan);
+
+            const lastExecutedCell = document.createElement("td");
+            lastExecutedCell.textContent = lastExecuted;
+
+            const actionsCell = document.createElement("td");
+            const canCancel = ["scheduled"].includes(schedule.status);
+            if (canCancel) {
+              const cancelBtn = document.createElement("button");
+              cancelBtn.className = "cancel";
+              cancelBtn.textContent = "Cancel";
+              cancelBtn.onclick = () => cancelSchedule(schedule.id);
+              actionsCell.appendChild(cancelBtn);
+            } else {
+              actionsCell.textContent = "-";
+            }
+
+            row.appendChild(nameCell);
+            row.appendChild(timeCell);
+            row.appendChild(recurrenceCell);
+            row.appendChild(statusCell);
+            row.appendChild(lastExecutedCell);
+            row.appendChild(actionsCell);
 
             tbody.appendChild(row);
           });
