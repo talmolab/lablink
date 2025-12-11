@@ -174,9 +174,9 @@ def test_schedule_destruction_one_time(scheduler_service, mock_database):
     call_args = scheduler_service.scheduler.add_job.call_args
 
     assert call_args[1]["id"] == "destruction_42"
-    # Args now include schedule_id plus all database config params
+    # Args now include only schedule_id and terraform_dir (no credentials)
     assert call_args[1]["args"][0] == 42  # schedule_id is first arg
-    assert len(call_args[1]["args"]) == 9  # schedule_id + 8 db config params
+    assert len(call_args[1]["args"]) == 2  # schedule_id + terraform_dir
     assert schedule_id == 42
 
 
@@ -291,19 +291,24 @@ def test_execute_scheduled_destruction_success(scheduler_service, mock_database)
         mock_result.returncode = 0
         mock_run.return_value = mock_result
 
-        # Mock PostgresqlDatabase constructor - need to patch where it's imported in the function
-        with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
-            execute_scheduled_destruction_job(
-                schedule_id=schedule_id,
-                dbname="testdb",
-                user="testuser",
-                password="testpass",
-                host="localhost",
-                port=5432,
-                table_name="vms",
-                message_channel="vm_updates",
-                terraform_dir="/test/terraform",
-            )
+        # Mock get_config to return test config (patch where it's imported)
+        with patch("lablink_allocator_service.get_config.get_config") as mock_get_config:
+            mock_config = MagicMock()
+            mock_config.db.dbname = "testdb"
+            mock_config.db.user = "testuser"
+            mock_config.db.password = "testpass"
+            mock_config.db.host = "localhost"
+            mock_config.db.port = 5432
+            mock_config.db.table_name = "vms"
+            mock_config.db.message_channel = "vm_updates"
+            mock_get_config.return_value = mock_config
+
+            # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
+            with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
+                execute_scheduled_destruction_job(
+                    schedule_id=schedule_id,
+                    terraform_dir="/test/terraform",
+                )
 
         # Verify status updated to executing
         assert mock_database.update_scheduled_destruction_status.call_count >= 2
@@ -345,19 +350,24 @@ def test_execute_scheduled_destruction_terraform_failure(
             stderr="Error destroying resources",
         )
 
-        # Mock PostgresqlDatabase constructor - need to patch where it's imported in the function
-        with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
-            execute_scheduled_destruction_job(
-                schedule_id=schedule_id,
-                dbname="testdb",
-                user="testuser",
-                password="testpass",
-                host="localhost",
-                port=5432,
-                table_name="vms",
-                message_channel="vm_updates",
-                terraform_dir="/test/terraform",
-            )
+        # Mock get_config to return test config (patch where it's imported)
+        with patch("lablink_allocator_service.get_config.get_config") as mock_get_config:
+            mock_config = MagicMock()
+            mock_config.db.dbname = "testdb"
+            mock_config.db.user = "testuser"
+            mock_config.db.password = "testpass"
+            mock_config.db.host = "localhost"
+            mock_config.db.port = 5432
+            mock_config.db.table_name = "vms"
+            mock_config.db.message_channel = "vm_updates"
+            mock_get_config.return_value = mock_config
+
+            # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
+            with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
+                execute_scheduled_destruction_job(
+                    schedule_id=schedule_id,
+                    terraform_dir="/test/terraform",
+                )
 
         # Verify status was updated to failed
         calls = mock_database.update_scheduled_destruction_status.call_args_list

@@ -19,13 +19,6 @@ logger = logging.getLogger(__name__)
 # This avoids pickling issues with the database connection
 def execute_scheduled_destruction_job(
     schedule_id: int,
-    dbname: str,
-    user: str,
-    password: str,
-    host: str,
-    port: int,
-    table_name: str,
-    message_channel: str,
     terraform_dir: str,
 ):
     """
@@ -34,28 +27,28 @@ def execute_scheduled_destruction_job(
     This is a standalone function (not a method) to avoid pickling issues
     with APScheduler's SQLAlchemy job store.
 
+    Database credentials are read from the config system at runtime to avoid
+    storing sensitive data in the APScheduler job store.
+
     Args:
         schedule_id: ID of the scheduled destruction
-        dbname: Database name
-        user: Database user
-        password: Database password
-        host: Database host
-        port: Database port
-        table_name: VMs table name
-        message_channel: Message channel name
         terraform_dir: Path to Terraform directory
     """
     from lablink_allocator_service.database import PostgresqlDatabase
+    from lablink_allocator_service.get_config import get_config
+
+    # Load config at runtime to get credentials (avoids storing passwords in job store)
+    cfg = get_config()
 
     # Create a fresh database connection for this job
     database = PostgresqlDatabase(
-        dbname=dbname,
-        user=user,
-        password=password,
-        host=host,
-        port=port,
-        table_name=table_name,
-        message_channel=message_channel,
+        dbname=cfg.db.dbname,
+        user=cfg.db.user,
+        password=cfg.db.password,
+        host=cfg.db.host,
+        port=cfg.db.port,
+        table_name=cfg.db.table_name,
+        message_channel=cfg.db.message_channel,
     )
 
     logger.info(f"Executing scheduled destruction ID: {schedule_id}")
@@ -146,17 +139,6 @@ class ScheduledDestructionService:
         """
         self.database: PostgresqlDatabase = database
         self.db_url = db_url
-
-        # Store database config for job execution
-        self.db_config = {
-            "dbname": database.dbname,
-            "user": database.user,
-            "password": database.password,
-            "host": database.host,
-            "port": database.port,
-            "table_name": database.table_name,
-            "message_channel": database.message_channel,
-        }
 
         self.terraform_dir = terraform_dir or os.path.join(
             os.path.dirname(__file__), "terraform"
@@ -272,18 +254,13 @@ class ScheduledDestructionService:
             # One-time job
             trigger = DateTrigger(run_date=destruction_time)
 
+        # Only pass non-sensitive data as arguments
+        # Database credentials are loaded from config at runtime
         self.scheduler.add_job(
             func=execute_scheduled_destruction_job,
             trigger=trigger,
             args=[
                 schedule_id,
-                self.db_config["dbname"],
-                self.db_config["user"],
-                self.db_config["password"],
-                self.db_config["host"],
-                self.db_config["port"],
-                self.db_config["table_name"],
-                self.db_config["message_channel"],
                 self.terraform_dir,
             ],
             id=job_id,

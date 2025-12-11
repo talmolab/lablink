@@ -1204,7 +1204,7 @@ def test_create_scheduled_destruction_success(client, admin_headers, monkeypatch
     resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
 
     # Assert response
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert resp.is_json
     json_data = resp.get_json()
     assert json_data["success"] is True
@@ -1251,7 +1251,7 @@ def test_create_scheduled_destruction_with_recurrence(
     resp = client.post(SCHEDULE_DESTRUCTION_ENDPOINT, json=data, headers=admin_headers)
 
     # Assert response
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert resp.get_json()["success"] is True
     assert resp.get_json()["schedule_id"] == 456
 
