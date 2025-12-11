@@ -19,6 +19,7 @@ dependencies = [
   "requests>=2.28",
   "Flask-HTTPAuth>=4.7",
   "boto3>=1.26",
+  "apscheduler>=3.11.1",
 ]
 description = "VM Allocator Service Package for Lablink"
 name = "lablink-allocator-service"

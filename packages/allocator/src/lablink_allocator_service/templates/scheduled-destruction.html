@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scheduled Destruction - LabLink</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+      }
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+      }
+      .form-section {
+        margin-bottom: 40px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #555;
+      }
+      input[type="text"],
+      input[type="datetime-local"],
+      select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button.cancel {
+        background-color: #dc3545;
+      }
+      button.cancel:hover {
+        background-color: #c82333;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #333;
+      }
+      .status-scheduled {
+        color: #007bff;
+        font-weight: bold;
+      }
+      .status-executing {
+        color: #ffc107;
+        font-weight: bold;
+      }
+      .status-completed {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .status-failed {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .status-cancelled {
+        color: #6c757d;
+        font-weight: bold;
+      }
+      .checkbox-group {
+        display: flex;
+        align-items: center;
+        margin-top: 10px;
+        margin-bottom: 10px;
+      }
+      .checkbox-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 10px;
+      }
+      .help-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a href="/admin" class="back-link">← Back to Admin Dashboard</a>
+
+      <h1>Scheduled Destruction</h1>
+      <p class="subtitle">
+        Schedule automatic destruction of all VMs at a specific time
+      </p>
+
+      <!-- Create Schedule Form -->
+      <div class="form-section">
+        <h2>Create New Schedule</h2>
+        <form id="schedule-form">
+          <div class="form-group">
+            <label for="schedule_name">Schedule Name *</label>
+            <input
+              type="text"
+              id="schedule_name"
+              name="schedule_name"
+              placeholder="e.g., Friday Tutorial End"
+              required
+            />
+            <div class="help-text">A descriptive name for this schedule</div>
+          </div>
+
+          <div class="form-group">
+            <label for="destruction_time">Destruction Time (UTC) *</label>
+            <input
+              type="datetime-local"
+              id="destruction_time"
+              name="destruction_time"
+              required
+            />
+            <div class="help-text">All VMs will be destroyed at this time</div>
+          </div>
+
+          <div class="checkbox-group">
+            <input
+              type="checkbox"
+              id="recurrence_toggle"
+              name="recurrence_toggle"
+            />
+            <label for="recurrence_toggle" style="margin-bottom: 0"
+              >Make this a recurring schedule</label
+            >
+          </div>
+
+          <div id="recurrence_options" style="display: none; margin-top: 15px">
+            <div class="form-group">
+              <label for="recurrence_rule">Recurrence Pattern</label>
+              <select id="recurrence_rule" name="recurrence_rule">
+                <option value="">Select pattern...</option>
+                <option value="FREQ=WEEKLY;BYDAY=MO">Every Monday</option>
+                <option value="FREQ=WEEKLY;BYDAY=TU">Every Tuesday</option>
+                <option value="FREQ=WEEKLY;BYDAY=WE">Every Wednesday</option>
+                <option value="FREQ=WEEKLY;BYDAY=TH">Every Thursday</option>
+                <option value="FREQ=WEEKLY;BYDAY=FR">Every Friday</option>
+                <option value="FREQ=WEEKLY;BYDAY=SA">Every Saturday</option>
+                <option value="FREQ=WEEKLY;BYDAY=SU">Every Sunday</option>
+                <option value="FREQ=DAILY">Every Day</option>
+              </select>
+              <div class="help-text">
+                Choose when the destruction should repeat
+              </div>
+            </div>
+          </div>
+
+          <button type="submit">Create Schedule</button>
+        </form>
+      </div>
+
+      <!-- Scheduled Destructions List -->
+      <div class="form-section">
+        <h2>Existing Schedules</h2>
+        <table id="schedules-table">
+          <thead>
+            <tr>
+              <th>Schedule Name</th>
+              <th>Destruction Time</th>
+              <th>Recurrence</th>
+              <th>Status</th>
+              <th>Last Executed</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="6" style="text-align: center">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      // Toggle recurrence options
+      document
+        .getElementById("recurrence_toggle")
+        .addEventListener("change", (e) => {
+          const recurrenceOptions =
+            document.getElementById("recurrence_options");
+          recurrenceOptions.style.display = e.target.checked ? "block" : "none";
+        });
+
+      // Create scheduled destruction
+      document
+        .getElementById("schedule-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(e.target);
+
+          // Convert datetime-local to ISO format
+          const destructionTime = new Date(
+            formData.get("destruction_time")
+          ).toISOString();
+
+          const data = {
+            schedule_name: formData.get("schedule_name"),
+            destruction_time: destructionTime,
+            recurrence_rule:
+              formData.get("recurrence_toggle") === "on"
+                ? formData.get("recurrence_rule")
+                : null,
+          };
+
+          try {
+            const response = await fetch("/api/schedule-destruction", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              alert("Scheduled destruction created successfully!");
+              e.target.reset();
+              document.getElementById("recurrence_options").style.display =
+                "none";
+              loadSchedules();
+            } else {
+              alert("Error: " + result.message);
+            }
+          } catch (error) {
+            alert("Error: " + error.message);
+          }
+        });
+
+      // Load scheduled destructions
+      async function loadSchedules() {
+        try {
+          const response = await fetch("/api/schedule-destruction", {
+            credentials: "include",
+          });
+          const result = await response.json();
+
+          const tbody = document.querySelector("#schedules-table tbody");
+          tbody.innerHTML = "";
+
+          if (result.schedules.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="6" style="text-align: center;">No scheduled destructions</td></tr>';
+            return;
+          }
+
+          result.schedules.forEach((schedule) => {
+            const row = document.createElement("tr");
+
+            // Format dates
+            const destructionTime = new Date(
+              schedule.destruction_time
+            ).toLocaleString();
+            const lastExecuted = schedule.last_execution_time
+              ? new Date(schedule.last_execution_time).toLocaleString()
+              : "N/A";
+
+            // Recurrence display
+            const recurrence = schedule.recurrence_rule
+              ? parseRecurrenceRule(schedule.recurrence_rule)
+              : "One-time";
+
+            // Create cells with textContent to prevent XSS
+            const nameCell = document.createElement("td");
+            nameCell.textContent = schedule.schedule_name;
+
+            const timeCell = document.createElement("td");
+            timeCell.textContent = destructionTime;
+
+            const recurrenceCell = document.createElement("td");
+            recurrenceCell.textContent = recurrence;
+
+            const statusCell = document.createElement("td");
+            const statusSpan = document.createElement("span");
+            statusSpan.className = `status-${schedule.status}`;
+            statusSpan.textContent = schedule.status;
+            statusCell.appendChild(statusSpan);
+
+            const lastExecutedCell = document.createElement("td");
+            lastExecutedCell.textContent = lastExecuted;
+
+            const actionsCell = document.createElement("td");
+            const canCancel = ["scheduled"].includes(schedule.status);
+            if (canCancel) {
+              const cancelBtn = document.createElement("button");
+              cancelBtn.className = "cancel";
+              cancelBtn.textContent = "Cancel";
+              cancelBtn.onclick = () => cancelSchedule(schedule.id);
+              actionsCell.appendChild(cancelBtn);
+            } else {
+              actionsCell.textContent = "-";
+            }
+
+            row.appendChild(nameCell);
+            row.appendChild(timeCell);
+            row.appendChild(recurrenceCell);
+            row.appendChild(statusCell);
+            row.appendChild(lastExecutedCell);
+            row.appendChild(actionsCell);
+
+            tbody.appendChild(row);
+          });
+        } catch (error) {
+          console.error("Failed to load schedules:", error);
+          const tbody = document.querySelector("#schedules-table tbody");
+          tbody.innerHTML =
+            '<tr><td colspan="6" style="text-align: center; color: red;">Failed to load schedules</td></tr>';
+        }
+      }
+
+      // Cancel scheduled destruction
+      async function cancelSchedule(scheduleId) {
+        if (
+          !confirm(
+            "Are you sure you want to cancel this scheduled destruction?"
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/api/schedule-destruction/${scheduleId}`,
+            {
+              method: "DELETE",
+              credentials: "include",
+            }
+          );
+
+          const result = await response.json();
+
+          if (result.success) {
+            alert("Scheduled destruction cancelled successfully");
+            loadSchedules();
+          } else {
+            alert("Error: " + result.message);
+          }
+        } catch (error) {
+          alert("Error: " + error.message);
+        }
+      }
+
+      // Parse recurrence rule for display
+      function parseRecurrenceRule(rule) {
+        const patterns = {
+          "FREQ=WEEKLY;BYDAY=MO": "Every Monday",
+          "FREQ=WEEKLY;BYDAY=TU": "Every Tuesday",
+          "FREQ=WEEKLY;BYDAY=WE": "Every Wednesday",
+          "FREQ=WEEKLY;BYDAY=TH": "Every Thursday",
+          "FREQ=WEEKLY;BYDAY=FR": "Every Friday",
+          "FREQ=WEEKLY;BYDAY=SA": "Every Saturday",
+          "FREQ=WEEKLY;BYDAY=SU": "Every Sunday",
+          "FREQ=DAILY": "Every Day",
+        };
+
+        return patterns[rule] || rule;
+      }
+
+      // Load schedules on page load
+      loadSchedules();
+
+      // Refresh schedules every 30 seconds
+      setInterval(loadSchedules, 30000);
+    </script>
+  </body>
+</html>
