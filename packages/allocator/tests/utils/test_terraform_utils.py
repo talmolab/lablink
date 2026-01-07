@@ -39,7 +39,9 @@ def test_get_instance_ips_nonzero_returncode(mock_run):
     mock_run.side_effect = subprocess.CalledProcessError(
         1, "terraform", stderr="error message"
     )
-    with pytest.raises(RuntimeError, match="Error running terraform output: error message"):
+    with pytest.raises(
+        RuntimeError, match="Error running terraform output: error message"
+    ):
         get_instance_ips("/fake/terraform/dir")
 
 
@@ -59,7 +61,9 @@ def test_get_instance_ips_not_a_list(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout=json.dumps({"ip": "1.2.3.4"}), stderr=""
     )
-    with pytest.raises(ValueError, match="Expected output to be a list of IP addresses"):
+    with pytest.raises(
+        ValueError, match="Expected output to be a list of IP addresses"
+    ):
         get_instance_ips("/fake/terraform/dir")
 
 
@@ -83,7 +87,9 @@ def test_get_ssh_private_key_failure(mock_run):
     mock_run.side_effect = subprocess.CalledProcessError(
         1, "terraform", stderr="error message"
     )
-    with pytest.raises(RuntimeError, match="Error running terraform output: error message"):
+    with pytest.raises(
+        RuntimeError, match="Error running terraform output: error message"
+    ):
         get_ssh_private_key("/fake/terraform/dir")
 
 
@@ -157,7 +163,9 @@ def test_get_instance_ids_not_a_list(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout=json.dumps({"id": "i-12345"}), stderr=""
     )
-    with pytest.raises(ValueError, match="Expected output to be a list of instance IDs"):
+    with pytest.raises(
+        ValueError, match="Expected output to be a list of instance IDs"
+    ):
         get_instance_ids("/fake/terraform/dir")
 
 
@@ -170,7 +178,9 @@ def test_get_instance_names_not_a_list(mock_run):
         stdout=json.dumps({"name": "instance-1"}),
         stderr="",
     )
-    with pytest.raises(ValueError, match="Expected output to be a list of instance names"):
+    with pytest.raises(
+        ValueError, match="Expected output to be a list of instance names"
+    ):
         get_instance_names("/fake/terraform/dir")
 
 
@@ -183,7 +193,9 @@ def test_get_instance_timings_not_a_dict(mock_run):
         stdout=json.dumps(["timing-1", "timing-2"]),
         stderr="",
     )
-    with pytest.raises(ValueError, match="Expected output to be a dictionary of launch times"):
+    with pytest.raises(
+        ValueError, match="Expected output to be a dictionary of launch times"
+    ):
         get_instance_timings("/fake/terraform/dir")
 
 

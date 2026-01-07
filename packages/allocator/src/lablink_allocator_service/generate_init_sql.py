@@ -26,6 +26,38 @@ GRANT ALL PRIVILEGES ON DATABASE {DB_NAME} TO {DB_USER};
 
 SET ROLE {DB_USER};
 
+CREATE TABLE IF NOT EXISTS scheduled_destructions (
+    id SERIAL PRIMARY KEY,
+    schedule_name VARCHAR(255) NOT NULL UNIQUE,
+    destruction_time TIMESTAMP NOT NULL,
+    recurrence_rule VARCHAR(255),
+    created_by VARCHAR(255),
+    status VARCHAR(50) NOT NULL DEFAULT 'scheduled',
+    execution_count INTEGER DEFAULT 0,
+    last_execution_time TIMESTAMP,
+    last_execution_result TEXT,
+    notification_enabled BOOLEAN DEFAULT TRUE,
+    notification_hours_before INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_destruction_time ON scheduled_destructions(destruction_time);
+CREATE INDEX idx_status ON scheduled_destructions(status);
+
+CREATE OR REPLACE FUNCTION update_scheduled_destructions_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER scheduled_destructions_updated_at
+    BEFORE UPDATE ON scheduled_destructions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_scheduled_destructions_updated_at();
+
 CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     HostName VARCHAR(1024) PRIMARY KEY,
     Pin VARCHAR(1024),
