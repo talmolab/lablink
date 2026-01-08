@@ -441,7 +441,7 @@ aws iam attach-role-policy \
 
 #### Option B: AWS CLI - Create Custom Policy
 
-For more restrictive permissions, create a custom policy:
+For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2, ALB, CloudTrail, CloudWatch, Lambda, SNS, and Budgets.
 
 Create `lablink-terraform-policy.json`:
 
@@ -456,7 +456,10 @@ Create `lablink-terraform-policy.json`:
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketAcl"
       ],
       "Resource": [
         "arn:aws:s3:::lablink-terraform-state-*",
@@ -464,6 +467,17 @@ Create `lablink-terraform-policy.json`:
         "arn:aws:s3:::tf-state-lablink-*",
         "arn:aws:s3:::tf-state-lablink-*/*"
       ]
+    },
+    {
+      "Sid": "DynamoDBStateLocking",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/lock-table"
     },
     {
       "Sid": "EC2FullAccess",
@@ -474,12 +488,14 @@ Create `lablink-terraform-policy.json`:
       "Resource": "*"
     },
     {
-      "Sid": "IAMInstanceProfile",
+      "Sid": "IAMRolesAndInstanceProfiles",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
         "iam:DeleteRole",
         "iam:GetRole",
+        "iam:TagRole",
+        "iam:UntagRole",
         "iam:PassRole",
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy",
@@ -496,8 +512,10 @@ Create `lablink-terraform-policy.json`:
         "iam:ListRolePolicies"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/lablink-*",
-        "arn:aws:iam::*:instance-profile/lablink-*"
+        "arn:aws:iam::*:role/lablink*",
+        "arn:aws:iam::*:role/lablink_*",
+        "arn:aws:iam::*:instance-profile/lablink*",
+        "arn:aws:iam::*:instance-profile/lablink_*"
       ]
     },
     {
@@ -511,10 +529,197 @@ Create `lablink-terraform-policy.json`:
         "route53:GetChange"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "ApplicationLoadBalancer",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetGroupAttributes",
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:RemoveTags",
+        "elasticloadbalancing:DescribeTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ACMCertificates",
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:GetCertificate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsAndAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:CreateLogStream",
+        "logs:DeleteLogStream",
+        "logs:PutLogEvents",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters",
+        "logs:PutSubscriptionFilter",
+        "logs:DeleteSubscriptionFilter",
+        "logs:DescribeSubscriptionFilters",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrail",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:CreateTrail",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:AddTags",
+        "cloudtrail:RemoveTags",
+        "cloudtrail:ListTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrailS3Bucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:GetBucketPolicy",
+        "s3:PutBucketAcl",
+        "s3:GetBucketAcl",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutLifecycleConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:PutBucketTagging",
+        "s3:GetBucketTagging",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::lablink-cloudtrail-*",
+        "arn:aws:s3:::lablink-cloudtrail-*/*"
+      ]
+    },
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:InvokeFunction",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:*:*:function:lablink*"
+    },
+    {
+      "Sid": "SNSNotifications",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:Unsubscribe",
+        "sns:ListSubscriptionsByTopic",
+        "sns:Publish",
+        "sns:TagResource",
+        "sns:UntagResource",
+        "sns:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:sns:*:*:lablink*"
+    },
+    {
+      "Sid": "Budgets",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:ViewBudget",
+        "budgets:CreateBudgetAction",
+        "budgets:DeleteBudgetAction",
+        "budgets:UpdateBudgetAction",
+        "budgets:ExecuteBudgetAction",
+        "budgets:ModifyBudget"
+      ],
+      "Resource": "*"
     }
   ]
 }
 ```
+
+**Note:** This policy covers all AWS services used by the LabLink Terraform configuration:
+
+| Service | Purpose |
+|---------|---------|
+| **S3** | Terraform state storage, CloudTrail logs |
+| **DynamoDB** | Terraform state locking |
+| **EC2** | Allocator and client VM instances, security groups, key pairs, EIPs |
+| **IAM** | Instance profiles, CloudWatch agent roles, CloudTrail roles |
+| **Route53** | DNS records for allocator endpoints |
+| **ELB** | Application Load Balancer for HTTPS termination |
+| **ACM** | SSL/TLS certificates |
+| **CloudWatch** | Logs, metric filters, alarms for monitoring |
+| **CloudTrail** | Audit logging and compliance |
+| **Lambda** | Log processing functions |
+| **SNS** | Alert notifications |
+| **Budgets** | Cost monitoring and alerts |
 
 Attach the custom policy:
 
@@ -957,6 +1162,35 @@ admin_password = get_secret("lablink/admin-password")
 
 Set up monitoring and alerts for your infrastructure.
 
+### Terraform-Managed CloudWatch Resources
+
+When you deploy LabLink using Terraform, the following CloudWatch resources are automatically created:
+
+**CloudWatch Agent Role**: Terraform creates an IAM role (`lablink_cloud_watch_agent_role_<suffix>`) that allows client VMs to send logs and metrics to CloudWatch. This role includes permissions for:
+
+- `logs:CreateLogGroup` - Create new log groups
+- `logs:CreateLogStream` - Create log streams within groups
+- `logs:PutLogEvents` - Write log entries
+- `logs:DescribeLogStreams` - List available log streams
+- `cloudwatch:PutMetricData` - Send custom metrics
+
+**CloudTrail Logs**: CloudTrail events are automatically sent to CloudWatch Logs for security monitoring.
+
+**Metric Filters & Alarms**: Terraform creates CloudWatch metric filters to monitor:
+
+| Metric Filter | Purpose | Alarm Threshold |
+|--------------|---------|-----------------|
+| `RunInstances` | Detect mass instance launches | >10 in 5 minutes |
+| `LargeInstances` | Monitor expensive instance types (p4d, p3, g5) | Any launch |
+| `UnauthorizedCalls` | Track API permission failures | >5 in 5 minutes |
+| `TerminateInstances` | High termination rate detection | >10 in 5 minutes |
+
+**SNS Notifications**: Alarms send notifications to the `lablink-admin-alerts-<suffix>` SNS topic, which emails the configured admin.
+
+### Manual CloudWatch Configuration (Optional)
+
+For additional monitoring beyond what Terraform provides:
+
 ### Enable CloudWatch Logs
 
 Update user data script to send logs to CloudWatch:
@@ -1074,15 +1308,34 @@ aws budgets create-budget \
 
 After completing setup, verify:
 
+**Required Setup:**
+
 - [ ] S3 bucket created with versioning and encryption
+- [ ] DynamoDB table created for state locking (if using remote state)
 - [ ] Elastic IPs allocated for test and prod
 - [ ] OIDC provider created
-- [ ] IAM role for GitHub Actions configured
-- [ ] GitHub workflow has correct role ARN
-- [ ] (Optional) Route 53 hosted zone created
-- [ ] (Optional) Secrets Manager secrets created
-- [ ] (Optional) CloudWatch monitoring configured
-- [ ] (Optional) Billing alerts set up
+- [ ] IAM role for GitHub Actions configured with required permissions
+- [ ] GitHub repository secrets configured (`AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, `DB_PASSWORD`)
+- [ ] AMI IDs configured for your region
+
+**Optional Setup:**
+
+- [ ] Route 53 hosted zone created (for custom domain)
+- [ ] ACM certificate created (for HTTPS via ALB)
+- [ ] Secrets Manager secrets created
+- [ ] Budget alerts configured
+
+**Terraform-Managed (Automatic):**
+
+The following resources are created automatically by Terraform during deployment:
+
+- [ ] Application Load Balancer (ALB) with HTTPS listener
+- [ ] CloudTrail trail with S3 bucket for logs
+- [ ] CloudWatch log groups and metric filters
+- [ ] SNS topic for admin alerts
+- [ ] IAM roles for CloudWatch agent and CloudTrail
+- [ ] Security groups for allocator and ALB
+- [ ] Monthly budget with alert thresholds
 
 ## Testing Your Setup
 
