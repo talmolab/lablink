@@ -226,3 +226,6 @@ outputs
 lambda_package.zip
 .claude/settings.local.json
 uv.lock
+
+# Ignore scratch
+scratch/
