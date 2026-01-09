@@ -96,7 +96,7 @@ app:
 
 ## Step 1: IAM Permissions Setup
 
-### Create IAM User (If Needed)
+### 1.1 Create IAM User (If Needed)
 
 If you don't have an IAM user with sufficient permissions:
 
@@ -104,7 +104,7 @@ If you don't have an IAM user with sufficient permissions:
 aws iam create-user --user-name lablink-admin
 ```
 
-### Attach Required Policies
+### 1.2 Attach Required Policies
 
 Attach these managed policies for LabLink operations:
 
@@ -122,7 +122,7 @@ aws iam attach-user-policy \
   --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
 ```
 
-### Create Access Keys
+### 1.3 Create Access Keys
 
 For local Terraform usage:
 
