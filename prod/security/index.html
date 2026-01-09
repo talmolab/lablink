@@ -3012,7 +3012,7 @@
 </code></pre></div>
 <p><strong>Key</strong>: <code>token.actions.githubusercontent.com:sub</code> restricts to specific repository.</p>
 <h4 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h4>
-<p>See <a href="../aws-setup/#step-4-oidc-configuration">AWS Setup → OIDC Configuration</a>.</p>
+<p>See <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup → OIDC Configuration</a>.</p>
 <h3 id="iam-role-permissions">IAM Role Permissions<a class="headerlink" href="#iam-role-permissions" title="Permanent link">&para;</a></h3>
 <p>Follow <strong>principle of least privilege</strong>.</p>
 <p><strong>Minimal permissions</strong> for LabLink deployment:</p>
@@ -3544,20 +3544,20 @@
 </code></pre></div>
 <h2 id="compliance-best-practices">Compliance &amp; Best Practices<a class="headerlink" href="#compliance-best-practices" title="Permanent link">&para;</a></h2>
 <h3 id="security-checklist">Security Checklist<a class="headerlink" href="#security-checklist" title="Permanent link">&para;</a></h3>
-<ul>
-<li>[ ] Changed default admin password</li>
-<li>[ ] Changed default database password</li>
-<li>[ ] Enabled HTTPS for allocator</li>
-<li>[ ] Restricted SSH access to known IPs</li>
-<li>[ ] Enabled S3 bucket encryption</li>
-<li>[ ] Enabled EBS volume encryption</li>
-<li>[ ] Set up CloudTrail logging</li>
-<li>[ ] Set up billing alerts</li>
-<li>[ ] Rotated SSH keys (if older than 90 days)</li>
-<li>[ ] Reviewed IAM role permissions</li>
-<li>[ ] Enabled MFA for AWS account</li>
-<li>[ ] Set up VPC Flow Logs</li>
-<li>[ ] Documented security procedures</li>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Changed default admin password</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Changed default database password</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Enabled HTTPS for allocator</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Restricted SSH access to known IPs</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Enabled S3 bucket encryption</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Enabled EBS volume encryption</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set up CloudTrail logging</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set up billing alerts</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Rotated SSH keys (if older than 90 days)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Reviewed IAM role permissions</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Enabled MFA for AWS account</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set up VPC Flow Logs</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Documented security procedures</li>
 </ul>
 <h3 id="regular-security-tasks">Regular Security Tasks<a class="headerlink" href="#regular-security-tasks" title="Permanent link">&para;</a></h3>
 <table>

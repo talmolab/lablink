@@ -2597,12 +2597,12 @@
     style ManualProd fill:#fff9c4</div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before deploying, ensure you have:</p>
-<ul>
-<li>[x] AWS account configured (see <a href="../prerequisites/#1-aws-account">Prerequisites</a>)</li>
-<li>[x] Terraform installed (see <a href="../prerequisites/#3-terraform">Prerequisites</a>)</li>
-<li>[x] S3 bucket for Terraform state (see <a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">AWS Setup</a>)</li>
-<li>[x] Elastic IP allocated for test/prod (see <a href="../aws-setup/#step-3-elastic-ip-allocation">AWS Setup</a>)</li>
-<li>[x] IAM roles configured for GitHub Actions (see <a href="../aws-setup/#step-4-oidc-configuration">AWS Setup</a>)</li>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> AWS account configured (see <a href="../prerequisites/#1-aws-account">Prerequisites</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Terraform installed (see <a href="../prerequisites/#3-terraform">Prerequisites</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> S3 bucket for Terraform state (see <a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">AWS Setup</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Elastic IP allocated for test/prod (see <a href="../aws-setup/#step-3-elastic-ip-allocation">AWS Setup</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> IAM roles configured for GitHub Actions (see <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup</a>)</li>
 </ul>
 <h2 id="method-1-github-actions-recommended">Method 1: GitHub Actions (Recommended)<a class="headerlink" href="#method-1-github-actions-recommended" title="Permanent link">&para;</a></h2>
 <p>Automated deployment via CI/CD pipelines.</p>
