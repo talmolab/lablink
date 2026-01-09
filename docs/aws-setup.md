@@ -51,13 +51,13 @@ Before starting, select the AWS region where you'll deploy LabLink. This is an i
 
 ### Recommended Regions
 
-| Region | Code | Best For | Notes |
-|--------|------|----------|-------|
-| **US East (N. Virginia)** | `us-east-1` | US East Coast, lowest cost | Largest region, occasional availability issues |
-| **US West (Oregon)** | `us-west-2` | US West Coast, default | Good balance of cost and stability |
-| **Europe (Ireland)** | `eu-west-1` | Europe, GDPR | Best EU region for cost and availability |
-| **Asia Pacific (Tokyo)** | `ap-northeast-1` | Asia | Good for Asian users |
-| **Asia Pacific (Singapore)** | `ap-southeast-1` | Southeast Asia | Alternative for Asian users |
+| Region                       | Code             | Best For                   | Notes                                          |
+| ---------------------------- | ---------------- | -------------------------- | ---------------------------------------------- |
+| **US East (N. Virginia)**    | `us-east-1`      | US East Coast, lowest cost | Largest region, occasional availability issues |
+| **US West (Oregon)**         | `us-west-2`      | US West Coast, default     | Good balance of cost and stability             |
+| **Europe (Ireland)**         | `eu-west-1`      | Europe, GDPR               | Best EU region for cost and availability       |
+| **Asia Pacific (Tokyo)**     | `ap-northeast-1` | Asia                       | Good for Asian users                           |
+| **Asia Pacific (Singapore)** | `ap-southeast-1` | Southeast Asia             | Alternative for Asian users                    |
 
 ### List All Available Regions
 
@@ -87,10 +87,11 @@ Once you've selected a region, you'll need to configure it in two places:
 2. **config.yaml**: Must match the secret (covered later)
 
 **Example:**
+
 ```yaml
 # lablink-infrastructure/config/config.yaml
 app:
-  region: "us-west-2"  # Must match AWS_REGION secret
+  region: "us-west-2" # Must match AWS_REGION secret
 ```
 
 ## Step 1: IAM Permissions Setup
@@ -132,6 +133,7 @@ aws iam create-access-key --user-name lablink-admin
 Save the `AccessKeyId` and `SecretAccessKey` securely.
 
 Configure AWS CLI:
+
 ```bash
 aws configure
 # Enter AccessKeyId
@@ -142,7 +144,7 @@ aws configure
 
 ## Step 2: S3 Bucket for Terraform State
 
-### Create S3 Bucket
+### 2.1 Create S3 Bucket
 
 Choose a globally unique bucket name:
 
@@ -155,7 +157,7 @@ aws s3api create-bucket \
   --create-bucket-configuration LocationConstraint=us-west-2
 ```
 
-### Enable Versioning
+### 2.2 Enable Versioning
 
 Protect against accidental deletions:
 
@@ -165,7 +167,7 @@ aws s3api put-bucket-versioning \
   --versioning-configuration Status=Enabled
 ```
 
-### Enable Encryption
+### 2.3 Enable Encryption
 
 Encrypt state files at rest:
 
@@ -181,7 +183,7 @@ aws s3api put-bucket-encryption \
   }'
 ```
 
-### Block Public Access
+### 2.4 Block Public Access
 
 Ensure bucket is private:
 
@@ -192,16 +194,18 @@ aws s3api put-public-access-block \
     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
-### Update Configuration
+### 2.5 Update Configuration
 
 Update bucket name in your LabLink configuration:
 
 **`lablink-infrastructure/config/config.yaml`**:
+
 ```yaml
 bucket_name: "tf-state-lablink-allocator-bucket-1234567890"
 ```
 
 **`lablink-infrastructure/backend-test.hcl`** and **`backend-prod.hcl`**:
+
 ```hcl
 bucket = "tf-state-lablink-allocator-bucket-1234567890"
 key    = "lablink-allocator-<env>/terraform.tfstate"
@@ -212,7 +216,7 @@ region = "us-west-2"
 
 Allocate static IPs for test and production environments.
 
-### Allocate Elastic IPs
+### 3.1 Allocate Elastic IPs
 
 ```bash
 # Test environment
@@ -224,11 +228,11 @@ aws ec2 allocate-address --region us-west-2 --tag-specifications \
   'ResourceType=elastic-ip,Tags=[{Key=Environment,Value=prod},{Key=Project,Value=lablink}]'
 ```
 
-### Record Allocation IDs
+### 3.2 Record Allocation IDs
 
 Save the `AllocationId` from each command output (format: `eipalloc-xxxxx`).
 
-### Tag Elastic IPs
+### 3.3 Tag Elastic IPs
 
 ```bash
 aws ec2 create-tags \
@@ -240,9 +244,10 @@ aws ec2 create-tags \
   --tags Key=Name,Value=lablink-prod-eip
 ```
 
-### Update Terraform Configuration
+### 3.4 Update Terraform Configuration
 
 **`lablink-infrastructure/main.tf`**:
+
 ```hcl
 variable "allocated_eip" {
   description = "Pre-allocated Elastic IP for production/test"
@@ -258,6 +263,7 @@ resource "aws_eip_association" "lablink" {
 ```
 
 Use when deploying:
+
 ```bash
 terraform apply \
   -var="resource_suffix=test" \
@@ -353,6 +359,7 @@ aws sts get-caller-identity --query "Account" --output text
 ```
 
 **Important:** Replace:
+
 - `YOUR_ACCOUNT_ID` with your AWS account ID (from Step 1)
 - `YOUR_ORG` with your GitHub organization/username (e.g., `talmolab`)
 
@@ -381,10 +388,10 @@ aws iam create-role \
 
 **Step 2:** Skip permissions for now (we'll add them in Step 4.4)
 
-6. Click **Next**
-7. Role name: `GitHubActionsLabLinkRole`
-8. Description: `Role for GitHub Actions to deploy LabLink infrastructure`
-9. Click **Create role**
+1. Click **Next**
+2. Role name: `GitHubActionsLabLinkRole`
+3. Description: `Role for GitHub Actions to deploy LabLink infrastructure`
+4. Click **Create role**
 
 **Step 3:** Edit trust policy for multiple repositories
 
@@ -420,28 +427,70 @@ aws iam create-role \
 }
 ```
 
-5. Replace `YOUR_ACCOUNT_ID` and `YOUR_ORG` with your values
-6. Click **Update policy**
+1. Replace `YOUR_ACCOUNT_ID` and `YOUR_ORG` with your values
+2. Click **Update policy**
 
 ### 4.4: Attach Permissions to Role
 
-The role needs permissions to manage EC2, S3, Route53, and IAM resources for infrastructure deployment.
+The role needs permissions to manage EC2, S3, Route53, IAM, and other AWS resources for infrastructure deployment.
 
-#### Option A: AWS CLI - Use PowerUserAccess (Recommended)
+#### Option A: AWS CLI - Use AWS Managed Policies (Recommended)
 
-This provides broad permissions suitable for infrastructure management:
+Attach multiple AWS managed policies to provide the required permissions:
 
 ```bash
+# Core infrastructure permissions
 aws iam attach-role-policy \
   --role-name GitHubActionsLabLinkRole \
-  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+
+# Monitoring and logging permissions
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/AWSCloudTrail_FullAccess
+
+# Lambda and notifications permissions
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsLabLinkRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSNSFullAccess
 ```
 
-**Note:** PowerUserAccess allows all AWS services except IAM user/group management, which is appropriate for infrastructure deployment.
+**Note:** This approach uses 8 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.
+
+| Policy                     | Purpose                                            |
+| -------------------------- | -------------------------------------------------- |
+| `AmazonEC2FullAccess`      | EC2 instances, security groups, key pairs, EIPs    |
+| `AmazonS3FullAccess`       | Terraform state, CloudTrail logs                   |
+| `IAMFullAccess`            | Roles, instance profiles for CloudWatch/CloudTrail |
+| `AmazonDynamoDBFullAccess` | Terraform state locking                            |
+| `CloudWatchLogsFullAccess` | Log groups, metric filters, alarms                 |
+| `AWSCloudTrail_FullAccess` | Audit logging                                      |
+| `AWSLambda_FullAccess`     | Log processing functions                           |
+| `AmazonSNSFullAccess`      | Alert notifications                                |
 
 #### Option B: AWS CLI - Create Custom Policy
 
-For more restrictive permissions, create a custom policy:
+For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2, ALB, CloudTrail, CloudWatch, Lambda, SNS, and Budgets.
 
 Create `lablink-terraform-policy.json`:
 
@@ -456,7 +505,10 @@ Create `lablink-terraform-policy.json`:
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketAcl"
       ],
       "Resource": [
         "arn:aws:s3:::lablink-terraform-state-*",
@@ -466,20 +518,31 @@ Create `lablink-terraform-policy.json`:
       ]
     },
     {
-      "Sid": "EC2FullAccess",
+      "Sid": "DynamoDBStateLocking",
       "Effect": "Allow",
       "Action": [
-        "ec2:*"
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
       ],
+      "Resource": "arn:aws:dynamodb:*:*:table/lock-table"
+    },
+    {
+      "Sid": "EC2FullAccess",
+      "Effect": "Allow",
+      "Action": ["ec2:*"],
       "Resource": "*"
     },
     {
-      "Sid": "IAMInstanceProfile",
+      "Sid": "IAMRolesAndInstanceProfiles",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
         "iam:DeleteRole",
         "iam:GetRole",
+        "iam:TagRole",
+        "iam:UntagRole",
         "iam:PassRole",
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy",
@@ -496,8 +559,10 @@ Create `lablink-terraform-policy.json`:
         "iam:ListRolePolicies"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/lablink-*",
-        "arn:aws:iam::*:instance-profile/lablink-*"
+        "arn:aws:iam::*:role/lablink*",
+        "arn:aws:iam::*:role/lablink_*",
+        "arn:aws:iam::*:instance-profile/lablink*",
+        "arn:aws:iam::*:instance-profile/lablink_*"
       ]
     },
     {
@@ -511,10 +576,197 @@ Create `lablink-terraform-policy.json`:
         "route53:GetChange"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "ApplicationLoadBalancer",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetGroupAttributes",
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:RemoveTags",
+        "elasticloadbalancing:DescribeTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ACMCertificates",
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:GetCertificate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsAndAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:CreateLogStream",
+        "logs:DeleteLogStream",
+        "logs:PutLogEvents",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters",
+        "logs:PutSubscriptionFilter",
+        "logs:DeleteSubscriptionFilter",
+        "logs:DescribeSubscriptionFilters",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrail",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:CreateTrail",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:AddTags",
+        "cloudtrail:RemoveTags",
+        "cloudtrail:ListTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrailS3Bucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:GetBucketPolicy",
+        "s3:PutBucketAcl",
+        "s3:GetBucketAcl",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutLifecycleConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:PutBucketTagging",
+        "s3:GetBucketTagging",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::lablink-cloudtrail-*",
+        "arn:aws:s3:::lablink-cloudtrail-*/*"
+      ]
+    },
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:InvokeFunction",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:*:*:function:lablink*"
+    },
+    {
+      "Sid": "SNSNotifications",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:Unsubscribe",
+        "sns:ListSubscriptionsByTopic",
+        "sns:Publish",
+        "sns:TagResource",
+        "sns:UntagResource",
+        "sns:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:sns:*:*:lablink*"
+    },
+    {
+      "Sid": "Budgets",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:ViewBudget",
+        "budgets:CreateBudgetAction",
+        "budgets:DeleteBudgetAction",
+        "budgets:UpdateBudgetAction",
+        "budgets:ExecuteBudgetAction",
+        "budgets:ModifyBudget"
+      ],
+      "Resource": "*"
     }
   ]
 }
 ```
+
+**Note:** This policy covers all AWS services used by the LabLink Terraform configuration:
+
+| Service        | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| **S3**         | Terraform state storage, CloudTrail logs                            |
+| **DynamoDB**   | Terraform state locking                                             |
+| **EC2**        | Allocator and client VM instances, security groups, key pairs, EIPs |
+| **IAM**        | Instance profiles, CloudWatch agent roles, CloudTrail roles         |
+| **Route53**    | DNS records for allocator endpoints                                 |
+| **ELB**        | Application Load Balancer for HTTPS termination                     |
+| **ACM**        | SSL/TLS certificates                                                |
+| **CloudWatch** | Logs, metric filters, alarms for monitoring                         |
+| **CloudTrail** | Audit logging and compliance                                        |
+| **Lambda**     | Log processing functions                                            |
+| **SNS**        | Alert notifications                                                 |
+| **Budgets**    | Cost monitoring and alerts                                          |
 
 Attach the custom policy:
 
@@ -530,9 +782,18 @@ aws iam put-role-policy \
 1. Go to **IAM → Roles**
 2. Click on `GitHubActionsLabLinkRole`
 3. Click **Add permissions** → **Attach policies**
-4. Search for `PowerUserAccess`
-5. Select the checkbox
-6. Click **Add permissions**
+4. Search for and attach each of these policies:
+
+      - `AmazonEC2FullAccess`
+      - `AmazonS3FullAccess`
+      - `IAMFullAccess`
+      - `AmazonDynamoDBFullAccess`
+      - `CloudWatchLogsFullAccess`
+      - `AWSCloudTrail_FullAccess`
+      - `AWSLambda_FullAccess`
+      - `AmazonSNSFullAccess`
+
+5. Click **Add permissions** after selecting each policy
 
 ### 4.5: Verify Role Configuration
 
@@ -561,7 +822,7 @@ Verify the trust policy includes all your deployment repositories.
 
 1. Go to **IAM → Roles** → `GitHubActionsLabLinkRole`
 2. **Trust relationships** tab: Verify repositories are listed
-3. **Permissions** tab: Verify `PowerUserAccess` or custom policy is attached
+3. **Permissions** tab: Verify required managed policies or custom policy is attached
 4. Copy the **ARN** (e.g., `arn:aws:iam::711387140753:role/GitHubActionsLabLinkRole`)
 
 ### 4.6: Add GitHub Secrets
@@ -571,32 +832,25 @@ Four secrets are required for GitHub Actions workflows to deploy infrastructure 
 #### For Template Repository (`lablink-template`)
 
 1. Go to repository **Settings** → **Secrets and variables** → **Actions**
-
 2. **Add AWS_ROLE_ARN secret:**
-   - Click **New repository secret**
-   - Name: `AWS_ROLE_ARN`
-   - Value: `arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsLabLinkRole`
-   - Click **Add secret**
-
+      - Click **New repository secret**
+      - Name: `AWS_ROLE_ARN`
+      - Value: `arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsLabLinkRole`
+      - Click **Add secret**
 3. **Add AWS_REGION secret:**
-   - Click **New repository secret**
-   - Name: `AWS_REGION`
-   - Value: Your chosen region (e.g., `us-west-2`, `eu-west-1`, `ap-northeast-1`)
-   - Click **Add secret**
-
+      - Click **New repository secret**
+      - Name: `AWS_REGION`
+      - Value: Your chosen region (e.g., `us-west-2`, `eu-west-1`, `ap-northeast-1`)
+      - Click **Add secret**
 4. **Add ADMIN_PASSWORD secret:**
-   - Click **New repository secret**
-   - Name: `ADMIN_PASSWORD`
-   - Value: Your secure admin password (use a password manager to generate)
-   - Click **Add secret**
-
-5. **Add DB_PASSWORD secret:**
-   - Click **New repository secret**
-   - Name: `DB_PASSWORD`
-   - Value: Your secure database password (use a password manager to generate)
-   - Click **Add secret**
+      - Click **New repository secret**
+      - Name: `ADMIN_PASSWORD`
+      - Value: Your secure admin password (use a password manager to generate)
+      - Click **Add secret**
+5. **Add DB_PASSWORD secret:** - Click **New repository secret** - Name: `DB_PASSWORD` - Value: Your secure database password (use a password manager to generate) - Click **Add secret**
 
 **Note:** The template repository can safely include these secrets because:
+
 - Repository permissions control who can trigger workflows
 - Secrets are NOT copied when creating repos from the template
 - External users must configure their own AWS credentials, region, and passwords
@@ -608,14 +862,10 @@ Four secrets are required for GitHub Actions workflows to deploy infrastructure 
 After creating a repository from the template:
 
 1. Go to the new repository **Settings** → **Secrets and variables** → **Actions**
-
-2. **Add all four secrets** (same process as above):
-   - `AWS_ROLE_ARN`: Same ARN as template repository
-   - `AWS_REGION`: Your chosen region for this deployment
-   - `ADMIN_PASSWORD`: Your secure admin password
-   - `DB_PASSWORD`: Your secure database password
+2. **Add all four secrets** (same process as above): - `AWS_ROLE_ARN`: Same ARN as template repository - `AWS_REGION`: Your chosen region for this deployment - `ADMIN_PASSWORD`: Your secure admin password - `DB_PASSWORD`: Your secure database password
 
 **Important:**
+
 - Each deployment repository needs these secrets added manually after creation
 - Different deployments can use different regions if needed
 - Region in secret must match region in `config/config.yaml`
@@ -647,6 +897,7 @@ aws iam get-role --role-name GitHubActionsLabLinkRole \
 2. **Trust relationships** tab
 3. Click **Edit trust policy**
 4. Add new repository to the `token.actions.githubusercontent.com:sub` array:
+
    ```json
    "token.actions.githubusercontent.com:sub": [
      "repo:YOUR_ORG/lablink:*",
@@ -655,6 +906,7 @@ aws iam get-role --role-name GitHubActionsLabLinkRole \
      "repo:YOUR_ORG/new-deployment:*"
    ]
    ```
+
 5. Click **Update policy**
 
 ### 4.8: Verify GitHub Actions Can Assume Role
@@ -694,7 +946,7 @@ Test by triggering a workflow:
 
 **Cause:** Role lacks required permissions
 
-**Solution:** Attach PowerUserAccess or verify custom policy (Step 4.4)
+**Solution:** Attach required AWS managed policies or verify custom policy (Step 4.4)
 
 #### Verify Trust Policy Includes Repository
 
@@ -716,6 +968,7 @@ AMI IDs are region-specific. You'll need to find the correct Ubuntu 24.04 AMI ID
 #### AWS CLI Method (Recommended)
 
 **For Allocator (Ubuntu 24.04 with Docker):**
+
 ```bash
 aws ec2 describe-images \
   --region YOUR_REGION \
@@ -727,6 +980,7 @@ aws ec2 describe-images \
 ```
 
 **For Client VMs (Ubuntu 24.04 with Docker + NVIDIA):**
+
 ```bash
 # First, find latest Ubuntu 24.04
 aws ec2 describe-images \
@@ -760,11 +1014,11 @@ Once you have the AMI IDs for your region, update `config/config.yaml`:
 ```yaml
 # lablink-infrastructure/config/config.yaml
 machine:
-  ami_id: "ami-XXXXXXXXX"  # Client VM AMI for your region
+  ami_id: "ami-XXXXXXXXX" # Client VM AMI for your region
   # ...
 
 allocator_instance:
-  ami_id: "ami-YYYYYYYYY"  # Allocator AMI for your region
+  ami_id: "ami-YYYYYYYYY" # Allocator AMI for your region
 ```
 
 ### LabLink Custom AMIs (us-west-2 only)
@@ -772,12 +1026,14 @@ allocator_instance:
 LabLink maintains custom AMIs with Docker and NVIDIA drivers pre-installed, **only available in us-west-2**:
 
 **Client VM AMI (Ubuntu 24.04 + Docker + NVIDIA):**
+
 - AMI ID: `ami-0601752c11b394251`
 - Description: Custom Ubuntu image with Docker and Nvidia GPU Driver pre-installed
 - Architecture: x86_64
 - Source: Ubuntu Server 24.04 LTS (HVM), SSD Volume Type
 
 **Allocator VM AMI (Ubuntu 24.04 + Docker):**
+
 - AMI ID: `ami-0bd08c9d4aa9f0bc6`
 - Description: Custom Ubuntu image with Docker pre-installed
 - Architecture: x86_64
@@ -957,6 +1213,35 @@ admin_password = get_secret("lablink/admin-password")
 
 Set up monitoring and alerts for your infrastructure.
 
+### Terraform-Managed CloudWatch Resources
+
+When you deploy LabLink using Terraform, the following CloudWatch resources are automatically created:
+
+**CloudWatch Agent Role**: Terraform creates an IAM role (`lablink_cloud_watch_agent_role_<suffix>`) that allows client VMs to send logs and metrics to CloudWatch. This role includes permissions for:
+
+- `logs:CreateLogGroup` - Create new log groups
+- `logs:CreateLogStream` - Create log streams within groups
+- `logs:PutLogEvents` - Write log entries
+- `logs:DescribeLogStreams` - List available log streams
+- `cloudwatch:PutMetricData` - Send custom metrics
+
+**CloudTrail Logs**: CloudTrail events are automatically sent to CloudWatch Logs for security monitoring.
+
+**Metric Filters & Alarms**: Terraform creates CloudWatch metric filters to monitor:
+
+| Metric Filter        | Purpose                                        | Alarm Threshold  |
+| -------------------- | ---------------------------------------------- | ---------------- |
+| `RunInstances`       | Detect mass instance launches                  | >10 in 5 minutes |
+| `LargeInstances`     | Monitor expensive instance types (p4d, p3, g5) | Any launch       |
+| `UnauthorizedCalls`  | Track API permission failures                  | >5 in 5 minutes  |
+| `TerminateInstances` | High termination rate detection                | >10 in 5 minutes |
+
+**SNS Notifications**: Alarms send notifications to the `lablink-admin-alerts-<suffix>` SNS topic, which emails the configured admin.
+
+### Manual CloudWatch Configuration (Optional)
+
+For additional monitoring beyond what Terraform provides:
+
 ### Enable CloudWatch Logs
 
 Update user data script to send logs to CloudWatch:
@@ -1021,6 +1306,7 @@ aws ce put-cost-anomaly-monitor \
 ```
 
 **`billing-monitor.json`**:
+
 ```json
 {
   "MonitorName": "LabLink Cost Monitor",
@@ -1039,6 +1325,7 @@ aws budgets create-budget \
 ```
 
 **`budget.json`**:
+
 ```json
 {
   "BudgetName": "LabLink Monthly Budget",
@@ -1052,6 +1339,7 @@ aws budgets create-budget \
 ```
 
 **`subscribers.json`**:
+
 ```json
 [
   {
@@ -1074,15 +1362,34 @@ aws budgets create-budget \
 
 After completing setup, verify:
 
+**Required Setup:**
+
 - [ ] S3 bucket created with versioning and encryption
+- [ ] DynamoDB table created for state locking (if using remote state)
 - [ ] Elastic IPs allocated for test and prod
 - [ ] OIDC provider created
-- [ ] IAM role for GitHub Actions configured
-- [ ] GitHub workflow has correct role ARN
-- [ ] (Optional) Route 53 hosted zone created
-- [ ] (Optional) Secrets Manager secrets created
-- [ ] (Optional) CloudWatch monitoring configured
-- [ ] (Optional) Billing alerts set up
+- [ ] IAM role for GitHub Actions configured with required permissions
+- [ ] GitHub repository secrets configured (`AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, `DB_PASSWORD`)
+- [ ] AMI IDs configured for your region
+
+**Optional Setup:**
+
+- [ ] Route 53 hosted zone created (for custom domain)
+- [ ] ACM certificate created (for HTTPS via ALB)
+- [ ] Secrets Manager secrets created
+- [ ] Budget alerts configured
+
+**Terraform-Managed (Automatic):**
+
+The following resources are created automatically by Terraform during deployment:
+
+- [ ] Application Load Balancer (ALB) with HTTPS listener
+- [ ] CloudTrail trail with S3 bucket for logs
+- [ ] CloudWatch log groups and metric filters
+- [ ] SNS topic for admin alerts
+- [ ] IAM roles for CloudWatch agent and CloudTrail
+- [ ] Security groups for allocator and ALB
+- [ ] Monthly budget with alert thresholds
 
 ## Testing Your Setup
 
@@ -1137,12 +1444,12 @@ Check Actions tab in GitHub.
 
 Estimated monthly costs for AWS resources:
 
-| Resource | Usage | Estimated Cost |
-|----------|-------|----------------|
-| S3 Bucket | <1 GB, versioning | $0.05/month |
-| Elastic IPs | 2 IPs (test, prod) | $0.00 (while associated) |
-| Route 53 Hosted Zone | 1 zone | $0.50/month |
-| Secrets Manager | 2 secrets | $0.80/month |
+| Resource             | Usage              | Estimated Cost           |
+| -------------------- | ------------------ | ------------------------ |
+| S3 Bucket            | <1 GB, versioning  | $0.05/month              |
+| Elastic IPs          | 2 IPs (test, prod) | $0.00 (while associated) |
+| Route 53 Hosted Zone | 1 zone             | $0.50/month              |
+| Secrets Manager      | 2 secrets          | $0.80/month              |
 
 **Total AWS Setup Cost**: ~$1.35/month
 

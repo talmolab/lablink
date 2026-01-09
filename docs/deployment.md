@@ -56,7 +56,7 @@ Before deploying, ensure you have:
 - [x] Terraform installed (see [Prerequisites](prerequisites.md#3-terraform))
 - [x] S3 bucket for Terraform state (see [AWS Setup](aws-setup.md#step-2-s3-bucket-for-terraform-state))
 - [x] Elastic IP allocated for test/prod (see [AWS Setup](aws-setup.md#step-3-elastic-ip-allocation))
-- [x] IAM roles configured for GitHub Actions (see [AWS Setup](aws-setup.md#step-4-oidc-configuration))
+- [x] IAM roles configured for GitHub Actions (see [AWS Setup](aws-setup.md#step-4-github-actions-oidc-configuration))
 
 ## Method 1: GitHub Actions (Recommended)
 

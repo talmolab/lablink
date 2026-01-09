@@ -183,7 +183,7 @@ The IAM role trust policy restricts which repositories can assume the role:
 
 #### Setup
 
-See [AWS Setup → OIDC Configuration](aws-setup.md#step-4-oidc-configuration).
+See [AWS Setup → OIDC Configuration](aws-setup.md#step-4-github-actions-oidc-configuration).
 
 ### IAM Role Permissions
 

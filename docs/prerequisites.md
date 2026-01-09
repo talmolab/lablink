@@ -57,7 +57,7 @@ Enter your:
 
 **Option 2: OIDC (GitHub Actions)**
 
-For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See [AWS Setup from Scratch](aws-setup.md#step-4-oidc-configuration) for details.
+For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See [AWS Setup from Scratch](aws-setup.md#step-4-github-actions-oidc-configuration) for details.
 
 ### 3. Terraform
 
