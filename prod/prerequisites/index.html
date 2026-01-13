@@ -1866,11 +1866,13 @@
 <p><strong>Option 1: AWS Access Keys (Local Development)</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>aws<span class="w"> </span>configure
 </code></pre></div></p>
-<p>Enter your:
-- AWS Access Key ID
-- AWS Secret Access Key
-- Default region (e.g., <code>us-west-2</code>)
-- Default output format (<code>json</code>)</p>
+<p>Enter your:</p>
+<ul>
+<li>AWS Access Key ID</li>
+<li>AWS Secret Access Key</li>
+<li>Default region (e.g., <code>us-west-2</code>)</li>
+<li>Default output format (<code>json</code>)</li>
+</ul>
 <p><strong>Option 2: OIDC (GitHub Actions)</strong></p>
 <p>For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup from Scratch</a> for details.</p>
 <h3 id="3-terraform">3. Terraform<a class="headerlink" href="#3-terraform" title="Permanent link">&para;</a></h3>
@@ -1969,30 +1971,34 @@
 <h2 id="aws-resource-requirements">AWS Resource Requirements<a class="headerlink" href="#aws-resource-requirements" title="Permanent link">&para;</a></h2>
 <p>Before deploying, ensure you have or will create:</p>
 <ol>
-<li><strong>S3 Bucket</strong>: For Terraform state storage</li>
-<li>Naming: <code>tf-state-lablink-allocator-bucket</code> (configurable)</li>
 <li>
-<p>Versioning enabled recommended</p>
+<p><strong>S3 Bucket</strong>: For Terraform state storage</p>
+<ul>
+<li>Naming: <code>tf-state-lablink-allocator-bucket</code> (configurable)</li>
+<li>Versioning enabled recommended</li>
+</ul>
 </li>
 <li>
 <p><strong>Elastic IPs</strong>: Pre-allocated for each environment</p>
-</li>
+<ul>
 <li>1 for dev</li>
 <li>1 for test</li>
-<li>
-<p>1 for prod</p>
+<li>1 for prod</li>
+</ul>
 </li>
 <li>
 <p><strong>IAM Roles</strong>: For OIDC authentication (GitHub Actions)</p>
-</li>
+<ul>
 <li>Trust relationship with GitHub</li>
-<li>
-<p>Permissions for EC2, S3, Route53</p>
+<li>Permissions for EC2, S3, Route53</li>
+</ul>
 </li>
 <li>
 <p><strong>Route 53 Hosted Zone</strong> (Optional): For custom DNS</p>
-</li>
+<ul>
 <li>Example: <code>lablink.yourdomain.com</code></li>
+</ul>
+</li>
 </ol>
 <p>See the <a href="../aws-setup/">AWS Setup from Scratch</a> guide for detailed setup instructions.</p>
 <h2 id="ssh-key-pair">SSH Key Pair<a class="headerlink" href="#ssh-key-pair" title="Permanent link">&para;</a></h2>

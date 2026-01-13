@@ -622,10 +622,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-clone-template-repository" class="md-nav__link">
+  <a href="#step-1-create-your-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Clone Template Repository
+        Step 1: Create Your Repository
       
     </span>
   </a>
@@ -1606,10 +1606,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-clone-template-repository" class="md-nav__link">
+  <a href="#step-1-create-your-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Clone Template Repository
+        Step 1: Create Your Repository
       
     </span>
   </a>
@@ -1726,15 +1726,23 @@
 
 <h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
 <p>Get LabLink running in 15 minutes.</p>
+<div class="admonition tip">
+<p class="admonition-title">Recommended: GitHub Actions Deployment</p>
+<p>For production deployments, we recommend using GitHub Actions. See the <a href="../deployment/">Deployment Guide</a> for the full workflow with automated CI/CD.</p>
+<p>This quickstart covers <strong>local deployment</strong> for testing and development.</p>
+</div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>AWS Account</strong> with admin access (<a href="../prerequisites/#1-aws-account">setup guide</a>)</li>
 <li><strong>AWS CLI</strong> configured locally (<a href="../prerequisites/#2-aws-cli">setup guide</a>)</li>
 <li><strong>Terraform</strong> installed (<a href="../prerequisites/#3-terraform">setup guide</a>)</li>
+<li><strong>S3 Bucket</strong> for Terraform state (<a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">setup guide</a>)</li>
 </ul>
-<h2 id="step-1-clone-template-repository">Step 1: Clone Template Repository<a class="headerlink" href="#step-1-clone-template-repository" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink-template.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-template/lablink-infrastructure
+<h2 id="step-1-create-your-repository">Step 1: Create Your Repository<a class="headerlink" href="#step-1-create-your-repository" title="Permanent link">&para;</a></h2>
+<p>Click the <strong>"Use this template"</strong> button on the <a href="https://github.com/talmolab/lablink-template">lablink-template repository</a> to create your own deployment repository.</p>
+<p>Then clone your new repository:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/YOUR_ORG/YOUR_REPO.git
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>YOUR_REPO/lablink-infrastructure
 </code></pre></div>
 <h2 id="step-2-configure-settings">Step 2: Configure Settings<a class="headerlink" href="#step-2-configure-settings" title="Permanent link">&para;</a></h2>
 <p>Edit <code>config/config.yaml</code>:</p>
@@ -1757,12 +1765,23 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">staging</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">  </span><span class="c1"># HTTP only, unlimited deployments</span>
 </code></pre></div></p>
 <p>Staging mode serves HTTP only. Your browser will show "Not Secure" - this is expected for testing. For production with HTTPS, set <code>staging: false</code>. See <a href="../configuration/#ssltls-options-ssl">Configuration - SSL Options</a>.</p>
-<h2 id="step-3-initialize-and-deploy">Step 3: Initialize and Deploy<a class="headerlink" href="#step-3-initialize-and-deploy" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Initialize Terraform</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>terraform<span class="w"> </span>init
+<p><strong>Set passwords</strong> in <code>config/config.yaml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">app</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">admin_password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-secure-admin-password&quot;</span><span class="w">  </span><span class="c1"># Replace placeholder</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Deploy (will prompt for confirmation)</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>terraform<span class="w"> </span>apply
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">db</span><span class="p">:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-secure-db-password&quot;</span><span class="w">  </span><span class="c1"># Replace placeholder</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">For GitHub Actions Deployment</p>
+<p>When using GitHub Actions, set <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> as repository secrets instead of editing the config file directly. See <a href="../aws-setup/#46-add-github-secrets">AWS Setup - Add GitHub Secrets</a>.</p>
+</div>
+<h2 id="step-3-initialize-and-deploy">Step 3: Initialize and Deploy<a class="headerlink" href="#step-3-initialize-and-deploy" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Initialize Terraform with backend configuration</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>../scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Deploy (will prompt for confirmation)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 <p><strong>Deployment time</strong>: ~5 minutes</p>
 <p>Creates:
@@ -1770,22 +1789,20 @@
 - Security groups (HTTP port 80, SSH port 22)
 - SSH key pair</p>
 <h2 id="step-4-access-your-allocator">Step 4: Access Your Allocator<a class="headerlink" href="#step-4-access-your-allocator" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Get public IP</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>terraform<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Output: 52.10.123.456</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Save SSH key</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Get public IP</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>terraform<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Output: 52.10.123.456</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Save SSH key</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 </code></pre></div>
 <p><strong>Web interface</strong>: <code>http://&lt;ec2_public_ip&gt;</code></p>
-<p><strong>Admin login</strong>:
-- Username: <code>admin</code>
-- Password: Set via <code>ADMIN_PASSWORD</code> in config (placeholder must be replaced)</p>
-<div class="admonition warning">
-<p class="admonition-title">Configure Password</p>
-<p>For GitHub Actions deployments, set the <code>ADMIN_PASSWORD</code> secret. For local deployments, manually replace <code>PLACEHOLDER_ADMIN_PASSWORD</code> in <code>config/config.yaml</code>. See <a href="../configuration/#first-steps-change-default-passwords">Configuration</a>.</p>
-</div>
+<p><strong>Admin login</strong>:</p>
+<ul>
+<li>Username: <code>admin</code></li>
+<li>Password: The password you set in Step 2</li>
+</ul>
 <h2 id="step-5-create-client-vms">Step 5: Create Client VMs<a class="headerlink" href="#step-5-create-client-vms" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Navigate to <code>http://&lt;ec2_public_ip&gt;/admin</code></li>
@@ -1796,18 +1813,18 @@
 </ol>
 <p><strong>VM creation time</strong>: ~5 minutes</p>
 <h2 id="step-6-verify">Step 6: Verify<a class="headerlink" href="#step-6-verify" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Check allocator is running</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Check VMs in database</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Check allocator is running</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Check VMs in database</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
 </code></pre></div>
 <h2 id="step-7-cleanup">Step 7: Cleanup<a class="headerlink" href="#step-7-cleanup" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Destroy all resources</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>terraform<span class="w"> </span>destroy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Destroy all resources</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">AWS Costs</p>
@@ -1815,17 +1832,18 @@
 </div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <p><strong>Can't access web interface?</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl<span class="w"> </span>http://<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># If this fails, check security group allows port 80</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>http://<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c1"># If this fails, check security group allows port 80</span>
 </code></pre></div></p>
 <p><strong>VMs not appearing?</strong> See <a href="../troubleshooting/#client-vm-not-registering">VM Registration Issue</a></p>
 <p><strong>SSH permission denied?</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 </code></pre></div></p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
+<li><strong>GitHub Actions</strong>: <a href="../deployment/">Deployment Guide</a> for automated CI/CD deployments (recommended for production)</li>
+<li><strong>AWS Setup</strong>: <a href="../aws-setup/">AWS Setup Guide</a> for IAM roles, OIDC, and GitHub secrets</li>
 <li><strong>Add DNS</strong>: <a href="../dns-configuration/">DNS Configuration Guide</a> for custom domains and HTTPS</li>
-<li><strong>Production</strong>: <a href="../deployment/">Deployment Guide</a> for GitHub Actions and best practices</li>
 <li><strong>Customize</strong>: <a href="../configuration/">Configuration Reference</a> for all options</li>
 <li><strong>Secure</strong>: <a href="../security/">Security Guide</a> before going to production</li>
 </ul>
