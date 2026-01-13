@@ -50,6 +50,7 @@ aws configure
 ```
 
 Enter your:
+
 - AWS Access Key ID
 - AWS Secret Access Key
 - Default region (e.g., `us-west-2`)
@@ -172,20 +173,20 @@ uv python install 3.11
 Before deploying, ensure you have or will create:
 
 1. **S3 Bucket**: For Terraform state storage
-   - Naming: `tf-state-lablink-allocator-bucket` (configurable)
-   - Versioning enabled recommended
+      - Naming: `tf-state-lablink-allocator-bucket` (configurable)
+      - Versioning enabled recommended
 
 2. **Elastic IPs**: Pre-allocated for each environment
-   - 1 for dev
-   - 1 for test
-   - 1 for prod
+      - 1 for dev
+      - 1 for test
+      - 1 for prod
 
 3. **IAM Roles**: For OIDC authentication (GitHub Actions)
-   - Trust relationship with GitHub
-   - Permissions for EC2, S3, Route53
+      - Trust relationship with GitHub
+      - Permissions for EC2, S3, Route53
 
 4. **Route 53 Hosted Zone** (Optional): For custom DNS
-   - Example: `lablink.yourdomain.com`
+      - Example: `lablink.yourdomain.com`
 
 See the [AWS Setup from Scratch](aws-setup.md) guide for detailed setup instructions.
 

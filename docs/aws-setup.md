@@ -19,6 +19,9 @@ To deploy LabLink, you'll need:
 - Basic understanding of AWS services
 - Chosen AWS region for deployment
 
+!!! warning "Paid AWS Account Required"
+    LabLink deployment uses **t3.micro** instances for the allocator, which requires a paid AWS account. The AWS Free Tier has limitations that may prevent successful deployment. Ensure your AWS account has billing enabled and a valid payment method configured.
+
 ## Choosing an AWS Region
 
 Before starting, select the AWS region where you'll deploy LabLink. This is an important decision that affects performance, cost, and compliance.

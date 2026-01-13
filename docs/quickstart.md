@@ -2,17 +2,27 @@
 
 Get LabLink running in 15 minutes.
 
+!!! tip "Recommended: GitHub Actions Deployment"
+    For production deployments, we recommend using GitHub Actions. See the [Deployment Guide](deployment.md) for the full workflow with automated CI/CD.
+
+    This quickstart covers **local deployment** for testing and development.
+
 ## Prerequisites
 
 - **AWS Account** with admin access ([setup guide](prerequisites.md#1-aws-account))
 - **AWS CLI** configured locally ([setup guide](prerequisites.md#2-aws-cli))
 - **Terraform** installed ([setup guide](prerequisites.md#3-terraform))
+- **S3 Bucket** for Terraform state ([setup guide](aws-setup.md#step-2-s3-bucket-for-terraform-state))
 
-## Step 1: Clone Template Repository
+## Step 1: Create Your Repository
+
+Click the **"Use this template"** button on the [lablink-template repository](https://github.com/talmolab/lablink-template) to create your own deployment repository.
+
+Then clone your new repository:
 
 ```bash
-git clone https://github.com/talmolab/lablink-template.git
-cd lablink-template/lablink-infrastructure
+git clone https://github.com/YOUR_ORG/YOUR_REPO.git
+cd YOUR_REPO/lablink-infrastructure
 ```
 
 ## Step 2: Configure Settings
@@ -43,14 +53,27 @@ ssl:
 
 Staging mode serves HTTP only. Your browser will show "Not Secure" - this is expected for testing. For production with HTTPS, set `staging: false`. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
 
+**Set passwords** in `config/config.yaml`:
+
+```yaml
+app:
+  admin_password: "your-secure-admin-password"  # Replace placeholder
+
+db:
+  password: "your-secure-db-password"  # Replace placeholder
+```
+
+!!! warning "For GitHub Actions Deployment"
+    When using GitHub Actions, set `ADMIN_PASSWORD` and `DB_PASSWORD` as repository secrets instead of editing the config file directly. See [AWS Setup - Add GitHub Secrets](aws-setup.md#46-add-github-secrets).
+
 ## Step 3: Initialize and Deploy
 
 ```bash
-# Initialize Terraform
-terraform init
+# Initialize Terraform with backend configuration
+../scripts/init-terraform.sh test
 
 # Deploy (will prompt for confirmation)
-terraform apply
+terraform apply -var="resource_suffix=test"
 ```
 
 **Deployment time**: ~5 minutes
@@ -75,11 +98,9 @@ chmod 600 ~/lablink-key.pem
 **Web interface**: `http://<ec2_public_ip>`
 
 **Admin login**:
-- Username: `admin`
-- Password: Set via `ADMIN_PASSWORD` in config (placeholder must be replaced)
 
-!!! warning "Configure Password"
-    For GitHub Actions deployments, set the `ADMIN_PASSWORD` secret. For local deployments, manually replace `PLACEHOLDER_ADMIN_PASSWORD` in `config/config.yaml`. See [Configuration](configuration.md#first-steps-change-default-passwords).
+- Username: `admin`
+- Password: The password you set in Step 2
 
 ## Step 5: Create Client VMs
 
@@ -108,7 +129,7 @@ sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT h
 
 ```bash
 # Destroy all resources
-terraform destroy
+terraform destroy -var="resource_suffix=test"
 ```
 
 !!! warning "AWS Costs"
@@ -131,7 +152,8 @@ chmod 600 ~/lablink-key.pem
 
 ## Next Steps
 
+- **GitHub Actions**: [Deployment Guide](deployment.md) for automated CI/CD deployments (recommended for production)
+- **AWS Setup**: [AWS Setup Guide](aws-setup.md) for IAM roles, OIDC, and GitHub secrets
 - **Add DNS**: [DNS Configuration Guide](dns-configuration.md) for custom domains and HTTPS
-- **Production**: [Deployment Guide](deployment.md) for GitHub Actions and best practices
 - **Customize**: [Configuration Reference](configuration.md) for all options
 - **Secure**: [Security Guide](security.md) before going to production
