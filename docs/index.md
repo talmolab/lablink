@@ -1,54 +1,63 @@
 # LabLink
 
-Dynamic VM allocation system for computational research workflows. Deploy research software to AWS in minutes.
+**Dynamic VM allocation system for computational research workflows.**
 
-## Quick Start
+Deploy research software to AWS in minutes with automatic provisioning, scaling, and monitoring.
 
-**For Deployment**: Deploy LabLink infrastructure to AWS in 15 minutes
+---
 
-Use the [LabLink Template Repository](https://github.com/talmolab/lablink-template) to deploy the allocator and client VMs:
+## Getting Started
 
-```bash
-# Clone the template repository
-git clone https://github.com/talmolab/lablink-template.git
-cd lablink-template/lablink-infrastructure
+=== "Prerequisites"
 
-# Deploy infrastructure (requires AWS credentials)
-terraform init && terraform apply
-```
+    :material-clipboard-check-outline: Set up your AWS account, credentials, and required tools before deployment.
 
-See the [Quickstart Guide](quickstart.md) for detailed deployment instructions.
+    [:octicons-arrow-right-24: View requirements](prerequisites.md)
 
-**For Development**: Develop LabLink packages
+=== "Quickstart"
 
-This repository contains the Python packages and Docker images. See the [Contributing Guide](contributing.md) to develop packages locally.
+    :material-rocket-launch: Deploy LabLink to AWS in 15 minutes with our step-by-step guide.
 
-## What is LabLink?
+    [:octicons-arrow-right-24: Get started](quickstart.md)
 
-LabLink automatically provisions and manages cloud-based virtual machines for research software. It handles:
+=== "Configuration"
 
-- **VM Allocation** - Request VMs through a web interface
-- **Auto-scaling** - Create dozens of VMs in parallel
-- **Health Monitoring** - Track VM status and GPU health
-- **Custom Software** - Deploy any Docker image or GitHub repo
+    :material-cog: Customize your deployment with environment variables, instance types, and more.
 
-## Core Components
+    [:octicons-arrow-right-24: Configure](configuration.md)
 
-**Allocator** - Web service managing VM requests and database (Python package + Docker image)
+## Components
 
-**Client VMs** - EC2 instances running your research software (Python package + Docker image)
+<div class="grid cards" markdown>
 
-**Infrastructure** - Terraform templates for AWS deployment ([lablink-template](https://github.com/talmolab/lablink-template))
+- :material-server: **Allocator**
 
-## Documentation
+    ---
 
-- [Prerequisites](prerequisites.md) - AWS account setup
-- [Quickstart](quickstart.md) - Deploy in 15 minutes
-- [Configuration](configuration.md) - Customize your deployment
-- [Troubleshooting](troubleshooting.md) - Common issues and fixes
+    Web service managing VM requests, user authentication, and database operations.
+
+    [:octicons-arrow-right-24: Learn more](architecture.md)
+
+- :material-desktop-tower: **Client VMs**
+
+    ---
+
+    EC2 instances running your research software with GPU support and health monitoring.
+
+    [:octicons-arrow-right-24: Learn more](adapting.md)
+
+- :material-cloud-outline: **Infrastructure**
+
+    ---
+
+    Terraform templates for AWS deployment including VPC, security groups, and auto-scaling.
+
+    [:octicons-arrow-right-24: AWS setup](aws-setup.md)
+
+</div>
 
 ## Resources
 
-- [GitHub](https://github.com/talmolab/lablink)
-- [Template](https://github.com/talmolab/lablink-template)
-- [Issues](https://github.com/talmolab/lablink/issues)
+- [:fontawesome-brands-github: GitHub](https://github.com/talmolab/lablink) - Source code, issues, and contributions
+- [:material-file-document-multiple: Template](https://github.com/talmolab/lablink-template) - Ready-to-use deployment template
+- [:material-help-circle: Support](https://github.com/talmolab/lablink/issues) - Report issues or request features
