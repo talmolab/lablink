@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Tuple
 
 from hydra.errors import ConfigCompositionException
+from omegaconf import DictConfig
 from omegaconf.errors import ConfigKeyError, ValidationError
 
 from lablink_allocator_service.get_config import get_config
@@ -45,11 +46,11 @@ def validate_domain_format(domain: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_config_logic(cfg) -> Tuple[bool, str]:
+def validate_config_logic(cfg: DictConfig) -> Tuple[bool, str]:
     """Validate configuration logic and dependencies.
 
     Args:
-        cfg: Loaded configuration object
+        cfg: Loaded Hydra/OmegaConf configuration object.
 
     Returns:
         Tuple of (is_valid, error_message)
