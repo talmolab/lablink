@@ -10,6 +10,7 @@ import atexit
 
 from flask import (
     Flask,
+    Response,
     request,
     jsonify,
     render_template,
@@ -680,7 +681,7 @@ def receive_vm_metrics(hostname):
 
 @app.route("/api/schedule-destruction", methods=["POST"])
 @auth.login_required
-def create_scheduled_destruction():
+def create_scheduled_destruction() -> Response | tuple[Response, int]:
     """
     Create a new scheduled destruction.
 
@@ -692,7 +693,7 @@ def create_scheduled_destruction():
     }
 
     Returns:
-        JSON with schedule_id and success status
+        Response: JSON with schedule_id and success status, or error with status code.
     """
     from datetime import datetime
 
@@ -772,7 +773,7 @@ def get_scheduled_destruction(schedule_id: int):
 
 @app.route("/api/schedule-destruction", methods=["GET"])
 @auth.login_required
-def list_scheduled_destructions():
+def list_scheduled_destructions() -> Response | tuple[Response, int]:
     """
     List all scheduled destructions.
 
@@ -781,7 +782,7 @@ def list_scheduled_destructions():
             failed, cancelled)
 
     Returns:
-        JSON with list of schedules
+        Response: JSON with list of schedules, or error with status code.
     """
 
     status_filter = request.args.get("status")

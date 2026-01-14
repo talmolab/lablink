@@ -4,10 +4,12 @@ import os
 import logging
 from typing import Tuple
 
+from omegaconf import DictConfig
+
 logger = logging.getLogger(__name__)
 
 
-def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
+def get_allocator_url(cfg: DictConfig, allocator_ip: str) -> Tuple[str, str]:
     """
     Build the allocator URL based on configuration.
 
@@ -17,8 +19,8 @@ def get_allocator_url(cfg, allocator_ip: str) -> Tuple[str, str]:
     3. IP address fallback
 
     Args:
-        cfg: Hydra configuration object
-        allocator_ip: Public IP address of allocator
+        cfg: Hydra/OmegaConf configuration object.
+        allocator_ip: Public IP address of allocator.
 
     Returns:
         Tuple of (base_url, protocol)
