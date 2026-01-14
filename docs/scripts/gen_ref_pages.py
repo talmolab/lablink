@@ -20,8 +20,8 @@ packages = {
 
 # Check if packages are installed (for full API generation)
 try:
-    import lablink_allocator  # noqa: F401
-    import lablink_client  # noqa: F401
+    import lablink_allocator_service  # noqa: F401
+    import lablink_client_service  # noqa: F401
     packages_installed = True
 except ImportError:
     packages_installed = False
