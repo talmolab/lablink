@@ -145,7 +145,8 @@ ARG PACKAGE_VERSION=0.0.8a0
 # Create uv directories with correct ownership before any uv operations
 # This prevents permission errors when uv tries to create these directories
 RUN mkdir -p /home/client/.local/bin \
-    /home/client/.local/share/uv \
+    /home/client/.local/share/uv/tools \
+    /home/client/.local/share/uv/python \
     /home/client/.cache/uv
 
 # Download the latest uv release from GitHub
@@ -155,6 +156,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV UV_CACHE_DIR=/home/client/.cache/uv
 ENV UV_TOOL_DIR=/home/client/.local/share/uv/tools
 ENV UV_TOOL_BIN_DIR=/home/client/.local/bin
+ENV UV_PYTHON_INSTALL_DIR=/home/client/.local/share/uv/python
 
 # Add uv tool bin directory to PATH for tools installed via 'uv tool install'
 ENV PATH="/home/client/.local/bin:${PATH}"

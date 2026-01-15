@@ -148,9 +148,16 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Create uv directories with correct ownership before any uv operations
 # This prevents permission errors when uv tries to create these directories
 RUN mkdir -p /home/${USERNAME}/.local/bin \
-    /home/${USERNAME}/.local/share/uv \
+    /home/${USERNAME}/.local/share/uv/tools \
+    /home/${USERNAME}/.local/share/uv/python \
     /home/${USERNAME}/.cache/uv && \
     sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
+
+# Set UV environment variables to use user-owned directories
+ENV UV_CACHE_DIR=/home/client/.cache/uv
+ENV UV_TOOL_DIR=/home/client/.local/share/uv/tools
+ENV UV_TOOL_BIN_DIR=/home/client/.local/bin
+ENV UV_PYTHON_INSTALL_DIR=/home/client/.local/share/uv/python
 
 # Add uv tool bin directory to PATH for tools installed via 'uv tool install'
 ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
