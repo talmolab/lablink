@@ -166,9 +166,9 @@ RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
     uv sync && \
-    # Clean up uv cache to prevent permission issues at runtime
-    # (sdists-v9 gets created with root ownership during build)
-    rm -rf /home/client/.cache/uv/*
+    # Ensure correct ownership of all uv directories for runtime uv tool install
+    # (some subdirectories may be created with unexpected permissions during build)
+    chown -R client:client /home/client/.local/share/uv /home/client/.cache/uv
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells
