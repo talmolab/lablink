@@ -145,6 +145,23 @@ RUN sudo chmod +x /scripts/*.sh && \
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Create uv directories with correct ownership before any uv operations
+# This prevents permission errors when uv tries to create these directories
+RUN mkdir -p /home/${USERNAME}/.local/bin \
+    /home/${USERNAME}/.local/share/uv/tools \
+    /home/${USERNAME}/.local/share/uv/python \
+    /home/${USERNAME}/.cache/uv && \
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
+
+# Set UV environment variables to use user-owned directories
+ENV UV_CACHE_DIR=/home/client/.cache/uv
+ENV UV_TOOL_DIR=/home/client/.local/share/uv/tools
+ENV UV_TOOL_BIN_DIR=/home/client/.local/bin
+ENV UV_PYTHON_INSTALL_DIR=/home/client/.local/share/uv/python
+
+# Add uv tool bin directory to PATH for tools installed via 'uv tool install'
+ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
+
 # Copy local client service package for development
 COPY . /home/${USERNAME}/lablink-client
 
@@ -152,8 +169,15 @@ COPY . /home/${USERNAME}/lablink-client
 # Use UV_PROJECT_ENVIRONMENT to specify venv location (matches production)
 WORKDIR /home/${USERNAME}/lablink-client
 RUN sudo -E UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
-    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client
+    # Fix ownership of all uv-related directories (sudo uv sync creates them as root)
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client \
+        /home/${USERNAME}/.local/share/uv /home/${USERNAME}/.cache/uv
 WORKDIR /home/${USERNAME}
+
+# Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
+# Docker ENV only affects processes started by Docker, not new login shells
+RUN echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.bashrc && \
+    echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.profile
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
