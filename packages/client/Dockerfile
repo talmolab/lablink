@@ -145,12 +145,21 @@ ARG PACKAGE_VERSION=0.0.8a0
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Create uv directories with correct ownership before any uv operations
+# This prevents permission errors when uv tries to create these directories
+RUN mkdir -p /home/${USERNAME}/.local/bin \
+    /home/${USERNAME}/.local/share/uv \
+    /home/${USERNAME}/.cache/uv && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
+
+# Add uv tool bin directory to PATH for tools installed via 'uv tool install'
+ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
+
 # Install client service package from PyPI in a virtual environment
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync && \
-    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.cache/uv || true
+    uv sync
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
