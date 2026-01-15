@@ -149,7 +149,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
+    uv sync && \
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.cache/uv || true
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
