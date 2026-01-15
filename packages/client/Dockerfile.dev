@@ -169,10 +169,9 @@ COPY . /home/${USERNAME}/lablink-client
 # Use UV_PROJECT_ENVIRONMENT to specify venv location (matches production)
 WORKDIR /home/${USERNAME}/lablink-client
 RUN sudo -E UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
-    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client && \
-    # Clean up uv cache to prevent permission issues at runtime
-    # (sdists-v9 gets created with root ownership during build by sudo uv sync)
-    sudo rm -rf /home/client/.cache/uv/*
+    # Fix ownership of all uv-related directories (sudo uv sync creates them as root)
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client \
+        /home/${USERNAME}/.local/share/uv /home/${USERNAME}/.cache/uv
 WORKDIR /home/${USERNAME}
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
