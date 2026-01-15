@@ -142,24 +142,36 @@ RUN sudo chmod +x /scripts/*.sh && \
 # Build argument for package version
 ARG PACKAGE_VERSION=0.0.8a0
 
+# Create uv directories with correct ownership before any uv operations
+# This prevents permission errors when uv tries to create these directories
+RUN mkdir -p /home/client/.local/bin \
+    /home/client/.local/share/uv \
+    /home/client/.cache/uv
+
 # Download the latest uv release from GitHub
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create uv directories with correct ownership before any uv operations
-# This prevents permission errors when uv tries to create these directories
-RUN mkdir -p /home/${USERNAME}/.local/bin \
-    /home/${USERNAME}/.local/share/uv \
-    /home/${USERNAME}/.cache/uv && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
+# Set UV environment variables to use user-owned directories
+ENV UV_CACHE_DIR=/home/client/.cache/uv
+ENV UV_TOOL_DIR=/home/client/.local/share/uv/tools
+ENV UV_TOOL_BIN_DIR=/home/client/.local/bin
 
 # Add uv tool bin directory to PATH for tools installed via 'uv tool install'
-ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
+ENV PATH="/home/client/.local/bin:${PATH}"
 
 # Install client service package from PyPI in a virtual environment
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
+    uv sync && \
+    # Clean up uv cache to prevent permission issues at runtime
+    # (sdists-v9 gets created with root ownership during build)
+    rm -rf /home/client/.cache/uv/*
+
+# Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
+# Docker ENV only affects processes started by Docker, not new login shells
+RUN echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.bashrc && \
+    echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.profile
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh

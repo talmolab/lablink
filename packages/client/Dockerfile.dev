@@ -150,7 +150,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN mkdir -p /home/${USERNAME}/.local/bin \
     /home/${USERNAME}/.local/share/uv \
     /home/${USERNAME}/.cache/uv && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local /home/${USERNAME}/.cache/uv
 
 # Add uv tool bin directory to PATH for tools installed via 'uv tool install'
 ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
@@ -162,8 +162,16 @@ COPY . /home/${USERNAME}/lablink-client
 # Use UV_PROJECT_ENVIRONMENT to specify venv location (matches production)
 WORKDIR /home/${USERNAME}/lablink-client
 RUN sudo -E UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv uv sync --extra dev && \
-    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client
+    sudo chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.venv /home/${USERNAME}/lablink-client && \
+    # Clean up uv cache to prevent permission issues at runtime
+    # (sdists-v9 gets created with root ownership during build)
+    rm -rf /home/client/.cache/uv/*
 WORKDIR /home/${USERNAME}
+
+# Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
+# Docker ENV only affects processes started by Docker, not new login shells
+RUN echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.bashrc && \
+    echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.profile
 
 # Copy the startup script
 COPY start.sh /home/${USERNAME}/start.sh
