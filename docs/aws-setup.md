@@ -97,6 +97,96 @@ app:
   region: "us-west-2" # Must match AWS_REGION secret
 ```
 
+## EC2 Service Quotas
+
+Before launching multiple instances, especially GPU instances, you may need to request quota increases from AWS. New AWS accounts typically have low default quotas that can prevent mass instance launches.
+
+### Why Quotas Matter
+
+AWS limits the number of vCPUs you can run concurrently for each instance type family. For example:
+
+- **On-Demand Standard instances** (t3, m5, c5): Default ~5-20 vCPUs
+- **On-Demand G and VT instances** (g4dn, g5): Default 0-4 vCPUs
+- **On-Demand P instances** (p3, p4d): Default 0 vCPUs
+- **Spot instances**: Separate quotas per instance family
+
+!!! warning "GPU Instance Quotas"
+    GPU instance types (g4dn, g5, p3, p4d) often have **zero** default quota for new accounts. You must request a quota increase before launching any GPU instances.
+
+### Check Your Current Quotas
+
+#### AWS CLI
+
+```bash
+# List all EC2 quotas
+aws service-quotas list-service-quotas \
+  --service-code ec2 \
+  --query 'Quotas[?starts_with(QuotaName, `Running On-Demand`)].{Name:QuotaName,Value:Value}' \
+  --output table
+
+# Check specific quota (e.g., G and VT instances)
+aws service-quotas get-service-quota \
+  --service-code ec2 \
+  --quota-code L-DB2E81BA \
+  --query 'Quota.{Name:QuotaName,Value:Value}' \
+  --output table
+```
+
+#### AWS Console
+
+1. Go to **Service Quotas** → **AWS services** → **Amazon Elastic Compute Cloud (Amazon EC2)**
+2. Search for "Running On-Demand"
+3. Review quotas for instance families you plan to use
+
+### Common Quota Codes
+
+| Instance Family | Quota Code | Description |
+|-----------------|------------|-------------|
+| Standard (t3, m5, c5) | `L-1216C47A` | Running On-Demand Standard instances |
+| G and VT (g4dn, g5) | `L-DB2E81BA` | Running On-Demand G and VT instances |
+| P (p3, p4d) | `L-417A185B` | Running On-Demand P instances |
+| Spot Standard | `L-34B43A08` | All Standard Spot Instance Requests |
+| Spot G and VT | `L-3819A6DF` | All G and VT Spot Instance Requests |
+
+### Request a Quota Increase
+
+#### AWS CLI
+
+```bash
+# Request quota increase (e.g., 64 vCPUs for G and VT instances)
+aws service-quotas request-service-quota-increase \
+  --service-code ec2 \
+  --quota-code L-DB2E81BA \
+  --desired-value 64
+```
+
+#### AWS Console
+
+1. Go to **Service Quotas** → **AWS services** → **Amazon EC2**
+2. Find the quota you need to increase
+3. Click **Request increase at account level**
+4. Enter desired value and submit
+
+!!! tip "Quota Increase Tips"
+    - Request increases **before** you need them—approval can take 1-3 business days
+    - Start with modest increases (e.g., 32-64 vCPUs) for faster approval
+    - Provide a use case description to expedite approval
+    - Quotas are **per-region**—request increases in each region you'll use
+
+### Calculating Required vCPUs
+
+To determine how many vCPUs you need, multiply the number of instances by vCPUs per instance:
+
+| Instance Type | vCPUs | 10 Instances = |
+|---------------|-------|----------------|
+| g4dn.xlarge | 4 | 40 vCPUs |
+| g4dn.2xlarge | 8 | 80 vCPUs |
+| g5.xlarge | 4 | 40 vCPUs |
+| g5.2xlarge | 8 | 80 vCPUs |
+| p3.2xlarge | 8 | 80 vCPUs |
+
+**Example**: To run 20 `g4dn.xlarge` instances concurrently, you need a quota of at least **80 vCPUs** for "Running On-Demand G and VT instances".
+
 ## Step 1: IAM Permissions Setup
 
 ### 1.1 Create IAM User (If Needed)
