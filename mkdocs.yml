@@ -1,5 +1,5 @@
 site_name: LabLink
-site_description: Dynamic VM allocation and management system for computational research
+site_description: Cloud-based virtual teaching lab accessible through Chrome browser
 site_author: Talmo Lab
 repo_url: https://github.com/talmolab/lablink
 repo_name: talmolab/lablink

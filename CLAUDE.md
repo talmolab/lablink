@@ -19,7 +19,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 # Claude Developer Guide
 
-**LabLink** is a dynamic VM allocation and management system for computational research workflows. See `openspec/project.md` for full project context, conventions, and constraints.
+**LabLink** is a cloud-based virtual teaching lab accessible through Chrome browser. See `openspec/project.md` for full project context, conventions, and constraints.
 
 ## Key Resources
 

@@ -1,8 +1,8 @@
 # LabLink
 
-**Dynamic VM allocation system for computational research workflows.**
+**Cloud-based virtual teaching lab accessible through Chrome browser.**
 
-Deploy research software to AWS in minutes with automatic provisioning, scaling, and monitoring.
+Deploy tutorial environments to AWS with pre-installed software—students only need a web browser to get started.
 
 ---
 
@@ -42,7 +42,7 @@ Deploy research software to AWS in minutes with automatic provisioning, scaling,
 
     ---
 
-    EC2 instances running your research software with GPU support and health monitoring.
+    EC2 instances running pre-installed tutorial software with GPU support and health monitoring.
 
     [:octicons-arrow-right-24: Learn more](adapting.md)
 

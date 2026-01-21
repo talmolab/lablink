@@ -1,6 +1,6 @@
 # LabLink
 
-**Dynamic VM allocation and management system for computational research workflows.**
+**Cloud-based virtual teaching lab accessible through Chrome browser.**
 
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
