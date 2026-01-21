@@ -1,14 +1,14 @@
 # Project Context
 
 ## Purpose
-**LabLink** is a dynamic VM allocation and management system for computational research workflows. It automates deployment and management of cloud-based VMs for running research software.
+**LabLink** is a cloud-based virtual teaching lab accessible through Chrome browser. It automates deployment and management of cloud-based VMs with pre-installed tutorial software for teaching.
 
 ### Key Goals
-- Automate allocation of AWS EC2 instances for research workloads
-- Provide GPU-enabled VMs for computational research
+- Automate allocation of AWS EC2 instances for teaching environments
+- Provide GPU-enabled VMs with pre-installed tutorial software
 - Track VM state (available, in-use, failed) via PostgreSQL database
-- Enable researchers to request VMs via web interface
-- Support containerized research software deployment
+- Enable students to access VMs via web browser (Chrome Remote Desktop)
+- Support containerized tutorial software deployment
 
 ## Tech Stack
 
