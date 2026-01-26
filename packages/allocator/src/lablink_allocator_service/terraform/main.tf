@@ -96,7 +96,7 @@ resource "aws_instance" "lablink_vm" {
     gpu_support                 = var.gpu_support
     cloud_init_output_log_group = var.cloud_init_output_log_group
     region                      = var.region
-    startup_content             = local.startup_content
+    startup_content_b64         = local.startup_content_b64
     startup_on_error            = var.startup_on_error
   })
 
@@ -159,5 +159,8 @@ locals {
 
   min_seconds = length(local.per_instance_seconds) > 0 ? min(local.per_instance_seconds...) : 0
 
-  startup_content = fileexists(var.custom_startup_script_path) ? file(var.custom_startup_script_path) : ""
+  # Base64 encode startup script to avoid Terraform templatefile() interpolation issues
+  # This preserves $, %, and other special characters in user scripts
+  startup_content_raw = fileexists(var.custom_startup_script_path) ? file(var.custom_startup_script_path) : ""
+  startup_content_b64 = local.startup_content_raw != "" ? base64encode(local.startup_content_raw) : ""
 }
