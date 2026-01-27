@@ -1,3 +1,4 @@
+import base64
 import json
 import pytest
 import re
@@ -106,6 +107,26 @@ def _numeric_sort_key(address: str):
     return (0, int(idx_clean)) if idx_clean.isdigit() else (1, idx_clean)
 
 
+def _extract_startup_script_from_user_data(user_data_content: str) -> str | None:
+    """Extract and decode the base64-encoded startup script from user_data.
+
+    The user_data.sh template embeds the startup script as:
+        echo '<base64_content>' | base64 -d > /etc/config/custom-startup.sh
+
+    Returns the decoded script content, or None if not found.
+    """
+    # Match: echo '<base64>' | base64 -d > /etc/config/custom-startup.sh
+    match = re.search(
+        r"echo '([A-Za-z0-9+/=]*)' \| base64 -d > /etc/config/custom-startup\.sh",
+        user_data_content,
+    )
+    if match:
+        b64_content = match.group(1)
+        if b64_content:
+            return base64.b64decode(b64_content).decode("utf-8")
+    return None
+
+
 def test_vm_count(plan):
     """Test the number of VM instances."""
     instances = _collect_resources(plan, "aws_instance", "lablink_vm")
@@ -182,12 +203,11 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
     expected_script_path = fixture_dir / "custom-startup.sh"
     expected_script_content = expected_script_path.read_text().strip()
 
-    # Verify that the user_data contains the custom-startup.sh content
-    # The user_data.sh template wraps the custom script in a heredoc
-    assert (
-        f"cat <<'EOF' > /etc/config/custom-startup.sh\n{expected_script_content}\nEOF"
-        in user_data_content
-    )
+    # The startup script is base64-encoded to preserve special characters
+    # Extract and decode it from user_data
+    decoded_script = _extract_startup_script_from_user_data(user_data_content)
+    assert decoded_script is not None, "Could not find base64-encoded startup script"
+    assert decoded_script.strip() == expected_script_content
 
 
 def test_multiline_special_chars_custom_startup_script(fixture_dir):
@@ -227,7 +247,10 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
 
     expected_script_content = script_path.read_text().strip()
 
-    assert expected_script_content in user_data_content
+    # The startup script is base64-encoded to preserve special characters
+    decoded_script = _extract_startup_script_from_user_data(user_data_content)
+    assert decoded_script is not None, "Could not find base64-encoded startup script"
+    assert decoded_script.strip() == expected_script_content
 
 
 def test_variable_interpolation_in_custom_startup_script(fixture_dir):
@@ -265,11 +288,15 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
     user_data_content = instances[first_instance_addr]["values"]["user_data"]
 
+    # The startup script is base64-encoded, decode it first
+    decoded_script = _extract_startup_script_from_user_data(user_data_content)
+    assert decoded_script is not None, "Could not find base64-encoded startup script"
+
     # The script contains shell variables like $dollarsigns and $VAR.
-    # Terraform should not interpolate these.
-    assert "$dollarsigns" in user_data_content
-    assert 'export VAR="some_value"' in user_data_content
-    assert 'if [ "$VAR" = "some_value" ]; then' in user_data_content
+    # These should be preserved after base64 decoding.
+    assert "$dollarsigns" in decoded_script
+    assert 'export VAR="some_value"' in decoded_script
+    assert 'if [ "$VAR" = "some_value" ]; then' in decoded_script
 
 
 def test_missing_custom_startup_script(fixture_dir):
@@ -306,5 +333,7 @@ def test_missing_custom_startup_script(fixture_dir):
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
     user_data_content = instances[first_instance_addr]["values"]["user_data"]
 
-    # Empty startup script
-    assert "cat <<'EOF' > /etc/config/custom-startup.sh\n\nEOF" in user_data_content
+    # When no startup script exists, it should touch an empty file
+    assert "touch /etc/config/custom-startup.sh" in user_data_content
+    # Should not have the base64 decode command
+    assert "base64 -d > /etc/config/custom-startup.sh" not in user_data_content
