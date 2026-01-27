@@ -139,11 +139,11 @@ echo "> Creating config directory…"
 sudo mkdir -p /etc/config
 
 # Decode base64-encoded startup script to preserve $ and other special characters
-%{ if startup_content_b64 != "" ~}
-echo '${startup_content_b64}' | base64 -d > /etc/config/custom-startup.sh
-%{ else ~}
-touch /etc/config/custom-startup.sh
-%{ endif ~}
+if ${startup_content_b64} != ""; then
+    echo "${startup_content_b64}" | base64 -d > /etc/config/custom-startup.sh
+else
+    touch /etc/config/custom-startup.sh
+fi
 chmod +x /etc/config/custom-startup.sh
 
 
