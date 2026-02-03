@@ -86,12 +86,9 @@ def test_call_api_retry_logic(mock_post, mock_sleep, mock_random, caplog):
     mock_sleep.assert_called_with(10)  # API_RETRY_DELAY is 10 (jitter mocked to 0)
 
     # Assert that the log messages show the retry attempts
-    assert "API call failed: Network Error (Attempt 1/5). Retrying..." in caplog.text
-    assert (
-        "API call failed: Another Network Error (Attempt 2/5). Retrying..."
-        in caplog.text
-    )
-    assert "Successfully updated in-use status for myproc to" in caplog.text
+    assert "Status update failed: Network Error (attempt 1/5)" in caplog.text
+    assert "Status update failed: Another Network Error (attempt 2/5)" in caplog.text
+    assert "Updated in-use status:" in caplog.text
 
 
 @patch("psutil.process_iter")

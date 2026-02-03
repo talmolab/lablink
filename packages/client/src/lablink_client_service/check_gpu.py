@@ -23,7 +23,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
         allocator_url (str): The base URL of the allocator service.
         interval (int, optional): The interval in seconds to check the GPU health.
     """
-    logger.debug("Starting GPU health check...")
+    logger.info("Starting GPU health monitoring")
     last_status = None
     base_url = allocator_url.rstrip("/")
     base_url = base_url.replace("://.", "://")
@@ -34,45 +34,35 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
 
         try:
             # Run the nvidia-smi command to check GPU health
-            result = subprocess.run(
+            subprocess.run(
                 ["nvidia-smi"],
                 capture_output=True,
                 text=True,
                 check=True,
             )
             curr_status = "Healthy"
-            logger.info(f"GPU Health Check: {result.stdout.strip()}")
 
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to check GPU health: {e}")
             # Command not found -> likely nvidia-smi is not installed
             if e.returncode == 127:
-                logger.error(
-                    "nvidia-smi command not found. Ensure NVIDIA drivers are installed."
-                )
+                logger.warning("nvidia-smi not found - NVIDIA drivers not installed")
                 curr_status = "N/A"
                 break_now = True
-
             else:
-                logger.error(
-                    f"nvidia-smi command failed with error: {e.stderr.strip()}"
-                )
+                logger.error(f"nvidia-smi failed: {e.stderr.strip()}")
                 curr_status = "Unhealthy"
 
-        except FileNotFoundError as e:
-            # This exception is raised if the nvidia-smi command is not found
-            logger.error(f"File not found: {e}")
+        except FileNotFoundError:
+            logger.warning("nvidia-smi not found - NVIDIA drivers not installed")
             curr_status = "N/A"
             break_now = True
 
         except Exception as e:
             curr_status = "Unhealthy"
-            logger.error(f"An unexpected error occurred: {e}")
+            logger.error(f"GPU health check failed: {e}")
 
         if curr_status != last_status or break_now:
-            logger.info(
-                f"GPU health status changed: {curr_status}. Reporting to allocator."
-            )
+            logger.info(f"GPU status: {curr_status}")
             report_retry_count = 0
 
             while report_retry_count < MAX_REPORT_RETRIES:
@@ -87,28 +77,23 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                         timeout=(10, 20),
                     )
                     response.raise_for_status()
-                    logger.info(
-                        f"Successfully reported GPU health status: {curr_status}"
-                    )
+                    logger.info(f"Reported GPU status: {curr_status}")
                     last_status = curr_status
                     break  # Break out of the report retry loop on success
                 except requests.exceptions.Timeout:
-                    logger.error(
+                    logger.warning(
                         f"GPU health report timed out "
-                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
-                        f"Retrying..."
+                        f"(attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES})"
                     )
                 except requests.exceptions.RequestException as e:
-                    logger.error(
+                    logger.warning(
                         f"Failed to report GPU health: {e} "
-                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
-                        f"Retrying..."
+                        f"(attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES})"
                     )
                 except Exception as e:
                     logger.error(
-                        f"An unexpected error occurred while reporting GPU health: {e} "
-                        f"(Attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES}). "
-                        f"Retrying..."
+                        f"Unexpected error reporting GPU health: {e} "
+                        f"(attempt {report_retry_count + 1}/{MAX_REPORT_RETRIES})"
                     )
 
                 report_retry_count += 1
@@ -117,8 +102,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                     time.sleep(REPORT_RETRY_DELAY + jitter)
             else:
                 logger.error(
-                    f"Failed to report GPU health status after {MAX_REPORT_RETRIES} "
-                    f"attempts. Allocator might be unreachable or experiencing issues."
+                    f"Failed to report GPU health after {MAX_REPORT_RETRIES} attempts"
                 )
 
                 # Fallback to avoid repeated failed reports

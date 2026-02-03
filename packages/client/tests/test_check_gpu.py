@@ -312,15 +312,12 @@ def test_gpu_report_retry_logic(
     mock_sleep.assert_any_call(20)  # Default interval
 
     # Assert that the log messages show the retry attempts
+    assert "Failed to report GPU health: Network Error (attempt 1/5)" in caplog.text
     assert (
-        "Failed to report GPU health: Network Error (Attempt 1/5). Retrying..."
+        "Failed to report GPU health: Another Network Error (attempt 2/5)"
         in caplog.text
     )
-    assert (
-        "Failed to report GPU health: Another Network Error (Attempt 2/5). Retrying..."
-        in caplog.text
-    )
-    assert "Successfully reported GPU health status: Healthy" in caplog.text
+    assert "Reported GPU status: Healthy" in caplog.text
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")

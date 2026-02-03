@@ -4,7 +4,6 @@ import time
 import random
 
 import hydra
-from omegaconf import OmegaConf
 import logging
 
 from lablink_client_service.conf.structured_config import Config
@@ -21,14 +20,12 @@ def subscribe(cfg: Config) -> None:
     logger = CloudAndConsoleLogger(module_name="subscribe")
     set_logger(logger)  # Set the logger for connect_crd
 
-    logger.debug("Starting the lablink client service...")
-    logger.debug(f"Configuration: {OmegaConf.to_yaml(cfg)}")
+    logger.info("Starting LabLink client service")
 
     # Define the URL for the POST request
     # Use ALLOCATOR_URL env var if set (supports HTTPS),
     # otherwise use host:port with HTTP
     allocator_url = os.getenv("ALLOCATOR_URL")
-    logger.debug(f"Allocator URL from env: {allocator_url}")
     if allocator_url:
         base_url = allocator_url.rstrip("/")
     else:
@@ -44,11 +41,10 @@ def subscribe(cfg: Config) -> None:
         base_url = base_url[1:]
 
     url = f"{base_url}/vm_startup"
-    logger.debug(f"URL: {url}")
 
     # Define hostname for the client
     hostname = os.getenv("VM_NAME")
-    logger.debug(f"Hostname: {hostname}")
+    logger.info(f"Connecting to allocator as '{hostname}'")
 
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
@@ -69,48 +65,37 @@ def subscribe(cfg: Config) -> None:
             # so we use a very long timeout.
             # The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM
             # assignment. Timeout tuple: (connect, read) = (30s, 7 days)
-            logger.debug(
-                f"Attempting to connect to allocator " f"(attempt {retry_count + 1})"
-            )
             response = requests.post(
                 url, json={"hostname": hostname}, timeout=(30, 604800)
             )
 
             # Check if the request was successful
             if response.status_code == 200:
-                logger.debug("POST request was successful.")
                 data = response.json()
                 if data.get("status") == "success":
-                    logger.info(
-                        "Successfully connected to allocator and received command."
-                    )
+                    logger.info("Received CRD command from allocator")
                     command = data["command"]
                     pin = data["pin"]
-                    logger.debug(f"Command received: {command}")
-                    logger.debug(f"Pin received: {pin}")
 
                     # Execute the command
                     connect_to_crd(pin=pin, command=command)
-                    logger.info("Command executed successfully. Exiting retry loop.")
+                    logger.info("CRD setup complete")
                     break  # Success - exit retry loop
                 else:
-                    logger.error("Received error response from server.")
-                    logger.error(f"Error message: {data.get('message')}")
-                    logger.info("Server explicitly rejected the request. Not retrying.")
+                    logger.error(f"Allocator rejected request: {data.get('message')}")
                     break  # Server explicitly rejected - don't retry
             else:
-                logger.error(
-                    f"POST request failed with status code: "
-                    f"{response.status_code}. Retrying..."
+                logger.warning(
+                    f"Allocator returned status {response.status_code}, retrying..."
                 )
                 # Will retry after delay
 
-        except requests.exceptions.Timeout as e:
-            logger.error(f"Request to {url} timed out: {e}. Retrying...")
+        except requests.exceptions.Timeout:
+            logger.warning("Request to allocator timed out, retrying...")
             # Will retry after delay
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Request to {url} failed: {e}. Retrying...")
+            logger.warning(f"Request to allocator failed: {e}, retrying...")
             # Will retry after delay
 
         # Increment retry count
