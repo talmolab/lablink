@@ -883,10 +883,9 @@ aws route53 list-resource-record-sets --hosted-zone-id Z010760118DSWF5IYKMOM \
    ```yaml
    dns:
      enabled: true
-     domain: "lablink.sleap.ai"
+     terraform_managed: true
+     domain: "test.lablink.sleap.ai"  # Full domain name
      zone_id: "Z010760118DSWF5IYKMOM"  # Force correct zone
-     pattern: "custom"
-     custom_subdomain: "test"
    ```
 
 2. **Delete record from wrong zone** (if exists):
