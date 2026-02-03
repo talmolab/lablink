@@ -142,15 +142,11 @@ RUN sudo chmod +x /scripts/*.sh && \
 # Build argument for package version
 ARG PACKAGE_VERSION=0.0.8a0
 
-# Create uv directories with correct ownership before any uv operations
-# This prevents permission errors when uv tries to create these directories
-RUN mkdir -p /home/client/.local/bin \
-    /home/client/.local/share/uv/tools \
-    /home/client/.local/share/uv/python \
-    /home/client/.cache/uv
+# Ensure target directory exists before COPY (--chown may not apply to auto-created parents)
+RUN mkdir -p /home/client/.local/bin
 
-# Download the latest uv release from GitHub
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install uv under client user (not root) to avoid permission issues
+COPY --chown=client:client --from=ghcr.io/astral-sh/uv:latest /uv /uvx /home/client/.local/bin/
 
 # Set UV environment variables to use user-owned directories
 ENV UV_CACHE_DIR=/home/client/.cache/uv
@@ -165,10 +161,7 @@ ENV PATH="/home/client/.local/bin:${PATH}"
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync && \
-    # Ensure correct ownership of all uv directories for runtime uv tool install
-    # (some subdirectories may be created with unexpected permissions during build)
-    chown -R client:client /home/client/.local/share/uv /home/client/.cache/uv
+    uv sync
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells
