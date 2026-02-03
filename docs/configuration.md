@@ -122,6 +122,19 @@ startup_script:
   enabled: false
   path: ""
   on_error: "continue"
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
 ```
 
 ### Client Configuration
