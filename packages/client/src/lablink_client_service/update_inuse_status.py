@@ -25,16 +25,10 @@ def is_process_running(process_name: str) -> bool:
         try:
             if any(process_name in part for part in proc.cmdline()):
                 if "update_inuse_status" in " ".join(proc.cmdline()):
-                    logger.debug(
-                        f"Skipping process '{process_name}' as it is the current script"
-                    )
                     continue
-                logger.debug(f"Found process: {proc.cmdline()}")
-                logger.debug(f"Process '{process_name}' is running.")
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
-    logger.debug(f"Process '{process_name}' is not running.")
     return False
 
 
@@ -59,7 +53,7 @@ def listen_for_process(
     if callback_func is None:
         callback_func = lambda: default_callback(process_name)
 
-    logger.debug(f"Listening for process '{process_name}' every {interval} seconds.")
+    logger.info(f"Monitoring process '{process_name}'")
 
     # Continuously check if the process is running
     process_running_prev = is_process_running(process_name)
@@ -82,7 +76,6 @@ def listen_for_process(
 
 
 def call_api(process_name, url):
-    logger.debug(f"Calling API for process: {process_name}")
     hostname = os.getenv("VM_NAME")
     status = is_process_running(process_name=process_name)
 
@@ -97,20 +90,17 @@ def call_api(process_name, url):
                 timeout=(10, 20),
             )
             response.raise_for_status()
-            logger.debug(f"API call successful: {response.json()}")
-            logger.info(
-                f"Successfully updated in-use status for {process_name} to {status}"
-            )
+            logger.info(f"Updated in-use status: {status}")
             break  # Success, exit retry loop
         except requests.exceptions.Timeout:
-            logger.error(
-                f"Status update timed out after 30 seconds "
-                f"(Attempt {retry_count + 1}/{MAX_API_RETRIES}). Retrying..."
+            logger.warning(
+                f"Status update timed out "
+                f"(attempt {retry_count + 1}/{MAX_API_RETRIES})"
             )
         except requests.RequestException as e:
-            logger.error(
-                f"API call failed: {e} "
-                f"(Attempt {retry_count + 1}/{MAX_API_RETRIES}). Retrying..."
+            logger.warning(
+                f"Status update failed: {e} "
+                f"(attempt {retry_count + 1}/{MAX_API_RETRIES})"
             )
 
         retry_count += 1
@@ -119,8 +109,7 @@ def call_api(process_name, url):
             time.sleep(API_RETRY_DELAY + jitter)
     else:
         logger.error(
-            f"Failed to update in-use status after {MAX_API_RETRIES} attempts. "
-            "Allocator might be unreachable."
+            f"Failed to update in-use status after {MAX_API_RETRIES} attempts"
         )
 
 
@@ -134,7 +123,7 @@ def main(cfg: Config) -> None:
     # Configure the logger
     global logger
     logger = CloudAndConsoleLogger(module_name="update_inuse_status")
-    logger.debug("Starting the update_inuse_status service...")
+    logger.info("Starting in-use status monitoring service")
 
     # Define the URL for the POST request
     # Use ALLOCATOR_URL env var if set (supports HTTPS),

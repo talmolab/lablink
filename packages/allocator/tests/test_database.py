@@ -243,13 +243,11 @@ def test_vm_exists(db_instance):
     )
 
 
-def test_vm_exists_returns_none(db_instance, caplog):
+def test_vm_exists_returns_none(db_instance):
     """Test vm_exists when fetchone returns None (database error condition)."""
     hostname = "test-vm"
     db_instance.cursor.fetchone.return_value = None
     assert db_instance.vm_exists(hostname) is False
-    assert "vm_exists query returned None" in caplog.text
-    assert "Assuming VM does not exist" in caplog.text
 
 
 def test_get_assigned_vms(db_instance):
@@ -435,7 +433,7 @@ def test_update_vm_status_invalid(db_instance, caplog):
     """Test that updating with an invalid status is blocked and logged."""
     db_instance.update_vm_status("vm1", "invalid_status")
     db_instance.cursor.execute.assert_not_called()
-    assert "Invalid status 'invalid_status'" in caplog.text
+    assert "Invalid VM status 'invalid_status'" in caplog.text
 
 
 def test_load_database():
@@ -481,15 +479,15 @@ def test_get_unassigned_vms_error(db_instance, caplog):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     result = db_instance.get_unassigned_vms()
     assert result == []
-    assert "Error retrieving unassigned VMs: DB error" in caplog.text
+    assert "Failed to retrieve unassigned VMs: DB error" in caplog.text
 
 
 def test_get_assigned_vms_error(db_instance, caplog):
     """Test error handling in get_assigned_vms."""
     db_instance.cursor.execute.side_effect = Exception("DB error")
     result = db_instance.get_assigned_vms()
-    assert result is None
-    assert "Error retrieving assigned VMs: DB error" in caplog.text
+    assert result == []
+    assert "Failed to retrieve assigned VMs: DB error" in caplog.text
 
 
 def test_assign_vm_db_error(db_instance, caplog):
@@ -497,8 +495,9 @@ def test_assign_vm_db_error(db_instance, caplog):
     hostname = "available-vm"
     db_instance.get_first_available_vm = MagicMock(return_value=hostname)
     db_instance.cursor.execute.side_effect = Exception("DB error")
-    db_instance.assign_vm("user@example.com", "cmd", "123")
-    assert "Error assigning VM: DB error" in caplog.text
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.assign_vm("user@example.com", "cmd", "123")
+    assert "Failed to assign VM" in caplog.text
     db_instance.conn.rollback.assert_called_once()
 
 
@@ -531,7 +530,7 @@ def test_get_all_vm_status_error(db_instance, caplog):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     result = db_instance.get_all_vm_status()
     assert result is None
-    assert "Error retrieving all VM status: DB error" in caplog.text
+    assert "Failed to retrieve VM statuses: DB error" in caplog.text
 
 
 def test_update_vm_status_db_error(db_instance, caplog):
@@ -540,7 +539,7 @@ def test_update_vm_status_db_error(db_instance, caplog):
     status = "running"
     db_instance.cursor.execute.side_effect = Exception("DB error")
     db_instance.update_vm_status(hostname, status)
-    assert "Error updating VM status: DB error" in caplog.text
+    assert "Failed to update status for VM" in caplog.text
     db_instance.conn.rollback.assert_called_once()
 
 
@@ -760,7 +759,7 @@ def test_create_scheduled_destruction_error(db_instance, caplog):
             destruction_time=datetime.now(timezone.utc),
         )
 
-    assert "Error creating scheduled destruction: DB error" in caplog.text
+    assert "Failed to create scheduled destruction" in caplog.text
     db_instance.conn.rollback.assert_called_once()
 
 

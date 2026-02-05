@@ -84,11 +84,8 @@ def reconstruct_command(command: str) -> str:
     parser = create_parser()
     args, _ = parser.parse_known_args(args=arg_to_parse)
 
-    logger.debug(vars(args))
-
     # Construct the command to be executed
     command = construct_command(args)
-    logger.debug(f"Command to be executed: {command}")
 
     return command
 
@@ -110,8 +107,7 @@ def connect_to_crd(command, pin):
         text=True,
     )
 
-    # Check the result
-    logger.debug(f"Output:\n {result.stdout}")
-
-    if result.stderr:
-        logger.error(f"Error: {result.stderr}")
+    if result.returncode == 0:
+        logger.info("CRD connection established successfully")
+    elif result.stderr:
+        logger.error(f"CRD connection failed: {result.stderr}")

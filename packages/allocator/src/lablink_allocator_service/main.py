@@ -385,6 +385,19 @@ def vm_startup():
     if not vm:
         return jsonify({"error": "VM not found."}), 404
 
+    # Check if the VM already has a CRD command assigned (handles race condition
+    # where user submitted CRD before client called /vm_startup)
+    if vm.get("crdcommand") and vm.get("pin"):
+        logger.info(
+            f"VM '{hostname}' already has CRD command assigned, returning immediately"
+        )
+        return jsonify({
+            "status": "success",
+            "pin": vm["pin"],
+            "command": vm["crdcommand"],
+        }), 200
+
+    # Otherwise, wait for the CRD command via PostgreSQL LISTEN/NOTIFY
     result = database.listen_for_notifications(
         channel=MESSAGE_CHANNEL, target_hostname=hostname
     )

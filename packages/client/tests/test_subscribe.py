@@ -69,8 +69,7 @@ def test_run_server_error_payload(
 
     mock_connect.assert_not_called()
     # Optional: check logs
-    assert "Received error response from server." in caplog.text
-    assert "no available VM" in caplog.text
+    assert "Allocator rejected request: no available VM" in caplog.text
 
 
 @patch("lablink_client_service.subscribe.random.uniform", return_value=0)
@@ -105,7 +104,7 @@ def test_run_http_failure(
     }
     mock_post.side_effect = [resp_fail, resp_fail, resp_success]
 
-    caplog.set_level(logging.ERROR, logger="lablink_client_service.subscribe")
+    caplog.set_level(logging.WARNING, logger="lablink_client_service.subscribe")
     subscribe(cfg)
 
     # Should have been called 3 times (2 failures + 1 success)
@@ -113,7 +112,7 @@ def test_run_http_failure(
     # Should have called connect_to_crd once (after success)
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
     # Should have logged the failures
-    assert "POST request failed with status code: 500" in caplog.text
+    assert "Allocator returned status 500" in caplog.text
     # Should have slept 2 times: no sleep on first attempt, then 2 retry sleeps
     assert mock_sleep.call_count == 2
 

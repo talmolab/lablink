@@ -22,6 +22,12 @@ def test_vm_startup_success(client, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.insert_vm.return_value = None
+    # Return a VM without CRD command assigned (crdcommand and pin are None)
+    fake_db.get_vm_by_hostname.return_value = {
+        "hostname": "test-vm-dev-1",
+        "crdcommand": None,
+        "pin": None,
+    }
     fake_db.listen_for_notifications.return_value = {
         "status": "success",
         "pin": "123456",
@@ -48,6 +54,57 @@ def test_vm_startup_success(client, monkeypatch):
     fake_db.listen_for_notifications.assert_called_once_with(
         channel="vm_updates", target_hostname="test-vm-dev-1"
     )
+
+
+def test_vm_startup_already_has_crd(client, monkeypatch):
+    """Test VM startup when CRD is already assigned (race condition handling)."""
+    # Mock the database - VM already has CRD command assigned
+    fake_db = MagicMock()
+    fake_db.get_vm_by_hostname.return_value = {
+        "hostname": "test-vm-dev-1",
+        "crdcommand": "existing_command_payload",
+        "pin": "654321",
+    }
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API
+    data = {"hostname": "test-vm-dev-1"}
+    resp = client.post(VM_STARTUP_ENDPOINT, json=data)
+
+    # Assert the response - should return immediately with existing CRD
+    expected_response = {
+        "status": "success",
+        "pin": "654321",
+        "command": "existing_command_payload",
+    }
+    assert resp.status_code == 200
+    assert resp.get_json() == expected_response
+    # Should NOT call listen_for_notifications since CRD is already assigned
+    fake_db.listen_for_notifications.assert_not_called()
+
+
+def test_vm_startup_vm_not_found(client, monkeypatch):
+    """Test VM startup when VM doesn't exist in database."""
+    # Mock the database - VM not found
+    fake_db = MagicMock()
+    fake_db.get_vm_by_hostname.return_value = None
+
+    # Patch globals
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API
+    data = {"hostname": "nonexistent-vm"}
+    resp = client.post(VM_STARTUP_ENDPOINT, json=data)
+
+    # Assert the response
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": "VM not found."}
 
 
 def test_vm_startup_failure(client, monkeypatch):
