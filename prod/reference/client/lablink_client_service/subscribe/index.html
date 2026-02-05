@@ -2864,11 +2864,11 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/subscribe.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-120">120</a></span>
-<span class="normal"><a href="#__codelineno-0-121">121</a></span>
-<span class="normal"><a href="#__codelineno-0-122">122</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="nd">@hydra</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-122" name="__codelineno-0-122"></a>    <span class="n">subscribe</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-105" name="__codelineno-0-105"></a><span class="nd">@hydra</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="n">subscribe</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2889,7 +2889,8 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/subscribe.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-19"> 19</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-18"> 18</a></span>
+<span class="normal"><a href="#__codelineno-0-19"> 19</a></span>
 <span class="normal"><a href="#__codelineno-0-20"> 20</a></span>
 <span class="normal"><a href="#__codelineno-0-21"> 21</a></span>
 <span class="normal"><a href="#__codelineno-0-22"> 22</a></span>
@@ -2972,120 +2973,91 @@
 <span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
 <span class="normal"><a href="#__codelineno-0-100">100</a></span>
 <span class="normal"><a href="#__codelineno-0-101">101</a></span>
-<span class="normal"><a href="#__codelineno-0-102">102</a></span>
-<span class="normal"><a href="#__codelineno-0-103">103</a></span>
-<span class="normal"><a href="#__codelineno-0-104">104</a></span>
-<span class="normal"><a href="#__codelineno-0-105">105</a></span>
-<span class="normal"><a href="#__codelineno-0-106">106</a></span>
-<span class="normal"><a href="#__codelineno-0-107">107</a></span>
-<span class="normal"><a href="#__codelineno-0-108">108</a></span>
-<span class="normal"><a href="#__codelineno-0-109">109</a></span>
-<span class="normal"><a href="#__codelineno-0-110">110</a></span>
-<span class="normal"><a href="#__codelineno-0-111">111</a></span>
-<span class="normal"><a href="#__codelineno-0-112">112</a></span>
-<span class="normal"><a href="#__codelineno-0-113">113</a></span>
-<span class="normal"><a href="#__codelineno-0-114">114</a></span>
-<span class="normal"><a href="#__codelineno-0-115">115</a></span>
-<span class="normal"><a href="#__codelineno-0-116">116</a></span>
-<span class="normal"><a href="#__codelineno-0-117">117</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="k">global</span> <span class="n">logger</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="n">logger</span> <span class="o">=</span> <span class="n">CloudAndConsoleLogger</span><span class="p">(</span><span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;subscribe&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22"></a>    <span class="n">set_logger</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>  <span class="c1"># Set the logger for connect_crd</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23"></a>
-<a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Starting the lablink client service...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configuration: </span><span class="si">{</span><span class="n">OmegaConf</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="c1"># Define the URL for the POST request</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="c1"># Use ALLOCATOR_URL env var if set (supports HTTPS),</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="c1"># otherwise use host:port with HTTP</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">allocator_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_URL&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Allocator URL from env: </span><span class="si">{</span><span class="n">allocator_url</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="k">if</span> <span class="n">allocator_url</span><span class="p">:</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="c1"># Sanitize URL to remove prepended dots</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Handles cases like:</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="c1"># - http://.lablink.sleap.ai -&gt; http://lablink.sleap.ai</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="c1"># - https://.lablink.sleap.ai -&gt; https://lablink.sleap.ai</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="c1"># - .lablink.sleap.ai -&gt; lablink.sleap.ai</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;://.&quot;</span><span class="p">,</span> <span class="s2">&quot;://&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="k">if</span> <span class="n">base_url</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/vm_startup&quot;</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;URL: </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a>    <span class="k">global</span> <span class="n">logger</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="n">logger</span> <span class="o">=</span> <span class="n">CloudAndConsoleLogger</span><span class="p">(</span><span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;subscribe&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="n">set_logger</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>  <span class="c1"># Set the logger for connect_crd</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting LabLink client service&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="c1"># Define the URL for the POST request</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a>    <span class="c1"># Use ALLOCATOR_URL env var if set (supports HTTPS),</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="c1"># otherwise use host:port with HTTP</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="n">allocator_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_URL&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="k">if</span> <span class="n">allocator_url</span><span class="p">:</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="c1"># Sanitize URL to remove prepended dots</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="c1"># Handles cases like:</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="c1"># - http://.lablink.sleap.ai -&gt; http://lablink.sleap.ai</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="c1"># - https://.lablink.sleap.ai -&gt; https://lablink.sleap.ai</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># - .lablink.sleap.ai -&gt; lablink.sleap.ai</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;://.&quot;</span><span class="p">,</span> <span class="s2">&quot;://&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="k">if</span> <span class="n">base_url</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/vm_startup&quot;</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="c1"># Define hostname for the client</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">hostname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;VM_NAME&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connecting to allocator as &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-48" name="__codelineno-0-48"></a>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="c1"># Define hostname for the client</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="n">hostname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;VM_NAME&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hostname: </span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="c1"># Retry loop: Keep trying to connect until successful or VM is terminated</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="c1"># This ensures the VM can connect to CRD even if there are transient network issues</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
 <a id="__codelineno-0-52" name="__codelineno-0-52"></a>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="c1"># Retry loop: Keep trying to connect until successful or VM is terminated</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="c1"># This ensures the VM can connect to CRD even if there are transient network issues</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="k">if</span> <span class="n">retry_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>                <span class="sa">f</span><span class="s2">&quot;Retrying connection to allocator in </span><span class="si">{</span><span class="n">RETRY_DELAY</span><span class="si">}</span><span class="s2"> seconds... &quot;</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>                <span class="sa">f</span><span class="s2">&quot;(Attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>            <span class="p">)</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>            <span class="n">jitter</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">RETRY_DELAY</span> <span class="o">+</span> <span class="n">jitter</span><span class="p">)</span>
-<a id="__codelineno-0-65" name="__codelineno-0-65"></a>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>            <span class="c1"># Send a POST request to the specified URL</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="c1"># Note: This endpoint blocks until a user assigns a CRD command,</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>            <span class="c1"># so we use a very long timeout.</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>            <span class="c1"># The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>            <span class="c1"># assignment. Timeout tuple: (connect, read) = (30s, 7 days)</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>                <span class="sa">f</span><span class="s2">&quot;Attempting to connect to allocator &quot;</span> <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>            <span class="p">)</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>                <span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hostname&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">},</span> <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">604800</span><span class="p">)</span>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>            <span class="p">)</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>            <span class="c1"># Check if the request was successful</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;POST request was successful.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>                <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a>                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;success&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>                        <span class="s2">&quot;Successfully connected to allocator and received command.&quot;</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>                    <span class="p">)</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a>                    <span class="n">command</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;command&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>                    <span class="n">pin</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pin&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Command received: </span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pin received: </span><span class="si">{</span><span class="n">pin</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a>
-<a id="__codelineno-0-92" name="__codelineno-0-92"></a>                    <span class="c1"># Execute the command</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a>                    <span class="n">connect_to_crd</span><span class="p">(</span><span class="n">pin</span><span class="o">=</span><span class="n">pin</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">)</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Command executed successfully. Exiting retry loop.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a>                    <span class="k">break</span>  <span class="c1"># Success - exit retry loop</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a>                <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-97" name="__codelineno-0-97"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Received error response from server.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error message: </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;message&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-99" name="__codelineno-0-99"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Server explicitly rejected the request. Not retrying.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-100" name="__codelineno-0-100"></a>                    <span class="k">break</span>  <span class="c1"># Server explicitly rejected - don&#39;t retry</span>
-<a id="__codelineno-0-101" name="__codelineno-0-101"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-103" name="__codelineno-0-103"></a>                    <span class="sa">f</span><span class="s2">&quot;POST request failed with status code: &quot;</span>
-<a id="__codelineno-0-104" name="__codelineno-0-104"></a>                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">. Retrying...&quot;</span>
-<a id="__codelineno-0-105" name="__codelineno-0-105"></a>                <span class="p">)</span>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>                <span class="c1"># Will retry after delay</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>
-<a id="__codelineno-0-108" name="__codelineno-0-108"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-109" name="__codelineno-0-109"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Request to </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2"> timed out: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">. Retrying...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-110" name="__codelineno-0-110"></a>            <span class="c1"># Will retry after delay</span>
-<a id="__codelineno-0-111" name="__codelineno-0-111"></a>
-<a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-113" name="__codelineno-0-113"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Request to </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2"> failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">. Retrying...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="c1"># Will retry after delay</span>
-<a id="__codelineno-0-115" name="__codelineno-0-115"></a>
-<a id="__codelineno-0-116" name="__codelineno-0-116"></a>        <span class="c1"># Increment retry count</span>
-<a id="__codelineno-0-117" name="__codelineno-0-117"></a>        <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="k">if</span> <span class="n">retry_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>                <span class="sa">f</span><span class="s2">&quot;Retrying connection to allocator in </span><span class="si">{</span><span class="n">RETRY_DELAY</span><span class="si">}</span><span class="s2"> seconds... &quot;</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>                <span class="sa">f</span><span class="s2">&quot;(Attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>            <span class="p">)</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>            <span class="n">jitter</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">RETRY_DELAY</span> <span class="o">+</span> <span class="n">jitter</span><span class="p">)</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>            <span class="c1"># Send a POST request to the specified URL</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>            <span class="c1"># Note: This endpoint blocks until a user assigns a CRD command,</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>            <span class="c1"># so we use a very long timeout.</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="c1"># The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>            <span class="c1"># assignment. Timeout tuple: (connect, read) = (30s, 7 days)</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>                <span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hostname&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">},</span> <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">604800</span><span class="p">)</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>            <span class="p">)</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>            <span class="c1"># Check if the request was successful</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>                <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;success&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Received CRD command from allocator&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>                    <span class="n">command</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;command&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>                    <span class="n">pin</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pin&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>                    <span class="c1"># Execute the command</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>                    <span class="n">connect_to_crd</span><span class="p">(</span><span class="n">pin</span><span class="o">=</span><span class="n">pin</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CRD setup complete&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>                    <span class="k">break</span>  <span class="c1"># Success - exit retry loop</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>                <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Allocator rejected request: </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;message&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>                    <span class="k">break</span>  <span class="c1"># Server explicitly rejected - don&#39;t retry</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>                    <span class="sa">f</span><span class="s2">&quot;Allocator returned status </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">, retrying...&quot;</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>                <span class="p">)</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>                <span class="c1"># Will retry after delay</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span><span class="p">:</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Request to allocator timed out, retrying...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>            <span class="c1"># Will retry after delay</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Request to allocator failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">, retrying...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>            <span class="c1"># Will retry after delay</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>        <span class="c1"># Increment retry count</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>        <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
