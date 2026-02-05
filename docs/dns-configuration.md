@@ -75,37 +75,27 @@ dig NS lablink.sleap.ai
 ```yaml
 dns:
   enabled: true
-  domain: "lablink.sleap.ai"
-  zone_id: "Z010760118DSWF5IYKMOM"  # Hardcoded to avoid zone lookup issues
-  app_name: ""                       # Empty when using custom pattern
-  pattern: "custom"                  # Use custom subdomain
-  custom_subdomain: "test"           # Creates test.lablink.sleap.ai
-  create_zone: false                 # Zone already exists, don't create
+  terraform_managed: true            # true = Terraform manages Route53 records
+  domain: "test.lablink.sleap.ai"    # Full domain name for the allocator
+  zone_id: "Z010760118DSWF5IYKMOM"   # Optional: Route53 zone ID (skips lookup)
 ```
 
-### DNS Patterns
+### Configuration Options
 
-LabLink supports multiple DNS naming patterns:
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable DNS-based URLs |
+| `terraform_managed` | boolean | `true` | Let Terraform manage Route53 records. Set to `false` for external DNS (CloudFlare, etc.) |
+| `domain` | string | `""` | Full domain name (e.g., `lablink.sleap.ai` or `test.lablink.sleap.ai`) |
+| `zone_id` | string | `""` | Route53 zone ID (optional, skips lookup if provided) |
 
-#### 1. Custom Pattern (Recommended)
-```yaml
-pattern: "custom"
-custom_subdomain: "test"
-# Result: test.lablink.sleap.ai
-```
+### Domain Naming
 
-#### 2. Auto Pattern (environment-based)
-```yaml
-pattern: "auto"
-# Result: {environment}.lablink.sleap.ai
-# Examples: dev.lablink.sleap.ai, test.lablink.sleap.ai, prod.lablink.sleap.ai
-```
+Specify the full domain name directly in the `domain` field. This supports:
 
-#### 3. Timestamp Pattern
-```yaml
-pattern: "timestamp"
-# Result: lablink-20251004-143022.lablink.sleap.ai
-```
+- **Root domain**: `domain: "lablink.sleap.ai"`
+- **Environment subdomains**: `domain: "test.lablink.sleap.ai"`
+- **Custom subdomains**: `domain: "myapp.lablink.sleap.ai"`
 
 ### Zone ID Configuration
 
@@ -133,20 +123,15 @@ aws route53 list-hosted-zones --query "HostedZones[?Name=='lablink.sleap.ai.'].I
 # DNS configuration from config.yaml
 locals {
   dns_enabled          = try(local.config_file.dns.enabled, false)
+  dns_terraform_managed = try(local.config_file.dns.terraform_managed, true)
   dns_domain           = try(local.config_file.dns.domain, "")
   dns_zone_id          = try(local.config_file.dns.zone_id, "")
-  dns_app_name         = try(local.config_file.dns.app_name, "lablink")
-  dns_pattern          = try(local.config_file.dns.pattern, "auto")
-  dns_custom_subdomain = try(local.config_file.dns.custom_subdomain, "")
-  dns_create_zone      = try(local.config_file.dns.create_zone, false)
 }
 
-# Zone selection priority: hardcoded zone_id > create new > lookup existing
+# Zone selection: use provided zone_id or lookup by domain
 locals {
-  zone_id = local.dns_enabled ? (
-    local.dns_zone_id != "" ? local.dns_zone_id : (
-      local.dns_create_zone ? aws_route53_zone.new[0].zone_id : data.aws_route53_zone.existing[0].zone_id
-    )
+  zone_id = local.dns_enabled && local.dns_terraform_managed ? (
+    local.dns_zone_id != "" ? local.dns_zone_id : data.aws_route53_zone.existing[0].zone_id
   ) : ""
 }
 ```
@@ -296,11 +281,9 @@ This checks:
 ```yaml
 dns:
   enabled: true
-  domain: "lablink.sleap.ai"
+  terraform_managed: true
+  domain: "dev.lablink.sleap.ai"
   zone_id: "Z010760118DSWF5IYKMOM"
-  pattern: "custom"
-  custom_subdomain: "dev"
-  create_zone: false
 
 ssl:
   provider: "letsencrypt"
@@ -311,11 +294,9 @@ ssl:
 ```yaml
 dns:
   enabled: true
-  domain: "lablink.sleap.ai"
+  terraform_managed: true
+  domain: "test.lablink.sleap.ai"
   zone_id: "Z010760118DSWF5IYKMOM"
-  pattern: "custom"
-  custom_subdomain: "test"
-  create_zone: false
 
 ssl:
   provider: "letsencrypt"
@@ -326,15 +307,24 @@ ssl:
 ```yaml
 dns:
   enabled: true
-  domain: "lablink.sleap.ai"
+  terraform_managed: true
+  domain: "lablink.sleap.ai"  # Root domain for production
   zone_id: "Z010760118DSWF5IYKMOM"
-  pattern: "custom"
-  custom_subdomain: "app"  # or just use root: lablink.sleap.ai
-  create_zone: false
 
 ssl:
   provider: "letsencrypt"
   email: "admin@example.com"
+```
+
+### External DNS (CloudFlare)
+```yaml
+dns:
+  enabled: true
+  terraform_managed: false  # DNS managed externally
+  domain: "lablink.example.com"
+
+ssl:
+  provider: "cloudflare"  # CloudFlare handles SSL
 ```
 
 ### IP-Only Deployment (No DNS)

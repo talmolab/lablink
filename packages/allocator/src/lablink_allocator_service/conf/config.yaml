@@ -63,3 +63,16 @@ startup_script:
   enabled: false # true = run custom startup script on client VMs, false = no script
   path: ""  # Path to custom startup script (optional)
   on_error: "continue"  # "continue" = ignore errors, "fail" = stop VM setup on error
+
+monitoring:
+  enabled: false  # true = enable CloudWatch alarms, SNS notifications, Budgets, CloudTrail
+  email: ""  # Email address for alert notifications (required when enabled=true)
+  thresholds:
+    max_instances_per_5min: 10  # Max instance launches in 5-minute window
+    max_terminations_per_5min: 20  # Max instance terminations in 5-minute window
+    max_unauthorized_calls_per_15min: 5  # Max unauthorized API calls in 15-minute window
+  budget:
+    enabled: false  # true = enable AWS Budget monitoring
+    monthly_budget_usd: 500  # Monthly budget limit in USD
+  cloudtrail:
+    retention_days: 90  # Days to retain CloudTrail logs

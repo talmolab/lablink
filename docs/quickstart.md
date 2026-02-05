@@ -40,18 +40,20 @@ ssl:
 machine:
   ami_id: "ami-067cc81f948e50e06"  # Ubuntu 22.04 LTS (us-west-2)
   machine_type: "t3.medium"
-  gpu_support: false
 ```
 
 **Note on SSL**: This configuration uses `provider: "none"` for simplicity. For testing with DNS, you can use:
 ```yaml
+dns:
+  enabled: true
+  domain: "test.lablink.example.com"
+
 ssl:
   provider: "letsencrypt"
   email: "your-email@example.com"
-  staging: true  # HTTP only, unlimited deployments
 ```
 
-Staging mode serves HTTP only. Your browser will show "Not Secure" - this is expected for testing. For production with HTTPS, set `staging: false`. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
+See [Configuration - SSL Options](configuration.md#ssltls-options-ssl) for more details.
 
 **Set passwords** in `config/config.yaml`:
 
