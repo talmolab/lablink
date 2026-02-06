@@ -158,7 +158,6 @@ ENV PATH="/home/client/.local/bin:${PATH}"
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells
