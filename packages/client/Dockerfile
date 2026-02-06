@@ -1,5 +1,5 @@
 # Base image with GPU support
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
 
 # https://askubuntu.com/questions/1402167/must-specify-the-user-name-option-when-running-as-root-chrome-remote-desktop
 # Must be a non-root user to run Chrome Remote Desktop
@@ -25,11 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libegl1 \
     libopengl0 \
     libglib2.0-0 \
-    libfontconfig1 \
     libgssapi-krb5-2 \
-    libdbus-1-3 \
     libx11-xcb1 \
-    libxkbcommon-x11-0 \
     curl \
     # For media playback
     vlc \
@@ -160,8 +157,7 @@ ENV PATH="/home/client/.local/bin:${PATH}"
 # Install client service package from PyPI in a virtual environment
 RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
-    uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
+    uv add lablink-client-service==${PACKAGE_VERSION} --no-cache
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells

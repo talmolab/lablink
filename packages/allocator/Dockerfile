@@ -31,8 +31,7 @@ COPY pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 # Install package from PyPI using UV in explicit venv location
 RUN uv init --python 3.11 --no-readme && \
     uv venv /app/.venv && \
-    uv add lablink-allocator-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
+    uv add lablink-allocator-service==${PACKAGE_VERSION} --no-cache
 
 # Ensure terraform directory has write permissions for state files
 RUN chmod -R 777 /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform/

@@ -1,0 +1,38 @@
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Bytecode & cache
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.pytest_cache/
+
+# Coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+
+# Git files
+.git/
+.gitignore
+
+# Docker-related
+Dockerfile
+Dockerfile.dev
+.dockerignore
+
+# Local configs and credentials
+.env
+*.pem
+*.key
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Logs & temporary files
+*.log
+*.tmp
