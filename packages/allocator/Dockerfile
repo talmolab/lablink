@@ -20,7 +20,8 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y curl unzip && \
     curl -fsSL https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_amd64.zip -o /tmp/terraform.zip && \
     unzip /tmp/terraform.zip -d /usr/local/bin && \
-    rm /tmp/terraform.zip
+    rm /tmp/terraform.zip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
