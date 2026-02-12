@@ -10,21 +10,21 @@ Deploy tutorial environments to AWS with pre-installed software—students only 
 
 === "Prerequisites"
 
-    :material-clipboard-check-outline: Set up your AWS account, credentials, and required tools before deployment.
+    :material-clipboard-check-outline: Install the required tools: AWS CLI, Terraform, Docker, and Git.
 
     [:octicons-arrow-right-24: View requirements](prerequisites.md)
 
+=== "AWS Setup"
+
+    :material-cloud-lock-outline: Configure your AWS account with IAM roles, S3 state bucket, and GitHub Actions OIDC.
+
+    [:octicons-arrow-right-24: Set up AWS](aws-setup.md)
+
 === "Quickstart"
 
-    :material-rocket-launch: Deploy LabLink to AWS in 15 minutes with our step-by-step guide.
+    :material-rocket-launch: Deploy LabLink to AWS using the template repository and automation scripts.
 
     [:octicons-arrow-right-24: Get started](quickstart.md)
-
-=== "Configuration"
-
-    :material-cog: Customize your deployment with environment variables, instance types, and more.
-
-    [:octicons-arrow-right-24: Configure](configuration.md)
 
 ## Components
 

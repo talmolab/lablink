@@ -1,18 +1,13 @@
 # Quickstart
 
-Get LabLink running in 15 minutes.
-
-!!! tip "Recommended: GitHub Actions Deployment"
-    For production deployments, we recommend using GitHub Actions. See the [Deployment Guide](deployment.md) for the full workflow with automated CI/CD.
-
-    This quickstart covers **local deployment** for testing and development.
+Get LabLink deployed to AWS using the template repository and automation scripts.
 
 ## Prerequisites
 
-- **AWS Account** with admin access ([setup guide](prerequisites.md#1-aws-account))
-- **AWS CLI** configured locally ([setup guide](prerequisites.md#2-aws-cli))
-- **Terraform** installed ([setup guide](prerequisites.md#3-terraform))
-- **S3 Bucket** for Terraform state ([setup guide](aws-setup.md#step-2-s3-bucket-for-terraform-state))
+Before starting, ensure you have completed:
+
+- [x] [Prerequisites](prerequisites.md): AWS CLI, Terraform, Docker, Git installed
+- [x] [AWS Setup](aws-setup.md): IAM permissions, OIDC provider, and GitHub Actions role configured
 
 ## Step 1: Create Your Repository
 
@@ -22,15 +17,28 @@ Then clone your new repository:
 
 ```bash
 git clone https://github.com/YOUR_ORG/YOUR_REPO.git
-cd YOUR_REPO/lablink-infrastructure
+cd YOUR_REPO
 ```
 
 ## Step 2: Configure Settings
 
-Edit `config/config.yaml`:
+Copy the example config and edit the minimal required settings:
+
+```bash
+cd lablink-infrastructure
+```
+
+Edit `config/config.yaml` with your deployment settings:
 
 ```yaml
 # Minimal configuration for quick start
+app:
+  region: "us-west-2"  # Must match your AWS_REGION secret
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Replaced by GitHub secret
+
+db:
+  password: "PLACEHOLDER_DB_PASSWORD"  # Replaced by GitHub secret
+
 dns:
   enabled: false  # Start without DNS, use IP address
 
@@ -38,124 +46,129 @@ ssl:
   provider: "none"  # Start without HTTPS
 
 machine:
-  ami_id: "ami-067cc81f948e50e06"  # Ubuntu 22.04 LTS (us-west-2)
+  ami_id: "ami-0601752c11b394251"  # LabLink custom AMI (us-west-2)
   machine_type: "t3.medium"
+
+allocator_instance:
+  ami_id: "ami-0bd08c9d4aa9f0bc6"  # LabLink custom AMI (us-west-2)
 ```
 
-**Note on SSL**: This configuration uses `provider: "none"` for simplicity. For testing with DNS, you can use:
-```yaml
-dns:
-  enabled: true
-  domain: "test.lablink.example.com"
+!!! note "Other Regions"
+    If deploying outside `us-west-2`, you'll need to find or copy AMI IDs for your region. See [AWS Setup - Find AMI IDs](aws-setup.md#step-5-find-ami-ids-for-your-region).
 
-ssl:
-  provider: "letsencrypt"
-  email: "your-email@example.com"
-```
+## Step 3: Run AWS Setup Script
 
-See [Configuration - SSL Options](configuration.md#ssltls-options-ssl) for more details.
-
-**Set passwords** in `config/config.yaml`:
-
-```yaml
-app:
-  admin_password: "your-secure-admin-password"  # Replace placeholder
-
-db:
-  password: "your-secure-db-password"  # Replace placeholder
-```
-
-!!! warning "For GitHub Actions Deployment"
-    When using GitHub Actions, set `ADMIN_PASSWORD` and `DB_PASSWORD` as repository secrets instead of editing the config file directly. See [AWS Setup - Add GitHub Secrets](aws-setup.md#46-add-github-secrets).
-
-## Step 3: Initialize and Deploy
+The template includes a script that creates the required AWS resources (S3 bucket for Terraform state, DynamoDB lock table, and optionally Route 53 hosted zone):
 
 ```bash
-# Initialize Terraform with backend configuration
-../scripts/init-terraform.sh test
-
-# Deploy (will prompt for confirmation)
-terraform apply -var="resource_suffix=test"
+scripts/setup-aws-infrastructure.sh
 ```
 
-**Deployment time**: ~5 minutes
+This script will:
 
-Creates:
-- EC2 instance running allocator (Flask app + PostgreSQL)
-- Security groups (HTTP port 80, SSH port 22)
-- SSH key pair
+- Create an S3 bucket for Terraform state storage
+- Enable versioning and encryption on the bucket
+- Create a DynamoDB table for state locking
+- Optionally create a Route 53 hosted zone for DNS
 
-## Step 4: Access Your Allocator
+!!! tip "Manual Setup"
+    If you prefer to create these resources manually, see [AWS Setup - Step 2](aws-setup.md#step-2-s3-bucket-for-terraform-state) for detailed instructions.
+
+## Step 4: Set Up GitHub Actions Secrets
+
+In your GitHub repository, go to **Settings** → **Secrets and variables** → **Actions** and add these four secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ROLE_ARN` | ARN of the IAM role for GitHub Actions (e.g., `arn:aws:iam::123456789:role/GitHubActionsLabLinkRole`) |
+| `AWS_REGION` | Your AWS region (e.g., `us-west-2`) |
+| `ADMIN_PASSWORD` | Secure password for the admin web interface |
+| `DB_PASSWORD` | Secure password for the PostgreSQL database |
+
+!!! warning "Use Strong Passwords"
+    Generate strong, unique passwords for `ADMIN_PASSWORD` and `DB_PASSWORD` using a password manager. These are injected during deployment and replace the placeholder values in `config.yaml`.
+
+## Step 5: Deploy to Test
+
+Push to the `test` branch to trigger a deployment:
 
 ```bash
-# Get public IP
-terraform output ec2_public_ip
-# Output: 52.10.123.456
-
-# Save SSH key
-terraform output -raw private_key_pem > ~/lablink-key.pem
-chmod 600 ~/lablink-key.pem
+git checkout -b test
+git push -u origin test
 ```
 
-**Web interface**: `http://<ec2_public_ip>`
+Monitor the deployment:
 
-**Admin login**:
+1. Go to the **Actions** tab in your GitHub repository
+2. Watch the **Terraform Deploy** workflow
+3. Wait for the workflow to complete (~5-10 minutes)
 
-- Username: `admin`
-- Password: The password you set in Step 2
+The workflow will:
 
-## Step 5: Create Client VMs
-
-1. Navigate to `http://<ec2_public_ip>/admin`
-2. Log in with admin credentials
-3. Click **"Create VMs"**
-4. Enter number of VMs (try 2)
-5. Click **"Launch VMs"**
-
-**VM creation time**: ~5 minutes
+- Authenticate to AWS via OIDC
+- Initialize Terraform with the S3 backend
+- Deploy the allocator EC2 instance, security groups, and SSH key pair
 
 ## Step 6: Verify
 
+Once the deployment completes:
+
+### Access the Web UI
+
+1. Find the allocator's public IP from the Terraform output in the GitHub Actions logs
+2. Navigate to `http://<ec2_public_ip>` in your browser
+3. Log in with username `admin` and the `ADMIN_PASSWORD` you set
+
+### Create Test VMs
+
+1. Go to `http://<ec2_public_ip>/admin`
+2. Click **"Create VMs"**
+3. Enter number of VMs (try 1-2 for testing)
+4. Click **"Launch VMs"** and wait ~5 minutes
+
+### SSH Check
+
 ```bash
-# SSH into allocator
+# Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)
 ssh -i ~/lablink-key.pem ubuntu@<ec2_public_ip>
 
-# Check allocator is running
+# Verify allocator is running
 sudo docker ps
 
-# Check VMs in database
+# Check VMs registered in database
 sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT hostname FROM vms;"
 ```
 
 ## Step 7: Cleanup
 
-```bash
-# Destroy all resources
-terraform destroy -var="resource_suffix=test"
-```
+When you're done testing, destroy the infrastructure:
+
+=== "Via GitHub Actions"
+
+    Delete the `test` branch to trigger the destroy workflow, or manually run the **Terraform Destroy** workflow from the Actions tab.
+
+=== "Via Terraform"
+
+    ```bash
+    cd lablink-infrastructure
+    scripts/init-terraform.sh test
+    terraform destroy -var="resource_suffix=test"
+    ```
+
+=== "Cleanup Orphaned Resources"
+
+    If resources were left behind (e.g., from a failed destroy), use the cleanup script:
+
+    ```bash
+    scripts/cleanup-orphaned-resources.sh test
+    ```
 
 !!! warning "AWS Costs"
-    EC2 instances cost ~$0.04/hour (t3.medium). Always destroy test resources.
-
-## Troubleshooting
-
-**Can't access web interface?**
-```bash
-curl http://$(terraform output -raw ec2_public_ip)
-# If this fails, check security group allows port 80
-```
-
-**VMs not appearing?** See [VM Registration Issue](troubleshooting.md#client-vm-not-registering)
-
-**SSH permission denied?**
-```bash
-chmod 600 ~/lablink-key.pem
-```
+    EC2 instances incur charges while running. Always destroy test resources when not in use. See [Cost Estimation](cost-estimation.md) for details.
 
 ## Next Steps
 
-- **GitHub Actions**: [Deployment Guide](deployment.md) for automated CI/CD deployments (recommended for production)
-- **AWS Setup**: [AWS Setup Guide](aws-setup.md) for IAM roles, OIDC, and GitHub secrets
-- **Add DNS**: [DNS Configuration Guide](dns-configuration.md) for custom domains and HTTPS
-- **Customize**: [Configuration Reference](configuration.md) for all options
-- **Secure**: [Security Guide](security.md) before going to production
+- **[Configuration](configuration.md)**: Customize instance types, machine images, and deployment settings
+- **[Adapting for Your Software](adapting.md)**: Install your own tutorial software on client VMs
+- **[Deployment](deployment.md)**: Production deployment with CI/CD workflows
+- **[Security](security.md)**: Review security best practices before going to production

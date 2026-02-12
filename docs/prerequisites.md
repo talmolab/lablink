@@ -168,40 +168,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python install 3.11
 ```
 
-## AWS Resource Requirements
-
-Before deploying, ensure you have or will create:
-
-1. **S3 Bucket**: For Terraform state storage
-      - Naming: `tf-state-lablink-allocator-bucket` (configurable)
-      - Versioning enabled recommended
-
-2. **Elastic IPs**: Pre-allocated for each environment
-      - 1 for dev
-      - 1 for test
-      - 1 for prod
-
-3. **IAM Roles**: For OIDC authentication (GitHub Actions)
-      - Trust relationship with GitHub
-      - Permissions for EC2, S3, Route53
-
-4. **Route 53 Hosted Zone** (Optional): For custom DNS
-      - Example: `lablink.yourdomain.com`
-
-See the [AWS Setup from Scratch](aws-setup.md) guide for detailed setup instructions.
-
-## SSH Key Pair
-
-LabLink automatically generates SSH key pairs via Terraform, but you should be familiar with:
-
-- SSH key management
-- File permissions (chmod 600)
-- Connecting to EC2 instances via SSH
-
 ## Next Steps
 
 Once you have these prerequisites installed:
 
-1. [**Installation**](installation.md): Set up LabLink locally
-2. [**AWS Setup**](aws-setup.md): Configure AWS resources from scratch
-3. [**Configuration**](configuration.md): Customize LabLink for your needs
+1. [**AWS Setup**](aws-setup.md): Configure AWS resources (S3, IAM, OIDC)
+2. [**Quickstart**](quickstart.md): Deploy LabLink to AWS
