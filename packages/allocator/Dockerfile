@@ -20,7 +20,8 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y curl unzip && \
     curl -fsSL https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_amd64.zip -o /tmp/terraform.zip && \
     unzip /tmp/terraform.zip -d /usr/local/bin && \
-    rm /tmp/terraform.zip
+    rm /tmp/terraform.zip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -31,8 +32,7 @@ COPY pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 # Install package from PyPI using UV in explicit venv location
 RUN uv init --python 3.11 --no-readme && \
     uv venv /app/.venv && \
-    uv add lablink-allocator-service==${PACKAGE_VERSION} --no-cache && \
-    uv sync
+    uv add lablink-allocator-service==${PACKAGE_VERSION} --no-cache
 
 # Ensure terraform directory has write permissions for state files
 RUN chmod -R 777 /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform/
