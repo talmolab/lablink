@@ -155,9 +155,12 @@ ENV UV_PYTHON_INSTALL_DIR=/home/client/.local/share/uv/python
 ENV PATH="/home/client/.local/bin:${PATH}"
 
 # Install client service package from PyPI in a virtual environment
-RUN uv init --python 3.11 --no-readme \
+# --no-vcs prevents creating a .git directory in the home directory, which can
+# cause permission errors when uv tool install processes sdists at runtime
+RUN uv init --python 3.11 --no-readme --no-vcs \
     && uv venv /home/${USERNAME}/.venv && \
-    uv add lablink-client-service==${PACKAGE_VERSION} --no-cache
+    uv add lablink-client-service==${PACKAGE_VERSION} --no-cache && \
+    rm -rf /home/${USERNAME}/.cache/uv
 
 # Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells
