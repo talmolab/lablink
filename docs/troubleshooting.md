@@ -731,7 +731,7 @@ sudo docker exec $CONTAINER_ID psql -U lablink -d lablink_db -c \
 
 **Option B: Code Fix (Permanent Solution)**
 
-The `/api/launch` endpoint needs to be updated to insert VMs after Terraform succeeds. See [VM_REGISTRATION_ISSUE.md](../VM_REGISTRATION_ISSUE.md) for details.
+The `/api/launch` endpoint needs to be updated to insert VMs after Terraform succeeds.
 
 **After Fix - Verify Registration**:
 ```bash
