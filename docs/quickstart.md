@@ -79,8 +79,8 @@ git push -u origin test
 Monitor the deployment:
 
 1. Go to the **Actions** tab in your GitHub repository
-2. Watch the **Terraform Deploy** workflow
-3. Wait for the workflow to complete (~5-10 minutes)
+2. Run the **Terraform Deploy** workflow manually
+4. Wait for the workflow to complete (~5-10 minutes)
 
 The workflow will:
 
@@ -132,7 +132,7 @@ When you're done testing, destroy the infrastructure:
 
 === "Via GitHub Actions"
 
-    Delete the `test` branch to trigger the destroy workflow, or manually run the **Terraform Destroy** workflow from the Actions tab.
+    Manually run the **Terraform Destroy** workflow from the Actions tab.
 
 === "Via Terraform"
 
