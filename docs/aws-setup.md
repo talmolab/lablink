@@ -1,5 +1,10 @@
 # AWS Setup from Scratch
 
+!!! tip "Automated Setup Recommended"
+    The [Quickstart](quickstart.md) guide uses `setup.sh` to automate all required AWS resource creation.
+    This manual guide is provided as a reference for advanced users who prefer to create
+    resources individually. See [Quickstart](quickstart.md) for the recommended approach.
+
 This comprehensive guide walks you through setting up all required AWS resources for LabLink deployment from scratch.
 
 ## Overview

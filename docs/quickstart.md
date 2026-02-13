@@ -1,13 +1,12 @@
 # Quickstart
 
-Get LabLink deployed to AWS using the template repository and automation scripts.
+Get LabLink deployed to AWS using the template repository and automated setup scripts.
 
 ## Prerequisites
 
 Before starting, ensure you have completed:
 
-- [x] [Prerequisites](prerequisites.md): AWS CLI, Terraform, Docker, Git installed
-- [x] [AWS Setup](aws-setup.md): IAM permissions, OIDC provider, and GitHub Actions role configured
+- [x] [Prerequisites](prerequisites.md): AWS Account, AWS CLI, GitHub CLI (`gh`), and Git installed
 
 ## Step 1: Create Your Repository
 
@@ -20,79 +19,59 @@ git clone https://github.com/YOUR_ORG/YOUR_REPO.git
 cd YOUR_REPO
 ```
 
-## Step 2: Configure Settings
+## Step 2: Run Setup
 
-Copy the example config and edit the minimal required settings:
-
-```bash
-cd lablink-infrastructure
-```
-
-Edit `config/config.yaml` with your deployment settings:
-
-```yaml
-# Minimal configuration for quick start
-app:
-  region: "us-west-2"  # Must match your AWS_REGION secret
-  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"  # Replaced by GitHub secret
-
-db:
-  password: "PLACEHOLDER_DB_PASSWORD"  # Replaced by GitHub secret
-
-dns:
-  enabled: false  # Start without DNS, use IP address
-
-ssl:
-  provider: "none"  # Start without HTTPS
-
-machine:
-  ami_id: "ami-0601752c11b394251"  # LabLink custom AMI (us-west-2)
-  machine_type: "t3.medium"
-
-allocator_instance:
-  ami_id: "ami-0bd08c9d4aa9f0bc6"  # LabLink custom AMI (us-west-2)
-```
-
-!!! note "Other Regions"
-    If deploying outside `us-west-2`, you'll need to find or copy AMI IDs for your region. See [AWS Setup - Find AMI IDs](aws-setup.md#step-5-find-ami-ids-for-your-region).
-
-## Step 3: Run AWS Setup Script
-
-The template includes a script that creates the required AWS resources (S3 bucket for Terraform state, DynamoDB lock table, and optionally Route 53 hosted zone):
+Run the setup script to create all required AWS resources and configure GitHub secrets:
 
 ```bash
-scripts/setup-aws-infrastructure.sh
+./scripts/setup.sh
 ```
 
-This script will:
+The script will prompt you for:
 
-- Create an S3 bucket for Terraform state storage
-- Enable versioning and encryption on the bucket
-- Create a DynamoDB table for state locking
-- Optionally create a Route 53 hosted zone for DNS
+- AWS region (e.g., `us-west-2`)
+- S3 bucket name for Terraform state
+- GitHub repository (e.g., `YOUR_ORG/YOUR_REPO`)
+- Optional DNS settings (Route 53)
+
+It automatically:
+
+- Creates an OIDC identity provider for GitHub Actions
+- Creates an IAM role with required permissions
+- Creates an S3 bucket for Terraform state (with versioning and encryption)
+- Creates a DynamoDB table for state locking
+- Optionally creates a Route 53 hosted zone
+- Sets four GitHub repository secrets: `AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, `DB_PASSWORD`
+- Generates secure passwords for admin and database access
 
 !!! tip "Manual Setup"
-    If you prefer to create these resources manually, see [AWS Setup - Step 2](aws-setup.md#step-2-s3-bucket-for-terraform-state) for detailed instructions.
+    If you prefer to create AWS resources individually, see the [AWS Setup (Manual)](aws-setup.md) guide.
 
-## Step 4: Set Up GitHub Actions Secrets
+## Step 3: Configure
 
-In your GitHub repository, go to **Settings** → **Secrets and variables** → **Actions** and add these four secrets:
+After setup completes, the script automatically runs `./scripts/configure.sh` to generate your deployment configuration.
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ROLE_ARN` | ARN of the IAM role for GitHub Actions (e.g., `arn:aws:iam::123456789:role/GitHubActionsLabLinkRole`) |
-| `AWS_REGION` | Your AWS region (e.g., `us-west-2`) |
-| `ADMIN_PASSWORD` | Secure password for the admin web interface |
-| `DB_PASSWORD` | Secure password for the PostgreSQL database |
+The configure script prompts for:
 
-!!! warning "Use Strong Passwords"
-    Generate strong, unique passwords for `ADMIN_PASSWORD` and `DB_PASSWORD` using a password manager. These are injected during deployment and replace the placeholder values in `config.yaml`.
+- Instance type and AMI settings
+- DNS and SSL configuration
+- Monitoring options
 
-## Step 5: Deploy to Test
+It generates `lablink-infrastructure/config/config.yaml` with your settings.
 
-Push to the `test` branch to trigger a deployment:
+!!! note "Re-running Configuration"
+    You can re-run the configuration script at any time to update settings:
+    ```bash
+    ./scripts/configure.sh
+    ```
+
+## Step 4: Commit and Deploy
+
+Commit your configuration and push to the `test` branch to trigger a deployment:
 
 ```bash
+git add lablink-infrastructure/config/config.yaml
+git commit -m "Add deployment configuration"
 git checkout -b test
 git push -u origin test
 ```
@@ -109,7 +88,7 @@ The workflow will:
 - Initialize Terraform with the S3 backend
 - Deploy the allocator EC2 instance, security groups, and SSH key pair
 
-## Step 6: Verify
+## Step 5: Verify
 
 Once the deployment completes:
 
@@ -117,7 +96,7 @@ Once the deployment completes:
 
 1. Find the allocator's public IP from the Terraform output in the GitHub Actions logs
 2. Navigate to `http://<ec2_public_ip>` in your browser
-3. Log in with username `admin` and the `ADMIN_PASSWORD` you set
+3. Log in with username `admin` and the `ADMIN_PASSWORD` that was auto-generated during setup
 
 ### Create Test VMs
 
@@ -125,6 +104,14 @@ Once the deployment completes:
 2. Click **"Create VMs"**
 3. Enter number of VMs (try 1-2 for testing)
 4. Click **"Launch VMs"** and wait ~5 minutes
+
+### Verify Deployment Script (Optional)
+
+The template includes a verification script:
+
+```bash
+./scripts/verify-deployment.sh
+```
 
 ### SSH Check
 
@@ -139,7 +126,7 @@ sudo docker ps
 sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT hostname FROM vms;"
 ```
 
-## Step 7: Cleanup
+## Step 6: Cleanup
 
 When you're done testing, destroy the infrastructure:
 

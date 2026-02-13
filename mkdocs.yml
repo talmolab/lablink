@@ -95,8 +95,8 @@ nav:
   - Home: index.md
   - Getting Started:
       - Prerequisites: prerequisites.md
-      - AWS Setup: aws-setup.md
       - Quickstart: quickstart.md
+      - AWS Setup (Manual): aws-setup.md
   - Guides:
       - Architecture: architecture.md
       - Configuration: configuration.md

@@ -60,63 +60,36 @@ Enter your:
 
 For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See [AWS Setup from Scratch](aws-setup.md#step-4-github-actions-oidc-configuration) for details.
 
-### 3. Terraform
+### 3. GitHub CLI (`gh`)
 
-Install Terraform for infrastructure provisioning:
+The GitHub CLI is used by the setup scripts to configure repository secrets automatically.
 
 === "macOS"
     ```bash
-    brew tap hashicorp/tap
-    brew install hashicorp/tap/terraform
+    brew install gh
     ```
 
 === "Linux"
     ```bash
-    wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-    unzip terraform_1.6.6_linux_amd64.zip
-    sudo mv terraform /usr/local/bin/
+    sudo apt install gh
     ```
 
 === "Windows"
-    Download from [Terraform Downloads](https://www.terraform.io/downloads.html) and add to PATH
+    ```bash
+    winget install GitHub.cli
+    ```
+
+Authenticate with GitHub:
+```bash
+gh auth login
+```
 
 Verify installation:
 ```bash
-terraform version
+gh --version
 ```
 
-**Version Requirement**: LabLink uses Terraform 1.6.6 (as specified in the CI workflow).
-
-### 4. Docker
-
-Install Docker for local testing and development:
-
-=== "macOS"
-    Download [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
-
-=== "Linux"
-    ```bash
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    ```
-
-=== "Windows"
-    Download [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
-
-Verify installation:
-```bash
-docker --version
-docker ps
-```
-
-!!! tip "Docker Permissions (Linux)"
-    If you encounter permission errors:
-    ```bash
-    sudo usermod -aG docker $USER
-    newgrp docker
-    ```
-
-### 5. Git
+### 4. Git
 
 Git should already be installed on most systems. Verify:
 ```bash
@@ -141,20 +114,52 @@ If not installed:
 
 ## Optional Tools
 
-### GitHub CLI (gh)
+These tools are only needed for local development, debugging, or advanced workflows.
 
-Useful for managing releases and workflows:
+### Terraform
 
-```bash
-# macOS
-brew install gh
+Only needed if you want to run Terraform locally (e.g., for debugging or manual deployments). The automated setup and GitHub Actions workflows handle Terraform for you.
 
-# Linux
-sudo apt install gh
+=== "macOS"
+    ```bash
+    brew tap hashicorp/tap
+    brew install hashicorp/tap/terraform
+    ```
 
-# Windows
-winget install GitHub.cli
-```
+=== "Linux"
+    ```bash
+    wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
+    unzip terraform_1.6.6_linux_amd64.zip
+    sudo mv terraform /usr/local/bin/
+    ```
+
+=== "Windows"
+    Download from [Terraform Downloads](https://www.terraform.io/downloads.html) and add to PATH
+
+**Version Requirement**: LabLink uses Terraform 1.6.6 (as specified in the CI workflow).
+
+### Docker
+
+Only needed for local testing and development of LabLink services.
+
+=== "macOS"
+    Download [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+
+=== "Linux"
+    ```bash
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    ```
+
+=== "Windows"
+    Download [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+
+!!! tip "Docker Permissions (Linux)"
+    If you encounter permission errors:
+    ```bash
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ```
 
 ### Python and uv
 
@@ -170,7 +175,7 @@ uv python install 3.11
 
 ## Next Steps
 
-Once you have these prerequisites installed:
+Once you have the required tools installed:
 
-1. [**AWS Setup**](aws-setup.md): Configure AWS resources (S3, IAM, OIDC)
-2. [**Quickstart**](quickstart.md): Deploy LabLink to AWS
+1. [**Quickstart**](quickstart.md): Deploy LabLink to AWS using the automated setup scripts
+2. [**AWS Setup (Manual)**](aws-setup.md): Reference guide for creating AWS resources individually
