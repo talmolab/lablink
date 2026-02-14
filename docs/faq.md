@@ -124,7 +124,7 @@ If your browser cannot connect to `http://your-domain.com`:
 
 **Key difference:** Staging = HTTP only (fast, unlimited, no encryption). Production = HTTPS with trusted certificates (secure, rate limited).
 
-See [Configuration → Staging vs Production](configuration.md#staging-vs-production-mode).
+See [Configuration → SSL/TLS Options](configuration.md#ssltls-options-ssl).
 
 ### How many times can I deploy with staging mode?
 

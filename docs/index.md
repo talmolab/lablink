@@ -10,49 +10,57 @@ Deploy tutorial environments to AWS with pre-installed software—students only 
 
 === "Prerequisites"
 
-    :material-clipboard-check-outline: Set up your AWS account, credentials, and required tools before deployment.
+    :material-clipboard-check-outline: Install the required tools: AWS CLI, GitHub CLI, and Git.
 
     [:octicons-arrow-right-24: View requirements](prerequisites.md)
 
 === "Quickstart"
 
-    :material-rocket-launch: Deploy LabLink to AWS in 15 minutes with our step-by-step guide.
+    :material-rocket-launch: Deploy LabLink to AWS using the template repository and automated setup scripts.
 
     [:octicons-arrow-right-24: Get started](quickstart.md)
 
-=== "Configuration"
+=== "Guides"
 
-    :material-cog: Customize your deployment with environment variables, instance types, and more.
+    :material-book-open-variant: Configuration, deployment, adapting for your software, and more.
 
-    [:octicons-arrow-right-24: Configure](configuration.md)
+    [:octicons-arrow-right-24: View guides](architecture.md)
 
-## Components
+## Explore the Docs
 
 <div class="grid cards" markdown>
 
-- :material-server: **Allocator**
+- :material-cog: **Configuration**
 
     ---
 
-    Web service managing VM requests, user authentication, and database operations.
+    Customize instance types, machine images, DNS, SSL, and monitoring settings.
 
-    [:octicons-arrow-right-24: Learn more](architecture.md)
+    [:octicons-arrow-right-24: Configuration](configuration.md)
 
-- :material-desktop-tower: **Client VMs**
-
-    ---
-
-    EC2 instances running pre-installed tutorial software with GPU support and health monitoring.
-
-    [:octicons-arrow-right-24: Learn more](adapting.md)
-
-- :material-cloud-outline: **Infrastructure**
+- :material-swap-horizontal: **Adapting for Your Software**
 
     ---
 
-    Terraform templates for AWS deployment including VPC, security groups, and auto-scaling.
+    Install your own tutorial software on client VMs and customize the environment.
 
-    [:octicons-arrow-right-24: AWS setup](aws-setup.md)
+    [:octicons-arrow-right-24: Adapting](adapting.md)
+
+- :material-rocket-launch: **Deployment**
+
+    ---
+
+    CI/CD workflows, production deployment, and environment management.
+
+    [:octicons-arrow-right-24: Deployment](deployment.md)
+
+- :material-shield-lock: **Security**
+
+    ---
+
+    Credentials management, IAM roles, OIDC, and security best practices.
+
+    [:octicons-arrow-right-24: Security](security.md)
 
 </div>
 

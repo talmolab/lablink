@@ -93,10 +93,10 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Installation:
+  - Getting Started:
       - Prerequisites: prerequisites.md
-      - Installation: installation.md
       - Quickstart: quickstart.md
+      - AWS Setup (Manual): aws-setup.md
   - Guides:
       - Architecture: architecture.md
       - Configuration: configuration.md
@@ -108,10 +108,10 @@ nav:
       - Testing: testing.md
       - API Endpoints: api-endpoints.md
   - AWS:
-      - AWS setup: aws-setup.md
       - Security and credentials: security.md
       - Cost estimation: cost-estimation.md
   - Reference:
+      - Installation: installation.md
       - API reference: reference/
       - Troubleshooting: troubleshooting.md
       - FAQ: faq.md

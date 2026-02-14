@@ -1,5 +1,10 @@
 # AWS Setup from Scratch
 
+!!! tip "Automated Setup Recommended"
+    The [Quickstart](quickstart.md) guide uses `setup.sh` to automate all required AWS resource creation.
+    This manual guide is provided as a reference for advanced users who prefer to create
+    resources individually. See [Quickstart](quickstart.md) for the recommended approach.
+
 This comprehensive guide walks you through setting up all required AWS resources for LabLink deployment from scratch.
 
 ## Overview
@@ -237,6 +242,9 @@ aws configure
 
 ## Step 2: S3 Bucket for Terraform State
 
+!!! tip "Automated Setup Available"
+    If you created your repository from the [lablink-template](https://github.com/talmolab/lablink-template), you can run `scripts/setup-aws-infrastructure.sh` to automatically create the S3 bucket, DynamoDB lock table, and Route 53 hosted zone. The manual steps below are provided as reference.
+
 ### 2.1 Create S3 Bucket
 
 Choose a globally unique bucket name:
@@ -306,6 +314,9 @@ region = "us-west-2"
 ```
 
 ## Step 3: Elastic IP Allocation
+
+!!! tip "Automated Setup"
+    The `scripts/setup-aws-infrastructure.sh` script from the template repository also handles Elastic IP allocation. See the [Quickstart](quickstart.md) for the script-driven workflow.
 
 Allocate static IPs for test and production environments.
 
@@ -1552,11 +1563,17 @@ Running EC2 instances cost extra. See [Cost Estimation](cost-estimation.md) for 
 
 With AWS resources configured:
 
-1. **[Deployment](deployment.md)**: Deploy LabLink
+1. **[Quickstart](quickstart.md)**: Deploy LabLink to AWS
 2. **[Security](security.md)**: Review security best practices
 3. **[Workflows](workflows.md)**: Understand CI/CD pipelines
 
 ## Cleanup
+
+!!! tip "Automated Cleanup"
+    The template repository includes `scripts/cleanup-orphaned-resources.sh` to clean up orphaned AWS resources (e.g., leftover security groups, key pairs) for a given environment:
+    ```bash
+    scripts/cleanup-orphaned-resources.sh test
+    ```
 
 To remove all AWS resources:
 
