@@ -13,10 +13,10 @@
       
       
       
-        <link rel="prev" href="../installation/">
+        <link rel="prev" href="../prerequisites/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="../aws-setup/">
       
       
         
@@ -271,7 +271,7 @@
           
   
   
-  Installation
+  Getting Started
 
         </a>
       </li>
@@ -307,7 +307,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../aws-setup/" class="md-tabs__link">
+        <a href="../security/" class="md-tabs__link">
           
   
   
@@ -327,7 +327,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../reference/" class="md-tabs__link">
+        <a href="../installation/" class="md-tabs__link">
           
   
   
@@ -466,7 +466,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
+    Getting Started
   
 
     
@@ -482,7 +482,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Installation
+    Getting Started
   
 
           </label>
@@ -503,34 +503,6 @@
     
   
     Prerequisites
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
   
 
     
@@ -633,10 +605,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-configure-settings" class="md-nav__link">
+  <a href="#step-2-run-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: Configure Settings
+        Step 2: Run Setup
       
     </span>
   </a>
@@ -644,10 +616,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-initialize-and-deploy" class="md-nav__link">
+  <a href="#step-3-configure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Initialize and Deploy
+        Step 3: Configure
       
     </span>
   </a>
@@ -655,10 +627,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-access-your-allocator" class="md-nav__link">
+  <a href="#step-4-commit-and-deploy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Access Your Allocator
+        Step 4: Commit and Deploy
       
     </span>
   </a>
@@ -666,43 +638,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-5-create-client-vms" class="md-nav__link">
+  <a href="#step-5-verify" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5: Create Client VMs
+        Step 5: Verify
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: Verify">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#access-the-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access the Web UI
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#step-6-verify" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#create-test-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 6: Verify
+        Create Test VMs
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#step-7-cleanup" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#verify-deployment-script-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 7: Cleanup
+        Verify Deployment Script (Optional)
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-check" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Troubleshooting
+        SSH Check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Cleanup
       
     </span>
   </a>
@@ -724,6 +724,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AWS Setup (Manual)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1110,34 +1138,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../aws-setup/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    AWS setup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../security/" class="md-nav__link">
         
   
@@ -1254,6 +1254,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -1270,7 +1298,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1292,14 +1320,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1331,10 +1359,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1" >
         
           
-          <label class="md-nav__link" for="__nav_5_1_1" id="__nav_5_1_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_2_1" id="__nav_5_2_1_label" tabindex="0">
             
   
   
@@ -1352,8 +1380,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_1_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_1">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1385,7 +1413,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1407,14 +1435,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1_1_1" id="__nav_5_1_1_1_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1" id="__nav_5_2_1_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_1_1_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_1_1">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_2_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1446,7 +1474,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1_1" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_1" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1468,14 +1496,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1_1_1_1" id="__nav_5_1_1_1_1_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_1" id="__nav_5_2_1_1_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_1_1_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_1_1_1">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1683,7 +1711,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_1_1_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1705,14 +1733,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1_1_1_7" id="__nav_5_1_1_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_7" id="__nav_5_2_1_1_7_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_1_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_1_1_7">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1908,10 +1936,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_2" >
         
           
-          <label class="md-nav__link" for="__nav_5_1_2" id="__nav_5_1_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_2_2" id="__nav_5_2_2_label" tabindex="0">
             
   
   
@@ -1929,8 +1957,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_1_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_2">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1962,7 +1990,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2_1" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_2_1" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1984,14 +2012,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1_2_1" id="__nav_5_1_2_1_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_2_1" id="__nav_5_2_2_1_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_1_2_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_2_1">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_2_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_2_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2051,7 +2079,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1_2_1_2" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_2_1_2" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2073,14 +2101,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_1_2_1_2" id="__nav_5_1_2_1_2_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_2_1_2" id="__nav_5_2_2_1_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_1_2_1_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_1_2_1_2">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_2_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_2_1_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2631,10 +2659,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-configure-settings" class="md-nav__link">
+  <a href="#step-2-run-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: Configure Settings
+        Step 2: Run Setup
       
     </span>
   </a>
@@ -2642,10 +2670,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-initialize-and-deploy" class="md-nav__link">
+  <a href="#step-3-configure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Initialize and Deploy
+        Step 3: Configure
       
     </span>
   </a>
@@ -2653,10 +2681,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-access-your-allocator" class="md-nav__link">
+  <a href="#step-4-commit-and-deploy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Access Your Allocator
+        Step 4: Commit and Deploy
       
     </span>
   </a>
@@ -2664,43 +2692,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-5-create-client-vms" class="md-nav__link">
+  <a href="#step-5-verify" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5: Create Client VMs
+        Step 5: Verify
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: Verify">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#access-the-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access the Web UI
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#step-6-verify" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#create-test-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 6: Verify
+        Create Test VMs
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#step-7-cleanup" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#verify-deployment-script-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 7: Cleanup
+        Verify Deployment Script (Optional)
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#ssh-check" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Troubleshooting
+        SSH Check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Cleanup
       
     </span>
   </a>
@@ -2739,129 +2795,136 @@
 
 
 <h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
-<p>Get LabLink running in 15 minutes.</p>
-<div class="admonition tip">
-<p class="admonition-title">Recommended: GitHub Actions Deployment</p>
-<p>For production deployments, we recommend using GitHub Actions. See the <a href="../deployment/">Deployment Guide</a> for the full workflow with automated CI/CD.</p>
-<p>This quickstart covers <strong>local deployment</strong> for testing and development.</p>
-</div>
+<p>Get LabLink deployed to AWS using the template repository and automated setup scripts.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>AWS Account</strong> with admin access (<a href="../prerequisites/#1-aws-account">setup guide</a>)</li>
-<li><strong>AWS CLI</strong> configured locally (<a href="../prerequisites/#2-aws-cli">setup guide</a>)</li>
-<li><strong>Terraform</strong> installed (<a href="../prerequisites/#3-terraform">setup guide</a>)</li>
-<li><strong>S3 Bucket</strong> for Terraform state (<a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">setup guide</a>)</li>
+<p>Before starting, ensure you have completed:</p>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> <a href="../prerequisites/">Prerequisites</a>: AWS Account, AWS CLI, GitHub CLI (<code>gh</code>), and Git installed</li>
 </ul>
 <h2 id="step-1-create-your-repository">Step 1: Create Your Repository<a class="headerlink" href="#step-1-create-your-repository" title="Permanent link">&para;</a></h2>
 <p>Click the <strong>"Use this template"</strong> button on the <a href="https://github.com/talmolab/lablink-template">lablink-template repository</a> to create your own deployment repository.</p>
 <p>Then clone your new repository:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/YOUR_ORG/YOUR_REPO.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>YOUR_REPO/lablink-infrastructure
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>YOUR_REPO
 </code></pre></div>
-<h2 id="step-2-configure-settings">Step 2: Configure Settings<a class="headerlink" href="#step-2-configure-settings" title="Permanent link">&para;</a></h2>
-<p>Edit <code>config/config.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Minimal configuration for quick start</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">  </span><span class="c1"># Start without DNS, use IP address</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;none&quot;</span><span class="w">  </span><span class="c1"># Start without HTTPS</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ami-067cc81f948e50e06&quot;</span><span class="w">  </span><span class="c1"># Ubuntu 22.04 LTS (us-west-2)</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;t3.medium&quot;</span>
+<h2 id="step-2-run-setup">Step 2: Run Setup<a class="headerlink" href="#step-2-run-setup" title="Permanent link">&para;</a></h2>
+<p>Run the setup script to create all required AWS resources and configure GitHub secrets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./scripts/setup.sh
 </code></pre></div>
-<p><strong>Note on SSL</strong>: This configuration uses <code>provider: "none"</code> for simplicity. For testing with DNS, you can use:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test.lablink.example.com&quot;</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;letsencrypt&quot;</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-email@example.com&quot;</span>
-</code></pre></div></p>
-<p>See <a href="../configuration/#ssltls-options-ssl">Configuration - SSL Options</a> for more details.</p>
-<p><strong>Set passwords</strong> in <code>config/config.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">app</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">admin_password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-secure-admin-password&quot;</span><span class="w">  </span><span class="c1"># Replace placeholder</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">db</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-secure-db-password&quot;</span><span class="w">  </span><span class="c1"># Replace placeholder</span>
-</code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title">For GitHub Actions Deployment</p>
-<p>When using GitHub Actions, set <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> as repository secrets instead of editing the config file directly. See <a href="../aws-setup/#46-add-github-secrets">AWS Setup - Add GitHub Secrets</a>.</p>
-</div>
-<h2 id="step-3-initialize-and-deploy">Step 3: Initialize and Deploy<a class="headerlink" href="#step-3-initialize-and-deploy" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Initialize Terraform with backend configuration</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>../scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Deploy (will prompt for confirmation)</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
-</code></pre></div>
-<p><strong>Deployment time</strong>: ~5 minutes</p>
-<p>Creates:
-- EC2 instance running allocator (Flask app + PostgreSQL)
-- Security groups (HTTP port 80, SSH port 22)
-- SSH key pair</p>
-<h2 id="step-4-access-your-allocator">Step 4: Access Your Allocator<a class="headerlink" href="#step-4-access-your-allocator" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Get public IP</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>terraform<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Output: 52.10.123.456</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Save SSH key</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
-</code></pre></div>
-<p><strong>Web interface</strong>: <code>http://&lt;ec2_public_ip&gt;</code></p>
-<p><strong>Admin login</strong>:</p>
+<p>The script will prompt you for:</p>
 <ul>
-<li>Username: <code>admin</code></li>
-<li>Password: The password you set in Step 2</li>
+<li>AWS region (e.g., <code>us-west-2</code>)</li>
+<li>S3 bucket name for Terraform state</li>
+<li>GitHub repository (e.g., <code>YOUR_ORG/YOUR_REPO</code>)</li>
+<li>Optional DNS settings (Route 53)</li>
 </ul>
-<h2 id="step-5-create-client-vms">Step 5: Create Client VMs<a class="headerlink" href="#step-5-create-client-vms" title="Permanent link">&para;</a></h2>
+<p>It automatically:</p>
+<ul>
+<li>Creates an OIDC identity provider for GitHub Actions</li>
+<li>Creates an IAM role with required permissions</li>
+<li>Creates an S3 bucket for Terraform state (with versioning and encryption)</li>
+<li>Creates a DynamoDB table for state locking</li>
+<li>Optionally creates a Route 53 hosted zone</li>
+<li>Sets four GitHub repository secrets: <code>AWS_ROLE_ARN</code>, <code>AWS_REGION</code>, <code>ADMIN_PASSWORD</code>, <code>DB_PASSWORD</code></li>
+<li>Generates secure passwords for admin and database access</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Manual Setup</p>
+<p>If you prefer to create AWS resources individually, see the <a href="../aws-setup/">AWS Setup (Manual)</a> guide.</p>
+</div>
+<h2 id="step-3-configure">Step 3: Configure<a class="headerlink" href="#step-3-configure" title="Permanent link">&para;</a></h2>
+<p>After setup completes, the script automatically runs <code>./scripts/configure.sh</code> to generate your deployment configuration.</p>
+<p>The configure script prompts for:</p>
+<ul>
+<li>Instance type and AMI settings</li>
+<li>DNS and SSL configuration</li>
+<li>Monitoring options</li>
+</ul>
+<p>It generates <code>lablink-infrastructure/config/config.yaml</code> with your settings.</p>
+<div class="admonition note">
+<p class="admonition-title">Re-running Configuration</p>
+<p>You can re-run the configuration script at any time to update settings:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./scripts/configure.sh
+</code></pre></div></p>
+</div>
+<h2 id="step-4-commit-and-deploy">Step 4: Commit and Deploy<a class="headerlink" href="#step-4-commit-and-deploy" title="Permanent link">&para;</a></h2>
+<p>Commit your configuration and push to the <code>test</code> branch to trigger a deployment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add deployment configuration&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+<p>Monitor the deployment:</p>
 <ol>
-<li>Navigate to <code>http://&lt;ec2_public_ip&gt;/admin</code></li>
-<li>Log in with admin credentials</li>
-<li>Click <strong>"Create VMs"</strong></li>
-<li>Enter number of VMs (try 2)</li>
-<li>Click <strong>"Launch VMs"</strong></li>
+<li>Go to the <strong>Actions</strong> tab in your GitHub repository</li>
+<li>Run the <strong>Terraform Deploy</strong> workflow manually</li>
+<li>Wait for the workflow to complete (~5-10 minutes)</li>
 </ol>
-<p><strong>VM creation time</strong>: ~5 minutes</p>
-<h2 id="step-6-verify">Step 6: Verify<a class="headerlink" href="#step-6-verify" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Check allocator is running</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Check VMs in database</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
+<p>The workflow will:</p>
+<ul>
+<li>Authenticate to AWS via OIDC</li>
+<li>Initialize Terraform with the S3 backend</li>
+<li>Deploy the allocator EC2 instance, security groups, and SSH key pair</li>
+</ul>
+<h2 id="step-5-verify">Step 5: Verify<a class="headerlink" href="#step-5-verify" title="Permanent link">&para;</a></h2>
+<p>Once the deployment completes:</p>
+<h3 id="access-the-web-ui">Access the Web UI<a class="headerlink" href="#access-the-web-ui" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Find the allocator's public IP from the Terraform output in the GitHub Actions logs</li>
+<li>Navigate to <code>http://&lt;ec2_public_ip&gt;</code> in your browser</li>
+<li>Log in with username <code>admin</code> and the <code>ADMIN_PASSWORD</code> that was auto-generated during setup</li>
+</ol>
+<h3 id="create-test-vms">Create Test VMs<a class="headerlink" href="#create-test-vms" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Go to <code>http://&lt;ec2_public_ip&gt;/admin</code></li>
+<li>Click <strong>"Create VMs"</strong></li>
+<li>Enter number of VMs (try 1-2 for testing)</li>
+<li>Click <strong>"Launch VMs"</strong> and wait ~5 minutes</li>
+</ol>
+<h3 id="verify-deployment-script-optional">Verify Deployment Script (Optional)<a class="headerlink" href="#verify-deployment-script-optional" title="Permanent link">&para;</a></h3>
+<p>The template includes a verification script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>./scripts/verify-deployment.sh
 </code></pre></div>
-<h2 id="step-7-cleanup">Step 7: Cleanup<a class="headerlink" href="#step-7-cleanup" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Destroy all resources</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<h3 id="ssh-check">SSH Check<a class="headerlink" href="#ssh-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Verify allocator is running</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Check VMs registered in database</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
 </code></pre></div>
+<h2 id="step-6-cleanup">Step 6: Cleanup<a class="headerlink" href="#step-6-cleanup" title="Permanent link">&para;</a></h2>
+<p>When you're done testing, destroy the infrastructure:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via Terraform</label><label for="__tabbed_1_3">Cleanup Orphaned Resources</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Manually run the <strong>Terraform Destroy</strong> workflow from the Actions tab.</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>If resources were left behind (e.g., from a failed destroy), use the cleanup script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+</div>
+</div>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">AWS Costs</p>
-<p>EC2 instances cost ~$0.04/hour (t3.medium). Always destroy test resources.</p>
+<p>EC2 instances incur charges while running. Always destroy test resources when not in use. See <a href="../cost-estimation/">Cost Estimation</a> for details.</p>
 </div>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<p><strong>Can't access web interface?</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>http://<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c1"># If this fails, check security group allows port 80</span>
-</code></pre></div></p>
-<p><strong>VMs not appearing?</strong> See <a href="../troubleshooting/#client-vm-not-registering">VM Registration Issue</a></p>
-<p><strong>SSH permission denied?</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
-</code></pre></div></p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>GitHub Actions</strong>: <a href="../deployment/">Deployment Guide</a> for automated CI/CD deployments (recommended for production)</li>
-<li><strong>AWS Setup</strong>: <a href="../aws-setup/">AWS Setup Guide</a> for IAM roles, OIDC, and GitHub secrets</li>
-<li><strong>Add DNS</strong>: <a href="../dns-configuration/">DNS Configuration Guide</a> for custom domains and HTTPS</li>
-<li><strong>Customize</strong>: <a href="../configuration/">Configuration Reference</a> for all options</li>
-<li><strong>Secure</strong>: <a href="../security/">Security Guide</a> before going to production</li>
+<li><strong><a href="../configuration/">Configuration</a></strong>: Customize instance types, machine images, and deployment settings</li>
+<li><strong><a href="../adapting/">Adapting for Your Software</a></strong>: Install your own tutorial software on client VMs</li>
+<li><strong><a href="../deployment/">Deployment</a></strong>: Production deployment with CI/CD workflows</li>
+<li><strong><a href="../security/">Security</a></strong>: Review security best practices before going to production</li>
 </ul>
 
 
