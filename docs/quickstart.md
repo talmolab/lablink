@@ -10,6 +10,13 @@ Before starting, ensure you have completed:
 
 ## Step 1: Create Your Repository
 
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step1-create-repo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 Click the **"Use this template"** button on the [lablink-template repository](https://github.com/talmolab/lablink-template) to create your own deployment repository.
 
 Then clone your new repository:
@@ -20,6 +27,13 @@ cd YOUR_REPO
 ```
 
 ## Step 2: Run Setup
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step2-run-setup.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 Run the setup script to create all required AWS resources and configure GitHub secrets:
 
@@ -67,20 +81,33 @@ It generates `lablink-infrastructure/config/config.yaml` with your settings.
 
 ## Step 4: Commit and Deploy
 
-Commit your configuration and push to the `test` branch to trigger a deployment:
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step4-commit-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+Commit your configuration and push to the `main` branch:
 
 ```bash
 git add lablink-infrastructure/config/config.yaml
 git commit -m "Add deployment configuration"
-git checkout -b test
-git push -u origin test
+git push
 ```
 
 Monitor the deployment:
 
 1. Go to the **Actions** tab in your GitHub repository
 2. Run the **Terraform Deploy** workflow manually
-4. Wait for the workflow to complete (~5-10 minutes)
+4. Wait for the workflow to complete (~2-5 minutes)
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step4-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 The workflow will:
 
@@ -89,6 +116,13 @@ The workflow will:
 - Deploy the allocator EC2 instance, security groups, and SSH key pair
 
 ## Step 5: Verify
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step5-verify.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 Once the deployment completes:
 
@@ -127,6 +161,13 @@ sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT h
 ```
 
 ## Step 6: Cleanup
+
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step6-cleanup.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 When you're done testing, destroy the infrastructure:
 
