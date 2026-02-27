@@ -11,6 +11,56 @@ LabLink costs consist of:
 3. **Storage costs** (monthly)
 4. **Data transfer costs** (per GB)
 
+## Quick Estimate with the CLI
+
+The fastest way to get a cost estimate for your deployment is the built-in cost estimator script. It reads your `config.yaml` and queries the AWS Pricing API for live, region-specific pricing.
+
+```bash
+./scripts/estimate-costs.sh
+```
+
+!!! note "Prerequisites"
+    - **jq** — required for JSON parsing (`brew install jq` on macOS, `sudo apt-get install jq` on Ubuntu)
+    - **AWS CLI** — recommended for live pricing. If unavailable, the script falls back to hardcoded estimates.
+    - Must be run from the **repository root** (where `lablink-infrastructure/` exists).
+
+The script reads the following from your `lablink-infrastructure/config/config.yaml`:
+
+| Config Key | What It Affects |
+|---|---|
+| `app.region` | AWS region for pricing lookup |
+| `machine.machine_type` | Client VM instance type |
+| `ssl.provider` | Whether ALB cost is included |
+| `dns.enabled` | Whether Route 53 cost is included |
+| `monitoring.enabled` | Whether CloudTrail/SNS costs are included |
+
+**Example output:**
+
+```
+LabLink Infrastructure Cost Estimate
+=====================================
+Region: us-west-2 (US West (Oregon))
+Config: lablink-infrastructure/config/config.yaml
+Prices: AWS Pricing API
+
+  Resource                                Monthly Cost
+  -------------------------------------  ------------
+  Allocator EC2 (t3.large)                     $60.74
+  Client VM EC2 (g4dn.xlarge)                 $383.98  *
+  EBS root volume (gp3, 20 GB)                  $1.60
+  Elastic IP                                    $3.65
+  CloudWatch Logs                               $2.00
+  -------------------------------------  ------------
+  Base infrastructure total                   $67.99/month
+  Per client VM (when running)               $383.98/month *
+
+  * Client VM costs scale with usage. VMs are billed only while running.
+    Example: 10 VMs x 8hr/day x 22 days/month = $925.76/month
+  * Prices are on-demand estimates from AWS Pricing API. Actual costs may vary.
+```
+
+The base infrastructure total represents always-on costs (allocator, storage, Elastic IP, logging). Client VM costs are separate since VMs are only billed while running.
+
 ## AWS Pricing Calculator
 
 For exact pricing, use the [AWS Pricing Calculator](https://calculator.aws/).
