@@ -109,6 +109,7 @@ nav:
       - API Endpoints: api-endpoints.md
   - AWS:
       - Security and credentials: security.md
+      - DNS configuration: dns-configuration.md
       - Cost estimation: cost-estimation.md
   - Reference:
       - Installation: installation.md
@@ -129,6 +130,9 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/talmolab/lablink
+
+extra_css:
+  - stylesheets/extra.css
 
 extra_javascript:
   - https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js
