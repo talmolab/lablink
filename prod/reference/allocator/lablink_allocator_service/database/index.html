@@ -4155,15 +4155,15 @@ Args:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-820">820</a></span>
-<span class="normal"><a href="#__codelineno-0-821">821</a></span>
-<span class="normal"><a href="#__codelineno-0-822">822</a></span>
-<span class="normal"><a href="#__codelineno-0-823">823</a></span>
-<span class="normal"><a href="#__codelineno-0-824">824</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-820" name="__codelineno-0-820"></a><span class="k">def</span><span class="w"> </span><span class="nf">cancel_scheduled_destruction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-821" name="__codelineno-0-821"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Cancel a scheduled destruction.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-822" name="__codelineno-0-822"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;UPDATE scheduled_destructions SET status = &#39;cancelled&#39; WHERE id = </span><span class="si">%s</span><span class="s2">;&quot;</span>
-<a id="__codelineno-0-823" name="__codelineno-0-823"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_id</span><span class="p">,))</span>
-<a id="__codelineno-0-824" name="__codelineno-0-824"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-832">832</a></span>
+<span class="normal"><a href="#__codelineno-0-833">833</a></span>
+<span class="normal"><a href="#__codelineno-0-834">834</a></span>
+<span class="normal"><a href="#__codelineno-0-835">835</a></span>
+<span class="normal"><a href="#__codelineno-0-836">836</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-832" name="__codelineno-0-832"></a><span class="k">def</span><span class="w"> </span><span class="nf">cancel_scheduled_destruction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Cancel a scheduled destruction.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-834" name="__codelineno-0-834"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;UPDATE scheduled_destructions SET status = &#39;cancelled&#39; WHERE id = </span><span class="si">%s</span><span class="s2">;&quot;</span>
+<a id="__codelineno-0-835" name="__codelineno-0-835"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_id</span><span class="p">,))</span>
+<a id="__codelineno-0-836" name="__codelineno-0-836"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4262,19 +4262,7 @@ Args:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-687">687</a></span>
-<span class="normal"><a href="#__codelineno-0-688">688</a></span>
-<span class="normal"><a href="#__codelineno-0-689">689</a></span>
-<span class="normal"><a href="#__codelineno-0-690">690</a></span>
-<span class="normal"><a href="#__codelineno-0-691">691</a></span>
-<span class="normal"><a href="#__codelineno-0-692">692</a></span>
-<span class="normal"><a href="#__codelineno-0-693">693</a></span>
-<span class="normal"><a href="#__codelineno-0-694">694</a></span>
-<span class="normal"><a href="#__codelineno-0-695">695</a></span>
-<span class="normal"><a href="#__codelineno-0-696">696</a></span>
-<span class="normal"><a href="#__codelineno-0-697">697</a></span>
-<span class="normal"><a href="#__codelineno-0-698">698</a></span>
-<span class="normal"><a href="#__codelineno-0-699">699</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-699">699</a></span>
 <span class="normal"><a href="#__codelineno-0-700">700</a></span>
 <span class="normal"><a href="#__codelineno-0-701">701</a></span>
 <span class="normal"><a href="#__codelineno-0-702">702</a></span>
@@ -4319,64 +4307,76 @@ Args:
 <span class="normal"><a href="#__codelineno-0-741">741</a></span>
 <span class="normal"><a href="#__codelineno-0-742">742</a></span>
 <span class="normal"><a href="#__codelineno-0-743">743</a></span>
-<span class="normal"><a href="#__codelineno-0-744">744</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-687" name="__codelineno-0-687"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_scheduled_destruction</span><span class="p">(</span>
-<a id="__codelineno-0-688" name="__codelineno-0-688"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-689" name="__codelineno-0-689"></a>    <span class="n">schedule_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-690" name="__codelineno-0-690"></a>    <span class="n">destruction_time</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
-<a id="__codelineno-0-691" name="__codelineno-0-691"></a>    <span class="n">recurrence_rule</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-692" name="__codelineno-0-692"></a>    <span class="n">created_by</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-693" name="__codelineno-0-693"></a>    <span class="n">notification_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-694" name="__codelineno-0-694"></a>    <span class="n">notification_hours_before</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-0-695" name="__codelineno-0-695"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-696" name="__codelineno-0-696"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a scheduled destruction entry and return its ID.</span>
-<a id="__codelineno-0-697" name="__codelineno-0-697"></a>
-<a id="__codelineno-0-698" name="__codelineno-0-698"></a><span class="sd">    Raises:</span>
-<a id="__codelineno-0-699" name="__codelineno-0-699"></a><span class="sd">        ValueError: If a schedule with the same name already exists</span>
-<a id="__codelineno-0-700" name="__codelineno-0-700"></a><span class="sd">        RuntimeError: If database operation fails</span>
-<a id="__codelineno-0-701" name="__codelineno-0-701"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-702" name="__codelineno-0-702"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-703" name="__codelineno-0-703"></a><span class="s2">        INSERT INTO scheduled_destructions</span>
-<a id="__codelineno-0-704" name="__codelineno-0-704"></a><span class="s2">        (schedule_name, destruction_time, recurrence_rule, created_by,</span>
-<a id="__codelineno-0-705" name="__codelineno-0-705"></a><span class="s2">        notification_enabled, notification_hours_before, status)</span>
-<a id="__codelineno-0-706" name="__codelineno-0-706"></a><span class="s2">        VALUES (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, &#39;scheduled&#39;)</span>
-<a id="__codelineno-0-707" name="__codelineno-0-707"></a><span class="s2">        RETURNING id;</span>
-<a id="__codelineno-0-708" name="__codelineno-0-708"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-709" name="__codelineno-0-709"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-710" name="__codelineno-0-710"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
-<a id="__codelineno-0-711" name="__codelineno-0-711"></a>            <span class="n">query</span><span class="p">,</span>
-<a id="__codelineno-0-712" name="__codelineno-0-712"></a>            <span class="p">(</span>
-<a id="__codelineno-0-713" name="__codelineno-0-713"></a>                <span class="n">schedule_name</span><span class="p">,</span>
-<a id="__codelineno-0-714" name="__codelineno-0-714"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_naive_utc</span><span class="p">(</span><span class="n">destruction_time</span><span class="p">),</span>
-<a id="__codelineno-0-715" name="__codelineno-0-715"></a>                <span class="n">recurrence_rule</span><span class="p">,</span>
-<a id="__codelineno-0-716" name="__codelineno-0-716"></a>                <span class="n">created_by</span><span class="p">,</span>
-<a id="__codelineno-0-717" name="__codelineno-0-717"></a>                <span class="n">notification_enabled</span><span class="p">,</span>
-<a id="__codelineno-0-718" name="__codelineno-0-718"></a>                <span class="n">notification_hours_before</span><span class="p">,</span>
-<a id="__codelineno-0-719" name="__codelineno-0-719"></a>            <span class="p">),</span>
-<a id="__codelineno-0-720" name="__codelineno-0-720"></a>        <span class="p">)</span>
-<a id="__codelineno-0-721" name="__codelineno-0-721"></a>        <span class="n">destruction_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-<a id="__codelineno-0-722" name="__codelineno-0-722"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-<a id="__codelineno-0-723" name="__codelineno-0-723"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-724" name="__codelineno-0-724"></a>            <span class="sa">f</span><span class="s2">&quot;Created scheduled destruction &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
-<a id="__codelineno-0-725" name="__codelineno-0-725"></a>            <span class="sa">f</span><span class="s2">&quot;(ID: </span><span class="si">{</span><span class="n">destruction_id</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-726" name="__codelineno-0-726"></a>        <span class="p">)</span>
-<a id="__codelineno-0-727" name="__codelineno-0-727"></a>        <span class="k">return</span> <span class="n">destruction_id</span>
-<a id="__codelineno-0-728" name="__codelineno-0-728"></a>
-<a id="__codelineno-0-729" name="__codelineno-0-729"></a>    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-730" name="__codelineno-0-730"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-<a id="__codelineno-0-731" name="__codelineno-0-731"></a>        <span class="k">if</span> <span class="s1">&#39;schedule_name&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;unique constraint&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
-<a id="__codelineno-0-732" name="__codelineno-0-732"></a>            <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Schedule &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39; already exists&quot;</span>
-<a id="__codelineno-0-733" name="__codelineno-0-733"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-<a id="__codelineno-0-734" name="__codelineno-0-734"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
-<a id="__codelineno-0-735" name="__codelineno-0-735"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-736" name="__codelineno-0-736"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database integrity error creating schedule: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-737" name="__codelineno-0-737"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database integrity error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
-<a id="__codelineno-0-738" name="__codelineno-0-738"></a>
-<a id="__codelineno-0-739" name="__codelineno-0-739"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-740" name="__codelineno-0-740"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-<a id="__codelineno-0-741" name="__codelineno-0-741"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-742" name="__codelineno-0-742"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to create scheduled destruction &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-743" name="__codelineno-0-743"></a>        <span class="p">)</span>
-<a id="__codelineno-0-744" name="__codelineno-0-744"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create scheduled destruction: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+<span class="normal"><a href="#__codelineno-0-744">744</a></span>
+<span class="normal"><a href="#__codelineno-0-745">745</a></span>
+<span class="normal"><a href="#__codelineno-0-746">746</a></span>
+<span class="normal"><a href="#__codelineno-0-747">747</a></span>
+<span class="normal"><a href="#__codelineno-0-748">748</a></span>
+<span class="normal"><a href="#__codelineno-0-749">749</a></span>
+<span class="normal"><a href="#__codelineno-0-750">750</a></span>
+<span class="normal"><a href="#__codelineno-0-751">751</a></span>
+<span class="normal"><a href="#__codelineno-0-752">752</a></span>
+<span class="normal"><a href="#__codelineno-0-753">753</a></span>
+<span class="normal"><a href="#__codelineno-0-754">754</a></span>
+<span class="normal"><a href="#__codelineno-0-755">755</a></span>
+<span class="normal"><a href="#__codelineno-0-756">756</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-699" name="__codelineno-0-699"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_scheduled_destruction</span><span class="p">(</span>
+<a id="__codelineno-0-700" name="__codelineno-0-700"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-701" name="__codelineno-0-701"></a>    <span class="n">schedule_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-702" name="__codelineno-0-702"></a>    <span class="n">destruction_time</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+<a id="__codelineno-0-703" name="__codelineno-0-703"></a>    <span class="n">recurrence_rule</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-704" name="__codelineno-0-704"></a>    <span class="n">created_by</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-705" name="__codelineno-0-705"></a>    <span class="n">notification_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-706" name="__codelineno-0-706"></a>    <span class="n">notification_hours_before</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-0-707" name="__codelineno-0-707"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-0-708" name="__codelineno-0-708"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a scheduled destruction entry and return its ID.</span>
+<a id="__codelineno-0-709" name="__codelineno-0-709"></a>
+<a id="__codelineno-0-710" name="__codelineno-0-710"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-711" name="__codelineno-0-711"></a><span class="sd">        ValueError: If a schedule with the same name already exists</span>
+<a id="__codelineno-0-712" name="__codelineno-0-712"></a><span class="sd">        RuntimeError: If database operation fails</span>
+<a id="__codelineno-0-713" name="__codelineno-0-713"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-714" name="__codelineno-0-714"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-715" name="__codelineno-0-715"></a><span class="s2">        INSERT INTO scheduled_destructions</span>
+<a id="__codelineno-0-716" name="__codelineno-0-716"></a><span class="s2">        (schedule_name, destruction_time, recurrence_rule, created_by,</span>
+<a id="__codelineno-0-717" name="__codelineno-0-717"></a><span class="s2">        notification_enabled, notification_hours_before, status)</span>
+<a id="__codelineno-0-718" name="__codelineno-0-718"></a><span class="s2">        VALUES (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, &#39;scheduled&#39;)</span>
+<a id="__codelineno-0-719" name="__codelineno-0-719"></a><span class="s2">        RETURNING id;</span>
+<a id="__codelineno-0-720" name="__codelineno-0-720"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-721" name="__codelineno-0-721"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-722" name="__codelineno-0-722"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<a id="__codelineno-0-723" name="__codelineno-0-723"></a>            <span class="n">query</span><span class="p">,</span>
+<a id="__codelineno-0-724" name="__codelineno-0-724"></a>            <span class="p">(</span>
+<a id="__codelineno-0-725" name="__codelineno-0-725"></a>                <span class="n">schedule_name</span><span class="p">,</span>
+<a id="__codelineno-0-726" name="__codelineno-0-726"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_naive_utc</span><span class="p">(</span><span class="n">destruction_time</span><span class="p">),</span>
+<a id="__codelineno-0-727" name="__codelineno-0-727"></a>                <span class="n">recurrence_rule</span><span class="p">,</span>
+<a id="__codelineno-0-728" name="__codelineno-0-728"></a>                <span class="n">created_by</span><span class="p">,</span>
+<a id="__codelineno-0-729" name="__codelineno-0-729"></a>                <span class="n">notification_enabled</span><span class="p">,</span>
+<a id="__codelineno-0-730" name="__codelineno-0-730"></a>                <span class="n">notification_hours_before</span><span class="p">,</span>
+<a id="__codelineno-0-731" name="__codelineno-0-731"></a>            <span class="p">),</span>
+<a id="__codelineno-0-732" name="__codelineno-0-732"></a>        <span class="p">)</span>
+<a id="__codelineno-0-733" name="__codelineno-0-733"></a>        <span class="n">destruction_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-734" name="__codelineno-0-734"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<a id="__codelineno-0-735" name="__codelineno-0-735"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-736" name="__codelineno-0-736"></a>            <span class="sa">f</span><span class="s2">&quot;Created scheduled destruction &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+<a id="__codelineno-0-737" name="__codelineno-0-737"></a>            <span class="sa">f</span><span class="s2">&quot;(ID: </span><span class="si">{</span><span class="n">destruction_id</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-738" name="__codelineno-0-738"></a>        <span class="p">)</span>
+<a id="__codelineno-0-739" name="__codelineno-0-739"></a>        <span class="k">return</span> <span class="n">destruction_id</span>
+<a id="__codelineno-0-740" name="__codelineno-0-740"></a>
+<a id="__codelineno-0-741" name="__codelineno-0-741"></a>    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">IntegrityError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-742" name="__codelineno-0-742"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+<a id="__codelineno-0-743" name="__codelineno-0-743"></a>        <span class="k">if</span> <span class="s1">&#39;schedule_name&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;unique constraint&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+<a id="__codelineno-0-744" name="__codelineno-0-744"></a>            <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Schedule &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39; already exists&quot;</span>
+<a id="__codelineno-0-745" name="__codelineno-0-745"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+<a id="__codelineno-0-746" name="__codelineno-0-746"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+<a id="__codelineno-0-747" name="__codelineno-0-747"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-748" name="__codelineno-0-748"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database integrity error creating schedule: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-749" name="__codelineno-0-749"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database integrity error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+<a id="__codelineno-0-750" name="__codelineno-0-750"></a>
+<a id="__codelineno-0-751" name="__codelineno-0-751"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-752" name="__codelineno-0-752"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+<a id="__codelineno-0-753" name="__codelineno-0-753"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-754" name="__codelineno-0-754"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to create scheduled destruction &#39;</span><span class="si">{</span><span class="n">schedule_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-755" name="__codelineno-0-755"></a>        <span class="p">)</span>
+<a id="__codelineno-0-756" name="__codelineno-0-756"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create scheduled destruction: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4399,19 +4399,7 @@ Args:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-770">770</a></span>
-<span class="normal"><a href="#__codelineno-0-771">771</a></span>
-<span class="normal"><a href="#__codelineno-0-772">772</a></span>
-<span class="normal"><a href="#__codelineno-0-773">773</a></span>
-<span class="normal"><a href="#__codelineno-0-774">774</a></span>
-<span class="normal"><a href="#__codelineno-0-775">775</a></span>
-<span class="normal"><a href="#__codelineno-0-776">776</a></span>
-<span class="normal"><a href="#__codelineno-0-777">777</a></span>
-<span class="normal"><a href="#__codelineno-0-778">778</a></span>
-<span class="normal"><a href="#__codelineno-0-779">779</a></span>
-<span class="normal"><a href="#__codelineno-0-780">780</a></span>
-<span class="normal"><a href="#__codelineno-0-781">781</a></span>
-<span class="normal"><a href="#__codelineno-0-782">782</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-782">782</a></span>
 <span class="normal"><a href="#__codelineno-0-783">783</a></span>
 <span class="normal"><a href="#__codelineno-0-784">784</a></span>
 <span class="normal"><a href="#__codelineno-0-785">785</a></span>
@@ -4429,37 +4417,49 @@ Args:
 <span class="normal"><a href="#__codelineno-0-797">797</a></span>
 <span class="normal"><a href="#__codelineno-0-798">798</a></span>
 <span class="normal"><a href="#__codelineno-0-799">799</a></span>
-<span class="normal"><a href="#__codelineno-0-800">800</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-770" name="__codelineno-0-770"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_all_scheduled_destructions</span><span class="p">(</span>
-<a id="__codelineno-0-771" name="__codelineno-0-771"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-772" name="__codelineno-0-772"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
-<a id="__codelineno-0-773" name="__codelineno-0-773"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all scheduled destructions, optionally filtered by status.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-774" name="__codelineno-0-774"></a>    <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-0-775" name="__codelineno-0-775"></a>        <span class="s2">&quot;id&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-776" name="__codelineno-0-776"></a>        <span class="s2">&quot;schedule_name&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-777" name="__codelineno-0-777"></a>        <span class="s2">&quot;destruction_time&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-778" name="__codelineno-0-778"></a>        <span class="s2">&quot;recurrence_rule&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-779" name="__codelineno-0-779"></a>        <span class="s2">&quot;created_by&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-780" name="__codelineno-0-780"></a>        <span class="s2">&quot;status&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-781" name="__codelineno-0-781"></a>        <span class="s2">&quot;execution_count&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-782" name="__codelineno-0-782"></a>        <span class="s2">&quot;last_execution_time&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-783" name="__codelineno-0-783"></a>        <span class="s2">&quot;last_execution_result&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-784" name="__codelineno-0-784"></a>        <span class="s2">&quot;notification_enabled&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-785" name="__codelineno-0-785"></a>        <span class="s2">&quot;notification_hours_before&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-786" name="__codelineno-0-786"></a>        <span class="s2">&quot;created_at&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-787" name="__codelineno-0-787"></a>        <span class="s2">&quot;updated_at&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-788" name="__codelineno-0-788"></a>    <span class="p">]</span>
-<a id="__codelineno-0-789" name="__codelineno-0-789"></a>
-<a id="__codelineno-0-790" name="__codelineno-0-790"></a>    <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
-<a id="__codelineno-0-791" name="__codelineno-0-791"></a>        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-792" name="__codelineno-0-792"></a>            <span class="s2">&quot;SELECT * FROM scheduled_destructions &quot;</span>
-<a id="__codelineno-0-793" name="__codelineno-0-793"></a>            <span class="s2">&quot;WHERE status = </span><span class="si">%s</span><span class="s2"> ORDER BY destruction_time;&quot;</span>
-<a id="__codelineno-0-794" name="__codelineno-0-794"></a>        <span class="p">)</span>
-<a id="__codelineno-0-795" name="__codelineno-0-795"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">status</span><span class="p">,))</span>
-<a id="__codelineno-0-796" name="__codelineno-0-796"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-797" name="__codelineno-0-797"></a>        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM scheduled_destructions ORDER BY destruction_time;&quot;</span>
-<a id="__codelineno-0-798" name="__codelineno-0-798"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
-<a id="__codelineno-0-799" name="__codelineno-0-799"></a>
-<a id="__codelineno-0-800" name="__codelineno-0-800"></a>    <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span>
+<span class="normal"><a href="#__codelineno-0-800">800</a></span>
+<span class="normal"><a href="#__codelineno-0-801">801</a></span>
+<span class="normal"><a href="#__codelineno-0-802">802</a></span>
+<span class="normal"><a href="#__codelineno-0-803">803</a></span>
+<span class="normal"><a href="#__codelineno-0-804">804</a></span>
+<span class="normal"><a href="#__codelineno-0-805">805</a></span>
+<span class="normal"><a href="#__codelineno-0-806">806</a></span>
+<span class="normal"><a href="#__codelineno-0-807">807</a></span>
+<span class="normal"><a href="#__codelineno-0-808">808</a></span>
+<span class="normal"><a href="#__codelineno-0-809">809</a></span>
+<span class="normal"><a href="#__codelineno-0-810">810</a></span>
+<span class="normal"><a href="#__codelineno-0-811">811</a></span>
+<span class="normal"><a href="#__codelineno-0-812">812</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-782" name="__codelineno-0-782"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_all_scheduled_destructions</span><span class="p">(</span>
+<a id="__codelineno-0-783" name="__codelineno-0-783"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-784" name="__codelineno-0-784"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<a id="__codelineno-0-785" name="__codelineno-0-785"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all scheduled destructions, optionally filtered by status.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-786" name="__codelineno-0-786"></a>    <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-787" name="__codelineno-0-787"></a>        <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-788" name="__codelineno-0-788"></a>        <span class="s2">&quot;schedule_name&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-789" name="__codelineno-0-789"></a>        <span class="s2">&quot;destruction_time&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-790" name="__codelineno-0-790"></a>        <span class="s2">&quot;recurrence_rule&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-791" name="__codelineno-0-791"></a>        <span class="s2">&quot;created_by&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-792" name="__codelineno-0-792"></a>        <span class="s2">&quot;status&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-793" name="__codelineno-0-793"></a>        <span class="s2">&quot;execution_count&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-794" name="__codelineno-0-794"></a>        <span class="s2">&quot;last_execution_time&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-795" name="__codelineno-0-795"></a>        <span class="s2">&quot;last_execution_result&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-796" name="__codelineno-0-796"></a>        <span class="s2">&quot;notification_enabled&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-797" name="__codelineno-0-797"></a>        <span class="s2">&quot;notification_hours_before&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-798" name="__codelineno-0-798"></a>        <span class="s2">&quot;created_at&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-799" name="__codelineno-0-799"></a>        <span class="s2">&quot;updated_at&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-800" name="__codelineno-0-800"></a>    <span class="p">]</span>
+<a id="__codelineno-0-801" name="__codelineno-0-801"></a>
+<a id="__codelineno-0-802" name="__codelineno-0-802"></a>    <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+<a id="__codelineno-0-803" name="__codelineno-0-803"></a>        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-804" name="__codelineno-0-804"></a>            <span class="s2">&quot;SELECT * FROM scheduled_destructions &quot;</span>
+<a id="__codelineno-0-805" name="__codelineno-0-805"></a>            <span class="s2">&quot;WHERE status = </span><span class="si">%s</span><span class="s2"> ORDER BY destruction_time;&quot;</span>
+<a id="__codelineno-0-806" name="__codelineno-0-806"></a>        <span class="p">)</span>
+<a id="__codelineno-0-807" name="__codelineno-0-807"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">status</span><span class="p">,))</span>
+<a id="__codelineno-0-808" name="__codelineno-0-808"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-809" name="__codelineno-0-809"></a>        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM scheduled_destructions ORDER BY destruction_time;&quot;</span>
+<a id="__codelineno-0-810" name="__codelineno-0-810"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+<a id="__codelineno-0-811" name="__codelineno-0-811"></a>
+<a id="__codelineno-0-812" name="__codelineno-0-812"></a>    <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5122,19 +5122,7 @@ Returns:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-746">746</a></span>
-<span class="normal"><a href="#__codelineno-0-747">747</a></span>
-<span class="normal"><a href="#__codelineno-0-748">748</a></span>
-<span class="normal"><a href="#__codelineno-0-749">749</a></span>
-<span class="normal"><a href="#__codelineno-0-750">750</a></span>
-<span class="normal"><a href="#__codelineno-0-751">751</a></span>
-<span class="normal"><a href="#__codelineno-0-752">752</a></span>
-<span class="normal"><a href="#__codelineno-0-753">753</a></span>
-<span class="normal"><a href="#__codelineno-0-754">754</a></span>
-<span class="normal"><a href="#__codelineno-0-755">755</a></span>
-<span class="normal"><a href="#__codelineno-0-756">756</a></span>
-<span class="normal"><a href="#__codelineno-0-757">757</a></span>
-<span class="normal"><a href="#__codelineno-0-758">758</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-758">758</a></span>
 <span class="normal"><a href="#__codelineno-0-759">759</a></span>
 <span class="normal"><a href="#__codelineno-0-760">760</a></span>
 <span class="normal"><a href="#__codelineno-0-761">761</a></span>
@@ -5144,29 +5132,41 @@ Returns:
 <span class="normal"><a href="#__codelineno-0-765">765</a></span>
 <span class="normal"><a href="#__codelineno-0-766">766</a></span>
 <span class="normal"><a href="#__codelineno-0-767">767</a></span>
-<span class="normal"><a href="#__codelineno-0-768">768</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-746" name="__codelineno-0-746"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_scheduled_destruction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
-<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get scheduled destruction by ID.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-748" name="__codelineno-0-748"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM scheduled_destructions WHERE id = </span><span class="si">%s</span><span class="s2">;&quot;</span>
-<a id="__codelineno-0-749" name="__codelineno-0-749"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_id</span><span class="p">,))</span>
-<a id="__codelineno-0-750" name="__codelineno-0-750"></a>    <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-<a id="__codelineno-0-751" name="__codelineno-0-751"></a>    <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
-<a id="__codelineno-0-752" name="__codelineno-0-752"></a>        <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-0-753" name="__codelineno-0-753"></a>            <span class="s2">&quot;id&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-754" name="__codelineno-0-754"></a>            <span class="s2">&quot;schedule_name&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-755" name="__codelineno-0-755"></a>            <span class="s2">&quot;destruction_time&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-756" name="__codelineno-0-756"></a>            <span class="s2">&quot;recurrence_rule&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-757" name="__codelineno-0-757"></a>            <span class="s2">&quot;created_by&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-758" name="__codelineno-0-758"></a>            <span class="s2">&quot;status&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-759" name="__codelineno-0-759"></a>            <span class="s2">&quot;execution_count&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-760" name="__codelineno-0-760"></a>            <span class="s2">&quot;last_execution_time&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-761" name="__codelineno-0-761"></a>            <span class="s2">&quot;last_execution_result&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-762" name="__codelineno-0-762"></a>            <span class="s2">&quot;notification_enabled&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-763" name="__codelineno-0-763"></a>            <span class="s2">&quot;notification_hours_before&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-764" name="__codelineno-0-764"></a>            <span class="s2">&quot;created_at&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-765" name="__codelineno-0-765"></a>            <span class="s2">&quot;updated_at&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-766" name="__codelineno-0-766"></a>        <span class="p">]</span>
-<a id="__codelineno-0-767" name="__codelineno-0-767"></a>        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span>
-<a id="__codelineno-0-768" name="__codelineno-0-768"></a>    <span class="k">return</span> <span class="kc">None</span>
+<span class="normal"><a href="#__codelineno-0-768">768</a></span>
+<span class="normal"><a href="#__codelineno-0-769">769</a></span>
+<span class="normal"><a href="#__codelineno-0-770">770</a></span>
+<span class="normal"><a href="#__codelineno-0-771">771</a></span>
+<span class="normal"><a href="#__codelineno-0-772">772</a></span>
+<span class="normal"><a href="#__codelineno-0-773">773</a></span>
+<span class="normal"><a href="#__codelineno-0-774">774</a></span>
+<span class="normal"><a href="#__codelineno-0-775">775</a></span>
+<span class="normal"><a href="#__codelineno-0-776">776</a></span>
+<span class="normal"><a href="#__codelineno-0-777">777</a></span>
+<span class="normal"><a href="#__codelineno-0-778">778</a></span>
+<span class="normal"><a href="#__codelineno-0-779">779</a></span>
+<span class="normal"><a href="#__codelineno-0-780">780</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-758" name="__codelineno-0-758"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_scheduled_destruction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<a id="__codelineno-0-759" name="__codelineno-0-759"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get scheduled destruction by ID.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-760" name="__codelineno-0-760"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM scheduled_destructions WHERE id = </span><span class="si">%s</span><span class="s2">;&quot;</span>
+<a id="__codelineno-0-761" name="__codelineno-0-761"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_id</span><span class="p">,))</span>
+<a id="__codelineno-0-762" name="__codelineno-0-762"></a>    <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+<a id="__codelineno-0-763" name="__codelineno-0-763"></a>    <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+<a id="__codelineno-0-764" name="__codelineno-0-764"></a>        <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-765" name="__codelineno-0-765"></a>            <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-766" name="__codelineno-0-766"></a>            <span class="s2">&quot;schedule_name&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-767" name="__codelineno-0-767"></a>            <span class="s2">&quot;destruction_time&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-768" name="__codelineno-0-768"></a>            <span class="s2">&quot;recurrence_rule&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-769" name="__codelineno-0-769"></a>            <span class="s2">&quot;created_by&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-770" name="__codelineno-0-770"></a>            <span class="s2">&quot;status&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-771" name="__codelineno-0-771"></a>            <span class="s2">&quot;execution_count&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-772" name="__codelineno-0-772"></a>            <span class="s2">&quot;last_execution_time&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-773" name="__codelineno-0-773"></a>            <span class="s2">&quot;last_execution_result&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-774" name="__codelineno-0-774"></a>            <span class="s2">&quot;notification_enabled&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-775" name="__codelineno-0-775"></a>            <span class="s2">&quot;notification_hours_before&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-776" name="__codelineno-0-776"></a>            <span class="s2">&quot;created_at&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-777" name="__codelineno-0-777"></a>            <span class="s2">&quot;updated_at&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-778" name="__codelineno-0-778"></a>        <span class="p">]</span>
+<a id="__codelineno-0-779" name="__codelineno-0-779"></a>        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span>
+<a id="__codelineno-0-780" name="__codelineno-0-780"></a>    <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6556,39 +6556,39 @@ Returns:
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-802">802</a></span>
-<span class="normal"><a href="#__codelineno-0-803">803</a></span>
-<span class="normal"><a href="#__codelineno-0-804">804</a></span>
-<span class="normal"><a href="#__codelineno-0-805">805</a></span>
-<span class="normal"><a href="#__codelineno-0-806">806</a></span>
-<span class="normal"><a href="#__codelineno-0-807">807</a></span>
-<span class="normal"><a href="#__codelineno-0-808">808</a></span>
-<span class="normal"><a href="#__codelineno-0-809">809</a></span>
-<span class="normal"><a href="#__codelineno-0-810">810</a></span>
-<span class="normal"><a href="#__codelineno-0-811">811</a></span>
-<span class="normal"><a href="#__codelineno-0-812">812</a></span>
-<span class="normal"><a href="#__codelineno-0-813">813</a></span>
-<span class="normal"><a href="#__codelineno-0-814">814</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-814">814</a></span>
 <span class="normal"><a href="#__codelineno-0-815">815</a></span>
 <span class="normal"><a href="#__codelineno-0-816">816</a></span>
 <span class="normal"><a href="#__codelineno-0-817">817</a></span>
-<span class="normal"><a href="#__codelineno-0-818">818</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-802" name="__codelineno-0-802"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_scheduled_destruction_status</span><span class="p">(</span>
-<a id="__codelineno-0-803" name="__codelineno-0-803"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-804" name="__codelineno-0-804"></a>    <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<a id="__codelineno-0-805" name="__codelineno-0-805"></a>    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-806" name="__codelineno-0-806"></a>    <span class="n">execution_result</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-807" name="__codelineno-0-807"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-808" name="__codelineno-0-808"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update destruction execution status.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-809" name="__codelineno-0-809"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-810" name="__codelineno-0-810"></a><span class="s2">        UPDATE scheduled_destructions</span>
-<a id="__codelineno-0-811" name="__codelineno-0-811"></a><span class="s2">        SET status = </span><span class="si">%s</span><span class="s2">,</span>
-<a id="__codelineno-0-812" name="__codelineno-0-812"></a><span class="s2">            execution_count = execution_count + 1,</span>
-<a id="__codelineno-0-813" name="__codelineno-0-813"></a><span class="s2">            last_execution_time = NOW(),</span>
-<a id="__codelineno-0-814" name="__codelineno-0-814"></a><span class="s2">            last_execution_result = </span><span class="si">%s</span>
-<a id="__codelineno-0-815" name="__codelineno-0-815"></a><span class="s2">        WHERE id = </span><span class="si">%s</span><span class="s2">;</span>
-<a id="__codelineno-0-816" name="__codelineno-0-816"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-817" name="__codelineno-0-817"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">execution_result</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">))</span>
-<a id="__codelineno-0-818" name="__codelineno-0-818"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<span class="normal"><a href="#__codelineno-0-818">818</a></span>
+<span class="normal"><a href="#__codelineno-0-819">819</a></span>
+<span class="normal"><a href="#__codelineno-0-820">820</a></span>
+<span class="normal"><a href="#__codelineno-0-821">821</a></span>
+<span class="normal"><a href="#__codelineno-0-822">822</a></span>
+<span class="normal"><a href="#__codelineno-0-823">823</a></span>
+<span class="normal"><a href="#__codelineno-0-824">824</a></span>
+<span class="normal"><a href="#__codelineno-0-825">825</a></span>
+<span class="normal"><a href="#__codelineno-0-826">826</a></span>
+<span class="normal"><a href="#__codelineno-0-827">827</a></span>
+<span class="normal"><a href="#__codelineno-0-828">828</a></span>
+<span class="normal"><a href="#__codelineno-0-829">829</a></span>
+<span class="normal"><a href="#__codelineno-0-830">830</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-814" name="__codelineno-0-814"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_scheduled_destruction_status</span><span class="p">(</span>
+<a id="__codelineno-0-815" name="__codelineno-0-815"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-816" name="__codelineno-0-816"></a>    <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-0-817" name="__codelineno-0-817"></a>    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-818" name="__codelineno-0-818"></a>    <span class="n">execution_result</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-819" name="__codelineno-0-819"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-820" name="__codelineno-0-820"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update destruction execution status.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-821" name="__codelineno-0-821"></a>    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-822" name="__codelineno-0-822"></a><span class="s2">        UPDATE scheduled_destructions</span>
+<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="s2">        SET status = </span><span class="si">%s</span><span class="s2">,</span>
+<a id="__codelineno-0-824" name="__codelineno-0-824"></a><span class="s2">            execution_count = execution_count + 1,</span>
+<a id="__codelineno-0-825" name="__codelineno-0-825"></a><span class="s2">            last_execution_time = NOW(),</span>
+<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="s2">            last_execution_result = </span><span class="si">%s</span>
+<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="s2">        WHERE id = </span><span class="si">%s</span><span class="s2">;</span>
+<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-829" name="__codelineno-0-829"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">execution_result</span><span class="p">,</span> <span class="n">schedule_id</span><span class="p">))</span>
+<a id="__codelineno-0-830" name="__codelineno-0-830"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6981,7 +6981,19 @@ Supported keys:
 <span class="normal"><a href="#__codelineno-0-682">682</a></span>
 <span class="normal"><a href="#__codelineno-0-683">683</a></span>
 <span class="normal"><a href="#__codelineno-0-684">684</a></span>
-<span class="normal"><a href="#__codelineno-0-685">685</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-608" name="__codelineno-0-608"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_vm_metrics_atomic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-685">685</a></span>
+<span class="normal"><a href="#__codelineno-0-686">686</a></span>
+<span class="normal"><a href="#__codelineno-0-687">687</a></span>
+<span class="normal"><a href="#__codelineno-0-688">688</a></span>
+<span class="normal"><a href="#__codelineno-0-689">689</a></span>
+<span class="normal"><a href="#__codelineno-0-690">690</a></span>
+<span class="normal"><a href="#__codelineno-0-691">691</a></span>
+<span class="normal"><a href="#__codelineno-0-692">692</a></span>
+<span class="normal"><a href="#__codelineno-0-693">693</a></span>
+<span class="normal"><a href="#__codelineno-0-694">694</a></span>
+<span class="normal"><a href="#__codelineno-0-695">695</a></span>
+<span class="normal"><a href="#__codelineno-0-696">696</a></span>
+<span class="normal"><a href="#__codelineno-0-697">697</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-608" name="__codelineno-0-608"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_vm_metrics_atomic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-609" name="__codelineno-0-609"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update VM metrics and calculate total startup time in a single transaction.</span>
 <a id="__codelineno-0-610" name="__codelineno-0-610"></a>
 <a id="__codelineno-0-611" name="__codelineno-0-611"></a><span class="sd">    Args:</span>
@@ -7025,40 +7037,52 @@ Supported keys:
 <a id="__codelineno-0-649" name="__codelineno-0-649"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">updates</span><span class="p">:</span>
 <a id="__codelineno-0-650" name="__codelineno-0-650"></a>        <span class="k">return</span>
 <a id="__codelineno-0-651" name="__codelineno-0-651"></a>
-<a id="__codelineno-0-652" name="__codelineno-0-652"></a>    <span class="c1"># Add total startup time calculation to the same UPDATE</span>
-<a id="__codelineno-0-653" name="__codelineno-0-653"></a>    <span class="c1"># This recalculates the total whenever any metric is updated</span>
-<a id="__codelineno-0-654" name="__codelineno-0-654"></a>    <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-<a id="__codelineno-0-655" name="__codelineno-0-655"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;TotalStartupDurationSeconds =</span>
-<a id="__codelineno-0-656" name="__codelineno-0-656"></a><span class="sd">            COALESCE(TerraformApplyDurationSeconds, 0) +</span>
-<a id="__codelineno-0-657" name="__codelineno-0-657"></a><span class="sd">            COALESCE(CloudInitDurationSeconds, 0) +</span>
-<a id="__codelineno-0-658" name="__codelineno-0-658"></a><span class="sd">            COALESCE(ContainerStartupDurationSeconds, 0)&quot;&quot;&quot;</span>
-<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="p">)</span>
+<a id="__codelineno-0-652" name="__codelineno-0-652"></a>    <span class="c1"># Build the total startup time calculation using new values where</span>
+<a id="__codelineno-0-653" name="__codelineno-0-653"></a>    <span class="c1"># available. In PostgreSQL, SET expressions read pre-update column</span>
+<a id="__codelineno-0-654" name="__codelineno-0-654"></a>    <span class="c1"># values, so referencing the column being updated in the same</span>
+<a id="__codelineno-0-655" name="__codelineno-0-655"></a>    <span class="c1"># statement returns the OLD value. We must inline the new value</span>
+<a id="__codelineno-0-656" name="__codelineno-0-656"></a>    <span class="c1"># for any metric being set in this UPDATE.</span>
+<a id="__codelineno-0-657" name="__codelineno-0-657"></a>    <span class="n">terraform_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(TerraformApplyDurationSeconds, 0)&quot;</span>
+<a id="__codelineno-0-658" name="__codelineno-0-658"></a>    <span class="n">cloud_init_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(CloudInitDurationSeconds, 0)&quot;</span>
+<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="n">container_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(ContainerStartupDurationSeconds, 0)&quot;</span>
 <a id="__codelineno-0-660" name="__codelineno-0-660"></a>
-<a id="__codelineno-0-661" name="__codelineno-0-661"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-662" name="__codelineno-0-662"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
-<a id="__codelineno-0-663" name="__codelineno-0-663"></a><span class="s2">        SET </span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="si">}</span>
-<a id="__codelineno-0-664" name="__codelineno-0-664"></a><span class="s2">        WHERE hostname = %s</span>
-<a id="__codelineno-0-665" name="__codelineno-0-665"></a><span class="s2">        RETURNING TotalStartupDurationSeconds;</span>
-<a id="__codelineno-0-666" name="__codelineno-0-666"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-667" name="__codelineno-0-667"></a>    <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-668" name="__codelineno-0-668"></a>
-<a id="__codelineno-0-669" name="__codelineno-0-669"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
-<a id="__codelineno-0-670" name="__codelineno-0-670"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-671" name="__codelineno-0-671"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
-<a id="__codelineno-0-672" name="__codelineno-0-672"></a>            <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-<a id="__codelineno-0-673" name="__codelineno-0-673"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-<a id="__codelineno-0-674" name="__codelineno-0-674"></a>
-<a id="__codelineno-0-675" name="__codelineno-0-675"></a>            <span class="c1"># Log total startup time when available</span>
-<a id="__codelineno-0-676" name="__codelineno-0-676"></a>            <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-677" name="__codelineno-0-677"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-678" name="__codelineno-0-678"></a>                    <span class="sa">f</span><span class="s2">&quot;VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39; total startup time: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s&quot;</span>
-<a id="__codelineno-0-679" name="__codelineno-0-679"></a>                <span class="p">)</span>
-<a id="__codelineno-0-680" name="__codelineno-0-680"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-681" name="__codelineno-0-681"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-682" name="__codelineno-0-682"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to update metrics for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-683" name="__codelineno-0-683"></a>            <span class="p">)</span>
-<a id="__codelineno-0-684" name="__codelineno-0-684"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-<a id="__codelineno-0-685" name="__codelineno-0-685"></a>            <span class="k">raise</span>
+<a id="__codelineno-0-661" name="__codelineno-0-661"></a>    <span class="k">if</span> <span class="s2">&quot;cloud_init_duration_seconds&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+<a id="__codelineno-0-662" name="__codelineno-0-662"></a>        <span class="n">cloud_init_expr</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-663" name="__codelineno-0-663"></a>        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metrics</span><span class="p">[</span><span class="s2">&quot;cloud_init_duration_seconds&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-664" name="__codelineno-0-664"></a>    <span class="k">if</span> <span class="s2">&quot;container_startup_duration_seconds&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+<a id="__codelineno-0-665" name="__codelineno-0-665"></a>        <span class="n">container_expr</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-666" name="__codelineno-0-666"></a>        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metrics</span><span class="p">[</span><span class="s2">&quot;container_startup_duration_seconds&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-667" name="__codelineno-0-667"></a>
+<a id="__codelineno-0-668" name="__codelineno-0-668"></a>    <span class="n">total_expr</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-669" name="__codelineno-0-669"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">terraform_expr</span><span class="si">}</span><span class="s2"> + </span><span class="si">{</span><span class="n">cloud_init_expr</span><span class="si">}</span><span class="s2"> + </span><span class="si">{</span><span class="n">container_expr</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-670" name="__codelineno-0-670"></a>    <span class="p">)</span>
+<a id="__codelineno-0-671" name="__codelineno-0-671"></a>    <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TotalStartupDurationSeconds = </span><span class="si">{</span><span class="n">total_expr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-672" name="__codelineno-0-672"></a>
+<a id="__codelineno-0-673" name="__codelineno-0-673"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-674" name="__codelineno-0-674"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
+<a id="__codelineno-0-675" name="__codelineno-0-675"></a><span class="s2">        SET </span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="si">}</span>
+<a id="__codelineno-0-676" name="__codelineno-0-676"></a><span class="s2">        WHERE hostname = %s</span>
+<a id="__codelineno-0-677" name="__codelineno-0-677"></a><span class="s2">        RETURNING TotalStartupDurationSeconds;</span>
+<a id="__codelineno-0-678" name="__codelineno-0-678"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-679" name="__codelineno-0-679"></a>    <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hostname</span><span class="p">)</span>
+<a id="__codelineno-0-680" name="__codelineno-0-680"></a>
+<a id="__codelineno-0-681" name="__codelineno-0-681"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+<a id="__codelineno-0-682" name="__codelineno-0-682"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-683" name="__codelineno-0-683"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
+<a id="__codelineno-0-684" name="__codelineno-0-684"></a>            <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+<a id="__codelineno-0-685" name="__codelineno-0-685"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<a id="__codelineno-0-686" name="__codelineno-0-686"></a>
+<a id="__codelineno-0-687" name="__codelineno-0-687"></a>            <span class="c1"># Log total startup time when available</span>
+<a id="__codelineno-0-688" name="__codelineno-0-688"></a>            <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-689" name="__codelineno-0-689"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-690" name="__codelineno-0-690"></a>                    <span class="sa">f</span><span class="s2">&quot;VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39; total startup time: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s&quot;</span>
+<a id="__codelineno-0-691" name="__codelineno-0-691"></a>                <span class="p">)</span>
+<a id="__codelineno-0-692" name="__codelineno-0-692"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-693" name="__codelineno-0-693"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-694" name="__codelineno-0-694"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to update metrics for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-695" name="__codelineno-0-695"></a>            <span class="p">)</span>
+<a id="__codelineno-0-696" name="__codelineno-0-696"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+<a id="__codelineno-0-697" name="__codelineno-0-697"></a>            <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
