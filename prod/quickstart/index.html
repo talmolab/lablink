@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
     
     
       
@@ -54,6 +54,8 @@
     
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1146,6 +1148,34 @@
     
   
     Security and credentials
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dns-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DNS configuration
   
 
     
@@ -2802,12 +2832,26 @@
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> <a href="../prerequisites/">Prerequisites</a>: AWS Account, AWS CLI, GitHub CLI (<code>gh</code>), and Git installed</li>
 </ul>
 <h2 id="step-1-create-your-repository">Step 1: Create Your Repository<a class="headerlink" href="#step-1-create-your-repository" title="Permanent link">&para;</a></h2>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step1-create-repo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>Click the <strong>"Use this template"</strong> button on the <a href="https://github.com/talmolab/lablink-template">lablink-template repository</a> to create your own deployment repository.</p>
 <p>Then clone your new repository:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/YOUR_ORG/YOUR_REPO.git
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>YOUR_REPO
 </code></pre></div>
 <h2 id="step-2-run-setup">Step 2: Run Setup<a class="headerlink" href="#step-2-run-setup" title="Permanent link">&para;</a></h2>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step2-run-setup.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>Run the setup script to create all required AWS resources and configure GitHub secrets:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./scripts/setup.sh
 </code></pre></div>
@@ -2848,18 +2892,31 @@
 </code></pre></div></p>
 </div>
 <h2 id="step-4-commit-and-deploy">Step 4: Commit and Deploy<a class="headerlink" href="#step-4-commit-and-deploy" title="Permanent link">&para;</a></h2>
-<p>Commit your configuration and push to the <code>test</code> branch to trigger a deployment:</p>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step4-commit-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+<p>Commit your configuration and push to the <code>main</code> branch:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add deployment configuration&quot;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>push
 </code></pre></div>
 <p>Monitor the deployment:</p>
 <ol>
 <li>Go to the <strong>Actions</strong> tab in your GitHub repository</li>
 <li>Run the <strong>Terraform Deploy</strong> workflow manually</li>
-<li>Wait for the workflow to complete (~5-10 minutes)</li>
+<li>Wait for the workflow to complete (~2-5 minutes)</li>
 </ol>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step4-deploy.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>The workflow will:</p>
 <ul>
 <li>Authenticate to AWS via OIDC</li>
@@ -2867,6 +2924,13 @@
 <li>Deploy the allocator EC2 instance, security groups, and SSH key pair</li>
 </ul>
 <h2 id="step-5-verify">Step 5: Verify<a class="headerlink" href="#step-5-verify" title="Permanent link">&para;</a></h2>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step5-verify.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>Once the deployment completes:</p>
 <h3 id="access-the-web-ui">Access the Web UI<a class="headerlink" href="#access-the-web-ui" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2896,6 +2960,13 @@
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
 </code></pre></div>
 <h2 id="step-6-cleanup">Step 6: Cleanup<a class="headerlink" href="#step-6-cleanup" title="Permanent link">&para;</a></h2>
+<div class="video-container">
+  <video controls width="100%">
+    <source src="../assets/videos/step6-cleanup.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 <p>When you're done testing, destroy the infrastructure:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via Terraform</label><label for="__tabbed_1_3">Cleanup Orphaned Resources</label></div>
 <div class="tabbed-content">
