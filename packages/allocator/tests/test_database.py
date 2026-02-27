@@ -635,8 +635,8 @@ def test_update_vm_metrics_atomic_cloud_init_only(db_instance):
     assert "WHERE hostname = %s" in query
     assert "RETURNING TotalStartupDurationSeconds" in query
 
-    # Check values passed (timestamps and duration, then hostname)
-    assert values == (1609459200, 1609459260, 60.0, hostname)
+    # Check values passed (timestamps, duration, inlined duration for total, hostname)
+    assert values == (1609459200, 1609459260, 60.0, 60.0, hostname)
     db_instance.conn.commit.assert_called_once()
 
 
@@ -662,7 +662,8 @@ def test_update_vm_metrics_atomic_container_only(db_instance):
     assert "ContainerStartupDurationSeconds = %s" in query
     assert "TotalStartupDurationSeconds" in query
 
-    assert values == (1609459300, 1609459360, 60.0, hostname)
+    # Extra value for inlined container duration in total formula
+    assert values == (1609459300, 1609459360, 60.0, 60.0, hostname)
     db_instance.conn.commit.assert_called_once()
 
 

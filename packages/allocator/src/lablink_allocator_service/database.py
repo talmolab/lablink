@@ -649,14 +649,26 @@ class PostgresqlDatabase:
         if not updates:
             return
 
-        # Add total startup time calculation to the same UPDATE
-        # This recalculates the total whenever any metric is updated
-        updates.append(
-            """TotalStartupDurationSeconds =
-                COALESCE(TerraformApplyDurationSeconds, 0) +
-                COALESCE(CloudInitDurationSeconds, 0) +
-                COALESCE(ContainerStartupDurationSeconds, 0)"""
+        # Build the total startup time calculation using new values where
+        # available. In PostgreSQL, SET expressions read pre-update column
+        # values, so referencing the column being updated in the same
+        # statement returns the OLD value. We must inline the new value
+        # for any metric being set in this UPDATE.
+        terraform_expr = "COALESCE(TerraformApplyDurationSeconds, 0)"
+        cloud_init_expr = "COALESCE(CloudInitDurationSeconds, 0)"
+        container_expr = "COALESCE(ContainerStartupDurationSeconds, 0)"
+
+        if "cloud_init_duration_seconds" in metrics:
+            cloud_init_expr = "%s"
+            values.append(metrics["cloud_init_duration_seconds"])
+        if "container_startup_duration_seconds" in metrics:
+            container_expr = "%s"
+            values.append(metrics["container_startup_duration_seconds"])
+
+        total_expr = (
+            f"{terraform_expr} + {cloud_init_expr} + {container_expr}"
         )
+        updates.append(f"TotalStartupDurationSeconds = {total_expr}")
 
         query = f"""
             UPDATE {self.table_name}

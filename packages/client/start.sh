@@ -100,8 +100,8 @@ CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -d "{
-    \"container_start_time\": $CONTAINER_START_TIME,
-    \"container_end_time\": $CONTAINER_END_TIME,
+    \"container_start\": $CONTAINER_START_TIME,
+    \"container_end\": $CONTAINER_END_TIME,
     \"container_startup_duration_seconds\": $CONTAINER_DURATION
   }" --max-time 5 || true
 
