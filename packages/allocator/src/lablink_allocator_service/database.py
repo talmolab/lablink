@@ -665,9 +665,10 @@ class PostgresqlDatabase:
             container_expr = "%s"
             values.append(metrics["container_startup_duration_seconds"])
 
-        updates.append(
-            f"TotalStartupDurationSeconds = {terraform_expr} + {cloud_init_expr} + {container_expr}"
+        total_expr = (
+            f"{terraform_expr} + {cloud_init_expr} + {container_expr}"
         )
+        updates.append(f"TotalStartupDurationSeconds = {total_expr}")
 
         query = f"""
             UPDATE {self.table_name}
