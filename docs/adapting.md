@@ -32,20 +32,16 @@ Build on top of the existing LabLink client image:
 ```dockerfile
 FROM ghcr.io/talmolab/lablink-client-base-image:latest
 
-# Install your software
-RUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN sudo apt-get update && sudo apt-get install -y \
     your-dependencies \
-    && rm -rf /var/lib/apt/lists/*
+    && sudo rm -rf /var/lib/apt/lists/*
 
-# Install your Python package
-COPY requirements.txt /app/
-RUN pip install -r /app/requirements.txt
+# Install your Python packages with uv (already available in the base image)
+RUN uv add your-research-package
 
 # Copy your code
-COPY your_software/ /app/your_software/
-
-# Set entrypoint
-CMD ["python", "/app/your_software/main.py"]
+COPY your_software/ /home/client/your_software/
 ```
 
 #### Option B: Build from Scratch
@@ -59,13 +55,15 @@ FROM ubuntu:20.04
 # Install basic dependencies
 RUN apt-get update && apt-get install -y \
     python3.9 \
-    python3-pip \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 # Install your research software
-RUN pip3 install your-research-package
+RUN uv pip install --system your-research-package
 
 # Optional: Include LabLink client for monitoring
 COPY --from=ghcr.io/talmolab/lablink-client-base-image:latest \
@@ -361,16 +359,19 @@ FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04
 
 # Install Python and dependencies
 RUN apt-get update && apt-get install -y \
-    python3.9 python3-pip git \
+    python3.9 git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 # Install PyTorch
-RUN pip3 install torch torchvision torchaudio \
+RUN uv pip install --system torch torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cu118
 
 # Install your training code dependencies
 COPY requirements.txt /app/
-RUN pip3 install -r /app/requirements.txt
+RUN uv pip install --system -r /app/requirements.txt
 
 # Copy training scripts
 COPY train.py /app/

@@ -98,6 +98,7 @@ nav:
       - Quickstart: quickstart.md
       - AWS Setup (Manual): aws-setup.md
   - Guides:
+      - Admin panel: admin-panel.md
       - Architecture: architecture.md
       - Configuration: configuration.md
       - Adapting for your software: adapting.md
