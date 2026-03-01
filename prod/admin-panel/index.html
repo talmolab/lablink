@@ -13,28 +13,28 @@
       
       
       
-        <link rel="prev" href="../aws_utils/">
+        <link rel="prev" href="../aws-setup/">
       
       
-        <link rel="next" href="../scp/">
+        <link rel="next" href="../architecture/">
       
       
         
       
       
-      <link rel="icon" href="../../../../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
     
     
       
-        <title>config_helpers - LabLink</title>
+        <title>Admin panel - LabLink</title>
       
     
     
-      <link rel="stylesheet" href="../../../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,11 +53,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lablink_allocator_serviceutilsconfig_helpers" class="md-skip">
+        <a href="#admin-panel" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../../.." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href=".." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              config_helpers
+              Admin panel
             
           </span>
         </div>
@@ -246,7 +246,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -267,7 +267,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../prerequisites/" class="md-tabs__link">
+        <a href="../prerequisites/" class="md-tabs__link">
           
   
   
@@ -283,11 +283,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../../../../admin-panel/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -307,7 +309,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../security/" class="md-tabs__link">
+        <a href="../security/" class="md-tabs__link">
           
   
   
@@ -323,13 +325,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../../../../installation/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../installation/" class="md-tabs__link">
           
   
   
@@ -349,7 +349,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../contributing/" class="md-tabs__link">
+        <a href="../contributing/" class="md-tabs__link">
           
   
   
@@ -383,7 +383,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../../.." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href=".." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -413,7 +413,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -494,7 +494,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../prerequisites/" class="md-nav__link">
+      <a href="../prerequisites/" class="md-nav__link">
         
   
   
@@ -522,7 +522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../quickstart/" class="md-nav__link">
+      <a href="../quickstart/" class="md-nav__link">
         
   
   
@@ -550,7 +550,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../aws-setup/" class="md-nav__link">
+      <a href="../aws-setup/" class="md-nav__link">
         
   
   
@@ -582,28 +582,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -621,7 +624,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -636,10 +639,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../../../admin-panel/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin panel
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -655,6 +685,109 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vm-status-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VM Status Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-vms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating VMs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destroying-vms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destroying VMs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Destroying VMs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#destroy-all-vms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destroy All VMs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scheduled-vm-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduled VM Destruction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extracting-user-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extracting User Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -667,7 +800,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -695,7 +828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -723,7 +856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../adapting/" class="md-nav__link">
+      <a href="../adapting/" class="md-nav__link">
         
   
   
@@ -751,7 +884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../deployment/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
@@ -779,7 +912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../workflows/" class="md-nav__link">
+      <a href="../workflows/" class="md-nav__link">
         
   
   
@@ -807,7 +940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../ssh-access/" class="md-nav__link">
+      <a href="../ssh-access/" class="md-nav__link">
         
   
   
@@ -835,7 +968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../database/" class="md-nav__link">
+      <a href="../database/" class="md-nav__link">
         
   
   
@@ -863,7 +996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../testing/" class="md-nav__link">
+      <a href="../testing/" class="md-nav__link">
         
   
   
@@ -891,7 +1024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../api-endpoints/" class="md-nav__link">
+      <a href="../api-endpoints/" class="md-nav__link">
         
   
   
@@ -980,7 +1113,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../security/" class="md-nav__link">
+      <a href="../security/" class="md-nav__link">
         
   
   
@@ -1008,7 +1141,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../dns-configuration/" class="md-nav__link">
+      <a href="../dns-configuration/" class="md-nav__link">
         
   
   
@@ -1036,7 +1169,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../cost-estimation/" class="md-nav__link">
+      <a href="../cost-estimation/" class="md-nav__link">
         
   
   
@@ -1068,31 +1201,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -1110,7 +1240,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1128,7 +1258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -1153,8 +1283,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1163,22 +1291,21 @@
     
       
       
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
         
           
-          
         
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" checked>
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../" class="md-nav__link ">
+            <a href="../reference/" class="md-nav__link ">
               
   
   
@@ -1196,13 +1323,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_2" id="__nav_5_2_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1217,8 +1344,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1231,11 +1356,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2_1" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1" >
         
           
           <label class="md-nav__link" for="__nav_5_2_1" id="__nav_5_2_1_label" tabindex="0">
@@ -1256,7 +1383,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_2_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_2_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1271,8 +1398,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1285,15 +1410,17 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2_1_1" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
+            <a href="../reference/allocator/lablink_allocator_service/" class="md-nav__link ">
               
   
   
@@ -1317,7 +1444,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_2_1_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_5_2_1_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2_1_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1354,7 +1481,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../conf/" class="md-nav__link ">
+            <a href="../reference/allocator/lablink_allocator_service/conf/" class="md-nav__link ">
               
   
   
@@ -1396,7 +1523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../conf/structured_config/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/conf/structured_config/" class="md-nav__link">
         
   
   
@@ -1432,7 +1559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../database/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/database/" class="md-nav__link">
         
   
   
@@ -1460,7 +1587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generate_init_sql/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/generate_init_sql/" class="md-nav__link">
         
   
   
@@ -1488,7 +1615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../get_config/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/get_config/" class="md-nav__link">
         
   
   
@@ -1516,7 +1643,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../main/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/main/" class="md-nav__link">
         
   
   
@@ -1544,7 +1671,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../scheduler/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
   
@@ -1569,8 +1696,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1583,15 +1708,17 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2_1_1_7" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../reference/allocator/lablink_allocator_service/utils/" class="md-nav__link ">
               
   
   
@@ -1615,7 +1742,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2_1_1_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1633,7 +1760,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../aws_utils/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/utils/aws_utils/" class="md-nav__link">
         
   
   
@@ -1658,37 +1785,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    config_helpers
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/utils/config_helpers/" class="md-nav__link">
         
   
   
@@ -1704,121 +1804,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;config_helpers
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" config_helpers">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Attributes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Attributes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.logger" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;logger
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Functions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Functions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.get_allocator_url" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_allocator_url
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.should_use_dns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;should_use_dns
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.should_use_https" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;should_use_https
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1831,7 +1816,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../scp/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/utils/scp/" class="md-nav__link">
         
   
   
@@ -1859,7 +1844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terraform_utils/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/utils/terraform_utils/" class="md-nav__link">
         
   
   
@@ -1895,7 +1880,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validate_config/" class="md-nav__link">
+      <a href="../reference/allocator/lablink_allocator_service/validate_config/" class="md-nav__link">
         
   
   
@@ -2012,7 +1997,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../client/lablink_client_service/" class="md-nav__link ">
+            <a href="../reference/client/lablink_client_service/" class="md-nav__link ">
               
   
   
@@ -2054,7 +2039,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/check_gpu/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/check_gpu/" class="md-nav__link">
         
   
   
@@ -2101,7 +2086,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../client/lablink_client_service/conf/" class="md-nav__link ">
+            <a href="../reference/client/lablink_client_service/conf/" class="md-nav__link ">
               
   
   
@@ -2143,7 +2128,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/conf/structured_config/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/conf/structured_config/" class="md-nav__link">
         
   
   
@@ -2179,7 +2164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/connect_crd/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/connect_crd/" class="md-nav__link">
         
   
   
@@ -2207,7 +2192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/logger_config/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/logger_config/" class="md-nav__link">
         
   
   
@@ -2235,7 +2220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/logger_utils/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/logger_utils/" class="md-nav__link">
         
   
   
@@ -2263,7 +2248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/subscribe/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/subscribe/" class="md-nav__link">
         
   
   
@@ -2291,7 +2276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../client/lablink_client_service/update_inuse_status/" class="md-nav__link">
+      <a href="../reference/client/lablink_client_service/update_inuse_status/" class="md-nav__link">
         
   
   
@@ -2343,7 +2328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../troubleshooting/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
@@ -2371,7 +2356,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../faq/" class="md-nav__link">
+      <a href="../faq/" class="md-nav__link">
         
   
   
@@ -2460,7 +2445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
@@ -2488,7 +2473,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../contributing-docs/" class="md-nav__link">
+      <a href="../contributing-docs/" class="md-nav__link">
         
   
   
@@ -2516,7 +2501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../changelog/" class="md-nav__link">
+      <a href="../changelog/" class="md-nav__link">
         
   
   
@@ -2544,7 +2529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../changelog-allocator/" class="md-nav__link">
+      <a href="../changelog-allocator/" class="md-nav__link">
         
   
   
@@ -2572,7 +2557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../changelog-client/" class="md-nav__link">
+      <a href="../changelog-client/" class="md-nav__link">
         
   
   
@@ -2655,34 +2640,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers" class="md-nav__link">
+  <a href="#vm-status-dashboard" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;config_helpers
+        VM Status Dashboard
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" config_helpers">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers-attributes" class="md-nav__link">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Attributes
+        Creating VMs
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Attributes">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destroying-vms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destroying VMs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Destroying VMs">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.logger" class="md-nav__link">
+  <a href="#destroy-all-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;logger
+        Destroy All VMs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scheduled-vm-destruction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduled VM Destruction
       
     </span>
   </a>
@@ -2693,59 +2699,26 @@
     </nav>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers-functions" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#extracting-user-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Functions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Functions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.get_allocator_url" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_allocator_url
+        Extracting User Data
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.should_use_dns" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;should_use_dns
+        Related
       
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.config_helpers.should_use_https" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;should_use_https
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2769,364 +2742,105 @@
   
 
 
-<h1 id="lablink_allocator_serviceutilsconfig_helpers">lablink_allocator_service.utils.config_helpers<a class="headerlink" href="#lablink_allocator_serviceutilsconfig_helpers" title="Permanent link">&para;</a></h1>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-<h2 id="lablink_allocator_service.utils.config_helpers" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <code>lablink_allocator_service.utils.config_helpers</code>
-
-
-<a href="#lablink_allocator_service.utils.config_helpers" class="headerlink" title="Permanent link">&para;</a></h2>
-
-    <div class="doc doc-contents first">
-
-        <p>Configuration helper functions for building URLs and determining settings.</p>
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-<h3 id="lablink_allocator_service.utils.config_helpers-attributes">Attributes<a href="#lablink_allocator_service.utils.config_helpers-attributes" class="headerlink" title="Permanent link">&para;</a></h3>
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h4 id="lablink_allocator_service.utils.config_helpers.logger" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#lablink_allocator_service.utils.config_helpers.logger" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-    </div>
-
+<h1 id="admin-panel">Admin Panel<a class="headerlink" href="#admin-panel" title="Permanent link">&para;</a></h1>
+<p>The admin panel provides a web interface for managing client VMs during a lab session. Access it at <code>http://&lt;allocator-ip&gt;/admin</code> using your admin credentials.</p>
+<p><img alt="Admin panel" src="../assets/images/admin-panel.png" /></p>
+<h2 id="vm-status-dashboard">VM Status Dashboard<a class="headerlink" href="#vm-status-dashboard" title="Permanent link">&para;</a></h2>
+<p>The admin panel displays a table of all client VMs with the following information for each:</p>
+<p><img alt="Admin panel overview" src="../assets/images/admin-panel-overview.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hostname</strong></td>
+<td>VM instance identifier</td>
+</tr>
+<tr>
+<td><strong>Health</strong></td>
+<td>Overall VM health status (running, initializing, stopped)</td>
+</tr>
+<tr>
+<td><strong>GPU Health</strong></td>
+<td>GPU availability and CUDA status</td>
+</tr>
+<tr>
+<td><strong>Logs</strong></td>
+<td>Link to view startup and runtime logs for the VM</td>
+</tr>
+<tr>
+<td><strong>Assigned CRD</strong></td>
+<td>Chrome Remote Desktop connection link for the VM</td>
+</tr>
+<tr>
+<td><strong>User Email</strong></td>
+<td>Email of the participant assigned to the VM</td>
+</tr>
+</tbody>
+</table>
+<h2 id="creating-vms">Creating VMs<a class="headerlink" href="#creating-vms" title="Permanent link">&para;</a></h2>
+<p>To add VMs as more participants join:</p>
+<ol>
+<li>Navigate to the admin panel</li>
+<li>Click <strong>"Create VMs"</strong></li>
+<li>Enter the number of VMs to launch</li>
+<li>Click <strong>"Launch VMs"</strong></li>
+</ol>
+<p><img alt="Create VMs dialog" src="../assets/images/admin-create-vms.png" /></p>
+<p>VMs take approximately 5 minutes to provision and become available. The status dashboard updates automatically as VMs come online.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>You can create additional VMs at any time during a session without affecting existing running VMs.</p>
 </div>
-
-
-<h3 id="lablink_allocator_service.utils.config_helpers-functions">Functions<a href="#lablink_allocator_service.utils.config_helpers-functions" class="headerlink" title="Permanent link">&para;</a></h3>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_allocator_service.utils.config_helpers.get_allocator_url" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">get_allocator_url</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">allocator_ip</span><span class="p">)</span></code>
-
-<a href="#lablink_allocator_service.utils.config_helpers.get_allocator_url" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Build the allocator URL based on configuration.</p>
-<p>Priority order:
-1. ALLOCATOR_FQDN environment variable (set by Terraform)
-2. DNS configuration from config
-3. IP address fallback</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>cfg</code>
-            </td>
-            <td>
-                  <code><span title="omegaconf.DictConfig">DictConfig</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Hydra/OmegaConf configuration object.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>allocator_ip</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Public IP address of allocator.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="typing.Tuple">Tuple</span>[<span title="str">str</span>, <span title="str">str</span>]</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Tuple of (base_url, protocol)</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <p>ALLOCATOR_FQDN environment variable:
-    ("https://test.lablink.sleap.ai", "https")</p>
-<p>DNS enabled + Let's Encrypt SSL:
-    ("https://test.lablink.sleap.ai", "https")</p>
-<p>DNS disabled + No SSL:
-    ("http://52.40.142.146", "http")</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/utils/config_helpers.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-12">12</a></span>
-<span class="normal"><a href="#__codelineno-0-13">13</a></span>
-<span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span>
-<span class="normal"><a href="#__codelineno-0-18">18</a></span>
-<span class="normal"><a href="#__codelineno-0-19">19</a></span>
-<span class="normal"><a href="#__codelineno-0-20">20</a></span>
-<span class="normal"><a href="#__codelineno-0-21">21</a></span>
-<span class="normal"><a href="#__codelineno-0-22">22</a></span>
-<span class="normal"><a href="#__codelineno-0-23">23</a></span>
-<span class="normal"><a href="#__codelineno-0-24">24</a></span>
-<span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span>
-<span class="normal"><a href="#__codelineno-0-40">40</a></span>
-<span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span>
-<span class="normal"><a href="#__codelineno-0-43">43</a></span>
-<span class="normal"><a href="#__codelineno-0-44">44</a></span>
-<span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span>
-<span class="normal"><a href="#__codelineno-0-64">64</a></span>
-<span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span>
-<span class="normal"><a href="#__codelineno-0-67">67</a></span>
-<span class="normal"><a href="#__codelineno-0-68">68</a></span>
-<span class="normal"><a href="#__codelineno-0-69">69</a></span>
-<span class="normal"><a href="#__codelineno-0-70">70</a></span>
-<span class="normal"><a href="#__codelineno-0-71">71</a></span>
-<span class="normal"><a href="#__codelineno-0-72">72</a></span>
-<span class="normal"><a href="#__codelineno-0-73">73</a></span>
-<span class="normal"><a href="#__codelineno-0-74">74</a></span>
-<span class="normal"><a href="#__codelineno-0-75">75</a></span>
-<span class="normal"><a href="#__codelineno-0-76">76</a></span>
-<span class="normal"><a href="#__codelineno-0-77">77</a></span>
-<span class="normal"><a href="#__codelineno-0-78">78</a></span>
-<span class="normal"><a href="#__codelineno-0-79">79</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_allocator_url</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">DictConfig</span><span class="p">,</span> <span class="n">allocator_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="sd">    Build the allocator URL based on configuration.</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a>
-<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="sd">    Priority order:</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">    1. ALLOCATOR_FQDN environment variable (set by Terraform)</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="sd">    2. DNS configuration from config</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    3. IP address fallback</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20"></a>
-<a id="__codelineno-0-21" name="__codelineno-0-21"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="sd">        cfg: Hydra/OmegaConf configuration object.</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="sd">        allocator_ip: Public IP address of allocator.</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24"></a>
-<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">        Tuple of (base_url, protocol)</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">    Examples:</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        ALLOCATOR_FQDN environment variable:</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">            (&quot;https://test.lablink.sleap.ai&quot;, &quot;https&quot;)</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">        DNS enabled + Let&#39;s Encrypt SSL:</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">            (&quot;https://test.lablink.sleap.ai&quot;, &quot;https&quot;)</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">        DNS disabled + No SSL:</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="sd">            (&quot;http://52.40.142.146&quot;, &quot;http&quot;)</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Priority 1: Check for ALLOCATOR_FQDN environment variable (set by Terraform)</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">allocator_fqdn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_FQDN&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="k">if</span> <span class="n">allocator_fqdn</span><span class="p">:</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="c1"># FQDN already includes protocol</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="k">if</span> <span class="n">allocator_fqdn</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;https://&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>            <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;https&quot;</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="k">elif</span> <span class="n">allocator_fqdn</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>            <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;http&quot;</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="c1"># Default to http if no protocol specified</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>            <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;http&quot;</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>            <span class="n">allocator_fqdn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">allocator_fqdn</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using ALLOCATOR_FQDN from environment: </span><span class="si">{</span><span class="n">allocator_fqdn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="k">return</span> <span class="n">allocator_fqdn</span><span class="p">,</span> <span class="n">protocol</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="c1"># Priority 2: Build from DNS configuration</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="c1"># Determine protocol based on SSL provider</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;ssl&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">ssl</span><span class="o">.</span><span class="n">provider</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;https&quot;</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;http&quot;</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="c1"># Determine host based on DNS configuration</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;dns&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dns</span><span class="o">.</span><span class="n">enabled</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dns</span><span class="o">.</span><span class="n">domain</span><span class="p">:</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="c1"># Use DNS domain directly (now includes full domain)</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="n">host</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dns</span><span class="o">.</span><span class="n">domain</span>
-<a id="__codelineno-0-65" name="__codelineno-0-65"></a>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="c1"># Remove leading dots if present (safety check)</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="k">if</span> <span class="n">host</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="n">host</span> <span class="o">=</span> <span class="n">host</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removed leading dot from domain: </span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using domain from config: </span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="c1"># Priority 3: Use IP address</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="n">host</span> <span class="o">=</span> <span class="n">allocator_ip</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using IP-only mode: </span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="k">return</span> <span class="n">base_url</span><span class="p">,</span> <span class="n">protocol</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
+<h2 id="destroying-vms">Destroying VMs<a class="headerlink" href="#destroying-vms" title="Permanent link">&para;</a></h2>
+<h3 id="destroy-all-vms">Destroy All VMs<a class="headerlink" href="#destroy-all-vms" title="Permanent link">&para;</a></h3>
+<p>To tear down all VMs at the end of a session:</p>
+<ol>
+<li>Navigate to the admin panel</li>
+<li>Click <strong>"Destroy All VMs"</strong></li>
+<li>Confirm the action</li>
+</ol>
+<p>This runs <code>terraform destroy</code> to terminate all client EC2 instances and clears VM records from the database.</p>
+<p><img alt="Destroy All VMs" src="../assets/images/admin-destroy-vms.png" /></p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a destructive action that terminates all running VMs immediately. Make sure to extract any user data before destroying.</p>
 </div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_allocator_service.utils.config_helpers.should_use_dns" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">should_use_dns</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span></code>
-
-<a href="#lablink_allocator_service.utils.config_helpers.should_use_dns" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Check if DNS is enabled in config.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/utils/config_helpers.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-82">82</a></span>
-<span class="normal"><a href="#__codelineno-0-83">83</a></span>
-<span class="normal"><a href="#__codelineno-0-84">84</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="k">def</span><span class="w"> </span><span class="nf">should_use_dns</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if DNS is enabled in config.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;dns&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dns</span><span class="o">.</span><span class="n">enabled</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
+<h3 id="scheduled-vm-destruction">Scheduled VM Destruction<a class="headerlink" href="#scheduled-vm-destruction" title="Permanent link">&para;</a></h3>
+<p>You can schedule VMs to be automatically destroyed at a specific time. This is useful for ending lab sessions at a predetermined time without manual intervention.</p>
+<ol>
+<li>Navigate to the admin panel</li>
+<li>Set the desired destruction date and time</li>
+<li>Confirm the schedule</li>
+</ol>
+<p><img alt="Scheduled destruction" src="../assets/images/admin-scheduled-destruction.png" /></p>
+<p>The allocator will automatically destroy all VMs at the scheduled time.</p>
+<h2 id="extracting-user-data">Extracting User Data<a class="headerlink" href="#extracting-user-data" title="Permanent link">&para;</a></h2>
+<p>To download files created by participants during a session:</p>
+<ol>
+<li>Navigate to the admin panel</li>
+<li>Click <strong>"Download User Data"</strong></li>
+<li>The allocator connects to each running VM via SSH, collects files matching the configured extension (e.g., <code>.slp</code>), and packages them into a zip file for download</li>
+</ol>
+<p><img alt="Download user data" src="../assets/images/admin-destroy-vms.png" /></p>
+<p>The file extension to collect is configured in your <code>config.yaml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">app</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">extension</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;.slp&quot;</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The download may take a few minutes depending on the number of VMs and file sizes. Ensure VMs are still running when extracting data — files are not recoverable after VMs are destroyed.</p>
 </div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="lablink_allocator_service.utils.config_helpers.should_use_https" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">should_use_https</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span></code>
-
-<a href="#lablink_allocator_service.utils.config_helpers.should_use_https" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Check if HTTPS is enabled in config.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/utils/config_helpers.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-87">87</a></span>
-<span class="normal"><a href="#__codelineno-0-88">88</a></span>
-<span class="normal"><a href="#__codelineno-0-89">89</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="k">def</span><span class="w"> </span><span class="nf">should_use_https</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if HTTPS is enabled in config.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;ssl&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">ssl</span><span class="o">.</span><span class="n">provider</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../api-endpoints/#admin-api-endpoints">API Endpoints</a> for programmatic access to these features</li>
+<li><a href="../configuration/">Configuration</a> for admin password and app settings</li>
+<li><a href="../security/">Security</a> for authentication details</li>
+</ul>
 
 
 
@@ -3198,10 +2912,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       

@@ -287,7 +287,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../architecture/" class="md-tabs__link">
+        <a href="../admin-panel/" class="md-tabs__link">
           
   
   
@@ -631,6 +631,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-panel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin panel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1075,6 +1103,17 @@
     <span class="md-ellipsis">
       
         Cost Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-estimate-with-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Estimate with the CLI
       
     </span>
   </a>
@@ -3051,6 +3090,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#quick-estimate-with-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Estimate with the CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aws-pricing-calculator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3580,6 +3630,72 @@
 <li><strong>Storage costs</strong> (monthly)</li>
 <li><strong>Data transfer costs</strong> (per GB)</li>
 </ol>
+<h2 id="quick-estimate-with-the-cli">Quick Estimate with the CLI<a class="headerlink" href="#quick-estimate-with-the-cli" title="Permanent link">&para;</a></h2>
+<p>The fastest way to get a cost estimate for your deployment is the built-in cost estimator script. It reads your <code>config.yaml</code> and queries the AWS Pricing API for live, region-specific pricing.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>./scripts/estimate-costs.sh
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Prerequisites</p>
+<ul>
+<li><strong>jq</strong> — required for JSON parsing (<code>brew install jq</code> on macOS, <code>sudo apt-get install jq</code> on Ubuntu)</li>
+<li><strong>AWS CLI</strong> — recommended for live pricing. If unavailable, the script falls back to hardcoded estimates.</li>
+<li>Must be run from the <strong>repository root</strong> (where <code>lablink-infrastructure/</code> exists).</li>
+</ul>
+</div>
+<p>The script reads the following from your <code>lablink-infrastructure/config/config.yaml</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Config Key</th>
+<th>What It Affects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app.region</code></td>
+<td>AWS region for pricing lookup</td>
+</tr>
+<tr>
+<td><code>machine.machine_type</code></td>
+<td>Client VM instance type</td>
+</tr>
+<tr>
+<td><code>ssl.provider</code></td>
+<td>Whether ALB cost is included</td>
+</tr>
+<tr>
+<td><code>dns.enabled</code></td>
+<td>Whether Route 53 cost is included</td>
+</tr>
+<tr>
+<td><code>monitoring.enabled</code></td>
+<td>Whether CloudTrail/SNS costs are included</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example output:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>LabLink Infrastructure Cost Estimate
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>=====================================
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Region: us-west-2 (US West (Oregon))
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Config: lablink-infrastructure/config/config.yaml
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>Prices: AWS Pricing API
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  Resource                                Monthly Cost
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  -------------------------------------  ------------
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  Allocator EC2 (t3.large)                     $60.74
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  Client VM EC2 (g4dn.xlarge)                 $383.98  *
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  EBS root volume (gp3, 20 GB)                  $1.60
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  Elastic IP                                    $3.65
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  CloudWatch Logs                               $2.00
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>  -------------------------------------  ------------
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>  Base infrastructure total                   $67.99/month
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>  Per client VM (when running)               $383.98/month *
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>  * Client VM costs scale with usage. VMs are billed only while running.
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    Example: 10 VMs x 8hr/day x 22 days/month = $925.76/month
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>  * Prices are on-demand estimates from AWS Pricing API. Actual costs may vary.
+</code></pre></div>
+<p>The base infrastructure total represents always-on costs (allocator, storage, Elastic IP, logging). Client VM costs are separate since VMs are only billed while running.</p>
 <h2 id="aws-pricing-calculator">AWS Pricing Calculator<a class="headerlink" href="#aws-pricing-calculator" title="Permanent link">&para;</a></h2>
 <p>For exact pricing, use the <a href="https://calculator.aws/">AWS Pricing Calculator</a>.</p>
 <div class="admonition note">
@@ -3811,15 +3927,15 @@
 <p><strong>Most Common</strong>: <strong>g4dn.xlarge</strong> (good balance of performance and cost)</p>
 <h4 id="cost-optimization-strategies">Cost Optimization Strategies<a class="headerlink" href="#cost-optimization-strategies" title="Permanent link">&para;</a></h4>
 <p><strong>Option 1: Spot Instances</strong> (Up to 90% savings)</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># terraform/main.tf</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;client&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nb">instance_market_options</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="na">market_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;spot&quot;</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nb">spot_options</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="na">max_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.20&quot;</span><span class="c1">  # Max price you&#39;re willing to pay</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># terraform/main.tf</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;client&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nb">instance_market_options</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="na">market_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;spot&quot;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nb">spot_options</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="na">max_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.20&quot;</span><span class="c1">  # Max price you&#39;re willing to pay</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
 </code></pre></div>
 <ul>
 <li><strong>g4dn.xlarge Spot</strong>: ~$0.158/hour (vs $0.526 on-demand)</li>
@@ -4013,27 +4129,27 @@
 <h2 id="cost-monitoring">Cost Monitoring<a class="headerlink" href="#cost-monitoring" title="Permanent link">&para;</a></h2>
 <h3 id="set-up-billing-alerts">Set Up Billing Alerts<a class="headerlink" href="#set-up-billing-alerts" title="Permanent link">&para;</a></h3>
 <p><strong>Step 1: Create SNS Topic</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>create-topic<span class="w"> </span>--name<span class="w"> </span>lablink-billing-alerts
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>create-topic<span class="w"> </span>--name<span class="w"> </span>lablink-billing-alerts
 </code></pre></div></p>
 <p><strong>Step 2: Subscribe Email</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>subscribe<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--topic-arn<span class="w"> </span>arn:aws:sns:us-west-2:ACCOUNT_ID:lablink-billing-alerts<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--protocol<span class="w"> </span>email<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--notification-endpoint<span class="w"> </span>your-email@example.com
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>aws<span class="w"> </span>sns<span class="w"> </span>subscribe<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--topic-arn<span class="w"> </span>arn:aws:sns:us-west-2:ACCOUNT_ID:lablink-billing-alerts<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--protocol<span class="w"> </span>email<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--notification-endpoint<span class="w"> </span>your-email@example.com
 </code></pre></div></p>
 <p><strong>Step 3: Create Budget</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>aws<span class="w"> </span>budgets<span class="w"> </span>create-budget<span class="w"> </span>--account-id<span class="w"> </span>ACCOUNT_ID<span class="w"> </span>--budget<span class="w"> </span>file://budget.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>aws<span class="w"> </span>budgets<span class="w"> </span>create-budget<span class="w"> </span>--account-id<span class="w"> </span>ACCOUNT_ID<span class="w"> </span>--budget<span class="w"> </span>file://budget.json
 </code></pre></div></p>
 <p><strong><code>budget.json</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;BudgetName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Monthly Budget&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;BudgetLimit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">&quot;Amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">&quot;Unit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">&quot;TimeUnit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">&quot;BudgetType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COST&quot;</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;BudgetName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Monthly Budget&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&quot;BudgetLimit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">&quot;Amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">&quot;Unit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="nt">&quot;TimeUnit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="nt">&quot;BudgetType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COST&quot;</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="view-current-costs">View Current Costs<a class="headerlink" href="#view-current-costs" title="Permanent link">&para;</a></h3>
 <p><strong>AWS Console</strong>:
@@ -4041,33 +4157,33 @@
 2. View <strong>Cost Explorer</strong>
 3. Filter by tag <code>Project: LabLink</code></p>
 <p><strong>AWS CLI</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>get-cost-and-usage<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--time-period<span class="w"> </span><span class="nv">Start</span><span class="o">=</span><span class="m">2025</span>-01-01,End<span class="o">=</span><span class="m">2025</span>-01-31<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--granularity<span class="w"> </span>MONTHLY<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--metrics<span class="w"> </span>UnblendedCost<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>--filter<span class="w"> </span>file://filter.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>get-cost-and-usage<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--time-period<span class="w"> </span><span class="nv">Start</span><span class="o">=</span><span class="m">2025</span>-01-01,End<span class="o">=</span><span class="m">2025</span>-01-31<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--granularity<span class="w"> </span>MONTHLY<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>--metrics<span class="w"> </span>UnblendedCost<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--filter<span class="w"> </span>file://filter.json
 </code></pre></div></p>
 <p><strong><code>filter.json</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;Tags&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">&quot;Key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Project&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">&quot;Values&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LabLink&quot;</span><span class="p">]</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">&quot;Tags&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">&quot;Key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Project&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">&quot;Values&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LabLink&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="tag-resources">Tag Resources<a class="headerlink" href="#tag-resources" title="Permanent link">&para;</a></h3>
 <p>Tag all resources for cost tracking:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># terraform/main.tf</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink_allocator&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1">  # ... other config</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="na">Name</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;lablink-allocator-${var.environment}&quot;</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="na">Project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;LabLink&quot;</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Terraform&quot;</span>
-<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># terraform/main.tf</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink_allocator&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1">  # ... other config</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="na">Name</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;lablink-allocator-${var.environment}&quot;</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="na">Project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;LabLink&quot;</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Terraform&quot;</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">}</span>
 </code></pre></div>
 <p>View costs by tag in Cost Explorer.</p>
 <h2 id="cost-optimization-checklist">Cost Optimization Checklist<a class="headerlink" href="#cost-optimization-checklist" title="Permanent link">&para;</a></h2>
