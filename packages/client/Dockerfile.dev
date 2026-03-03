@@ -143,7 +143,7 @@ RUN sudo chmod +x /scripts/*.sh && \
 RUN mkdir -p /home/${USERNAME}/.local/bin
 
 # Install uv under client user (not root) to avoid permission issues
-COPY --chown=${USERNAME}:${USERNAME} --from=ghcr.io/astral-sh/uv:latest /uv /uvx /home/${USERNAME}/.local/bin/
+COPY --chown=${USERNAME}:${USERNAME} --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /home/${USERNAME}/.local/bin/
 
 # Set UV environment variables to use user-owned directories
 ENV UV_CACHE_DIR=/home/client/.cache/uv
