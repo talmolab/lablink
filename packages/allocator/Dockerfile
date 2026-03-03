@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.6-python3.11-trixie-slim
+FROM ghcr.io/astral-sh/uv:0.10-python3.11-trixie-slim
 
 # Build argument for package version
 ARG PACKAGE_VERSION=0.0.3a0
