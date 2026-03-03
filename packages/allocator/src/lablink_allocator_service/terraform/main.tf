@@ -8,7 +8,7 @@ resource "time_static" "start" {
 
 # Security Group for the Client VM
 resource "aws_security_group" "lablink_sg" {
-  name        = "lablink_client_${var.resource_suffix}_sg"
+  name        = "${var.resource_prefix}-sg"
   description = "Allow SSH and Docker ports"
 
   ingress {
@@ -25,15 +25,14 @@ resource "aws_security_group" "lablink_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "lablink_client_${var.resource_suffix}_sg"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.resource_prefix}-sg"
+  })
 }
 
 # IAM Role for CloudWatch Agent
 resource "aws_iam_role" "cloud_watch_agent_role" {
-  name = "lablink_cloud_watch_agent_role_${var.resource_suffix}"
+  name = "${var.resource_prefix}-cloudwatch-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -48,28 +47,26 @@ resource "aws_iam_role" "cloud_watch_agent_role" {
     ]
   })
 
-  tags = {
-    Name = "lablink_cloud_watch_agent_role_${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.resource_prefix}-cloudwatch-role"
+  })
 }
 
 # Policy to allow CloudWatch agent to write logs
 resource "aws_iam_policy_attachment" "cloudwatch_agent_policy" {
-  name       = "lablink_cloudwatch_agent_policy_attachment_${var.resource_suffix}"
+  name       = "${var.resource_prefix}-cloudwatch-policy"
   roles      = [aws_iam_role.cloud_watch_agent_role.name]
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 # Instance profile for EC2 instances
 resource "aws_iam_instance_profile" "lablink_instance_profile" {
-  name = "lablink_client_instance_profile_${var.resource_suffix}"
+  name = "${var.resource_prefix}-instance-profile"
   role = aws_iam_role.cloud_watch_agent_role.name
 
-  tags = {
-    Name = "lablink_client_instance_profile_${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.resource_prefix}-instance-profile"
+  })
 }
 
 # EC2 Instance for the LabLink Client
@@ -89,7 +86,7 @@ resource "aws_instance" "lablink_vm" {
     allocator_ip                = var.allocator_ip
     allocator_url               = var.allocator_url
     repository                  = var.repository
-    resource_suffix             = var.resource_suffix
+    resource_prefix             = var.resource_prefix
     image_name                  = var.image_name
     count_index                 = count.index + 1
     subject_software            = var.subject_software
@@ -100,10 +97,9 @@ resource "aws_instance" "lablink_vm" {
     startup_on_error            = var.startup_on_error
   })
 
-  tags = {
-    Name = "lablink-vm-${var.resource_suffix}-${count.index + 1}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.resource_prefix}-vm-${count.index + 1}"
+  })
 }
 
 # TLS Private Key for SSH access
@@ -114,12 +110,11 @@ resource "tls_private_key" "lablink_key" {
 
 # AWS Key Pair for SSH access
 resource "aws_key_pair" "lablink_key_pair" {
-  key_name   = "lablink_key_pair_client_${var.resource_suffix}"
+  key_name   = "${var.resource_prefix}-keypair"
   public_key = tls_private_key.lablink_key.public_key_openssh
-  tags = {
-    Name = "lablink_key_pair_client_${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.resource_prefix}-keypair"
+  })
 }
 
 resource "time_static" "end" {
@@ -128,6 +123,11 @@ resource "time_static" "end" {
 }
 
 locals {
+  common_tags = {
+    ResourcePrefix = var.resource_prefix
+    ManagedBy      = "terraform"
+  }
+
   per_instance_seconds = [
     for i in range(var.instance_count) :
     tonumber(time_static.end[i].unix) - tonumber(time_static.start[i].unix)

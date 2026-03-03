@@ -82,7 +82,7 @@ def test_launch_vm_success(
         f'repository = "{omega_config.machine.repository}"',
         f'client_ami_id = "{omega_config.machine.ami_id}"',
         f'subject_software = "{omega_config.machine.software}"',
-        'resource_suffix = "test"',
+        'resource_prefix = "sleap-lablink-client-test"',
         'gpu_support = "true"',
     ]
 
