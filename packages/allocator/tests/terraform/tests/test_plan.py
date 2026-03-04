@@ -49,7 +49,7 @@ def test_variables(plan):
         == "https://github.com/example/repo.git"
     )
     assert plan["variables"]["client_ami_id"]["value"] == "ami-067cc81f948e50e06"
-    assert plan["variables"]["resource_suffix"]["value"] == "ci-test"
+    assert plan["variables"]["resource_prefix"]["value"] == "test-software-lablink-client-ci-test"
     assert plan["variables"]["subject_software"]["value"] == "test-software"
     assert plan["variables"]["gpu_support"]["value"] == "true"
     assert (
@@ -141,7 +141,7 @@ def test_lablink_vm(plan):
 
     for i, (addr, resource) in enumerate(sorted_instances):
         assert resource["type"] == "aws_instance"
-        assert resource["values"]["tags"]["Name"] == f"lablink-vm-ci-test-{i + 1}"
+        assert resource["values"]["tags"]["Name"] == f"test-software-lablink-client-ci-test-vm-{i + 1}"
         assert resource["values"]["ami"] == plan["variables"]["client_ami_id"]["value"]
         instance_type = resource["values"]["instance_type"]
         assert instance_type == plan["variables"]["machine_type"]["value"]
@@ -153,7 +153,7 @@ def test_lablink_security_group(plan):
     assert resource["type"] == "aws_security_group"
     v = resource["values"]
 
-    assert v["name"] == "lablink_client_ci-test_sg"
+    assert v["name"] == "test-software-lablink-client-ci-test-sg"
     # Ingress SSH
     assert v["ingress"][0]["from_port"] == 22
     assert v["ingress"][0]["to_port"] == 22
@@ -170,7 +170,7 @@ def test_lablink_key_pair(plan):
     rmap = _resource_map(plan)
     resource = rmap["aws_key_pair.lablink_key_pair"]
     assert resource["type"] == "aws_key_pair"
-    assert resource["values"]["key_name"] == "lablink_key_pair_client_ci-test"
+    assert resource["values"]["key_name"] == "test-software-lablink-client-ci-test-keypair"
 
 
 def test_output(plan):

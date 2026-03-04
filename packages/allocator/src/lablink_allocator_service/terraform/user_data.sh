@@ -6,7 +6,7 @@ CLOUD_INIT_START_TIME=$(date +%s)
 
 echo ">> Configuration:"
 echo "  - Allocator IP: ${allocator_ip}"
-echo "  - Resource Suffix: ${resource_suffix}"
+echo "  - Resource Prefix: ${resource_prefix}"
 echo "  - Count Index: ${count_index}"
 echo "  - Subject Software: ${subject_software}"
 echo "  - Image Name: ${image_name}"
@@ -14,7 +14,7 @@ echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
 echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
 
-VM_NAME="lablink-vm-${resource_suffix}-${count_index}"
+VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 ALLOCATOR_URL="${allocator_url}"
 STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
@@ -57,7 +57,7 @@ cat >/opt/aws/amazon-cloudwatch-agent/bin/config.json <<'EOF'
           {
             "file_path": "/var/log/cloud-init-output.log",
             "log_group_name": "${cloud_init_output_log_group}",
-            "log_stream_name": "lablink-vm-${resource_suffix}-${count_index}",
+            "log_stream_name": "${resource_prefix}-vm-${count_index}",
             "timestamp_format": "%b %d %H:%M:%S"
           }
         ]
@@ -156,7 +156,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e ALLOCATOR_URL="${allocator_url}" \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
-    -e VM_NAME="lablink-vm-${resource_suffix}-${count_index}" \
+    -e VM_NAME="${resource_prefix}-vm-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
     -e AWS_REGION="${region}" \

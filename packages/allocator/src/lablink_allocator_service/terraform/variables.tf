@@ -36,10 +36,10 @@ variable "client_ami_id" {
   description = "AMI ID for the client VM"
 }
 
-variable "resource_suffix" {
+variable "resource_prefix" {
   type        = string
-  default     = "client"
-  description = "Suffix to ensure uniqueness"
+  default     = "lablink-client-prod"
+  description = "Prefix for all resource names, derived from software-lablink-client-environment (e.g., sleap-lablink-client-prod)"
 }
 
 variable "subject_software" {
