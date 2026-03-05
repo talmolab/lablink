@@ -14,6 +14,7 @@ from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
     get_instance_id_by_name,
     get_instance_public_ip,
+    ssm_run_command,
     stop_start_ec2_instance,
 )
 from lablink_allocator_service.utils.terraform_utils import get_ssh_private_key
@@ -151,13 +152,14 @@ class AutoRebootService:
             return False
 
     def _reboot_vm(self, hostname: str) -> bool:
-        """Reboot a single VM by hostname using SSH hard reboot with fallback.
+        """Reboot a single VM by hostname.
 
-        Flow:
-        1. Look up EC2 instance ID by hostname
-        2. Try SSH hard reboot (cloud-init clean + reboot) — re-runs user_data
-        3. If SSH fails, fall back to stop/start (restarts VM but does NOT
-           re-run user_data since cloud-init state persists on EBS)
+        Tries three methods in order:
+        1. SSH hard reboot (cloud-init clean + reboot)
+        2. SSM RunCommand (cloud-init clean + reboot) — when SSH is
+           unreachable but SSM agent is running
+        3. Stop/start — last resort, relies on per-boot cloud-init
+           config to re-run user_data
 
         Args:
             hostname: The VM hostname (matches EC2 Name tag).
@@ -168,48 +170,57 @@ class AutoRebootService:
         logger.info(f"Attempting to reboot VM '{hostname}'")
 
         # Look up EC2 instance ID by hostname (Name tag)
-        instance_id = get_instance_id_by_name(hostname, region=self.region)
+        instance_id = get_instance_id_by_name(
+            hostname, region=self.region
+        )
         if not instance_id:
             logger.error(
-                f"Could not find EC2 instance for VM '{hostname}', "
-                f"skipping reboot"
+                f"Could not find EC2 instance for VM "
+                f"'{hostname}', skipping reboot"
             )
             return False
 
-        # Try SSH hard reboot first (clears cloud-init → user_data re-runs)
-        ip = get_instance_public_ip(instance_id, region=self.region)
-        ssh_success = False
-
+        # 1) Try SSH hard reboot
+        ip = get_instance_public_ip(
+            instance_id, region=self.region
+        )
         if ip and self.terraform_dir:
             try:
                 key_path = get_ssh_private_key(self.terraform_dir)
-                ssh_success = self._ssh_hard_reboot(ip, key_path)
+                if self._ssh_hard_reboot(ip, key_path):
+                    self.database.record_reboot(hostname)
+                    logger.info(
+                        f"SSH hard reboot initiated for VM "
+                        f"'{hostname}' ({instance_id})"
+                    )
+                    return True
             except Exception as e:
                 logger.warning(
                     f"Could not get SSH key for hard reboot: {e}"
                 )
 
-        if ssh_success:
+        # 2) Try SSM RunCommand
+        logger.info(
+            f"SSH unavailable for VM '{hostname}', trying SSM"
+        )
+        ssm_success = ssm_run_command(
+            instance_id,
+            commands=["cloud-init clean", "reboot"],
+            region=self.region,
+        )
+        if ssm_success:
             self.database.record_reboot(hostname)
             logger.info(
-                f"SSH hard reboot initiated for VM '{hostname}' "
-                f"(instance {instance_id})"
+                f"SSM reboot initiated for VM '{hostname}' "
+                f"({instance_id})"
             )
             return True
 
-        # Fallback: stop/start restarts the VM but does NOT clear
-        # cloud-init state, so user_data.sh will not re-run. This is
-        # a best-effort restart for hung processes, OOM, etc.
-        if not ip:
-            logger.info(
-                f"No public IP for VM '{hostname}', "
-                f"falling back to stop/start"
-            )
-        else:
-            logger.info(
-                f"SSH hard reboot failed for VM '{hostname}', "
-                f"falling back to stop/start"
-            )
+        # 3) Last resort: stop/start
+        logger.info(
+            f"SSM failed for VM '{hostname}', falling back "
+            f"to stop/start"
+        )
         success = stop_start_ec2_instance(
             instance_id, region=self.region
         )
@@ -217,13 +228,12 @@ class AutoRebootService:
             self.database.record_reboot(hostname)
             logger.info(
                 f"Stop/start initiated for VM '{hostname}' "
-                f"(instance {instance_id}). Note: user_data.sh "
-                f"will NOT re-run (cloud-init state persists)."
+                f"({instance_id})"
             )
         else:
             logger.error(
-                f"All reboot methods failed for VM '{hostname}' "
-                f"(instance {instance_id})"
+                f"All reboot methods failed for VM "
+                f"'{hostname}' ({instance_id})"
             )
 
         return success

@@ -59,6 +59,13 @@ resource "aws_iam_policy_attachment" "cloudwatch_agent_policy" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# Policy to allow SSM agent for remote command execution (reboot fallback)
+resource "aws_iam_policy_attachment" "ssm_managed_policy" {
+  name       = "${var.resource_prefix}-ssm-policy"
+  roles      = [aws_iam_role.cloud_watch_agent_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # Instance profile for EC2 instances
 resource "aws_iam_instance_profile" "lablink_instance_profile" {
   name = "${var.resource_prefix}-instance-profile"
@@ -82,20 +89,39 @@ resource "aws_instance" "lablink_vm" {
     volume_type = "gp3"
   }
 
-  user_data = templatefile("${path.module}/user_data.sh", {
-    allocator_ip                = var.allocator_ip
-    allocator_url               = var.allocator_url
-    repository                  = var.repository
-    resource_prefix             = var.resource_prefix
-    image_name                  = var.image_name
-    count_index                 = count.index + 1
-    subject_software            = var.subject_software
-    gpu_support                 = var.gpu_support
-    cloud_init_output_log_group = var.cloud_init_output_log_group
-    region                      = var.region
-    startup_content_b64         = local.startup_content_b64
-    startup_on_error            = var.startup_on_error
-  })
+  user_data = base64encode(join("\n", [
+    "Content-Type: multipart/mixed; boundary=\"BOUNDARY\"",
+    "MIME-Version: 1.0",
+    "",
+    "--BOUNDARY",
+    "Content-Type: text/cloud-config; charset=\"us-ascii\"",
+    "MIME-Version: 1.0",
+    "",
+    "# Run user_data on every boot so stop/start reboots re-execute it",
+    "#cloud-config",
+    "cloud_final_modules:",
+    "  - [scripts-user, always]",
+    "",
+    "--BOUNDARY",
+    "Content-Type: text/x-shellscript; charset=\"us-ascii\"",
+    "MIME-Version: 1.0",
+    "",
+    templatefile("${path.module}/user_data.sh", {
+      allocator_ip                = var.allocator_ip
+      allocator_url               = var.allocator_url
+      repository                  = var.repository
+      resource_prefix             = var.resource_prefix
+      image_name                  = var.image_name
+      count_index                 = count.index + 1
+      subject_software            = var.subject_software
+      gpu_support                 = var.gpu_support
+      cloud_init_output_log_group = var.cloud_init_output_log_group
+      region                      = var.region
+      startup_content_b64         = local.startup_content_b64
+      startup_on_error            = var.startup_on_error
+    }),
+    "--BOUNDARY--",
+  ]))
 
   tags = merge(local.common_tags, {
     Name = "${var.resource_prefix}-vm-${count.index + 1}"

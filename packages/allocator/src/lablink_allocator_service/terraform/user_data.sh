@@ -159,6 +159,14 @@ touch /etc/config/custom-startup.sh
 chmod +x /etc/config/custom-startup.sh
 
 
+# Stop and remove any existing containers (idempotent for re-runs)
+EXISTING=$(docker ps -aq 2>/dev/null || true)
+if [ -n "$EXISTING" ]; then
+    echo ">> Stopping existing containers for clean re-run..."
+    docker stop $EXISTING 2>/dev/null || true
+    docker rm $EXISTING 2>/dev/null || true
+fi
+
 echo ">> Starting container..."
 if docker run -dit $DOCKER_GPU_ARGS \
     --mount type=bind,src=/etc/config,dst=/docker_scripts/,ro \

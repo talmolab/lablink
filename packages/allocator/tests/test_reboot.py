@@ -274,12 +274,12 @@ def test_reboot_vm_ssh_success(monkeypatch):
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
-def test_reboot_vm_ssh_fails_fallback_stop_start(monkeypatch):
-    """Test fallback to stop/start when SSH fails."""
+def test_reboot_vm_ssh_fails_ssm_succeeds(monkeypatch):
+    """Test fallback to SSM when SSH fails."""
     monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
     monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
     monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: True)
+    monkeypatch.setattr(reboot_mod, "ssm_run_command", lambda *a, **kw: True)
 
     mock_db = MagicMock()
     service = AutoRebootService(
@@ -300,11 +300,38 @@ def test_reboot_vm_ssh_fails_fallback_stop_start(monkeypatch):
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
-def test_reboot_vm_no_ip_fallback_stop_start(monkeypatch):
-    """Test fallback to stop/start when no public IP available."""
+def test_reboot_vm_ssh_ssm_fail_fallback_stop_start(monkeypatch):
+    """Test fallback to stop/start when SSH and SSM both fail."""
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
+    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+    monkeypatch.setattr(reboot_mod, "ssm_run_command", lambda *a, **kw: False)
+    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: True)
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    # SSH fails
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stderr = "Connection refused"
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._reboot_vm("vm-1")
+
+    assert result is True
+    mock_db.record_reboot.assert_called_once_with("vm-1")
+
+
+def test_reboot_vm_no_ip_ssm_succeeds(monkeypatch):
+    """Test SSM fallback when no public IP available."""
     monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
     monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: None)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: True)
+    monkeypatch.setattr(reboot_mod, "ssm_run_command", lambda *a, **kw: True)
 
     mock_db = MagicMock()
     service = AutoRebootService(
@@ -319,11 +346,12 @@ def test_reboot_vm_no_ip_fallback_stop_start(monkeypatch):
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
-def test_reboot_vm_both_methods_fail(monkeypatch):
-    """Test when both SSH and stop/start fail."""
+def test_reboot_vm_all_methods_fail(monkeypatch):
+    """Test when SSH, SSM, and stop/start all fail."""
     monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
     monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
     monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+    monkeypatch.setattr(reboot_mod, "ssm_run_command", lambda *a, **kw: False)
     monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: False)
 
     mock_db = MagicMock()
