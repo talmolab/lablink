@@ -110,15 +110,22 @@ def _numeric_sort_key(address: str):
 def _extract_startup_script_from_user_data(user_data_content: str) -> str | None:
     """Extract and decode the base64-encoded startup script from user_data.
 
-    The user_data.sh template embeds the startup script as:
+    The user_data is a base64-encoded multipart MIME blob. Inside the shell
+    script part, the startup script is embedded as:
         echo '<base64_content>' | base64 -d > /etc/config/custom-startup.sh
 
     Returns the decoded script content, or None if not found.
     """
+    # user_data is base64-encoded (multipart MIME); decode the outer layer first
+    try:
+        decoded_user_data = base64.b64decode(user_data_content).decode("utf-8")
+    except Exception:
+        decoded_user_data = user_data_content
+
     # Match: echo '<base64>' | base64 -d > /etc/config/custom-startup.sh
     match = re.search(
         r"echo '([A-Za-z0-9+/=]*)' \| base64 -d > /etc/config/custom-startup\.sh",
-        user_data_content,
+        decoded_user_data,
     )
     if match:
         b64_content = match.group(1)
