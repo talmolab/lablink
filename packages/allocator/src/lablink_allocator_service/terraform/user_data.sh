@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -Eeuo pipefail
 
 # Start time
 CLOUD_INIT_START_TIME=$(date +%s)
@@ -26,6 +26,9 @@ send_status() {
         -H "Content-Type: application/json" \
         -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
 }
+
+# Trap any command failure and report error status immediately
+trap 'send_status "error"' ERR
 
 # Send initial status
 send_status "initializing"
@@ -110,9 +113,15 @@ JSON
 
     systemctl restart docker
 
-    until docker info >/dev/null 2>&1;
-        do
+    DOCKER_WAIT=0
+    until docker info >/dev/null 2>&1; do
         sleep 1
+        DOCKER_WAIT=$((DOCKER_WAIT + 1))
+        if [ "$DOCKER_WAIT" -ge 60 ]; then
+            echo "Docker failed to start within 60 seconds!" >&2
+            send_status "error"
+            exit 1
+        fi
     done
 
     echo ">> Docker restarted with cgroupfs."
