@@ -340,6 +340,12 @@ def test_missing_custom_startup_script(fixture_dir):
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
     user_data_content = instances[first_instance_addr]["values"]["user_data"]
 
+    # user_data is base64-encoded (multipart MIME); decode the outer layer
+    try:
+        user_data_content = base64.b64decode(user_data_content).decode("utf-8")
+    except Exception:
+        pass
+
     # When no startup script exists, it should touch an empty file
     assert "touch /etc/config/custom-startup.sh" in user_data_content
     # Should not have the base64 decode command
