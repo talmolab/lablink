@@ -71,6 +71,166 @@ def check_support_nvidia(machine_type) -> bool:
     return False
 
 
+def get_instance_id_by_name(name: str, region: str = "us-west-2") -> Optional[str]:
+    """Look up an EC2 instance ID by its Name tag.
+
+    Args:
+        name: The Name tag value of the EC2 instance.
+        region: The AWS region to search in.
+
+    Returns:
+        The instance ID if found, None otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
+    try:
+        response = ec2.describe_instances(
+            Filters=[
+                {"Name": "tag:Name", "Values": [name]},
+                {
+                    "Name": "instance-state-name",
+                    "Values": ["running", "stopped", "pending"],
+                },
+            ]
+        )
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                return instance["InstanceId"]
+    except ClientError as e:
+        logger.error(f"Error looking up instance by name '{name}': {e}")
+    return None
+
+
+def get_instance_public_ip(
+    instance_id: str, region: str = "us-west-2"
+) -> Optional[str]:
+    """Get the public IP address of an EC2 instance.
+
+    Args:
+        instance_id: The EC2 instance ID.
+        region: The AWS region where the instance is located.
+
+    Returns:
+        The public IP address if available, None otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
+    try:
+        response = ec2.describe_instances(InstanceIds=[instance_id])
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                ip = instance.get("PublicIpAddress")
+                if ip:
+                    return ip
+    except ClientError as e:
+        logger.error(f"Error getting public IP for instance {instance_id}: {e}")
+    return None
+
+
+def stop_start_ec2_instance(instance_id: str, region: str = "us-west-2") -> bool:
+    """Stop and start an EC2 instance (last-resort fallback).
+
+    Calls stop_instances, waits for stopped state, then starts again.
+    Note: This does NOT clear cloud-init state, so user_data.sh will
+    not re-run. This is a best-effort restart for cases where SSH is
+    unreachable (e.g., hung processes, OOM).
+
+    Args:
+        instance_id: The EC2 instance ID.
+        region: The AWS region where the instance is located.
+
+    Returns:
+        True if stop/start completed successfully, False otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
+    try:
+        logger.info(f"Stopping instance {instance_id}...")
+        ec2.stop_instances(InstanceIds=[instance_id])
+        waiter = ec2.get_waiter("instance_stopped")
+        waiter.wait(
+            InstanceIds=[instance_id],
+            WaiterConfig={"Delay": 10, "MaxAttempts": 40},
+        )
+        logger.info(f"Instance {instance_id} stopped, starting...")
+        ec2.start_instances(InstanceIds=[instance_id])
+        logger.info(f"Start initiated for instance {instance_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to stop/start instance {instance_id}: {e}")
+        return False
+
+
+def ssm_run_command(
+    instance_id: str,
+    commands: list,
+    region: str = "us-west-2",
+    timeout_seconds: int = 60,
+) -> bool:
+    """Run a command on an EC2 instance via SSM RunCommand.
+
+    Requires the SSM agent to be running on the instance and the
+    instance's IAM role to include the AmazonSSMManagedInstanceCore
+    policy.
+
+    Args:
+        instance_id: The EC2 instance ID.
+        commands: List of shell commands to execute.
+        region: The AWS region.
+        timeout_seconds: Timeout for the command execution.
+
+    Returns:
+        True if the command was sent successfully, False otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ssm = boto3.client("ssm", **kwargs)
+    try:
+        response = ssm.send_command(
+            InstanceIds=[instance_id],
+            DocumentName="AWS-RunShellScript",
+            Parameters={"commands": commands},
+            TimeoutSeconds=timeout_seconds,
+        )
+        command_id = response["Command"]["CommandId"]
+        logger.info(
+            f"SSM command {command_id} sent to {instance_id}"
+        )
+        return True
+    except ClientError as e:
+        logger.warning(
+            f"SSM command failed for {instance_id}: {e}"
+        )
+        return False
+
+
 def upload_to_s3(
     local_path: Path,
     env: str,

@@ -40,6 +40,7 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_instance_timings,
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
+from lablink_allocator_service.reboot import AutoRebootService
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -71,6 +72,9 @@ database = None
 
 # Scheduler service (initialized in main())
 scheduler_service = None
+
+# Auto-reboot service (initialized in main())
+reboot_service = None
 
 
 def init_database():
@@ -598,6 +602,46 @@ def get_all_vm_status():
         return jsonify({"error": "Failed to get VM status."}), 500
 
 
+@app.route("/api/reboot-vm", methods=["POST"])
+@auth.login_required
+def reboot_vm():
+    """Manually trigger a reboot for a specific VM."""
+    data = request.get_json()
+    hostname = data.get("hostname")
+
+    if not hostname:
+        return jsonify({"error": "Hostname is required."}), 400
+
+    if not database.vm_exists(hostname):
+        return jsonify({"error": "VM not found."}), 404
+
+    try:
+        success = reboot_service._reboot_vm(hostname)
+        if success:
+            return jsonify({
+                "message": f"Reboot initiated for VM '{hostname}'.",
+            }), 200
+        else:
+            return jsonify({"error": "Failed to initiate reboot."}), 500
+    except Exception as e:
+        logger.error(f"Error rebooting VM '{hostname}': {e}")
+        return jsonify({"error": "Failed to reboot VM."}), 500
+
+
+@app.route("/api/reboot-vm/<hostname>", methods=["GET"])
+@auth.login_required
+def get_reboot_info(hostname):
+    """Get reboot tracking info for a specific VM."""
+    if not database.vm_exists(hostname):
+        return jsonify({"error": "VM not found."}), 404
+
+    info = database.get_reboot_info(hostname)
+    if info is None:
+        return jsonify({"error": "Could not retrieve reboot info."}), 500
+
+    return jsonify({"hostname": hostname, **info}), 200
+
+
 @app.route("/api/vm-logs", methods=["POST"])
 def receive_vm_logs():
     try:
@@ -867,7 +911,7 @@ def scheduled_destruction_page():
 
 def main():
     """Main entry point for the allocator service."""
-    global scheduler_service
+    global scheduler_service, reboot_service
 
     try:
         with app.app_context():
@@ -886,6 +930,17 @@ def main():
         scheduler_service.start()
         atexit.register(scheduler_service.stop)
         logger.info("Scheduler service started successfully")
+
+        # Initialize auto-reboot service
+        logger.info("Initializing auto-reboot service...")
+        reboot_service = AutoRebootService(
+            database=database,
+            region=cfg.app.region,
+            terraform_dir=str(TERRAFORM_DIR),
+        )
+        reboot_service.start()
+        atexit.register(reboot_service.stop)
+        logger.info("Auto-reboot service started successfully")
 
         # Terraform initialization
         if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
@@ -922,7 +977,16 @@ def main():
     except Exception as e:
         logger.error(f"Failed to start allocator service: {e}", exc_info=True)
 
-        # Clean up scheduler if it was initialized
+        # Clean up services if they were initialized
+        if reboot_service is not None:
+            try:
+                logger.info("Stopping auto-reboot service due to startup failure...")
+                reboot_service.stop()
+            except Exception as cleanup_error:
+                logger.error(
+                    f"Error stopping reboot service during cleanup: {cleanup_error}"
+                )
+
         if scheduler_service is not None:
             try:
                 logger.info("Stopping scheduler service due to startup failure...")
