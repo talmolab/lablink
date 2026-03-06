@@ -164,7 +164,7 @@ jobs:
           fi
 
           if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.4.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-terraform-1.6.6$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-allocator-image:$PLATFORM-postgres-15$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then

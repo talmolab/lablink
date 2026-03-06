@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.11-trixie-slim
+FROM ghcr.io/astral-sh/uv:0.10-python3.11-trixie-slim
 
 # Build argument for package version
 ARG PACKAGE_VERSION=0.0.3a0
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y curl unzip && \
-    curl -fsSL https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_amd64.zip -o /tmp/terraform.zip && \
+    curl -fsSL https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip -o /tmp/terraform.zip && \
     unzip /tmp/terraform.zip -d /usr/local/bin && \
     rm /tmp/terraform.zip && \
     rm -rf /var/lib/apt/lists/*

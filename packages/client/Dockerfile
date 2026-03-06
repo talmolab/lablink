@@ -143,7 +143,7 @@ ARG PACKAGE_VERSION=0.0.8a0
 RUN mkdir -p /home/client/.local/bin
 
 # Install uv under client user (not root) to avoid permission issues
-COPY --chown=client:client --from=ghcr.io/astral-sh/uv:latest /uv /uvx /home/client/.local/bin/
+COPY --chown=client:client --from=ghcr.io/astral-sh/uv:0.10 /uv /uvx /home/client/.local/bin/
 
 # Set UV environment variables to use user-owned directories
 ENV UV_CACHE_DIR=/home/client/.cache/uv
