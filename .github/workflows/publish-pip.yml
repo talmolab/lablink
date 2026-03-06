@@ -69,13 +69,13 @@ jobs:
 
       - name: Checkout repository
         if: steps.should_run.outputs.should_run == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup UV
         if: steps.should_run.outputs.should_run == 'true'
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.11'
 
