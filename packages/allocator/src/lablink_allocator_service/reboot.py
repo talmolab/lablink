@@ -14,7 +14,6 @@ from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
     get_instance_id_by_name,
     get_instance_public_ip,
-    ssm_run_command,
     stop_start_ec2_instance,
 )
 from lablink_allocator_service.utils.terraform_utils import get_ssh_private_key
@@ -154,11 +153,9 @@ class AutoRebootService:
     def _reboot_vm(self, hostname: str) -> bool:
         """Reboot a single VM by hostname.
 
-        Tries three methods in order:
+        Tries two methods in order:
         1. SSH hard reboot (cloud-init clean + reboot)
-        2. SSM RunCommand (cloud-init clean + reboot) — when SSH is
-           unreachable but SSM agent is running
-        3. Stop/start — last resort, relies on per-boot cloud-init
+        2. Stop/start — last resort, relies on per-boot cloud-init
            config to re-run user_data
 
         Args:
@@ -199,26 +196,9 @@ class AutoRebootService:
                     f"Could not get SSH key for hard reboot: {e}"
                 )
 
-        # 2) Try SSM RunCommand
+        # 2) Last resort: stop/start
         logger.info(
-            f"SSH unavailable for VM '{hostname}', trying SSM"
-        )
-        ssm_success = ssm_run_command(
-            instance_id,
-            commands=["cloud-init clean", "reboot"],
-            region=self.region,
-        )
-        if ssm_success:
-            self.database.record_reboot(hostname)
-            logger.info(
-                f"SSM reboot initiated for VM '{hostname}' "
-                f"({instance_id})"
-            )
-            return True
-
-        # 3) Last resort: stop/start
-        logger.info(
-            f"SSM failed for VM '{hostname}', falling back "
+            f"SSH unavailable for VM '{hostname}', falling back "
             f"to stop/start"
         )
         success = stop_start_ec2_instance(

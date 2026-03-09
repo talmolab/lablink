@@ -59,13 +59,6 @@ resource "aws_iam_policy_attachment" "cloudwatch_agent_policy" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# Policy to allow SSM agent for remote command execution (reboot fallback)
-resource "aws_iam_policy_attachment" "ssm_managed_policy" {
-  name       = "${var.resource_prefix}-ssm-policy"
-  roles      = [aws_iam_role.cloud_watch_agent_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
 # Instance profile for EC2 instances
 resource "aws_iam_instance_profile" "lablink_instance_profile" {
   name = "${var.resource_prefix}-instance-profile"

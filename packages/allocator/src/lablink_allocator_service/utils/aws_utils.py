@@ -182,55 +182,6 @@ def stop_start_ec2_instance(instance_id: str, region: str = "us-west-2") -> bool
         return False
 
 
-def ssm_run_command(
-    instance_id: str,
-    commands: list,
-    region: str = "us-west-2",
-    timeout_seconds: int = 60,
-) -> bool:
-    """Run a command on an EC2 instance via SSM RunCommand.
-
-    Requires the SSM agent to be running on the instance and the
-    instance's IAM role to include the AmazonSSMManagedInstanceCore
-    policy.
-
-    Args:
-        instance_id: The EC2 instance ID.
-        commands: List of shell commands to execute.
-        region: The AWS region.
-        timeout_seconds: Timeout for the command execution.
-
-    Returns:
-        True if the command was sent successfully, False otherwise.
-    """
-    kwargs = {
-        "region_name": region,
-        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-    }
-    if os.getenv("AWS_SESSION_TOKEN"):
-        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
-
-    ssm = boto3.client("ssm", **kwargs)
-    try:
-        response = ssm.send_command(
-            InstanceIds=[instance_id],
-            DocumentName="AWS-RunShellScript",
-            Parameters={"commands": commands},
-            TimeoutSeconds=timeout_seconds,
-        )
-        command_id = response["Command"]["CommandId"]
-        logger.info(
-            f"SSM command {command_id} sent to {instance_id}"
-        )
-        return True
-    except ClientError as e:
-        logger.warning(
-            f"SSM command failed for {instance_id}: {e}"
-        )
-        return False
-
-
 def upload_to_s3(
     local_path: Path,
     env: str,

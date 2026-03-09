@@ -451,29 +451,6 @@ ssh -o IdentitiesOnly=yes -i ~/lablink-key.pem ubuntu@<ip>
 
 ## Alternative Access Methods
 
-### AWS Systems Manager Session Manager
-
-No SSH keys needed:
-
-```bash
-# Install Session Manager plugin
-# macOS
-brew install --cask session-manager-plugin
-
-# Start session
-aws ssm start-session --target i-xxxxx
-```
-
-**Benefits**:
-- No SSH keys to manage
-- Works even if security group blocks port 22
-- Audit logs in CloudTrail
-- IAM-based access control
-
-**Requirements**:
-- SSM agent installed on instance (default for recent AMIs)
-- IAM role attached to instance with SSM permissions
-
 ### EC2 Instance Connect
 
 Browser-based SSH (AWS Console):
@@ -531,8 +508,6 @@ For debugging boot issues:
    ```bash
    terraform destroy && terraform apply  # Generates new keys
    ```
-
-6. **Use Session Manager**: Avoid SSH when possible
 
 ## Next Steps
 
