@@ -883,8 +883,8 @@ class PostgresqlDatabase:
                OR (healthy = 'Unhealthy'
                    AND status NOT IN ('rebooting', 'error'))
                OR (status = 'initializing'
-                   AND terraform_apply_start_time IS NOT NULL
-                   AND terraform_apply_start_time < NOW()
+                   AND createdat IS NOT NULL
+                   AND createdat < NOW()
                    - INTERVAL '{init_minutes} minutes')
                OR (status = 'rebooting'
                    AND last_reboot_time IS NOT NULL
