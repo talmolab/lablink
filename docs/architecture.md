@@ -106,6 +106,13 @@ graph TB
    - Manages AWS credentials
    - Handles security group configuration
 
+5. **Auto-Reboot Service**:
+   - Background daemon that monitors for failed VMs
+   - Automatically reboots VMs in error state, with unhealthy GPUs, or stuck initializing/rebooting
+   - Primary method: SSH hard reboot (`cloud-init clean && reboot`)
+   - Fallback: EC2 stop/start cycle (for OOM or hung processes)
+   - Respects cooldown periods (default: 300s) and max attempt limits (default: 3)
+
 **Configuration**: See `packages/allocator/src/lablink_allocator/conf/structured_config.py`
 
 ### Client Service
@@ -143,13 +150,15 @@ graph TB
 
 **Table: `vms`**
 
-| Column       | Type         | Description                          |
-| ------------ | ------------ | ------------------------------------ |
-| `Hostname`   | VARCHAR(255) | VM hostname/identifier (Primary Key) |
-| `UserEmail`  | VARCHAR(255) | User email                           |
-| `Status`     | VARCHAR(50)  | VM status (available/in-use/failed)  |
-| `CrdCommand` | TEXT         | Command to execute on VM             |
-| `CreatedAt`  | TIMESTAMP    | Creation timestamp                   |
+| Column            | Type         | Description                                            |
+| ----------------- | ------------ | ------------------------------------------------------ |
+| `Hostname`        | VARCHAR(255) | VM hostname/identifier (Primary Key)                   |
+| `UserEmail`       | VARCHAR(255) | User email                                             |
+| `Status`          | VARCHAR(50)  | VM status (running/initializing/error/rebooting)       |
+| `CrdCommand`      | TEXT         | Command to execute on VM                               |
+| `CreatedAt`       | TIMESTAMP    | Creation timestamp                                     |
+| `reboot_count`    | INTEGER      | Number of reboot attempts (default: 0)                 |
+| `last_reboot_time`| TIMESTAMP    | When the last reboot was attempted                     |
 
 **Triggers**:
 
@@ -168,6 +177,10 @@ stateDiagram-v2
 
     available --> failed: Startup failure<br/>(boot error)
     in_use --> failed: Health check failed<br/>(GPU error, system crash)
+
+    failed --> rebooting: Auto-reboot triggered<br/>(or manual reboot)
+    rebooting --> available: Reboot succeeds<br/>(VM re-initializes)
+    rebooting --> failed: Reboot fails<br/>(or stuck > 10 min)
 
     failed --> available: Admin intervention<br/>(manual reset)
     failed --> [*]: VM Destroyed<br/>(terraform destroy)
@@ -191,6 +204,12 @@ stateDiagram-v2
         Health checks failing
         Removed from pool
     end note
+
+    note right of rebooting
+        Reboot in progress
+        SSH or stop/start
+        Max 3 attempts
+    end note
 ```
 
 **State Transitions**:
@@ -198,17 +217,21 @@ stateDiagram-v2
 - **available → in_use**: Configured software process starts running on the VM
 - **in_use → available**: Software process stops (task complete or process ends)
 - **available/in_use → failed**: Health checks fail or errors occur
+- **failed → rebooting**: Auto-reboot service detects failure and initiates reboot
+- **rebooting → available**: VM successfully reboots and re-initializes
+- **rebooting → failed**: Reboot fails or VM stuck in rebooting state > 10 minutes
 - **failed → available**: Admin manually resets and fixes the VM
 - **any → [*]**: VM is destroyed via Terraform
 
 **State Mapping to Database Columns**
 
-| State        | `Status` column value | `InUse` column value | Description### Infrastructure Components           |
+| State        | `Status` column value | `InUse` column value | Description                                        |
 | ------------ | --------------------- | -------------------- | -------------------------------------------------- |
 | available    | "running"             | `False`              | VM is ready and waiting for user workload          |
 | in_use       | "running"             | `True`               | Configured software is running on VM               |
-| failed       | "failed"              | (Any)                | VM has encountered an error or health check failed |
+| failed       | "error"               | (Any)                | VM has encountered an error or health check failed |
 | initializing | "initializing"        | `False`              | VM is booting up and not yet ready                 |
+| rebooting    | "rebooting"           | `False`              | VM is being rebooted (SSH or stop/start)           |
 
 **Note**: The `in_use` status indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not whether a user has been assigned the VM. This is monitored by the `update_inuse_status` service which checks for the configured process.
 

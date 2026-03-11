@@ -512,7 +512,7 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
             status (str): The new status to set for the VM.
         """
-        possible_statuses = ["running", "initializing", "unknown", "error"]
+        possible_statuses = ["running", "initializing", "unknown", "error", "rebooting"]
         if status not in possible_statuses:
             logger.error(f"Invalid VM status '{status}' for '{hostname}'")
             return
@@ -834,6 +834,128 @@ class PostgresqlDatabase:
         query = "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;"
         self.cursor.execute(query, (schedule_id,))
         self.conn.commit()
+
+    def ensure_reboot_columns(self) -> None:
+        """Add reboot tracking columns to vm_table if they don't exist."""
+        columns = {
+            "reboot_count": "INTEGER DEFAULT 0",
+            "last_reboot_time": "TIMESTAMP",
+        }
+        for col_name, col_type in columns.items():
+            try:
+                self.cursor.execute(
+                    f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS "
+                    f"{col_name} {col_type};"
+                )
+                self.conn.commit()
+            except Exception as e:
+                logger.error(f"Failed to add column {col_name}: {e}")
+                self.conn.rollback()
+
+    def get_failed_vms(
+        self,
+        stale_initializing_minutes: int = 15,
+        stale_rebooting_minutes: int = 10,
+    ) -> List[dict]:
+        """Get VMs that need a reboot attempt.
+
+        Detects VMs in error state, with unhealthy GPUs, stuck initializing,
+        or stuck in rebooting state (failed to come back after a reboot).
+
+        Args:
+            stale_initializing_minutes: Minutes after which an initializing VM
+                is considered stale and eligible for reboot.
+            stale_rebooting_minutes: Minutes after which a rebooting VM is
+                considered stuck and eligible for another reboot attempt.
+
+        Returns:
+            list: VMs eligible for reboot with hostname, status, healthy,
+                  reboot_count, and last_reboot_time.
+        """
+        init_minutes = int(stale_initializing_minutes)
+        reboot_minutes = int(stale_rebooting_minutes)
+        query = f"""
+            SELECT hostname, status, healthy,
+                   COALESCE(reboot_count, 0) as reboot_count,
+                   last_reboot_time
+            FROM {self.table_name}
+            WHERE status = 'error'
+               OR (healthy = 'Unhealthy'
+                   AND status NOT IN ('rebooting', 'error'))
+               OR (status = 'initializing'
+                   AND createdat IS NOT NULL
+                   AND createdat < NOW()
+                   - INTERVAL '{init_minutes} minutes')
+               OR (status = 'rebooting'
+                   AND last_reboot_time IS NOT NULL
+                   AND last_reboot_time < NOW()
+                   - INTERVAL '{reboot_minutes} minutes');
+        """
+        try:
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
+            return [
+                {
+                    "hostname": row[0],
+                    "status": row[1],
+                    "healthy": row[2],
+                    "reboot_count": row[3],
+                    "last_reboot_time": row[4],
+                }
+                for row in rows
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get failed VMs: {e}")
+            return []
+
+    def record_reboot(self, hostname: str) -> None:
+        """Record a reboot attempt for a VM.
+
+        Sets status to 'rebooting', increments reboot_count, and updates
+        last_reboot_time.
+
+        Args:
+            hostname: The hostname of the VM being rebooted.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET status = 'rebooting',
+                reboot_count = COALESCE(reboot_count, 0) + 1,
+                last_reboot_time = NOW()
+            WHERE hostname = %s;
+        """
+        try:
+            self.cursor.execute(query, (hostname,))
+            self.conn.commit()
+            logger.info(f"Recorded reboot for VM '{hostname}'")
+        except Exception as e:
+            logger.error(f"Failed to record reboot for VM '{hostname}': {e}")
+            self.conn.rollback()
+            raise
+
+    def get_reboot_info(self, hostname: str) -> Optional[dict]:
+        """Get reboot tracking info for a VM.
+
+        Args:
+            hostname: The hostname of the VM.
+
+        Returns:
+            dict with reboot_count and last_reboot_time, or None if not found.
+        """
+        query = f"""
+            SELECT COALESCE(reboot_count, 0), last_reboot_time
+            FROM {self.table_name}
+            WHERE hostname = %s;
+        """
+        try:
+            self.cursor.execute(query, (hostname,))
+            row = self.cursor.fetchone()
+            if row:
+                return {"reboot_count": row[0], "last_reboot_time": row[1]}
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get reboot info for VM '{hostname}': {e}")
+            return None
 
     def __del__(self):
         """Close the database connection when the object is deleted."""

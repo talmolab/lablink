@@ -595,25 +595,6 @@ terraform apply -var="resource_suffix=dev"
 **Instead**:
 - Use SSH agent: `ssh-add ~/lablink-key.pem`
 - Store in password manager
-- Use AWS Systems Manager Session Manager (no SSH needed)
-
-### Session Manager (Alternative to SSH)
-
-Use AWS Systems Manager for SSH-less access:
-
-```bash
-# Install Session Manager plugin
-# macOS
-brew install --cask session-manager-plugin
-
-# Start session
-aws ssm start-session --target i-xxxxx
-```
-
-**Benefits**:
-- No SSH keys needed
-- Audit logs in CloudTrail
-- Fine-grained IAM control
 
 ## Data Encryption
 

@@ -653,7 +653,68 @@ After updating IAM permissions, redeploy infrastructure for changes to take effe
 
 ### Client VM Issues
 
-#### Client VM Not Registering
+#### VM Auto-Reboot Not Working
+
+**Symptoms**: Failed VMs are not being automatically rebooted
+
+**How Auto-Reboot Works**:
+
+The allocator runs a background `AutoRebootService` that checks for failed VMs every 60 seconds. It detects VMs that are:
+
+- In `error` status
+- In `running` status but with `Unhealthy` GPU health
+- Stuck in `initializing` status for more than 15 minutes
+- Stuck in `rebooting` status for more than 10 minutes (previous reboot failed)
+
+For each failed VM, it attempts:
+
+1. **SSH hard reboot**: `sudo cloud-init clean && sudo reboot` (clears cloud-init state and reboots)
+2. **EC2 stop/start fallback**: If SSH fails (e.g., OOM, hung processes), stops and restarts the instance
+
+**Limits**:
+
+- **Max attempts**: 3 reboots per VM (prevents infinite loops)
+- **Cooldown**: 300 seconds between consecutive reboots of the same VM
+
+**Diagnosis**:
+
+1. **Check allocator logs for reboot activity**:
+   ```bash
+   ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+   sudo docker logs <allocator-container-id> | grep -i reboot
+   ```
+
+2. **Check reboot count for a specific VM**:
+   ```bash
+   # Via API (requires admin auth)
+   curl -u admin:<password> http://<allocator-ip>/api/reboot-vm/<hostname>
+   ```
+
+3. **Check if max attempts exceeded**:
+   ```bash
+   # Query database
+   sudo docker exec <container-id> psql -U lablink -d lablink_db -c \
+     "SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count >= 3;"
+   ```
+
+**Solutions**:
+
+1. **If max attempts reached**: The VM needs manual intervention. Reset the reboot count and fix the underlying issue:
+   ```sql
+   UPDATE vms SET reboot_count = 0, status = 'error' WHERE hostname = 'lablink-vm-xxx';
+   ```
+
+2. **If SSH key not found**: Ensure Terraform state is present and the SSH key is accessible to the allocator.
+
+3. **Manually trigger a reboot** via the API:
+   ```bash
+   curl -X POST -u admin:<password> \
+     -H "Content-Type: application/json" \
+     -d '{"hostname": "lablink-vm-xxx"}' \
+     http://<allocator-ip>/api/reboot-vm
+   ```
+
+### Client VM Not Registering
 
 **Symptoms**: VM created but doesn't appear in allocator database
 
