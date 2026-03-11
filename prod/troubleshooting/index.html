@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -1544,6 +1544,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/reboot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reboot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
@@ -1587,7 +1615,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1609,14 +1637,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_2_1_1_7" id="__nav_5_2_1_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_8" id="__nav_5_2_1_1_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_2_1_1_7">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2613,6 +2641,22 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#vm-auto-reboot-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VM Auto-Reboot Not Working
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#client-vm-not-registering" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2621,7 +2665,8 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Client VM Not Registering">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#gpu-not-available" class="md-nav__link">
@@ -3473,6 +3518,22 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#vm-auto-reboot-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VM Auto-Reboot Not Working
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#client-vm-not-registering" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3481,7 +3542,8 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Client VM Not Registering">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#gpu-not-available" class="md-nav__link">
@@ -4307,87 +4369,148 @@
 <li><strong>State lock</strong>: Clear lock if safe</li>
 </ol>
 <h3 id="client-vm-issues">Client VM Issues<a class="headerlink" href="#client-vm-issues" title="Permanent link">&para;</a></h3>
-<h4 id="client-vm-not-registering">Client VM Not Registering<a class="headerlink" href="#client-vm-not-registering" title="Permanent link">&para;</a></h4>
+<h4 id="vm-auto-reboot-not-working">VM Auto-Reboot Not Working<a class="headerlink" href="#vm-auto-reboot-not-working" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms</strong>: Failed VMs are not being automatically rebooted</p>
+<p><strong>How Auto-Reboot Works</strong>:</p>
+<p>The allocator runs a background <code>AutoRebootService</code> that checks for failed VMs every 60 seconds. It detects VMs that are:</p>
+<ul>
+<li>In <code>error</code> status</li>
+<li>In <code>running</code> status but with <code>Unhealthy</code> GPU health</li>
+<li>Stuck in <code>initializing</code> status for more than 15 minutes</li>
+<li>Stuck in <code>rebooting</code> status for more than 10 minutes (previous reboot failed)</li>
+</ul>
+<p>For each failed VM, it attempts:</p>
+<ol>
+<li><strong>SSH hard reboot</strong>: <code>sudo cloud-init clean &amp;&amp; sudo reboot</code> (clears cloud-init state and reboots)</li>
+<li><strong>EC2 stop/start fallback</strong>: If SSH fails (e.g., OOM, hung processes), stops and restarts the instance</li>
+</ol>
+<p><strong>Limits</strong>:</p>
+<ul>
+<li><strong>Max attempts</strong>: 3 reboots per VM (prevents infinite loops)</li>
+<li><strong>Cooldown</strong>: 300 seconds between consecutive reboots of the same VM</li>
+</ul>
+<p><strong>Diagnosis</strong>:</p>
+<ol>
+<li>
+<p><strong>Check allocator logs for reboot activity</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container-id&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>reboot
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check reboot count for a specific VM</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># Via API (requires admin auth)</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>http://&lt;allocator-ip&gt;/api/reboot-vm/&lt;hostname&gt;
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Check if max attempts exceeded</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a><span class="c1"># Query database</span>
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE reboot_count &gt;= 3;&quot;</span>
+</code></pre></div></p>
+</li>
+</ol>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>
+<p><strong>If max attempts reached</strong>: The VM needs manual intervention. Reset the reboot count and fix the underlying issue:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reboot_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;lablink-vm-xxx&#39;</span><span class="p">;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>If SSH key not found</strong>: Ensure Terraform state is present and the SSH key is accessible to the allocator.</p>
+</li>
+<li>
+<p><strong>Manually trigger a reboot</strong> via the API:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;hostname&quot;: &quot;lablink-vm-xxx&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-62-4" name="__codelineno-62-4" href="#__codelineno-62-4"></a><span class="w">  </span>http://&lt;allocator-ip&gt;/api/reboot-vm
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="client-vm-not-registering">Client VM Not Registering<a class="headerlink" href="#client-vm-not-registering" title="Permanent link">&para;</a></h3>
 <p><strong>Symptoms</strong>: VM created but doesn't appear in allocator database</p>
 <p><strong>Root Cause</strong>: VMs are not being inserted into the database after Terraform creates them.</p>
 <p><strong>Step-by-Step Diagnosis</strong>:</p>
 <ol>
 <li>
 <p><strong>Verify VMs were created by Terraform</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a><span class="c1"># Check terraform outputs from allocator</span>
-<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-58-3" name="__codelineno-58-3" href="#__codelineno-58-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>terraform<span class="w"> </span>-chdir<span class="o">=</span>/app/.venv/lib/python*/site-packages/lablink_allocator/terraform<span class="w"> </span>output<span class="w"> </span>vm_instance_names
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a><span class="c1"># Check terraform outputs from allocator</span>
+<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-63-3" name="__codelineno-63-3" href="#__codelineno-63-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>terraform<span class="w"> </span>-chdir<span class="o">=</span>/app/.venv/lib/python*/site-packages/lablink_allocator/terraform<span class="w"> </span>output<span class="w"> </span>vm_instance_names
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check if VMs exist in database</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a>
-<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="c1"># Query database</span>
-<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, inuse, status FROM vms;&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-64-3" name="__codelineno-64-3" href="#__codelineno-64-3"></a>
+<a id="__codelineno-64-4" name="__codelineno-64-4" href="#__codelineno-64-4"></a><span class="c1"># Query database</span>
+<a id="__codelineno-64-5" name="__codelineno-64-5" href="#__codelineno-64-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, inuse, status FROM vms;&quot;</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check client VM container logs</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container-id&gt;
-<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a>
-<a id="__codelineno-60-4" name="__codelineno-60-4" href="#__codelineno-60-4"></a><span class="c1"># Look for errors like:</span>
-<a id="__codelineno-60-5" name="__codelineno-60-5" href="#__codelineno-60-5"></a><span class="c1"># &quot;POST request failed with status code: 404&quot;</span>
-<a id="__codelineno-60-6" name="__codelineno-60-6" href="#__codelineno-60-6"></a><span class="c1"># &quot;VM not found&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;client-container-id&gt;
+<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a>
+<a id="__codelineno-65-4" name="__codelineno-65-4" href="#__codelineno-65-4"></a><span class="c1"># Look for errors like:</span>
+<a id="__codelineno-65-5" name="__codelineno-65-5" href="#__codelineno-65-5"></a><span class="c1"># &quot;POST request failed with status code: 404&quot;</span>
+<a id="__codelineno-65-6" name="__codelineno-65-6" href="#__codelineno-65-6"></a><span class="c1"># &quot;VM not found&quot;</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check allocator logs for /vm_startup requests</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container-id&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>vm_startup
-<a id="__codelineno-61-3" name="__codelineno-61-3" href="#__codelineno-61-3"></a>
-<a id="__codelineno-61-4" name="__codelineno-61-4" href="#__codelineno-61-4"></a><span class="c1"># Look for:</span>
-<a id="__codelineno-61-5" name="__codelineno-61-5" href="#__codelineno-61-5"></a><span class="c1"># POST /vm_startup - 404 errors</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>&lt;allocator-container-id&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>vm_startup
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a>
+<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="c1"># Look for:</span>
+<a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="c1"># POST /vm_startup - 404 errors</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Test network connectivity</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a><span class="c1"># From client VM</span>
-<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>curl<span class="w"> </span>http://&lt;allocator-ip&gt;/vm_startup<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-62-4" name="__codelineno-62-4" href="#__codelineno-62-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;hostname&quot;: &quot;lablink-vm-test-1&quot;}&#39;</span>
-<a id="__codelineno-62-5" name="__codelineno-62-5" href="#__codelineno-62-5"></a>
-<a id="__codelineno-62-6" name="__codelineno-62-6" href="#__codelineno-62-6"></a><span class="c1"># Expected if VM not in DB: {&quot;error&quot;:&quot;VM not found.&quot;}</span>
-<a id="__codelineno-62-7" name="__codelineno-62-7" href="#__codelineno-62-7"></a><span class="c1"># Expected if VM in DB: Success response</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a><span class="c1"># From client VM</span>
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a>curl<span class="w"> </span>http://&lt;allocator-ip&gt;/vm_startup<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-67-3" name="__codelineno-67-3" href="#__codelineno-67-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-67-4" name="__codelineno-67-4" href="#__codelineno-67-4"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;hostname&quot;: &quot;lablink-vm-test-1&quot;}&#39;</span>
+<a id="__codelineno-67-5" name="__codelineno-67-5" href="#__codelineno-67-5"></a>
+<a id="__codelineno-67-6" name="__codelineno-67-6" href="#__codelineno-67-6"></a><span class="c1"># Expected if VM not in DB: {&quot;error&quot;:&quot;VM not found.&quot;}</span>
+<a id="__codelineno-67-7" name="__codelineno-67-7" href="#__codelineno-67-7"></a><span class="c1"># Expected if VM in DB: Success response</span>
 </code></pre></div></p>
 </li>
 </ol>
 <p><strong>Solutions</strong>:</p>
 <p><strong>Option A: Manual Database Insertion (Temporary Fix)</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-63-3" name="__codelineno-63-3" href="#__codelineno-63-3"></a>
-<a id="__codelineno-63-4" name="__codelineno-63-4" href="#__codelineno-63-4"></a><span class="c1"># Get container ID</span>
-<a id="__codelineno-63-5" name="__codelineno-63-5" href="#__codelineno-63-5"></a><span class="nv">CONTAINER_ID</span><span class="o">=</span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span>
-<a id="__codelineno-63-6" name="__codelineno-63-6" href="#__codelineno-63-6"></a>
-<a id="__codelineno-63-7" name="__codelineno-63-7" href="#__codelineno-63-7"></a><span class="c1"># Insert VMs manually</span>
-<a id="__codelineno-63-8" name="__codelineno-63-8" href="#__codelineno-63-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-9" name="__codelineno-63-9" href="#__codelineno-63-9"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-1&#39;, FALSE);&quot;</span>
-<a id="__codelineno-63-10" name="__codelineno-63-10" href="#__codelineno-63-10"></a>
-<a id="__codelineno-63-11" name="__codelineno-63-11" href="#__codelineno-63-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-12" name="__codelineno-63-12" href="#__codelineno-63-12"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-2&#39;, FALSE);&quot;</span>
-<a id="__codelineno-63-13" name="__codelineno-63-13" href="#__codelineno-63-13"></a>
-<a id="__codelineno-63-14" name="__codelineno-63-14" href="#__codelineno-63-14"></a><span class="c1"># Verify</span>
-<a id="__codelineno-63-15" name="__codelineno-63-15" href="#__codelineno-63-15"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-16" name="__codelineno-63-16" href="#__codelineno-63-16"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, inuse FROM vms;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-68-3" name="__codelineno-68-3" href="#__codelineno-68-3"></a>
+<a id="__codelineno-68-4" name="__codelineno-68-4" href="#__codelineno-68-4"></a><span class="c1"># Get container ID</span>
+<a id="__codelineno-68-5" name="__codelineno-68-5" href="#__codelineno-68-5"></a><span class="nv">CONTAINER_ID</span><span class="o">=</span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span>
+<a id="__codelineno-68-6" name="__codelineno-68-6" href="#__codelineno-68-6"></a>
+<a id="__codelineno-68-7" name="__codelineno-68-7" href="#__codelineno-68-7"></a><span class="c1"># Insert VMs manually</span>
+<a id="__codelineno-68-8" name="__codelineno-68-8" href="#__codelineno-68-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-68-9" name="__codelineno-68-9" href="#__codelineno-68-9"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-1&#39;, FALSE);&quot;</span>
+<a id="__codelineno-68-10" name="__codelineno-68-10" href="#__codelineno-68-10"></a>
+<a id="__codelineno-68-11" name="__codelineno-68-11" href="#__codelineno-68-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-68-12" name="__codelineno-68-12" href="#__codelineno-68-12"></a><span class="w">  </span><span class="s2">&quot;INSERT INTO vms (hostname, inuse) VALUES (&#39;lablink-vm-test-2&#39;, FALSE);&quot;</span>
+<a id="__codelineno-68-13" name="__codelineno-68-13" href="#__codelineno-68-13"></a>
+<a id="__codelineno-68-14" name="__codelineno-68-14" href="#__codelineno-68-14"></a><span class="c1"># Verify</span>
+<a id="__codelineno-68-15" name="__codelineno-68-15" href="#__codelineno-68-15"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="nv">$CONTAINER_ID</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-68-16" name="__codelineno-68-16" href="#__codelineno-68-16"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, inuse FROM vms;&quot;</span>
 </code></pre></div></p>
 <p><strong>Option B: Code Fix (Permanent Solution)</strong></p>
 <p>The <code>/api/launch</code> endpoint needs to be updated to insert VMs after Terraform succeeds.</p>
 <p><strong>After Fix - Verify Registration</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="c1"># Watch client VM logs</span>
-<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-64-3" name="__codelineno-64-3" href="#__codelineno-64-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;client-container-id&gt;
-<a id="__codelineno-64-4" name="__codelineno-64-4" href="#__codelineno-64-4"></a>
-<a id="__codelineno-64-5" name="__codelineno-64-5" href="#__codelineno-64-5"></a><span class="c1"># Should see:</span>
-<a id="__codelineno-64-6" name="__codelineno-64-6" href="#__codelineno-64-6"></a><span class="c1"># &quot;POST request was successful.&quot;</span>
-<a id="__codelineno-64-7" name="__codelineno-64-7" href="#__codelineno-64-7"></a><span class="c1"># &quot;Received success response from server.&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a><span class="c1"># Watch client VM logs</span>
+<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-69-3" name="__codelineno-69-3" href="#__codelineno-69-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;client-container-id&gt;
+<a id="__codelineno-69-4" name="__codelineno-69-4" href="#__codelineno-69-4"></a>
+<a id="__codelineno-69-5" name="__codelineno-69-5" href="#__codelineno-69-5"></a><span class="c1"># Should see:</span>
+<a id="__codelineno-69-6" name="__codelineno-69-6" href="#__codelineno-69-6"></a><span class="c1"># &quot;POST request was successful.&quot;</span>
+<a id="__codelineno-69-7" name="__codelineno-69-7" href="#__codelineno-69-7"></a><span class="c1"># &quot;Received success response from server.&quot;</span>
 </code></pre></div></p>
 <p><strong>Preventive Measures</strong>:
 - Always verify VMs appear in database after creation
@@ -4399,20 +4522,20 @@
 <ol>
 <li>
 <p><strong>GPU instance type</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a><span class="c1"># Verify instance has GPU</span>
-<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].InstanceType&#39;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a><span class="c1"># Verify instance has GPU</span>
+<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-70-3" name="__codelineno-70-3" href="#__codelineno-70-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].InstanceType&#39;</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>NVIDIA drivers installed</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
-<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>nvidia-smi
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;client-vm-ip&gt;
+<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a>nvidia-smi
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Docker GPU support</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:11.0-base<span class="w"> </span>nvidia-smi
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>nvidia/cuda:11.0-base<span class="w"> </span>nvidia-smi
 </code></pre></div></p>
 </li>
 </ol>
@@ -4420,14 +4543,14 @@
 <ol>
 <li>
 <p><strong>Use GPU-enabled AMI</strong> or install drivers:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="c1"># Ubuntu Deep Learning AMI</span>
-<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a><span class="nv">ami_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ami-0c2b0d3fb02824d92&quot;</span><span class="w">  </span><span class="c1"># us-west-2</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a><span class="c1"># Ubuntu Deep Learning AMI</span>
+<a id="__codelineno-73-2" name="__codelineno-73-2" href="#__codelineno-73-2"></a><span class="nv">ami_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ami-0c2b0d3fb02824d92&quot;</span><span class="w">  </span><span class="c1"># us-west-2</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Verify Docker GPU runtime</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>cat<span class="w"> </span>/etc/docker/daemon.json
-<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a><span class="c1"># Should have: &quot;default-runtime&quot;: &quot;nvidia&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a>cat<span class="w"> </span>/etc/docker/daemon.json
+<a id="__codelineno-74-2" name="__codelineno-74-2" href="#__codelineno-74-2"></a><span class="c1"># Should have: &quot;default-runtime&quot;: &quot;nvidia&quot;</span>
 </code></pre></div></p>
 </li>
 </ol>
@@ -4439,95 +4562,95 @@
 <ol>
 <li>
 <p><strong>Verify DNS is enabled in config</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>cat<span class="w"> </span>lablink-infrastructure/config/config.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-A<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="s2">&quot;^dns:&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a>cat<span class="w"> </span>lablink-infrastructure/config/config.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-A<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="s2">&quot;^dns:&quot;</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check Route53 record exists</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a><span class="w">  </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-71-3" name="__codelineno-71-3" href="#__codelineno-71-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?Name==&#39;test.lablink.sleap.ai.&#39;]&quot;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-76-2" name="__codelineno-76-2" href="#__codelineno-76-2"></a><span class="w">  </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-76-3" name="__codelineno-76-3" href="#__codelineno-76-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?Name==&#39;test.lablink.sleap.ai.&#39;]&quot;</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Query authoritative nameservers directly</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a><span class="c1"># Should return the allocator IP</span>
-<a id="__codelineno-72-2" name="__codelineno-72-2" href="#__codelineno-72-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>ns-158.awsdns-19.com
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a><span class="c1"># Should return the allocator IP</span>
+<a id="__codelineno-77-2" name="__codelineno-77-2" href="#__codelineno-77-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>ns-158.awsdns-19.com
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check public DNS propagation</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a><span class="c1"># Google DNS</span>
-<a id="__codelineno-73-2" name="__codelineno-73-2" href="#__codelineno-73-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
-<a id="__codelineno-73-3" name="__codelineno-73-3" href="#__codelineno-73-3"></a>
-<a id="__codelineno-73-4" name="__codelineno-73-4" href="#__codelineno-73-4"></a><span class="c1"># Cloudflare DNS</span>
-<a id="__codelineno-73-5" name="__codelineno-73-5" href="#__codelineno-73-5"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">1</span>.1.1.1
-<a id="__codelineno-73-6" name="__codelineno-73-6" href="#__codelineno-73-6"></a>
-<a id="__codelineno-73-7" name="__codelineno-73-7" href="#__codelineno-73-7"></a><span class="c1"># Local DNS</span>
-<a id="__codelineno-73-8" name="__codelineno-73-8" href="#__codelineno-73-8"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-78-1" name="__codelineno-78-1" href="#__codelineno-78-1"></a><span class="c1"># Google DNS</span>
+<a id="__codelineno-78-2" name="__codelineno-78-2" href="#__codelineno-78-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+<a id="__codelineno-78-3" name="__codelineno-78-3" href="#__codelineno-78-3"></a>
+<a id="__codelineno-78-4" name="__codelineno-78-4" href="#__codelineno-78-4"></a><span class="c1"># Cloudflare DNS</span>
+<a id="__codelineno-78-5" name="__codelineno-78-5" href="#__codelineno-78-5"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">1</span>.1.1.1
+<a id="__codelineno-78-6" name="__codelineno-78-6" href="#__codelineno-78-6"></a>
+<a id="__codelineno-78-7" name="__codelineno-78-7" href="#__codelineno-78-7"></a><span class="c1"># Local DNS</span>
+<a id="__codelineno-78-8" name="__codelineno-78-8" href="#__codelineno-78-8"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Verify IP matches</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a><span class="c1"># Get terraform output</span>
-<a id="__codelineno-74-2" name="__codelineno-74-2" href="#__codelineno-74-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-74-3" name="__codelineno-74-3" href="#__codelineno-74-3"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
-<a id="__codelineno-74-4" name="__codelineno-74-4" href="#__codelineno-74-4"></a>
-<a id="__codelineno-74-5" name="__codelineno-74-5" href="#__codelineno-74-5"></a><span class="c1"># Compare with DNS resolution</span>
-<a id="__codelineno-74-6" name="__codelineno-74-6" href="#__codelineno-74-6"></a>dig<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>+short
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a><span class="c1"># Get terraform output</span>
+<a id="__codelineno-79-2" name="__codelineno-79-2" href="#__codelineno-79-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-79-3" name="__codelineno-79-3" href="#__codelineno-79-3"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
+<a id="__codelineno-79-4" name="__codelineno-79-4" href="#__codelineno-79-4"></a>
+<a id="__codelineno-79-5" name="__codelineno-79-5" href="#__codelineno-79-5"></a><span class="c1"># Compare with DNS resolution</span>
+<a id="__codelineno-79-6" name="__codelineno-79-6" href="#__codelineno-79-6"></a>dig<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span>+short
 </code></pre></div></p>
 </li>
 </ol>
 <p><strong>Solutions</strong>:</p>
 <p><strong>If record doesn't exist</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a><span class="c1"># Re-run terraform to create DNS record</span>
-<a id="__codelineno-75-2" name="__codelineno-75-2" href="#__codelineno-75-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-75-3" name="__codelineno-75-3" href="#__codelineno-75-3"></a>terraform<span class="w"> </span>apply
+<div class="highlight"><pre><span></span><code><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a><span class="c1"># Re-run terraform to create DNS record</span>
+<a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-80-3" name="__codelineno-80-3" href="#__codelineno-80-3"></a>terraform<span class="w"> </span>apply
 </code></pre></div></p>
 <p><strong>If DNS not propagating</strong>:
 - Wait 5-15 minutes for global propagation
 - Check NS delegation is correct (see below)
 - Try flushing local DNS cache:
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a><span class="c1"># macOS</span>
-<a id="__codelineno-76-2" name="__codelineno-76-2" href="#__codelineno-76-2"></a>sudo<span class="w"> </span>dscacheutil<span class="w"> </span>-flushcache<span class="p">;</span><span class="w"> </span>sudo<span class="w"> </span>killall<span class="w"> </span>-HUP<span class="w"> </span>mDNSResponder
-<a id="__codelineno-76-3" name="__codelineno-76-3" href="#__codelineno-76-3"></a>
-<a id="__codelineno-76-4" name="__codelineno-76-4" href="#__codelineno-76-4"></a><span class="c1"># Linux</span>
-<a id="__codelineno-76-5" name="__codelineno-76-5" href="#__codelineno-76-5"></a>sudo<span class="w"> </span>systemd-resolve<span class="w"> </span>--flush-caches
-<a id="__codelineno-76-6" name="__codelineno-76-6" href="#__codelineno-76-6"></a>
-<a id="__codelineno-76-7" name="__codelineno-76-7" href="#__codelineno-76-7"></a><span class="c1"># Windows</span>
-<a id="__codelineno-76-8" name="__codelineno-76-8" href="#__codelineno-76-8"></a>ipconfig<span class="w"> </span>/flushdns
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a><span class="c1"># macOS</span>
+<a id="__codelineno-81-2" name="__codelineno-81-2" href="#__codelineno-81-2"></a>sudo<span class="w"> </span>dscacheutil<span class="w"> </span>-flushcache<span class="p">;</span><span class="w"> </span>sudo<span class="w"> </span>killall<span class="w"> </span>-HUP<span class="w"> </span>mDNSResponder
+<a id="__codelineno-81-3" name="__codelineno-81-3" href="#__codelineno-81-3"></a>
+<a id="__codelineno-81-4" name="__codelineno-81-4" href="#__codelineno-81-4"></a><span class="c1"># Linux</span>
+<a id="__codelineno-81-5" name="__codelineno-81-5" href="#__codelineno-81-5"></a>sudo<span class="w"> </span>systemd-resolve<span class="w"> </span>--flush-caches
+<a id="__codelineno-81-6" name="__codelineno-81-6" href="#__codelineno-81-6"></a>
+<a id="__codelineno-81-7" name="__codelineno-81-7" href="#__codelineno-81-7"></a><span class="c1"># Windows</span>
+<a id="__codelineno-81-8" name="__codelineno-81-8" href="#__codelineno-81-8"></a>ipconfig<span class="w"> </span>/flushdns
 </code></pre></div></p>
 <h4 id="dns-record-in-wrong-zone">DNS Record in Wrong Zone<a class="headerlink" href="#dns-record-in-wrong-zone" title="Permanent link">&para;</a></h4>
 <p><strong>Symptoms</strong>: DNS record created in <code>sleap.ai</code> zone instead of <code>lablink.sleap.ai</code> zone</p>
 <p><strong>Root Cause</strong>: Terraform data source matched parent zone</p>
 <p><strong>Diagnosis</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a><span class="c1"># Check both zones</span>
-<a id="__codelineno-77-2" name="__codelineno-77-2" href="#__codelineno-77-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;sleap.ai-zone-id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-77-3" name="__codelineno-77-3" href="#__codelineno-77-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;lablink&#39;)]&quot;</span>
-<a id="__codelineno-77-4" name="__codelineno-77-4" href="#__codelineno-77-4"></a>
-<a id="__codelineno-77-5" name="__codelineno-77-5" href="#__codelineno-77-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-77-6" name="__codelineno-77-6" href="#__codelineno-77-6"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;test&#39;)]&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a><span class="c1"># Check both zones</span>
+<a id="__codelineno-82-2" name="__codelineno-82-2" href="#__codelineno-82-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>&lt;sleap.ai-zone-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-82-3" name="__codelineno-82-3" href="#__codelineno-82-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;lablink&#39;)]&quot;</span>
+<a id="__codelineno-82-4" name="__codelineno-82-4" href="#__codelineno-82-4"></a>
+<a id="__codelineno-82-5" name="__codelineno-82-5" href="#__codelineno-82-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-resource-record-sets<span class="w"> </span>--hosted-zone-id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-82-6" name="__codelineno-82-6" href="#__codelineno-82-6"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?contains(Name, &#39;test&#39;)]&quot;</span>
 </code></pre></div></p>
 <p><strong>Solution</strong>:</p>
 <ol>
 <li>
 <p><strong>Add zone_id to config.yaml</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-78-1" name="__codelineno-78-1" href="#__codelineno-78-1"></a><span class="nt">dns</span><span class="p">:</span>
-<a id="__codelineno-78-2" name="__codelineno-78-2" href="#__codelineno-78-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-78-3" name="__codelineno-78-3" href="#__codelineno-78-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-78-4" name="__codelineno-78-4" href="#__codelineno-78-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test.lablink.sleap.ai&quot;</span><span class="w">  </span><span class="c1"># Full domain name</span>
-<a id="__codelineno-78-5" name="__codelineno-78-5" href="#__codelineno-78-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span><span class="w">  </span><span class="c1"># Force correct zone</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a><span class="nt">dns</span><span class="p">:</span>
+<a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-83-3" name="__codelineno-83-3" href="#__codelineno-83-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-83-4" name="__codelineno-83-4" href="#__codelineno-83-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test.lablink.sleap.ai&quot;</span><span class="w">  </span><span class="c1"># Full domain name</span>
+<a id="__codelineno-83-5" name="__codelineno-83-5" href="#__codelineno-83-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span><span class="w">  </span><span class="c1"># Force correct zone</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Delete record from wrong zone</strong> (if exists):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a><span class="c1"># Use AWS console or CLI to delete A record from sleap.ai zone</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a><span class="c1"># Use AWS console or CLI to delete A record from sleap.ai zone</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Re-run terraform</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a>terraform<span class="w"> </span>apply
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-85-2" name="__codelineno-85-2" href="#__codelineno-85-2"></a>terraform<span class="w"> </span>apply
 </code></pre></div></p>
 </li>
 </ol>
@@ -4536,21 +4659,21 @@
 - nslookup returns Cloudflare nameservers instead of AWS
 - DNS queries fail even though record exists in Route53</p>
 <p><strong>Diagnosis</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a><span class="c1"># Check NS delegation</span>
-<a id="__codelineno-81-2" name="__codelineno-81-2" href="#__codelineno-81-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
-<a id="__codelineno-81-3" name="__codelineno-81-3" href="#__codelineno-81-3"></a>
-<a id="__codelineno-81-4" name="__codelineno-81-4" href="#__codelineno-81-4"></a><span class="c1"># Should show AWS nameservers:</span>
-<a id="__codelineno-81-5" name="__codelineno-81-5" href="#__codelineno-81-5"></a><span class="c1"># ns-158.awsdns-19.com</span>
-<a id="__codelineno-81-6" name="__codelineno-81-6" href="#__codelineno-81-6"></a><span class="c1"># ns-697.awsdns-23.net</span>
-<a id="__codelineno-81-7" name="__codelineno-81-7" href="#__codelineno-81-7"></a><span class="c1"># ns-1839.awsdns-37.co.uk</span>
-<a id="__codelineno-81-8" name="__codelineno-81-8" href="#__codelineno-81-8"></a><span class="c1"># ns-1029.awsdns-00.org</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a><span class="c1"># Check NS delegation</span>
+<a id="__codelineno-86-2" name="__codelineno-86-2" href="#__codelineno-86-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
+<a id="__codelineno-86-3" name="__codelineno-86-3" href="#__codelineno-86-3"></a>
+<a id="__codelineno-86-4" name="__codelineno-86-4" href="#__codelineno-86-4"></a><span class="c1"># Should show AWS nameservers:</span>
+<a id="__codelineno-86-5" name="__codelineno-86-5" href="#__codelineno-86-5"></a><span class="c1"># ns-158.awsdns-19.com</span>
+<a id="__codelineno-86-6" name="__codelineno-86-6" href="#__codelineno-86-6"></a><span class="c1"># ns-697.awsdns-23.net</span>
+<a id="__codelineno-86-7" name="__codelineno-86-7" href="#__codelineno-86-7"></a><span class="c1"># ns-1839.awsdns-37.co.uk</span>
+<a id="__codelineno-86-8" name="__codelineno-86-8" href="#__codelineno-86-8"></a><span class="c1"># ns-1029.awsdns-00.org</span>
 </code></pre></div></p>
 <p><strong>Solution</strong>:</p>
 <ol>
 <li>
 <p><strong>Get Route53 nameservers</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-82-2" name="__codelineno-82-2" href="#__codelineno-82-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;DelegationSet.NameServers&#39;</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-87-1" name="__codelineno-87-1" href="#__codelineno-87-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>get-hosted-zone<span class="w"> </span>--id<span class="w"> </span>Z010760118DSWF5IYKMOM<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;DelegationSet.NameServers&#39;</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -4569,14 +4692,14 @@
 </li>
 <li>
 <p><strong>Verify delegation</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a><span class="c1"># Wait 5-15 minutes, then check</span>
-<a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a><span class="c1"># Wait 5-15 minutes, then check</span>
+<a id="__codelineno-88-2" name="__codelineno-88-2" href="#__codelineno-88-2"></a>dig<span class="w"> </span>NS<span class="w"> </span>lablink.sleap.ai
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Test resolution</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a><span class="c1"># Should now resolve via AWS</span>
-<a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a><span class="c1"># Should now resolve via AWS</span>
+<a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
 </code></pre></div></p>
 </li>
 </ol>
@@ -4588,40 +4711,40 @@
 <ol>
 <li>
 <p><strong>Check DNS is resolving</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
-<a id="__codelineno-85-2" name="__codelineno-85-2" href="#__codelineno-85-2"></a><span class="c1"># Must resolve before Let&#39;s Encrypt can issue certificate</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a>nslookup<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">8</span>.8.8.8
+<a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a><span class="c1"># Must resolve before Let&#39;s Encrypt can issue certificate</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check Caddy is running</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-86-2" name="__codelineno-86-2" href="#__codelineno-86-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>caddy
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>caddy
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check Caddy logs</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-87-1" name="__codelineno-87-1" href="#__codelineno-87-1"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
-<a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a>
-<a id="__codelineno-87-3" name="__codelineno-87-3" href="#__codelineno-87-3"></a><span class="c1"># Look for:</span>
-<a id="__codelineno-87-4" name="__codelineno-87-4" href="#__codelineno-87-4"></a><span class="c1"># - &quot;certificate obtained successfully&quot; (success)</span>
-<a id="__codelineno-87-5" name="__codelineno-87-5" href="#__codelineno-87-5"></a><span class="c1"># - &quot;challenge failed&quot; (DNS not ready)</span>
-<a id="__codelineno-87-6" name="__codelineno-87-6" href="#__codelineno-87-6"></a><span class="c1"># - &quot;timeout&quot; (network issue)</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>caddy<span class="w"> </span>-f
+<a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a>
+<a id="__codelineno-92-3" name="__codelineno-92-3" href="#__codelineno-92-3"></a><span class="c1"># Look for:</span>
+<a id="__codelineno-92-4" name="__codelineno-92-4" href="#__codelineno-92-4"></a><span class="c1"># - &quot;certificate obtained successfully&quot; (success)</span>
+<a id="__codelineno-92-5" name="__codelineno-92-5" href="#__codelineno-92-5"></a><span class="c1"># - &quot;challenge failed&quot; (DNS not ready)</span>
+<a id="__codelineno-92-6" name="__codelineno-92-6" href="#__codelineno-92-6"></a><span class="c1"># - &quot;timeout&quot; (network issue)</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Test HTTPS manually</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>curl<span class="w"> </span>-v<span class="w"> </span>https://test.lablink.sleap.ai
-<a id="__codelineno-88-2" name="__codelineno-88-2" href="#__codelineno-88-2"></a>
-<a id="__codelineno-88-3" name="__codelineno-88-3" href="#__codelineno-88-3"></a><span class="c1"># Look for SSL handshake or certificate errors</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-93-1" name="__codelineno-93-1" href="#__codelineno-93-1"></a>curl<span class="w"> </span>-v<span class="w"> </span>https://test.lablink.sleap.ai
+<a id="__codelineno-93-2" name="__codelineno-93-2" href="#__codelineno-93-2"></a>
+<a id="__codelineno-93-3" name="__codelineno-93-3" href="#__codelineno-93-3"></a><span class="c1"># Look for SSL handshake or certificate errors</span>
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Check ports are open</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a><span class="c1"># Port 80 (HTTP-01 challenge)</span>
-<a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">80</span>
-<a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a>
-<a id="__codelineno-89-4" name="__codelineno-89-4" href="#__codelineno-89-4"></a><span class="c1"># Port 443 (HTTPS)</span>
-<a id="__codelineno-89-5" name="__codelineno-89-5" href="#__codelineno-89-5"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">443</span>
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-94-1" name="__codelineno-94-1" href="#__codelineno-94-1"></a><span class="c1"># Port 80 (HTTP-01 challenge)</span>
+<a id="__codelineno-94-2" name="__codelineno-94-2" href="#__codelineno-94-2"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-94-3" name="__codelineno-94-3" href="#__codelineno-94-3"></a>
+<a id="__codelineno-94-4" name="__codelineno-94-4" href="#__codelineno-94-4"></a><span class="c1"># Port 443 (HTTPS)</span>
+<a id="__codelineno-94-5" name="__codelineno-94-5" href="#__codelineno-94-5"></a>nc<span class="w"> </span>-vz<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">443</span>
 </code></pre></div></p>
 </li>
 </ol>
@@ -4631,55 +4754,55 @@
 - Verify DNS resolves to correct IP
 - Caddy will automatically retry every 2 minutes</p>
 <p><strong>If ports blocked</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a><span class="c1"># Check security group</span>
-<a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-security-groups<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-3" name="__codelineno-90-3" href="#__codelineno-90-3"></a><span class="w">  </span>--filters<span class="w"> </span><span class="s2">&quot;Name=tag:Name,Values=lablink-allocator-*&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-4" name="__codelineno-90-4" href="#__codelineno-90-4"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;SecurityGroups[0].IpPermissions&#39;</span>
-<a id="__codelineno-90-5" name="__codelineno-90-5" href="#__codelineno-90-5"></a>
-<a id="__codelineno-90-6" name="__codelineno-90-6" href="#__codelineno-90-6"></a><span class="c1"># Add rules if missing</span>
-<a id="__codelineno-90-7" name="__codelineno-90-7" href="#__codelineno-90-7"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-8" name="__codelineno-90-8" href="#__codelineno-90-8"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-9" name="__codelineno-90-9" href="#__codelineno-90-9"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-10" name="__codelineno-90-10" href="#__codelineno-90-10"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-11" name="__codelineno-90-11" href="#__codelineno-90-11"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
-<a id="__codelineno-90-12" name="__codelineno-90-12" href="#__codelineno-90-12"></a>
-<a id="__codelineno-90-13" name="__codelineno-90-13" href="#__codelineno-90-13"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-14" name="__codelineno-90-14" href="#__codelineno-90-14"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-15" name="__codelineno-90-15" href="#__codelineno-90-15"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-16" name="__codelineno-90-16" href="#__codelineno-90-16"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-90-17" name="__codelineno-90-17" href="#__codelineno-90-17"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-95-1" name="__codelineno-95-1" href="#__codelineno-95-1"></a><span class="c1"># Check security group</span>
+<a id="__codelineno-95-2" name="__codelineno-95-2" href="#__codelineno-95-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-security-groups<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-3" name="__codelineno-95-3" href="#__codelineno-95-3"></a><span class="w">  </span>--filters<span class="w"> </span><span class="s2">&quot;Name=tag:Name,Values=lablink-allocator-*&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-4" name="__codelineno-95-4" href="#__codelineno-95-4"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;SecurityGroups[0].IpPermissions&#39;</span>
+<a id="__codelineno-95-5" name="__codelineno-95-5" href="#__codelineno-95-5"></a>
+<a id="__codelineno-95-6" name="__codelineno-95-6" href="#__codelineno-95-6"></a><span class="c1"># Add rules if missing</span>
+<a id="__codelineno-95-7" name="__codelineno-95-7" href="#__codelineno-95-7"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-8" name="__codelineno-95-8" href="#__codelineno-95-8"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-9" name="__codelineno-95-9" href="#__codelineno-95-9"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-10" name="__codelineno-95-10" href="#__codelineno-95-10"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-11" name="__codelineno-95-11" href="#__codelineno-95-11"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
+<a id="__codelineno-95-12" name="__codelineno-95-12" href="#__codelineno-95-12"></a>
+<a id="__codelineno-95-13" name="__codelineno-95-13" href="#__codelineno-95-13"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-14" name="__codelineno-95-14" href="#__codelineno-95-14"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-15" name="__codelineno-95-15" href="#__codelineno-95-15"></a><span class="w">  </span>--protocol<span class="w"> </span>tcp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-16" name="__codelineno-95-16" href="#__codelineno-95-16"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-95-17" name="__codelineno-95-17" href="#__codelineno-95-17"></a><span class="w">  </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
 </code></pre></div></p>
 <p><strong>If Caddy configuration error</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a><span class="c1"># Check Caddyfile</span>
-<a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-91-3" name="__codelineno-91-3" href="#__codelineno-91-3"></a>cat<span class="w"> </span>/etc/caddy/Caddyfile
-<a id="__codelineno-91-4" name="__codelineno-91-4" href="#__codelineno-91-4"></a>
-<a id="__codelineno-91-5" name="__codelineno-91-5" href="#__codelineno-91-5"></a><span class="c1"># Should contain:</span>
-<a id="__codelineno-91-6" name="__codelineno-91-6" href="#__codelineno-91-6"></a><span class="c1"># test.lablink.sleap.ai {</span>
-<a id="__codelineno-91-7" name="__codelineno-91-7" href="#__codelineno-91-7"></a><span class="c1">#     reverse_proxy localhost:5000</span>
-<a id="__codelineno-91-8" name="__codelineno-91-8" href="#__codelineno-91-8"></a><span class="c1"># }</span>
-<a id="__codelineno-91-9" name="__codelineno-91-9" href="#__codelineno-91-9"></a>
-<a id="__codelineno-91-10" name="__codelineno-91-10" href="#__codelineno-91-10"></a><span class="c1"># Restart Caddy</span>
-<a id="__codelineno-91-11" name="__codelineno-91-11" href="#__codelineno-91-11"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>caddy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-96-1" name="__codelineno-96-1" href="#__codelineno-96-1"></a><span class="c1"># Check Caddyfile</span>
+<a id="__codelineno-96-2" name="__codelineno-96-2" href="#__codelineno-96-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-96-3" name="__codelineno-96-3" href="#__codelineno-96-3"></a>cat<span class="w"> </span>/etc/caddy/Caddyfile
+<a id="__codelineno-96-4" name="__codelineno-96-4" href="#__codelineno-96-4"></a>
+<a id="__codelineno-96-5" name="__codelineno-96-5" href="#__codelineno-96-5"></a><span class="c1"># Should contain:</span>
+<a id="__codelineno-96-6" name="__codelineno-96-6" href="#__codelineno-96-6"></a><span class="c1"># test.lablink.sleap.ai {</span>
+<a id="__codelineno-96-7" name="__codelineno-96-7" href="#__codelineno-96-7"></a><span class="c1">#     reverse_proxy localhost:5000</span>
+<a id="__codelineno-96-8" name="__codelineno-96-8" href="#__codelineno-96-8"></a><span class="c1"># }</span>
+<a id="__codelineno-96-9" name="__codelineno-96-9" href="#__codelineno-96-9"></a>
+<a id="__codelineno-96-10" name="__codelineno-96-10" href="#__codelineno-96-10"></a><span class="c1"># Restart Caddy</span>
+<a id="__codelineno-96-11" name="__codelineno-96-11" href="#__codelineno-96-11"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>caddy
 </code></pre></div></p>
 <p><strong>Manual certificate check</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a><span class="c1"># View certificate details</span>
-<a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-92-3" name="__codelineno-92-3" href="#__codelineno-92-3"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-92-4" name="__codelineno-92-4" href="#__codelineno-92-4"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-text
-<a id="__codelineno-92-5" name="__codelineno-92-5" href="#__codelineno-92-5"></a>
-<a id="__codelineno-92-6" name="__codelineno-92-6" href="#__codelineno-92-6"></a><span class="c1"># Check issuer and expiration</span>
-<a id="__codelineno-92-7" name="__codelineno-92-7" href="#__codelineno-92-7"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-92-8" name="__codelineno-92-8" href="#__codelineno-92-8"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-92-9" name="__codelineno-92-9" href="#__codelineno-92-9"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-issuer<span class="w"> </span>-dates
+<div class="highlight"><pre><span></span><code><a id="__codelineno-97-1" name="__codelineno-97-1" href="#__codelineno-97-1"></a><span class="c1"># View certificate details</span>
+<a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-97-3" name="__codelineno-97-3" href="#__codelineno-97-3"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-97-4" name="__codelineno-97-4" href="#__codelineno-97-4"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-text
+<a id="__codelineno-97-5" name="__codelineno-97-5" href="#__codelineno-97-5"></a>
+<a id="__codelineno-97-6" name="__codelineno-97-6" href="#__codelineno-97-6"></a><span class="c1"># Check issuer and expiration</span>
+<a id="__codelineno-97-7" name="__codelineno-97-7" href="#__codelineno-97-7"></a><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-servername<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-97-8" name="__codelineno-97-8" href="#__codelineno-97-8"></a><span class="w">  </span>-connect<span class="w"> </span>test.lablink.sleap.ai:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-97-9" name="__codelineno-97-9" href="#__codelineno-97-9"></a><span class="w">  </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-issuer<span class="w"> </span>-dates
 </code></pre></div></p>
 <h4 id="multiple-hosted-zones-causing-conflicts">Multiple Hosted Zones Causing Conflicts<a class="headerlink" href="#multiple-hosted-zones-causing-conflicts" title="Permanent link">&para;</a></h4>
 <p><strong>Symptoms</strong>: Unpredictable DNS behavior, records in multiple zones</p>
 <p><strong>Diagnosis</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-93-1" name="__codelineno-93-1" href="#__codelineno-93-1"></a><span class="c1"># List all zones</span>
-<a id="__codelineno-93-2" name="__codelineno-93-2" href="#__codelineno-93-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span>--query<span class="w"> </span><span class="s1">&#39;HostedZones[*].[Name,Id]&#39;</span><span class="w"> </span>--output<span class="w"> </span>table
-<a id="__codelineno-93-3" name="__codelineno-93-3" href="#__codelineno-93-3"></a>
-<a id="__codelineno-93-4" name="__codelineno-93-4" href="#__codelineno-93-4"></a><span class="c1"># Check for duplicates or parent/child conflicts</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-98-1" name="__codelineno-98-1" href="#__codelineno-98-1"></a><span class="c1"># List all zones</span>
+<a id="__codelineno-98-2" name="__codelineno-98-2" href="#__codelineno-98-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span>--query<span class="w"> </span><span class="s1">&#39;HostedZones[*].[Name,Id]&#39;</span><span class="w"> </span>--output<span class="w"> </span>table
+<a id="__codelineno-98-3" name="__codelineno-98-3" href="#__codelineno-98-3"></a>
+<a id="__codelineno-98-4" name="__codelineno-98-4" href="#__codelineno-98-4"></a><span class="c1"># Check for duplicates or parent/child conflicts</span>
 </code></pre></div></p>
 <p><strong>Solution</strong>:</p>
 <ol>
@@ -4690,8 +4813,8 @@
 </li>
 <li>
 <p><strong>Delete conflicting zone</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-94-1" name="__codelineno-94-1" href="#__codelineno-94-1"></a><span class="c1"># ONLY if sleap.ai is managed in Cloudflare</span>
-<a id="__codelineno-94-2" name="__codelineno-94-2" href="#__codelineno-94-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>delete-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;sleap-ai-zone-id&gt;
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-99-1" name="__codelineno-99-1" href="#__codelineno-99-1"></a><span class="c1"># ONLY if sleap.ai is managed in Cloudflare</span>
+<a id="__codelineno-99-2" name="__codelineno-99-2" href="#__codelineno-99-2"></a>aws<span class="w"> </span>route53<span class="w"> </span>delete-hosted-zone<span class="w"> </span>--id<span class="w"> </span>&lt;sleap-ai-zone-id&gt;
 </code></pre></div></p>
 </li>
 <li>
@@ -4701,8 +4824,8 @@
 <h4 id="deployment-verification-failing">Deployment Verification Failing<a class="headerlink" href="#deployment-verification-failing" title="Permanent link">&para;</a></h4>
 <p><strong>Symptoms</strong>: <code>verify-deployment.sh</code> reports failures</p>
 <p><strong>Run verification</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-95-1" name="__codelineno-95-1" href="#__codelineno-95-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-95-2" name="__codelineno-95-2" href="#__codelineno-95-2"></a>./verify-deployment.sh<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">52</span>.40.142.146
+<div class="highlight"><pre><span></span><code><a id="__codelineno-100-1" name="__codelineno-100-1" href="#__codelineno-100-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-100-2" name="__codelineno-100-2" href="#__codelineno-100-2"></a>./verify-deployment.sh<span class="w"> </span>test.lablink.sleap.ai<span class="w"> </span><span class="m">52</span>.40.142.146
 </code></pre></div></p>
 <p><strong>Common failures</strong>:</p>
 <ol>
@@ -4716,48 +4839,48 @@
 - ✗ Red errors = Actual problem requiring action</p>
 <h2 id="diagnostic-commands">Diagnostic Commands<a class="headerlink" href="#diagnostic-commands" title="Permanent link">&para;</a></h2>
 <h3 id="check-overall-system-health">Check Overall System Health<a class="headerlink" href="#check-overall-system-health" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-96-1" name="__codelineno-96-1" href="#__codelineno-96-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-96-2" name="__codelineno-96-2" href="#__codelineno-96-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-96-3" name="__codelineno-96-3" href="#__codelineno-96-3"></a>
-<a id="__codelineno-96-4" name="__codelineno-96-4" href="#__codelineno-96-4"></a><span class="c1"># System resources</span>
-<a id="__codelineno-96-5" name="__codelineno-96-5" href="#__codelineno-96-5"></a>df<span class="w"> </span>-h<span class="w">              </span><span class="c1"># Disk usage</span>
-<a id="__codelineno-96-6" name="__codelineno-96-6" href="#__codelineno-96-6"></a>free<span class="w"> </span>-h<span class="w">            </span><span class="c1"># Memory usage</span>
-<a id="__codelineno-96-7" name="__codelineno-96-7" href="#__codelineno-96-7"></a>top<span class="w">                </span><span class="c1"># CPU usage</span>
-<a id="__codelineno-96-8" name="__codelineno-96-8" href="#__codelineno-96-8"></a>
-<a id="__codelineno-96-9" name="__codelineno-96-9" href="#__codelineno-96-9"></a><span class="c1"># Docker</span>
-<a id="__codelineno-96-10" name="__codelineno-96-10" href="#__codelineno-96-10"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">  </span><span class="c1"># All containers</span>
-<a id="__codelineno-96-11" name="__codelineno-96-11" href="#__codelineno-96-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats<span class="w">  </span><span class="c1"># Resource usage</span>
-<a id="__codelineno-96-12" name="__codelineno-96-12" href="#__codelineno-96-12"></a>
-<a id="__codelineno-96-13" name="__codelineno-96-13" href="#__codelineno-96-13"></a><span class="c1"># Network</span>
-<a id="__codelineno-96-14" name="__codelineno-96-14" href="#__codelineno-96-14"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w">    </span><span class="c1"># Listening ports</span>
-<a id="__codelineno-96-15" name="__codelineno-96-15" href="#__codelineno-96-15"></a>ip<span class="w"> </span>addr<span class="w"> </span>show<span class="w">           </span><span class="c1"># Network interfaces</span>
-<a id="__codelineno-96-16" name="__codelineno-96-16" href="#__codelineno-96-16"></a>
-<a id="__codelineno-96-17" name="__codelineno-96-17" href="#__codelineno-96-17"></a><span class="c1"># Logs</span>
-<a id="__codelineno-96-18" name="__codelineno-96-18" href="#__codelineno-96-18"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span>-n<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># Docker service logs</span>
-<a id="__codelineno-96-19" name="__codelineno-96-19" href="#__codelineno-96-19"></a>dmesg<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w">                      </span><span class="c1"># Kernel messages</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-101-1" name="__codelineno-101-1" href="#__codelineno-101-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-101-2" name="__codelineno-101-2" href="#__codelineno-101-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-101-3" name="__codelineno-101-3" href="#__codelineno-101-3"></a>
+<a id="__codelineno-101-4" name="__codelineno-101-4" href="#__codelineno-101-4"></a><span class="c1"># System resources</span>
+<a id="__codelineno-101-5" name="__codelineno-101-5" href="#__codelineno-101-5"></a>df<span class="w"> </span>-h<span class="w">              </span><span class="c1"># Disk usage</span>
+<a id="__codelineno-101-6" name="__codelineno-101-6" href="#__codelineno-101-6"></a>free<span class="w"> </span>-h<span class="w">            </span><span class="c1"># Memory usage</span>
+<a id="__codelineno-101-7" name="__codelineno-101-7" href="#__codelineno-101-7"></a>top<span class="w">                </span><span class="c1"># CPU usage</span>
+<a id="__codelineno-101-8" name="__codelineno-101-8" href="#__codelineno-101-8"></a>
+<a id="__codelineno-101-9" name="__codelineno-101-9" href="#__codelineno-101-9"></a><span class="c1"># Docker</span>
+<a id="__codelineno-101-10" name="__codelineno-101-10" href="#__codelineno-101-10"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">  </span><span class="c1"># All containers</span>
+<a id="__codelineno-101-11" name="__codelineno-101-11" href="#__codelineno-101-11"></a>sudo<span class="w"> </span>docker<span class="w"> </span>stats<span class="w">  </span><span class="c1"># Resource usage</span>
+<a id="__codelineno-101-12" name="__codelineno-101-12" href="#__codelineno-101-12"></a>
+<a id="__codelineno-101-13" name="__codelineno-101-13" href="#__codelineno-101-13"></a><span class="c1"># Network</span>
+<a id="__codelineno-101-14" name="__codelineno-101-14" href="#__codelineno-101-14"></a>sudo<span class="w"> </span>netstat<span class="w"> </span>-tulpn<span class="w">    </span><span class="c1"># Listening ports</span>
+<a id="__codelineno-101-15" name="__codelineno-101-15" href="#__codelineno-101-15"></a>ip<span class="w"> </span>addr<span class="w"> </span>show<span class="w">           </span><span class="c1"># Network interfaces</span>
+<a id="__codelineno-101-16" name="__codelineno-101-16" href="#__codelineno-101-16"></a>
+<a id="__codelineno-101-17" name="__codelineno-101-17" href="#__codelineno-101-17"></a><span class="c1"># Logs</span>
+<a id="__codelineno-101-18" name="__codelineno-101-18" href="#__codelineno-101-18"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span>-n<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># Docker service logs</span>
+<a id="__codelineno-101-19" name="__codelineno-101-19" href="#__codelineno-101-19"></a>dmesg<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w">                      </span><span class="c1"># Kernel messages</span>
 </code></pre></div>
 <h3 id="check-flask-app-status">Check Flask App Status<a class="headerlink" href="#check-flask-app-status" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-97-1" name="__codelineno-97-1" href="#__codelineno-97-1"></a><span class="c1"># From allocator instance</span>
-<a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a>curl<span class="w"> </span>localhost:80
-<a id="__codelineno-97-3" name="__codelineno-97-3" href="#__codelineno-97-3"></a>
-<a id="__codelineno-97-4" name="__codelineno-97-4" href="#__codelineno-97-4"></a><span class="c1"># Expected: HTML response with LabLink interface</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-102-1" name="__codelineno-102-1" href="#__codelineno-102-1"></a><span class="c1"># From allocator instance</span>
+<a id="__codelineno-102-2" name="__codelineno-102-2" href="#__codelineno-102-2"></a>curl<span class="w"> </span>localhost:80
+<a id="__codelineno-102-3" name="__codelineno-102-3" href="#__codelineno-102-3"></a>
+<a id="__codelineno-102-4" name="__codelineno-102-4" href="#__codelineno-102-4"></a><span class="c1"># Expected: HTML response with LabLink interface</span>
 </code></pre></div>
 <h3 id="check-database-status">Check Database Status<a class="headerlink" href="#check-database-status" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-98-1" name="__codelineno-98-1" href="#__codelineno-98-1"></a><span class="c1"># PostgreSQL running?</span>
-<a id="__codelineno-98-2" name="__codelineno-98-2" href="#__codelineno-98-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
-<a id="__codelineno-98-3" name="__codelineno-98-3" href="#__codelineno-98-3"></a>
-<a id="__codelineno-98-4" name="__codelineno-98-4" href="#__codelineno-98-4"></a><span class="c1"># Can connect?</span>
-<a id="__codelineno-98-5" name="__codelineno-98-5" href="#__codelineno-98-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT version();&quot;</span>
-<a id="__codelineno-98-6" name="__codelineno-98-6" href="#__codelineno-98-6"></a>
-<a id="__codelineno-98-7" name="__codelineno-98-7" href="#__codelineno-98-7"></a><span class="c1"># View VMs</span>
-<a id="__codelineno-98-8" name="__codelineno-98-8" href="#__codelineno-98-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT * FROM vms;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-103-1" name="__codelineno-103-1" href="#__codelineno-103-1"></a><span class="c1"># PostgreSQL running?</span>
+<a id="__codelineno-103-2" name="__codelineno-103-2" href="#__codelineno-103-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>pg_isready<span class="w"> </span>-U<span class="w"> </span>lablink
+<a id="__codelineno-103-3" name="__codelineno-103-3" href="#__codelineno-103-3"></a>
+<a id="__codelineno-103-4" name="__codelineno-103-4" href="#__codelineno-103-4"></a><span class="c1"># Can connect?</span>
+<a id="__codelineno-103-5" name="__codelineno-103-5" href="#__codelineno-103-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT version();&quot;</span>
+<a id="__codelineno-103-6" name="__codelineno-103-6" href="#__codelineno-103-6"></a>
+<a id="__codelineno-103-7" name="__codelineno-103-7" href="#__codelineno-103-7"></a><span class="c1"># View VMs</span>
+<a id="__codelineno-103-8" name="__codelineno-103-8" href="#__codelineno-103-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT * FROM vms;&quot;</span>
 </code></pre></div>
 <h3 id="check-aws-connectivity">Check AWS Connectivity<a class="headerlink" href="#check-aws-connectivity" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-99-1" name="__codelineno-99-1" href="#__codelineno-99-1"></a><span class="c1"># From allocator container</span>
-<a id="__codelineno-99-2" name="__codelineno-99-2" href="#__codelineno-99-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
-<a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a>
-<a id="__codelineno-99-4" name="__codelineno-99-4" href="#__codelineno-99-4"></a><span class="c1"># List EC2 instances</span>
-<a id="__codelineno-99-5" name="__codelineno-99-5" href="#__codelineno-99-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--region<span class="w"> </span>us-west-2
+<div class="highlight"><pre><span></span><code><a id="__codelineno-104-1" name="__codelineno-104-1" href="#__codelineno-104-1"></a><span class="c1"># From allocator container</span>
+<a id="__codelineno-104-2" name="__codelineno-104-2" href="#__codelineno-104-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<a id="__codelineno-104-3" name="__codelineno-104-3" href="#__codelineno-104-3"></a>
+<a id="__codelineno-104-4" name="__codelineno-104-4" href="#__codelineno-104-4"></a><span class="c1"># List EC2 instances</span>
+<a id="__codelineno-104-5" name="__codelineno-104-5" href="#__codelineno-104-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--region<span class="w"> </span>us-west-2
 </code></pre></div>
 <h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
 <p>If issues persist:</p>

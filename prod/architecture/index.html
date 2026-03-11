@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -1815,6 +1815,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/reboot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reboot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
@@ -1858,7 +1886,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1880,14 +1908,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_2_1_1_7" id="__nav_5_2_1_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_8" id="__nav_5_2_1_1_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_2_1_1_7">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3141,7 +3169,17 @@
 </li>
 <li>Spawns client VMs via Terraform</li>
 <li>Manages AWS credentials</li>
-<li>Handles security group configuration</li>
+<li>
+<p>Handles security group configuration</p>
+</li>
+<li>
+<p><strong>Auto-Reboot Service</strong>:</p>
+</li>
+<li>Background daemon that monitors for failed VMs</li>
+<li>Automatically reboots VMs in error state, with unhealthy GPUs, or stuck initializing/rebooting</li>
+<li>Primary method: SSH hard reboot (<code>cloud-init clean &amp;&amp; reboot</code>)</li>
+<li>Fallback: EC2 stop/start cycle (for OOM or hung processes)</li>
+<li>Respects cooldown periods (default: 300s) and max attempt limits (default: 3)</li>
 </ol>
 <p><strong>Configuration</strong>: See <code>packages/allocator/src/lablink_allocator/conf/structured_config.py</code></p>
 <h3 id="client-service">Client Service<a class="headerlink" href="#client-service" title="Permanent link">&para;</a></h3>
@@ -3206,7 +3244,7 @@
 <tr>
 <td><code>Status</code></td>
 <td>VARCHAR(50)</td>
-<td>VM status (available/in-use/failed)</td>
+<td>VM status (running/initializing/error/rebooting)</td>
 </tr>
 <tr>
 <td><code>CrdCommand</code></td>
@@ -3217,6 +3255,16 @@
 <td><code>CreatedAt</code></td>
 <td>TIMESTAMP</td>
 <td>Creation timestamp</td>
+</tr>
+<tr>
+<td><code>reboot_count</code></td>
+<td>INTEGER</td>
+<td>Number of reboot attempts (default: 0)</td>
+</tr>
+<tr>
+<td><code>last_reboot_time</code></td>
+<td>TIMESTAMP</td>
+<td>When the last reboot was attempted</td>
 </tr>
 </tbody>
 </table>
@@ -3234,6 +3282,10 @@
 
     available --&gt; failed: Startup failure&lt;br/&gt;(boot error)
     in_use --&gt; failed: Health check failed&lt;br/&gt;(GPU error, system crash)
+
+    failed --&gt; rebooting: Auto-reboot triggered&lt;br/&gt;(or manual reboot)
+    rebooting --&gt; available: Reboot succeeds&lt;br/&gt;(VM re-initializes)
+    rebooting --&gt; failed: Reboot fails&lt;br/&gt;(or stuck &gt; 10 min)
 
     failed --&gt; available: Admin intervention&lt;br/&gt;(manual reset)
     failed --&gt; [*]: VM Destroyed&lt;br/&gt;(terraform destroy)
@@ -3256,12 +3308,21 @@
         Requires attention
         Health checks failing
         Removed from pool
+    end note
+
+    note right of rebooting
+        Reboot in progress
+        SSH or stop/start
+        Max 3 attempts
     end note</div>
 <p><strong>State Transitions</strong>:</p>
 <ul>
 <li><strong>available → in_use</strong>: Configured software process starts running on the VM</li>
 <li><strong>in_use → available</strong>: Software process stops (task complete or process ends)</li>
 <li><strong>available/in_use → failed</strong>: Health checks fail or errors occur</li>
+<li><strong>failed → rebooting</strong>: Auto-reboot service detects failure and initiates reboot</li>
+<li><strong>rebooting → available</strong>: VM successfully reboots and re-initializes</li>
+<li><strong>rebooting → failed</strong>: Reboot fails or VM stuck in rebooting state &gt; 10 minutes</li>
 <li><strong>failed → available</strong>: Admin manually resets and fixes the VM</li>
 <li><strong>any → [*]</strong>: VM is destroyed via Terraform</li>
 </ul>
@@ -3272,7 +3333,7 @@
 <th>State</th>
 <th><code>Status</code> column value</th>
 <th><code>InUse</code> column value</th>
-<th>Description### Infrastructure Components</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -3290,7 +3351,7 @@
 </tr>
 <tr>
 <td>failed</td>
-<td>"failed"</td>
+<td>"error"</td>
 <td>(Any)</td>
 <td>VM has encountered an error or health check failed</td>
 </tr>
@@ -3299,6 +3360,12 @@
 <td>"initializing"</td>
 <td><code>False</code></td>
 <td>VM is booting up and not yet ready</td>
+</tr>
+<tr>
+<td>rebooting</td>
+<td>"rebooting"</td>
+<td><code>False</code></td>
+<td>VM is being rebooted (SSH or stop/start)</td>
 </tr>
 </tbody>
 </table>

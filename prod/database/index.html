@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -2215,6 +2215,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/reboot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reboot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
@@ -2258,7 +2286,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2280,14 +2308,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_2_1_1_7" id="__nav_5_2_1_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_8" id="__nav_5_2_1_1_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_2_1_1_7">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3866,6 +3894,8 @@
         float ContainerStartupDurationSeconds "Container startup duration"
         float TotalStartupDurationSeconds "Total startup duration"
         timestamp CreatedAt "Creation timestamp"
+        integer reboot_count "Reboot attempt count"
+        timestamp last_reboot_time "Last reboot time"
     }
 
     VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"</div>
@@ -3995,6 +4025,18 @@
 <td>TIMESTAMP</td>
 <td>DEFAULT NOW()</td>
 <td>Creation timestamp</td>
+</tr>
+<tr>
+<td><code>reboot_count</code></td>
+<td>INTEGER</td>
+<td>DEFAULT 0</td>
+<td>Number of reboot attempts</td>
+</tr>
+<tr>
+<td><code>last_reboot_time</code></td>
+<td>TIMESTAMP</td>
+<td></td>
+<td>When the last reboot was attempted</td>
 </tr>
 </tbody>
 </table>
@@ -4176,11 +4218,12 @@
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
 </code></pre></div>
 <p>Expected output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a> status    | count
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>-----------+-------
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a> available |     5
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a> in-use    |     3
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a> failed    |     1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a> status       | count
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>--------------+-------
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a> available    |     5
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a> in-use       |     3
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a> error        |     1
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a> rebooting    |     1
 </code></pre></div>
 <h3 id="find-vm-by-email">Find VM by Email<a class="headerlink" href="#find-vm-by-email" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">hostname</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">crd_command</span>

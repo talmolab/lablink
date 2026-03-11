@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -1465,17 +1465,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#session-manager-alternative-to-ssh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session Manager (Alternative to SSH)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2255,6 +2244,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/reboot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reboot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/scheduler/" class="md-nav__link">
         
   
@@ -2298,7 +2315,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2_1_1_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2320,14 +2337,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_2_1_1_7" id="__nav_5_2_1_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_2_1_1_8" id="__nav_5_2_1_1_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_2_1_1_7">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_5_2_1_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2_1_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3646,17 +3663,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#session-manager-alternative-to-ssh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session Manager (Alternative to SSH)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -4486,99 +4492,85 @@
 - Store keys in cloud storage without encryption</p>
 <p><strong>Instead</strong>:
 - Use SSH agent: <code>ssh-add ~/lablink-key.pem</code>
-- Store in password manager
-- Use AWS Systems Manager Session Manager (no SSH needed)</p>
-<h3 id="session-manager-alternative-to-ssh">Session Manager (Alternative to SSH)<a class="headerlink" href="#session-manager-alternative-to-ssh" title="Permanent link">&para;</a></h3>
-<p>Use AWS Systems Manager for SSH-less access:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Install Session Manager plugin</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="c1"># macOS</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>brew<span class="w"> </span>install<span class="w"> </span>--cask<span class="w"> </span>session-manager-plugin
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="c1"># Start session</span>
-<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>aws<span class="w"> </span>ssm<span class="w"> </span>start-session<span class="w"> </span>--target<span class="w"> </span>i-xxxxx
-</code></pre></div>
-<p><strong>Benefits</strong>:
-- No SSH keys needed
-- Audit logs in CloudTrail
-- Fine-grained IAM control</p>
+- Store in password manager</p>
 <h2 id="data-encryption">Data Encryption<a class="headerlink" href="#data-encryption" title="Permanent link">&para;</a></h2>
 <h3 id="encryption-at-rest">Encryption at Rest<a class="headerlink" href="#encryption-at-rest" title="Permanent link">&para;</a></h3>
 <h4 id="terraform-state">Terraform State<a class="headerlink" href="#terraform-state" title="Permanent link">&para;</a></h4>
 <p>S3 bucket encryption (AES-256):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-encryption<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span>--bucket<span class="w"> </span>tf-state-lablink<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>--server-side-encryption-configuration<span class="w"> </span><span class="s1">&#39;{</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="s1">    &quot;Rules&quot;: [{</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="s1">      &quot;ApplyServerSideEncryptionByDefault&quot;: {</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="s1">        &quot;SSEAlgorithm&quot;: &quot;AES256&quot;</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="s1">      }</span>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="s1">    }]</span>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="s1">  }&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-encryption<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span>--bucket<span class="w"> </span>tf-state-lablink<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span>--server-side-encryption-configuration<span class="w"> </span><span class="s1">&#39;{</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="s1">    &quot;Rules&quot;: [{</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="s1">      &quot;ApplyServerSideEncryptionByDefault&quot;: {</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="s1">        &quot;SSEAlgorithm&quot;: &quot;AES256&quot;</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="s1">      }</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="s1">    }]</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="s1">  }&#39;</span>
 </code></pre></div></p>
 <h4 id="ebs-volumes">EBS Volumes<a class="headerlink" href="#ebs-volumes" title="Permanent link">&para;</a></h4>
 <p>Encrypt EC2 instance volumes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink_allocator&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="na">ami</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="nv">var.ami_id</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="na">instance_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;t2.micro&quot;</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span><span class="nb">root_block_device</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">    </span><span class="na">volume_size</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="m">30</span>
-<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">    </span><span class="na">volume_type</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gp3&quot;</span>
-<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">    </span><span class="na">encrypted</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">    </span><span class="na">delete_on_termination</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink_allocator&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="na">ami</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="nv">var.ami_id</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span><span class="na">instance_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;t2.micro&quot;</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span><span class="nb">root_block_device</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">    </span><span class="na">volume_size</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="m">30</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">    </span><span class="na">volume_type</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gp3&quot;</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="w">    </span><span class="na">encrypted</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="w">    </span><span class="na">delete_on_termination</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="p">}</span>
 </code></pre></div>
 <h4 id="database">Database<a class="headerlink" href="#database" title="Permanent link">&para;</a></h4>
 <p>For RDS (if using external database):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_db_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink&quot;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="na">storage_encrypted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="na">kms_key_id</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_kms_key.lablink.arn</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_db_instance&quot;</span><span class="w"> </span><span class="nv">&quot;lablink&quot;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="na">storage_encrypted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="na">kms_key_id</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_kms_key.lablink.arn</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="encryption-in-transit">Encryption in Transit<a class="headerlink" href="#encryption-in-transit" title="Permanent link">&para;</a></h3>
 <h4 id="https-for-allocator">HTTPS for Allocator<a class="headerlink" href="#https-for-allocator" title="Permanent link">&para;</a></h4>
 <p>Use Let's Encrypt certificate:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># SSH into allocator</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="c1"># Install certbot</span>
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
-<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>certbot<span class="w"> </span>python3-certbot-nginx
-<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a>
-<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="c1"># Get certificate</span>
-<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a>sudo<span class="w"> </span>certbot<span class="w"> </span>--nginx<span class="w"> </span>-d<span class="w"> </span>lablink.yourdomain.com<span class="w"> </span>--non-interactive<span class="w"> </span>--agree-tos<span class="w"> </span>-m<span class="w"> </span>your@email.com
-<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a>
-<a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a><span class="c1"># Auto-renewal</span>
-<a id="__codelineno-28-12" name="__codelineno-28-12" href="#__codelineno-28-12"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>certbot.timer
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># SSH into allocator</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;allocator-ip&gt;
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># Install certbot</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>certbot<span class="w"> </span>python3-certbot-nginx
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="c1"># Get certificate</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>sudo<span class="w"> </span>certbot<span class="w"> </span>--nginx<span class="w"> </span>-d<span class="w"> </span>lablink.yourdomain.com<span class="w"> </span>--non-interactive<span class="w"> </span>--agree-tos<span class="w"> </span>-m<span class="w"> </span>your@email.com
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="c1"># Auto-renewal</span>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>certbot.timer
 </code></pre></div>
 <p>Update security group to allow port 443.</p>
 <h4 id="postgresql-ssl">PostgreSQL SSL<a class="headerlink" href="#postgresql-ssl" title="Permanent link">&para;</a></h4>
 <p>Enable SSL for database connections:</p>
 <p><strong><code>postgresql.conf</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>ssl = on
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>ssl_cert_file = &#39;/etc/ssl/certs/server.crt&#39;
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>ssl_key_file = &#39;/etc/ssl/private/server.key&#39;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>ssl = on
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>ssl_cert_file = &#39;/etc/ssl/certs/server.crt&#39;
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>ssl_key_file = &#39;/etc/ssl/private/server.key&#39;
 </code></pre></div></p>
 <p>Client connection:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2</span>
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
-<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;allocator-ip&quot;</span><span class="p">,</span>
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>    <span class="n">database</span><span class="o">=</span><span class="s2">&quot;lablink_db&quot;</span><span class="p">,</span>
-<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>    <span class="n">user</span><span class="o">=</span><span class="s2">&quot;lablink&quot;</span><span class="p">,</span>
-<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password&quot;</span><span class="p">,</span>
-<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>    <span class="n">sslmode</span><span class="o">=</span><span class="s2">&quot;require&quot;</span>  <span class="c1"># Force SSL</span>
-<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;allocator-ip&quot;</span><span class="p">,</span>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>    <span class="n">database</span><span class="o">=</span><span class="s2">&quot;lablink_db&quot;</span><span class="p">,</span>
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>    <span class="n">user</span><span class="o">=</span><span class="s2">&quot;lablink&quot;</span><span class="p">,</span>
+<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password&quot;</span><span class="p">,</span>
+<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a>    <span class="n">sslmode</span><span class="o">=</span><span class="s2">&quot;require&quot;</span>  <span class="c1"># Force SSL</span>
+<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="p">)</span>
 </code></pre></div></p>
 <h2 id="monitoring-auditing">Monitoring &amp; Auditing<a class="headerlink" href="#monitoring-auditing" title="Permanent link">&para;</a></h2>
 <h3 id="cloudtrail">CloudTrail<a class="headerlink" href="#cloudtrail" title="Permanent link">&para;</a></h3>
 <p>Enable CloudTrail for AWS API auditing:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>aws<span class="w"> </span>cloudtrail<span class="w"> </span>create-trail<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="w">  </span>--name<span class="w"> </span>lablink-trail<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="w">  </span>--s3-bucket-name<span class="w"> </span>lablink-cloudtrail-logs
-<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>
-<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>aws<span class="w"> </span>cloudtrail<span class="w"> </span>start-logging<span class="w"> </span>--name<span class="w"> </span>lablink-trail
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>aws<span class="w"> </span>cloudtrail<span class="w"> </span>create-trail<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span>--name<span class="w"> </span>lablink-trail<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">  </span>--s3-bucket-name<span class="w"> </span>lablink-cloudtrail-logs
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>aws<span class="w"> </span>cloudtrail<span class="w"> </span>start-logging<span class="w"> </span>--name<span class="w"> </span>lablink-trail
 </code></pre></div>
 <p><strong>Logs include</strong>:
 - EC2 instance launches/terminations
@@ -4587,32 +4579,32 @@
 - S3 access</p>
 <h3 id="vpc-flow-logs">VPC Flow Logs<a class="headerlink" href="#vpc-flow-logs" title="Permanent link">&para;</a></h3>
 <p>Monitor network traffic:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-flow-logs<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="w">  </span>--resource-type<span class="w"> </span>VPC<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="w">  </span>--resource-ids<span class="w"> </span>vpc-xxxxx<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="w">  </span>--traffic-type<span class="w"> </span>ALL<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="w">  </span>--log-destination-type<span class="w"> </span>cloud-watch-logs<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="w">  </span>--log-group-name<span class="w"> </span>lablink-vpc-flow-logs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-flow-logs<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="w">  </span>--resource-type<span class="w"> </span>VPC<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="w">  </span>--resource-ids<span class="w"> </span>vpc-xxxxx<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="w">  </span>--traffic-type<span class="w"> </span>ALL<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="w">  </span>--log-destination-type<span class="w"> </span>cloud-watch-logs<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a><span class="w">  </span>--log-group-name<span class="w"> </span>lablink-vpc-flow-logs
 </code></pre></div>
 <h3 id="application-logging">Application Logging<a class="headerlink" href="#application-logging" title="Permanent link">&para;</a></h3>
 <p>Log security events in application:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
-<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a>
-<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="c1"># Log authentication attempts</span>
-<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/admin&#39;</span><span class="p">)</span>
-<a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a><span class="nd">@requires_auth</span>
-<a id="__codelineno-33-9" name="__codelineno-33-9" href="#__codelineno-33-9"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin</span><span class="p">():</span>
-<a id="__codelineno-33-10" name="__codelineno-33-10" href="#__codelineno-33-10"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Admin access by </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-33-11" name="__codelineno-33-11" href="#__codelineno-33-11"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;admin.html&#39;</span><span class="p">)</span>
-<a id="__codelineno-33-12" name="__codelineno-33-12" href="#__codelineno-33-12"></a>
-<a id="__codelineno-33-13" name="__codelineno-33-13" href="#__codelineno-33-13"></a><span class="c1"># Log VM requests</span>
-<a id="__codelineno-33-14" name="__codelineno-33-14" href="#__codelineno-33-14"></a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/request_vm&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
-<a id="__codelineno-33-15" name="__codelineno-33-15" href="#__codelineno-33-15"></a><span class="k">def</span><span class="w"> </span><span class="nf">request_vm</span><span class="p">():</span>
-<a id="__codelineno-33-16" name="__codelineno-33-16" href="#__codelineno-33-16"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;VM requested by </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-33-17" name="__codelineno-33-17" href="#__codelineno-33-17"></a>    <span class="c1"># ... handle request</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="c1"># Log authentication attempts</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/admin&#39;</span><span class="p">)</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a><span class="nd">@requires_auth</span>
+<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a><span class="k">def</span><span class="w"> </span><span class="nf">admin</span><span class="p">():</span>
+<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Admin access by </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;admin.html&#39;</span><span class="p">)</span>
+<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a>
+<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a><span class="c1"># Log VM requests</span>
+<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/request_vm&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<a id="__codelineno-32-15" name="__codelineno-32-15" href="#__codelineno-32-15"></a><span class="k">def</span><span class="w"> </span><span class="nf">request_vm</span><span class="p">():</span>
+<a id="__codelineno-32-16" name="__codelineno-32-16" href="#__codelineno-32-16"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;VM requested by </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-32-17" name="__codelineno-32-17" href="#__codelineno-32-17"></a>    <span class="c1"># ... handle request</span>
 </code></pre></div>
 <h2 id="compliance-best-practices">Compliance &amp; Best Practices<a class="headerlink" href="#compliance-best-practices" title="Permanent link">&para;</a></h2>
 <h3 id="security-checklist">Security Checklist<a class="headerlink" href="#security-checklist" title="Permanent link">&para;</a></h3>
