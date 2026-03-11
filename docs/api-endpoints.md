@@ -175,7 +175,7 @@ Updates the GPU health status of a VM.
 
 ### Update VM Status
 
-Updates the overall status of a VM (e.g., `initializing`, `running`, `error`).
+Updates the overall status of a VM (e.g., `initializing`, `running`, `error`, `rebooting`).
 
 **Endpoint:** `POST /api/vm-status`
 
@@ -206,7 +206,7 @@ Updates the overall status of a VM (e.g., `initializing`, `running`, `error`).
 
 - **Code:** `400 Bad Request` if `hostname` or `status` is missing.
 - **Code:** `500 Internal Server Error` on failure.
-  **Client Usage:** This endpoint is not called from the `packages/client` code. Instead, it is called by the `user_data.sh` script during the client VM's initial boot sequence (cloud-init). This script reports `initializing` and `running` statuses to the allocator, allowing it to track the VM's progress before the client service container has started.
+  **Client Usage:** This endpoint is not called from the `packages/client` code. Instead, it is called by the `user_data.sh` script during the client VM's initial boot sequence (cloud-init). This script reports `initializing`, `running`, and `error` statuses to the allocator, allowing it to track the VM's progress before the client service container has started. An error trap in `user_data.sh` automatically sends an `error` status if any command fails, which can then trigger the auto-reboot service.
 
 ### Receive VM Metrics
 
@@ -404,6 +404,71 @@ These endpoints require HTTP Basic Authentication and are intended for administr
   {
     "hostname": "lablink-vm-prod-1",
     "status": "running"
+  }
+  ```
+
+**Error Response:**
+
+- **Code:** `404 Not Found` if the VM is not found.
+- **Code:** `500 Internal Server Error` on failure.
+
+### Reboot a VM
+
+Manually triggers a reboot for a specific VM.
+
+**Endpoint:** `POST /api/reboot-vm`
+
+**Description:** Initiates a reboot for a VM. The reboot first attempts an SSH hard reboot (`cloud-init clean && reboot`). If SSH is unreachable, it falls back to an EC2 stop/start cycle.
+
+**Authentication:** HTTP Basic Auth
+
+**Request Body:** `application/json`
+
+```json
+{
+  "hostname": "lablink-vm-prod-1"
+}
+```
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:**
+  ```json
+  {
+    "message": "Reboot initiated for VM 'lablink-vm-prod-1'."
+  }
+  ```
+
+**Error Response:**
+
+- **Code:** `400 Bad Request` if `hostname` is missing.
+- **Code:** `404 Not Found` if the VM does not exist.
+- **Code:** `500 Internal Server Error` if the reboot fails.
+
+### Get Reboot Info for a VM
+
+Retrieves reboot tracking information for a specific VM.
+
+**Endpoint:** `GET /api/reboot-vm/<hostname>`
+
+**Description:** Returns the reboot count and last reboot time for a VM, useful for monitoring automatic reboot behavior.
+
+**Authentication:** HTTP Basic Auth
+
+**URL Parameters:**
+
+- `hostname` (string, required): The hostname of the VM.
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:**
+  ```json
+  {
+    "hostname": "lablink-vm-prod-1",
+    "reboot_count": 2,
+    "last_reboot_time": "2025-01-15T10:30:00"
   }
   ```
 

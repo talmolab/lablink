@@ -41,6 +41,8 @@ erDiagram
         float ContainerStartupDurationSeconds "Container startup duration"
         float TotalStartupDurationSeconds "Total startup duration"
         timestamp CreatedAt "Creation timestamp"
+        integer reboot_count "Reboot attempt count"
+        timestamp last_reboot_time "Last reboot time"
     }
 
     VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"
@@ -73,6 +75,8 @@ Primary table tracking all VM instances with comprehensive timing metrics.
 | `ContainerStartupDurationSeconds` | FLOAT         |               | Duration of container startup in seconds                |
 | `TotalStartupDurationSeconds`     | FLOAT         |               | Total VM startup duration in seconds                    |
 | `CreatedAt`                       | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                                      |
+| `reboot_count`                    | INTEGER       | DEFAULT 0     | Number of reboot attempts                               |
+| `last_reboot_time`               | TIMESTAMP     |               | When the last reboot was attempted                      |
 
 **InUse Status**:
 
@@ -284,11 +288,12 @@ GROUP BY status;
 Expected output:
 
 ```
- status    | count
------------+-------
- available |     5
- in-use    |     3
- failed    |     1
+ status       | count
+--------------+-------
+ available    |     5
+ in-use       |     3
+ error        |     1
+ rebooting    |     1
 ```
 
 ### Find VM by Email
