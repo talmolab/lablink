@@ -112,6 +112,7 @@ resource "aws_instance" "lablink_vm" {
       region                      = var.region
       startup_content_b64         = local.startup_content_b64
       startup_on_error            = var.startup_on_error
+      log_shipper_sh              = file("${path.module}/log_shipper.sh")
     }),
     "--BOUNDARY--",
   ]))

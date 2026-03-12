@@ -666,13 +666,23 @@ def receive_vm_logs():
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
-        # Save the logs to the database
+        # Save the logs to the database (cap at 1MB to prevent unbounded growth)
+        MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
         vm_log = database.get_vm_logs(hostname=log_stream)
         if vm_log is not None:
             vm_log += "\n" + new_logs
         else:
             vm_log = new_logs
+
+        # Truncate from the beginning if over 1MB (keep most recent logs)
+        if len(vm_log) > MAX_LOG_SIZE:
+            vm_log = vm_log[-MAX_LOG_SIZE:]
+            # Remove partial first line from truncation
+            first_newline = vm_log.find("\n")
+            if first_newline != -1:
+                vm_log = vm_log[first_newline + 1:]
+
         database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
 
         return jsonify({"message": "VM logs posted successfully."}), 200
@@ -696,7 +706,7 @@ def get_vm_logs_by_hostname(hostname):
         logs = database.get_vm_logs(hostname=hostname)
         status = vm.get("status")
         if logs is None and status == "initializing":
-            return jsonify({"error": "VM is installing CloudWatch agent."}), 503
+            return jsonify({"error": "VM is initializing."}), 503
 
         return jsonify({"hostname": hostname, "logs": logs}), 200
     except Exception as e:

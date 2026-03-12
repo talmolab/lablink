@@ -18,6 +18,8 @@ VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 ALLOCATOR_URL="${allocator_url}"
 STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
+LOG_GROUP="${cloud_init_output_log_group}"
+CLOUD_INIT_LOG="/var/log/cloud-init-output.log"
 
 # Function to send status updates
 send_status() {
@@ -32,6 +34,18 @@ trap 'send_status "error"' ERR
 
 # Send initial status
 send_status "initializing"
+
+# --- Install log shipper and start tailing cloud-init log early ---
+cat > /usr/local/bin/log_shipper.sh <<'SHIPPER_EOF'
+${log_shipper_sh}
+SHIPPER_EOF
+chmod +x /usr/local/bin/log_shipper.sh
+
+echo ">> Starting log shipper for cloud-init log..."
+nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" \
+    >> /var/log/log_shipper.log 2>&1 &
+LOG_SHIPPER_CLOUD_INIT_PID=$!
+echo ">> Log shipper started (PID: $LOG_SHIPPER_CLOUD_INIT_PID)"
 
 echo ">> Waiting for apt/dpkg lock…"
 # This loop waits for the apt/dpkg lock to be released so that we can install packages without conflicts
@@ -185,6 +199,22 @@ else
     echo "Container launch failed!"
     send_status "error"
     exit 1
+fi
+
+# Start log shipper for Docker container json-log
+CONTAINER_ID=$(docker ps -q --latest 2>/dev/null || true)
+if [ -n "$CONTAINER_ID" ]; then
+    DOCKER_LOG_PATH=$(docker inspect --format='{{.LogPath}}' "$CONTAINER_ID" 2>/dev/null || true)
+    if [ -n "$DOCKER_LOG_PATH" ] && [ -f "$DOCKER_LOG_PATH" ]; then
+        echo ">> Starting log shipper for Docker container log ($DOCKER_LOG_PATH)..."
+        nohup /usr/local/bin/log_shipper.sh "$DOCKER_LOG_PATH" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" --docker-json \
+            >> /var/log/log_shipper.log 2>&1 &
+        echo ">> Docker log shipper started (PID: $!)"
+    else
+        echo ">> WARNING: Could not find Docker json-log path for container $CONTAINER_ID"
+    fi
+else
+    echo ">> WARNING: No running container found for Docker log shipping"
 fi
 
 # End time
