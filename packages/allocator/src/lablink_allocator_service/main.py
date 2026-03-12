@@ -666,6 +666,13 @@ def receive_vm_logs():
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
+        # Strip ANSI escape codes and drop empty lines
+        messages = [ANSI_ESCAPE.sub("", m) for m in messages]
+        messages = [m for m in messages if m.strip()]
+
+        if not messages:
+            return jsonify({"message": "No log messages after filtering."}), 200
+
         # Save the logs to the database (cap at 1MB to prevent unbounded growth)
         MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
