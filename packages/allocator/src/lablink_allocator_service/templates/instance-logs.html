@@ -283,7 +283,7 @@
                         logBox.scrollTop = logBox.scrollHeight;
                     }
                 } else if (res.status === 503) {
-                    logBox.textContent = "The VM is currently installing CloudWatch Agent. Please wait.";
+                    logBox.textContent = "The VM is currently initializing. Please wait.";
                 } else {
                     logBox.textContent = "Error loading logs. Please try again.";
                 }
