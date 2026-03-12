@@ -12,7 +12,7 @@ echo "  - Subject Software: ${subject_software}"
 echo "  - Image Name: ${image_name}"
 echo "  - Machine Type GPU Support: ${gpu_support}"
 echo "  - GitHub Repository: ${repository}"
-echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
+echo "  - Log Group: ${cloud_init_output_log_group}"
 
 VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
@@ -46,51 +46,6 @@ nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME
     >> /var/log/log_shipper.log 2>&1 &
 LOG_SHIPPER_CLOUD_INIT_PID=$!
 echo ">> Log shipper started (PID: $LOG_SHIPPER_CLOUD_INIT_PID)"
-
-echo ">> Waiting for apt/dpkg lock…"
-# This loop waits for the apt/dpkg lock to be released so that we can install packages without conflicts
-while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-    sleep 5
-done
-
-echo ">> Installing CloudWatch agent…"
-
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-
-if ! sudo dpkg -i ./amazon-cloudwatch-agent.deb; then
-    echo "CloudWatch agent installation failed!" >&2
-    send_status "error"
-    exit 1
-fi
-
-echo ">> Configuring CloudWatch agent…"
-
-cat >/opt/aws/amazon-cloudwatch-agent/bin/config.json <<'EOF'
-{
-  "logs": {
-    "logs_collected": {
-      "files": {
-        "collect_list": [
-          {
-            "file_path": "/var/log/cloud-init-output.log",
-            "log_group_name": "${cloud_init_output_log_group}",
-            "log_stream_name": "${resource_prefix}-vm-${count_index}",
-            "timestamp_format": "%b %d %H:%M:%S"
-          }
-        ]
-      }
-    }
-  }
-}
-EOF
-echo ">> CloudWatch agent configuration complete."
-
-echo ">> Starting CloudWatch agent…"
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
-  -a fetch-config -m ec2 \
-  -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-
-echo ">> CloudWatch agent started."
 
 echo ">> Checking GPU Support…"
 
@@ -189,8 +144,6 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e TUTORIAL_REPO_TO_CLONE="${repository}" \
     -e VM_NAME="${resource_prefix}-vm-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
-    -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
-    -e AWS_REGION="${region}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
     --network host \
     "${image_name}"; then

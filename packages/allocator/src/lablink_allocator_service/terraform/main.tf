@@ -30,9 +30,9 @@ resource "aws_security_group" "lablink_sg" {
   })
 }
 
-# IAM Role for CloudWatch Agent
-resource "aws_iam_role" "cloud_watch_agent_role" {
-  name = "${var.resource_prefix}-cloudwatch-role"
+# IAM Role for EC2 instances
+resource "aws_iam_role" "lablink_vm_role" {
+  name = "${var.resource_prefix}-vm-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -48,21 +48,14 @@ resource "aws_iam_role" "cloud_watch_agent_role" {
   })
 
   tags = merge(local.common_tags, {
-    Name = "${var.resource_prefix}-cloudwatch-role"
+    Name = "${var.resource_prefix}-vm-role"
   })
-}
-
-# Policy to allow CloudWatch agent to write logs
-resource "aws_iam_policy_attachment" "cloudwatch_agent_policy" {
-  name       = "${var.resource_prefix}-cloudwatch-policy"
-  roles      = [aws_iam_role.cloud_watch_agent_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 # Instance profile for EC2 instances
 resource "aws_iam_instance_profile" "lablink_instance_profile" {
   name = "${var.resource_prefix}-instance-profile"
-  role = aws_iam_role.cloud_watch_agent_role.name
+  role = aws_iam_role.lablink_vm_role.name
 
   tags = merge(local.common_tags, {
     Name = "${var.resource_prefix}-instance-profile"

@@ -34,30 +34,9 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   echo "Running custom startup script..."
   sudo chmod +x /docker_scripts/custom-startup.sh
 
-  # Capture startup script output so we can forward it to the allocator logs
-  STARTUP_LOG=$(bash /docker_scripts/custom-startup.sh 2>&1)
+  # Run startup script, output goes to container stdout (captured by log shipper)
+  bash /docker_scripts/custom-startup.sh 2>&1
   rc=$?
-
-  # Print to container stdout so it also appears in docker logs
-  if [ -n "$STARTUP_LOG" ]; then
-    echo "$STARTUP_LOG"
-  fi
-
-  # Forward startup script output to the allocator for the admin panel
-  if [ -n "$ALLOCATOR_URL" ] && [ -n "$VM_NAME" ] && [ -n "$STARTUP_LOG" ]; then
-    PAYLOAD=$(echo "$STARTUP_LOG" | python -c "
-import json, os, sys
-lines = sys.stdin.read().splitlines()
-print(json.dumps({
-    'log_group': os.environ.get('CLOUD_INIT_LOG_GROUP', ''),
-    'log_stream': os.environ.get('VM_NAME', ''),
-    'messages': lines
-}))")
-    curl -s -X POST "$ALLOCATOR_URL/api/vm-logs" \
-      -H "Content-Type: application/json" \
-      -d "$PAYLOAD" \
-      --max-time 10 || echo "Warning: Failed to forward startup script logs to allocator"
-  fi
 
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script exited with code $rc"
