@@ -55,7 +55,7 @@ variable "gpu_support" {
 
 variable "cloud_init_output_log_group" {
   type        = string
-  description = "CloudWatch Log Group for client VM logs"
+  description = "Log group identifier for client VM logs (used by log shipper)"
 }
 
 variable "region" {

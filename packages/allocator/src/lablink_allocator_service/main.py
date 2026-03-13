@@ -263,7 +263,7 @@ def launch():
         logger.debug(f"Subject Software: {cfg.machine.software}")
         logger.debug(f"Region: {cfg.app.region}")
         logger.debug(f"Allocator IP: {allocator_ip}")
-        logger.debug(f"Cloud Init Output Log Group: {cloud_init_output_log_group}")
+        logger.debug(f"Log Group: {cloud_init_output_log_group}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -679,13 +679,30 @@ def receive_vm_logs():
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
-        # Save the logs to the database
+        # Strip ANSI escape codes and drop empty lines
+        messages = [ANSI_ESCAPE.sub("", m) for m in messages]
+        messages = [m for m in messages if m.strip()]
+
+        if not messages:
+            return jsonify({"message": "No log messages after filtering."}), 200
+
+        # Save the logs to the database (cap at 1MB to prevent unbounded growth)
+        MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
         vm_log = database.get_vm_logs(hostname=log_stream)
         if vm_log is not None:
             vm_log += "\n" + new_logs
         else:
             vm_log = new_logs
+
+        # Truncate from the beginning if over 1MB (keep most recent logs)
+        if len(vm_log) > MAX_LOG_SIZE:
+            vm_log = vm_log[-MAX_LOG_SIZE:]
+            # Remove partial first line from truncation
+            first_newline = vm_log.find("\n")
+            if first_newline != -1:
+                vm_log = vm_log[first_newline + 1:]
+
         database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
 
         return jsonify({"message": "VM logs posted successfully."}), 200
@@ -709,7 +726,7 @@ def get_vm_logs_by_hostname(hostname):
         logs = database.get_vm_logs(hostname=hostname)
         status = vm.get("status")
         if logs is None and status == "initializing":
-            return jsonify({"error": "VM is installing CloudWatch agent."}), 503
+            return jsonify({"error": "VM is initializing."}), 503
 
         return jsonify({"hostname": hostname, "logs": logs}), 200
     except Exception as e:

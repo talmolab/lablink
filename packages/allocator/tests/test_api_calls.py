@@ -1075,7 +1075,7 @@ def test_vm_logs_by_hostname_not_found(client, monkeypatch):
 
 
 def test_vm_logs_by_hostname_installing_cloud_watch(client, monkeypatch):
-    """Test getting VM logs by hostname when installing CloudWatch agent."""
+    """Test getting VM logs by hostname when VM is initializing."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.return_value = {
@@ -1092,7 +1092,7 @@ def test_vm_logs_by_hostname_installing_cloud_watch(client, monkeypatch):
 
     assert resp.status_code == 503
     assert resp.is_json
-    assert resp.get_json() == {"error": "VM is installing CloudWatch agent."}
+    assert resp.get_json() == {"error": "VM is initializing."}
 
 
 def test_vm_logs_by_hostname_internal_error(client, monkeypatch):
