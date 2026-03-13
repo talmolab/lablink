@@ -23,6 +23,7 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 
 from lablink_allocator_service.get_config import get_config
+from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
@@ -56,6 +57,18 @@ os.environ["DATABASE_URL"] = db_uri
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", db_uri)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
+# Validate that required secrets are configured
+_missing = []
+if cfg.app.admin_user == MISSING_SECRET:
+    _missing.append("app.admin_user")
+if cfg.app.admin_password == MISSING_SECRET:
+    _missing.append("app.admin_password")
+if _missing:
+    raise SystemExit(
+        f"FATAL: Required secrets not configured: {', '.join(_missing)}. "
+        f"Set these in your config.yaml (injected from GitHub secrets in production)."
+    )
 
 # Initialize variables
 PIN = "123456"

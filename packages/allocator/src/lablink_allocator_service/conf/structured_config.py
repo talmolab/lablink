@@ -7,6 +7,10 @@ from typing import Optional
 
 from hydra.core.config_store import ConfigStore
 
+# Sentinel value for required secrets that must be provided via config.
+# If this value is still present at startup, the application will refuse to start.
+MISSING_SECRET = "MISSING"
+
 
 @dataclass
 class DatabaseConfig:
@@ -43,8 +47,8 @@ class AppConfig:
         region (str): The AWS region where the service is deployed.
     """
 
-    admin_user: str = field(default="admin")
-    admin_password: str = field(default="admin_password")
+    admin_user: str = field(default=MISSING_SECRET)
+    admin_password: str = field(default=MISSING_SECRET)
     region: str = field(default="us-west-2")
 
 
