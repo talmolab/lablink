@@ -87,3 +87,10 @@ variable "custom_startup_script_path" {
   description = "Path to a custom startup script to be executed on instance launch within EC2 Instance"
   default     = "/config/custom-startup.sh"
 }
+
+variable "api_token" {
+  type        = string
+  description = "Shared bearer token for authenticating client-to-allocator API requests"
+  sensitive   = true
+  default     = ""
+}

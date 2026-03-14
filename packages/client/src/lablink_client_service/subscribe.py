@@ -46,6 +46,12 @@ def subscribe(cfg: Config) -> None:
     hostname = os.getenv("VM_NAME")
     logger.info(f"Connecting to allocator as '{hostname}'")
 
+    # API token for bearer authentication
+    api_token = os.getenv("API_TOKEN", "")
+    headers = {}
+    if api_token:
+        headers["Authorization"] = f"Bearer {api_token}"
+
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues
     retry_count = 0
@@ -66,7 +72,10 @@ def subscribe(cfg: Config) -> None:
             # The allocator uses PostgreSQL LISTEN/NOTIFY to wait for VM
             # assignment. Timeout tuple: (connect, read) = (30s, 7 days)
             response = requests.post(
-                url, json={"hostname": hostname}, timeout=(30, 604800)
+                url,
+                json={"hostname": hostname},
+                headers=headers,
+                timeout=(30, 604800),
             )
 
             # Check if the request was successful
