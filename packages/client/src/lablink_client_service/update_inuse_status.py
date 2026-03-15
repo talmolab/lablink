@@ -75,9 +75,13 @@ def listen_for_process(
         time.sleep(interval + jitter)
 
 
-def call_api(process_name, url):
+def call_api(process_name, url, api_token=""):
     hostname = os.getenv("VM_NAME")
     status = is_process_running(process_name=process_name)
+
+    headers = {}
+    if api_token:
+        headers["Authorization"] = f"Bearer {api_token}"
 
     retry_count = 0
 
@@ -86,7 +90,7 @@ def call_api(process_name, url):
             response = requests.post(
                 url,
                 json={"hostname": hostname, "status": status},
-                # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                headers=headers,
                 timeout=(10, 20),
             )
             response.raise_for_status()
@@ -113,9 +117,9 @@ def call_api(process_name, url):
         )
 
 
-def api_callback(process_name: str, url: str):
+def api_callback(process_name: str, url: str, api_token: str = ""):
     """Callback to call the API when process state changes."""
-    call_api(process_name, url)
+    call_api(process_name, url, api_token=api_token)
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -137,11 +141,13 @@ def main(cfg: Config) -> None:
 
     url = url.replace("://.", "://")
 
+    api_token = os.getenv("API_TOKEN", "")
+
     # Start listening for the process
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=lambda: api_callback(cfg.client.software, url),
+        callback_func=lambda: api_callback(cfg.client.software, url, api_token),
     )
 
 

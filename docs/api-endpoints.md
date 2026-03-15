@@ -2,9 +2,14 @@
 
 This document outlines the API endpoints provided by the LabLink Allocator service.
 
-## Public API Endpoints
+## Authentication
 
-These endpoints are designed for interaction with client VMs and end-users without requiring admin authentication.
+LabLink uses two authentication mechanisms:
+
+- **HTTP Basic Auth**: For admin endpoints (dashboard, VM management). Credentials are configured via `app.admin_user` and `app.admin_password` in `config.yaml`.
+- **Bearer Token**: For machine-to-machine endpoints (client VM → allocator). A random token is auto-generated at allocator startup and distributed to client VMs via Terraform/cloud-init. Requests must include `Authorization: Bearer <token>`.
+
+## Student Endpoint
 
 ### Request a VM
 
@@ -14,7 +19,7 @@ Assigns an available VM to a user.
 
 **Description:** Submits a user's email and a Chrome Remote Desktop (CRD) command to be assigned to an available VM. If a VM is available, it is assigned to the user, and the user is shown a success page with connection details.
 
-**Authentication:** None
+**Authentication:** None (student-facing)
 
 **Request Body:** `application/x-www-form-urlencoded`
 
@@ -33,6 +38,10 @@ Assigns an available VM to a user.
 
 **Client Usage:** This endpoint is not used by the client service. It is called from the allocator's web interface when an end-user manually requests a VM.
 
+## Client VM API Endpoints
+
+These endpoints are used by client VMs to communicate with the allocator. They require a valid bearer token (`Authorization: Bearer <token>`), which is auto-generated at allocator startup and distributed to client VMs via cloud-init.
+
 ### VM Startup Registration
 
 Used by a client VM to register itself with the allocator upon startup and to listen for an assignment.
@@ -41,7 +50,7 @@ Used by a client VM to register itself with the allocator upon startup and to li
 
 **Description:** A client VM calls this endpoint after it boots up. It sends its hostname and then listens for a PostgreSQL notification that contains the assigned `CrdCommand` and `Pin`. This is a long-polling request.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** `application/json`
 
@@ -81,7 +90,7 @@ Retrieves the number of available (unassigned) VMs.
 
 **Description:** Returns the current count of VMs that are running and not yet assigned to a user.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** None
 
@@ -105,7 +114,7 @@ Updates the "in-use" status of a VM.
 
 **Description:** Called by the client VM to indicate whether a user is actively using it.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** `application/json`
 
@@ -144,7 +153,7 @@ Updates the GPU health status of a VM.
 
 **Description:** Called by the client VM to report its GPU health status.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** `application/json`
 
@@ -181,7 +190,7 @@ Updates the overall status of a VM (e.g., `initializing`, `running`, `error`, `r
 
 **Description:** Called by the client VM during its startup sequence to report its current status.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** `application/json`
 
@@ -216,7 +225,7 @@ Receives and stores startup metrics from a VM.
 
 **Description:** Called by the client VM's `user_data.sh` script to post timing metrics for `cloud-init` and container startup.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **URL Parameters:**
 
@@ -260,7 +269,7 @@ Receives and stores logs pushed from a VM.
 
 **Description:** Called by the CloudWatch agent on the client VM (via a Lambda subscription) to push `cloud-init` logs to the allocator.
 
-**Authentication:** None
+**Authentication:** Bearer Token
 
 **Request Body:** `application/json`
 
@@ -363,7 +372,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 
 **Description:** Returns a JSON object mapping each VM hostname to its current status. Used by the admin dashboard.
 
-**Authentication:** None (but intended for admin dashboard)
+**Authentication:** Bearer Token
 
 **Request Body:** None
 
@@ -389,7 +398,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 
 **Description:** Returns the status of a specific VM.
 
-**Authentication:** None (but intended for admin dashboard)
+**Authentication:** Bearer Token
 
 **URL Parameters:**
 
@@ -483,7 +492,7 @@ Retrieves reboot tracking information for a specific VM.
 
 **Description:** Returns the stored logs for a specific VM. Used by the admin log viewer page.
 
-**Authentication:** HTTP Basic Auth (via the `/admin/logs/<hostname>` page)
+**Authentication:** Bearer Token
 
 **URL Parameters:**
 

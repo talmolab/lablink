@@ -112,6 +112,7 @@ resource "aws_instance" "lablink_vm" {
       region                      = var.region
       startup_content_b64         = local.startup_content_b64
       startup_on_error            = var.startup_on_error
+      api_token                   = var.api_token
     }),
     "--BOUNDARY--",
   ]))

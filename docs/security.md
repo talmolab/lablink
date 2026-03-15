@@ -6,7 +6,7 @@ This guide covers security considerations, best practices, and how to secure you
 
 LabLink implements multiple security layers:
 
-- **Authentication**: Admin interface password protection
+- **Authentication**: Admin interface password protection, bearer token for machine-to-machine API
 - **Authorization**: OIDC for GitHub Actions, IAM roles for AWS
 - **Encryption**: HTTPS (optional), encrypted Terraform state
 - **Network**: Security groups restrict access
@@ -28,6 +28,7 @@ LabLink implements multiple security layers:
 | Threat | Impact | Mitigation |
 |--------|--------|------------|
 | Unauthorized admin access | Full system control | Strong passwords, HTTPS, IP restrictions |
+| Unauthorized API access | VM hijacking, status spoofing, log injection | Bearer token auth on all machine-to-machine endpoints |
 | AWS credential exposure | Unauthorized infrastructure changes | OIDC (no stored credentials), IAM policies |
 | SSH key leakage | Direct server access | Ephemeral keys, proper permissions (600) |
 | Database access | Data exposure, manipulation | Firewall rules, strong passwords |
@@ -35,6 +36,24 @@ LabLink implements multiple security layers:
 | Resource exhaustion | Denial of service, high costs | Billing alerts, resource limits |
 
 ## Authentication & Authorization
+
+### API Bearer Token (Machine-to-Machine)
+
+All machine-to-machine API endpoints (client VM → allocator) are protected by a shared bearer token. This prevents unauthorized access to endpoints that could otherwise be used for VM hijacking, status spoofing, log injection, or infrastructure enumeration.
+
+**How it works:**
+
+1. The allocator auto-generates a random token (`secrets.token_urlsafe(32)`) at startup
+2. When VMs are launched via `/api/launch`, the token is written to `terraform.runtime.tfvars`
+3. Terraform passes the token to client VMs via cloud-init as the `API_TOKEN` environment variable
+4. Client services include `Authorization: Bearer <token>` in all API requests
+5. The allocator validates the token using constant-time comparison (`secrets.compare_digest`)
+
+**Protected endpoints:** `/vm_startup`, `/api/unassigned_vms_count`, `/api/update_inuse_status`, `/api/gpu_health`, `/api/vm-status`, `/api/vm-logs`, `/api/vm-metrics/<hostname>`
+
+**Not protected:** `/api/request_vm` (student-facing, accessed from the web UI)
+
+**Token lifecycle:** The token is regenerated each time the allocator starts. Since client VMs are always destroyed before the allocator restarts (via `terraform destroy`), token persistence is not needed. New VMs receive the fresh token at launch.
 
 ### Change Default Passwords
 

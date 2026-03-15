@@ -102,6 +102,11 @@ def app(monkeypatch, omega_config):
     }
     monkeypatch.setattr(main, "users", test_users, raising=False)
 
+    # Patch the API token to use a fixed test token
+    monkeypatch.setattr(
+        main, "API_TOKEN", "test-api-token-for-testing", raising=False
+    )
+
     # If your code references `main.database`, stub it out:
     if not hasattr(main, "database"):
         monkeypatch.setattr(main, "database", MagicMock(), raising=False)
@@ -132,6 +137,12 @@ def admin_headers(omega_config):
     pw = omega_config.app.admin_password
     token = base64.b64encode(f"{user}:{pw}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
+
+
+@pytest.fixture
+def api_token_headers():
+    """Convenience Bearer token header using the test API token."""
+    return {"Authorization": "Bearer test-api-token-for-testing"}
 
 
 @pytest.fixture

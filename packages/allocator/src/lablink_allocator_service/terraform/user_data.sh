@@ -17,6 +17,7 @@ echo "  - CloudWatch Log Group: ${cloud_init_output_log_group}"
 VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 ALLOCATOR_URL="${allocator_url}"
+API_TOKEN="${api_token}"
 STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
 
 # Function to send status updates
@@ -24,6 +25,7 @@ send_status() {
     local status="$1"
     curl -s -X POST "$STATUS_ENDPOINT" \
         -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $API_TOKEN" \
         -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
 }
 
@@ -178,6 +180,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e CLOUD_INIT_LOG_GROUP="${cloud_init_output_log_group}" \
     -e AWS_REGION="${region}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
+    -e API_TOKEN="${api_token}" \
     --network host \
     "${image_name}"; then
     send_status "running"
@@ -203,6 +206,7 @@ for i in {1..5}; do
     HTTP_CODE=$(curl -s -w "%%{http_code}" -o /tmp/metrics_response.txt \
         -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
         -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $API_TOKEN" \
         -d "{
             \"cloud_init_start\": $CLOUD_INIT_START_TIME,
             \"cloud_init_end\": $CLOUD_INIT_END,
