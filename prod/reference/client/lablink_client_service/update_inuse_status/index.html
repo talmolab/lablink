@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -3028,7 +3028,7 @@
 
 
 <h4 id="lablink_client_service.update_inuse_status.api_callback" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">api_callback</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">api_callback</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
 
 <a href="#lablink_client_service.update_inuse_status.api_callback" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -3040,11 +3040,11 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/update_inuse_status.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-116">116</a></span>
-<span class="normal"><a href="#__codelineno-0-117">117</a></span>
-<span class="normal"><a href="#__codelineno-0-118">118</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="k">def</span><span class="w"> </span><span class="nf">api_callback</span><span class="p">(</span><span class="n">process_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Callback to call the API when process state changes.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-118" name="__codelineno-0-118"></a>    <span class="n">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-120">120</a></span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span>
+<span class="normal"><a href="#__codelineno-0-122">122</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="k">def</span><span class="w"> </span><span class="nf">api_callback</span><span class="p">(</span><span class="n">process_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">api_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Callback to call the API when process state changes.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-122" name="__codelineno-0-122"></a>    <span class="n">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="n">api_token</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3055,7 +3055,7 @@
 
 
 <h4 id="lablink_client_service.update_inuse_status.call_api" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
 
 <a href="#lablink_client_service.update_inuse_status.call_api" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -3100,42 +3100,50 @@
 <span class="normal"><a href="#__codelineno-0-110">110</a></span>
 <span class="normal"><a href="#__codelineno-0-111">111</a></span>
 <span class="normal"><a href="#__codelineno-0-112">112</a></span>
-<span class="normal"><a href="#__codelineno-0-113">113</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="k">def</span><span class="w"> </span><span class="nf">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="k">def</span><span class="w"> </span><span class="nf">call_api</span><span class="p">(</span><span class="n">process_name</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="n">hostname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;VM_NAME&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="n">status</span> <span class="o">=</span> <span class="n">is_process_running</span><span class="p">(</span><span class="n">process_name</span><span class="o">=</span><span class="n">process_name</span><span class="p">)</span>
 <a id="__codelineno-0-81" name="__codelineno-0-81"></a>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>    <span class="k">while</span> <span class="n">retry_count</span> <span class="o">&lt;</span> <span class="n">MAX_API_RETRIES</span><span class="p">:</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a>                <span class="n">url</span><span class="p">,</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>                <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hostname&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">},</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a>                <span class="c1"># (connect_timeout, read_timeout): 10s to connect, 20s to read</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a>                <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a>            <span class="p">)</span>
-<a id="__codelineno-0-92" name="__codelineno-0-92"></a>            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Updated in-use status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a>            <span class="k">break</span>  <span class="c1"># Success, exit retry loop</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span><span class="p">:</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-97" name="__codelineno-0-97"></a>                <span class="sa">f</span><span class="s2">&quot;Status update timed out &quot;</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-99" name="__codelineno-0-99"></a>            <span class="p">)</span>
-<a id="__codelineno-0-100" name="__codelineno-0-100"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-101" name="__codelineno-0-101"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a>                <span class="sa">f</span><span class="s2">&quot;Status update failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> &quot;</span>
-<a id="__codelineno-0-103" name="__codelineno-0-103"></a>                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-104" name="__codelineno-0-104"></a>            <span class="p">)</span>
-<a id="__codelineno-0-105" name="__codelineno-0-105"></a>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>        <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>        <span class="k">if</span> <span class="n">retry_count</span> <span class="o">&lt;</span> <span class="n">MAX_API_RETRIES</span><span class="p">:</span>
-<a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="n">jitter</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-<a id="__codelineno-0-109" name="__codelineno-0-109"></a>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">API_RETRY_DELAY</span> <span class="o">+</span> <span class="n">jitter</span><span class="p">)</span>
-<a id="__codelineno-0-110" name="__codelineno-0-110"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-111" name="__codelineno-0-111"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-112" name="__codelineno-0-112"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to update in-use status after </span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2"> attempts&quot;</span>
-<a id="__codelineno-0-113" name="__codelineno-0-113"></a>        <span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="n">headers</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="k">if</span> <span class="n">api_token</span><span class="p">:</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>        <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">api_token</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="k">while</span> <span class="n">retry_count</span> <span class="o">&lt;</span> <span class="n">MAX_API_RETRIES</span><span class="p">:</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>                <span class="n">url</span><span class="p">,</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>                <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hostname&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">},</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>                <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>                <span class="n">timeout</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>            <span class="p">)</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Updated in-use status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>            <span class="k">break</span>  <span class="c1"># Success, exit retry loop</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span><span class="p">:</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>                <span class="sa">f</span><span class="s2">&quot;Status update timed out &quot;</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a>            <span class="p">)</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a>        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>                <span class="sa">f</span><span class="s2">&quot;Status update failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> &quot;</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">retry_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="p">)</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>        <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>        <span class="k">if</span> <span class="n">retry_count</span> <span class="o">&lt;</span> <span class="n">MAX_API_RETRIES</span><span class="p">:</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>            <span class="n">jitter</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">API_RETRY_DELAY</span> <span class="o">+</span> <span class="n">jitter</span><span class="p">)</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to update in-use status after </span><span class="si">{</span><span class="n">MAX_API_RETRIES</span><span class="si">}</span><span class="s2"> attempts&quot;</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a>        <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3387,11 +3395,7 @@ process state changes.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/update_inuse_status.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-121">121</a></span>
-<span class="normal"><a href="#__codelineno-0-122">122</a></span>
-<span class="normal"><a href="#__codelineno-0-123">123</a></span>
-<span class="normal"><a href="#__codelineno-0-124">124</a></span>
-<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-125">125</a></span>
 <span class="normal"><a href="#__codelineno-0-126">126</a></span>
 <span class="normal"><a href="#__codelineno-0-127">127</a></span>
 <span class="normal"><a href="#__codelineno-0-128">128</a></span>
@@ -3411,31 +3415,39 @@ process state changes.</p>
 <span class="normal"><a href="#__codelineno-0-142">142</a></span>
 <span class="normal"><a href="#__codelineno-0-143">143</a></span>
 <span class="normal"><a href="#__codelineno-0-144">144</a></span>
-<span class="normal"><a href="#__codelineno-0-145">145</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="nd">@hydra</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;conf&quot;</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-123" name="__codelineno-0-123"></a>    <span class="c1"># Configure the logger</span>
-<a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="k">global</span> <span class="n">logger</span>
-<a id="__codelineno-0-125" name="__codelineno-0-125"></a>    <span class="n">logger</span> <span class="o">=</span> <span class="n">CloudAndConsoleLogger</span><span class="p">(</span><span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;update_inuse_status&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-126" name="__codelineno-0-126"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting in-use status monitoring service&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-127" name="__codelineno-0-127"></a>
-<a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="c1"># Define the URL for the POST request</span>
-<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="c1"># Use ALLOCATOR_URL env var if set (supports HTTPS),</span>
-<a id="__codelineno-0-130" name="__codelineno-0-130"></a>    <span class="c1"># otherwise use host:port with HTTP</span>
-<a id="__codelineno-0-131" name="__codelineno-0-131"></a>    <span class="n">allocator_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_URL&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-132" name="__codelineno-0-132"></a>    <span class="k">if</span> <span class="n">allocator_url</span><span class="p">:</span>
-<a id="__codelineno-0-133" name="__codelineno-0-133"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-134" name="__codelineno-0-134"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-135" name="__codelineno-0-135"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/api/update_inuse_status&quot;</span>
-<a id="__codelineno-0-137" name="__codelineno-0-137"></a>
-<a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="n">url</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;://.&quot;</span><span class="p">,</span> <span class="s2">&quot;://&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-139" name="__codelineno-0-139"></a>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="c1"># Start listening for the process</span>
-<a id="__codelineno-0-141" name="__codelineno-0-141"></a>    <span class="n">listen_for_process</span><span class="p">(</span>
-<a id="__codelineno-0-142" name="__codelineno-0-142"></a>        <span class="n">process_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">software</span><span class="p">,</span>
-<a id="__codelineno-0-143" name="__codelineno-0-143"></a>        <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
-<a id="__codelineno-0-144" name="__codelineno-0-144"></a>        <span class="n">callback_func</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">api_callback</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">software</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span>
-<a id="__codelineno-0-145" name="__codelineno-0-145"></a>    <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-125" name="__codelineno-0-125"></a><span class="nd">@hydra</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;conf&quot;</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>    <span class="c1"># Configure the logger</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="k">global</span> <span class="n">logger</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="n">logger</span> <span class="o">=</span> <span class="n">CloudAndConsoleLogger</span><span class="p">(</span><span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;update_inuse_status&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting in-use status monitoring service&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>
+<a id="__codelineno-0-132" name="__codelineno-0-132"></a>    <span class="c1"># Define the URL for the POST request</span>
+<a id="__codelineno-0-133" name="__codelineno-0-133"></a>    <span class="c1"># Use ALLOCATOR_URL env var if set (supports HTTPS),</span>
+<a id="__codelineno-0-134" name="__codelineno-0-134"></a>    <span class="c1"># otherwise use host:port with HTTP</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="n">allocator_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_URL&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="k">if</span> <span class="n">allocator_url</span><span class="p">:</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="n">allocator_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>        <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">allocator</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/api/update_inuse_status&quot;</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a>    <span class="n">url</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;://.&quot;</span><span class="p">,</span> <span class="s2">&quot;://&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a>
+<a id="__codelineno-0-144" name="__codelineno-0-144"></a>    <span class="n">api_token</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;API_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a>    <span class="c1"># Start listening for the process</span>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a>    <span class="n">listen_for_process</span><span class="p">(</span>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a>        <span class="n">process_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">software</span><span class="p">,</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a>        <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a>        <span class="n">callback_func</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">api_callback</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">software</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">api_token</span><span class="p">),</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

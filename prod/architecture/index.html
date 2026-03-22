@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -3206,8 +3206,9 @@
 <p><strong>Allocator Communication</strong>:</p>
 </li>
 <li>
-<p>Heartbeat mechanism</p>
+<p>Authenticated via bearer token (auto-distributed at launch)</p>
 </li>
+<li>Heartbeat mechanism</li>
 <li>Status updates (in-use, available)</li>
 <li>
 <p>Failure reporting</p>
@@ -3555,6 +3556,8 @@
 </ol>
 <h2 id="security-architecture">Security Architecture<a class="headerlink" href="#security-architecture" title="Permanent link">&para;</a></h2>
 <ul>
+<li><strong>Admin Authentication</strong>: HTTP Basic Auth for admin dashboard and management endpoints</li>
+<li><strong>API Token Authentication</strong>: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via Terraform/cloud-init at launch time.</li>
 <li><strong>OIDC Authentication</strong>: GitHub Actions authenticate to AWS without stored credentials</li>
 <li><strong>SSH Keys</strong>: Auto-generated per environment, ephemeral artifacts</li>
 <li><strong>Secrets</strong>: Managed via GitHub Secrets and AWS Secrets Manager</li>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -954,15 +954,26 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#public-api-endpoints" class="md-nav__link">
+  <a href="#authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Public API Endpoints
+        Authentication
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Public API Endpoints">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#student-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Student Endpoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Student Endpoint">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -975,6 +986,23 @@
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-vm-api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client VM API Endpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM API Endpoints">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#vm-startup-registration" class="md-nav__link">
@@ -2795,15 +2823,26 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#public-api-endpoints" class="md-nav__link">
+  <a href="#authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Public API Endpoints
+        Authentication
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Public API Endpoints">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#student-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Student Endpoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Student Endpoint">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2816,6 +2855,23 @@
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-vm-api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client VM API Endpoints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client VM API Endpoints">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#vm-startup-registration" class="md-nav__link">
@@ -3026,13 +3082,18 @@
 
 <h1 id="api-endpoints">API Endpoints<a class="headerlink" href="#api-endpoints" title="Permanent link">&para;</a></h1>
 <p>This document outlines the API endpoints provided by the LabLink Allocator service.</p>
-<h2 id="public-api-endpoints">Public API Endpoints<a class="headerlink" href="#public-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>These endpoints are designed for interaction with client VMs and end-users without requiring admin authentication.</p>
+<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
+<p>LabLink uses two authentication mechanisms:</p>
+<ul>
+<li><strong>HTTP Basic Auth</strong>: For admin endpoints (dashboard, VM management). Credentials are configured via <code>app.admin_user</code> and <code>app.admin_password</code> in <code>config.yaml</code>.</li>
+<li><strong>Bearer Token</strong>: For machine-to-machine endpoints (client VM → allocator). A random token is auto-generated at allocator startup and distributed to client VMs via Terraform/cloud-init. Requests must include <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+</ul>
+<h2 id="student-endpoint">Student Endpoint<a class="headerlink" href="#student-endpoint" title="Permanent link">&para;</a></h2>
 <h3 id="request-a-vm">Request a VM<a class="headerlink" href="#request-a-vm" title="Permanent link">&para;</a></h3>
 <p>Assigns an available VM to a user.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/request_vm</code></p>
 <p><strong>Description:</strong> Submits a user's email and a Chrome Remote Desktop (CRD) command to be assigned to an available VM. If a VM is available, it is assigned to the user, and the user is shown a success page with connection details.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> None (student-facing)</p>
 <p><strong>Request Body:</strong> <code>application/x-www-form-urlencoded</code></p>
 <ul>
 <li><code>email</code> (string, required): The user's email address.</li>
@@ -3049,11 +3110,13 @@
 <li><strong>Content:</strong> An HTML page (<code>index.html</code>) with an error message displayed if no VMs are available, if required fields are missing, or if an invalid CRD command is provided.</li>
 </ul>
 <p><strong>Client Usage:</strong> This endpoint is not used by the client service. It is called from the allocator's web interface when an end-user manually requests a VM.</p>
+<h2 id="client-vm-api-endpoints">Client VM API Endpoints<a class="headerlink" href="#client-vm-api-endpoints" title="Permanent link">&para;</a></h2>
+<p>These endpoints are used by client VMs to communicate with the allocator. They require a valid bearer token (<code>Authorization: Bearer &lt;token&gt;</code>), which is auto-generated at allocator startup and distributed to client VMs via cloud-init.</p>
 <h3 id="vm-startup-registration">VM Startup Registration<a class="headerlink" href="#vm-startup-registration" title="Permanent link">&para;</a></h3>
 <p>Used by a client VM to register itself with the allocator upon startup and to listen for an assignment.</p>
 <p><strong>Endpoint:</strong> <code>POST /vm_startup</code></p>
 <p><strong>Description:</strong> A client VM calls this endpoint after it boots up. It sends its hostname and then listens for a PostgreSQL notification that contains the assigned <code>CrdCommand</code> and <code>Pin</code>. This is a long-polling request.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;hostname&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lablink-vm-prod-1&quot;</span>
@@ -3084,7 +3147,7 @@
 <p>Retrieves the number of available (unassigned) VMs.</p>
 <p><strong>Endpoint:</strong> <code>GET /api/unassigned_vms_count</code></p>
 <p><strong>Description:</strong> Returns the current count of VMs that are running and not yet assigned to a user.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
@@ -3100,7 +3163,7 @@
 <p>Updates the "in-use" status of a VM.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/update_inuse_status</code></p>
 <p><strong>Description:</strong> Called by the client VM to indicate whether a user is actively using it.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;hostname&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lablink-vm-prod-1&quot;</span><span class="p">,</span>
@@ -3130,7 +3193,7 @@
 <p>Updates the GPU health status of a VM.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/gpu_health</code></p>
 <p><strong>Description:</strong> Called by the client VM to report its GPU health status.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;hostname&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lablink-vm-prod-1&quot;</span><span class="p">,</span>
@@ -3158,7 +3221,7 @@
 <p>Updates the overall status of a VM (e.g., <code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>).</p>
 <p><strong>Endpoint:</strong> <code>POST /api/vm-status</code></p>
 <p><strong>Description:</strong> Called by the client VM during its startup sequence to report its current status.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">&quot;hostname&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lablink-vm-prod-1&quot;</span><span class="p">,</span>
@@ -3184,7 +3247,7 @@
 <p>Receives and stores startup metrics from a VM.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/vm-metrics/&lt;hostname&gt;</code></p>
 <p><strong>Description:</strong> Called by the client VM's <code>user_data.sh</code> script to post timing metrics for <code>cloud-init</code> and container startup.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
 <li><code>hostname</code> (string, required): The hostname of the VM reporting metrics.</li>
@@ -3219,7 +3282,7 @@
 <p>Receives and stores logs pushed from a VM.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/vm-logs</code></p>
 <p><strong>Description:</strong> Called by the CloudWatch agent on the client VM (via a Lambda subscription) to push <code>cloud-init</code> logs to the allocator.</p>
-<p><strong>Authentication:</strong> None</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">&quot;log_group&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/aws/ec2/lablink&quot;</span><span class="p">,</span>
@@ -3297,7 +3360,7 @@
 <h3 id="get-status-of-all-vms">Get Status of All VMs<a class="headerlink" href="#get-status-of-all-vms" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>GET /api/vm-status</code></p>
 <p><strong>Description:</strong> Returns a JSON object mapping each VM hostname to its current status. Used by the admin dashboard.</p>
-<p><strong>Authentication:</strong> None (but intended for admin dashboard)</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
@@ -3317,7 +3380,7 @@
 <h3 id="get-status-of-a-specific-vm">Get Status of a Specific VM<a class="headerlink" href="#get-status-of-a-specific-vm" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>GET /api/vm-status/&lt;hostname&gt;</code></p>
 <p><strong>Description:</strong> Returns the status of a specific VM.</p>
-<p><strong>Authentication:</strong> None (but intended for admin dashboard)</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
 <li><code>hostname</code> (string, required): The hostname of the VM.
@@ -3391,7 +3454,7 @@
 <h3 id="get-logs-for-a-specific-vm">Get Logs for a Specific VM<a class="headerlink" href="#get-logs-for-a-specific-vm" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>GET /api/vm-logs/&lt;hostname&gt;</code></p>
 <p><strong>Description:</strong> Returns the stored logs for a specific VM. Used by the admin log viewer page.</p>
-<p><strong>Authentication:</strong> HTTP Basic Auth (via the <code>/admin/logs/&lt;hostname&gt;</code> page)</p>
+<p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
 <li><code>hostname</code> (string, required): The hostname of the VM.
