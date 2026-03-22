@@ -78,8 +78,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Chrome Remote Desktop
 # CRD v147+ creates _crd_network system user; Ubuntu 22.04 adduser rejects the
 # leading underscore. Relax NAME_REGEX so the postinst script succeeds.
+# Note: SYS_NAME_REGEX is not supported in Ubuntu 22.04's adduser; NAME_REGEX
+# covers both regular and system users in this version.
 RUN  echo 'NAME_REGEX="[a-z_][a-z0-9_-]*"' >> /etc/adduser.conf && \
-    echo 'SYS_NAME_REGEX="[a-z_][a-z0-9_-]*"' >> /etc/adduser.conf && \
     curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
     echo "deb [arch=amd64] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" > /etc/apt/sources.list.d/chrome-remote-desktop.list && \
     apt-get update && apt-get install --assume-yes chrome-remote-desktop && \
