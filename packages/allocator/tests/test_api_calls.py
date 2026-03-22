@@ -1979,17 +1979,22 @@ def test_create_scheduled_destruction_duplicate_name(
 
 
 # All machine-to-machine endpoints that require bearer token auth
+# Endpoints that require ONLY API token auth (machine-to-machine)
 TOKEN_PROTECTED_ENDPOINTS = [
     ("POST", VM_STARTUP_ENDPOINT, {"hostname": "test-vm"}),
-    ("GET", UNASSIGNED_VMS_COUNT_ENDPOINT, None),
     ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
     ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
     ("POST", VM_STATUS_UPDATE_ENDPOINT, {"hostname": "vm-1", "status": "running"}),
-    ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
     ("GET", f"{VM_STATUS_UPDATE_ENDPOINT}/vm-1", None),
     ("POST", VM_LOGS_ENDPOINT, {"log_group": "g", "log_stream": "s", "messages": ["m"]}),
-    ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
     ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
+]
+
+# Endpoints that accept either session auth or API token (admin UI + VMs)
+DUAL_AUTH_ENDPOINTS = [
+    ("GET", UNASSIGNED_VMS_COUNT_ENDPOINT, None),
+    ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
+    ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
 ]
 
 
@@ -2050,6 +2055,69 @@ def test_token_protected_endpoints_reject_non_bearer_auth(
 
     assert resp.status_code == 401
     assert resp.get_json()["error"] == "Missing or invalid Authorization header."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_reject_no_auth(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints return 401 without any authentication."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    if method == "GET":
+        resp = client.get(endpoint)
+    else:
+        resp = client.post(endpoint, json=json_data)
+
+    assert resp.status_code == 401
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_reject_wrong_token(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints return 401 with an invalid bearer token."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    bad_headers = {"Authorization": "Bearer wrong-token-value"}
+    if method == "GET":
+        resp = client.get(endpoint, headers=bad_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=bad_headers)
+
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Invalid API token."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_accept_api_token(
+    client, api_token_headers, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints accept a valid API bearer token."""
+    fake_db = MagicMock()
+    fake_db.get_unassigned_vms.return_value = []
+    fake_db.get_all_vm_status.return_value = {"vm-1": "running"}
+    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1", "status": "running"}
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "log",
+        "docker_logs": None,
+    }
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    if method == "GET":
+        resp = client.get(endpoint, headers=api_token_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=api_token_headers)
+
+    assert resp.status_code == 200
 
 
 def test_request_vm_does_not_require_token(client, monkeypatch):

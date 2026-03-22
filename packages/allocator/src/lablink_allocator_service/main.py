@@ -148,6 +148,29 @@ def require_api_token(f):
     return decorated
 
 
+def require_auth(f):
+    """Accept either session auth (admin UI) or API bearer token (VMs)."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Try API token first
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            if secrets.compare_digest(token, API_TOKEN):
+                return f(*args, **kwargs)
+            return jsonify({"error": "Invalid API token."}), 401
+
+        # Fall back to session auth (HTTP Basic)
+        if auth.current_user():
+            return f(*args, **kwargs)
+
+        # No valid auth provided — trigger Basic auth challenge
+        return auth.login_required(f)(*args, **kwargs)
+
+    return decorated
+
+
 def check_crd_input(crd_command: str) -> bool:
     """Check if the CRD command is valid.
 
@@ -550,7 +573,7 @@ def download_all_data():
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
-@require_api_token
+@require_auth
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
@@ -631,7 +654,7 @@ def get_vm_status(hostname):
 
 
 @app.route("/api/vm-status", methods=["GET"])
-@require_api_token
+@require_auth
 def get_all_vm_status():
     try:
         vm_status = database.get_all_vm_status()
@@ -749,7 +772,7 @@ def receive_vm_logs():
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
-@require_api_token
+@require_auth
 def get_vm_logs_by_hostname(hostname):
     try:
         vm = database.get_vm_by_hostname(hostname=hostname)
