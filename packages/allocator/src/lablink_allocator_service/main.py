@@ -716,12 +716,17 @@ def receive_vm_logs():
         if not messages:
             return jsonify({"message": "No log messages after filtering."}), 200
 
-        # Save the logs to the database (cap at 1MB to prevent unbounded growth)
+        # Determine log type from log_group
+        log_type = "docker" if log_group.endswith("-docker") else "cloud_init"
+
+        # Save the logs to the database (cap at 1MB per log type)
         MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
-        vm_log = database.get_vm_logs(hostname=log_stream)
-        if vm_log is not None:
-            vm_log += "\n" + new_logs
+        existing = database.get_vm_logs(hostname=log_stream, log_type=log_type)
+        log_key = "docker_logs" if log_type == "docker" else "cloud_init_logs"
+        existing_logs = (existing or {}).get(log_key)
+        if existing_logs:
+            vm_log = existing_logs + "\n" + new_logs
         else:
             vm_log = new_logs
 
@@ -733,7 +738,9 @@ def receive_vm_logs():
             if first_newline != -1:
                 vm_log = vm_log[first_newline + 1:]
 
-        database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
+        database.save_logs_by_hostname(
+            hostname=log_stream, logs=vm_log, log_type=log_type
+        )
 
         return jsonify({"message": "VM logs posted successfully."}), 200
     except Exception as e:
@@ -754,12 +761,20 @@ def get_vm_logs_by_hostname(hostname):
             return jsonify({"error": "VM not found."}), 404
 
         # If the logs are empty but the vm is initializing, return a 503 status
-        logs = database.get_vm_logs(hostname=hostname)
+        logs_data = database.get_vm_logs(hostname=hostname)
         status = vm.get("status")
-        if logs is None and status == "initializing":
+        if logs_data is None and status == "initializing":
             return jsonify({"error": "VM is initializing."}), 503
 
-        return jsonify({"hostname": hostname, "logs": logs}), 200
+        cloud_init_logs = (logs_data or {}).get("cloud_init_logs")
+        docker_logs = (logs_data or {}).get("docker_logs")
+
+        return jsonify({
+            "hostname": hostname,
+            "cloud_init_logs": cloud_init_logs,
+            "docker_logs": docker_logs,
+            "logs": "\n".join(filter(None, [cloud_init_logs, docker_logs])) or None,
+        }), 200
     except Exception as e:
         logger.error(f"Error getting VM logs: {e}")
         return jsonify({"error": "Failed to get VM logs."}), 500

@@ -949,11 +949,11 @@ def test_get_all_vm_status_internal_error(client, api_token_headers, monkeypatch
 
 
 def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
-    """Test posting VM logs successfully."""
+    """Test posting VM logs successfully (cloud-init)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    fake_db.get_vm_logs.return_value = "Sample log data for VM."
+    fake_db.get_vm_logs.return_value = {"cloud_init_logs": "Sample log data for VM."}
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -970,10 +970,44 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"message": "VM logs posted successfully."}
     fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
-    fake_db.get_vm_logs.assert_called_once_with(hostname="lablink-vm-test-1")
+    fake_db.get_vm_logs.assert_called_once_with(
+        hostname="lablink-vm-test-1", log_type="cloud_init"
+    )
     fake_db.save_logs_by_hostname.assert_called_once_with(
         hostname="lablink-vm-test-1",
         logs="Sample log data for VM.\nMessage 1\nMessage 2",
+        log_type="cloud_init",
+    )
+
+
+def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
+    """Test posting VM logs successfully (docker)."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    fake_db.get_vm_logs.return_value = {"docker_logs": "Existing docker log."}
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API with log_group ending in -docker
+    data = {
+        "log_group": "cloud-init-output-logs-docker",
+        "log_stream": "lablink-vm-test-1",
+        "messages": ["Docker msg 1"],
+    }
+    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    assert resp.get_json() == {"message": "VM logs posted successfully."}
+    fake_db.get_vm_logs.assert_called_once_with(
+        hostname="lablink-vm-test-1", log_type="docker"
+    )
+    fake_db.save_logs_by_hostname.assert_called_once_with(
+        hostname="lablink-vm-test-1",
+        logs="Existing docker log.\nDocker msg 1",
+        log_type="docker",
     )
 
 
@@ -1052,9 +1086,11 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.return_value = {
         "hostname": "lablink-vm-test-1",
-        "logs": "Sample log data for VM.",
     }
-    fake_db.get_vm_logs.return_value = "Sample log data for VM."
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "Cloud init log data.",
+        "docker_logs": "Docker log data.",
+    }
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1066,10 +1102,11 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
 
     assert resp.status_code == 200
     assert resp.is_json
-    assert resp.get_json() == {
-        "hostname": "lablink-vm-test-1",
-        "logs": "Sample log data for VM.",
-    }
+    result = resp.get_json()
+    assert result["hostname"] == "lablink-vm-test-1"
+    assert result["cloud_init_logs"] == "Cloud init log data."
+    assert result["docker_logs"] == "Docker log data."
+    assert result["logs"] == "Cloud init log data.\nDocker log data."
     fake_db.get_vm_logs.assert_called_once_with(hostname="lablink-vm-test-1")
 
 
