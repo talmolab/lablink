@@ -76,12 +76,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # Install Chrome Remote Desktop
-RUN  curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
-    # Add the Chrome Remote Desktop repository
+# CRD v147+ creates _crd_network system user; Ubuntu 22.04 adduser rejects the
+# leading underscore. Relax NAME_REGEX so the postinst script succeeds.
+RUN  echo 'NAME_REGEX="[a-z_][a-z0-9_-]*"' >> /etc/adduser.conf && \
+    echo 'SYS_NAME_REGEX="[a-z_][a-z0-9_-]*"' >> /etc/adduser.conf && \
+    curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
     echo "deb [arch=amd64] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" > /etc/apt/sources.list.d/chrome-remote-desktop.list && \
-    # Update package lists and install Chrome Remote Desktop
     apt-get update && apt-get install --assume-yes chrome-remote-desktop && \
-    # Clean up to reduce image size
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure Chrome Remote Desktop to use Gnome by default
