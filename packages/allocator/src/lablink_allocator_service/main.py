@@ -1,5 +1,6 @@
 import os
 import logging
+import secrets
 import subprocess
 from pathlib import Path
 import tempfile
@@ -7,6 +8,7 @@ from zipfile import ZipFile
 from datetime import datetime
 import re
 import atexit
+from functools import wraps
 
 from flask import (
     Flask,
@@ -80,6 +82,9 @@ key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
+# API token for machine-to-machine authentication (auto-generated each startup)
+API_TOKEN = secrets.token_urlsafe(32)
+
 # Initialize the database connection
 database = None
 
@@ -125,6 +130,22 @@ def verify_password(username, password):
     """
     if username in users and check_password_hash(users.get(username), password):
         return username
+
+
+def require_api_token(f):
+    """Require a valid API bearer token for machine-to-machine endpoints."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing or invalid Authorization header."}), 401
+        token = auth_header[7:]  # Strip "Bearer " prefix
+        if not secrets.compare_digest(token, API_TOKEN):
+            return jsonify({"error": "Invalid API token."}), 401
+        return f(*args, **kwargs)
+
+    return decorated
 
 
 def check_crd_input(crd_command: str) -> bool:
@@ -305,6 +326,7 @@ def launch():
             f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
             f.write(f'region = "{cfg.app.region}"\n')
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
+            f.write(f'api_token = "{API_TOKEN}"\n')
 
         # Apply with the new number of instances
         apply_cmd = [
@@ -391,6 +413,7 @@ def destroy():
 
 
 @app.route("/vm_startup", methods=["POST"])
+@require_api_token
 def vm_startup():
     data = request.get_json()
     hostname = data.get("hostname")
@@ -527,6 +550,7 @@ def download_all_data():
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
+@require_api_token
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
@@ -534,6 +558,7 @@ def get_unassigned_instance_counts():
 
 
 @app.route("/api/update_inuse_status", methods=["POST"])
+@require_api_token
 def update_inuse_status():
     """Update the in-use status of a VM."""
     data = request.get_json()
@@ -554,6 +579,7 @@ def update_inuse_status():
 
 
 @app.route("/api/gpu_health", methods=["POST"])
+@require_api_token
 def update_gpu_health():
     """Check the health of the GPU."""
     data = request.get_json()
@@ -572,6 +598,7 @@ def update_gpu_health():
 
 
 @app.route("/api/vm-status", methods=["POST"])
+@require_api_token
 def update_vm_status():
     try:
         data = request.get_json()
@@ -590,6 +617,7 @@ def update_vm_status():
 
 
 @app.route("/api/vm-status/<hostname>", methods=["GET"])
+@require_api_token
 def get_vm_status(hostname):
     try:
         status = database.get_status_by_hostname(hostname=hostname)
@@ -603,6 +631,7 @@ def get_vm_status(hostname):
 
 
 @app.route("/api/vm-status", methods=["GET"])
+@require_api_token
 def get_all_vm_status():
     try:
         vm_status = database.get_all_vm_status()
@@ -656,6 +685,7 @@ def get_reboot_info(hostname):
 
 
 @app.route("/api/vm-logs", methods=["POST"])
+@require_api_token
 def receive_vm_logs():
     try:
         data = request.get_json()
@@ -695,6 +725,7 @@ def receive_vm_logs():
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
+@require_api_token
 def get_vm_logs_by_hostname(hostname):
     try:
         vm = database.get_vm_by_hostname(hostname=hostname)
@@ -729,6 +760,7 @@ def get_vm_logs(hostname):
 
 
 @app.route("/api/vm-metrics/<hostname>", methods=["POST"])
+@require_api_token
 def receive_vm_metrics(hostname):
     """Receive and store VM Cloud init metrics."""
     try:
@@ -984,6 +1016,7 @@ def main():
                     check=True,
                 )
 
+        logger.info("Auto-generated API token for machine-to-machine auth")
         logger.info("Starting Flask application...")
         app.run(host="0.0.0.0", port=5000, threaded=True)
 

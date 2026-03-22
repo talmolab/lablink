@@ -6,6 +6,24 @@ Define the HTTP API endpoints provided by the allocator service for VM managemen
 
 ## Requirements
 
+### Requirement: API Authentication
+The allocator SHALL authenticate machine-to-machine API requests using a shared bearer token.
+
+#### Scenario: Valid bearer token
+- **GIVEN** a client VM with the correct API token
+- **WHEN** the client sends a request with `Authorization: Bearer <token>` header
+- **THEN** the request is processed normally
+
+#### Scenario: Missing or invalid bearer token
+- **GIVEN** a request without a valid bearer token
+- **WHEN** the request is sent to a token-protected endpoint
+- **THEN** HTTP 401 Unauthorized is returned
+
+#### Scenario: Student-facing endpoint exemption
+- **GIVEN** the `/api/request_vm` endpoint
+- **WHEN** a user submits a VM request without a bearer token
+- **THEN** the request is processed normally (no token required)
+
 ### Requirement: Home Page
 The allocator SHALL provide a home page for users to request VMs.
 

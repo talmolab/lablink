@@ -44,6 +44,7 @@ def test_run_success(
     mock_post.assert_called_once_with(
         "http://localhost:5000/vm_startup",
         json={"hostname": "vm-1"},
+        headers={},
         timeout=(30, 604800),
     )
     mock_connect.assert_called_once_with(pin="123456", command="CRD_COMMAND")
@@ -259,6 +260,7 @@ def test_url_sanitization(
     mock_post.assert_called_with(
         "http://test.com/vm_startup",
         json={"hostname": "vm-1"},
+        headers={},
         timeout=(30, 604800),
     )
 
@@ -267,5 +269,6 @@ def test_url_sanitization(
     mock_post.assert_called_with(
         "test.com/vm_startup",
         json={"hostname": "vm-1"},
+        headers={},
         timeout=(30, 604800),
     )

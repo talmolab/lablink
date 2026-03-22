@@ -16,17 +16,22 @@ MAX_REPORT_RETRIES = 5
 REPORT_RETRY_DELAY = 10  # seconds
 
 
-def check_gpu_health(allocator_url: str, interval: int = 20):
+def check_gpu_health(allocator_url: str, interval: int = 20, api_token: str = ""):
     """Check the health of the GPU.
 
     Args:
         allocator_url (str): The base URL of the allocator service.
         interval (int, optional): The interval in seconds to check the GPU health.
+        api_token (str, optional): Bearer token for API authentication.
     """
     logger.info("Starting GPU health monitoring")
     last_status = None
     base_url = allocator_url.rstrip("/")
     base_url = base_url.replace("://.", "://")
+
+    headers = {"Content-Type": "application/json"}
+    if api_token:
+        headers["Authorization"] = f"Bearer {api_token}"
 
     while True:
         curr_status = None
@@ -73,7 +78,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20):
                             "hostname": os.getenv("VM_NAME"),
                             "gpu_status": curr_status,
                         },
-                        # (connect_timeout, read_timeout): 10s to connect, 20s to read
+                        headers=headers,
                         timeout=(10, 20),
                     )
                     response.raise_for_status()
@@ -130,7 +135,8 @@ def main(cfg: Config) -> None:
 
     allocator_url = allocator_url.replace("://.", "://")
 
-    check_gpu_health(allocator_url=allocator_url)
+    api_token = os.getenv("API_TOKEN", "")
+    check_gpu_health(allocator_url=allocator_url, api_token=api_token)
 
 
 if __name__ == "__main__":

@@ -135,6 +135,7 @@ graph TB
 
 2. **Allocator Communication**:
 
+   - Authenticated via bearer token (auto-distributed at launch)
    - Heartbeat mechanism
    - Status updates (in-use, available)
    - Failure reporting
@@ -398,6 +399,8 @@ See [Workflows](workflows.md) for detailed CI/CD architecture.
 
 ## Security Architecture
 
+- **Admin Authentication**: HTTP Basic Auth for admin dashboard and management endpoints
+- **API Token Authentication**: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via Terraform/cloud-init at launch time.
 - **OIDC Authentication**: GitHub Actions authenticate to AWS without stored credentials
 - **SSH Keys**: Auto-generated per environment, ephemeral artifacts
 - **Secrets**: Managed via GitHub Secrets and AWS Secrets Manager

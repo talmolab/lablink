@@ -128,7 +128,9 @@ def test_listen_for_process_default_callback(
 def test_api_callback(mock_call_api):
     """Test that the API callback calls the call_api function."""
     api_callback("myproc", "http://fake.url")
-    mock_call_api.assert_called_once_with("myproc", "http://fake.url")
+    mock_call_api.assert_called_once_with(
+        "myproc", "http://fake.url", api_token=""
+    )
 
 
 @patch("lablink_client_service.update_inuse_status.listen_for_process")
@@ -136,6 +138,7 @@ def test_api_callback(mock_call_api):
 def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
     """Test the main function of the update_inuse_status module."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    monkeypatch.delenv("API_TOKEN", raising=False)
     cfg = OmegaConf.create(
         {
             "client": {"software": "sleap"},
@@ -155,6 +158,6 @@ def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
         ) as mock_api_callback:
         callback()
         mock_api_callback.assert_called_once_with(
-            "sleap", "https://test.com/api/update_inuse_status"
+            "sleap", "https://test.com/api/update_inuse_status", ""
         )
 
