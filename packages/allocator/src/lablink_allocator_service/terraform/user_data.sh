@@ -44,7 +44,7 @@ SHIPPER_EOF
 chmod +x /usr/local/bin/log_shipper.sh
 
 echo ">> Starting log shipper for cloud-init log..."
-nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" \
+nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" "$API_TOKEN" \
     >> /var/log/log_shipper.log 2>&1 &
 LOG_SHIPPER_CLOUD_INIT_PID=$!
 echo ">> Log shipper started (PID: $LOG_SHIPPER_CLOUD_INIT_PID)"
@@ -163,7 +163,7 @@ if [ -n "$CONTAINER_ID" ]; then
     DOCKER_LOG_PATH=$(docker inspect --format='{{.LogPath}}' "$CONTAINER_ID" 2>/dev/null || true)
     if [ -n "$DOCKER_LOG_PATH" ] && [ -f "$DOCKER_LOG_PATH" ]; then
         echo ">> Starting log shipper for Docker container log ($DOCKER_LOG_PATH)..."
-        nohup /usr/local/bin/log_shipper.sh "$DOCKER_LOG_PATH" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" --docker-json \
+        nohup /usr/local/bin/log_shipper.sh "$DOCKER_LOG_PATH" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" "$API_TOKEN" --docker-json \
             >> /var/log/log_shipper.log 2>&1 &
         echo ">> Docker log shipper started (PID: $!)"
     else

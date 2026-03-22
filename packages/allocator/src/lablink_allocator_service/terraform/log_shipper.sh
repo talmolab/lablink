@@ -1,13 +1,14 @@
 #!/bin/bash
 # log_shipper.sh — Ships log lines to the allocator /api/vm-logs endpoint.
-# Usage: log_shipper.sh <log_file> <allocator_url> <vm_name> <log_group> [--docker-json]
+# Usage: log_shipper.sh <log_file> <allocator_url> <vm_name> <log_group> <api_token> [--docker-json]
 set -euo pipefail
 
 LOG_FILE="$1"
 ALLOCATOR_URL="$2"
 VM_NAME="$3"
 LOG_GROUP="$4"
-DOCKER_JSON="${5:-}"
+API_TOKEN="$5"
+DOCKER_JSON="${6:-}"
 
 BATCH_SIZE=50
 FLUSH_INTERVAL=15
@@ -23,6 +24,7 @@ send_batch() {
         HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null \
             -X POST "$ENDPOINT" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_TOKEN" \
             -d "$payload" --max-time 10 2>/dev/null || echo "000")
         if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             return 0
