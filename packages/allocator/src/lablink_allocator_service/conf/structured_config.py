@@ -5,8 +5,6 @@ Allocator Service.
 from dataclasses import dataclass, field
 from typing import Optional
 
-from hydra.core.config_store import ConfigStore
-
 # Sentinel value for required secrets that must be provided via config.
 # If this value is still present at startup, the application will refuse to start.
 MISSING_SECRET = "MISSING"
@@ -250,5 +248,3 @@ class Config:
     startup_script: StartupConfig = field(default_factory=StartupConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
 
-cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
