@@ -83,12 +83,9 @@ jobs:
         run: |
           # Determine if this is a dev build (use Dockerfile.dev with local code)
           # or prod build (use Dockerfile with PyPI package)
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ] || [ "${{ inputs.environment }}" == "ci-test" ]; then
-            # Dev builds: PR, push to test/main, or manual test/ci-test
-            echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
-            echo "build_args=" >> $GITHUB_OUTPUT
-            echo "is_dev=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.environment }}" == "prod" ]; then
+          # NOTE: Prod check must come first — workflow_dispatch on main would
+          # otherwise match the "push to main" dev-build condition.
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.environment }}" == "prod" ]; then
             # Production build: manual dispatch with prod environment
             # Determine version based on image type
             if [ "${{ matrix.image-name }}" == "lablink-allocator-image" ]; then
@@ -106,6 +103,11 @@ jobs:
               echo "ERROR: Production build without version (validation should have caught this)"
               exit 1
             fi
+          elif [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref_name }}" == "test" ] || [ "${{ github.ref_name }}" == "main" ] || [ "${{ inputs.environment }}" == "test" ] || [ "${{ inputs.environment }}" == "ci-test" ]; then
+            # Dev builds: PR, push to test/main, or manual test/ci-test
+            echo "dockerfile_suffix=.dev" >> $GITHUB_OUTPUT
+            echo "build_args=" >> $GITHUB_OUTPUT
+            echo "is_dev=true" >> $GITHUB_OUTPUT
           else
             # Fallback for unexpected trigger types - default to dev build for safety
             echo "WARNING: Unexpected trigger type, defaulting to dev build"
