@@ -106,8 +106,11 @@ class MachineScreen(Screen):
                 id="instance-list",
             )
 
+            cfg = self.app.config
+
             yield Label("Software Name", classes="field-label")
             yield Input(
+                value=cfg.machine.software or "",
                 placeholder="e.g. sleap, deeplabcut, napari",
                 id="software",
             )
@@ -116,6 +119,7 @@ class MachineScreen(Screen):
                 "Data File Extension", classes="field-label"
             )
             yield Input(
+                value=cfg.machine.extension or "",
                 placeholder="e.g. slp, h5, csv",
                 id="extension",
             )
@@ -124,6 +128,7 @@ class MachineScreen(Screen):
                 "Git Repository (optional)", classes="field-label"
             )
             yield Input(
+                value=cfg.machine.repository or "",
                 placeholder=(
                     "https://github.com/org/repo.git"
                 ),
@@ -175,6 +180,22 @@ class DnsScreen(Screen):
     BINDINGS = [Binding("escape", "back", "Back")]
 
     def compose(self) -> ComposeResult:
+        cfg = self.app.config
+
+        # Determine which radio button to pre-select
+        if not cfg.dns.enabled:
+            default_idx = 0
+        elif cfg.ssl.provider == "letsencrypt":
+            default_idx = 1
+        elif cfg.ssl.provider == "cloudflare":
+            default_idx = 2
+        elif cfg.ssl.provider == "acm":
+            default_idx = 3
+        else:
+            default_idx = 0
+
+        has_domain = default_idx > 0
+
         yield Header()
         with VerticalScroll():
             yield Label(
@@ -184,11 +205,21 @@ class DnsScreen(Screen):
             yield Label("Access Method", classes="field-label")
             with RadioSet(id="dns-mode"):
                 yield RadioButton(
-                    "IP Only (no domain, HTTP)", value=True
+                    "IP Only (no domain, HTTP)",
+                    value=(default_idx == 0),
                 )
-                yield RadioButton("Domain with Let's Encrypt")
-                yield RadioButton("Domain with CloudFlare")
-                yield RadioButton("Domain with AWS ACM (+ALB)")
+                yield RadioButton(
+                    "Domain with Let's Encrypt",
+                    value=(default_idx == 1),
+                )
+                yield RadioButton(
+                    "Domain with CloudFlare",
+                    value=(default_idx == 2),
+                )
+                yield RadioButton(
+                    "Domain with AWS ACM (+ALB)",
+                    value=(default_idx == 3),
+                )
 
             yield Label(
                 "Domain Name",
@@ -196,9 +227,10 @@ class DnsScreen(Screen):
                 id="domain-label",
             )
             yield Input(
+                value=cfg.dns.domain or "",
                 placeholder="lablink.example.com",
                 id="domain",
-                disabled=True,
+                disabled=not has_domain,
             )
 
             yield Label(
@@ -207,9 +239,10 @@ class DnsScreen(Screen):
                 id="email-label",
             )
             yield Input(
+                value=cfg.ssl.email or "",
                 placeholder="admin@example.com",
                 id="ssl-email",
-                disabled=True,
+                disabled=(default_idx != 1),
             )
 
             yield Label(
@@ -218,11 +251,12 @@ class DnsScreen(Screen):
                 id="acm-label",
             )
             yield Input(
+                value=cfg.ssl.certificate_arn or "",
                 placeholder=(
                     "arn:aws:acm:region:account:certificate/id"
                 ),
                 id="acm-arn",
-                disabled=True,
+                disabled=(default_idx != 3),
             )
 
         with Center():
@@ -432,9 +466,11 @@ class ConfigWizard(App):
         Binding("q", "quit", "Quit"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(
+        self, existing_config: Config | None = None
+    ) -> None:
         super().__init__()
-        self.config = Config()
+        self.config = existing_config if existing_config else Config()
 
     def on_mount(self) -> None:
         self.push_screen(RegionScreen())

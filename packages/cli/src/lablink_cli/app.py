@@ -21,18 +21,36 @@ def _load_cfg(config: str | None):
     if not config_path.exists():
         typer.echo(
             f"Config not found: {config_path}\n"
-            "Run 'lablink init' first to generate a config."
+            "Run 'lablink configure' first to generate a config."
         )
         raise typer.Exit(1)
     return load_config(config_path)
 
 
 @app.command()
-def init() -> None:
-    """Launch the configuration wizard to generate a LabLink config."""
+def configure(
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """Create or edit the LabLink configuration.
+
+    Launches a TUI wizard to generate or modify config.yaml.
+    If a config already exists, it is loaded for editing.
+    """
+    from lablink_cli.config.schema import load_config
     from lablink_cli.tui.wizard import ConfigWizard
 
-    wizard = ConfigWizard()
+    config_path = Path(config) if config else DEFAULT_CONFIG
+
+    existing = None
+    if config_path.exists():
+        existing = load_config(config_path)
+
+    wizard = ConfigWizard(existing_config=existing)
     wizard.run()
 
 
