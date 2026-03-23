@@ -41,11 +41,13 @@ package = false
 [tool.uv.workspace]
 members = [
     "packages/allocator",
+    "packages/client",
     "packages/cli",
 ]
 
 [tool.uv.sources]
 lablink-allocator-service = { workspace = true }
+lablink-client-service = { workspace = true }
 
 [tool.ruff]
 line-length = 88
