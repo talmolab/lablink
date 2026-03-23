@@ -291,6 +291,16 @@ def run_setup(cfg: Config) -> None:
         "[bold]Step 3/3:[/bold] DynamoDB table for state locking"
     )
     create_dynamodb_table(session, region)
+
+    # Persist bucket_name to user config
+    cfg.bucket_name = bucket_name
+    from lablink_cli.app import DEFAULT_CONFIG
+    from lablink_cli.config.schema import save_config
+
+    save_config(cfg, DEFAULT_CONFIG)
+    console.print(
+        f"  [green]saved[/green] bucket_name → {DEFAULT_CONFIG}"
+    )
     console.print()
 
     # Optional: Route53
