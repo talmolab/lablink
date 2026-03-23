@@ -23,6 +23,7 @@ from textual.widgets import (
 from textual.widgets.option_list import Option
 
 from lablink_cli.config.schema import (
+    AMI_MAP,
     AWS_REGIONS,
     GPU_INSTANCE_TYPES,
     Config,
@@ -70,7 +71,11 @@ class RegionScreen(Screen):
 
     @on(OptionList.OptionSelected)
     def _select(self, event: OptionList.OptionSelected) -> None:
-        self.app.config.app.region = str(event.option.id)
+        region = str(event.option.id)
+        self.app.config.app.region = region
+        # Auto-select AMI for the chosen region
+        if region in AMI_MAP:
+            self.app.config.machine.ami_id = AMI_MAP[region]
 
     @on(Button.Pressed, "#next")
     def _next(self) -> None:

@@ -268,6 +268,26 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
         ["output"], cwd=deploy_dir, check=False
     )
     console.print()
+
+    # Wait and run health checks
+    import time
+
+    from lablink_cli.commands.status import run_status
+
+    console.print(
+        "[bold]Waiting 60s for allocator to start...[/bold]"
+    )
+    for remaining in range(60, 0, -1):
+        console.print(
+            f"\r  {remaining}s ", end="", highlight=False
+        )
+        time.sleep(1)
+    console.print("\r        \r", end="")
+    console.print()
+
+    run_status(cfg)
+    console.print()
+
     console.print(
         f"[dim]Working directory:[/dim] {deploy_dir}"
     )
