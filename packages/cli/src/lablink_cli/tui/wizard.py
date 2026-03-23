@@ -48,7 +48,7 @@ class RegionScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 1 of 4: AWS Region", classes="step-title"
+                "Step 1 of 5: AWS Region", classes="step-title"
             )
             yield Label(
                 "Select the AWS region closest to your users.",
@@ -94,7 +94,7 @@ class MachineScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 2 of 4: Machine Configuration",
+                "Step 2 of 5: Machine Configuration",
                 classes="step-title",
             )
 
@@ -204,7 +204,7 @@ class DnsScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 3 of 4: DNS & SSL", classes="step-title"
+                "Step 3 of 5: DNS & SSL", classes="step-title"
             )
 
             yield Label("Access Method", classes="field-label")
@@ -343,11 +343,201 @@ class DnsScreen(Screen):
             cfg.ssl.certificate_arn = acm_arn
             cfg.eip.strategy = "persistent"
 
+        self.app.push_screen(StartupScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 4: Startup Script
+# ---------------------------------------------------------------------------
+STARTUP_TEMPLATE_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "terraform"
+    / "config"
+    / "startup-template.sh"
+)
+
+
+class StartupScreen(Screen):
+    """Configure custom startup script for client VMs."""
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def compose(self) -> ComposeResult:
+        cfg = self.app.config
+
+        yield Header()
+        with VerticalScroll():
+            yield Label(
+                "Step 4 of 5: Client Startup Script",
+                classes="step-title",
+            )
+            yield Label(
+                "Optional script that runs inside each "
+                "client VM container after launch.",
+                classes="step-description",
+            )
+
+            yield Label("Startup Script", classes="field-label")
+            with RadioSet(id="startup-mode"):
+                yield RadioButton(
+                    "None (no startup script)",
+                    value=not cfg.startup_script.enabled,
+                )
+                yield RadioButton(
+                    "Use template (edit below)",
+                    value=(
+                        cfg.startup_script.enabled
+                        and not self._has_custom_path()
+                    ),
+                )
+                yield RadioButton(
+                    "Use file from disk",
+                    value=(
+                        cfg.startup_script.enabled
+                        and self._has_custom_path()
+                    ),
+                )
+
+            # Template editor
+            template_content = self._load_template()
+            yield TextArea(
+                template_content,
+                id="script-editor",
+                language="bash",
+                disabled=True,
+            )
+
+            # File path input
+            yield Label(
+                "Script file path",
+                classes="field-label",
+                id="path-label",
+            )
+            yield Input(
+                value=(
+                    cfg.startup_script.path
+                    if self._has_custom_path()
+                    else ""
+                ),
+                placeholder="/path/to/startup.sh",
+                id="script-path",
+                disabled=True,
+            )
+
+            yield Label(
+                "On error", classes="field-label"
+            )
+            with RadioSet(id="on-error"):
+                yield RadioButton(
+                    "Continue (log and proceed)",
+                    value=(
+                        cfg.startup_script.on_error
+                        == "continue"
+                    ),
+                )
+                yield RadioButton(
+                    "Fail (stop VM setup)",
+                    value=(
+                        cfg.startup_script.on_error == "fail"
+                    ),
+                )
+
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
+                yield Button(
+                    "Next", variant="primary", id="next"
+                )
+        yield Footer()
+
+    def _has_custom_path(self) -> bool:
+        cfg = self.app.config
+        return (
+            cfg.startup_script.enabled
+            and cfg.startup_script.path
+            and cfg.startup_script.path
+            != "config/custom-startup.sh"
+        )
+
+    def _load_template(self) -> str:
+        # Load existing script content or default template
+        if STARTUP_TEMPLATE_PATH.exists():
+            return STARTUP_TEMPLATE_PATH.read_text()
+        return "#!/bin/bash\necho 'Custom startup script'\n"
+
+    @on(RadioSet.Changed, "#startup-mode")
+    def _mode_changed(self, event: RadioSet.Changed) -> None:
+        idx = event.index
+        editor = self.query_one("#script-editor", TextArea)
+        path_input = self.query_one("#script-path", Input)
+
+        if idx == 0:
+            # None
+            editor.disabled = True
+            path_input.disabled = True
+        elif idx == 1:
+            # Template
+            editor.disabled = False
+            path_input.disabled = True
+        elif idx == 2:
+            # File from disk
+            editor.disabled = True
+            path_input.disabled = False
+
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        cfg = self.app.config
+        radio = self.query_one("#startup-mode", RadioSet)
+        idx = radio.pressed_index
+
+        error_radio = self.query_one("#on-error", RadioSet)
+        cfg.startup_script.on_error = (
+            "fail"
+            if error_radio.pressed_index == 1
+            else "continue"
+        )
+
+        if idx == 0:
+            # Disabled
+            cfg.startup_script.enabled = False
+            cfg.startup_script.path = ""
+            self.app._startup_script_content = None
+        elif idx == 1:
+            # Template — save editor content
+            cfg.startup_script.enabled = True
+            cfg.startup_script.path = (
+                "config/custom-startup.sh"
+            )
+            editor = self.query_one(
+                "#script-editor", TextArea
+            )
+            self.app._startup_script_content = editor.text
+        elif idx == 2:
+            # File from disk — read content, normalize path
+            local_path = self.query_one(
+                "#script-path", Input
+            ).value.strip()
+            try:
+                self.app._startup_script_content = (
+                    Path(local_path).read_text()
+                )
+                cfg.startup_script.enabled = True
+                cfg.startup_script.path = (
+                    "config/custom-startup.sh"
+                )
+            except (FileNotFoundError, OSError):
+                cfg.startup_script.enabled = False
+                self.app._startup_script_content = None
+
         self.app.push_screen(ReviewScreen())
 
 
 # ---------------------------------------------------------------------------
-# Screen 4: Review & Save
+# Screen 5: Review & Save
 # ---------------------------------------------------------------------------
 class ReviewScreen(Screen):
     """Review configuration and save."""
@@ -358,7 +548,7 @@ class ReviewScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 4 of 4: Review & Save",
+                "Step 5 of 5: Review & Save",
                 classes="step-title",
             )
             yield TextArea(
@@ -408,7 +598,21 @@ class ReviewScreen(Screen):
         if errors:
             return
         save_config(self.app.config, DEFAULT_CONFIG_PATH)
-        self.app.exit(message=f"Config saved to {DEFAULT_CONFIG_PATH}")
+
+        # Write startup script if provided
+        content = getattr(
+            self.app, "_startup_script_content", None
+        )
+        if content:
+            script_path = (
+                DEFAULT_CONFIG_DIR / "custom-startup.sh"
+            )
+            script_path.write_text(content)
+            script_path.chmod(0o755)
+
+        self.app.exit(
+            message=f"Config saved to {DEFAULT_CONFIG_PATH}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -476,6 +680,7 @@ class ConfigWizard(App):
     ) -> None:
         super().__init__()
         self.config = existing_config if existing_config else Config()
+        self._startup_script_content: str | None = None
 
     def on_mount(self) -> None:
         self.push_screen(RegionScreen())

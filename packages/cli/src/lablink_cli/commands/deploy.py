@@ -70,10 +70,22 @@ def _prepare_working_dir(cfg: Config, remote_state: bool) -> Path:
 
     # Copy custom startup script if configured
     if cfg.startup_script.enabled and cfg.startup_script.path:
-        src_startup = TERRAFORM_SRC / cfg.startup_script.path
+        # Check ~/.lablink/ first, then bundled terraform dir
+        user_script = (
+            Path.home() / ".lablink" / "custom-startup.sh"
+        )
+        if user_script.exists():
+            src_startup = user_script
+        else:
+            src_startup = TERRAFORM_SRC / cfg.startup_script.path
+
         if src_startup.exists():
-            dest_startup = deploy_dir / cfg.startup_script.path
-            dest_startup.parent.mkdir(parents=True, exist_ok=True)
+            dest_startup = (
+                deploy_dir / "config" / "custom-startup.sh"
+            )
+            dest_startup.parent.mkdir(
+                parents=True, exist_ok=True
+            )
             shutil.copy2(src_startup, dest_startup)
 
     # Override the hardcoded region in main.tf
@@ -373,6 +385,15 @@ def run_destroy(
     console.print("[bold]Destroying infrastructure...[/bold]")
     _run_terraform(
         ["destroy", "-auto-approve"], cwd=deploy_dir
+    )
+    console.print()
+
+    # Clean up deploy directory
+    import shutil
+
+    shutil.rmtree(deploy_dir)
+    console.print(
+        f"  [green]cleaned[/green] {deploy_dir}"
     )
     console.print()
     console.print("[bold]Infrastructure destroyed.[/bold]")
