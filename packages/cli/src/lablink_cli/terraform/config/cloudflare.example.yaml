@@ -1,0 +1,77 @@
+# LabLink Configuration: Use Case 2 - CloudFlare DNS + SSL
+# Use CloudFlare for DNS management and SSL termination
+#
+# ✅ NO RATE LIMITS - CloudFlare SSL has no certificate issuance limits
+# Ideal for frequent testing and redeployments
+#
+# Prerequisites:
+# - Domain registered and managed in CloudFlare
+# - CloudFlare proxy enabled (orange cloud icon)
+#
+# Setup:
+# 1. Deploy infrastructure (note allocator IP from output)
+# 2. Create A record in CloudFlare: lablink.example.com → {allocator_public_ip}
+# 3. Enable CloudFlare proxy (orange cloud)
+# 4. SSL/TLS mode: Full (not Strict)
+#
+# Access URL: https://lablink.example.com (CloudFlare provides SSL)
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  machine_type: "g4dn.xlarge"
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+  ami_id: "ami-0601752c11b394251"  # us-west-2
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  software: "sleap"
+  extension: "slp"
+
+allocator:
+  image_tag: "linux-amd64-latest-test"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+  region: "us-west-2"
+
+dns:
+  enabled: true  # DNS required for SSL (managed in CloudFlare, not Route53)
+  terraform_managed: false  # DNS records created manually in CloudFlare
+  domain: "lablink.example.com"  # Used for Caddyfile configuration
+  zone_id: ""  # Not used (CloudFlare manages DNS)
+
+eip:
+  strategy: "persistent"
+  tag_name: "lablink-eip"
+
+ssl:
+  provider: "cloudflare"  # CloudFlare handles SSL termination
+  email: ""
+  certificate_arn: ""
+
+startup_script:
+  enabled: false
+  path: "config/custom-startup.sh"
+  on_error: "continue"
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
+
+bucket_name: "tf-state-lablink-YOURORG"

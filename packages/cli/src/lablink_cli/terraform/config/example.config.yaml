@@ -1,0 +1,81 @@
+# LabLink Allocator Configuration
+# This file configures the allocator service and client VM specifications
+# Copy to config.yaml and customize for your deployment
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD" # Injected from GitHub secret at deploy time
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  # Client VM instance type (must support your workload)
+  machine_type: "g4dn.xlarge" # GPU instance for ML workloads
+
+  # Docker image for client VMs (use version tags for production)
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+
+  # AMI ID for your AWS region (Ubuntu 24.04 with Docker + Nvidia GPU Driver)
+  ami_id: "ami-0601752c11b394251" # us-west-2 Ubuntu 24.04 custom AMI
+
+  # Git repository with your data/code (optional - leave empty if not needed)
+  repository: "https://github.com/YOUR_ORG/YOUR_REPO.git"
+
+  # Software identifier for your application
+  software: "your-software"
+
+  # File extension for your data files
+  extension: "ext"
+
+# Allocator service configuration
+allocator:
+  # Docker image tag for the allocator service
+  # For test: use "linux-amd64-latest-test"
+  # For prod: use specific version like "linux-amd64-v1.2.3"
+  image_tag: "linux-amd64-latest-test"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD" # Injected from GitHub secret at deploy time
+  region: "us-west-2" # Your AWS region
+
+dns:
+  enabled: false # true = use DNS for allocator URL, false = IP-only access
+  terraform_managed: false # false = manual DNS records (you create in Route53), true = Terraform creates/destroys records
+  domain: "lablink.example.com" # Your Route53 hosted zone domain
+  zone_id: "" # (Optional) Hardcode zone ID to skip lookup - leave empty for auto-lookup
+
+eip:
+  strategy: "dynamic" # "persistent" = reuse EIP with tag {tag_name}-{env}, "dynamic" = create new EIP with tag {tag_name}-{env}
+  tag_name: "lablink-eip" # Tag prefix for EIP name. Both strategies use {tag_name}-{env} format (e.g., lablink-eip-prod).
+
+ssl:
+  provider: "none" # "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "acm" = AWS ACM, "none" = HTTP only
+  email: "admin@example.com" # Email for Let's Encrypt notifications
+  certificate_arn: "" # AWS ACM certificate ARN (required when provider="acm")
+
+startup_script:
+  enabled: true # true = run custom startup script on client VMs, false = no script
+  path: "config/custom-startup.sh" # Path to custom startup script (optional)
+  on_error: "continue" # "continue" = ignore errors, "fail" = stop VM setup on error
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
+
+# S3 bucket for Terraform state (must be unique globally)
+# Only used for test/prod environments with S3 backend (not used in dev)
+# Replace YOUR-ORG with your organization name
+bucket_name: "tf-state-YOUR-ORG-lablink"

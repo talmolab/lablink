@@ -1,0 +1,82 @@
+# LabLink Configuration: Use Case 1 - IP-Only (No DNS, No SSL)
+# Simplest deployment: Access allocator via public IP address over HTTP
+#
+# ✅ NO RATE LIMITS - Perfect for frequent testing and development
+# No DNS or SSL means no certificate issuance limits
+#
+# Use this when:
+# - You don't have a domain name
+# - You want fastest setup for testing
+# - SSL/HTTPS is not required
+# - Testing infrastructure changes frequently
+# - Avoiding Let's Encrypt rate limits
+#
+# Prerequisites:
+# - None (no domain or DNS required)
+#
+# Setup:
+# 1. Run setup script: ./scripts/setup-aws-infrastructure.sh
+# 2. Deploy infrastructure
+# 3. Note allocator IP from Terraform output
+#
+# Access URL: http://<ALLOCATOR_IP>:5000 (IP will be output after deployment)
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  machine_type: "g4dn.xlarge"
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+  ami_id: "ami-0601752c11b394251"  # us-west-2
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  software: "sleap"
+  extension: "slp"
+
+allocator:
+  image_tag: "linux-amd64-latest-test"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+  region: "us-west-2"
+
+dns:
+  enabled: false  # No DNS - use IP address only
+  terraform_managed: false
+  domain: ""
+  zone_id: ""
+
+eip:
+  strategy: "dynamic"
+  tag_name: "lablink-eip"
+
+ssl:
+  provider: "none"  # No SSL - HTTP only
+  email: ""
+  certificate_arn: ""
+
+startup_script:
+  enabled: false
+  path: "config/custom-startup.sh"
+  on_error: "continue"
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
+
+bucket_name: "tf-state-lablink-YOURORG"
