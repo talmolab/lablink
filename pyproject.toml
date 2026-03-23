@@ -38,6 +38,15 @@ Issues = "https://github.com/talmolab/lablink/issues"
 # This is a workspace root, not a package
 package = false
 
+[tool.uv.workspace]
+members = [
+    "packages/allocator",
+    "packages/cli",
+]
+
+[tool.uv.sources]
+lablink-allocator-service = { workspace = true }
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
