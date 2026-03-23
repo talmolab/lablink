@@ -54,6 +54,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Free Disk Space (Ubuntu)
+        if: matrix.image-name == 'lablink-client-base-image'
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           # Preserve tool cache (Python, Node.js, etc.)
@@ -66,7 +67,7 @@ jobs:
           docker-images: false  # Keep base - we haven't built anything yet
           swap-storage: true    # ~4GB - Swap not needed for Docker builds
           # Total expected space freed: ~20-30GB
-          # Rationale: Client image with CUDA is ~6GB, needs 12-18GB during build
+          # Only needed for client image — CUDA is ~6GB, needs 12-18GB during build
           # GitHub runners start with ~14GB free, which causes "No space left on device"
 
       - name: Validate production build requirements
