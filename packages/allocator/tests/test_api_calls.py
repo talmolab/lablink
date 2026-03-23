@@ -135,8 +135,8 @@ def test_vm_startup_failure(client, api_token_headers, monkeypatch):
     fake_db.listen_for_notifications.assert_not_called()
 
 
-def test_unassigned_vms_count(client, api_token_headers, monkeypatch):
-    """Test the /api/unassigned_vms_count endpoint."""
+def test_unassigned_vms_count(client, monkeypatch):
+    """Test the /api/unassigned_vms_count endpoint (public, no auth required)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_unassigned_vms.return_value = [
@@ -163,8 +163,8 @@ def test_unassigned_vms_count(client, api_token_headers, monkeypatch):
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API
-    resp = client.get(UNASSIGNED_VMS_COUNT_ENDPOINT, headers=api_token_headers)
+    # Call the API without auth (endpoint is public)
+    resp = client.get(UNASSIGNED_VMS_COUNT_ENDPOINT)
 
     # Assert the response
     assert resp.status_code == 200
@@ -949,11 +949,11 @@ def test_get_all_vm_status_internal_error(client, api_token_headers, monkeypatch
 
 
 def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
-    """Test posting VM logs successfully."""
+    """Test posting VM logs successfully (cloud-init)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    fake_db.get_vm_logs.return_value = "Sample log data for VM."
+    fake_db.get_vm_logs.return_value = {"cloud_init_logs": "Sample log data for VM."}
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -970,10 +970,44 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"message": "VM logs posted successfully."}
     fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
-    fake_db.get_vm_logs.assert_called_once_with(hostname="lablink-vm-test-1")
+    fake_db.get_vm_logs.assert_called_once_with(
+        hostname="lablink-vm-test-1", log_type="cloud_init"
+    )
     fake_db.save_logs_by_hostname.assert_called_once_with(
         hostname="lablink-vm-test-1",
         logs="Sample log data for VM.\nMessage 1\nMessage 2",
+        log_type="cloud_init",
+    )
+
+
+def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
+    """Test posting VM logs successfully (docker)."""
+    # Mock the database
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    fake_db.get_vm_logs.return_value = {"docker_logs": "Existing docker log."}
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    # Call the API with log_group ending in -docker
+    data = {
+        "log_group": "cloud-init-output-logs-docker",
+        "log_stream": "lablink-vm-test-1",
+        "messages": ["Docker msg 1"],
+    }
+    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+
+    assert resp.status_code == 200
+    assert resp.is_json
+    assert resp.get_json() == {"message": "VM logs posted successfully."}
+    fake_db.get_vm_logs.assert_called_once_with(
+        hostname="lablink-vm-test-1", log_type="docker"
+    )
+    fake_db.save_logs_by_hostname.assert_called_once_with(
+        hostname="lablink-vm-test-1",
+        logs="Existing docker log.\nDocker msg 1",
+        log_type="docker",
     )
 
 
@@ -1052,9 +1086,11 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.return_value = {
         "hostname": "lablink-vm-test-1",
-        "logs": "Sample log data for VM.",
     }
-    fake_db.get_vm_logs.return_value = "Sample log data for VM."
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "Cloud init log data.",
+        "docker_logs": "Docker log data.",
+    }
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1066,10 +1102,11 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
 
     assert resp.status_code == 200
     assert resp.is_json
-    assert resp.get_json() == {
-        "hostname": "lablink-vm-test-1",
-        "logs": "Sample log data for VM.",
-    }
+    result = resp.get_json()
+    assert result["hostname"] == "lablink-vm-test-1"
+    assert result["cloud_init_logs"] == "Cloud init log data."
+    assert result["docker_logs"] == "Docker log data."
+    assert result["logs"] == "Cloud init log data.\nDocker log data."
     fake_db.get_vm_logs.assert_called_once_with(hostname="lablink-vm-test-1")
 
 
@@ -1096,7 +1133,7 @@ def test_vm_logs_by_hostname_not_found(client, api_token_headers, monkeypatch):
 def test_vm_logs_by_hostname_installing_cloud_watch(
     client, api_token_headers, monkeypatch
 ):
-    """Test getting VM logs by hostname when installing CloudWatch agent."""
+    """Test getting VM logs by hostname when VM is initializing."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_vm_by_hostname.return_value = {
@@ -1115,7 +1152,7 @@ def test_vm_logs_by_hostname_installing_cloud_watch(
 
     assert resp.status_code == 503
     assert resp.is_json
-    assert resp.get_json() == {"error": "VM is installing CloudWatch agent."}
+    assert resp.get_json() == {"error": "VM is initializing."}
 
 
 def test_vm_logs_by_hostname_internal_error(client, api_token_headers, monkeypatch):
@@ -1942,17 +1979,21 @@ def test_create_scheduled_destruction_duplicate_name(
 
 
 # All machine-to-machine endpoints that require bearer token auth
+# Endpoints that require ONLY API token auth (machine-to-machine)
 TOKEN_PROTECTED_ENDPOINTS = [
     ("POST", VM_STARTUP_ENDPOINT, {"hostname": "test-vm"}),
-    ("GET", UNASSIGNED_VMS_COUNT_ENDPOINT, None),
     ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
     ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
     ("POST", VM_STATUS_UPDATE_ENDPOINT, {"hostname": "vm-1", "status": "running"}),
-    ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
     ("GET", f"{VM_STATUS_UPDATE_ENDPOINT}/vm-1", None),
     ("POST", VM_LOGS_ENDPOINT, {"log_group": "g", "log_stream": "s", "messages": ["m"]}),
-    ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
     ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
+]
+
+# Endpoints that accept either session auth or API token (admin UI + VMs)
+DUAL_AUTH_ENDPOINTS = [
+    ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
+    ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
 ]
 
 
@@ -2013,6 +2054,69 @@ def test_token_protected_endpoints_reject_non_bearer_auth(
 
     assert resp.status_code == 401
     assert resp.get_json()["error"] == "Missing or invalid Authorization header."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_reject_no_auth(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints return 401 without any authentication."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    if method == "GET":
+        resp = client.get(endpoint)
+    else:
+        resp = client.post(endpoint, json=json_data)
+
+    assert resp.status_code == 401
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_reject_wrong_token(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints return 401 with an invalid bearer token."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    bad_headers = {"Authorization": "Bearer wrong-token-value"}
+    if method == "GET":
+        resp = client.get(endpoint, headers=bad_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=bad_headers)
+
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Invalid API token."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
+def test_dual_auth_endpoints_accept_api_token(
+    client, api_token_headers, monkeypatch, method, endpoint, json_data
+):
+    """Dual-auth endpoints accept a valid API bearer token."""
+    fake_db = MagicMock()
+    fake_db.get_unassigned_vms.return_value = []
+    fake_db.get_all_vm_status.return_value = {"vm-1": "running"}
+    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1", "status": "running"}
+    fake_db.get_vm_logs.return_value = {
+        "cloud_init_logs": "log",
+        "docker_logs": None,
+    }
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    if method == "GET":
+        resp = client.get(endpoint, headers=api_token_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=api_token_headers)
+
+    assert resp.status_code == 200
 
 
 def test_request_vm_does_not_require_token(client, monkeypatch):

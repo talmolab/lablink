@@ -75,7 +75,8 @@ def test_get_column_names(db_instance):
         "inuse",
         "healthy",
         "status",
-        "logs",
+        "cloudinitlogs",
+        "dockerlogs",
     ]
     db_instance.cursor.fetchall.return_value = [(col,) for col in expected_columns]
     columns = db_instance.get_column_names("vms")
@@ -99,14 +100,15 @@ def test_insert_vm(db_instance):
             "pin",
             "crdcommand",
             "healthy",
-            "logs",
+            "cloudinitlogs",
+            "dockerlogs",
         ]
     )
     db_instance.insert_vm(hostname)
 
-    expected_sql = "INSERT INTO vms (hostname, inuse, status, email, pin, crdcommand, healthy, logs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+    expected_sql = "INSERT INTO vms (hostname, inuse, status, email, pin, crdcommand, healthy, cloudinitlogs, dockerlogs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
     # The values should correspond to the mocked column names
-    expected_values = [hostname, False, None, None, None, None, None, None]
+    expected_values = [hostname, False, None, None, None, None, None, None, None]
     db_instance.cursor.execute.assert_called_with(expected_sql, expected_values)
     db_instance.conn.commit.assert_called_once()
 
@@ -383,26 +385,61 @@ def test_get_status_by_hostname(db_instance):
 
 
 def test_get_vm_logs(db_instance):
-    """Test getting the logs of a VM."""
+    """Test getting all logs of a VM."""
     hostname = "log-vm-01"
-    logs = "some log data here"
-    db_instance.cursor.fetchone.return_value = (logs,)
+    db_instance.cursor.fetchone.return_value = ("cloud init data", "docker data")
 
     result = db_instance.get_vm_logs(hostname)
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT logs FROM vms WHERE hostname = %s;", (hostname,)
+        "SELECT cloudinitlogs, dockerlogs FROM vms WHERE hostname = %s;",
+        (hostname,),
     )
-    assert result == logs
+    assert result == {
+        "cloud_init_logs": "cloud init data",
+        "docker_logs": "docker data",
+    }
+
+
+def test_get_vm_logs_by_type(db_instance):
+    """Test getting logs of a VM by specific type."""
+    hostname = "log-vm-01"
+
+    # Test cloud_init type
+    db_instance.cursor.fetchone.return_value = ("cloud init data",)
+    result = db_instance.get_vm_logs(hostname, log_type="cloud_init")
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT cloudinitlogs FROM vms WHERE hostname = %s;", (hostname,)
+    )
+    assert result == {"cloud_init_logs": "cloud init data"}
+
+    # Test docker type
+    db_instance.cursor.fetchone.return_value = ("docker data",)
+    result = db_instance.get_vm_logs(hostname, log_type="docker")
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT dockerlogs FROM vms WHERE hostname = %s;", (hostname,)
+    )
+    assert result == {"docker_logs": "docker data"}
 
 
 def test_save_logs_by_hostname(db_instance):
-    """Test saving logs for a specific VM."""
+    """Test saving cloud_init logs for a specific VM."""
     hostname = "log-vm-02"
     logs = "new log data to save"
-    db_instance.save_logs_by_hostname(hostname, logs)
+    db_instance.save_logs_by_hostname(hostname, logs, log_type="cloud_init")
     db_instance.cursor.execute.assert_called_with(
-        "UPDATE vms SET logs = %s WHERE hostname = %s;", (logs, hostname)
+        "UPDATE vms SET cloudinitlogs = %s WHERE hostname = %s;", (logs, hostname)
+    )
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_save_docker_logs_by_hostname(db_instance):
+    """Test saving docker logs for a specific VM."""
+    hostname = "log-vm-03"
+    logs = "docker log data"
+    db_instance.save_logs_by_hostname(hostname, logs, log_type="docker")
+    db_instance.cursor.execute.assert_called_with(
+        "UPDATE vms SET dockerlogs = %s WHERE hostname = %s;", (logs, hostname)
     )
     db_instance.conn.commit.assert_called_once()
 
@@ -522,6 +559,10 @@ def test_get_vm_logs_not_found(db_instance):
     hostname = "non-existent-vm"
     db_instance.cursor.fetchone.return_value = None
     result = db_instance.get_vm_logs(hostname)
+    assert result is None
+
+    # Also test with specific log_type
+    result = db_instance.get_vm_logs(hostname, log_type="cloud_init")
     assert result is None
 
 

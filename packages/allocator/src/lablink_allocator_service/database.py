@@ -72,7 +72,11 @@ class PostgresqlDatabase:
         Returns:
             list: A list of all VMs in the table in the form of dictionaries.
         """
-        column_names = [col for col in self.get_column_names() if col != "logs"]
+        column_names = [
+            col
+            for col in self.get_column_names()
+            if col not in ("cloudinitlogs", "dockerlogs")
+        ]
         query_columns = ", ".join(column_names)
         self.cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
         rows = self.cursor.fetchall()
@@ -456,37 +460,62 @@ class PostgresqlDatabase:
             logger.error(f"Failed to retrieve status for VM '{hostname}': {e}")
             return None
 
-    def get_vm_logs(self, hostname: str) -> str:
+    def get_vm_logs(self, hostname: str, log_type: str = None) -> dict:
         """Get the logs of a VM by its hostname.
 
         Args:
             hostname (str): The hostname of the VM.
+            log_type (str): "cloud_init", "docker", or None for both.
 
         Returns:
-            str: The logs of the VM, or None if not found.
+            dict: A dict with "cloud_init_logs" and/or "docker_logs", or None
+                if the VM is not found.
         """
-        query = f"SELECT logs FROM {self.table_name} WHERE hostname = %s;"
+        column_map = {
+            "cloud_init": ("cloudinitlogs", "cloud_init_logs"),
+            "docker": ("dockerlogs", "docker_logs"),
+        }
         try:
-            self.cursor.execute(query, (hostname,))
-            result = self.cursor.fetchone()
-            return result[0] if result else None
+            if log_type in column_map:
+                col, key = column_map[log_type]
+                query = f"SELECT {col} FROM {self.table_name} WHERE hostname = %s;"
+                self.cursor.execute(query, (hostname,))
+                result = self.cursor.fetchone()
+                return {key: result[0]} if result else None
+            else:
+                query = (
+                    f"SELECT cloudinitlogs, dockerlogs FROM {self.table_name} "
+                    f"WHERE hostname = %s;"
+                )
+                self.cursor.execute(query, (hostname,))
+                result = self.cursor.fetchone()
+                if result:
+                    return {
+                        "cloud_init_logs": result[0],
+                        "docker_logs": result[1],
+                    }
+                return None
         except Exception as e:
             logger.error(f"Failed to retrieve logs for VM '{hostname}': {e}")
             return None
 
-    def save_logs_by_hostname(self, hostname: str, logs: str) -> None:
+    def save_logs_by_hostname(
+        self, hostname: str, logs: str, log_type: str = "cloud_init"
+    ) -> None:
         """Save logs for a VM by its hostname.
 
         Args:
             hostname (str): The hostname of the VM.
             logs (str): The logs to save for the VM.
+            log_type (str): "cloud_init" or "docker".
         """
-        query = f"UPDATE {self.table_name} SET logs = %s WHERE hostname = %s;"
+        column = "cloudinitlogs" if log_type == "cloud_init" else "dockerlogs"
+        query = f"UPDATE {self.table_name} SET {column} = %s WHERE hostname = %s;"
         try:
             self.cursor.execute(query, (logs, hostname))
             self.conn.commit()
         except Exception as e:
-            logger.error(f"Failed to save logs for VM '{hostname}': {e}")
+            logger.error(f"Failed to save {log_type} logs for VM '{hostname}': {e}")
             self.conn.rollback()
             raise
 

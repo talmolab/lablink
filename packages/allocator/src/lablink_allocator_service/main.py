@@ -148,6 +148,29 @@ def require_api_token(f):
     return decorated
 
 
+def require_auth(f):
+    """Accept either session auth (admin UI) or API bearer token (VMs)."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Try API token first
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            if secrets.compare_digest(token, API_TOKEN):
+                return f(*args, **kwargs)
+            return jsonify({"error": "Invalid API token."}), 401
+
+        # Fall back to session auth (HTTP Basic)
+        if auth.current_user():
+            return f(*args, **kwargs)
+
+        # No valid auth provided — trigger Basic auth challenge
+        return auth.login_required(f)(*args, **kwargs)
+
+    return decorated
+
+
 def check_crd_input(crd_command: str) -> bool:
     """Check if the CRD command is valid.
 
@@ -284,7 +307,7 @@ def launch():
         logger.debug(f"Subject Software: {cfg.machine.software}")
         logger.debug(f"Region: {cfg.app.region}")
         logger.debug(f"Allocator IP: {allocator_ip}")
-        logger.debug(f"Cloud Init Output Log Group: {cloud_init_output_log_group}")
+        logger.debug(f"Log Group: {cloud_init_output_log_group}")
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
@@ -550,7 +573,6 @@ def download_all_data():
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
-@require_api_token
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
     instance_counts = len(database.get_unassigned_vms())
@@ -631,7 +653,7 @@ def get_vm_status(hostname):
 
 
 @app.route("/api/vm-status", methods=["GET"])
-@require_api_token
+@require_auth
 def get_all_vm_status():
     try:
         vm_status = database.get_all_vm_status()
@@ -709,14 +731,38 @@ def receive_vm_logs():
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
-        # Save the logs to the database
+        # Strip ANSI escape codes and drop empty lines
+        messages = [ANSI_ESCAPE.sub("", m) for m in messages]
+        messages = [m for m in messages if m.strip()]
+
+        if not messages:
+            return jsonify({"message": "No log messages after filtering."}), 200
+
+        # Determine log type from log_group
+        log_type = "docker" if log_group.endswith("-docker") else "cloud_init"
+
+        # Save the logs to the database (cap at 1MB per log type)
+        MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
-        vm_log = database.get_vm_logs(hostname=log_stream)
-        if vm_log is not None:
-            vm_log += "\n" + new_logs
+        existing = database.get_vm_logs(hostname=log_stream, log_type=log_type)
+        log_key = "docker_logs" if log_type == "docker" else "cloud_init_logs"
+        existing_logs = (existing or {}).get(log_key)
+        if existing_logs:
+            vm_log = existing_logs + "\n" + new_logs
         else:
             vm_log = new_logs
-        database.save_logs_by_hostname(hostname=log_stream, logs=vm_log)
+
+        # Truncate from the beginning if over 1MB (keep most recent logs)
+        if len(vm_log) > MAX_LOG_SIZE:
+            vm_log = vm_log[-MAX_LOG_SIZE:]
+            # Remove partial first line from truncation
+            first_newline = vm_log.find("\n")
+            if first_newline != -1:
+                vm_log = vm_log[first_newline + 1:]
+
+        database.save_logs_by_hostname(
+            hostname=log_stream, logs=vm_log, log_type=log_type
+        )
 
         return jsonify({"message": "VM logs posted successfully."}), 200
     except Exception as e:
@@ -725,7 +771,7 @@ def receive_vm_logs():
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
-@require_api_token
+@require_auth
 def get_vm_logs_by_hostname(hostname):
     try:
         vm = database.get_vm_by_hostname(hostname=hostname)
@@ -737,12 +783,20 @@ def get_vm_logs_by_hostname(hostname):
             return jsonify({"error": "VM not found."}), 404
 
         # If the logs are empty but the vm is initializing, return a 503 status
-        logs = database.get_vm_logs(hostname=hostname)
+        logs_data = database.get_vm_logs(hostname=hostname)
         status = vm.get("status")
-        if logs is None and status == "initializing":
-            return jsonify({"error": "VM is installing CloudWatch agent."}), 503
+        if logs_data is None and status == "initializing":
+            return jsonify({"error": "VM is initializing."}), 503
 
-        return jsonify({"hostname": hostname, "logs": logs}), 200
+        cloud_init_logs = (logs_data or {}).get("cloud_init_logs")
+        docker_logs = (logs_data or {}).get("docker_logs")
+
+        return jsonify({
+            "hostname": hostname,
+            "cloud_init_logs": cloud_init_logs,
+            "docker_logs": docker_logs,
+            "logs": "\n".join(filter(None, [cloud_init_logs, docker_logs])) or None,
+        }), 200
     except Exception as e:
         logger.error(f"Error getting VM logs: {e}")
         return jsonify({"error": "Failed to get VM logs."}), 500

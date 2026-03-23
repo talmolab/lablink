@@ -234,10 +234,38 @@
                     <label for="followTail">Follow tail</label>
                 </div>
             </div>
-            
-            <div class="log-container" id="logBox">
-                <div style="text-align: center; color: #888; padding: 2rem;">
-                    Loading logs...
+
+            <!-- Log type tabs -->
+            <ul class="nav nav-tabs mb-0" id="logTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="cloudInitTab" data-bs-toggle="tab"
+                            data-bs-target="#cloudInitPane" type="button" role="tab"
+                            aria-controls="cloudInitPane" aria-selected="true">
+                        Cloud Init <span class="badge bg-secondary ms-1" id="cloudInitLineCount">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="dockerTab" data-bs-toggle="tab"
+                            data-bs-target="#dockerPane" type="button" role="tab"
+                            aria-controls="dockerPane" aria-selected="false">
+                        Docker <span class="badge bg-secondary ms-1" id="dockerLineCount">0</span>
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="cloudInitPane" role="tabpanel" aria-labelledby="cloudInitTab">
+                    <div class="log-container" id="cloudInitLogBox" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                        <div style="text-align: center; color: #888; padding: 2rem;">
+                            Loading logs...
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="dockerPane" role="tabpanel" aria-labelledby="dockerTab">
+                    <div class="log-container" id="dockerLogBox" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                        <div style="text-align: center; color: #888; padding: 2rem;">
+                            Loading logs...
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -264,32 +292,42 @@
 
         async function refreshLogs() {
             try {
-                const logBox = document.getElementById("logBox");
+                const cloudInitLogBox = document.getElementById("cloudInitLogBox");
+                const dockerLogBox = document.getElementById("dockerLogBox");
                 const shouldFollowTail = document.getElementById("followTail").checked;
-                
+
                 const res = await fetch(`/api/vm-logs/${hostname}`, { credentials : 'include' });
                 if (res.ok) {
                     const data = await res.json();
-                    const logs = data.logs || "No logs available.";
-                    
-                    logBox.textContent = logs;
-                    
+                    const cloudInitLogs = data.cloud_init_logs || "No logs available.";
+                    const dockerLogs = data.docker_logs || "No logs available.";
+
+                    cloudInitLogBox.textContent = cloudInitLogs;
+                    dockerLogBox.textContent = dockerLogs;
+
                     // Update stats
-                    updateLogStats(logs);
+                    updateLogStats(cloudInitLogs, dockerLogs);
                     updateTimestamp();
-                    
-                    // Auto-scroll to bottom if following tail
+
+                    // Auto-scroll active tab to bottom if following tail
                     if (shouldFollowTail) {
-                        logBox.scrollTop = logBox.scrollHeight;
+                        const activePane = document.querySelector('.tab-pane.active .log-container');
+                        if (activePane) {
+                            activePane.scrollTop = activePane.scrollHeight;
+                        }
                     }
                 } else if (res.status === 503) {
-                    logBox.textContent = "The VM is currently installing CloudWatch Agent. Please wait.";
+                    cloudInitLogBox.textContent = "The VM is currently initializing. Please wait.";
+                    dockerLogBox.textContent = "The VM is currently initializing. Please wait.";
                 } else {
-                    logBox.textContent = "Error loading logs. Please try again.";
+                    cloudInitLogBox.textContent = "Error loading logs. Please try again.";
+                    dockerLogBox.textContent = "Error loading logs. Please try again.";
                 }
             } catch (err) {
                 console.error("Error fetching logs:", err);
-                document.getElementById("logBox").textContent = "Network error. Please check your connection.";
+                const msg = "Network error. Please check your connection.";
+                document.getElementById("cloudInitLogBox").textContent = msg;
+                document.getElementById("dockerLogBox").textContent = msg;
             }
         }
 
@@ -315,7 +353,9 @@
         }
 
         function downloadLogs() {
-            const logs = document.getElementById("logBox").textContent;
+            const cloudInit = document.getElementById("cloudInitLogBox").textContent;
+            const docker = document.getElementById("dockerLogBox").textContent;
+            const logs = "=== Cloud Init Logs ===\n" + cloudInit + "\n\n=== Docker Logs ===\n" + docker;
             const blob = new Blob([logs], { type: 'text/plain' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -327,10 +367,14 @@
             window.URL.revokeObjectURL(url);
         }
 
-        function updateLogStats(logs) {
-            const lines = logs.split('\n').length;
-            
-            document.getElementById("lineCount").textContent = lines.toLocaleString();
+        function updateLogStats(cloudInitLogs, dockerLogs) {
+            const cloudInitLines = cloudInitLogs ? cloudInitLogs.split('\n').length : 0;
+            const dockerLines = dockerLogs ? dockerLogs.split('\n').length : 0;
+            const totalLines = cloudInitLines + dockerLines;
+
+            document.getElementById("lineCount").textContent = totalLines.toLocaleString();
+            document.getElementById("cloudInitLineCount").textContent = cloudInitLines.toLocaleString();
+            document.getElementById("dockerLineCount").textContent = dockerLines.toLocaleString();
         }
 
         function updateTimestamp() {
