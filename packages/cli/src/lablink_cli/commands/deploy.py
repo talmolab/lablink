@@ -275,14 +275,9 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     from lablink_cli.commands.status import run_status
 
     console.print(
-        "[bold]Waiting 60s for allocator to start...[/bold]"
+        "[bold]Waiting 1.5 min for allocator to start...[/bold]"
     )
-    for remaining in range(60, 0, -1):
-        console.print(
-            f"\r  {remaining}s ", end="", highlight=False
-        )
-        time.sleep(1)
-    console.print("\r        \r", end="")
+    time.sleep(90)
     console.print()
 
     run_status(cfg)
