@@ -135,8 +135,8 @@ def test_vm_startup_failure(client, api_token_headers, monkeypatch):
     fake_db.listen_for_notifications.assert_not_called()
 
 
-def test_unassigned_vms_count(client, api_token_headers, monkeypatch):
-    """Test the /api/unassigned_vms_count endpoint."""
+def test_unassigned_vms_count(client, monkeypatch):
+    """Test the /api/unassigned_vms_count endpoint (public, no auth required)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.get_unassigned_vms.return_value = [
@@ -163,8 +163,8 @@ def test_unassigned_vms_count(client, api_token_headers, monkeypatch):
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API
-    resp = client.get(UNASSIGNED_VMS_COUNT_ENDPOINT, headers=api_token_headers)
+    # Call the API without auth (endpoint is public)
+    resp = client.get(UNASSIGNED_VMS_COUNT_ENDPOINT)
 
     # Assert the response
     assert resp.status_code == 200
@@ -1992,7 +1992,6 @@ TOKEN_PROTECTED_ENDPOINTS = [
 
 # Endpoints that accept either session auth or API token (admin UI + VMs)
 DUAL_AUTH_ENDPOINTS = [
-    ("GET", UNASSIGNED_VMS_COUNT_ENDPOINT, None),
     ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
     ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
 ]
