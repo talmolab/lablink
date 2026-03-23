@@ -175,9 +175,13 @@ def _prompt_passwords() -> dict[str, str]:
     import getpass
 
     console.print(
-        "[bold]Passwords[/bold] "
+        "[bold]Credentials[/bold] "
         "(not stored in config, passed to Terraform only)"
     )
+
+    admin_user = input("  Admin username [admin]: ").strip()
+    if not admin_user:
+        admin_user = "admin"
 
     admin_pw = getpass.getpass("  Admin password: ")
     if not admin_pw:
@@ -192,7 +196,11 @@ def _prompt_passwords() -> dict[str, str]:
         raise SystemExit(1)
 
     console.print()
-    return {"admin_password": admin_pw, "db_password": db_pw}
+    return {
+        "admin_user": admin_user,
+        "admin_password": admin_pw,
+        "db_password": db_pw,
+    }
 
 
 def run_deploy(cfg: Config, remote_state: bool = False) -> None:
@@ -214,17 +222,18 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     # Prepare working directory
     deploy_dir = _prepare_working_dir(cfg, remote_state)
 
-    # Prompt for passwords
+    # Prompt for credentials
     passwords = _prompt_passwords()
 
-    # Write passwords into config for Terraform to read
-    # (config.yaml in the deploy dir only, never persisted)
+    # Write credentials into deploy dir config for Terraform
+    # (deploy dir only, never persisted to ~/.lablink/)
     import yaml
 
     config_path = deploy_dir / "config" / "config.yaml"
     with open(config_path) as f:
         cfg_dict = yaml.safe_load(f)
 
+    cfg_dict["app"]["admin_user"] = passwords["admin_user"]
     cfg_dict["app"]["admin_password"] = passwords[
         "admin_password"
     ]
@@ -262,8 +271,11 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     console.print(
         f"[dim]Working directory:[/dim] {deploy_dir}"
     )
+    destroy_cmd = "lablink destroy"
+    if remote_state:
+        destroy_cmd += " --remote-state"
     console.print(
-        "[dim]To tear down:[/dim] [bold]lablink destroy[/bold]"
+        f"[dim]To tear down:[/dim] [bold]{destroy_cmd}[/bold]"
     )
 
 
@@ -312,6 +324,7 @@ def run_destroy(
     # — write placeholder values)
     config_path = deploy_dir / "config" / "config.yaml"
     cfg_dict = config_to_dict(cfg)
+    cfg_dict["app"]["admin_user"] = "DESTROY_PLACEHOLDER"
     cfg_dict["app"]["admin_password"] = "DESTROY_PLACEHOLDER"
     cfg_dict["db"]["password"] = "DESTROY_PLACEHOLDER"
 
