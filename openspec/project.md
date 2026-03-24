@@ -13,7 +13,7 @@
 ## Tech Stack
 
 ### Backend
-- **Python 3.9+**: Core language for both services
+- **Python 3.10+**: Core language for both services
   - Allocator: Python 3.11 (from `uv:python3.11` base image)
   - Client: Python 3.10 (Ubuntu 22.04 default)
 - **Flask**: Web framework for allocator service
@@ -27,6 +27,9 @@
 - **AWS S3**: Terraform state storage
 - **AWS IAM**: Authentication and authorization
 - **AWS Route 53**: DNS (optional)
+- **AWS ACM**: SSL certificates via ALB (optional)
+- **AWS CloudWatch**: Monitoring and alerting (optional)
+- **AWS SNS**: Alert notifications (optional)
 
 ### Development Tools
 - **uv**: Python package manager (recommended)
@@ -65,19 +68,26 @@
 ```
 packages/
 ├── allocator/           # Allocator service package
-│   ├── src/lablink_allocator/
+│   ├── src/lablink_allocator_service/
 │   │   ├── main.py      # Flask application
 │   │   ├── database.py  # Database operations
 │   │   ├── get_config.py # Config loader
+│   │   ├── validate_config.py # Config validation CLI
+│   │   ├── scheduler.py # Task scheduling
+│   │   ├── reboot.py    # VM reboot handling
 │   │   ├── conf/        # Hydra configuration
+│   │   ├── utils/       # AWS, Terraform, SCP helpers
+│   │   ├── templates/   # HTML templates
 │   │   └── terraform/   # Client VM provisioning (part of package)
 │   ├── tests/
 │   ├── Dockerfile       # Production image (from PyPI)
 │   └── Dockerfile.dev   # Development image (local code)
 └── client/              # Client service package
-    ├── src/lablink_client/
+    ├── src/lablink_client_service/
     │   ├── subscribe.py  # Allocator subscription
     │   ├── check_gpu.py  # GPU health checks
+    │   ├── update_inuse_status.py # VM status updates
+    │   ├── connect_crd.py # Chrome Remote Desktop connection
     │   └── conf/         # Configuration
     ├── tests/
     ├── Dockerfile        # Production image (from PyPI)
@@ -89,6 +99,8 @@ packages/
 - **Allocator**: Loads from `/config/config.yaml` (Docker mount) or falls back to bundled `conf/config.yaml`
 - **Client**: Uses `ALLOCATOR_URL` env var for HTTPS support, falls back to config.yaml
 - **Overrides**: Environment variables, command-line args, YAML edits
+- **Validation**: `lablink-validate-config` CLI validates config against schema
+- **Examples**: See `docs/configuration-examples.md` for deployment-specific configs (IP-only, Let's Encrypt, CloudFlare, ACM)
 
 #### Docker Strategy
 - **Two Dockerfiles per package**:
@@ -199,7 +211,7 @@ VMs transition through states:
 - **Security groups**: Carefully configure for minimal exposure
 
 ### Python Version Compatibility
-- **Minimum**: Python 3.9 (both packages)
+- **Minimum**: Python 3.10 (both packages)
 - **Allocator**: Developed with Python 3.11
 - **Client**: Developed with Python 3.10
 
@@ -226,6 +238,12 @@ VMs transition through states:
 - **Security Groups**: Network security
 - **Route 53**: DNS (optional)
 - **EIP**: Elastic IP addresses
+- **ACM**: SSL certificates via ALB (optional)
+- **ALB**: Application Load Balancer for ACM SSL (optional)
+- **CloudWatch**: Monitoring alarms (optional)
+- **SNS**: Alert notifications (optional)
+- **CloudTrail**: Audit logging (optional)
+- **Budgets**: Cost management (optional)
 
 ### Third-Party Services
 - **PyPI**: Python package distribution
