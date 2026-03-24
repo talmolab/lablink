@@ -64,7 +64,6 @@ class PostgresqlDatabase:
 
         # Set the isolation level to autocommit
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        self.cursor = self.conn.cursor()
 
     def get_all_vms(self) -> list:
         """Get all VMs from the table, excluding logs.
@@ -78,8 +77,9 @@ class PostgresqlDatabase:
             if col not in ("cloudinitlogs", "dockerlogs")
         ]
         query_columns = ", ".join(column_names)
-        self.cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
-        rows = self.cursor.fetchall()
+        with self.conn.cursor() as cursor:
+            cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
+            rows = cursor.fetchall()
         return [dict(zip(column_names, row)) for row in rows]
 
     def get_row_count(self) -> int:
@@ -87,8 +87,9 @@ class PostgresqlDatabase:
         Returns:
             int: The number of rows in the table.
         """
-        self.cursor.execute(f"SELECT COUNT(*) FROM {self.table_name};")
-        return self.cursor.fetchone()[0]
+        with self.conn.cursor() as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM {self.table_name};")
+            return cursor.fetchone()[0]
 
     def get_column_names(self, table_name=None) -> list:
         """Get the column names of a table.
@@ -103,11 +104,13 @@ class PostgresqlDatabase:
             table_name = self.table_name
 
         # Query to get the column names from the information schema
-        self.cursor.execute(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
-            (table_name,),
-        )
-        return [row[0] for row in self.cursor.fetchall()]
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = %s",
+                (table_name,),
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     def insert_vm(self, hostname) -> None:
         """Insert a new row into the table.
@@ -132,14 +135,18 @@ class PostgresqlDatabase:
         columns = ", ".join(column_names)
         placeholders = ", ".join(["%s" for _ in column_names])
 
-        try:
-            sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders});"
-            self.cursor.execute(sql, values)
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to insert VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        with self.conn.cursor() as cursor:
+            try:
+                sql = (
+                    f"INSERT INTO {self.table_name} "
+                    f"({columns}) VALUES ({placeholders});"
+                )
+                cursor.execute(sql, values)
+                self.conn.commit()
+            except Exception as e:
+                logger.error(f"Failed to insert VM '{hostname}': {e}")
+                self.conn.rollback()
+                raise
 
     def get_vm_by_hostname(self, hostname: str) -> dict:
         """Get a VM by its hostname.
@@ -151,8 +158,9 @@ class PostgresqlDatabase:
             dict: A dictionary containing the VM details without logs.
         """
         query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
-        self.cursor.execute(query, (hostname,))
-        row = self.cursor.fetchone()
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (hostname,))
+            row = cursor.fetchone()
         if row:
             return {
                 "hostname": row[0],
@@ -263,9 +271,13 @@ class PostgresqlDatabase:
         if not self.vm_exists(hostname):
             return None
 
-        query = f"SELECT crdcommand FROM {self.table_name} WHERE hostname = %s"
-        self.cursor.execute(query, (hostname,))
-        return self.cursor.fetchone()[0]
+        query = (
+            f"SELECT crdcommand FROM {self.table_name} "
+            f"WHERE hostname = %s"
+        )
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (hostname,))
+            return cursor.fetchone()[0]
 
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are not assigned to any command.
@@ -278,8 +290,9 @@ class PostgresqlDatabase:
             f"crdcommand IS NULL AND status = 'running'"
         )
         try:
-            self.cursor.execute(query)
-            return [row[0] for row in self.cursor.fetchall()]
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Failed to retrieve unassigned VMs: {e}")
             return []
@@ -293,9 +306,14 @@ class PostgresqlDatabase:
         Returns:
             bool: True if the VM exists, False otherwise.
         """
-        query = f"SELECT EXISTS (SELECT 1 FROM {self.table_name} WHERE hostname = %s)"
-        self.cursor.execute(query, (hostname,))
-        result = self.cursor.fetchone()
+        query = (
+            f"SELECT EXISTS "
+            f"(SELECT 1 FROM {self.table_name} "
+            f"WHERE hostname = %s)"
+        )
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (hostname,))
+            result = cursor.fetchone()
         return result[0] if result else False
 
     def get_assigned_vms(self) -> list:
@@ -304,10 +322,14 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VMs that are assigned to a command.
         """
-        query = f"SELECT hostname FROM {self.table_name} WHERE crdcommand IS NOT NULL"
+        query = (
+            f"SELECT hostname FROM {self.table_name} "
+            f"WHERE crdcommand IS NOT NULL"
+        )
         try:
-            self.cursor.execute(query)
-            return [row[0] for row in self.cursor.fetchall()]
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Failed to retrieve assigned VMs: {e}")
             return []
@@ -326,8 +348,9 @@ class PostgresqlDatabase:
             f"SELECT hostname, pin, crdcommand FROM {self.table_name}"
             " WHERE useremail = %s"
         )
-        self.cursor.execute(query, (email,))
-        row = self.cursor.fetchone()
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (email,))
+            row = cursor.fetchone()
         if row:
             hostname, pin, crdcommand = row
             return [
@@ -336,7 +359,9 @@ class PostgresqlDatabase:
                 crdcommand,
             ]
         else:
-            raise ValueError(f"No VM found for email in the database: {email}")
+            raise ValueError(
+                f"No VM found for email in the database: {email}"
+            )
 
     def assign_vm(self, email, crd_command, pin) -> None:
         """Assign a VM to a user.
@@ -354,17 +379,25 @@ class PostgresqlDatabase:
 
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s, inuse = FALSE, healthy = NULL
+        SET useremail = %s, crdcommand = %s, pin = %s,
+            inuse = FALSE, healthy = NULL
         WHERE hostname = %s;
         """
-        try:
-            self.cursor.execute(query, (email, crd_command, pin, hostname))
-            self.conn.commit()
-            logger.info(f"Assigned VM '{hostname}' to user '{email}'")
-        except Exception as e:
-            logger.error(f"Failed to assign VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query, (email, crd_command, pin, hostname)
+                )
+                self.conn.commit()
+                logger.info(
+                    f"Assigned VM '{hostname}' to user '{email}'"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to assign VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
 
     def get_first_available_vm(self) -> str:
         """Get the first available VM that is not assigned.
@@ -373,11 +406,13 @@ class PostgresqlDatabase:
             str: The hostname of the first available VM.
         """
         query = (
-            f"SELECT hostname FROM {self.table_name} WHERE useremail IS NULL AND "
+            f"SELECT hostname FROM {self.table_name} "
+            f"WHERE useremail IS NULL AND "
             f"status = 'running' LIMIT 1"
         )
-        self.cursor.execute(query)
-        row = self.cursor.fetchone()
+        with self.conn.cursor() as cursor:
+            cursor.execute(query)
+            row = cursor.fetchone()
         return row[0] if row else None
 
     def update_vm_in_use(self, hostname: str, in_use: bool) -> None:
@@ -387,26 +422,34 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
             in_use (bool): The in-use status to set.
         """
-        query = f"UPDATE {self.table_name} SET inuse = %s WHERE hostname = %s"
-        try:
-            self.cursor.execute(query, (in_use, hostname))
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to update in-use status for VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET inuse = %s WHERE hostname = %s"
+        )
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, (in_use, hostname))
+                self.conn.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed to update in-use status "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
 
     def clear_database(self) -> None:
         """Delete all VMs from the table."""
         query = f"DELETE FROM {self.table_name};"
-        try:
-            self.cursor.execute(query)
-            self.conn.commit()
-            logger.info("Cleared all VMs from database")
-        except Exception as e:
-            logger.error(f"Failed to clear database: {e}")
-            self.conn.rollback()
-            raise
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query)
+                self.conn.commit()
+                logger.info("Cleared all VMs from database")
+            except Exception as e:
+                logger.error(f"Failed to clear database: {e}")
+                self.conn.rollback()
+                raise
 
     def update_health(self, hostname: str, healthy: str) -> None:
         """Modify the health status of a VM.
@@ -415,14 +458,21 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
             healthy (str): The health status to set for the VM.
         """
-        query = f"UPDATE {self.table_name} SET healthy = %s WHERE hostname = %s;"
-        try:
-            self.cursor.execute(query, (healthy, hostname))
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to update health status for VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET healthy = %s WHERE hostname = %s;"
+        )
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, (healthy, hostname))
+                self.conn.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed to update health status "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
 
     def get_gpu_health(self, hostname: str) -> str:
         """Get the GPU health status of a VM.
@@ -431,15 +481,23 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
 
         Returns:
-            str: The health status of the GPU for the specified VM or None if not found.
+            str: The health status of the GPU for the specified VM
+                or None if not found.
         """
-        query = f"SELECT healthy FROM {self.table_name} WHERE hostname = %s;"
+        query = (
+            f"SELECT healthy FROM {self.table_name} "
+            f"WHERE hostname = %s;"
+        )
         try:
-            self.cursor.execute(query, (hostname,))
-            result = self.cursor.fetchone()
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, (hostname,))
+                result = cursor.fetchone()
             return result[0] if result else None
         except Exception as e:
-            logger.error(f"Failed to retrieve GPU health for VM '{hostname}': {e}")
+            logger.error(
+                f"Failed to retrieve GPU health "
+                f"for VM '{hostname}': {e}"
+            )
             return None
 
     def get_status_by_hostname(self, hostname: str) -> str:
@@ -451,13 +509,20 @@ class PostgresqlDatabase:
         Returns:
             str: The status of the VM, or None if not found.
         """
-        query = f"SELECT status FROM {self.table_name} WHERE hostname = %s;"
+        query = (
+            f"SELECT status FROM {self.table_name} "
+            f"WHERE hostname = %s;"
+        )
         try:
-            self.cursor.execute(query, (hostname,))
-            result = self.cursor.fetchone()
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, (hostname,))
+                result = cursor.fetchone()
             return result[0] if result else None
         except Exception as e:
-            logger.error(f"Failed to retrieve status for VM '{hostname}': {e}")
+            logger.error(
+                f"Failed to retrieve status "
+                f"for VM '{hostname}': {e}"
+            )
             return None
 
     def get_vm_logs(self, hostname: str, log_type: str = None) -> dict:
@@ -468,35 +533,43 @@ class PostgresqlDatabase:
             log_type (str): "cloud_init", "docker", or None for both.
 
         Returns:
-            dict: A dict with "cloud_init_logs" and/or "docker_logs", or None
-                if the VM is not found.
+            dict: A dict with "cloud_init_logs" and/or "docker_logs",
+                or None if the VM is not found.
         """
         column_map = {
             "cloud_init": ("cloudinitlogs", "cloud_init_logs"),
             "docker": ("dockerlogs", "docker_logs"),
         }
         try:
-            if log_type in column_map:
-                col, key = column_map[log_type]
-                query = f"SELECT {col} FROM {self.table_name} WHERE hostname = %s;"
-                self.cursor.execute(query, (hostname,))
-                result = self.cursor.fetchone()
-                return {key: result[0]} if result else None
-            else:
-                query = (
-                    f"SELECT cloudinitlogs, dockerlogs FROM {self.table_name} "
-                    f"WHERE hostname = %s;"
-                )
-                self.cursor.execute(query, (hostname,))
-                result = self.cursor.fetchone()
-                if result:
-                    return {
-                        "cloud_init_logs": result[0],
-                        "docker_logs": result[1],
-                    }
-                return None
+            with self.conn.cursor() as cursor:
+                if log_type in column_map:
+                    col, key = column_map[log_type]
+                    query = (
+                        f"SELECT {col} FROM {self.table_name} "
+                        f"WHERE hostname = %s;"
+                    )
+                    cursor.execute(query, (hostname,))
+                    result = cursor.fetchone()
+                    return {key: result[0]} if result else None
+                else:
+                    query = (
+                        f"SELECT cloudinitlogs, dockerlogs "
+                        f"FROM {self.table_name} "
+                        f"WHERE hostname = %s;"
+                    )
+                    cursor.execute(query, (hostname,))
+                    result = cursor.fetchone()
+                    if result:
+                        return {
+                            "cloud_init_logs": result[0],
+                            "docker_logs": result[1],
+                        }
+                    return None
         except Exception as e:
-            logger.error(f"Failed to retrieve logs for VM '{hostname}': {e}")
+            logger.error(
+                f"Failed to retrieve logs "
+                f"for VM '{hostname}': {e}"
+            )
             return None
 
     def save_logs_by_hostname(
@@ -509,29 +582,45 @@ class PostgresqlDatabase:
             logs (str): The logs to save for the VM.
             log_type (str): "cloud_init" or "docker".
         """
-        column = "cloudinitlogs" if log_type == "cloud_init" else "dockerlogs"
-        query = f"UPDATE {self.table_name} SET {column} = %s WHERE hostname = %s;"
-        try:
-            self.cursor.execute(query, (logs, hostname))
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to save {log_type} logs for VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        column = (
+            "cloudinitlogs" if log_type == "cloud_init"
+            else "dockerlogs"
+        )
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET {column} = %s WHERE hostname = %s;"
+        )
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, (logs, hostname))
+                self.conn.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed to save {log_type} logs "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
 
     def get_all_vm_status(self) -> dict:
         """Get the status of all VMs in the table.
 
         Returns:
-            dict: A dictionary containing the hostname and status of each VM.
+            dict: A dictionary containing the hostname and status
+                of each VM.
         """
-        query = f"SELECT hostname, status FROM {self.table_name};"
+        query = (
+            f"SELECT hostname, status FROM {self.table_name};"
+        )
         try:
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                rows = cursor.fetchall()
             return {row[0]: row[1] for row in rows}
         except Exception as e:
-            logger.error(f"Failed to retrieve VM statuses: {e}")
+            logger.error(
+                f"Failed to retrieve VM statuses: {e}"
+            )
             return None
 
     def update_vm_status(self, hostname: str, status: str) -> None:
@@ -541,9 +630,14 @@ class PostgresqlDatabase:
             hostname (str): The hostname of the VM.
             status (str): The new status to set for the VM.
         """
-        possible_statuses = ["running", "initializing", "unknown", "error", "rebooting"]
+        possible_statuses = [
+            "running", "initializing", "unknown",
+            "error", "rebooting",
+        ]
         if status not in possible_statuses:
-            logger.error(f"Invalid VM status '{status}' for '{hostname}'")
+            logger.error(
+                f"Invalid VM status '{status}' for '{hostname}'"
+            )
             return
 
         query = f"""
@@ -552,13 +646,19 @@ class PostgresqlDatabase:
         ON CONFLICT (hostname) DO UPDATE
             SET status = EXCLUDED.status;
         """
-        try:
-            self.cursor.execute(query, (hostname, status))
-            self.conn.commit()
-            logger.info(f"VM '{hostname}' status: {status}")
-        except Exception as e:
-            logger.error(f"Failed to update status for VM '{hostname}': {e}")
-            self.conn.rollback()
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, (hostname, status))
+                self.conn.commit()
+                logger.info(
+                    f"VM '{hostname}' status: {status}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to update status "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
 
     @classmethod
     def load_database(
@@ -747,48 +847,64 @@ class PostgresqlDatabase:
             VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
             RETURNING id;
         """
-        try:
-            self.cursor.execute(
-                query,
-                (
-                    schedule_name,
-                    self._naive_utc(destruction_time),
-                    recurrence_rule,
-                    created_by,
-                    notification_enabled,
-                    notification_hours_before,
-                ),
-            )
-            destruction_id = self.cursor.fetchone()[0]
-            self.conn.commit()
-            logger.info(
-                f"Created scheduled destruction '{schedule_name}' "
-                f"(ID: {destruction_id})"
-            )
-            return destruction_id
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query,
+                    (
+                        schedule_name,
+                        self._naive_utc(destruction_time),
+                        recurrence_rule,
+                        created_by,
+                        notification_enabled,
+                        notification_hours_before,
+                    ),
+                )
+                destruction_id = cursor.fetchone()[0]
+                self.conn.commit()
+                logger.info(
+                    f"Created scheduled destruction "
+                    f"'{schedule_name}' "
+                    f"(ID: {destruction_id})"
+                )
+                return destruction_id
 
-        except psycopg2.IntegrityError as e:
-            self.conn.rollback()
-            if 'schedule_name' in str(e) or 'unique constraint' in str(e).lower():
-                error_msg = f"Schedule '{schedule_name}' already exists"
-                logger.warning(error_msg)
-                raise ValueError(error_msg) from e
-            else:
-                logger.error(f"Database integrity error creating schedule: {e}")
-                raise RuntimeError(f"Database integrity error: {e}") from e
+            except psycopg2.IntegrityError as e:
+                self.conn.rollback()
+                if (
+                    'schedule_name' in str(e)
+                    or 'unique constraint' in str(e).lower()
+                ):
+                    error_msg = (
+                        f"Schedule '{schedule_name}' already exists"
+                    )
+                    logger.warning(error_msg)
+                    raise ValueError(error_msg) from e
+                else:
+                    logger.error(
+                        f"Database integrity error "
+                        f"creating schedule: {e}"
+                    )
+                    raise RuntimeError(
+                        f"Database integrity error: {e}"
+                    ) from e
 
-        except Exception as e:
-            self.conn.rollback()
-            logger.error(
-                f"Failed to create scheduled destruction '{schedule_name}': {e}"
-            )
-            raise RuntimeError(f"Failed to create scheduled destruction: {e}") from e
+            except Exception as e:
+                self.conn.rollback()
+                logger.error(
+                    f"Failed to create scheduled destruction "
+                    f"'{schedule_name}': {e}"
+                )
+                raise RuntimeError(
+                    f"Failed to create scheduled destruction: {e}"
+                ) from e
 
     def get_scheduled_destruction(self, schedule_id: int) -> Optional[dict]:
         """Get scheduled destruction by ID."""
         query = "SELECT * FROM scheduled_destructions WHERE id = %s;"
-        self.cursor.execute(query, (schedule_id,))
-        row = self.cursor.fetchone()
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (schedule_id,))
+            row = cursor.fetchone()
         if row:
             columns = [
                 "id",
@@ -828,17 +944,25 @@ class PostgresqlDatabase:
             "updated_at",
         ]
 
-        if status:
-            query = (
-                "SELECT * FROM scheduled_destructions "
-                "WHERE status = %s ORDER BY destruction_time;"
-            )
-            self.cursor.execute(query, (status,))
-        else:
-            query = "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
-            self.cursor.execute(query)
+        with self.conn.cursor() as cursor:
+            if status:
+                query = (
+                    "SELECT * FROM scheduled_destructions "
+                    "WHERE status = %s "
+                    "ORDER BY destruction_time;"
+                )
+                cursor.execute(query, (status,))
+            else:
+                query = (
+                    "SELECT * FROM scheduled_destructions "
+                    "ORDER BY destruction_time;"
+                )
+                cursor.execute(query)
 
-        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+            return [
+                dict(zip(columns, row))
+                for row in cursor.fetchall()
+            ]
 
     def update_scheduled_destruction_status(
         self,
@@ -855,14 +979,21 @@ class PostgresqlDatabase:
                 last_execution_result = %s
             WHERE id = %s;
         """
-        self.cursor.execute(query, (status, execution_result, schedule_id))
-        self.conn.commit()
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                query, (status, execution_result, schedule_id)
+            )
+            self.conn.commit()
 
     def cancel_scheduled_destruction(self, schedule_id: int) -> None:
         """Cancel a scheduled destruction."""
-        query = "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;"
-        self.cursor.execute(query, (schedule_id,))
-        self.conn.commit()
+        query = (
+            "UPDATE scheduled_destructions "
+            "SET status = 'cancelled' WHERE id = %s;"
+        )
+        with self.conn.cursor() as cursor:
+            cursor.execute(query, (schedule_id,))
+            self.conn.commit()
 
     def ensure_reboot_columns(self) -> None:
         """Add reboot tracking columns to vm_table if they don't exist."""
@@ -871,15 +1002,19 @@ class PostgresqlDatabase:
             "last_reboot_time": "TIMESTAMP",
         }
         for col_name, col_type in columns.items():
-            try:
-                self.cursor.execute(
-                    f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS "
-                    f"{col_name} {col_type};"
-                )
-                self.conn.commit()
-            except Exception as e:
-                logger.error(f"Failed to add column {col_name}: {e}")
-                self.conn.rollback()
+            with self.conn.cursor() as cursor:
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE {self.table_name} "
+                        f"ADD COLUMN IF NOT EXISTS "
+                        f"{col_name} {col_type};"
+                    )
+                    self.conn.commit()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to add column {col_name}: {e}"
+                    )
+                    self.conn.rollback()
 
     def get_failed_vms(
         self,
@@ -921,8 +1056,9 @@ class PostgresqlDatabase:
                    - INTERVAL '{reboot_minutes} minutes');
         """
         try:
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                rows = cursor.fetchall()
             return [
                 {
                     "hostname": row[0],
@@ -953,14 +1089,20 @@ class PostgresqlDatabase:
                 last_reboot_time = NOW()
             WHERE hostname = %s;
         """
-        try:
-            self.cursor.execute(query, (hostname,))
-            self.conn.commit()
-            logger.info(f"Recorded reboot for VM '{hostname}'")
-        except Exception as e:
-            logger.error(f"Failed to record reboot for VM '{hostname}': {e}")
-            self.conn.rollback()
-            raise
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(query, (hostname,))
+                self.conn.commit()
+                logger.info(
+                    f"Recorded reboot for VM '{hostname}'"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to record reboot "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
 
     def get_reboot_info(self, hostname: str) -> Optional[dict]:
         """Get reboot tracking info for a VM.
@@ -969,7 +1111,8 @@ class PostgresqlDatabase:
             hostname: The hostname of the VM.
 
         Returns:
-            dict with reboot_count and last_reboot_time, or None if not found.
+            dict with reboot_count and last_reboot_time,
+                or None if not found.
         """
         query = f"""
             SELECT COALESCE(reboot_count, 0), last_reboot_time
@@ -977,18 +1120,23 @@ class PostgresqlDatabase:
             WHERE hostname = %s;
         """
         try:
-            self.cursor.execute(query, (hostname,))
-            row = self.cursor.fetchone()
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, (hostname,))
+                row = cursor.fetchone()
             if row:
-                return {"reboot_count": row[0], "last_reboot_time": row[1]}
+                return {
+                    "reboot_count": row[0],
+                    "last_reboot_time": row[1],
+                }
             return None
         except Exception as e:
-            logger.error(f"Failed to get reboot info for VM '{hostname}': {e}")
+            logger.error(
+                f"Failed to get reboot info "
+                f"for VM '{hostname}': {e}"
+            )
             return None
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
-        if hasattr(self, "cursor") and self.cursor:
-            self.cursor.close()
         if hasattr(self, "conn") and self.conn:
             self.conn.close()

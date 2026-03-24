@@ -492,14 +492,12 @@ def test_load_database():
 
 
 def test_del(db_instance):
-    """Test that the destructor closes the database connection and cursor."""
-    cursor = db_instance.cursor
+    """Test that the destructor closes the database connection."""
     conn = db_instance.conn
 
     # Call __del__ directly for predictable testing, as garbage collection is not guaranteed
     db_instance.__del__()
 
-    cursor.close.assert_called_once()
     conn.close.assert_called_once()
 
 
