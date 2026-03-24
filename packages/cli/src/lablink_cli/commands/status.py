@@ -418,7 +418,7 @@ def run_status(cfg: Config) -> None:
     elif domain:
         url = f"http://{domain}"
     elif ip:
-        url = f"http://{ip}:5000"
+        url = f"http://{ip}"
     else:
         url = ""
 
