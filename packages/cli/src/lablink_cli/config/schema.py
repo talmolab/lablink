@@ -152,6 +152,45 @@ GPU_INSTANCE_TYPES: list[dict[str, str]] = [
     },
 ]
 
+# Common CPU instance types (no GPU)
+CPU_INSTANCE_TYPES: list[dict[str, str]] = [
+    {
+        "type": "t3.large",
+        "gpu": "—",
+        "vcpu": "2",
+        "ram": "8 GB",
+        "cost": "~$0.08/hr",
+    },
+    {
+        "type": "t3.xlarge",
+        "gpu": "—",
+        "vcpu": "4",
+        "ram": "16 GB",
+        "cost": "~$0.17/hr",
+    },
+    {
+        "type": "t3.2xlarge",
+        "gpu": "—",
+        "vcpu": "8",
+        "ram": "32 GB",
+        "cost": "~$0.33/hr",
+    },
+    {
+        "type": "m5.xlarge",
+        "gpu": "—",
+        "vcpu": "4",
+        "ram": "16 GB",
+        "cost": "~$0.19/hr",
+    },
+    {
+        "type": "m5.2xlarge",
+        "gpu": "—",
+        "vcpu": "8",
+        "ram": "32 GB",
+        "cost": "~$0.38/hr",
+    },
+]
+
 AWS_REGIONS: list[dict[str, str]] = [
     {"id": "us-east-1", "name": "US East (N. Virginia)"},
     {"id": "us-east-2", "name": "US East (Ohio)"},

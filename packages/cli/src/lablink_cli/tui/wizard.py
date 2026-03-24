@@ -25,6 +25,7 @@ from textual.widgets.option_list import Option
 from lablink_cli.config.schema import (
     AMI_MAP,
     AWS_REGIONS,
+    CPU_INSTANCE_TYPES,
     GPU_INSTANCE_TYPES,
     Config,
     config_to_dict,
@@ -99,15 +100,30 @@ class MachineScreen(Screen):
             )
 
             yield Label("Instance Type", classes="field-label")
+            gpu_options = [
+                Option(
+                    f"{t['type']:18s} {t['gpu']:14s} "
+                    f"{t['vcpu']} vCPU  {t['ram']:8s} {t['cost']}",
+                    id=t["type"],
+                )
+                for t in GPU_INSTANCE_TYPES
+            ]
+            cpu_options = [
+                Option(
+                    f"{t['type']:18s} {'—':14s} "
+                    f"{t['vcpu']} vCPU  {t['ram']:8s} {t['cost']}",
+                    id=t["type"],
+                )
+                for t in CPU_INSTANCE_TYPES
+            ]
             yield OptionList(
-                *[
-                    Option(
-                        f"{t['type']:18s} {t['gpu']:14s} "
-                        f"{t['vcpu']} vCPU  {t['ram']:8s} {t['cost']}",
-                        id=t["type"],
-                    )
-                    for t in GPU_INSTANCE_TYPES
-                ],
+                Option("── GPU Instances ──", disabled=True),
+                *gpu_options,
+                None,
+                Option(
+                    "── CPU Only (no GPU) ──", disabled=True
+                ),
+                *cpu_options,
                 id="instance-list",
             )
 
