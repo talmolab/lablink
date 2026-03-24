@@ -484,7 +484,7 @@ wheels = [
 
 [[package]]
 name = "lablink-client-service"
-version = "0.0.8a3"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "hydra-core" },

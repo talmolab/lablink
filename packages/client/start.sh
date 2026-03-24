@@ -78,6 +78,7 @@ CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 # The ALLOCATOR_URL variable includes the protocol (http/https), so it can be used directly.
 curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_TOKEN" \
   -d "{
     \"container_start\": $CONTAINER_START_TIME,
     \"container_end\": $CONTAINER_END_TIME,
