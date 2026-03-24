@@ -671,7 +671,7 @@ wheels = [
 
 [[package]]
 name = "lablink-allocator-service"
-version = "0.0.3a2"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
