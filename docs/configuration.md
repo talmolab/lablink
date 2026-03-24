@@ -5,6 +5,9 @@ LabLink uses structured configuration files to customize behavior. This guide co
 !!! info "Infrastructure Repository"
     Configuration files are located in the [lablink-template](https://github.com/talmolab/lablink-template) repository under `lablink-infrastructure/config/config.yaml`. Clone the template repository to deploy LabLink infrastructure.
 
+!!! tip "Looking for ready-to-use examples?"
+    See [Configuration Examples](configuration-examples.md) for complete, copy-paste-ready config files for common deployment scenarios (IP-only, Let's Encrypt, CloudFlare, ACM).
+
 ## First Steps: Change Default Passwords
 
 !!! danger "Critical Security Step"

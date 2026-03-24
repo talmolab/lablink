@@ -101,6 +101,7 @@ nav:
       - Admin panel: admin-panel.md
       - Architecture: architecture.md
       - Configuration: configuration.md
+      - Configuration examples: configuration-examples.md
       - Adapting for your software: adapting.md
       - Deployment: deployment.md
       - Workflows: workflows.md
