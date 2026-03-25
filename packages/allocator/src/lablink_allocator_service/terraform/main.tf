@@ -75,7 +75,7 @@ resource "aws_instance" "lablink_vm" {
     volume_type = "gp3"
   }
 
-  user_data = base64encode(join("\n", [
+  user_data_base64 = base64gzip(join("\n", [
     "Content-Type: multipart/mixed; boundary=\"BOUNDARY\"",
     "MIME-Version: 1.0",
     "",
