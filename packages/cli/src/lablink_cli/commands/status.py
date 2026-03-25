@@ -19,9 +19,14 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.commands.setup import _get_session
+
 console = Console()
 
 DEPLOY_DIR = Path.home() / ".lablink" / "deploy"
+
+# Resource suffix used by Terraform for naming
+RESOURCE_SUFFIX = "prod"
 
 # Fallback daily costs (Feb 2025 on-demand, us-east-1)
 FALLBACK_COSTS: dict[str, dict[str, float]] = {
@@ -365,6 +370,66 @@ def estimate_costs(cfg: Config) -> list[dict]:
 
 
 # ------------------------------------------------------------------
+# Client VM status
+# ------------------------------------------------------------------
+def check_client_vms(cfg: Config) -> list[dict]:
+    """Query EC2 for running LabLink client VMs."""
+    try:
+        session = _get_session(cfg.app.region)
+        ec2 = session.client("ec2")
+    except Exception:
+        return []
+
+    suffix = RESOURCE_SUFFIX
+    try:
+        resp = ec2.describe_instances(
+            Filters=[
+                {
+                    "Name": "tag:Name",
+                    "Values": [
+                        f"lablink-client-{suffix}-vm-*"
+                    ],
+                },
+                {
+                    "Name": "instance-state-name",
+                    "Values": [
+                        "running",
+                        "stopped",
+                        "pending",
+                    ],
+                },
+            ]
+        )
+    except Exception:
+        return []
+
+    vms = []
+    for reservation in resp.get("Reservations", []):
+        for inst in reservation.get("Instances", []):
+            name = ""
+            for tag in inst.get("Tags", []):
+                if tag["Key"] == "Name":
+                    name = tag["Value"]
+                    break
+            vms.append(
+                {
+                    "name": name,
+                    "instance_id": inst["InstanceId"],
+                    "type": inst["InstanceType"],
+                    "state": inst["State"]["Name"],
+                    "launch_time": inst.get(
+                        "LaunchTime", ""
+                    ),
+                    "public_ip": inst.get(
+                        "PublicIpAddress", "—"
+                    ),
+                }
+            )
+
+    return vms
+
+
+# ------------------------------------------------------------------
 # Main entry point
 # ------------------------------------------------------------------
 def run_status(cfg: Config) -> None:
@@ -455,6 +520,72 @@ def run_status(cfg: Config) -> None:
         console.print(
             "  [dim]No deployment found — "
             "skipping health checks[/dim]"
+        )
+    console.print()
+
+    # --- Client VMs ---
+    console.print("[bold]Client VMs[/bold]")
+    vms = check_client_vms(cfg)
+    if vms:
+        vm_table = Table(show_header=True)
+        vm_table.add_column("Name")
+        vm_table.add_column("Instance ID")
+        vm_table.add_column("Type")
+        vm_table.add_column("State")
+        vm_table.add_column("Public IP")
+
+        running_count = 0
+        stopped_count = 0
+        for vm in vms:
+            state = vm["state"]
+            if state == "running":
+                running_count += 1
+                state_str = "[green]running[/green]"
+            elif state == "stopped":
+                stopped_count += 1
+                state_str = "[red]stopped[/red]"
+            else:
+                state_str = f"[yellow]{state}[/yellow]"
+            vm_table.add_row(
+                vm["name"],
+                vm["instance_id"],
+                vm["type"],
+                state_str,
+                vm["public_ip"] or "—",
+            )
+
+        console.print(vm_table)
+
+        # Summary with hourly burn rate
+        parts = []
+        if running_count:
+            parts.append(
+                f"[green]{running_count} running[/green]"
+            )
+        if stopped_count:
+            parts.append(
+                f"[red]{stopped_count} stopped[/red]"
+            )
+        console.print(f"  {', '.join(parts)}")
+
+        if running_count:
+            # Estimate hourly cost for running VMs
+            vm_type = vms[0]["type"]
+            hourly = FALLBACK_COSTS["ec2"].get(vm_type)
+            if hourly:
+                daily = hourly  # FALLBACK_COSTS already stores daily
+                hourly_rate = daily / 24
+                total_hourly = hourly_rate * running_count
+                console.print(
+                    f"  [dim]Estimated burn rate: "
+                    f"${total_hourly:.2f}/hr "
+                    f"(${total_hourly * 24:.2f}/day) "
+                    f"for {running_count} "
+                    f"x {vm_type}[/dim]"
+                )
+    else:
+        console.print(
+            "  [dim]No client VMs found[/dim]"
         )
     console.print()
 
