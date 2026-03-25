@@ -380,7 +380,7 @@ class PostgresqlDatabase:
         query = f"""
         UPDATE {self.table_name}
         SET useremail = %s, crdcommand = %s, pin = %s,
-            inuse = FALSE, healthy = NULL
+            inuse = FALSE
         WHERE hostname = %s;
         """
         with self.conn.cursor() as cursor:
