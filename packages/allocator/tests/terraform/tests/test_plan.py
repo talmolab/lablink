@@ -345,11 +345,14 @@ def test_missing_custom_startup_script(fixture_dir):
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
     user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
 
-    # user_data is base64-encoded (multipart MIME); decode the outer layer
+    # user_data_base64 is base64-encoded gzip; decode and decompress
     try:
-        user_data_content = base64.b64decode(user_data_content).decode("utf-8")
+        user_data_content = gzip.decompress(base64.b64decode(user_data_content)).decode("utf-8")
     except Exception:
-        pass
+        try:
+            user_data_content = base64.b64decode(user_data_content).decode("utf-8")
+        except Exception:
+            pass
 
     # When no startup script exists, it should touch an empty file
     assert "touch /etc/config/custom-startup.sh" in user_data_content
