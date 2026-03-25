@@ -4259,7 +4259,7 @@ Args:
 <a id="__codelineno-0-380" name="__codelineno-0-380"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-381" name="__codelineno-0-381"></a><span class="s2">    UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
 <a id="__codelineno-0-382" name="__codelineno-0-382"></a><span class="s2">    SET useremail = %s, crdcommand = %s, pin = %s,</span>
-<a id="__codelineno-0-383" name="__codelineno-0-383"></a><span class="s2">        inuse = FALSE, healthy = NULL</span>
+<a id="__codelineno-0-383" name="__codelineno-0-383"></a><span class="s2">        inuse = FALSE</span>
 <a id="__codelineno-0-384" name="__codelineno-0-384"></a><span class="s2">    WHERE hostname = %s;</span>
 <a id="__codelineno-0-385" name="__codelineno-0-385"></a><span class="s2">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-386" name="__codelineno-0-386"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
