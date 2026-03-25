@@ -45,6 +45,9 @@ class RegionScreen(Screen):
 
     BINDINGS = [Binding("escape", "quit", "Quit")]
 
+    def action_quit(self) -> None:
+        self.app.exit()
+
     def compose(self) -> ComposeResult:
         yield Header()
         with VerticalScroll():
@@ -186,8 +189,9 @@ class MachineScreen(Screen):
             self.app.config.machine.software = software
         if extension:
             self.app.config.machine.extension = extension
-        if repository:
-            self.app.config.machine.repository = repository
+        self.app.config.machine.repository = (
+            repository if repository else None
+        )
 
         self.app.push_screen(DnsScreen())
 
@@ -414,13 +418,23 @@ class StartupScreen(Screen):
                     ),
                 )
 
+            # Determine initial mode
+            is_template = (
+                cfg.startup_script.enabled
+                and not self._has_custom_path()
+            )
+            is_file = (
+                cfg.startup_script.enabled
+                and self._has_custom_path()
+            )
+
             # Template editor
             template_content = self._load_template()
             yield TextArea(
                 template_content,
                 id="script-editor",
                 language="bash",
-                disabled=True,
+                disabled=not is_template,
             )
 
             # File path input
@@ -437,7 +451,7 @@ class StartupScreen(Screen):
                 ),
                 placeholder="/path/to/startup.sh",
                 id="script-path",
-                disabled=True,
+                disabled=not is_file,
             )
 
             yield Label(
@@ -476,7 +490,10 @@ class StartupScreen(Screen):
         )
 
     def _load_template(self) -> str:
-        # Load existing script content or default template
+        # Load existing user script if available, otherwise bundled template
+        existing_script = DEFAULT_CONFIG_DIR / "custom-startup.sh"
+        if existing_script.exists():
+            return existing_script.read_text()
         if STARTUP_TEMPLATE_PATH.exists():
             return STARTUP_TEMPLATE_PATH.read_text()
         return "#!/bin/bash\necho 'Custom startup script'\n"
