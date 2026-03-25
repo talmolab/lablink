@@ -346,14 +346,14 @@ class DnsScreen(Screen):
             cfg.dns.domain = domain
             cfg.ssl.provider = "letsencrypt"
             cfg.ssl.email = email
-            cfg.eip.strategy = "persistent"
+            cfg.eip.strategy = "dynamic"
         elif idx == 2:
             # CloudFlare
             cfg.dns.enabled = True
             cfg.dns.terraform_managed = False
             cfg.dns.domain = domain
             cfg.ssl.provider = "cloudflare"
-            cfg.eip.strategy = "persistent"
+            cfg.eip.strategy = "dynamic"
         elif idx == 3:
             # ACM
             cfg.dns.enabled = True
@@ -361,7 +361,7 @@ class DnsScreen(Screen):
             cfg.dns.domain = domain
             cfg.ssl.provider = "acm"
             cfg.ssl.certificate_arn = acm_arn
-            cfg.eip.strategy = "persistent"
+            cfg.eip.strategy = "dynamic"
 
         self.app.push_screen(StartupScreen())
 
