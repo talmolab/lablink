@@ -158,5 +158,34 @@ def cleanup(
     )
 
 
+@app.command()
+def config(
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """View the current LabLink configuration."""
+    from rich.console import Console
+    from rich.syntax import Syntax
+
+    config_path = Path(config) if config else DEFAULT_CONFIG
+    if not config_path.exists():
+        typer.echo(
+            f"Config not found: {config_path}\n"
+            "Run 'lablink configure' first to generate a config."
+        )
+        raise typer.Exit(1)
+
+    raw = config_path.read_text()
+    console = Console()
+    console.print(
+        f"[dim]Config file:[/dim] {config_path}\n"
+    )
+    console.print(Syntax(raw, "yaml", theme="monokai"))
+
+
 def main() -> None:
     app()
