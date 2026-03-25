@@ -267,6 +267,20 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     _run_terraform(["plan", "-out=tfplan"], cwd=deploy_dir)
     console.print()
 
+    # Confirm before apply
+    console.print(
+        "[bold yellow]Review the plan above.[/bold yellow] "
+        "Type 'yes' to apply: ",
+        end="",
+    )
+    answer = input()
+    if answer.strip().lower() != "yes":
+        console.print(
+            "[dim]Cancelled. No resources were created.[/dim]"
+        )
+        raise SystemExit(0)
+    console.print()
+
     # Terraform apply
     console.print("[bold]Step 3/3:[/bold] Terraform apply")
     _run_terraform(
@@ -408,6 +422,28 @@ def run_destroy(
     if remote_state and (deploy_dir / "backend.tf").exists():
         _terraform_init(deploy_dir, cfg, remote_state)
 
+    # Check for running client VMs
+    from lablink_cli.commands.status import check_client_vms
+
+    client_vms = check_client_vms(cfg)
+    running_vms = [
+        vm for vm in client_vms if vm["state"] == "running"
+    ]
+    if running_vms:
+        console.print(
+            f"[bold yellow]{len(running_vms)} client VM(s) "
+            f"still running:[/bold yellow]"
+        )
+        for vm in running_vms:
+            console.print(
+                f"  {vm['name']} ({vm['instance_id']}) "
+                f"— {vm['type']}"
+            )
+        console.print(
+            "  These will be terminated as part of destroy."
+        )
+        console.print()
+
     # Confirm
     console.print(
         "[bold yellow]Are you sure?[/bold yellow] "
@@ -419,6 +455,32 @@ def run_destroy(
         console.print("[dim]Cancelled.[/dim]")
         raise SystemExit(0)
     console.print()
+
+    # Terminate client VMs first
+    if running_vms:
+        console.print(
+            "[bold]Terminating client VMs...[/bold]"
+        )
+        import boto3
+
+        ec2 = boto3.client(
+            "ec2", region_name=cfg.app.region
+        )
+        instance_ids = [
+            vm["instance_id"] for vm in running_vms
+        ]
+        ec2.terminate_instances(InstanceIds=instance_ids)
+        console.print(
+            f"  [green]terminated[/green] "
+            f"{len(instance_ids)} client VM(s)"
+        )
+        # Wait for termination
+        waiter = ec2.get_waiter("instance_terminated")
+        waiter.wait(InstanceIds=instance_ids)
+        console.print(
+            "  [green]all client VMs terminated[/green]"
+        )
+        console.print()
 
     # Terraform destroy
     console.print("[bold]Destroying infrastructure...[/bold]")
