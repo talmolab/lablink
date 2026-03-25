@@ -228,7 +228,7 @@ resource "aws_instance" "lablink_allocator_server" {
   key_name             = aws_key_pair.lablink_key_pair.key_name
   iam_instance_profile = aws_iam_instance_profile.allocator_instance_profile.name
 
-  user_data_base64 = base64gzip(templatefile("${path.module}/user_data.sh", {
+  user_data = templatefile("${path.module}/user_data.sh", {
     ALLOCATOR_IMAGE_TAG       = local.allocator_image_tag
     RESOURCE_SUFFIX           = var.resource_suffix
     ALLOCATOR_PUBLIC_IP       = local.eip_public_ip
@@ -242,7 +242,7 @@ resource "aws_instance" "lablink_allocator_server" {
     SSL_PROVIDER              = local.ssl_provider
     SSL_EMAIL                 = local.ssl_email
     DOMAIN_NAME               = local.install_caddy ? local.dns_domain : ""
-  }))
+  })
 
   tags = {
     Name        = "lablink_allocator_server_${var.resource_suffix}"
