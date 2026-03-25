@@ -284,14 +284,53 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     # Wait and run health checks
     import time
 
-    from lablink_cli.commands.status import run_status
+    from lablink_cli.commands.status import (
+        check_http,
+        run_status,
+    )
+
+    has_ssl = cfg.ssl.provider != "none"
+    max_wait = 300 if has_ssl else 120
+    interval = 15
+    elapsed = 0
 
     console.print(
-        "[bold]Waiting 1.5 min for allocator to start...[/bold]"
+        f"[bold]Waiting for allocator to become healthy"
+        f" (up to {max_wait // 60} min)...[/bold]"
     )
-    time.sleep(90)
-    console.print()
 
+    # Determine URL to poll
+    if cfg.dns.enabled and cfg.dns.domain:
+        scheme = "https" if has_ssl else "http"
+        poll_url = f"{scheme}://{cfg.dns.domain}"
+    else:
+        poll_url = None
+
+    # Initial wait for instance boot + docker pull
+    time.sleep(60)
+    elapsed = 60
+
+    while elapsed < max_wait:
+        if poll_url:
+            result = check_http(poll_url)
+            if result["status"] == "pass":
+                console.print(
+                    f"[green]Allocator healthy after"
+                    f" {elapsed}s[/green]"
+                )
+                break
+        time.sleep(interval)
+        elapsed += interval
+        console.print(
+            f"[dim]  Waiting... ({elapsed}s / {max_wait}s)[/dim]"
+        )
+    else:
+        console.print(
+            "[yellow]Timed out waiting for healthy status."
+            " Running status check anyway...[/yellow]"
+        )
+
+    console.print()
     run_status(cfg)
     console.print()
 
