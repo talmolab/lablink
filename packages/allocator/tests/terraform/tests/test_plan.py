@@ -1,4 +1,5 @@
 import base64
+import gzip
 import json
 import pytest
 import re
@@ -116,11 +117,15 @@ def _extract_startup_script_from_user_data(user_data_content: str) -> str | None
 
     Returns the decoded script content, or None if not found.
     """
-    # user_data is base64-encoded (multipart MIME); decode the outer layer first
+    # user_data_base64 is base64-encoded gzip (from base64gzip); decode and decompress
     try:
-        decoded_user_data = base64.b64decode(user_data_content).decode("utf-8")
+        decoded_user_data = gzip.decompress(base64.b64decode(user_data_content)).decode("utf-8")
     except Exception:
-        decoded_user_data = user_data_content
+        # Fallback: try plain base64 or raw string
+        try:
+            decoded_user_data = base64.b64decode(user_data_content).decode("utf-8")
+        except Exception:
+            decoded_user_data = user_data_content
 
     # Match: echo '<base64>' | base64 -d > /etc/config/custom-startup.sh
     match = re.search(
@@ -204,7 +209,7 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
 
     # Get the first instance to check its user_data
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
-    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+    user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
 
     # Read the expected custom-startup.sh content from the fixture
     expected_script_path = fixture_dir / "custom-startup.sh"
@@ -250,7 +255,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
     assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
 
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
-    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+    user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
 
     expected_script_content = script_path.read_text().strip()
 
@@ -293,7 +298,7 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
     assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
 
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
-    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+    user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
 
     # The startup script is base64-encoded, decode it first
     decoded_script = _extract_startup_script_from_user_data(user_data_content)
@@ -338,7 +343,7 @@ def test_missing_custom_startup_script(fixture_dir):
     assert len(instances) > 0, "No aws_instance.lablink_vm resources found in plan."
 
     first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
-    user_data_content = instances[first_instance_addr]["values"]["user_data"]
+    user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
 
     # user_data is base64-encoded (multipart MIME); decode the outer layer
     try:
