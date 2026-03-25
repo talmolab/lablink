@@ -159,6 +159,14 @@ def cleanup(
 
 
 @app.command()
+def doctor() -> None:
+    """Check prerequisites and configuration."""
+    from lablink_cli.commands.doctor import run_doctor
+
+    run_doctor()
+
+
+@app.command()
 def config(
     config: str = typer.Option(
         None,
@@ -179,12 +187,25 @@ def config(
         )
         raise typer.Exit(1)
 
+    from lablink_cli.config.schema import load_config, validate_config
+
     raw = config_path.read_text()
     console = Console()
     console.print(
         f"[dim]Config file:[/dim] {config_path}\n"
     )
     console.print(Syntax(raw, "yaml", theme="monokai"))
+
+    cfg = load_config(config_path)
+    errors = validate_config(cfg)
+    if errors:
+        console.print(
+            "\n[bold red]Validation errors:[/bold red]"
+        )
+        for e in errors:
+            console.print(f"  [red]*[/red] {e}")
+    else:
+        console.print("\n[green]Config is valid.[/green]")
 
 
 def main() -> None:
