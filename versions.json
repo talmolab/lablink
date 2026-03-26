@@ -30,11 +30,16 @@
     "aliases": []
   },
   {
-    "version": "lablink-allocator-service_v0.1.0",
-    "title": "lablink-allocator-service_v0.1.0",
+    "version": "lablink-allocator-service_v0.1.1",
+    "title": "lablink-allocator-service_v0.1.1",
     "aliases": [
       "latest"
     ]
+  },
+  {
+    "version": "lablink-allocator-service_v0.1.0",
+    "title": "lablink-allocator-service_v0.1.0",
+    "aliases": []
   },
   {
     "version": "lablink-allocator-service_v0.0.3a2",
