@@ -277,7 +277,10 @@ jobs:
           "'
 
       - name: Verify allocator dev dependencies (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
+        if: >-
+          (github.event_name == 'pull_request') ||
+          (github.event_name == 'push' && (github.ref_name == 'test' || github.ref_name == 'main')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
         run: |
           echo "Testing allocator dev dependencies..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /app/.venv/bin/activate && python -c "
@@ -288,7 +291,10 @@ jobs:
           "'
 
       - name: Run allocator tests (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
+        if: >-
+          (github.event_name == 'pull_request') ||
+          (github.event_name == 'push' && (github.ref_name == 'test' || github.ref_name == 'main')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
         run: |
           echo "Running allocator pytest tests..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests --ignore=tests/terraform -v --tb=short'
@@ -369,7 +375,10 @@ jobs:
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "which uv && echo \"uv version:\" && uv --version"
 
       - name: Verify client dev dependencies (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
+        if: >-
+          (github.event_name == 'pull_request') ||
+          (github.event_name == 'push' && (github.ref_name == 'test' || github.ref_name == 'main')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
         run: |
           echo "Testing client dev dependencies..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
@@ -380,7 +389,10 @@ jobs:
           "'
 
       - name: Run client tests (dev images only)
-        if: github.event_name == 'pull_request' || github.ref_name == 'test' || github.ref_name == 'main' || inputs.environment == 'test'
+        if: >-
+          (github.event_name == 'pull_request') ||
+          (github.event_name == 'push' && (github.ref_name == 'test' || github.ref_name == 'main')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
         run: |
           echo "Running client pytest tests..."
           docker run --rm --user client ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client && source /home/client/.venv/bin/activate && pytest tests -v --tb=short'
