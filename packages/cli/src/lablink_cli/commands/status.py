@@ -381,13 +381,14 @@ def check_client_vms(cfg: Config) -> list[dict]:
         return []
 
     suffix = RESOURCE_SUFFIX
+    software = cfg.machine.software
     try:
         resp = ec2.describe_instances(
             Filters=[
                 {
                     "Name": "tag:Name",
                     "Values": [
-                        f"lablink-client-{suffix}-vm-*"
+                        f"{software}-lablink-client-{suffix}-vm-*"
                     ],
                 },
                 {
