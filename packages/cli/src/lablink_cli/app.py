@@ -38,8 +38,9 @@ def configure(
 ) -> None:
     """Create or edit the LabLink configuration.
 
-    Launches a TUI wizard to generate or modify config.yaml.
-    If a config already exists, it is loaded for editing.
+    Launches a TUI wizard to generate or modify config.yaml,
+    then automatically creates the AWS resources needed for
+    Terraform remote state (S3 bucket + DynamoDB lock table).
     """
     from lablink_cli.config.schema import load_config
     from lablink_cli.tui.wizard import ConfigWizard
@@ -53,6 +54,15 @@ def configure(
     wizard = ConfigWizard(existing_config=existing)
     wizard.run()
 
+    # After the wizard saves config, run AWS setup automatically
+    if not config_path.exists():
+        # User quit the wizard without saving
+        return
+
+    from lablink_cli.commands.setup import run_setup
+
+    run_setup(load_config(config_path))
+
 
 @app.command()
 def setup(
@@ -63,11 +73,10 @@ def setup(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Create S3 + DynamoDB for remote Terraform state (optional).
+    """Create S3 + DynamoDB for remote Terraform state.
 
-    Only needed if you want shared state across machines.
-    By default, lablink deploy uses local state and this step
-    is not required.
+    Automatically run during 'lablink configure'. Use this
+    command to recreate resources if they were deleted.
     """
     from lablink_cli.commands.setup import run_setup
 
@@ -82,16 +91,11 @@ def deploy(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
-    remote_state: bool = typer.Option(
-        False,
-        "--remote-state",
-        help="Use S3 backend (requires 'lablink setup' first)",
-    ),
 ) -> None:
     """Deploy LabLink infrastructure with Terraform."""
     from lablink_cli.commands.deploy import run_deploy
 
-    run_deploy(_load_cfg(config), remote_state=remote_state)
+    run_deploy(_load_cfg(config))
 
 
 @app.command()
@@ -102,16 +106,11 @@ def destroy(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
-    remote_state: bool = typer.Option(
-        False,
-        "--remote-state",
-        help="Use S3 backend for state",
-    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config), remote_state=remote_state)
+    run_destroy(_load_cfg(config))
 
 
 @app.command()

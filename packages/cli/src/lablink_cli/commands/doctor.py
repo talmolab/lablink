@@ -135,6 +135,42 @@ def _check_config_valid() -> tuple[dict, object | None]:
         return result, None
 
 
+def _check_s3_bucket(cfg) -> dict:
+    """Check that the S3 bucket for Terraform state exists."""
+    result = {"check": "S3 state bucket", "status": "fail"}
+
+    if cfg is None:
+        result["status"] = "warn"
+        result["detail"] = "Skipped (no valid config)"
+        return result
+
+    bucket_name = getattr(cfg, "bucket_name", None)
+    if not bucket_name:
+        result["status"] = "fail"
+        result["detail"] = (
+            "No bucket_name in config. "
+            "Run 'lablink setup' to create one"
+        )
+        return result
+
+    try:
+        from lablink_cli.commands.setup import _get_session
+
+        session = _get_session(cfg.app.region)
+        s3 = session.client("s3")
+        s3.head_bucket(Bucket=bucket_name)
+        result["status"] = "pass"
+        result["detail"] = bucket_name
+    except Exception:
+        result["status"] = "fail"
+        result["detail"] = (
+            f"Bucket '{bucket_name}' not found. "
+            "Run 'lablink setup' to recreate it"
+        )
+
+    return result
+
+
 def _check_ami(cfg) -> dict:
     """Check that an AMI is available for the configured region."""
     result = {"check": "AMI for region", "status": "fail"}
@@ -190,7 +226,10 @@ def run_doctor() -> None:
     region = cfg.app.region if cfg else None
     checks.append(_check_aws_credentials(region))
 
-    # 5. AMI for region
+    # 5. S3 state bucket
+    checks.append(_check_s3_bucket(cfg))
+
+    # 6. AMI for region
     checks.append(_check_ami(cfg))
 
     # Display results

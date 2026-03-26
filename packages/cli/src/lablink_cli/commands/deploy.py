@@ -28,7 +28,7 @@ TERRAFORM_SRC = (
 DEPLOY_DIR = Path.home() / ".lablink" / "deploy"
 
 
-def _prepare_working_dir(cfg: Config, remote_state: bool) -> Path:
+def _prepare_working_dir(cfg: Config) -> Path:
     """Set up the Terraform working directory.
 
     Copies bundled .tf files and writes config/config.yaml.
@@ -39,16 +39,6 @@ def _prepare_working_dir(cfg: Config, remote_state: bool) -> Path:
 
     # Copy .tf files and user_data.sh (overwrite to stay current)
     for src_file in TERRAFORM_SRC.glob("*.tf"):
-        # Skip backend.tf for local state
-        if src_file.name == "backend.tf" and not remote_state:
-            # Remove backend.tf and the cached backend state
-            # so Terraform doesn't see a stale S3 backend.
-            (deploy_dir / "backend.tf").unlink(missing_ok=True)
-            backend_state = (
-                deploy_dir / ".terraform" / "terraform.tfstate"
-            )
-            backend_state.unlink(missing_ok=True)
-            continue
         shutil.copy2(src_file, deploy_dir / src_file.name)
 
     # Copy user_data.sh
@@ -140,44 +130,36 @@ def _run_terraform(
 def _terraform_init(
     deploy_dir: Path,
     cfg: Config,
-    remote_state: bool,
 ) -> None:
-    """Run terraform init with the appropriate backend."""
+    """Run terraform init with S3 remote backend."""
     console.print("[bold]Step 1/3:[/bold] Terraform init")
 
     # Use -reconfigure if .terraform already exists (avoids
-    # "backend configuration changed" errors when switching
-    # between local and remote state).
+    # "backend configuration changed" errors).
     reconfigure = (deploy_dir / ".terraform").exists()
 
-    if remote_state:
-        # Resolve bucket name from AWS account
-        import boto3
+    # Resolve bucket name from AWS account
+    import boto3
 
-        account_id = (
-            boto3.client(
-                "sts", region_name=cfg.app.region
-            )
-            .get_caller_identity()["Account"]
+    account_id = (
+        boto3.client(
+            "sts", region_name=cfg.app.region
         )
-        bucket_name = f"lablink-tf-state-{account_id}"
+        .get_caller_identity()["Account"]
+    )
+    bucket_name = f"lablink-tf-state-{account_id}"
 
-        args = [
-            "init",
-            "-backend-config=key=lablink/terraform.tfstate",
-            f"-backend-config=bucket={bucket_name}",
-            f"-backend-config=region={cfg.app.region}",
-            "-backend-config=dynamodb_table=lock-table",
-            "-backend-config=encrypt=true",
-        ]
-        if reconfigure:
-            args.append("-reconfigure")
-        _run_terraform(args, cwd=deploy_dir)
-    else:
-        args = ["init"]
-        if reconfigure:
-            args.append("-reconfigure")
-        _run_terraform(args, cwd=deploy_dir)
+    args = [
+        "init",
+        "-backend-config=key=lablink/terraform.tfstate",
+        f"-backend-config=bucket={bucket_name}",
+        f"-backend-config=region={cfg.app.region}",
+        "-backend-config=dynamodb_table=lock-table",
+        "-backend-config=encrypt=true",
+    ]
+    if reconfigure:
+        args.append("-reconfigure")
+    _run_terraform(args, cwd=deploy_dir)
 
     console.print()
 
@@ -215,14 +197,13 @@ def _prompt_passwords() -> dict[str, str]:
     }
 
 
-def run_deploy(cfg: Config, remote_state: bool = False) -> None:
+def run_deploy(cfg: Config) -> None:
     """Deploy LabLink infrastructure."""
     console.print()
     console.print(
         Panel(
             "[bold]LabLink Deploy[/bold]\n"
-            f"Region: {cfg.app.region}  |  "
-            f"State: {'S3 (remote)' if remote_state else 'local'}",
+            f"Region: {cfg.app.region}  |  State: S3 (remote)",
             border_style="cyan",
         )
     )
@@ -232,7 +213,7 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     check_credentials(_get_session(cfg.app.region))
 
     # Prepare working directory
-    deploy_dir = _prepare_working_dir(cfg, remote_state)
+    deploy_dir = _prepare_working_dir(cfg)
 
     # Prompt for credentials
     passwords = _prompt_passwords()
@@ -260,7 +241,7 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
         )
 
     # Terraform init
-    _terraform_init(deploy_dir, cfg, remote_state)
+    _terraform_init(deploy_dir, cfg)
 
     # Terraform plan
     console.print("[bold]Step 2/3:[/bold] Terraform plan")
@@ -351,17 +332,12 @@ def run_deploy(cfg: Config, remote_state: bool = False) -> None:
     console.print(
         f"[dim]Working directory:[/dim] {deploy_dir}"
     )
-    destroy_cmd = "lablink destroy"
-    if remote_state:
-        destroy_cmd += " --remote-state"
     console.print(
-        f"[dim]To tear down:[/dim] [bold]{destroy_cmd}[/bold]"
+        "[dim]To tear down:[/dim] [bold]lablink destroy[/bold]"
     )
 
 
-def run_destroy(
-    cfg: Config, remote_state: bool = False
-) -> None:
+def run_destroy(cfg: Config) -> None:
     """Destroy LabLink infrastructure."""
     # Validate AWS credentials
     check_credentials(_get_session(cfg.app.region))
@@ -392,8 +368,7 @@ def run_destroy(
         Panel(
             "[bold red]LabLink Destroy[/bold red]\n"
             "This will tear down ALL LabLink infrastructure.\n"
-            f"Region: {cfg.app.region}  |  "
-            f"State: {'S3 (remote)' if remote_state else 'local'}",
+            f"Region: {cfg.app.region}  |  State: S3 (remote)",
             border_style="red",
         )
     )
@@ -418,9 +393,9 @@ def run_destroy(
             sort_keys=False,
         )
 
-    # Re-init if needed (e.g., switching backend)
-    if remote_state and (deploy_dir / "backend.tf").exists():
-        _terraform_init(deploy_dir, cfg, remote_state)
+    # Re-init if needed
+    if (deploy_dir / "backend.tf").exists():
+        _terraform_init(deploy_dir, cfg)
 
     # Check for running client VMs
     from lablink_cli.commands.status import check_client_vms

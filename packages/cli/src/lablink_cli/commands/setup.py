@@ -257,9 +257,7 @@ def run_setup(cfg: Config) -> None:
     console.print(
         Panel(
             "[bold]LabLink Setup — Remote State[/bold]\n"
-            "Creates S3 + DynamoDB for shared Terraform state.\n"
-            "[dim]This is optional. By default, lablink deploy "
-            "uses local state.[/dim]",
+            "Creates S3 + DynamoDB for Terraform state.",
             border_style="cyan",
         )
     )
@@ -328,5 +326,5 @@ def run_setup(cfg: Config) -> None:
     console.print()
     console.print(
         "[dim]Next step:[/dim] "
-        "[bold]lablink deploy --remote-state[/bold]"
+        "[bold]lablink deploy[/bold]"
     )
