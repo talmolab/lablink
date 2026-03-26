@@ -165,8 +165,8 @@ def doctor() -> None:
     run_doctor()
 
 
-@app.command()
-def config(
+@app.command("show-config")
+def show_config(
     config: str = typer.Option(
         None,
         "--config",
