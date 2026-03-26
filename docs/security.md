@@ -811,6 +811,115 @@ If security incident occurs:
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [CIS AWS Foundations Benchmark](https://www.cisecurity.org/benchmark/amazon_web_services)
 
+## SSH Access
+
+This section covers SSH access to LabLink allocator and client EC2 instances for debugging, log inspection, configuration changes, and manual operations.
+
+### SSH Key Management
+
+Terraform automatically generates SSH key pairs during deployment:
+
+- **Algorithm**: RSA, 4096 bits
+- **Naming**: `lablink-<environment>-key` (e.g., `lablink-dev-key`, `lablink-prod-key`)
+
+#### Retrieving SSH Keys
+
+**From Terraform Output:**
+
+```bash
+cd lablink-infrastructure
+
+# Save to file
+terraform output -raw private_key_pem > ~/lablink-dev-key.pem
+
+# Set proper permissions
+chmod 600 ~/lablink-dev-key.pem
+```
+
+**From GitHub Actions Artifacts:**
+
+1. Navigate to **Actions** tab in GitHub
+2. Click on the deployment workflow run
+3. Scroll to **Artifacts** section
+4. Download `lablink-key-<env>` artifact
+5. Extract `lablink-key.pem`
+6. Set permissions: `chmod 600 ~/lablink-key.pem`
+
+!!! warning "Artifact Expiration"
+    GitHub Actions artifacts expire after 1 day. Retrieve keys promptly or re-run deployment.
+
+### Connecting to Allocator
+
+```bash
+# Get allocator IP
+cd lablink-infrastructure
+terraform output ec2_public_ip
+
+# SSH in (default user: ubuntu)
+ssh -i ~/lablink-dev-key.pem ubuntu@<allocator-public-ip>
+```
+
+### Connecting to Client VMs
+
+```bash
+# Get client VM IPs via allocator database
+ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+sudo docker exec -it <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, status FROM vms;"
+
+# SSH to client VM (uses same key)
+ssh -i ~/lablink-key.pem ubuntu@<client-vm-ip>
+```
+
+### Common SSH Tasks
+
+```bash
+# List running containers
+sudo docker ps
+
+# View allocator container logs
+sudo docker logs <container-id>
+
+# Access container shell
+sudo docker exec -it <container-id> bash
+
+# Inside container: access PostgreSQL
+psql -U lablink -d lablink_db
+
+# Inside container: restart PostgreSQL (known issue on first boot)
+/etc/init.d/postgresql restart
+
+# Check GPU on client VMs
+nvidia-smi
+
+# Transfer files
+scp -i ~/lablink-key.pem local-file.txt ubuntu@<ip>:~/
+scp -i ~/lablink-key.pem ubuntu@<ip>:~/remote-file.txt ./
+```
+
+### SSH Configuration File
+
+For easier access, add to `~/.ssh/config`:
+
+```bash
+Host lablink-dev
+    HostName 54.123.45.67
+    User ubuntu
+    IdentityFile ~/.ssh/lablink-dev-key.pem
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+```
+
+Then simply: `ssh lablink-dev`
+
+### Troubleshooting SSH Issues
+
+| Error | Cause | Solution |
+|-------|-------|---------|
+| `Permission denied (publickey)` | Wrong key or permissions | `chmod 600 ~/lablink-key.pem` |
+| `Connection timed out` | Security group or instance down | Check SG allows port 22, verify instance is running |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | Instance recreated with same IP | `ssh-keygen -R <ip-address>` |
+| `Too many authentication failures` | SSH tried multiple keys | `ssh -o IdentitiesOnly=yes -i ~/lablink-key.pem ubuntu@<ip>` |
+
 ## Next Steps
 
 - **[AWS Setup](aws-setup.md)**: Secure AWS resource configuration

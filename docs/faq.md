@@ -75,19 +75,7 @@ app:
 
 ### How do I change default passwords?
 
-**Critical for production!**
-
-```yaml
-# In config.yaml
-app:
-  admin_user: "admin"
-  admin_password: "YOUR_SECURE_PASSWORD"
-
-db:
-  password: "YOUR_SECURE_DB_PASSWORD"
-```
-
-Or use environment variables. See [Security → Change Default Passwords](security.md#change-default-passwords).
+**Critical for production!** Replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config before deploying. See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods.
 
 ### Why does my browser say "Not Secure"?
 
@@ -386,7 +374,7 @@ For local: AWS credentials file or environment variables
 - GitHub Actions exposes keys as temporary artifacts (1 day expiration)
 - Rotate keys by destroying and recreating infrastructure
 
-See [SSH Access → Key Management](ssh-access.md#ssh-key-management).
+See [Security & Access → SSH Key Management](security.md#ssh-key-management).
 
 ## Contributing
 

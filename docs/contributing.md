@@ -344,7 +344,7 @@ resource "aws_instance" "lablink_allocator" {
 - Use consistent terminology
 - Link to related documentation
 
-See [Contributing to Documentation](https://talmolab.github.io/lablink/contributing-docs/) for detailed guidelines.
+See [Contributing to Documentation](#contributing-to-documentation) below for detailed guidelines.
 
 ## Testing
 
@@ -822,3 +822,112 @@ Your contributions make LabLink better for the research community. We appreciate
 ---
 
 **Questions about contributing?** Open a [discussion](https://github.com/talmolab/lablink/discussions) or reach out in an [issue](https://github.com/talmolab/lablink/issues).
+
+## Contributing to Documentation
+
+LabLink uses **MkDocs** with the **Material** theme for documentation.
+
+### Documentation Setup
+
+**Using uv (Recommended):**
+
+```bash
+git clone https://github.com/talmolab/lablink.git
+cd lablink
+
+# Quick test (creates temporary environment automatically)
+uv run --extra docs mkdocs serve
+```
+
+**Using pip:**
+
+```bash
+git clone https://github.com/talmolab/lablink.git
+cd lablink
+
+python -m venv .venv-docs
+source .venv-docs/bin/activate  # macOS/Linux
+pip install -e ".[docs]"
+
+mkdocs serve
+# Open http://localhost:8000
+```
+
+### Documentation Structure
+
+```
+docs/
+├── index.md           # Homepage
+├── prerequisites.md   # Getting Started
+├── quickstart.md
+├── adapting.md        # Admin Guide
+├── workshop-guide.md
+├── configuration.md
+├── deployment.md      # Infrastructure
+├── security.md
+├── architecture.md    # Developer Guide
+├── contributing.md
+├── scripts/           # Auto-doc generation
+└── assets/            # Images, videos
+```
+
+### Writing Guidelines
+
+1. **Be concise**: Short sentences, clear language
+2. **Use active voice**: "Run the command" not "The command should be run"
+3. **Include examples**: Show don't just tell
+4. **Test commands**: Verify all bash commands work
+5. **Cross-reference**: Link to related pages
+6. **Use consistent terminology**: "allocator" not "allocator server"
+
+### Markdown Features
+
+Use admonitions for notes, warnings, and tips:
+
+```markdown
+!!! note
+    This is a note.
+
+!!! warning
+    This is a warning.
+
+!!! tip
+    This is a helpful tip.
+```
+
+Use tabs for multi-option content:
+
+```markdown
+=== "macOS"
+    brew install terraform
+
+=== "Linux"
+    wget https://releases.hashicorp.com/terraform/...
+```
+
+Use Mermaid for diagrams (flowcharts, sequence diagrams, state diagrams, ER diagrams).
+
+### Versioning Documentation
+
+Documentation is versioned using `mike`:
+
+```bash
+# Deploy version 1.0.0 as latest
+mike deploy 1.0.0 latest --update-aliases
+mike set-default latest
+
+# List versions
+mike list
+```
+
+### Building and Testing
+
+```bash
+# Serve locally with auto-reload
+mkdocs serve
+
+# Build static site (strict mode)
+mkdocs build --strict
+
+# Build output in site/ directory
+```

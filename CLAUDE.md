@@ -31,7 +31,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 | Docker strategy | `openspec/specs/docker/spec.md` |
 | CI/CD workflows | `openspec/specs/ci-cd/spec.md` |
 | Configuration reference | `docs/configuration.md` |
-| Configuration examples | `docs/configuration-examples.md` |
+| Configuration examples | `docs/configuration.md#full-configuration-examples` |
 | Documentation site | https://talmolab.github.io/lablink/ |
 
 ## Repository Structure

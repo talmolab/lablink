@@ -737,7 +737,7 @@ services:
 
 ## Next Steps
 
-- **[SSH Access](ssh-access.md)**: Connect to database via SSH
+- **[Security & Access](security.md#ssh-access)**: Connect to database via SSH
 - **[Troubleshooting](troubleshooting.md)**: Fix database issues
 - **[Security](security.md)**: Secure database access
 - **[Architecture](architecture.md)**: Understand database role
