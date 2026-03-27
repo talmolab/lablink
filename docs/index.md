@@ -6,24 +6,15 @@ Run a hands-on software workshop -- students get a full desktop with your softwa
 
 ---
 
-## What You Get
+## See It in Action
 
-<div class="grid cards" markdown>
+Students visit a link, enter their email, and get a full cloud desktop with your software ready to go. No installation, no setup -- just a Chrome browser.
 
-- :material-monitor: **For Students**
-
-    ---
-
-    Students click a link, get a full cloud desktop with your software ready to go. No installation, no setup -- just a Chrome browser.
-
-- :material-view-dashboard: **For Admins**
-
-    ---
-
-    Manage VMs from a web dashboard. Create, monitor, and destroy VMs with a few clicks. Download participant work at the end.
-
-    ![Admin panel](assets/images/admin-panel-overview.png)
-
+<div class="video-container">
+  <video controls width="100%">
+    <source src="assets/videos/student-demo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
 </div>
 
 ## How It Works
