@@ -6,6 +6,7 @@ and adds CLI-specific helpers (YAML serialization, validation, reference data).
 
 from __future__ import annotations
 
+import re
 from dataclasses import fields
 from pathlib import Path
 from typing import Any
@@ -77,6 +78,10 @@ def save_config(cfg: Config, path: Path) -> None:
         )
 
 
+DEPLOYMENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*[a-z0-9]$")
+VALID_ENVIRONMENTS = ("dev", "test", "ci-test", "prod")
+
+
 def validate_config(cfg: Config) -> list[str]:
     """Return a list of validation errors (empty = valid).
 
@@ -84,6 +89,27 @@ def validate_config(cfg: Config) -> list[str]:
     simple list instead of a tuple, suitable for TUI display.
     """
     errors: list[str] = []
+    # deployment_name validation
+    if not cfg.deployment_name:
+        errors.append(
+            "deployment_name is required "
+            "(e.g., 'sleap-lablink')"
+        )
+    elif (
+        len(cfg.deployment_name) < 3
+        or len(cfg.deployment_name) > 32
+        or not DEPLOYMENT_NAME_RE.match(cfg.deployment_name)
+    ):
+        errors.append(
+            "deployment_name must be 3-32 characters, "
+            "lowercase kebab-case (e.g., 'sleap-lablink')"
+        )
+    # environment validation
+    if cfg.environment not in VALID_ENVIRONMENTS:
+        errors.append(
+            f"environment must be one of: "
+            f"{', '.join(VALID_ENVIRONMENTS)}"
+        )
     if cfg.dns.enabled and not cfg.dns.domain:
         errors.append("DNS enabled but no domain specified")
     if cfg.ssl.provider != "none" and not cfg.dns.enabled:

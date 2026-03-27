@@ -1,7 +1,7 @@
 resource "aws_budgets_budget" "lablink_monthly" {
   count = try(local.config_file.monitoring.budget.enabled, false) ? 1 : 0
 
-  name              = "lablink-monthly-budget-${var.resource_suffix}"
+  name              = "${var.deployment_name}-monthly-budget-${var.environment}"
   budget_type       = "COST"
   limit_amount      = try(local.config_file.monitoring.budget.monthly_budget_usd, "100")
   limit_unit        = "USD"
@@ -32,7 +32,7 @@ resource "aws_budgets_budget" "lablink_monthly" {
     threshold                  = 50
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [local.config_file.monitoring.email]
+    subscriber_email_addresses = [try(local.config_file.monitoring.email, "")]
   }
 
   # 80% urgent
@@ -41,7 +41,7 @@ resource "aws_budgets_budget" "lablink_monthly" {
     threshold                  = 80
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [local.config_file.monitoring.email]
+    subscriber_email_addresses = [try(local.config_file.monitoring.email, "")]
   }
 
   # 100% critical
@@ -50,7 +50,7 @@ resource "aws_budgets_budget" "lablink_monthly" {
     threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [local.config_file.monitoring.email]
+    subscriber_email_addresses = [try(local.config_file.monitoring.email, "")]
   }
 
   # 150% severe overage
@@ -59,11 +59,10 @@ resource "aws_budgets_budget" "lablink_monthly" {
     threshold                  = 150
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [local.config_file.monitoring.email]
+    subscriber_email_addresses = [try(local.config_file.monitoring.email, "")]
   }
 
-  tags = {
-    Name        = "lablink-monthly-budget-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-monthly-budget-${var.environment}"
+  })
 }

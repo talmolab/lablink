@@ -2,6 +2,10 @@
 # This file is used as fallback for local development when /config/config.yaml doesn't exist
 # Production deployments should use lablink-infrastructure/config/config.yaml
 
+# Deployment identity (used for resource naming: {deployment_name}-{resource}-{environment})
+deployment_name: "lablink"
+environment: "prod"
+
 db:
   dbname: "lablink_db"
   user: "lablink"
@@ -43,7 +47,6 @@ dns:
 
 eip:
   strategy: "dynamic"  # "persistent" = reuse tagged EIP, "dynamic" = create new EIP each time
-  tag_name: "lablink-eip"  # Tag Name to identify reusable EIP (used with persistent strategy)
 
 ssl:
   provider: "letsencrypt"  # "none" = HTTP only, "letsencrypt" = Caddy auto-SSL, "cloudflare" = CloudFlare proxy, "acm" = AWS Certificate Manager

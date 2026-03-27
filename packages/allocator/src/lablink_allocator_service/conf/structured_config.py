@@ -107,11 +107,9 @@ class EIPConfig:
         strategy (str): EIP allocation strategy. Options:
             - "persistent": Reuse existing tagged EIP across deployments
             - "dynamic": Create new EIP for each deployment
-        tag_name (str): Name tag value to identify reusable EIPs
     """
 
     strategy: str = field(default="dynamic")
-    tag_name: str = field(default="lablink-eip")
 
 
 @dataclass
@@ -227,6 +225,10 @@ class Config:
     This class aggregates the database, machine, and application configurations.
 
     Attributes:
+        deployment_name (str): Unique name for this deployment (e.g., sleap-lablink).
+            Used as prefix for all AWS resource names. Must be 3-32 characters,
+            lowercase kebab-case.
+        environment (str): Deployment environment (dev, test, ci-test, prod).
         db (DatabaseConfig): The database configuration.
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.
@@ -237,6 +239,8 @@ class Config:
         bucket_name (str): The S3 bucket name for Terraform state.
     """
 
+    deployment_name: str = field(default="")
+    environment: str = field(default="prod")
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)

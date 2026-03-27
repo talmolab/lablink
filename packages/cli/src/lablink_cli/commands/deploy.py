@@ -24,8 +24,16 @@ TERRAFORM_SRC = (
     Path(__file__).resolve().parent.parent / "terraform"
 )
 
-# Working directory for terraform operations
-DEPLOY_DIR = Path.home() / ".lablink" / "deploy"
+
+def get_deploy_dir(cfg: Config) -> Path:
+    """Return the scoped deploy directory for this deployment."""
+    return (
+        Path.home()
+        / ".lablink"
+        / "deploy"
+        / cfg.deployment_name
+        / cfg.environment
+    )
 
 
 def _prepare_working_dir(cfg: Config) -> Path:
@@ -34,7 +42,7 @@ def _prepare_working_dir(cfg: Config) -> Path:
     Copies bundled .tf files and writes config/config.yaml.
     Returns the working directory path.
     """
-    deploy_dir = DEPLOY_DIR
+    deploy_dir = get_deploy_dir(cfg)
     deploy_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy .tf files and user_data.sh (overwrite to stay current)
@@ -149,9 +157,15 @@ def _terraform_init(
     )
     bucket_name = f"lablink-tf-state-{account_id}"
 
+    # State key scoped by deployment_name and environment
+    state_key = (
+        f"{cfg.deployment_name}/{cfg.environment}"
+        f"/terraform.tfstate"
+    )
+
     args = [
         "init",
-        "-backend-config=key=lablink/terraform.tfstate",
+        f"-backend-config=key={state_key}",
         f"-backend-config=bucket={bucket_name}",
         f"-backend-config=region={cfg.app.region}",
         "-backend-config=dynamodb_table=lock-table",
@@ -203,6 +217,8 @@ def run_deploy(cfg: Config) -> None:
     console.print(
         Panel(
             "[bold]LabLink Deploy[/bold]\n"
+            f"Deployment: {cfg.deployment_name}  |  "
+            f"Environment: {cfg.environment}\n"
             f"Region: {cfg.app.region}  |  State: S3 (remote)",
             border_style="cyan",
         )
@@ -243,9 +259,17 @@ def run_deploy(cfg: Config) -> None:
     # Terraform init
     _terraform_init(deploy_dir, cfg)
 
-    # Terraform plan
+    # Terraform plan — pass deployment_name and environment
     console.print("[bold]Step 2/3:[/bold] Terraform plan")
-    _run_terraform(["plan", "-out=tfplan"], cwd=deploy_dir)
+    _run_terraform(
+        [
+            "plan",
+            f"-var=deployment_name={cfg.deployment_name}",
+            f"-var=environment={cfg.environment}",
+            "-out=tfplan",
+        ],
+        cwd=deploy_dir,
+    )
     console.print()
 
     # Confirm before apply
@@ -342,7 +366,7 @@ def run_destroy(cfg: Config) -> None:
     # Validate AWS credentials
     check_credentials(_get_session(cfg.app.region))
 
-    deploy_dir = DEPLOY_DIR
+    deploy_dir = get_deploy_dir(cfg)
 
     if not deploy_dir.exists():
         console.print(
@@ -368,6 +392,8 @@ def run_destroy(cfg: Config) -> None:
         Panel(
             "[bold red]LabLink Destroy[/bold red]\n"
             "This will tear down ALL LabLink infrastructure.\n"
+            f"Deployment: {cfg.deployment_name}  |  "
+            f"Environment: {cfg.environment}\n"
             f"Region: {cfg.app.region}  |  State: S3 (remote)",
             border_style="red",
         )
@@ -457,10 +483,16 @@ def run_destroy(cfg: Config) -> None:
         )
         console.print()
 
-    # Terraform destroy
+    # Terraform destroy — pass deployment_name and environment
     console.print("[bold]Destroying infrastructure...[/bold]")
     _run_terraform(
-        ["destroy", "-auto-approve"], cwd=deploy_dir
+        [
+            "destroy",
+            "-auto-approve",
+            f"-var=deployment_name={cfg.deployment_name}",
+            f"-var=environment={cfg.environment}",
+        ],
+        cwd=deploy_dir,
     )
     console.print()
 

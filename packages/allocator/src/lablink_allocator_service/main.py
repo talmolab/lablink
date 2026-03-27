@@ -1057,12 +1057,23 @@ def main():
                 bucket_name = (
                     cfg.bucket_name if hasattr(cfg, "bucket_name") else default_bucket
                 )
-                logger.info(f"Initializing Terraform with S3 backend: {bucket_name}")
+                # Derive deployment_name for state key scoping
+                deployment_name = (
+                    cfg.deployment_name
+                    if hasattr(cfg, "deployment_name") and cfg.deployment_name
+                    else "lablink"
+                )
+                state_key = f"{deployment_name}/{ENVIRONMENT}/client/terraform.tfstate"
+                logger.info(
+                    f"Initializing Terraform with S3 backend: {bucket_name} "
+                    f"(key: {state_key})"
+                )
                 subprocess.run(
                     [
                         "terraform",
                         "init",
                         f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
+                        f"-backend-config=key={state_key}",
                         f"-backend-config=bucket={bucket_name}",
                         f"-backend-config=region={cfg.app.region}",
                     ],

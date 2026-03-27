@@ -51,7 +51,9 @@ def configure(
     if config_path.exists():
         existing = load_config(config_path)
 
-    wizard = ConfigWizard(existing_config=existing)
+    wizard = ConfigWizard(
+        existing_config=existing, save_path=config_path
+    )
     wizard.run()
 
     # After the wizard saves config, run AWS setup automatically
@@ -61,7 +63,7 @@ def configure(
 
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(load_config(config_path))
+    run_setup(load_config(config_path), config_path=config_path)
 
 
 @app.command()
@@ -80,7 +82,8 @@ def setup(
     """
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(_load_cfg(config))
+    config_path = Path(config) if config else DEFAULT_CONFIG
+    run_setup(_load_cfg(config), config_path=config_path)
 
 
 @app.command()

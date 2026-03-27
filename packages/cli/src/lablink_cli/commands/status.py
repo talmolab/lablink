@@ -23,11 +23,6 @@ from lablink_cli.commands.setup import _get_session
 
 console = Console()
 
-DEPLOY_DIR = Path.home() / ".lablink" / "deploy"
-
-# Resource suffix used by Terraform for naming
-RESOURCE_SUFFIX = "prod"
-
 # Fallback daily costs (Feb 2025 on-demand, us-east-1)
 FALLBACK_COSTS: dict[str, dict[str, float]] = {
     "ec2": {
@@ -46,6 +41,17 @@ FALLBACK_COSTS: dict[str, dict[str, float]] = {
     "cloudwatch": 0.067,
     "cloudtrail": 0.10,
 }
+
+
+def _get_deploy_dir(cfg: Config) -> Path:
+    """Return the scoped deploy directory for this deployment."""
+    return (
+        Path.home()
+        / ".lablink"
+        / "deploy"
+        / cfg.deployment_name
+        / cfg.environment
+    )
 
 
 # ------------------------------------------------------------------
@@ -380,7 +386,7 @@ def check_client_vms(cfg: Config) -> list[dict]:
     except Exception:
         return []
 
-    suffix = RESOURCE_SUFFIX
+    environment = cfg.environment
     software = cfg.machine.software
     try:
         resp = ec2.describe_instances(
@@ -388,7 +394,7 @@ def check_client_vms(cfg: Config) -> list[dict]:
                 {
                     "Name": "tag:Name",
                     "Values": [
-                        f"{software}-lablink-client-{suffix}-vm-*"
+                        f"{software}-lablink-client-{environment}-vm-*"
                     ],
                 },
                 {
@@ -435,12 +441,14 @@ def check_client_vms(cfg: Config) -> list[dict]:
 # ------------------------------------------------------------------
 def run_status(cfg: Config) -> None:
     """Run health checks and show cost estimate."""
-    deploy_dir = DEPLOY_DIR
+    deploy_dir = _get_deploy_dir(cfg)
 
     console.print()
     console.print(
         Panel(
-            "[bold]LabLink Status[/bold]",
+            "[bold]LabLink Status[/bold]\n"
+            f"Deployment: {cfg.deployment_name}  |  "
+            f"Environment: {cfg.environment}",
             border_style="cyan",
         )
     )

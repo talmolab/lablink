@@ -11,7 +11,7 @@ data "aws_vpc" "default" {
 # NOTE: Security group must be in the same VPC as the ALB. Using default VPC.
 resource "aws_security_group" "alb_sg" {
   count  = local.create_alb ? 1 : 0
-  name   = "lablink-alb-sg-${var.resource_suffix}"
+  name   = "${var.deployment_name}-alb-sg-${var.environment}"
   vpc_id = data.aws_vpc.default[0].id
 
   ingress {
@@ -38,10 +38,9 @@ resource "aws_security_group" "alb_sg" {
     description = "Allow all outbound traffic"
   }
 
-  tags = {
-    Name        = "lablink-alb-sg-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-alb-sg-${var.environment}"
+  })
 }
 
 # Update allocator security group to allow traffic from ALB
@@ -68,7 +67,7 @@ data "aws_subnets" "default" {
 # Application Load Balancer
 resource "aws_lb" "allocator_alb" {
   count              = local.create_alb ? 1 : 0
-  name               = "lablink-alb-${var.resource_suffix}"
+  name               = "${var.deployment_name}-alb-${var.environment}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg[0].id]
@@ -76,16 +75,15 @@ resource "aws_lb" "allocator_alb" {
 
   enable_deletion_protection = false
 
-  tags = {
-    Name        = "lablink-alb-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-alb-${var.environment}"
+  })
 }
 
 # Target group for allocator EC2 instance
 resource "aws_lb_target_group" "allocator_tg" {
   count    = local.create_alb ? 1 : 0
-  name     = "lablink-tg-${var.resource_suffix}"
+  name     = "${var.deployment_name}-alb-tg-${var.environment}"
   port     = 5000
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default[0].id
@@ -102,10 +100,9 @@ resource "aws_lb_target_group" "allocator_tg" {
     unhealthy_threshold = 2
   }
 
-  tags = {
-    Name        = "lablink-tg-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-alb-tg-${var.environment}"
+  })
 }
 
 # Attach allocator EC2 instance to target group

@@ -38,9 +38,10 @@ def omega_config():
                 "domain": "",
                 "zone_id": "",
             },
+            "deployment_name": "test-lablink",
+            "environment": "prod",
             "eip": {
                 "strategy": "dynamic",
-                "tag_name": "lablink-eip",
             },
             "ssl": {
                 "provider": "none",
@@ -149,6 +150,8 @@ def api_token_headers():
 def valid_config_dict():
     """Valid configuration dictionary including allocator section."""
     return {
+        "deployment_name": "test-lablink",
+        "environment": "prod",
         "db": {
             "dbname": "lablink_db",
             "user": "lablink",
@@ -179,7 +182,6 @@ def valid_config_dict():
         },
         "eip": {
             "strategy": "dynamic",
-            "tag_name": "lablink-eip-dynamic",
         },
         "ssl": {
             "provider": "none",
@@ -218,6 +220,8 @@ def valid_config_dict():
 def invalid_config_dict():
     """Invalid configuration with unknown key (recreates Docker error)."""
     return {
+        "deployment_name": "test-lablink",
+        "environment": "prod",
         "db": {
             "dbname": "lablink_db",
             "user": "lablink",
@@ -251,6 +255,8 @@ def invalid_config_dict():
 def config_with_unknown_top_level_key():
     """Config with unknown top-level section (terraform_vars doesn't exist in schema)."""
     return {
+        "deployment_name": "test-lablink",
+        "environment": "prod",
         "db": {
             "dbname": "lablink_db",
             "user": "lablink",
@@ -285,6 +291,8 @@ def config_with_unknown_top_level_key():
 def config_with_unknown_nested_key():
     """Config with unknown nested field (db.unknown_field doesn't exist in schema)."""
     return {
+        "deployment_name": "test-lablink",
+        "environment": "prod",
         "db": {
             "dbname": "lablink_db",
             "user": "lablink",
