@@ -63,7 +63,7 @@ def configure(
 
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(load_config(config_path))
+    run_setup(load_config(config_path), config_path=config_path)
 
 
 @app.command()
@@ -82,7 +82,8 @@ def setup(
     """
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(_load_cfg(config))
+    config_path = Path(config) if config else DEFAULT_CONFIG
+    run_setup(_load_cfg(config), config_path=config_path)
 
 
 @app.command()

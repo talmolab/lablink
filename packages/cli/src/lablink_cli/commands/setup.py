@@ -7,6 +7,7 @@ Creates the infrastructure needed before `lablink deploy` can run.
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -249,7 +250,7 @@ def resolve_bucket_name(account_id: str) -> str:
     return f"lablink-tf-state-{account_id}"
 
 
-def run_setup(cfg: Config) -> None:
+def run_setup(cfg: Config, config_path: Path | None = None) -> None:
     """Run the full setup sequence."""
     region = cfg.app.region
 
@@ -292,12 +293,16 @@ def run_setup(cfg: Config) -> None:
 
     # Persist bucket_name to user config
     cfg.bucket_name = bucket_name
-    from lablink_cli.app import DEFAULT_CONFIG
     from lablink_cli.config.schema import save_config
 
-    save_config(cfg, DEFAULT_CONFIG)
+    if config_path is None:
+        from lablink_cli.app import DEFAULT_CONFIG
+
+        config_path = DEFAULT_CONFIG
+
+    save_config(cfg, config_path)
     console.print(
-        f"  [green]saved[/green] bucket_name → {DEFAULT_CONFIG}"
+        f"  [green]saved[/green] bucket_name → {config_path}"
     )
     console.print()
 
