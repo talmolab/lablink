@@ -6,6 +6,7 @@ and adds CLI-specific helpers (YAML serialization, validation, reference data).
 
 from __future__ import annotations
 
+import re
 from dataclasses import fields
 from pathlib import Path
 from typing import Any
@@ -76,8 +77,6 @@ def save_config(cfg: Config, path: Path) -> None:
             sort_keys=False,
         )
 
-
-import re
 
 DEPLOYMENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*[a-z0-9]$")
 VALID_ENVIRONMENTS = ("dev", "test", "ci-test", "prod")
