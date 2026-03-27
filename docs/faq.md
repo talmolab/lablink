@@ -6,14 +6,13 @@ Common questions and answers about LabLink.
 
 ### What is LabLink?
 
-LabLink is a dynamic VM allocation and management system designed for computational research. It automates the deployment and management of cloud-based VMs for running research software like SLEAP or custom tools.
+LabLink is a cloud-based virtual teaching lab accessible through a Chrome browser. It lets you deploy workshop environments to AWS with pre-installed software -- students only need a web browser to get a full desktop with your software ready to go.
 
 ### Who is LabLink for?
 
-- Research labs needing on-demand GPU compute resources
-- Scientists running batch computational workloads
-- Teams training machine learning models on cloud infrastructure
-- Anyone needing automated VM management for containerized software
+- Instructors running hands-on software workshops or tutorials
+- Research labs teaching computational tools to students or collaborators
+- Anyone who needs to give participants a pre-configured desktop environment without local installation
 
 ### What cloud providers does LabLink support?
 
@@ -75,19 +74,7 @@ app:
 
 ### How do I change default passwords?
 
-**Critical for production!**
-
-```yaml
-# In config.yaml
-app:
-  admin_user: "admin"
-  admin_password: "YOUR_SECURE_PASSWORD"
-
-db:
-  password: "YOUR_SECURE_DB_PASSWORD"
-```
-
-Or use environment variables. See [Security → Change Default Passwords](security.md#change-default-passwords).
+**Critical for production!** Replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config before deploying. See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods.
 
 ### Why does my browser say "Not Secure"?
 
@@ -386,7 +373,7 @@ For local: AWS credentials file or environment variables
 - GitHub Actions exposes keys as temporary artifacts (1 day expiration)
 - Rotate keys by destroying and recreating infrastructure
 
-See [SSH Access → Key Management](ssh-access.md#ssh-key-management).
+See [Security & Access → SSH Key Management](security.md#ssh-key-management).
 
 ## Contributing
 

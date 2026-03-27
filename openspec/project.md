@@ -100,7 +100,7 @@ packages/
 - **Client**: Uses `ALLOCATOR_URL` env var for HTTPS support, falls back to config.yaml
 - **Overrides**: Environment variables, command-line args, YAML edits
 - **Validation**: `lablink-validate-config` CLI validates config against schema
-- **Examples**: See `docs/configuration-examples.md` for deployment-specific configs (IP-only, Let's Encrypt, CloudFlare, ACM)
+- **Examples**: See `docs/configuration.md#full-configuration-examples` for deployment-specific configs (IP-only, Let's Encrypt, CloudFlare, ACM)
 
 #### Docker Strategy
 - **Two Dockerfiles per package**:

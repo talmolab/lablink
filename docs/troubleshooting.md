@@ -1229,9 +1229,9 @@ If issues persist:
 
 ## Related Documentation
 
-- **[Installation](installation.md)**: Setup instructions
+- **[Prerequisites](prerequisites.md)**: Setup instructions
 - **[Deployment](deployment.md)**: Deployment guides
-- **[SSH Access](ssh-access.md)**: Connection help
+- **[Security & Access](security.md#ssh-access)**: Connection help
 - **[Database](database.md)**: Database issues
 - **[Security](security.md)**: Security problems
 

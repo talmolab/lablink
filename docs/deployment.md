@@ -649,7 +649,7 @@ terraform force-unlock <lock-id>
 ## Next Steps
 
 - **[Workflows](workflows.md)**: Understand the CI/CD pipeline
-- **[SSH Access](ssh-access.md)**: Connect to your deployed instances
+- **[Security & Access](security.md#ssh-access)**: Connect to your deployed instances
 - **[Database Management](database.md)**: Manage the allocator database
 - **[Troubleshooting](troubleshooting.md)**: Fix common deployment issues
 

@@ -5,63 +5,36 @@ LabLink uses structured configuration files to customize behavior. This guide co
 !!! info "Infrastructure Repository"
     Configuration files are located in the [lablink-template](https://github.com/talmolab/lablink-template) repository under `lablink-infrastructure/config/config.yaml`. Clone the template repository to deploy LabLink infrastructure.
 
-!!! tip "Looking for ready-to-use examples?"
-    See [Configuration Examples](configuration-examples.md) for complete, copy-paste-ready config files for common deployment scenarios (IP-only, Let's Encrypt, CloudFlare, ACM).
+## Configuration Examples
+
+Complete, copy-paste-ready `config.yaml` files for common deployment scenarios.
+
+!!! info "Source"
+    These examples are maintained in the [lablink-template](https://github.com/talmolab/lablink-template) repository under `lablink-infrastructure/config/`.
+
+### Choosing a Configuration
+
+| Scenario | SSL | DNS Required | Rate Limits | Extra Cost | Complexity |
+|----------|-----|-------------|-------------|------------|------------|
+| [IP Only](#ip-only) | None | No | None | None | Simplest |
+| [Let's Encrypt (Terraform DNS)](#caddy-ssl) | Auto via Caddy | Route53 | 5 certs/domain/week | None | Medium |
+| [Let's Encrypt (Manual DNS)](#caddy-ssl) | Auto via Caddy | Route53 (manual) | 5 certs/domain/week | None | Medium |
+| [CloudFlare](#caddy-ssl) | CloudFlare proxy | CloudFlare | None | None | Medium |
+| [ACM + ALB](#alb-with-acm) | AWS-managed | Route53 | None | ~$20/month | Higher |
+
+**Quick decision guide:**
+
+- **No domain?** Use [IP Only](#ip-only)
+- **Have a domain + want free auto-SSL?** Use [Let's Encrypt](#caddy-ssl) (pick Terraform-managed vs manual DNS)
+- **Domain in CloudFlare?** Use [CloudFlare](#caddy-ssl)
+- **Want enterprise-grade load balancing?** Use [ACM + ALB](#alb-with-acm)
+
+See the [Configuration Examples](#full-configuration-examples) section at the end of this page for complete YAML files for each scenario.
 
 ## First Steps: Change Default Passwords
 
 !!! danger "Critical Security Step"
-    **Before deploying LabLink or creating any VMs, you MUST configure secure passwords!**
-
-Configuration files use placeholder values that must be replaced with secure passwords:
-- **Admin password placeholder**: `PLACEHOLDER_ADMIN_PASSWORD`
-- **Database password placeholder**: `PLACEHOLDER_DB_PASSWORD`
-
-### How to Configure Passwords
-
-**Method 1: GitHub Secrets (Recommended for CI/CD)**
-
-For GitHub Actions deployments, add secrets to your repository:
-
-1. Go to repository **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Add `ADMIN_PASSWORD` with your secure admin password
-4. Add `DB_PASSWORD` with your secure database password
-
-The deployment workflow automatically replaces placeholders with these secret values before Terraform runs, preventing passwords from appearing in logs.
-
-**Method 2: Manual Configuration**
-
-For local deployments, edit the configuration file:
-
-```bash
-# Edit allocator configuration
-vi lablink-infrastructure/config/config.yaml
-```
-
-Update these values:
-```yaml
-db:
-  password: "YOUR_SECURE_DB_PASSWORD_HERE"  # Replace PLACEHOLDER_DB_PASSWORD
-
-app:
-  admin_password: "YOUR_SECURE_PASSWORD_HERE"  # Replace PLACEHOLDER_ADMIN_PASSWORD
-```
-
-**Method 3: Environment Variables**
-
-```bash
-export ADMIN_PASSWORD="your_secure_password"
-export DB_PASSWORD="your_secure_db_password"
-```
-
-**Password requirements**:
-- Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, symbols
-- Not a dictionary word
-- Use a password manager to generate and store
-
-See [Security → Change Default Passwords](security.md#change-default-passwords) for detailed security guidance.
+    **Before deploying LabLink or creating any VMs, you MUST replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config.** See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods (GitHub Secrets, manual config, environment variables, AWS Secrets Manager).
 
 ## Configuration System
 
@@ -647,8 +620,414 @@ Ensure `-var` flags are passed:
 terraform plan -var="resource_suffix=prod"
 ```
 
+## Full Configuration Examples
+
+### IP Only
+
+Access the allocator via public IP address over HTTP. No domain or SSL required.
+
+!!! tip "No rate limits"
+    This is the simplest setup and has no certificate issuance limits. Perfect for frequent testing and development.
+
+**Prerequisites:** None
+
+**Access URL:** `http://<ALLOCATOR_IP>:5000`
+
+```yaml
+# LabLink Configuration: IP-Only (No DNS, No SSL)
+# Access allocator via public IP address over HTTP
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  machine_type: "g4dn.xlarge"
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+  ami_id: "ami-0601752c11b394251"  # us-west-2
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  software: "sleap"
+  extension: "slp"
+
+allocator:
+  image_tag: "linux-amd64-latest-test"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+  region: "us-west-2"
+
+dns:
+  enabled: false
+  terraform_managed: false
+  domain: ""
+  zone_id: ""
+
+eip:
+  strategy: "dynamic"
+  tag_name: "lablink-eip"
+
+ssl:
+  provider: "none"
+  email: ""
+  certificate_arn: ""
+
+startup_script:
+  enabled: false
+  path: "config/custom-startup.sh"
+  on_error: "continue"
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
+
+bucket_name: "tf-state-lablink-YOURORG"
+```
+
+### Caddy SSL
+
+Use Caddy as a reverse proxy with automatic SSL. Three options depending on your DNS provider and management preference.
+
+=== "Let's Encrypt (Terraform DNS)"
+
+    Route53 DNS records managed automatically by Terraform. Caddy obtains Let's Encrypt certificates.
+
+    !!! warning "Rate limits"
+        Let's Encrypt allows **5 certificates per exact domain every 7 days**. Each `terraform apply` triggers a new certificate. For frequent testing, use [CloudFlare](#caddy-ssl) or [IP Only](#ip-only) instead.
+
+    **Prerequisites:**
+
+    - Route53 hosted zone created (e.g., `lablink.example.com`)
+    - Domain nameservers pointed to Route53
+
+    **Access URL:** `https://test.lablink.example.com`
+
+    ```yaml
+    # LabLink Configuration: Route53 + Let's Encrypt (Terraform-managed DNS)
+
+    db:
+      dbname: "lablink_db"
+      user: "lablink"
+      password: "PLACEHOLDER_DB_PASSWORD"
+      host: "localhost"
+      port: 5432
+      table_name: "vms"
+      message_channel: "vm_updates"
+
+    machine:
+      machine_type: "g4dn.xlarge"
+      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+      ami_id: "ami-0601752c11b394251"  # us-west-2
+      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+      software: "sleap"
+      extension: "slp"
+
+    allocator:
+      image_tag: "linux-amd64-latest-test"
+
+    app:
+      admin_user: "admin"
+      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+      region: "us-west-2"
+
+    dns:
+      enabled: true
+      terraform_managed: true
+      domain: "test.lablink.example.com"
+      zone_id: ""
+
+    eip:
+      strategy: "persistent"
+      tag_name: "lablink-eip"
+
+    ssl:
+      provider: "letsencrypt"
+      email: "admin@example.com"
+      certificate_arn: ""
+
+    startup_script:
+      enabled: false
+      path: "config/custom-startup.sh"
+      on_error: "continue"
+
+    monitoring:
+      enabled: false
+      email: ""
+      thresholds:
+        max_instances_per_5min: 10
+        max_terminations_per_5min: 20
+        max_unauthorized_calls_per_15min: 5
+      budget:
+        enabled: false
+        monthly_budget_usd: 500
+      cloudtrail:
+        retention_days: 90
+
+    bucket_name: "tf-state-lablink-YOURORG"
+    ```
+
+=== "Let's Encrypt (Manual DNS)"
+
+    Route53 DNS with manually created A records. Useful when you don't want Terraform managing DNS records.
+
+    !!! warning "Rate limits"
+        Same Let's Encrypt rate limits apply. See the Terraform DNS tab for details.
+
+    **Prerequisites:**
+
+    - Route53 hosted zone created
+    - Manually create A record: `test.lablink.example.com` pointing to the allocator EIP
+
+    **Access URL:** `https://test.lablink.example.com`
+
+    ```yaml
+    # LabLink Configuration: Route53 + Let's Encrypt (Manual DNS)
+
+    db:
+      dbname: "lablink_db"
+      user: "lablink"
+      password: "PLACEHOLDER_DB_PASSWORD"
+      host: "localhost"
+      port: 5432
+      table_name: "vms"
+      message_channel: "vm_updates"
+
+    machine:
+      machine_type: "g4dn.xlarge"
+      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+      ami_id: "ami-0601752c11b394251"  # us-west-2
+      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+      software: "sleap"
+      extension: "slp"
+
+    allocator:
+      image_tag: "linux-amd64-latest-test"
+
+    app:
+      admin_user: "admin"
+      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+      region: "us-west-2"
+
+    dns:
+      enabled: true
+      terraform_managed: false
+      domain: "test.lablink.example.com"
+      zone_id: ""
+
+    eip:
+      strategy: "persistent"
+      tag_name: "lablink-eip"
+
+    ssl:
+      provider: "letsencrypt"
+      email: "admin@example.com"
+      certificate_arn: ""
+
+    startup_script:
+      enabled: false
+      path: "config/custom-startup.sh"
+      on_error: "continue"
+
+    monitoring:
+      enabled: false
+      email: ""
+      thresholds:
+        max_instances_per_5min: 10
+        max_terminations_per_5min: 20
+        max_unauthorized_calls_per_15min: 5
+      budget:
+        enabled: false
+        monthly_budget_usd: 500
+      cloudtrail:
+        retention_days: 90
+
+    bucket_name: "tf-state-lablink-YOURORG"
+    ```
+
+=== "CloudFlare"
+
+    Use CloudFlare for DNS management and SSL termination. No rate limits on certificate issuance.
+
+    !!! tip "No rate limits"
+        CloudFlare SSL has no certificate issuance limits. Ideal for frequent testing and redeployments.
+
+    **Prerequisites:**
+
+    - Domain registered and managed in CloudFlare
+    - CloudFlare proxy enabled (orange cloud icon)
+
+    **Access URL:** `https://lablink.example.com`
+
+    ```yaml
+    # LabLink Configuration: CloudFlare DNS + SSL
+
+    db:
+      dbname: "lablink_db"
+      user: "lablink"
+      password: "PLACEHOLDER_DB_PASSWORD"
+      host: "localhost"
+      port: 5432
+      table_name: "vms"
+      message_channel: "vm_updates"
+
+    machine:
+      machine_type: "g4dn.xlarge"
+      image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+      ami_id: "ami-0601752c11b394251"  # us-west-2
+      repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+      software: "sleap"
+      extension: "slp"
+
+    allocator:
+      image_tag: "linux-amd64-latest-test"
+
+    app:
+      admin_user: "admin"
+      admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+      region: "us-west-2"
+
+    dns:
+      enabled: true
+      terraform_managed: false
+      domain: "lablink.example.com"
+      zone_id: ""
+
+    eip:
+      strategy: "persistent"
+      tag_name: "lablink-eip"
+
+    ssl:
+      provider: "cloudflare"
+      email: ""
+      certificate_arn: ""
+
+    startup_script:
+      enabled: false
+      path: "config/custom-startup.sh"
+      on_error: "continue"
+
+    monitoring:
+      enabled: false
+      email: ""
+      thresholds:
+        max_instances_per_5min: 10
+        max_terminations_per_5min: 20
+        max_unauthorized_calls_per_15min: 5
+      budget:
+        enabled: false
+        monthly_budget_usd: 500
+      cloudtrail:
+        retention_days: 90
+
+    bucket_name: "tf-state-lablink-YOURORG"
+    ```
+
+### ALB with ACM
+
+Use AWS Application Load Balancer with ACM-managed SSL certificates. Enterprise-grade setup with no rate limits.
+
+!!! note "Additional cost"
+    ALB adds approximately **~$20/month** but provides enterprise-grade SSL termination and scalability.
+
+**Prerequisites:**
+
+1. Route53 hosted zone created
+2. ACM certificate requested and validated for your domain
+3. Certificate ARN obtained from ACM console
+
+**Access URL:** `https://lablink.example.com`
+
+```yaml
+# LabLink Configuration: Route53 + ACM (AWS Certificate Manager)
+
+db:
+  dbname: "lablink_db"
+  user: "lablink"
+  password: "PLACEHOLDER_DB_PASSWORD"
+  host: "localhost"
+  port: 5432
+  table_name: "vms"
+  message_channel: "vm_updates"
+
+machine:
+  machine_type: "g4dn.xlarge"
+  image: "ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest-test"
+  ami_id: "ami-0601752c11b394251"  # us-west-2
+  repository: "https://github.com/talmolab/sleap-tutorial-data.git"
+  software: "sleap"
+  extension: "slp"
+
+allocator:
+  image_tag: "linux-amd64-latest-test"
+
+app:
+  admin_user: "admin"
+  admin_password: "PLACEHOLDER_ADMIN_PASSWORD"
+  region: "us-west-2"
+
+dns:
+  enabled: true
+  terraform_managed: true
+  domain: "lablink.example.com"
+  zone_id: ""
+
+eip:
+  strategy: "persistent"
+  tag_name: "lablink-eip"
+
+ssl:
+  provider: "acm"
+  email: ""
+  certificate_arn: "arn:aws:acm:us-west-2:123456789012:certificate/abcd1234-5678-90ab-cdef-EXAMPLE11111"
+
+startup_script:
+  enabled: false
+  path: "config/custom-startup.sh"
+  on_error: "continue"
+
+monitoring:
+  enabled: false
+  email: ""
+  thresholds:
+    max_instances_per_5min: 10
+    max_terminations_per_5min: 20
+    max_unauthorized_calls_per_15min: 5
+  budget:
+    enabled: false
+    monthly_budget_usd: 500
+  cloudtrail:
+    retention_days: 90
+
+bucket_name: "tf-state-lablink-YOURORG"
+```
+
+### Key Differences Between Examples
+
+| Field | IP Only | Let's Encrypt | CloudFlare | ACM |
+|-------|---------|--------------|------------|-----|
+| `dns.enabled` | `false` | `true` | `true` | `true` |
+| `dns.terraform_managed` | `false` | `true` / `false` | `false` | `true` |
+| `eip.strategy` | `dynamic` | `persistent` | `persistent` | `persistent` |
+| `ssl.provider` | `none` | `letsencrypt` | `cloudflare` | `acm` |
+| `ssl.email` | -- | required | -- | -- |
+| `ssl.certificate_arn` | -- | -- | -- | required |
+
 ## Next Steps
 
 - **[Adapting LabLink](adapting.md)**: Customize for your research software
 - **[Deployment](deployment.md)**: Deploy with your configuration
-- **[Security](security.md)**: Secure your configuration values
+- **[Security & Access](security.md)**: Secure your configuration values

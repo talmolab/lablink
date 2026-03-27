@@ -278,7 +278,7 @@ This checks:
 ## Configuration Templates
 
 !!! tip "Full configuration examples"
-    The templates below show only DNS and SSL sections. For complete, copy-paste-ready config files, see [Configuration Examples](configuration-examples.md).
+    The templates below show only DNS and SSL sections. For complete, copy-paste-ready config files, see [Configuration Examples](configuration.md#full-configuration-examples).
 
 ### Development Environment
 ```yaml
