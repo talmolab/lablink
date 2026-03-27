@@ -437,4 +437,3 @@ See [Security](security.md) for detailed security considerations.
 
 - **[Configuration](configuration.md)**: Customize components
 - **[Deployment](deployment.md)**: Deploy the system
-- **[Testing](testing.md)**: Test the codebase

@@ -937,17 +937,6 @@ Builds and deploys MkDocs documentation to GitHub Pages.
 
 Documentation is available at: `https://talmolab.github.io/lablink/`
 
-## Workflow Environment Variables
-
-Common environment variables used across workflows:
-
-| Variable            | Description      | Source                |
-| ------------------- | ---------------- | --------------------- |
-| `GITHUB_TOKEN`      | GitHub API token | Automatic             |
-| `AWS_REGION`        | AWS region       | Hardcoded (us-west-2) |
-| `GITHUB_REPOSITORY` | Repo name        | Automatic             |
-| `GITHUB_REF_NAME`   | Branch/tag name  | Automatic             |
-
 ## Secrets Management
 
 ### Required Secrets
@@ -983,113 +972,6 @@ Access in workflows:
     ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
   run: |
     echo "Password is set"
-```
-
-## Workflow Monitoring
-
-### View Workflow Runs
-
-1. Navigate to **Actions** tab in GitHub
-2. Select workflow from left sidebar
-3. View recent runs
-
-### Workflow Status
-
-- ✅ Green checkmark: Success
-- ❌ Red X: Failure
-- 🟡 Yellow dot: In progress
-- ⚪ Gray circle: Queued
-
-### Debugging Failed Workflows
-
-1. Click on failed workflow run
-2. Click on failed job
-3. Expand failed step
-4. Read error logs
-5. Fix issue and re-run
-
-### Re-running Workflows
-
-From workflow run page:
-
-- **Re-run all jobs**: Retry entire workflow
-- **Re-run failed jobs**: Only retry failures
-
-## Creating Custom Workflows
-
-### Example: Backup Workflow
-
-Create `.github/workflows/backup.yml`:
-
-```yaml
-name: Backup Database
-
-on:
-  schedule:
-    - cron: "0 2 * * *" # Daily at 2 AM
-  workflow_dispatch:
-
-jobs:
-  backup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: Backup Database
-        run: |
-          # SSH into allocator
-          # Run pg_dump
-          # Upload to S3
-          echo "Backup complete"
-```
-
-### Example: Notification Workflow
-
-```yaml
-name: Deployment Notifications
-
-on:
-  workflow_run:
-    workflows: ["Terraform Deploy"]
-    types: [completed]
-
-jobs:
-  notify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "LabLink Deployment: ${{ github.event.workflow_run.conclusion }}"
-          body: "Deployment finished with status: ${{ github.event.workflow_run.conclusion }}"
-          to: admin@example.com
-```
-
-## Best Practices
-
-1. **Pin action versions**: Use `@v3` not `@latest`
-2. **Minimize secrets**: Use OIDC when possible
-3. **Cache dependencies**: Speed up workflows
-4. **Fail fast**: Stop on first error
-5. **Use matrix builds**: Test multiple versions
-6. **Set timeouts**: Prevent runaway workflows
-7. **Add status badges**: Show workflow status in README
-
-### Status Badge Example
-
-Add to `README.md`:
-
-```markdown
-![CI](https://github.com/talmolab/lablink/actions/workflows/ci.yml/badge.svg)
-![Deploy](https://github.com/talmolab/lablink/actions/workflows/lablink-allocator-terraform.yml/badge.svg)
 ```
 
 ## Troubleshooting Workflows

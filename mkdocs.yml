@@ -113,7 +113,6 @@ nav:
       - Database: database.md
       - API Endpoints: api-endpoints.md
       - Workflows: workflows.md
-      - Testing: testing.md
       - Contributing: contributing.md
       - Changelog: changelog.md
       - Allocator Changelog: changelog-allocator.md
