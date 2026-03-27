@@ -1,11 +1,10 @@
 # SNS Topic for Admin Alerts
 resource "aws_sns_topic" "admin_alerts" {
-  name = "lablink-admin-alerts-${var.resource_suffix}"
+  name = "${var.deployment_name}-alerts-topic-${var.environment}"
 
-  tags = {
-    Name        = "lablink-admin-alerts-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-alerts-topic-${var.environment}"
+  })
 }
 
 # SNS Email Subscription
@@ -18,16 +17,16 @@ resource "aws_sns_topic_subscription" "admin_email" {
 
 # Metric Filter: Mass Instance Launches
 resource "aws_cloudwatch_log_metric_filter" "run_instances" {
-  name           = "lablink-run-instances-${var.resource_suffix}"
+  name           = "${var.deployment_name}-run-instances-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.cloudtrail_logs.name
 
   pattern = <<PATTERN
-{ ($.eventName = RunInstances) && ($.userIdentity.arn = *lablink_instance_role*) && ($.errorCode NOT EXISTS) }
+{ ($.eventName = RunInstances) && ($.userIdentity.arn = *${var.deployment_name}-allocator-role*) && ($.errorCode NOT EXISTS) }
 PATTERN
 
   metric_transformation {
     name      = "RunInstancesCount"
-    namespace = "LabLinkSecurity/${var.resource_suffix}"
+    namespace = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
     value     = "$.requestParameters.instancesSet.items[0].maxCount"
     unit      = "Count"
   }
@@ -35,11 +34,11 @@ PATTERN
 
 # Alarm: Mass Instance Launches
 resource "aws_cloudwatch_metric_alarm" "mass_instance_launch" {
-  alarm_name          = "lablink-mass-instance-launch-${var.resource_suffix}"
+  alarm_name          = "${var.deployment_name}-alarm-mass-launch-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "RunInstancesCount"
-  namespace           = "LabLinkSecurity/${var.resource_suffix}"
+  namespace           = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
   period              = 300 # 5 minutes
   statistic           = "Sum"
   threshold           = try(local.config_file.monitoring.thresholds.max_instances_per_5min, 10)
@@ -47,25 +46,24 @@ resource "aws_cloudwatch_metric_alarm" "mass_instance_launch" {
   alarm_actions       = [aws_sns_topic.admin_alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  tags = {
-    Name        = "lablink-mass-instance-launch-${var.resource_suffix}"
-    Environment = var.resource_suffix
-    Severity    = "high"
-  }
+  tags = merge(local.common_tags, {
+    Name     = "${var.deployment_name}-alarm-mass-launch-${var.environment}"
+    Severity = "high"
+  })
 }
 
 # Metric Filter: Large Instance Types
 resource "aws_cloudwatch_log_metric_filter" "large_instances" {
-  name           = "lablink-large-instances-${var.resource_suffix}"
+  name           = "${var.deployment_name}-large-instances-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.cloudtrail_logs.name
 
   pattern = <<PATTERN
-{ ($.eventName = RunInstances) && ($.userIdentity.arn = *lablink_instance_role*) && ($.errorCode NOT EXISTS) && (($.requestParameters.instanceType = p4d.*) || ($.requestParameters.instanceType = p3.*) || ($.requestParameters.instanceType = g5.*)) }
+{ ($.eventName = RunInstances) && ($.userIdentity.arn = *${var.deployment_name}-allocator-role*) && ($.errorCode NOT EXISTS) && (($.requestParameters.instanceType = p4d.*) || ($.requestParameters.instanceType = p3.*) || ($.requestParameters.instanceType = g5.*)) }
 PATTERN
 
   metric_transformation {
     name      = "LargeInstanceLaunched"
-    namespace = "LabLinkSecurity/${var.resource_suffix}"
+    namespace = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
     value     = "1"
     unit      = "Count"
   }
@@ -73,11 +71,11 @@ PATTERN
 
 # Alarm: Large Instance Types
 resource "aws_cloudwatch_metric_alarm" "large_instance_launched" {
-  alarm_name          = "lablink-large-instance-launched-${var.resource_suffix}"
+  alarm_name          = "${var.deployment_name}-alarm-large-instance-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "LargeInstanceLaunched"
-  namespace           = "LabLinkSecurity/${var.resource_suffix}"
+  namespace           = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
   period              = 300
   statistic           = "Sum"
   threshold           = 0 # Alert on ANY large instance
@@ -85,25 +83,24 @@ resource "aws_cloudwatch_metric_alarm" "large_instance_launched" {
   alarm_actions       = [aws_sns_topic.admin_alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  tags = {
-    Name        = "lablink-large-instance-launched-${var.resource_suffix}"
-    Environment = var.resource_suffix
-    Severity    = "critical"
-  }
+  tags = merge(local.common_tags, {
+    Name     = "${var.deployment_name}-alarm-large-instance-${var.environment}"
+    Severity = "critical"
+  })
 }
 
 # Metric Filter: Unauthorized API Calls
 resource "aws_cloudwatch_log_metric_filter" "unauthorized_calls" {
-  name           = "lablink-unauthorized-calls-${var.resource_suffix}"
+  name           = "${var.deployment_name}-unauthorized-calls-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.cloudtrail_logs.name
 
   pattern = <<PATTERN
-{ (($.errorCode = AccessDenied) || ($.errorCode = UnauthorizedOperation)) && ($.userIdentity.arn = *lablink_instance_role*) }
+{ (($.errorCode = AccessDenied) || ($.errorCode = UnauthorizedOperation)) && ($.userIdentity.arn = *${var.deployment_name}-allocator-role*) }
 PATTERN
 
   metric_transformation {
     name      = "UnauthorizedAPICalls"
-    namespace = "LabLinkSecurity/${var.resource_suffix}"
+    namespace = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
     value     = "1"
     unit      = "Count"
   }
@@ -111,11 +108,11 @@ PATTERN
 
 # Alarm: Unauthorized API Calls
 resource "aws_cloudwatch_metric_alarm" "unauthorized_calls" {
-  alarm_name          = "lablink-unauthorized-calls-${var.resource_suffix}"
+  alarm_name          = "${var.deployment_name}-alarm-unauthorized-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "UnauthorizedAPICalls"
-  namespace           = "LabLinkSecurity/${var.resource_suffix}"
+  namespace           = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
   period              = 900 # 15 minutes
   statistic           = "Sum"
   threshold           = try(local.config_file.monitoring.thresholds.max_unauthorized_calls_per_15min, 5)
@@ -123,24 +120,23 @@ resource "aws_cloudwatch_metric_alarm" "unauthorized_calls" {
   alarm_actions       = [aws_sns_topic.admin_alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  tags = {
-    Name        = "lablink-unauthorized-calls-${var.resource_suffix}"
-    Environment = var.resource_suffix
-    Severity    = "critical"
-  }
+  tags = merge(local.common_tags, {
+    Name     = "${var.deployment_name}-alarm-unauthorized-${var.environment}"
+    Severity = "critical"
+  })
 }
 
 # Metric Filter: High Termination Rate
 resource "aws_cloudwatch_log_metric_filter" "high_termination_rate" {
-  name           = "lablink-high-termination-rate-${var.resource_suffix}"
+  name           = "${var.deployment_name}-high-termination-rate-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.cloudtrail_logs.name
   pattern        = <<PATTERN
-{ ($.eventName = TerminateInstances) && ($.userIdentity.arn = *lablink_instance_role*) && ($.errorCode NOT EXISTS) }
+{ ($.eventName = TerminateInstances) && ($.userIdentity.arn = *${var.deployment_name}-allocator-role*) && ($.errorCode NOT EXISTS) }
 PATTERN
 
   metric_transformation {
     name      = "TerminateInstancesCount"
-    namespace = "LabLinkSecurity/${var.resource_suffix}"
+    namespace = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
     value     = "1"
     unit      = "Count"
   }
@@ -148,11 +144,11 @@ PATTERN
 
 # Alarm: High Termination Rate
 resource "aws_cloudwatch_metric_alarm" "high_termination_rate" {
-  alarm_name          = "lablink-high-termination-rate-${var.resource_suffix}"
+  alarm_name          = "${var.deployment_name}-alarm-high-termination-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "TerminateInstancesCount"
-  namespace           = "LabLinkSecurity/${var.resource_suffix}"
+  namespace           = "LabLinkSecurity/${var.deployment_name}-${var.environment}"
   period              = 300 # 5 minutes
   statistic           = "Sum"
   threshold           = try(local.config_file.monitoring.thresholds.max_terminations_per_5min, 10)
@@ -160,9 +156,8 @@ resource "aws_cloudwatch_metric_alarm" "high_termination_rate" {
   alarm_actions       = [aws_sns_topic.admin_alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  tags = {
-    Name        = "lablink-high-termination-rate-${var.resource_suffix}"
-    Environment = var.resource_suffix
-    Severity    = "high"
-  }
+  tags = merge(local.common_tags, {
+    Name     = "${var.deployment_name}-alarm-high-termination-${var.environment}"
+    Severity = "high"
+  })
 }

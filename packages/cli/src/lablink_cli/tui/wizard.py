@@ -26,7 +26,9 @@ from lablink_cli.config.schema import (
     AMI_MAP,
     AWS_REGIONS,
     CPU_INSTANCE_TYPES,
+    DEPLOYMENT_NAME_RE,
     GPU_INSTANCE_TYPES,
+    VALID_ENVIRONMENTS,
     Config,
     config_to_dict,
     save_config,
@@ -38,10 +40,10 @@ DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
 
 
 # ---------------------------------------------------------------------------
-# Screen 1: AWS Region
+# Screen 1: Deployment Name & Environment
 # ---------------------------------------------------------------------------
-class RegionScreen(Screen):
-    """Select AWS region."""
+class DeploymentScreen(Screen):
+    """Configure deployment name and environment."""
 
     BINDINGS = [Binding("escape", "quit", "Quit")]
 
@@ -49,10 +51,117 @@ class RegionScreen(Screen):
         self.app.exit()
 
     def compose(self) -> ComposeResult:
+        cfg = self.app.config
+
+        # Determine pre-selected environment index
+        env_list = list(VALID_ENVIRONMENTS)
+        try:
+            env_idx = env_list.index(cfg.environment)
+        except ValueError:
+            env_idx = len(env_list) - 1  # default to prod
+
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 1 of 5: AWS Region", classes="step-title"
+                "Step 1 of 6: Deployment Identity",
+                classes="step-title",
+            )
+            yield Label(
+                "Give this deployment a unique name and "
+                "select the environment.",
+                classes="step-description",
+            )
+
+            yield Label(
+                "Deployment Name", classes="field-label"
+            )
+            yield Input(
+                value=cfg.deployment_name or "",
+                placeholder="e.g. sleap-lablink, deeplabcut-lablink",
+                id="deployment-name",
+            )
+            yield Label(
+                "3-32 chars, lowercase kebab-case "
+                "(letters, digits, hyphens)",
+                classes="step-description",
+                id="name-hint",
+            )
+
+            yield Label(
+                "Environment", classes="field-label"
+            )
+            with RadioSet(id="env-select"):
+                for i, env in enumerate(env_list):
+                    yield RadioButton(
+                        env, value=(i == env_idx)
+                    )
+
+            yield Label(
+                "", id="deploy-error", classes="error"
+            )
+
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button(
+                    "Next", variant="primary", id="next"
+                )
+        yield Footer()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        name = self.query_one(
+            "#deployment-name", Input
+        ).value.strip()
+        error_label = self.query_one("#deploy-error", Label)
+
+        # Validate deployment name
+        if not name:
+            error_label.update(
+                "Deployment name is required"
+            )
+            error_label.display = True
+            return
+        if (
+            len(name) < 3
+            or len(name) > 32
+            or not DEPLOYMENT_NAME_RE.match(name)
+        ):
+            error_label.update(
+                "Must be 3-32 chars, lowercase kebab-case "
+                "(e.g., 'sleap-lablink')"
+            )
+            error_label.display = True
+            return
+
+        error_label.display = False
+        self.app.config.deployment_name = name
+
+        # Read environment from radio set
+        env_radio = self.query_one("#env-select", RadioSet)
+        env_list = list(VALID_ENVIRONMENTS)
+        self.app.config.environment = env_list[
+            env_radio.pressed_index
+        ]
+
+        self.app.push_screen(RegionScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 2: AWS Region
+# ---------------------------------------------------------------------------
+class RegionScreen(Screen):
+    """Select AWS region."""
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll():
+            yield Label(
+                "Step 2 of 6: AWS Region", classes="step-title"
             )
             yield Label(
                 "Select the AWS region closest to your users.",
@@ -70,6 +179,7 @@ class RegionScreen(Screen):
             )
         with Center():
             with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
                 yield Button("Next", variant="primary", id="next")
         yield Footer()
 
@@ -81,13 +191,17 @@ class RegionScreen(Screen):
         if region in AMI_MAP:
             self.app.config.machine.ami_id = AMI_MAP[region]
 
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
     @on(Button.Pressed, "#next")
     def _next(self) -> None:
         self.app.push_screen(MachineScreen())
 
 
 # ---------------------------------------------------------------------------
-# Screen 2: Machine Configuration
+# Screen 3: Machine Configuration
 # ---------------------------------------------------------------------------
 class MachineScreen(Screen):
     """Configure client VM instance type and software."""
@@ -98,7 +212,7 @@ class MachineScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 2 of 5: Machine Configuration",
+                "Step 3 of 6: Machine Configuration",
                 classes="step-title",
             )
 
@@ -197,7 +311,7 @@ class MachineScreen(Screen):
 
 
 # ---------------------------------------------------------------------------
-# Screen 3: DNS & SSL
+# Screen 4: DNS & SSL
 # ---------------------------------------------------------------------------
 class DnsScreen(Screen):
     """Configure DNS and SSL settings."""
@@ -224,7 +338,7 @@ class DnsScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 3 of 5: DNS & SSL", classes="step-title"
+                "Step 4 of 6: DNS & SSL", classes="step-title"
             )
 
             yield Label("Access Method", classes="field-label")
@@ -367,7 +481,7 @@ class DnsScreen(Screen):
 
 
 # ---------------------------------------------------------------------------
-# Screen 4: Startup Script
+# Screen 5: Startup Script
 # ---------------------------------------------------------------------------
 STARTUP_TEMPLATE_PATH = (
     Path(__file__).resolve().parent.parent
@@ -388,7 +502,7 @@ class StartupScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 4 of 5: Client Startup Script",
+                "Step 5 of 6: Client Startup Script",
                 classes="step-title",
             )
             yield Label(
@@ -570,7 +684,7 @@ class StartupScreen(Screen):
 
 
 # ---------------------------------------------------------------------------
-# Screen 5: Review & Save
+# Screen 6: Review & Save
 # ---------------------------------------------------------------------------
 class ReviewScreen(Screen):
     """Review configuration and save."""
@@ -581,7 +695,7 @@ class ReviewScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 5 of 5: Review & Save",
+                "Step 6 of 6: Review & Save",
                 classes="step-title",
             )
             yield TextArea(
@@ -716,4 +830,4 @@ class ConfigWizard(App):
         self._startup_script_content: str | None = None
 
     def on_mount(self) -> None:
-        self.push_screen(RegionScreen())
+        self.push_screen(DeploymentScreen())

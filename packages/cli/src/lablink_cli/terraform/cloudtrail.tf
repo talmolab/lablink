@@ -1,12 +1,11 @@
 # S3 bucket for CloudTrail logs
 resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket        = "lablink-cloudtrail-${var.resource_suffix}-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${var.deployment_name}-cloudtrail-bucket-${var.environment}-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
 
-  tags = {
-    Name        = "lablink-cloudtrail-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-cloudtrail-bucket-${var.environment}"
+  })
 }
 
 # S3 bucket encryption
@@ -56,13 +55,13 @@ resource "aws_s3_bucket_policy" "cloudtrail_policy" {
 
 # CloudWatch Log Group for CloudTrail
 resource "aws_cloudwatch_log_group" "cloudtrail_logs" {
-  name              = "lablink-cloudtrail-${var.resource_suffix}"
+  name              = "${var.deployment_name}-cloudtrail-logs-${var.environment}"
   retention_in_days = try(local.config_file.monitoring.cloudtrail.retention_days, 90)
 }
 
 # IAM role for CloudTrail to write to CloudWatch
 resource "aws_iam_role" "cloudtrail_cloudwatch_role" {
-  name = "lablink_cloudtrail_cloudwatch_${var.resource_suffix}"
+  name = "${var.deployment_name}-cloudtrail-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -76,11 +75,15 @@ resource "aws_iam_role" "cloudtrail_cloudwatch_role" {
       }
     ]
   })
+
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-cloudtrail-role-${var.environment}"
+  })
 }
 
 # IAM policy for CloudTrail CloudWatch access
 resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
-  name = "lablink_cloudtrail_cloudwatch_policy_${var.resource_suffix}"
+  name = "${var.deployment_name}-cloudtrail-policy-${var.environment}"
   role = aws_iam_role.cloudtrail_cloudwatch_role.id
 
   policy = jsonencode({
@@ -100,7 +103,7 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
 
 # CloudTrail
 resource "aws_cloudtrail" "lablink_trail" {
-  name                          = "lablink-trail-${var.resource_suffix}"
+  name                          = "${var.deployment_name}-cloudtrail-${var.environment}"
   s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
   include_global_service_events = true
   is_multi_region_trail         = true
@@ -120,8 +123,7 @@ resource "aws_cloudtrail" "lablink_trail" {
     aws_iam_role_policy.cloudtrail_cloudwatch_policy
   ]
 
-  tags = {
-    Name        = "lablink-trail-${var.resource_suffix}"
-    Environment = var.resource_suffix
-  }
+  tags = merge(local.common_tags, {
+    Name = "${var.deployment_name}-cloudtrail-${var.environment}"
+  })
 }

@@ -11,7 +11,6 @@ from rich.panel import Panel
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.commands.deploy import DEPLOY_DIR
 from lablink_cli.commands.setup import (
     _get_session,
     check_credentials,
@@ -19,8 +18,18 @@ from lablink_cli.commands.setup import (
 
 console = Console()
 
-# Resource suffix used by Terraform for naming
-RESOURCE_SUFFIX = "prod"
+
+def _get_deploy_dir(cfg: Config):
+    """Return the scoped deploy directory for this deployment."""
+    from pathlib import Path
+
+    return (
+        Path.home()
+        / ".lablink"
+        / "deploy"
+        / cfg.deployment_name
+        / cfg.environment
+    )
 
 
 def _delete_if_exists(
@@ -53,7 +62,7 @@ def _delete_if_exists(
 # EC2 resources
 # ------------------------------------------------------------------
 def cleanup_ec2_instances(
-    ec2, region: str, suffix: str, dry_run: bool
+    ec2, region: str, deployment_name: str, environment: str, dry_run: bool
 ) -> None:
     """Terminate lablink EC2 instances."""
     console.print("[bold]EC2 Instances[/bold]")
@@ -61,7 +70,10 @@ def cleanup_ec2_instances(
         Filters=[
             {
                 "Name": "tag:Name",
-                "Values": [f"*lablink*{suffix}*"],
+                "Values": [
+                    f"{deployment_name}-allocator-{environment}",
+                    f"*-lablink-client-{environment}-vm-*",
+                ],
             },
             {
                 "Name": "instance-state-name",
@@ -101,15 +113,15 @@ def cleanup_ec2_instances(
 
 
 def cleanup_security_groups(
-    ec2, suffix: str, dry_run: bool
+    ec2, deployment_name: str, environment: str, dry_run: bool
 ) -> None:
     """Delete lablink security groups."""
     console.print("[bold]Security Groups[/bold]")
     found = False
     for pattern in [
-        f"lablink-sg-{suffix}",
-        f"lablink-client-sg-{suffix}",
-        f"lablink-alb-sg-{suffix}",
+        f"{deployment_name}-allocator-sg-{environment}",
+        f"*-lablink-client-{environment}-sg",
+        f"{deployment_name}-alb-sg-{environment}",
     ]:
         resp = ec2.describe_security_groups(
             Filters=[
@@ -134,13 +146,13 @@ def cleanup_security_groups(
 
 
 def cleanup_key_pairs(
-    ec2, suffix: str, dry_run: bool
+    ec2, deployment_name: str, environment: str, dry_run: bool
 ) -> None:
     """Delete lablink key pairs."""
     console.print("[bold]Key Pairs[/bold]")
     found = False
     for name in [
-        f"lablink-key-{suffix}",
+        f"{deployment_name}-keypair-{environment}",
     ]:
         try:
             ec2.describe_key_pairs(KeyNames=[name])
@@ -162,7 +174,7 @@ def cleanup_key_pairs(
 
 
 def cleanup_elastic_ips(
-    ec2, suffix: str, dry_run: bool
+    ec2, deployment_name: str, environment: str, dry_run: bool
 ) -> None:
     """Release lablink elastic IPs."""
     console.print("[bold]Elastic IPs[/bold]")
@@ -170,7 +182,7 @@ def cleanup_elastic_ips(
         Filters=[
             {
                 "Name": "tag:Name",
-                "Values": [f"lablink-eip-{suffix}"],
+                "Values": [f"{deployment_name}-eip-{environment}"],
             }
         ]
     )
@@ -204,7 +216,8 @@ def cleanup_elastic_ips(
 # ------------------------------------------------------------------
 def cleanup_iam(
     session: boto3.Session,
-    suffix: str,
+    deployment_name: str,
+    environment: str,
     dry_run: bool,
 ) -> None:
     """Delete lablink IAM roles, policies, instance profiles."""
@@ -215,7 +228,7 @@ def cleanup_iam(
     )
 
     # Instance profile
-    profile_name = f"lablink_instance_profile_{suffix}"
+    profile_name = f"{deployment_name}-allocator-profile-{environment}"
     try:
         resp = iam.get_instance_profile(
             InstanceProfileName=profile_name
@@ -244,7 +257,7 @@ def cleanup_iam(
         pass
 
     # Role
-    role_name = f"lablink_instance_role_{suffix}"
+    role_name = f"{deployment_name}-allocator-role-{environment}"
     try:
         resp = iam.list_attached_role_policies(
             RoleName=role_name
@@ -271,8 +284,8 @@ def cleanup_iam(
 
     # Policies
     for policy_name in [
-        f"lablink_s3_backend_{suffix}",
-        f"lablink_ec2_vm_management_{suffix}",
+        f"{deployment_name}-s3-backend-policy-{environment}",
+        f"{deployment_name}-ec2-mgmt-policy-{environment}",
     ]:
         arn = (
             f"arn:aws:iam::{account_id}:policy/{policy_name}"
@@ -389,18 +402,19 @@ def cleanup_dynamodb(
 # ------------------------------------------------------------------
 # Local state
 # ------------------------------------------------------------------
-def cleanup_local(dry_run: bool) -> None:
+def cleanup_local(cfg: Config, dry_run: bool) -> None:
     """Delete local Terraform working directory."""
     console.print("[bold]Local State[/bold]")
-    if DEPLOY_DIR.exists():
+    deploy_dir = _get_deploy_dir(cfg)
+    if deploy_dir.exists():
         if dry_run:
             console.print(
-                f"  [yellow]would delete[/yellow] {DEPLOY_DIR}"
+                f"  [yellow]would delete[/yellow] {deploy_dir}"
             )
         else:
-            shutil.rmtree(DEPLOY_DIR)
+            shutil.rmtree(deploy_dir)
             console.print(
-                f"  [green]deleted[/green] {DEPLOY_DIR}"
+                f"  [green]deleted[/green] {deploy_dir}"
             )
     else:
         console.print("  [dim]not found[/dim]")
@@ -416,12 +430,16 @@ def run_cleanup(
 ) -> None:
     """Clean up orphaned AWS resources."""
     region = cfg.app.region
+    deployment_name = cfg.deployment_name
+    environment = cfg.environment
 
     console.print()
     mode = "[yellow]DRY RUN[/yellow] " if dry_run else ""
     console.print(
         Panel(
             f"{mode}[bold]LabLink Cleanup[/bold]\n"
+            f"Deployment: {deployment_name}  |  "
+            f"Environment: {environment}\n"
             f"Region: {region}",
             border_style="red" if not dry_run else "yellow",
         )
@@ -432,18 +450,16 @@ def run_cleanup(
     check_credentials(session)
     ec2 = session.client("ec2")
 
-    suffix = RESOURCE_SUFFIX
-
     # AWS resources matching current Terraform
-    cleanup_ec2_instances(ec2, region, suffix, dry_run)
+    cleanup_ec2_instances(ec2, region, deployment_name, environment, dry_run)
     console.print()
-    cleanup_security_groups(ec2, suffix, dry_run)
+    cleanup_security_groups(ec2, deployment_name, environment, dry_run)
     console.print()
-    cleanup_key_pairs(ec2, suffix, dry_run)
+    cleanup_key_pairs(ec2, deployment_name, environment, dry_run)
     console.print()
-    cleanup_elastic_ips(ec2, suffix, dry_run)
+    cleanup_elastic_ips(ec2, deployment_name, environment, dry_run)
     console.print()
-    cleanup_iam(session, suffix, dry_run)
+    cleanup_iam(session, deployment_name, environment, dry_run)
     console.print()
 
     # Remote state resources (S3 + DynamoDB)
@@ -454,7 +470,7 @@ def run_cleanup(
         console.print()
 
     # Local state
-    cleanup_local(dry_run)
+    cleanup_local(cfg, dry_run)
     console.print()
 
     if dry_run:
