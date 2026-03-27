@@ -1,0 +1,466 @@
+"""Clean up orphaned AWS resources and local state."""
+
+from __future__ import annotations
+
+import shutil
+
+import boto3
+from botocore.exceptions import ClientError
+from rich.console import Console
+from rich.panel import Panel
+
+from lablink_allocator_service.conf.structured_config import Config
+
+from lablink_cli.commands.deploy import DEPLOY_DIR
+from lablink_cli.commands.setup import (
+    _get_session,
+    check_credentials,
+)
+
+console = Console()
+
+# Resource suffix used by Terraform for naming
+RESOURCE_SUFFIX = "prod"
+
+
+def _delete_if_exists(
+    action: str, fn, *args, **kwargs
+) -> bool:
+    """Call fn and return True on success, False if not found."""
+    try:
+        fn(*args, **kwargs)
+        console.print(f"  [green]deleted[/green] {action}")
+        return True
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in (
+            "NotFoundException",
+            "ResourceNotFoundException",
+            "NoSuchEntity",
+            "InvalidParameterValue",
+            "InvalidKeyPair.NotFound",
+            "InvalidGroup.NotFound",
+            "404",
+        ):
+            console.print(
+                f"  [dim]not found[/dim] {action}"
+            )
+            return False
+        raise
+
+
+# ------------------------------------------------------------------
+# EC2 resources
+# ------------------------------------------------------------------
+def cleanup_ec2_instances(
+    ec2, region: str, suffix: str, dry_run: bool
+) -> None:
+    """Terminate lablink EC2 instances."""
+    console.print("[bold]EC2 Instances[/bold]")
+    resp = ec2.describe_instances(
+        Filters=[
+            {
+                "Name": "tag:Name",
+                "Values": [f"*lablink*{suffix}*"],
+            },
+            {
+                "Name": "instance-state-name",
+                "Values": [
+                    "running",
+                    "stopped",
+                    "pending",
+                ],
+            },
+        ]
+    )
+    instance_ids = [
+        i["InstanceId"]
+        for r in resp["Reservations"]
+        for i in r["Instances"]
+    ]
+    if not instance_ids:
+        console.print("  [dim]none found[/dim]")
+        return
+
+    for iid in instance_ids:
+        if dry_run:
+            console.print(
+                f"  [yellow]would terminate[/yellow] {iid}"
+            )
+        else:
+            ec2.terminate_instances(InstanceIds=[iid])
+            console.print(
+                f"  [green]terminated[/green] {iid}"
+            )
+
+    if not dry_run and instance_ids:
+        console.print("  waiting for termination...")
+        waiter = ec2.get_waiter("instance_terminated")
+        waiter.wait(InstanceIds=instance_ids)
+        console.print("  [green]done[/green]")
+
+
+def cleanup_security_groups(
+    ec2, suffix: str, dry_run: bool
+) -> None:
+    """Delete lablink security groups."""
+    console.print("[bold]Security Groups[/bold]")
+    found = False
+    for pattern in [
+        f"lablink-sg-{suffix}",
+        f"lablink-client-sg-{suffix}",
+        f"lablink-alb-sg-{suffix}",
+    ]:
+        resp = ec2.describe_security_groups(
+            Filters=[
+                {"Name": "group-name", "Values": [pattern]}
+            ]
+        )
+        for sg in resp["SecurityGroups"]:
+            found = True
+            if dry_run:
+                console.print(
+                    f"  [yellow]would delete[/yellow] "
+                    f"{sg['GroupName']} ({sg['GroupId']})"
+                )
+            else:
+                _delete_if_exists(
+                    f"{sg['GroupName']} ({sg['GroupId']})",
+                    ec2.delete_security_group,
+                    GroupId=sg["GroupId"],
+                )
+    if not found:
+        console.print("  [dim]none found[/dim]")
+
+
+def cleanup_key_pairs(
+    ec2, suffix: str, dry_run: bool
+) -> None:
+    """Delete lablink key pairs."""
+    console.print("[bold]Key Pairs[/bold]")
+    found = False
+    for name in [
+        f"lablink-key-{suffix}",
+    ]:
+        try:
+            ec2.describe_key_pairs(KeyNames=[name])
+            found = True
+            if dry_run:
+                console.print(
+                    f"  [yellow]would delete[/yellow] {name}"
+                )
+            else:
+                _delete_if_exists(
+                    name,
+                    ec2.delete_key_pair,
+                    KeyName=name,
+                )
+        except ClientError:
+            pass
+    if not found:
+        console.print("  [dim]none found[/dim]")
+
+
+def cleanup_elastic_ips(
+    ec2, suffix: str, dry_run: bool
+) -> None:
+    """Release lablink elastic IPs."""
+    console.print("[bold]Elastic IPs[/bold]")
+    resp = ec2.describe_addresses(
+        Filters=[
+            {
+                "Name": "tag:Name",
+                "Values": [f"lablink-eip-{suffix}"],
+            }
+        ]
+    )
+    if not resp["Addresses"]:
+        console.print("  [dim]none found[/dim]")
+        return
+
+    for addr in resp["Addresses"]:
+        alloc_id = addr["AllocationId"]
+        ip = addr.get("PublicIp", "")
+        if dry_run:
+            console.print(
+                f"  [yellow]would release[/yellow] "
+                f"{ip} ({alloc_id})"
+            )
+        else:
+            # Disassociate first if attached
+            if "AssociationId" in addr:
+                ec2.disassociate_address(
+                    AssociationId=addr["AssociationId"]
+                )
+            ec2.release_address(AllocationId=alloc_id)
+            console.print(
+                f"  [green]released[/green] "
+                f"{ip} ({alloc_id})"
+            )
+
+
+# ------------------------------------------------------------------
+# IAM resources
+# ------------------------------------------------------------------
+def cleanup_iam(
+    session: boto3.Session,
+    suffix: str,
+    dry_run: bool,
+) -> None:
+    """Delete lablink IAM roles, policies, instance profiles."""
+    console.print("[bold]IAM Resources[/bold]")
+    iam = session.client("iam")
+    account_id = (
+        session.client("sts").get_caller_identity()["Account"]
+    )
+
+    # Instance profile
+    profile_name = f"lablink_instance_profile_{suffix}"
+    try:
+        resp = iam.get_instance_profile(
+            InstanceProfileName=profile_name
+        )
+        if dry_run:
+            console.print(
+                f"  [yellow]would delete[/yellow] "
+                f"profile: {profile_name}"
+            )
+        else:
+            for role in resp["InstanceProfile"].get(
+                "Roles", []
+            ):
+                iam.remove_role_from_instance_profile(
+                    InstanceProfileName=profile_name,
+                    RoleName=role["RoleName"],
+                )
+            iam.delete_instance_profile(
+                InstanceProfileName=profile_name
+            )
+            console.print(
+                f"  [green]deleted[/green] "
+                f"profile: {profile_name}"
+            )
+    except ClientError:
+        pass
+
+    # Role
+    role_name = f"lablink_instance_role_{suffix}"
+    try:
+        resp = iam.list_attached_role_policies(
+            RoleName=role_name
+        )
+        for policy in resp["AttachedPolicies"]:
+            if not dry_run:
+                iam.detach_role_policy(
+                    RoleName=role_name,
+                    PolicyArn=policy["PolicyArn"],
+                )
+        if dry_run:
+            console.print(
+                f"  [yellow]would delete[/yellow] "
+                f"role: {role_name}"
+            )
+        else:
+            iam.delete_role(RoleName=role_name)
+            console.print(
+                f"  [green]deleted[/green] "
+                f"role: {role_name}"
+            )
+    except ClientError:
+        pass
+
+    # Policies
+    for policy_name in [
+        f"lablink_s3_backend_{suffix}",
+        f"lablink_ec2_vm_management_{suffix}",
+    ]:
+        arn = (
+            f"arn:aws:iam::{account_id}:policy/{policy_name}"
+        )
+        if dry_run:
+            try:
+                iam.get_policy(PolicyArn=arn)
+                console.print(
+                    f"  [yellow]would delete[/yellow] "
+                    f"policy: {policy_name}"
+                )
+            except ClientError:
+                pass
+        else:
+            _delete_if_exists(
+                f"policy: {policy_name}",
+                iam.delete_policy,
+                PolicyArn=arn,
+            )
+
+
+# ------------------------------------------------------------------
+# S3 state cleanup
+# ------------------------------------------------------------------
+def cleanup_s3_state(
+    session: boto3.Session, dry_run: bool
+) -> None:
+    """Delete Terraform state from S3 bucket."""
+    console.print("[bold]S3 Terraform State[/bold]")
+    account_id = (
+        session.client("sts").get_caller_identity()["Account"]
+    )
+    bucket_name = f"lablink-tf-state-{account_id}"
+    s3 = session.client("s3")
+
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+    except ClientError:
+        console.print(
+            f"  [dim]bucket not found:[/dim] {bucket_name}"
+        )
+        return
+
+    # List and delete all objects
+    try:
+        resp = s3.list_object_versions(Bucket=bucket_name)
+        versions = resp.get("Versions", []) + resp.get(
+            "DeleteMarkers", []
+        )
+        if not versions:
+            console.print("  [dim]bucket is empty[/dim]")
+        else:
+            for v in versions:
+                key = v["Key"]
+                vid = v["VersionId"]
+                if dry_run:
+                    console.print(
+                        f"  [yellow]would delete[/yellow] "
+                        f"s3://{bucket_name}/{key} ({vid})"
+                    )
+                else:
+                    s3.delete_object(
+                        Bucket=bucket_name,
+                        Key=key,
+                        VersionId=vid,
+                    )
+                    console.print(
+                        f"  [green]deleted[/green] "
+                        f"s3://{bucket_name}/{key}"
+                    )
+
+        # Delete bucket itself
+        if dry_run:
+            console.print(
+                f"  [yellow]would delete[/yellow] "
+                f"bucket: {bucket_name}"
+            )
+        else:
+            s3.delete_bucket(Bucket=bucket_name)
+            console.print(
+                f"  [green]deleted[/green] "
+                f"bucket: {bucket_name}"
+            )
+    except ClientError as e:
+        console.print(f"  [red]error:[/red] {e}")
+
+
+# ------------------------------------------------------------------
+# DynamoDB lock table
+# ------------------------------------------------------------------
+def cleanup_dynamodb(
+    session: boto3.Session, dry_run: bool
+) -> None:
+    """Delete the Terraform lock table."""
+    console.print("[bold]DynamoDB Lock Table[/bold]")
+    dynamodb = session.client("dynamodb")
+    table_name = "lock-table"
+
+    try:
+        dynamodb.describe_table(TableName=table_name)
+        if dry_run:
+            console.print(
+                f"  [yellow]would delete[/yellow] {table_name}"
+            )
+        else:
+            dynamodb.delete_table(TableName=table_name)
+            console.print(
+                f"  [green]deleted[/green] {table_name}"
+            )
+    except dynamodb.exceptions.ResourceNotFoundException:
+        console.print("  [dim]not found[/dim]")
+
+
+# ------------------------------------------------------------------
+# Local state
+# ------------------------------------------------------------------
+def cleanup_local(dry_run: bool) -> None:
+    """Delete local Terraform working directory."""
+    console.print("[bold]Local State[/bold]")
+    if DEPLOY_DIR.exists():
+        if dry_run:
+            console.print(
+                f"  [yellow]would delete[/yellow] {DEPLOY_DIR}"
+            )
+        else:
+            shutil.rmtree(DEPLOY_DIR)
+            console.print(
+                f"  [green]deleted[/green] {DEPLOY_DIR}"
+            )
+    else:
+        console.print("  [dim]not found[/dim]")
+
+
+# ------------------------------------------------------------------
+# Main entry point
+# ------------------------------------------------------------------
+def run_cleanup(
+    cfg: Config,
+    dry_run: bool = False,
+    include_remote: bool = False,
+) -> None:
+    """Clean up orphaned AWS resources."""
+    region = cfg.app.region
+
+    console.print()
+    mode = "[yellow]DRY RUN[/yellow] " if dry_run else ""
+    console.print(
+        Panel(
+            f"{mode}[bold]LabLink Cleanup[/bold]\n"
+            f"Region: {region}",
+            border_style="red" if not dry_run else "yellow",
+        )
+    )
+    console.print()
+
+    session = _get_session(region)
+    check_credentials(session)
+    ec2 = session.client("ec2")
+
+    suffix = RESOURCE_SUFFIX
+
+    # AWS resources matching current Terraform
+    cleanup_ec2_instances(ec2, region, suffix, dry_run)
+    console.print()
+    cleanup_security_groups(ec2, suffix, dry_run)
+    console.print()
+    cleanup_key_pairs(ec2, suffix, dry_run)
+    console.print()
+    cleanup_elastic_ips(ec2, suffix, dry_run)
+    console.print()
+    cleanup_iam(session, suffix, dry_run)
+    console.print()
+
+    # Remote state resources (S3 + DynamoDB)
+    if include_remote:
+        cleanup_s3_state(session, dry_run)
+        console.print()
+        cleanup_dynamodb(session, dry_run)
+        console.print()
+
+    # Local state
+    cleanup_local(dry_run)
+    console.print()
+
+    if dry_run:
+        console.print(
+            "[yellow]Dry run complete.[/yellow] "
+            "Re-run without --dry-run to delete."
+        )
+    else:
+        console.print("[bold]Cleanup complete.[/bold]")

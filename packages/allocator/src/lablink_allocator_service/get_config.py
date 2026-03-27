@@ -4,9 +4,15 @@ from pathlib import Path
 from typing import Optional
 
 from hydra import initialize, compose
+from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 
 from lablink_allocator_service.conf.structured_config import Config
+
+# Register the Config schema with Hydra's ConfigStore so that
+# compose() can validate configs against it.
+cs = ConfigStore.instance()
+cs.store(name="config", node=Config)
 
 # Setup logging
 logger = logging.getLogger(__name__)

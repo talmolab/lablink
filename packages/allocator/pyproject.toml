@@ -29,6 +29,7 @@ requires-python = ">=3.10"
 version = "0.1.1"
 
 [project.optional-dependencies]
+config = []  # Config schema only (pure dataclasses, no heavy deps)
 dev = ["twine", "build", "pytest", "ruff", "pytest-cov"]
 
 [project.scripts]
