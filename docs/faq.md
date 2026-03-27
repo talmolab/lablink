@@ -6,14 +6,13 @@ Common questions and answers about LabLink.
 
 ### What is LabLink?
 
-LabLink is a dynamic VM allocation and management system designed for computational research. It automates the deployment and management of cloud-based VMs for running research software like SLEAP or custom tools.
+LabLink is a cloud-based virtual teaching lab accessible through a Chrome browser. It lets you deploy workshop environments to AWS with pre-installed software -- students only need a web browser to get a full desktop with your software ready to go.
 
 ### Who is LabLink for?
 
-- Research labs needing on-demand GPU compute resources
-- Scientists running batch computational workloads
-- Teams training machine learning models on cloud infrastructure
-- Anyone needing automated VM management for containerized software
+- Instructors running hands-on software workshops or tutorials
+- Research labs teaching computational tools to students or collaborators
+- Anyone who needs to give participants a pre-configured desktop environment without local installation
 
 ### What cloud providers does LabLink support?
 
