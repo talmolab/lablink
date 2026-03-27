@@ -704,7 +704,7 @@ class ReviewScreen(Screen):
                 language="yaml",
             )
             yield Label(
-                f"Config will be saved to: {DEFAULT_CONFIG_PATH}",
+                "", id="save-path-label",
                 classes="step-description",
             )
             errors_label = Label("", id="errors", classes="error")
@@ -729,6 +729,10 @@ class ReviewScreen(Screen):
         )
         self.query_one("#review-yaml", TextArea).text = yaml_str
 
+        self.query_one("#save-path-label", Label).update(
+            f"Config will be saved to: {self.app.save_path}"
+        )
+
         errors = validate_config(self.app.config)
         if errors:
             label = self.query_one("#errors", Label)
@@ -744,7 +748,8 @@ class ReviewScreen(Screen):
         errors = validate_config(self.app.config)
         if errors:
             return
-        save_config(self.app.config, DEFAULT_CONFIG_PATH)
+        save_path = self.app.save_path
+        save_config(self.app.config, save_path)
 
         # Write startup script if provided
         content = getattr(
@@ -752,13 +757,13 @@ class ReviewScreen(Screen):
         )
         if content:
             script_path = (
-                DEFAULT_CONFIG_DIR / "custom-startup.sh"
+                save_path.parent / "custom-startup.sh"
             )
             script_path.write_text(content)
             script_path.chmod(0o755)
 
         self.app.exit(
-            message=f"Config saved to {DEFAULT_CONFIG_PATH}"
+            message=f"Config saved to {save_path}"
         )
 
 
@@ -823,10 +828,13 @@ class ConfigWizard(App):
     ]
 
     def __init__(
-        self, existing_config: Config | None = None
+        self,
+        existing_config: Config | None = None,
+        save_path: Path | None = None,
     ) -> None:
         super().__init__()
         self.config = existing_config if existing_config else Config()
+        self.save_path = save_path or DEFAULT_CONFIG_PATH
         self._startup_script_content: str | None = None
 
     def on_mount(self) -> None:

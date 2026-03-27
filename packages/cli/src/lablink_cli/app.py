@@ -51,7 +51,9 @@ def configure(
     if config_path.exists():
         existing = load_config(config_path)
 
-    wizard = ConfigWizard(existing_config=existing)
+    wizard = ConfigWizard(
+        existing_config=existing, save_path=config_path
+    )
     wizard.run()
 
     # After the wizard saves config, run AWS setup automatically
