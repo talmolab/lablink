@@ -67,8 +67,9 @@ class DeploymentScreen(Screen):
                 classes="step-title",
             )
             yield Label(
-                "Give this deployment a unique name and "
-                "select the environment.",
+                "Name your lab (e.g., 'sleap-lablink' for a SLEAP course).\n"
+                "This prevents resource conflicts if multiple labs "
+                "share the same AWS account.",
                 classes="step-description",
             )
 
@@ -164,7 +165,8 @@ class RegionScreen(Screen):
                 "Step 2 of 6: AWS Region", classes="step-title"
             )
             yield Label(
-                "Select the AWS region closest to your users.",
+                "Select the AWS region closest to your students.\n"
+                "This affects latency and VM availability.",
                 classes="step-description",
             )
             yield OptionList(
@@ -215,6 +217,12 @@ class MachineScreen(Screen):
                 "Step 3 of 6: Machine Configuration",
                 classes="step-title",
             )
+            yield Label(
+                "Select the instance type for student VMs. "
+                "GPU instances are recommended for ML workloads.\n"
+                "Docs: https://aws.amazon.com/ec2/instance-types/",
+                classes="step-description",
+            )
 
             yield Label("Instance Type", classes="field-label")
             gpu_options = [
@@ -246,7 +254,10 @@ class MachineScreen(Screen):
 
             cfg = self.app.config
 
-            yield Label("Software Name", classes="field-label")
+            yield Label(
+                "Software Name (the tool students will use)",
+                classes="field-label",
+            )
             yield Input(
                 value=cfg.machine.software or "",
                 placeholder="e.g. sleap, deeplabcut, napari",
@@ -254,7 +265,8 @@ class MachineScreen(Screen):
             )
 
             yield Label(
-                "Data File Extension", classes="field-label"
+                "Data File Extension (files students will upload)",
+                classes="field-label",
             )
             yield Input(
                 value=cfg.machine.extension or "",
@@ -263,7 +275,8 @@ class MachineScreen(Screen):
             )
 
             yield Label(
-                "Git Repository (optional)", classes="field-label"
+                "Git Repository (course materials cloned into each VM)",
+                classes="field-label",
             )
             yield Input(
                 value=cfg.machine.repository or "",
@@ -344,19 +357,22 @@ class DnsScreen(Screen):
             yield Label("Access Method", classes="field-label")
             with RadioSet(id="dns-mode"):
                 yield RadioButton(
-                    "IP Only (no domain, HTTP)",
+                    "IP Only — simplest setup, access via IP, no SSL",
                     value=(default_idx == 0),
                 )
                 yield RadioButton(
-                    "Domain with Let's Encrypt",
+                    "Let's Encrypt — free automatic SSL, requires a domain"
+                    " (https://letsencrypt.org/)",
                     value=(default_idx == 1),
                 )
                 yield RadioButton(
-                    "Domain with CloudFlare",
+                    "CloudFlare — use if your domain is already on CloudFlare"
+                    " (https://www.cloudflare.com/application-services/products/ssl/)",
                     value=(default_idx == 2),
                 )
                 yield RadioButton(
-                    "Domain with AWS ACM (+ALB)",
+                    "AWS ACM — AWS-managed SSL with load balancer, requires certificate"
+                    " (https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)",
                     value=(default_idx == 3),
                 )
 
