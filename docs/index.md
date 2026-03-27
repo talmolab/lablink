@@ -23,7 +23,7 @@ Students visit a link, enter their email, and get a full cloud desktop with your
 2. **Spin up VMs** from the admin panel before your workshop ([Workshop Guide](workshop-guide.md))
 3. **Share a link** -- students visit the URL, get assigned a VM, and start working
 
-LabLink is **software-agnostic**. It ships with [SLEAP](https://sleap.ai) as the default, but you can [adapt it for any software](adapting.md) that runs in Docker.
+LabLink is **software-agnostic**. You can [adapt it for any software](adapting.md) that runs in Docker.
 
 ---
 
