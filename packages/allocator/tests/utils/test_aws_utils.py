@@ -84,7 +84,7 @@ def test_upload_to_s3_success(monkeypatch, tmp_path):
     client_mock.assert_called_once_with("s3", region_name="us-west-2")
 
     # Assert: upload_file args and ExtraArgs
-    expected_key = f"test/client/{local_file.name}"
+    expected_key = f"lablink/test/client/{local_file.name}"
     mock_s3.upload_file.assert_called_once()
     args, kwargs = mock_s3.upload_file.call_args
     assert args == (local_file, bucket, expected_key)

@@ -382,11 +382,17 @@ def launch():
 
         # Upload the runtime file to S3
         logger.debug(f"Uploading runtime file to S3 bucket: {cfg.bucket_name}...")
+        deployment_name = (
+            cfg.deployment_name
+            if hasattr(cfg, "deployment_name") and cfg.deployment_name
+            else "lablink"
+        )
         upload_to_s3(
             local_path=runtime_file,
             env=ENVIRONMENT,
             bucket_name=cfg.bucket_name,
             region=cfg.app.region,
+            deployment_name=deployment_name,
         )
 
         # Store timing outputs in the database

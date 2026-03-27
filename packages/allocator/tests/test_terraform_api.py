@@ -97,6 +97,7 @@ def test_launch_vm_success(
         region="us-west-2",
         local_path=terraform_dir / "terraform.runtime.tfvars",
         env="test",
+        deployment_name="test-lablink",
     )
 
 
