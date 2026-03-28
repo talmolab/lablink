@@ -423,6 +423,12 @@ def launch():
             return jsonify({"status": "error", "error": clean_output}), 500
         return render_template("dashboard.html", error=clean_output)
 
+    except Exception as e:
+        logger.error(f"Unexpected error during launch: {e}")
+        if _wants_json():
+            return jsonify({"status": "error", "error": str(e)}), 500
+        return render_template("dashboard.html", error=str(e))
+
 
 @app.route("/destroy", methods=["POST"])
 @auth.login_required

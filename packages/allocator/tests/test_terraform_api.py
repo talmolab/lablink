@@ -391,3 +391,49 @@ def test_launch_json_apply_failure(
     body = json.loads(resp.data)
     assert body["status"] == "error"
     assert "resource already exists" in body["error"]
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_json_unexpected_error(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Test unexpected error (e.g. S3 failure) returns JSON 500."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr = out, ""
+            self.returncode = 0
+
+    mock_run.return_value = R("apply success")
+    mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+
+    assert resp.status_code == 500
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "AccessDenied" in body["error"]
