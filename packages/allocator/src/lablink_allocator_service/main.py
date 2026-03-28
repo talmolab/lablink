@@ -453,11 +453,15 @@ def destroy():
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
 
+        if _wants_json():
+            return jsonify({"status": "success", "output": clean_output})
         return render_template("delete-dashboard.html", output=clean_output)
     except subprocess.CalledProcessError as e:
         logger.error(f"Error during Terraform destroy: {e}")
         error_output = e.stderr or e.stdout
         clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        if _wants_json():
+            return jsonify({"status": "error", "error": clean_output}), 500
         return render_template("delete-dashboard.html", error=clean_output)
 
 

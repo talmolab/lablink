@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import getpass
 import json
 import ssl
 from urllib.error import HTTPError, URLError
@@ -14,30 +13,12 @@ from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.commands.deploy import get_deploy_dir
-from lablink_cli.commands.status import get_terraform_outputs
+from lablink_cli.commands.utils import (
+    get_allocator_url,
+    resolve_admin_credentials,
+)
 
 console = Console()
-
-
-def _get_allocator_url(cfg: Config) -> str:
-    """Determine the allocator base URL from terraform outputs or config."""
-    deploy_dir = get_deploy_dir(cfg)
-    outputs = {}
-    if deploy_dir.exists():
-        outputs = get_terraform_outputs(deploy_dir)
-
-    ip = outputs.get("ec2_public_ip", "")
-    domain = cfg.dns.domain if cfg.dns.enabled else ""
-    use_https = cfg.ssl.provider != "none"
-
-    if domain and use_https:
-        return f"https://{domain}"
-    elif domain:
-        return f"http://{domain}"
-    elif ip:
-        return f"http://{ip}"
-    return ""
 
 
 def run_launch(cfg: Config, num_vms: int) -> None:
@@ -45,7 +26,7 @@ def run_launch(cfg: Config, num_vms: int) -> None:
     console.print()
 
     # Resolve allocator URL
-    allocator_url = _get_allocator_url(cfg)
+    allocator_url = get_allocator_url(cfg)
     if not allocator_url:
         console.print(
             "[red]Could not determine allocator URL.[/red]\n"
@@ -53,14 +34,7 @@ def run_launch(cfg: Config, num_vms: int) -> None:
         )
         raise SystemExit(1)
 
-    # Prompt for admin credentials
-    console.print("[bold]Allocator Credentials[/bold]")
-    admin_user = input("  Admin username [admin]: ").strip() or "admin"
-    admin_pw = getpass.getpass("  Admin password: ")
-    if not admin_pw:
-        console.print("  [red]Admin password is required[/red]")
-        raise SystemExit(1)
-    console.print()
+    admin_user, admin_pw = resolve_admin_credentials(cfg)
 
     # Build request
     url = f"{allocator_url}/api/launch"
