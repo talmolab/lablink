@@ -15,21 +15,11 @@ from lablink_cli.commands.setup import (
     _get_session,
     check_credentials,
 )
+from lablink_cli.commands.utils import (
+    get_deploy_dir as _get_deploy_dir,
+)
 
 console = Console()
-
-
-def _get_deploy_dir(cfg: Config):
-    """Return the scoped deploy directory for this deployment."""
-    from pathlib import Path
-
-    return (
-        Path.home()
-        / ".lablink"
-        / "deploy"
-        / cfg.deployment_name
-        / cfg.environment
-    )
 
 
 def _delete_if_exists(

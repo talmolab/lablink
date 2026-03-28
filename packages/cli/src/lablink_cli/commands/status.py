@@ -20,6 +20,9 @@ from rich.table import Table
 from lablink_allocator_service.conf.structured_config import Config
 
 from lablink_cli.commands.setup import _get_session
+from lablink_cli.commands.utils import (
+    get_deploy_dir as _get_deploy_dir,
+)
 
 console = Console()
 
@@ -41,17 +44,6 @@ FALLBACK_COSTS: dict[str, dict[str, float]] = {
     "cloudwatch": 0.067,
     "cloudtrail": 0.10,
 }
-
-
-def _get_deploy_dir(cfg: Config) -> Path:
-    """Return the scoped deploy directory for this deployment."""
-    return (
-        Path.home()
-        / ".lablink"
-        / "deploy"
-        / cfg.deployment_name
-        / cfg.environment
-    )
 
 
 # ------------------------------------------------------------------
