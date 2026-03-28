@@ -53,14 +53,40 @@ def run_launch(cfg: Config, num_vms: int) -> None:
         )
         raise SystemExit(1)
 
-    # Prompt for admin credentials
-    console.print("[bold]Allocator Credentials[/bold]")
-    admin_user = input("  Admin username [admin]: ").strip() or "admin"
-    admin_pw = getpass.getpass("  Admin password: ")
-    if not admin_pw:
-        console.print("  [red]Admin password is required[/red]")
-        raise SystemExit(1)
-    console.print()
+    # Read admin credentials — try deployment config first,
+    # then fall back to ~/.lablink/config.yaml, then prompt.
+    admin_user = cfg.app.admin_user
+    admin_pw = cfg.app.admin_password
+
+    deploy_dir = get_deploy_dir(cfg)
+    deploy_config_path = deploy_dir / "config" / "config.yaml"
+    if (
+        admin_user in ("MISSING", "")
+        or admin_pw in ("MISSING", "")
+    ) and deploy_config_path.exists():
+        import yaml
+
+        with open(deploy_config_path) as f:
+            deploy_cfg = yaml.safe_load(f) or {}
+        app_cfg = deploy_cfg.get("app", {})
+        if admin_user in ("MISSING", ""):
+            admin_user = app_cfg.get("admin_user", "")
+        if admin_pw in ("MISSING", ""):
+            admin_pw = app_cfg.get("admin_password", "")
+
+    if admin_user in ("MISSING", ""):
+        admin_user = (
+            input("  Admin username [admin]: ").strip()
+            or "admin"
+        )
+    if admin_pw in ("MISSING", ""):
+        admin_pw = getpass.getpass("  Admin password: ")
+        if not admin_pw:
+            console.print(
+                "  [red]Admin password is required[/red]"
+            )
+            raise SystemExit(1)
+        console.print()
 
     # Build request
     url = f"{allocator_url}/api/launch"
