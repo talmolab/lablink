@@ -642,7 +642,7 @@ def update_gpu_health():
 
     try:
         database.update_health(hostname=hostname, healthy=gpu_status)
-        logger.info(f"Updated GPU health status for {hostname} to {gpu_status}")
+        logger.debug(f"Updated GPU health status for {hostname} to {gpu_status}")
         return jsonify({"message": "GPU health status updated successfully."}), 200
     except Exception as e:
         logger.error(f"Error updating GPU health status: {e}")
@@ -757,7 +757,7 @@ def receive_vm_logs():
             return jsonify({"error": "VM not found."}), 404
 
         # Process the logs (e.g., save to a file, database, etc.)
-        logger.info(
+        logger.debug(
             f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
         )
 
@@ -858,7 +858,7 @@ def receive_vm_metrics(hostname):
         # This combines two database operations into one for better performance
         database.update_vm_metrics_atomic(hostname=hostname, metrics=data)
 
-        logger.info(f"Received metrics for {hostname}: {data}")
+        logger.debug(f"Received metrics for {hostname}")
         return jsonify({"message": "VM metrics posted successfully."}), 200
 
     except Exception as e:

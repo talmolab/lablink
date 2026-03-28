@@ -389,7 +389,7 @@ class PostgresqlDatabase:
                     query, (email, crd_command, pin, hostname)
                 )
                 self.conn.commit()
-                logger.info(
+                logger.debug(
                     f"Assigned VM '{hostname}' to user '{email}'"
                 )
             except Exception as e:
@@ -650,7 +650,7 @@ class PostgresqlDatabase:
             try:
                 cursor.execute(query, (hostname, status))
                 self.conn.commit()
-                logger.info(
+                logger.debug(
                     f"VM '{hostname}' status: {status}"
                 )
             except Exception as e:
