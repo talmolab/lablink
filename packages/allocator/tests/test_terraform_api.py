@@ -257,6 +257,55 @@ def test_launch_missing_num_vms(client, admin_headers):
 # ------------------------------------------------------------------
 
 
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_destroy_json_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+    """Test successful destroy returns JSON when Accept header is set."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+
+    mock_run.return_value = type(
+        "R", (), {"stdout": "\x1b[32mresources destroyed\x1b[0m", "stderr": ""}
+    )
+
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(DESTROY_ENDPOINT, headers=headers)
+
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert body["status"] == "success"
+    assert "resources destroyed" in body["output"]
+
+    fake_db.clear_database.assert_called_once()
+
+
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_destroy_json_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
+    """Test terraform destroy failure returns JSON 500 when Accept header is set."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+
+    mock_run.side_effect = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=["terraform", "destroy"],
+        stderr="\x1b[31mfailed to destroy\x1b[0m",
+    )
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(DESTROY_ENDPOINT, headers=headers)
+
+    assert resp.status_code == 500
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "failed to destroy" in body["error"]
+
+
 @patch("lablink_allocator_service.main.upload_to_s3")
 @patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
 @patch("lablink_allocator_service.main.subprocess.run")
