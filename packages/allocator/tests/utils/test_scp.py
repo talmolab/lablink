@@ -44,7 +44,7 @@ def test_extract_slp_from_docker_success(mock_run):
         stdout="Extracted SLP content",
         stderr="",
     )
-    extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
+    extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/home/client/Desktop/file1.slp"])
     mock_run.assert_called_once()
 
 
@@ -57,10 +57,11 @@ def test_extract_files_from_docker_failure(mock_run, caplog):
         stderr="error message",
     )
     with caplog.at_level("ERROR"):
-        extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/path/file1.slp"])
+        extract_files_from_docker("1.2.3.4", "/fake/key.pem", ["/home/client/Desktop/file1.slp"])
     mock_run.assert_called_once()
     assert any(
-        "Failed to copy /path/file1.slp from container on 1.2.3.4" in r.message
+        "Failed to copy /home/client/Desktop/file1.slp from container on 1.2.3.4"
+        in r.message
         for r in caplog.records
     )
 

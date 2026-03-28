@@ -1,3 +1,4 @@
+import shlex
 import subprocess
 from pathlib import Path
 import logging
@@ -14,9 +15,10 @@ def find_files_in_container(ip: str, key_path: str, extension: str) -> list[str]
     Returns:
         list[str]: A list of paths to files found in the container.
     """
+    name_pattern = shlex.quote(f"*.{extension}")
     cmd = (
         "cid=$(sudo docker ps -q | head -n1) && "
-        f"sudo docker exec $cid find /home/client/Desktop -name '*.{extension}' "
+        f"sudo docker exec $cid find /home/client/Desktop -name {name_pattern} "
         "-not -path '*/models/*' -not -path '*/predictions/*'"
     )
     ssh_cmd = [
@@ -50,13 +52,18 @@ def extract_files_from_docker(ip: str, key_path: str, files: list[str]) -> None:
         subprocess.CalledProcessError: If the SSH command fails.
     """
     for file in files:
+        # Validate path stays within expected directory
+        if "/home/client/Desktop/" not in file or ".." in file:
+            logging.warning(f"Skipping suspicious file path: {file}")
+            continue
+
         rel_path = file.replace("/home/client/Desktop/", "")
         dest_path = f"/home/ubuntu/extracted_files/{rel_path}"
-        dest_dir = Path(dest_path).parent
+        dest_dir = str(Path(dest_path).parent)
         cmd = (
             "cid=$(sudo docker ps -q | head -n1) && "
-            f"mkdir -p {dest_dir} && "
-            f"sudo docker cp $cid:'{file}' '{dest_path}'"
+            f"mkdir -p {shlex.quote(dest_dir)} && "
+            f"sudo docker cp $cid:{shlex.quote(file)} {shlex.quote(dest_path)}"
         )
         ssh_cmd = [
             "ssh",
@@ -89,9 +96,12 @@ def has_files(ip: str, key_path: str, extension: str) -> bool:
         key_path,
         f"ubuntu@{ip}",
         (
-            f"sh -c 'ls /home/ubuntu/extracted_files/*.{extension} "
-            "1>/dev/null 2>/dev/null "
-            "&& echo exists || echo missing'"
+            "sh -c "
+            + shlex.quote(
+                f"ls /home/ubuntu/extracted_files/*.{extension} "
+                "1>/dev/null 2>/dev/null "
+                "&& echo exists || echo missing"
+            )
         ),
     ]
     result = subprocess.run(ssh_cmd, capture_output=True, text=True)
@@ -121,7 +131,7 @@ def rsync_files_to_allocator(
         "--exclude",
         "*",
         "-e",
-        f"ssh -o StrictHostKeyChecking=no -i {key_path}",
+        f"ssh -o StrictHostKeyChecking=no -i {shlex.quote(key_path)}",
         f"ubuntu@{ip}:/home/ubuntu/extracted_files/",
         f"{local_dir}/",
     ]
