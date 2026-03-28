@@ -416,9 +416,25 @@ def run_destroy(cfg: Config) -> None:
     )
     console.print()
 
-    # Read admin credentials from config, prompt if missing
+    # Read admin credentials — try deployment config first,
+    # then fall back to ~/.lablink/config.yaml, then prompt.
     admin_user = cfg.app.admin_user
     admin_pw = cfg.app.admin_password
+
+    deploy_config_path = deploy_dir / "config" / "config.yaml"
+    if (
+        admin_user in ("MISSING", "")
+        or admin_pw in ("MISSING", "")
+    ) and deploy_config_path.exists():
+        import yaml
+
+        with open(deploy_config_path) as f:
+            deploy_cfg = yaml.safe_load(f) or {}
+        app_cfg = deploy_cfg.get("app", {})
+        if admin_user in ("MISSING", ""):
+            admin_user = app_cfg.get("admin_user", "")
+        if admin_pw in ("MISSING", ""):
+            admin_pw = app_cfg.get("admin_password", "")
 
     if admin_user in ("MISSING", ""):
         admin_user = (
