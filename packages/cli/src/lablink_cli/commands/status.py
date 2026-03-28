@@ -19,8 +19,8 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.commands.setup import _get_session
 from lablink_cli.commands.utils import (
+    get_client_vms,
     get_deploy_dir as _get_deploy_dir,
 )
 
@@ -367,65 +367,6 @@ def estimate_costs(cfg: Config) -> list[dict]:
     return costs
 
 
-# ------------------------------------------------------------------
-# Client VM status
-# ------------------------------------------------------------------
-def check_client_vms(cfg: Config) -> list[dict]:
-    """Query EC2 for running LabLink client VMs."""
-    try:
-        session = _get_session(cfg.app.region)
-        ec2 = session.client("ec2")
-    except Exception:
-        return []
-
-    environment = cfg.environment
-    software = cfg.machine.software
-    try:
-        resp = ec2.describe_instances(
-            Filters=[
-                {
-                    "Name": "tag:Name",
-                    "Values": [
-                        f"{software}-lablink-client-{environment}-vm-*"
-                    ],
-                },
-                {
-                    "Name": "instance-state-name",
-                    "Values": [
-                        "running",
-                        "stopped",
-                        "pending",
-                    ],
-                },
-            ]
-        )
-    except Exception:
-        return []
-
-    vms = []
-    for reservation in resp.get("Reservations", []):
-        for inst in reservation.get("Instances", []):
-            name = ""
-            for tag in inst.get("Tags", []):
-                if tag["Key"] == "Name":
-                    name = tag["Value"]
-                    break
-            vms.append(
-                {
-                    "name": name,
-                    "instance_id": inst["InstanceId"],
-                    "type": inst["InstanceType"],
-                    "state": inst["State"]["Name"],
-                    "launch_time": inst.get(
-                        "LaunchTime", ""
-                    ),
-                    "public_ip": inst.get(
-                        "PublicIpAddress", "—"
-                    ),
-                }
-            )
-
-    return vms
 
 
 # ------------------------------------------------------------------
@@ -526,7 +467,7 @@ def run_status(cfg: Config) -> None:
 
     # --- Client VMs ---
     console.print("[bold]Client VMs[/bold]")
-    vms = check_client_vms(cfg)
+    vms = get_client_vms(cfg)
     if vms:
         vm_table = Table(show_header=True)
         vm_table.add_column("Name")

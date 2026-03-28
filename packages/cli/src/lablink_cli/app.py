@@ -153,6 +153,21 @@ def status(
 
 
 @app.command()
+def logs(
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """View VM logs in an interactive TUI."""
+    from lablink_cli.commands.logs import run_logs
+
+    run_logs(_load_cfg(config))
+
+
+@app.command()
 def cleanup(
     config: str = typer.Option(
         None,
