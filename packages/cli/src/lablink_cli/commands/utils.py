@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 from rich.console import Console
@@ -112,6 +114,25 @@ def list_all_vms(cfg: Config) -> list[dict]:
     return vms
 
 
+def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
+    """Read terraform outputs as a dict."""
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json"],
+            cwd=deploy_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        raw = json.loads(result.stdout)
+        return {
+            k: v.get("value", "")
+            for k, v in raw.items()
+        }
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return {}
+
+
 def get_deploy_dir(cfg: Config) -> Path:
     """Return the scoped deploy directory for this deployment."""
     return (
@@ -125,8 +146,6 @@ def get_deploy_dir(cfg: Config) -> Path:
 
 def get_allocator_url(cfg: Config) -> str:
     """Determine the allocator base URL from terraform outputs or config."""
-    from lablink_cli.commands.status import get_terraform_outputs
-
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}
     if deploy_dir.exists():

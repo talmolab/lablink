@@ -16,10 +16,10 @@ from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.commands.status import get_terraform_outputs
 from lablink_cli.commands.utils import (
     get_allocator_url,
     get_deploy_dir,
+    get_terraform_outputs,
     list_all_vms,
     resolve_admin_credentials,
 )

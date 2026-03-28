@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 import socket
 import ssl
-import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
@@ -22,6 +20,7 @@ from lablink_allocator_service.conf.structured_config import Config
 from lablink_cli.commands.utils import (
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
+    get_terraform_outputs,
 )
 
 console = Console()
@@ -45,27 +44,6 @@ FALLBACK_COSTS: dict[str, dict[str, float]] = {
     "cloudtrail": 0.10,
 }
 
-
-# ------------------------------------------------------------------
-# Terraform state helpers
-# ------------------------------------------------------------------
-def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
-    """Read terraform outputs as a dict."""
-    try:
-        result = subprocess.run(
-            ["terraform", "output", "-json"],
-            cwd=deploy_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        raw = json.loads(result.stdout)
-        return {
-            k: v.get("value", "")
-            for k, v in raw.items()
-        }
-    except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return {}
 
 
 # ------------------------------------------------------------------
