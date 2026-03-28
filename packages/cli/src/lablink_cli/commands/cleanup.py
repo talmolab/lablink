@@ -146,13 +146,14 @@ def cleanup_security_groups(
 
 
 def cleanup_key_pairs(
-    ec2, deployment_name: str, environment: str, dry_run: bool
+    ec2, deployment_name: str, environment: str, software: str, dry_run: bool
 ) -> None:
     """Delete lablink key pairs."""
     console.print("[bold]Key Pairs[/bold]")
     found = False
     for name in [
         f"{deployment_name}-keypair-{environment}",
+        f"{software}-lablink-client-{environment}-keypair",
     ]:
         try:
             ec2.describe_key_pairs(KeyNames=[name])
@@ -214,21 +215,10 @@ def cleanup_elastic_ips(
 # ------------------------------------------------------------------
 # IAM resources
 # ------------------------------------------------------------------
-def cleanup_iam(
-    session: boto3.Session,
-    deployment_name: str,
-    environment: str,
-    dry_run: bool,
+def _cleanup_instance_profile(
+    iam, profile_name: str, dry_run: bool
 ) -> None:
-    """Delete lablink IAM roles, policies, instance profiles."""
-    console.print("[bold]IAM Resources[/bold]")
-    iam = session.client("iam")
-    account_id = (
-        session.client("sts").get_caller_identity()["Account"]
-    )
-
-    # Instance profile
-    profile_name = f"{deployment_name}-allocator-profile-{environment}"
+    """Delete an IAM instance profile, detaching roles first."""
     try:
         resp = iam.get_instance_profile(
             InstanceProfileName=profile_name
@@ -256,8 +246,11 @@ def cleanup_iam(
     except ClientError:
         pass
 
-    # Role
-    role_name = f"{deployment_name}-allocator-role-{environment}"
+
+def _cleanup_role(
+    iam, role_name: str, dry_run: bool
+) -> None:
+    """Delete an IAM role, detaching policies first."""
     try:
         resp = iam.list_attached_role_policies(
             RoleName=role_name
@@ -281,6 +274,37 @@ def cleanup_iam(
             )
     except ClientError:
         pass
+
+
+def cleanup_iam(
+    session: boto3.Session,
+    deployment_name: str,
+    environment: str,
+    software: str,
+    dry_run: bool,
+) -> None:
+    """Delete lablink IAM roles, policies, instance profiles."""
+    console.print("[bold]IAM Resources[/bold]")
+    iam = session.client("iam")
+    account_id = (
+        session.client("sts").get_caller_identity()["Account"]
+    )
+
+    client_prefix = f"{software}-lablink-client-{environment}"
+
+    # Instance profiles (allocator + client)
+    for profile_name in [
+        f"{deployment_name}-allocator-profile-{environment}",
+        f"{client_prefix}-instance-profile",
+    ]:
+        _cleanup_instance_profile(iam, profile_name, dry_run)
+
+    # Roles (allocator + client)
+    for role_name in [
+        f"{deployment_name}-allocator-role-{environment}",
+        f"{client_prefix}-vm-role",
+    ]:
+        _cleanup_role(iam, role_name, dry_run)
 
     # Policies
     for policy_name in [
@@ -432,6 +456,7 @@ def run_cleanup(
     region = cfg.app.region
     deployment_name = cfg.deployment_name
     environment = cfg.environment
+    software = cfg.machine.software
 
     console.print()
     mode = "[yellow]DRY RUN[/yellow] " if dry_run else ""
@@ -455,11 +480,11 @@ def run_cleanup(
     console.print()
     cleanup_security_groups(ec2, deployment_name, environment, dry_run)
     console.print()
-    cleanup_key_pairs(ec2, deployment_name, environment, dry_run)
+    cleanup_key_pairs(ec2, deployment_name, environment, software, dry_run)
     console.print()
     cleanup_elastic_ips(ec2, deployment_name, environment, dry_run)
     console.print()
-    cleanup_iam(session, deployment_name, environment, dry_run)
+    cleanup_iam(session, deployment_name, environment, software, dry_run)
     console.print()
 
     # Remote state resources (S3 + DynamoDB)

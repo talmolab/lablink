@@ -275,6 +275,11 @@ def submit_vm_details():
         )
 
 
+def _wants_json():
+    """Return True if the client prefers a JSON response."""
+    return request.accept_mimetypes.best == "application/json"
+
+
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
@@ -282,17 +287,21 @@ def launch():
     try:
         num_vms_str = request.form.get("num_vms")
         if not num_vms_str:
-            return render_template("dashboard.html", error="Number of VMs is required.")
+            error_msg = "Number of VMs is required."
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 400
+            return render_template("dashboard.html", error=error_msg)
         num_vms = int(num_vms_str)
         if num_vms <= 0:
-            return render_template(
-                "dashboard.html", error="Number of VMs must be greater than 0."
-            )
+            error_msg = "Number of VMs must be greater than 0."
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 400
+            return render_template("dashboard.html", error=error_msg)
     except ValueError:
-        return render_template(
-            "dashboard.html",
-            error="Invalid number of VMs. Please enter a valid integer.",
-        )
+        error_msg = "Invalid number of VMs. Please enter a valid integer."
+        if _wants_json():
+            return jsonify({"status": "error", "error": error_msg}), 400
+        return render_template("dashboard.html", error=error_msg)
 
     runtime_file = TERRAFORM_DIR / "terraform.runtime.tfvars"
 
@@ -311,9 +320,10 @@ def launch():
 
         if not allocator_ip or not key_name:
             logger.error("Missing allocator outputs.")
-            return render_template(
-                "dashboard.html", error="Allocator outputs not found."
-            )
+            error_msg = "Allocator outputs not found."
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 500
+            return render_template("dashboard.html", error=error_msg)
 
         logger.debug(f"Allocator IP: {allocator_ip}")
         logger.debug(f"Key Name: {key_name}")
@@ -372,11 +382,17 @@ def launch():
 
         # Upload the runtime file to S3
         logger.debug(f"Uploading runtime file to S3 bucket: {cfg.bucket_name}...")
+        deployment_name = (
+            cfg.deployment_name
+            if hasattr(cfg, "deployment_name") and cfg.deployment_name
+            else "lablink"
+        )
         upload_to_s3(
             local_path=runtime_file,
             env=ENVIRONMENT,
             bucket_name=cfg.bucket_name,
             region=cfg.app.region,
+            deployment_name=deployment_name,
         )
 
         # Store timing outputs in the database
@@ -395,13 +411,23 @@ def launch():
                 per_instance_end_time=end_time,
             )
 
+        if _wants_json():
+            return jsonify({"status": "success", "output": clean_output}), 200
         return render_template("dashboard.html", output=clean_output)
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Error during Terraform apply: {e}")
         error_output = e.stderr or e.stdout
         clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        if _wants_json():
+            return jsonify({"status": "error", "error": clean_output}), 500
         return render_template("dashboard.html", error=clean_output)
+
+    except Exception as e:
+        logger.error(f"Unexpected error during launch: {e}")
+        if _wants_json():
+            return jsonify({"status": "error", "error": str(e)}), 500
+        return render_template("dashboard.html", error=str(e))
 
 
 @app.route("/destroy", methods=["POST"])

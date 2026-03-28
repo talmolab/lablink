@@ -187,6 +187,7 @@ def upload_to_s3(
     env: str,
     bucket_name: str,
     region: str,
+    deployment_name: str = "lablink",
     kms_key_id: Optional[str] = None,
 ) -> None:
     """Uploads a file to an S3 bucket.
@@ -196,11 +197,13 @@ def upload_to_s3(
         env (str): The environment (e.g., dev, test, prod) for the upload.
         bucket_name (str): The name of the S3 bucket to upload to.
         region (str): The AWS region where the S3 bucket is located.
+        deployment_name (str): The deployment name for S3 key scoping.
+            Defaults to "lablink".
         kms_key_id (Optional[str], optional): The KMS key ID for server-side encryption.
             Defaults to None.
     """
     s3 = boto3.client("s3", region_name=region)
-    key = f"{env}/client/{local_path.name}"
+    key = f"{deployment_name}/{env}/client/{local_path.name}"
     extra = {"ContentType": "text/plain"}
     if kms_key_id:
         extra.update({"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key_id})

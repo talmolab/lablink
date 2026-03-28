@@ -1,8 +1,11 @@
 from unittest.mock import patch, MagicMock
+import json
 import subprocess
 
 POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
+
+JSON_ACCEPT = {"Accept": "application/json"}
 
 
 @patch("lablink_allocator_service.main.upload_to_s3")
@@ -97,6 +100,7 @@ def test_launch_vm_success(
         region="us-west-2",
         local_path=terraform_dir / "terraform.runtime.tfvars",
         env="test",
+        deployment_name="test-lablink",
     )
 
 
@@ -246,3 +250,190 @@ def test_launch_missing_num_vms(client, admin_headers):
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={})
     assert resp.status_code == 200
     assert b"Number of VMs is required." in resp.data
+
+
+# ------------------------------------------------------------------
+# JSON response tests (Accept: application/json)
+# ------------------------------------------------------------------
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_json_success(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Test successful VM launch returns JSON when Accept header is set."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr = out, ""
+            self.returncode = 0
+
+    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
+    mock_run.side_effect = [R("apply success"), R(timing_json)]
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "2"})
+
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert body["status"] == "success"
+    assert "apply success" in body["output"]
+
+
+def test_launch_json_missing_num_vms(client, admin_headers):
+    """Test missing num_vms returns JSON 400 when Accept header is set."""
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={})
+
+    assert resp.status_code == 400
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "required" in body["error"].lower()
+
+
+def test_launch_json_invalid_num_vms(client, admin_headers):
+    """Test invalid num_vms returns JSON 400 when Accept header is set."""
+    headers = {**admin_headers, **JSON_ACCEPT}
+
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "0"})
+    assert resp.status_code == 400
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "greater than 0" in body["error"]
+
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "abc"})
+    assert resp.status_code == 400
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "valid integer" in body["error"].lower()
+
+
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_json_missing_allocator_outputs(
+    mock_run, client, admin_headers, monkeypatch, tmp_path
+):
+    """Test missing allocator outputs returns JSON 500."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=lambda: 0),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "", raising=False
+    )
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+
+    assert resp.status_code == 500
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "Allocator outputs not found" in body["error"]
+
+
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_json_apply_failure(
+    mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
+):
+    """Test Terraform apply failure returns JSON 500."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=lambda: 0),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
+
+    mock_run.side_effect = subprocess.CalledProcessError(
+        1, ["terraform", "apply"], stderr="Error: resource already exists"
+    )
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+
+    assert resp.status_code == 500
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "resource already exists" in body["error"]
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_json_unexpected_error(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Test unexpected error (e.g. S3 failure) returns JSON 500."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr("lablink_allocator_service.main.key_name", "k", raising=False)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr = out, ""
+            self.returncode = 0
+
+    mock_run.return_value = R("apply success")
+    mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+
+    assert resp.status_code == 500
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "AccessDenied" in body["error"]

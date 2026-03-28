@@ -116,6 +116,27 @@ def destroy(
     run_destroy(_load_cfg(config))
 
 
+@app.command("launch-client")
+def launch_client(
+    num_vms: int = typer.Option(
+        ...,
+        "--num-vms",
+        "-n",
+        help="Number of client VMs to launch",
+    ),
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """Launch client VMs via the allocator service."""
+    from lablink_cli.commands.launch import run_launch
+
+    run_launch(_load_cfg(config), num_vms=num_vms)
+
+
 @app.command()
 def status(
     config: str = typer.Option(
