@@ -16,6 +16,58 @@ from lablink_cli.config.schema import config_to_dict, save_config
 
 console = Console()
 
+
+def resolve_admin_credentials(
+    cfg: Config,
+) -> tuple[str, str]:
+    """Resolve admin credentials from config, deployment dir, or prompt.
+
+    Resolution order:
+    1. Main config (``cfg.app.admin_user`` / ``cfg.app.admin_password``)
+    2. Deployment-specific config saved during deploy
+    3. Interactive prompt (last resort)
+
+    Returns ``(admin_user, admin_password)``.
+    """
+    import getpass
+
+    import yaml
+
+    admin_user = cfg.app.admin_user
+    admin_pw = cfg.app.admin_password
+
+    deploy_config_path = (
+        get_deploy_dir(cfg) / "config" / "config.yaml"
+    )
+    if (
+        admin_user in ("MISSING", "")
+        or admin_pw in ("MISSING", "")
+    ) and deploy_config_path.exists():
+        with open(deploy_config_path) as f:
+            deploy_cfg = yaml.safe_load(f) or {}
+        app_cfg = deploy_cfg.get("app", {})
+        if admin_user in ("MISSING", ""):
+            admin_user = app_cfg.get("admin_user", "")
+        if admin_pw in ("MISSING", ""):
+            admin_pw = app_cfg.get("admin_password", "")
+
+    if admin_user in ("MISSING", ""):
+        admin_user = (
+            input("  Admin username [admin]: ").strip()
+            or "admin"
+        )
+    if admin_pw in ("MISSING", ""):
+        admin_pw = getpass.getpass("  Admin password: ")
+        if not admin_pw:
+            console.print(
+                "  [red]Admin password is required[/red]"
+            )
+            raise SystemExit(1)
+        console.print()
+
+    return admin_user, admin_pw
+
+
 # Bundled terraform files shipped with the CLI package
 TERRAFORM_SRC = (
     Path(__file__).resolve().parent.parent / "terraform"
@@ -366,7 +418,6 @@ def run_destroy(cfg: Config) -> None:
     3. Clean up the local deploy directory
     """
     import base64
-    import getpass
     import json
     import ssl
     from urllib.error import HTTPError, URLError
@@ -416,39 +467,7 @@ def run_destroy(cfg: Config) -> None:
     )
     console.print()
 
-    # Read admin credentials — try deployment config first,
-    # then fall back to ~/.lablink/config.yaml, then prompt.
-    admin_user = cfg.app.admin_user
-    admin_pw = cfg.app.admin_password
-
-    deploy_config_path = deploy_dir / "config" / "config.yaml"
-    if (
-        admin_user in ("MISSING", "")
-        or admin_pw in ("MISSING", "")
-    ) and deploy_config_path.exists():
-        import yaml
-
-        with open(deploy_config_path) as f:
-            deploy_cfg = yaml.safe_load(f) or {}
-        app_cfg = deploy_cfg.get("app", {})
-        if admin_user in ("MISSING", ""):
-            admin_user = app_cfg.get("admin_user", "")
-        if admin_pw in ("MISSING", ""):
-            admin_pw = app_cfg.get("admin_password", "")
-
-    if admin_user in ("MISSING", ""):
-        admin_user = (
-            input("  Admin username [admin]: ").strip()
-            or "admin"
-        )
-    if admin_pw in ("MISSING", ""):
-        admin_pw = getpass.getpass("  Admin password: ")
-        if not admin_pw:
-            console.print(
-                "  [red]Admin password is required[/red]"
-            )
-            raise SystemExit(1)
-        console.print()
+    admin_user, admin_pw = resolve_admin_credentials(cfg)
 
     # Confirm
     console.print(
