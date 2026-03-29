@@ -110,14 +110,18 @@ def init_database():
 
 
 # Set up logging
+_log_level = (
+    logging.DEBUG
+    if cfg.environment in ("dev", "test", "ci-test")
+    else logging.INFO
+)
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=_log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
+logger.setLevel(_log_level)
 
 @auth.verify_password
 def verify_password(username, password):
