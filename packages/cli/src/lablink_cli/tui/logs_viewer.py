@@ -72,11 +72,6 @@ class LogsApp(App):
         width: 1fr;
     }
 
-    #log-header {
-        height: 3;
-        padding: 0 1;
-    }
-
     #vm-info {
         padding: 0 1;
     }
