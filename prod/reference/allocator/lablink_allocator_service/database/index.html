@@ -8048,7 +8048,7 @@ Supported keys:
 <a id="__codelineno-0-650" name="__codelineno-0-650"></a>        <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-651" name="__codelineno-0-651"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">status</span><span class="p">))</span>
 <a id="__codelineno-0-652" name="__codelineno-0-652"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-<a id="__codelineno-0-653" name="__codelineno-0-653"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-653" name="__codelineno-0-653"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
 <a id="__codelineno-0-654" name="__codelineno-0-654"></a>                <span class="sa">f</span><span class="s2">&quot;VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39; status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-655" name="__codelineno-0-655"></a>            <span class="p">)</span>
 <a id="__codelineno-0-656" name="__codelineno-0-656"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
