@@ -13,6 +13,9 @@ dependencies = [
     "boto3>=1.35",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff"]
+
 [project.scripts]
 lablink = "lablink_cli.app:main"
 
@@ -25,3 +28,18 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 lablink_cli = ["terraform/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = [
+    "src/lablink_cli/tui/*",
+    "src/lablink_cli/terraform/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+]
