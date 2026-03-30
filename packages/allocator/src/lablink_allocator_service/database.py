@@ -650,7 +650,7 @@ class PostgresqlDatabase:
             try:
                 cursor.execute(query, (hostname, status))
                 self.conn.commit()
-                logger.info(
+                logger.debug(
                     f"VM '{hostname}' status: {status}"
                 )
             except Exception as e:

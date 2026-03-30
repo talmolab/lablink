@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 from rich.console import Console
@@ -9,6 +11,126 @@ from rich.console import Console
 from lablink_allocator_service.conf.structured_config import Config
 
 console = Console()
+
+
+# ------------------------------------------------------------------
+# EC2 instance helpers
+# ------------------------------------------------------------------
+def _parse_instances(resp: dict) -> list[dict]:
+    """Extract VM info dicts from an EC2 describe_instances response."""
+    vms = []
+    for reservation in resp.get("Reservations", []):
+        for inst in reservation.get("Instances", []):
+            name = ""
+            for tag in inst.get("Tags", []):
+                if tag["Key"] == "Name":
+                    name = tag["Value"]
+                    break
+            vms.append(
+                {
+                    "name": name,
+                    "instance_id": inst["InstanceId"],
+                    "type": inst["InstanceType"],
+                    "state": inst["State"]["Name"],
+                    "launch_time": inst.get("LaunchTime", ""),
+                    "public_ip": inst.get("PublicIpAddress", "—"),
+                }
+            )
+    return vms
+
+
+def query_ec2_instances(
+    region: str,
+    tag_pattern: str,
+    states: list[str] | None = None,
+) -> list[dict]:
+    """Query EC2 instances by Name tag pattern and state.
+
+    Args:
+        region: AWS region.
+        tag_pattern: Glob pattern for the Name tag (e.g. ``"my-app-*"``).
+        states: Instance states to match. Defaults to ``["running"]``.
+
+    Returns:
+        List of VM info dicts.
+    """
+    from lablink_cli.commands.setup import _get_session
+
+    if states is None:
+        states = ["running"]
+
+    try:
+        session = _get_session(region)
+        ec2 = session.client("ec2")
+    except Exception:
+        return []
+
+    try:
+        resp = ec2.describe_instances(
+            Filters=[
+                {"Name": "tag:Name", "Values": [tag_pattern]},
+                {"Name": "instance-state-name", "Values": states},
+            ]
+        )
+    except Exception:
+        return []
+
+    return _parse_instances(resp)
+
+
+def get_allocator_vm(cfg: Config) -> dict | None:
+    """Find the allocator EC2 instance for this deployment."""
+    tag = f"{cfg.deployment_name}-allocator-{cfg.environment}"
+    vms = query_ec2_instances(cfg.app.region, tag)
+    if vms:
+        vms[0]["vm_type"] = "allocator"
+        return vms[0]
+    return None
+
+
+def get_client_vms(cfg: Config) -> list[dict]:
+    """Query EC2 for LabLink client VMs."""
+    tag = (
+        f"{cfg.machine.software}-lablink-client-"
+        f"{cfg.environment}-vm-*"
+    )
+    vms = query_ec2_instances(
+        cfg.app.region,
+        tag,
+        states=["running", "stopped", "pending"],
+    )
+    for vm in vms:
+        vm["vm_type"] = "client"
+    return vms
+
+
+def list_all_vms(cfg: Config) -> list[dict]:
+    """Return allocator + client VMs for this deployment."""
+    vms: list[dict] = []
+    allocator = get_allocator_vm(cfg)
+    if allocator:
+        vms.append(allocator)
+    vms.extend(get_client_vms(cfg))
+    return vms
+
+
+def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
+    """Read terraform outputs as a dict."""
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json"],
+            cwd=deploy_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        raw = json.loads(result.stdout)
+        return {
+            k: v.get("value", "")
+            for k, v in raw.items()
+        }
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return {}
 
 
 def get_deploy_dir(cfg: Config) -> Path:
@@ -24,8 +146,6 @@ def get_deploy_dir(cfg: Config) -> Path:
 
 def get_allocator_url(cfg: Config) -> str:
     """Determine the allocator base URL from terraform outputs or config."""
-    from lablink_cli.commands.status import get_terraform_outputs
-
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}
     if deploy_dir.exists():
