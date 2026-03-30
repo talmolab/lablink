@@ -123,6 +123,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(_log_level)
 
+
 @auth.verify_password
 def verify_password(username, password):
     """Verify the username and password against the stored users.
