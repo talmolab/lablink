@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import ClientError
@@ -159,7 +159,7 @@ class TestCreateDynamoDBTable:
         session.client.return_value = dynamodb
 
         # Simulate ResourceNotFoundException
-        not_found = type(dynamodb).exceptions = MagicMock()
+        type(dynamodb).exceptions = MagicMock()
         not_found_exc = type("ResourceNotFoundException", (Exception,), {})
         dynamodb.exceptions.ResourceNotFoundException = not_found_exc
         dynamodb.describe_table.side_effect = not_found_exc()

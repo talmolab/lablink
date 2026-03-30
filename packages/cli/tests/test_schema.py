@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
-import pytest
 import yaml
 
 from lablink_cli.config.schema import (

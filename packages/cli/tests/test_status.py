@@ -5,7 +5,6 @@ from __future__ import annotations
 import socket
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from lablink_cli.commands.status import (
     FALLBACK_COSTS,

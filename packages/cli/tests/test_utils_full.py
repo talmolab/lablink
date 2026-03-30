@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -109,9 +108,8 @@ class TestResolveAdminCredentials:
 
         deploy_config = tmp_path / "config" / "config.yaml"
         deploy_config.parent.mkdir(parents=True)
-        deploy_config.write_text(
-            yaml.dump({"app": {"admin_user": "deploy-user", "admin_password": "deploy-pw"}})
-        )
+        data = {"app": {"admin_user": "deploy-user", "admin_password": "deploy-pw"}}
+        deploy_config.write_text(yaml.dump(data))
 
         with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
             mock_dir.return_value = tmp_path
@@ -126,9 +124,8 @@ class TestResolveAdminCredentials:
 
         deploy_config = tmp_path / "config" / "config.yaml"
         deploy_config.parent.mkdir(parents=True)
-        deploy_config.write_text(
-            yaml.dump({"app": {"admin_user": "from-deploy", "admin_password": "from-deploy"}})
-        )
+        data = {"app": {"admin_user": "from-deploy", "admin_password": "from-deploy"}}
+        deploy_config.write_text(yaml.dump(data))
 
         with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
             mock_dir.return_value = tmp_path

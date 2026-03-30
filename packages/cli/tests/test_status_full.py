@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from lablink_cli.commands.status import (
     REGION_NAME_MAP,

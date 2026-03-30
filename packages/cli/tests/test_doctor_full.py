@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from lablink_cli.commands.doctor import (
     _check_aws_credentials,
@@ -49,7 +48,7 @@ class TestCheckAwsCredentials:
     @patch("lablink_cli.commands.setup._get_session")
     def test_default_region(self, mock_session, mock_check):
         mock_check.side_effect = SystemExit(1)
-        result = _check_aws_credentials(None)
+        _check_aws_credentials(None)
         mock_session.assert_called_once_with("us-east-1")
 
 
@@ -219,7 +218,9 @@ class TestRunDoctor:
         mock_ami,
     ):
         mock_tf.return_value = {"check": "Terraform", "status": "fail", "detail": ""}
-        mock_cfg_exists.return_value = {"check": "Config", "status": "pass", "detail": ""}
+        mock_cfg_exists.return_value = {
+            "check": "Config", "status": "pass", "detail": "",
+        }
         mock_cfg_valid.return_value = (
             {"check": "Validates", "status": "warn", "detail": ""},
             None,

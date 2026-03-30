@@ -50,7 +50,8 @@ class TestCLICommands:
     def test_doctor_command_exists(self):
         result = runner.invoke(app, ["doctor", "--help"])
         assert result.exit_code == 0
-        assert "prerequisites" in result.output.lower() or "check" in result.output.lower()
+        out = result.output.lower()
+        assert "prerequisites" in out or "check" in out
 
     def test_deploy_command_exists(self):
         result = runner.invoke(app, ["deploy", "--help"])
