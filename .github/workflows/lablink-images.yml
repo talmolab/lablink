@@ -23,14 +23,16 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "packages/**"
+      - "packages/allocator/**"
+      - "packages/client/**"
       - ".github/workflows/lablink-images.yml"
   push:
     branches:
       - main
       - test
     paths:
-      - "packages/**"
+      - "packages/allocator/**"
+      - "packages/client/**"
       - ".github/workflows/lablink-images.yml"
 
 jobs:
@@ -60,12 +62,12 @@ jobs:
           # Preserve tool cache (Python, Node.js, etc.)
           tool-cache: false
           # Remove large pre-installed packages we don't use
-          android: true      # ~11GB - Android SDK not needed for Python/Docker builds
-          dotnet: true       # ~2GB - .NET not needed
-          haskell: true      # ~5GB - Haskell GHC not needed
-          large-packages: true  # Cloud SDKs, etc. not needed
-          docker-images: false  # Keep base - we haven't built anything yet
-          swap-storage: true    # ~4GB - Swap not needed for Docker builds
+          android: true # ~11GB - Android SDK not needed for Python/Docker builds
+          dotnet: true # ~2GB - .NET not needed
+          haskell: true # ~5GB - Haskell GHC not needed
+          large-packages: true # Cloud SDKs, etc. not needed
+          docker-images: false # Keep base - we haven't built anything yet
+          swap-storage: true # ~4GB - Swap not needed for Docker builds
           # Total expected space freed: ~20-30GB
           # Only needed for client image — CUDA is ~6GB, needs 12-18GB during build
           # GitHub runners start with ~14GB free, which causes "No space left on device"
