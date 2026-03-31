@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,13 @@ from typer.testing import CliRunner
 from lablink_cli.app import _load_cfg, app
 
 runner = CliRunner()
+
+# Strip ANSI escape codes from output (rich adds them in CI)
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(text: str) -> str:
+    return _ANSI_RE.sub("", text)
 
 
 # ------------------------------------------------------------------
@@ -45,12 +53,13 @@ class TestCLICommands:
     def test_help(self):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "lablink" in result.output.lower() or "deploy" in result.output.lower()
+        out = _plain(result.output).lower()
+        assert "lablink" in out or "deploy" in out
 
     def test_doctor_command_exists(self):
         result = runner.invoke(app, ["doctor", "--help"])
         assert result.exit_code == 0
-        out = result.output.lower()
+        out = _plain(result.output).lower()
         assert "prerequisites" in out or "check" in out
 
     def test_deploy_command_exists(self):
@@ -68,7 +77,7 @@ class TestCLICommands:
     def test_cleanup_command_exists(self):
         result = runner.invoke(app, ["cleanup", "--help"])
         assert result.exit_code == 0
-        assert "dry-run" in result.output
+        assert "dry-run" in _plain(result.output)
 
     def test_show_config_command_exists(self):
         result = runner.invoke(app, ["show-config", "--help"])
@@ -85,7 +94,7 @@ class TestCLICommands:
     def test_launch_client_command_exists(self):
         result = runner.invoke(app, ["launch-client", "--help"])
         assert result.exit_code == 0
-        assert "num-vms" in result.output
+        assert "num-vms" in _plain(result.output)
 
     def test_logs_command_exists(self):
         result = runner.invoke(app, ["logs", "--help"])
@@ -93,9 +102,9 @@ class TestCLICommands:
 
     def test_no_args_shows_help(self):
         result = runner.invoke(app, [])
-        # no_args_is_help=True causes exit code 0 in some typer versions, 2 in others
         assert result.exit_code in (0, 2)
-        assert "deploy" in result.output.lower() or "usage" in result.output.lower()
+        out = _plain(result.output).lower()
+        assert "deploy" in out or "usage" in out
 
 
 class TestShowConfig:
