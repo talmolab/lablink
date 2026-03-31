@@ -6,7 +6,6 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from lablink_cli.commands.utils import (
     _parse_instances,
@@ -47,19 +46,6 @@ def _make_instance(
         inst["PublicIpAddress"] = public_ip
     return inst
 
-
-@pytest.fixture()
-def mock_cfg():
-    """Minimal Config-like object for testing."""
-    cfg = MagicMock()
-    cfg.app.region = "us-east-1"
-    cfg.deployment_name = "mylab"
-    cfg.environment = "dev"
-    cfg.machine.software = "sleap"
-    cfg.dns.enabled = False
-    cfg.dns.domain = ""
-    cfg.ssl.provider = "none"
-    return cfg
 
 
 # ------------------------------------------------------------------

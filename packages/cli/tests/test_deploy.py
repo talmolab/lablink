@@ -16,52 +16,59 @@ from lablink_cli.commands.deploy import (
 # _prepare_working_dir
 # ------------------------------------------------------------------
 class TestPrepareWorkingDir:
-    @patch("lablink_cli.commands.deploy.TERRAFORM_SRC")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_creates_directory(
-        self, mock_save, mock_deploy_dir, mock_tf_src, mock_cfg, tmp_path
+        self, mock_save, mock_deploy_dir, mock_cfg, tmp_path
     ):
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
 
-        # Set up terraform source dir
+        # Use a real temp directory as TERRAFORM_SRC
         tf_src = tmp_path / "terraform_src"
         tf_src.mkdir()
         (tf_src / "main.tf").write_text('region = "us-west-2"')
         (tf_src / "variables.tf").write_text("# variables")
         (tf_src / "user_data.sh").write_text("#!/bin/bash")
 
-        # Configure the mock to behave like a Path
-        mock_tf_src.__truediv__ = lambda self, x: tf_src / x
-        mock_tf_src.glob = tf_src.glob
+        import lablink_cli.commands.deploy as deploy_mod
 
-        result = _prepare_working_dir(mock_cfg)
-        assert result == deploy_dir
-        assert (deploy_dir / "config").exists()
+        original_src = deploy_mod.TERRAFORM_SRC
+        deploy_mod.TERRAFORM_SRC = tf_src
+        try:
+            result = _prepare_working_dir(mock_cfg)
+            assert result == deploy_dir
+            assert (deploy_dir / "config").exists()
+            assert (deploy_dir / "main.tf").exists()
+            assert (deploy_dir / "user_data.sh").exists()
+        finally:
+            deploy_mod.TERRAFORM_SRC = original_src
 
-    @patch("lablink_cli.commands.deploy.TERRAFORM_SRC")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_region_override(
-        self, mock_save, mock_deploy_dir, mock_tf_src, mock_cfg, tmp_path
+        self, mock_save, mock_deploy_dir, mock_cfg, tmp_path
     ):
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
         mock_cfg.app.region = "eu-west-1"
 
-        # Set up terraform source
+        # Use a real temp directory as TERRAFORM_SRC
         tf_src = tmp_path / "terraform_src"
         tf_src.mkdir()
         (tf_src / "main.tf").write_text('region = "us-west-2"')
 
-        mock_tf_src.__truediv__ = lambda self, x: tf_src / x
-        mock_tf_src.glob = tf_src.glob
+        import lablink_cli.commands.deploy as deploy_mod
 
-        result = _prepare_working_dir(mock_cfg)
-        content = (result / "main.tf").read_text()
-        assert 'region = "eu-west-1"' in content
-        assert 'region = "us-west-2"' not in content
+        original_src = deploy_mod.TERRAFORM_SRC
+        deploy_mod.TERRAFORM_SRC = tf_src
+        try:
+            result = _prepare_working_dir(mock_cfg)
+            content = (result / "main.tf").read_text()
+            assert 'region = "eu-west-1"' in content
+            assert 'region = "us-west-2"' not in content
+        finally:
+            deploy_mod.TERRAFORM_SRC = original_src
 
 
 # ------------------------------------------------------------------
@@ -99,5 +106,7 @@ class TestRunTerraform:
         proc.returncode = 1
         mock_popen.return_value = proc
 
-        returncode = _run_terraform(["output"], cwd=tmp_path, check=False)
+        returncode = _run_terraform(
+            ["output"], cwd=tmp_path, check=False
+        )
         assert returncode == 1

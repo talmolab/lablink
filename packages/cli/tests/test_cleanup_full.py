@@ -74,8 +74,10 @@ class TestRunCleanup:
         mock_eip.assert_called_once()
         mock_iam.assert_called_once()
         mock_local.assert_called_once()
-        # Verify dry_run passed through (last positional arg)
-        assert mock_ec2.call_args[0][-1] is True
+        # Verify dry_run passed through by matching named arg position
+        # cleanup_ec2_instances(ec2, region, deployment_name, environment, dry_run)
+        _, _, _, _, dry_run = mock_ec2.call_args[0]
+        assert dry_run is True
 
     @patch("lablink_cli.commands.cleanup.cleanup_dynamodb")
     @patch("lablink_cli.commands.cleanup.cleanup_s3_state")

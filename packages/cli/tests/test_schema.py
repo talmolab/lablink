@@ -102,7 +102,7 @@ class TestLoadSaveConfig:
         data = {
             "monitoring": {
                 "enabled": True,
-                "thresholds": {"cpu_percent": 95},
+                "thresholds": {"max_instances_per_5min": 25},
             },
         }
         path = tmp_path / "config.yaml"
@@ -111,7 +111,7 @@ class TestLoadSaveConfig:
 
         cfg = load_config(path)
         assert cfg.monitoring.enabled is True
-        assert cfg.monitoring.thresholds.cpu_percent == 95
+        assert cfg.monitoring.thresholds.max_instances_per_5min == 25
 
 
 # ------------------------------------------------------------------
