@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import select
 import json
 import logging
+import threading
 from typing import List, Optional
 
 import psycopg2
@@ -17,6 +18,39 @@ except ImportError as e:
         "Please install it using `pip install psycopg2`"
     )
     raise e
+
+
+class _LockedCursor:
+    """Context manager that acquires a lock before opening a cursor.
+
+    Delegates to conn.cursor() as a context manager so it works with
+    both real psycopg2 connections and mock objects that return a
+    context-manager from cursor().
+    """
+
+    def __init__(self, conn, lock):
+        self._conn = conn
+        self._lock = lock
+        self._cm = None
+
+    def __enter__(self):
+        self._lock.acquire()
+        self._cm = self._conn.cursor()
+        # Support both context-manager cursors and plain cursors
+        if hasattr(self._cm, '__enter__'):
+            return self._cm.__enter__()
+        return self._cm
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self._cm is not None:
+                if hasattr(self._cm, '__exit__'):
+                    self._cm.__exit__(exc_type, exc_val, exc_tb)
+                else:
+                    self._cm.close()
+        finally:
+            self._lock.release()
+        return False
 
 
 class PostgresqlDatabase:
@@ -65,6 +99,19 @@ class PostgresqlDatabase:
         # Set the isolation level to autocommit
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
+        # Reentrant lock for thread-safe access to the shared connection
+        self._lock = threading.RLock()
+
+    @property
+    def _cursor(self):
+        """Return a context manager that acquires the lock and yields a cursor.
+
+        Usage:
+            with self._cursor as cursor:
+                cursor.execute(...)
+        """
+        return _LockedCursor(self.conn, self._lock)
+
     def get_all_vms(self) -> list:
         """Get all VMs from the table, excluding logs.
 
@@ -77,7 +124,7 @@ class PostgresqlDatabase:
             if col not in ("cloudinitlogs", "dockerlogs")
         ]
         query_columns = ", ".join(column_names)
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
             rows = cursor.fetchall()
         return [dict(zip(column_names, row)) for row in rows]
@@ -87,7 +134,7 @@ class PostgresqlDatabase:
         Returns:
             int: The number of rows in the table.
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(f"SELECT COUNT(*) FROM {self.table_name};")
             return cursor.fetchone()[0]
 
@@ -104,7 +151,7 @@ class PostgresqlDatabase:
             table_name = self.table_name
 
         # Query to get the column names from the information schema
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_name = %s",
@@ -135,7 +182,7 @@ class PostgresqlDatabase:
         columns = ", ".join(column_names)
         placeholders = ", ".join(["%s" for _ in column_names])
 
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 sql = (
                     f"INSERT INTO {self.table_name} "
@@ -158,7 +205,7 @@ class PostgresqlDatabase:
             dict: A dictionary containing the VM details without logs.
         """
         query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (hostname,))
             row = cursor.fetchone()
         if row:
@@ -275,7 +322,7 @@ class PostgresqlDatabase:
             f"SELECT crdcommand FROM {self.table_name} "
             f"WHERE hostname = %s"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (hostname,))
             return cursor.fetchone()[0]
 
@@ -290,7 +337,7 @@ class PostgresqlDatabase:
             f"crdcommand IS NULL AND status = 'running'"
         )
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query)
                 return [row[0] for row in cursor.fetchall()]
         except Exception as e:
@@ -311,7 +358,7 @@ class PostgresqlDatabase:
             f"(SELECT 1 FROM {self.table_name} "
             f"WHERE hostname = %s)"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (hostname,))
             result = cursor.fetchone()
         return result[0] if result else False
@@ -327,7 +374,7 @@ class PostgresqlDatabase:
             f"WHERE crdcommand IS NOT NULL"
         )
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query)
                 return [row[0] for row in cursor.fetchall()]
         except Exception as e:
@@ -348,7 +395,7 @@ class PostgresqlDatabase:
             f"SELECT hostname, pin, crdcommand FROM {self.table_name}"
             " WHERE useremail = %s"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (email,))
             row = cursor.fetchone()
         if row:
@@ -383,7 +430,7 @@ class PostgresqlDatabase:
             inuse = FALSE
         WHERE hostname = %s;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(
                     query, (email, crd_command, pin, hostname)
@@ -410,7 +457,7 @@ class PostgresqlDatabase:
             f"WHERE useremail IS NULL AND "
             f"status = 'running' LIMIT 1"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query)
             row = cursor.fetchone()
         return row[0] if row else None
@@ -426,7 +473,7 @@ class PostgresqlDatabase:
             f"UPDATE {self.table_name} "
             f"SET inuse = %s WHERE hostname = %s"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, (in_use, hostname))
                 self.conn.commit()
@@ -441,7 +488,7 @@ class PostgresqlDatabase:
     def clear_database(self) -> None:
         """Delete all VMs from the table."""
         query = f"DELETE FROM {self.table_name};"
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query)
                 self.conn.commit()
@@ -462,7 +509,7 @@ class PostgresqlDatabase:
             f"UPDATE {self.table_name} "
             f"SET healthy = %s WHERE hostname = %s;"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, (healthy, hostname))
                 self.conn.commit()
@@ -489,7 +536,7 @@ class PostgresqlDatabase:
             f"WHERE hostname = %s;"
         )
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query, (hostname,))
                 result = cursor.fetchone()
             return result[0] if result else None
@@ -514,7 +561,7 @@ class PostgresqlDatabase:
             f"WHERE hostname = %s;"
         )
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query, (hostname,))
                 result = cursor.fetchone()
             return result[0] if result else None
@@ -541,7 +588,7 @@ class PostgresqlDatabase:
             "docker": ("dockerlogs", "docker_logs"),
         }
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 if log_type in column_map:
                     col, key = column_map[log_type]
                     query = (
@@ -590,7 +637,7 @@ class PostgresqlDatabase:
             f"UPDATE {self.table_name} "
             f"SET {column} = %s WHERE hostname = %s;"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, (logs, hostname))
                 self.conn.commit()
@@ -644,7 +691,7 @@ class PostgresqlDatabase:
             )
             WHERE hostname = %s;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(
                     query, (max_size, max_size, new_logs, hostname)
@@ -669,7 +716,7 @@ class PostgresqlDatabase:
             f"SELECT hostname, status FROM {self.table_name};"
         )
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query)
                 rows = cursor.fetchall()
             return {row[0]: row[1] for row in rows}
@@ -702,7 +749,7 @@ class PostgresqlDatabase:
         ON CONFLICT (hostname) DO UPDATE
             SET status = EXCLUDED.status;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, (hostname, status))
                 self.conn.commit()
@@ -771,7 +818,7 @@ class PostgresqlDatabase:
                 terraformapplystarttime = EXCLUDED.terraformapplystarttime,
                 terraformapplyendtime = EXCLUDED.terraformapplyendtime
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(
                     query,
@@ -863,7 +910,7 @@ class PostgresqlDatabase:
         """
         values.append(hostname)
 
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, tuple(values))
                 result = cursor.fetchone()
@@ -903,7 +950,7 @@ class PostgresqlDatabase:
             VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
             RETURNING id;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(
                     query,
@@ -958,7 +1005,7 @@ class PostgresqlDatabase:
     def get_scheduled_destruction(self, schedule_id: int) -> Optional[dict]:
         """Get scheduled destruction by ID."""
         query = "SELECT * FROM scheduled_destructions WHERE id = %s;"
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (schedule_id,))
             row = cursor.fetchone()
         if row:
@@ -1000,7 +1047,7 @@ class PostgresqlDatabase:
             "updated_at",
         ]
 
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             if status:
                 query = (
                     "SELECT * FROM scheduled_destructions "
@@ -1035,7 +1082,7 @@ class PostgresqlDatabase:
                 last_execution_result = %s
             WHERE id = %s;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(
                 query, (status, execution_result, schedule_id)
             )
@@ -1047,7 +1094,7 @@ class PostgresqlDatabase:
             "UPDATE scheduled_destructions "
             "SET status = 'cancelled' WHERE id = %s;"
         )
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             cursor.execute(query, (schedule_id,))
             self.conn.commit()
 
@@ -1058,7 +1105,7 @@ class PostgresqlDatabase:
             "last_reboot_time": "TIMESTAMP",
         }
         for col_name, col_type in columns.items():
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 try:
                     cursor.execute(
                         f"ALTER TABLE {self.table_name} "
@@ -1112,7 +1159,7 @@ class PostgresqlDatabase:
                    - INTERVAL '{reboot_minutes} minutes');
         """
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query)
                 rows = cursor.fetchall()
             return [
@@ -1145,7 +1192,7 @@ class PostgresqlDatabase:
                 last_reboot_time = NOW()
             WHERE hostname = %s;
         """
-        with self.conn.cursor() as cursor:
+        with self._cursor as cursor:
             try:
                 cursor.execute(query, (hostname,))
                 self.conn.commit()
@@ -1176,7 +1223,7 @@ class PostgresqlDatabase:
             WHERE hostname = %s;
         """
         try:
-            with self.conn.cursor() as cursor:
+            with self._cursor as cursor:
                 cursor.execute(query, (hostname,))
                 row = cursor.fetchone()
             if row:
