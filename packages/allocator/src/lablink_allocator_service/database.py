@@ -696,29 +696,11 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query, (max_size, max_size, new_logs, hostname)
                 )
-                rowcount = cursor.rowcount
                 self.conn.commit()
-                # Verify the append actually persisted
-                cursor.execute(
-                    f"SELECT length({column}) FROM "
-                    f"{self.table_name} WHERE hostname = %s",
-                    (hostname,),
-                )
-                stored = cursor.fetchone()
-                stored_len = stored[0] if stored else 0
-                logger.info(
-                    f"[LOG_DEBUG] DB append: "
-                    f"hostname={hostname}, type={log_type}, "
-                    f"bytes={len(new_logs)}, "
-                    f"rowcount={rowcount}, "
-                    f"stored_len={stored_len}"
-                )
             except Exception as e:
                 logger.error(
-                    f"[LOG_DEBUG] DB EXCEPTION: "
-                    f"hostname={hostname}, "
-                    f"type={log_type}: {e}",
-                    exc_info=True,
+                    f"Failed to append {log_type} logs "
+                    f"for VM '{hostname}': {e}"
                 )
                 self.conn.rollback()
                 raise
