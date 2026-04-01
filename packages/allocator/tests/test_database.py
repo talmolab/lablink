@@ -582,7 +582,6 @@ def test_threading_lock_serializes_concurrent_access(db_instance):
     corrupted. With the lock, calls are serialized.
     """
     import threading
-    import time
 
     results = {"order": [], "errors": []}
     barrier = threading.Barrier(25)
