@@ -1,14 +1,19 @@
 #!/bin/bash
 # log_shipper.sh — Ships log lines to the allocator /api/vm-logs endpoint.
-# Usage: log_shipper.sh <log_file> <allocator_url> <vm_name> <log_group> <api_token> [--docker-json]
+#
+# Usage:
+#   log_shipper.sh <source> <allocator_url> <vm_name> <log_group> <api_token>
+#
+# <source> is either:
+#   - A file path (e.g., /var/log/cloud-init-output.log) — tailed with tail -F
+#   - "docker:<container_id>" — streamed via docker logs --follow
 set -euo pipefail
 
-LOG_FILE="$1"
+SOURCE="$1"
 ALLOCATOR_URL="$2"
 VM_NAME="$3"
 LOG_GROUP="$4"
 API_TOKEN="$5"
-DOCKER_JSON="${6:-}"
 
 BATCH_SIZE=50
 FLUSH_INTERVAL=15
@@ -16,7 +21,15 @@ MAX_RETRIES=3
 ENDPOINT="$ALLOCATOR_URL/api/vm-logs"
 SELF_LOG="/var/log/log_shipper.log"
 
-log() { echo "$(date -Is) [log_shipper:$(basename "$LOG_FILE")] $*" >> "$SELF_LOG"; }
+# Derive a short label for log messages
+if [[ "$SOURCE" == docker:* ]]; then
+    SOURCE_LABEL="docker:${SOURCE#docker:}"
+    SOURCE_LABEL="${SOURCE_LABEL:0:20}"
+else
+    SOURCE_LABEL=$(basename "$SOURCE")
+fi
+
+log() { echo "$(date -Is) [log_shipper:$SOURCE_LABEL] $*" >> "$SELF_LOG"; }
 
 send_batch() {
     local payload="$1"
@@ -60,33 +73,44 @@ flush_buffer() {
     BUFFER=()
 }
 
-# Wait for the log file to appear
-log "Waiting for $LOG_FILE to appear..."
-while [ ! -f "$LOG_FILE" ]; do
-    sleep 2
-done
-log "Tailing $LOG_FILE"
-
 BUFFER=()
 LAST_FLUSH=$(date +%s)
 
-# tail -F follows through log rotation; -n +1 sends all existing lines
-tail -F -n +1 "$LOG_FILE" 2>/dev/null | while IFS= read -r LINE; do
-    # Parse Docker json-log format if requested
-    if [ "$DOCKER_JSON" = "--docker-json" ]; then
-        PARSED=$(printf '%s' "$LINE" | python3 -c '
-import json, sys
-try:
-    d = json.loads(sys.stdin.read())
-    print(d.get("log", "").rstrip())
-except Exception:
-    print(sys.stdin.read().rstrip() if False else "")
-' 2>/dev/null) || PARSED=""
-        [ -z "$PARSED" ] && continue
-        LINE="$PARSED"
-    fi
+# Flush remaining buffer on exit/signal
+cleanup() {
+    log "Signal received, flushing ${#BUFFER[@]} remaining lines..."
+    flush_buffer
+    log "Shutdown complete"
+    exit 0
+}
+trap cleanup SIGTERM SIGINT EXIT
 
-    BUFFER+=("$LINE")
+# Determine the input source
+if [[ "$SOURCE" == docker:* ]]; then
+    # Docker container logs via docker logs --follow
+    CONTAINER_ID="${SOURCE#docker:}"
+    log "Waiting for container $CONTAINER_ID..."
+    while ! docker inspect "$CONTAINER_ID" &>/dev/null; do
+        sleep 2
+    done
+    log "Streaming docker logs for container $CONTAINER_ID"
+    INPUT_CMD="docker logs --follow --timestamps $CONTAINER_ID 2>&1"
+else
+    # File-based source via tail -F
+    log "Waiting for $SOURCE to appear..."
+    while [ ! -f "$SOURCE" ]; do
+        sleep 2
+    done
+    log "Tailing $SOURCE"
+    INPUT_CMD="tail -F -n +1 $SOURCE 2>/dev/null"
+fi
+
+# Read with a timeout so the flush timer fires even when no new lines
+# arrive (e.g., cloud-init finishes and the file stops growing).
+while true; do
+    if IFS= read -t "$FLUSH_INTERVAL" -r LINE; then
+        BUFFER+=("$LINE")
+    fi
 
     NOW=$(date +%s)
     ELAPSED=$((NOW - LAST_FLUSH))
@@ -95,4 +119,4 @@ except Exception:
         flush_buffer
         LAST_FLUSH=$(date +%s)
     fi
-done
+done < <(eval "$INPUT_CMD")

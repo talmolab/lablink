@@ -157,18 +157,13 @@ else
     exit 1
 fi
 
-# Start log shipper for Docker container json-log
+# Start log shipper for Docker container logs
 CONTAINER_ID=$(docker ps -q --latest 2>/dev/null || true)
 if [ -n "$CONTAINER_ID" ]; then
-    DOCKER_LOG_PATH=$(docker inspect --format='{{.LogPath}}' "$CONTAINER_ID" 2>/dev/null || true)
-    if [ -n "$DOCKER_LOG_PATH" ] && [ -f "$DOCKER_LOG_PATH" ]; then
-        echo ">> Starting log shipper for Docker container log ($DOCKER_LOG_PATH)..."
-        nohup /usr/local/bin/log_shipper.sh "$DOCKER_LOG_PATH" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$API_TOKEN" --docker-json \
-            >> /var/log/log_shipper.log 2>&1 &
-        echo ">> Docker log shipper started (PID: $!)"
-    else
-        echo ">> WARNING: Could not find Docker json-log path for container $CONTAINER_ID"
-    fi
+    echo ">> Starting log shipper for Docker container (docker logs --follow)..."
+    nohup /usr/local/bin/log_shipper.sh "docker:$CONTAINER_ID" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$API_TOKEN" \
+        >> /var/log/log_shipper.log 2>&1 &
+    echo ">> Docker log shipper started (PID: $!)"
 else
     echo ">> WARNING: No running container found for Docker log shipping"
 fi
