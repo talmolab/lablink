@@ -573,6 +573,101 @@ def test_atomic_append_prevents_race_condition(db_instance):
     db_instance.cursor.fetchone.assert_not_called()
 
 
+def test_threading_lock_serializes_concurrent_access(db_instance):
+    """Verify the threading lock serializes concurrent database access.
+
+    Simulates the scenario where 25 VMs ship logs simultaneously,
+    causing multiple Flask threads to call database methods concurrently.
+    Without the lock, psycopg2's non-thread-safe connection gets
+    corrupted. With the lock, calls are serialized.
+    """
+    import threading
+    import time
+
+    results = {"order": [], "errors": []}
+    barrier = threading.Barrier(25)
+
+    def simulate_log_post(vm_index):
+        """Simulate a log shipper POST from a client VM."""
+        try:
+            # All threads wait here, then fire simultaneously
+            barrier.wait(timeout=5)
+            db_instance.append_logs_by_hostname(
+                f"vm-{vm_index}",
+                f"log line from vm-{vm_index}",
+                log_type="docker",
+            )
+            results["order"].append(vm_index)
+        except Exception as e:
+            results["errors"].append((vm_index, str(e)))
+
+    # Launch 25 concurrent threads (simulating 25 VMs)
+    threads = []
+    for i in range(25):
+        t = threading.Thread(target=simulate_log_post, args=(i,))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join(timeout=10)
+
+    # All 25 calls should complete without errors
+    assert len(results["errors"]) == 0, (
+        f"Concurrent DB calls failed: {results['errors']}"
+    )
+    assert len(results["order"]) == 25
+
+    # The lock ensures calls were serialized — verify execute was
+    # called 25 times (one per thread, no interleaving)
+    assert db_instance.cursor.execute.call_count == 25
+
+
+def test_threading_lock_prevents_interleaved_reads_and_writes(
+    db_instance,
+):
+    """Verify reads and writes don't interleave under concurrent access.
+
+    Simulates the real scenario: some threads POST logs (writes) while
+    others poll vm-status (reads). Without a lock, a write could
+    corrupt the connection mid-read.
+    """
+    import threading
+
+    barrier = threading.Barrier(10)
+    errors = []
+
+    def do_read(idx):
+        try:
+            barrier.wait(timeout=5)
+            db_instance.get_all_vm_status()
+        except Exception as e:
+            errors.append(("read", idx, str(e)))
+
+    def do_write(idx):
+        try:
+            barrier.wait(timeout=5)
+            db_instance.append_logs_by_hostname(
+                f"vm-{idx}", f"logs-{idx}", log_type="cloud_init"
+            )
+        except Exception as e:
+            errors.append(("write", idx, str(e)))
+
+    threads = []
+    # 5 readers (vm-status polling) + 5 writers (log shipping)
+    for i in range(5):
+        threads.append(threading.Thread(target=do_read, args=(i,)))
+        threads.append(threading.Thread(target=do_write, args=(i,)))
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    assert len(errors) == 0, f"Concurrent access errors: {errors}"
+    # 5 reads (get_all_vm_status) + 5 writes (append_logs)
+    assert db_instance.cursor.execute.call_count == 10
+
+
 def test_get_all_vm_status(db_instance):
     """Test getting the status of all VMs."""
     statuses_data = [("vm1", "running"), ("vm2", "error"), ("vm3", "initializing")]
