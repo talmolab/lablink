@@ -634,7 +634,8 @@ class PostgresqlDatabase:
             SET {column} = (
                 SELECT CASE
                     WHEN length(combined) > %s
-                    THEN substring(combined FROM position(E'\\n' IN right(combined, %s)) + 1)
+                    THEN substring(combined
+                        FROM position(E'\\n' IN right(combined, %s)) + 1)
                     ELSE combined
                 END
                 FROM (
