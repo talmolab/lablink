@@ -776,27 +776,14 @@ def receive_vm_logs():
         # Determine log type from log_group
         log_type = "docker" if log_group.endswith("-docker") else "cloud_init"
 
-        # Save the logs to the database (cap at 1MB per log type)
+        # Save the logs to the database atomically (cap at 1MB per log type)
         MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
-        existing = database.get_vm_logs(hostname=log_stream, log_type=log_type)
-        log_key = "docker_logs" if log_type == "docker" else "cloud_init_logs"
-        existing_logs = (existing or {}).get(log_key)
-        if existing_logs:
-            vm_log = existing_logs + "\n" + new_logs
-        else:
-            vm_log = new_logs
-
-        # Truncate from the beginning if over 1MB (keep most recent logs)
-        if len(vm_log) > MAX_LOG_SIZE:
-            vm_log = vm_log[-MAX_LOG_SIZE:]
-            # Remove partial first line from truncation
-            first_newline = vm_log.find("\n")
-            if first_newline != -1:
-                vm_log = vm_log[first_newline + 1:]
-
-        database.save_logs_by_hostname(
-            hostname=log_stream, logs=vm_log, log_type=log_type
+        database.append_logs_by_hostname(
+            hostname=log_stream,
+            new_logs=new_logs,
+            log_type=log_type,
+            max_size=MAX_LOG_SIZE,
         )
 
         return jsonify({"message": "VM logs posted successfully."}), 200

@@ -602,6 +602,61 @@ class PostgresqlDatabase:
                 self.conn.rollback()
                 raise
 
+    def append_logs_by_hostname(
+        self,
+        hostname: str,
+        new_logs: str,
+        log_type: str = "cloud_init",
+        max_size: int = 1 * 1024 * 1024,
+    ) -> None:
+        """Atomically append logs for a VM, truncating to max_size.
+
+        Uses a single SQL UPDATE to avoid race conditions when multiple
+        log shippers POST concurrently for the same VM.
+
+        Args:
+            hostname (str): The hostname of the VM.
+            new_logs (str): The new log lines to append.
+            log_type (str): "cloud_init" or "docker".
+            max_size (int): Maximum log size in bytes (default 1MB).
+        """
+        column = (
+            "cloudinitlogs" if log_type == "cloud_init"
+            else "dockerlogs"
+        )
+        # Atomic append + truncate in a single UPDATE:
+        # 1. COALESCE handles NULL (first write)
+        # 2. Concatenate with newline separator
+        # 3. RIGHT(..., max_size) keeps the most recent bytes
+        # 4. Trim any partial first line left by truncation
+        query = f"""
+            UPDATE {self.table_name}
+            SET {column} = (
+                SELECT CASE
+                    WHEN length(combined) > %s
+                    THEN substring(combined FROM position(E'\\n' IN right(combined, %s)) + 1)
+                    ELSE combined
+                END
+                FROM (
+                    SELECT COALESCE({column} || E'\\n', '') || %s AS combined
+                ) sub
+            )
+            WHERE hostname = %s;
+        """
+        with self.conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    query, (max_size, max_size, new_logs, hostname)
+                )
+                self.conn.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed to append {log_type} logs "
+                    f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
+
     def get_all_vm_status(self) -> dict:
         """Get the status of all VMs in the table.
 
