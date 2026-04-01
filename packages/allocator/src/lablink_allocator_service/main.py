@@ -750,6 +750,11 @@ def receive_vm_logs():
         log_stream = data.get("log_stream")
         messages = data.get("messages", [])
 
+        logger.info(
+            f"[LOG_DEBUG] POST: stream={log_stream}, "
+            f"group={log_group}, msg_count={len(messages)}"
+        )
+
         if not log_group or not log_stream or not messages:
             return (
                 jsonify({"error": "Log group, stream, and messages are required."}),
@@ -758,19 +763,27 @@ def receive_vm_logs():
 
         # Check if the VM exists in the database
         if not database.vm_exists(log_stream):
-            logger.error(f"VM with log stream {log_stream} does not exist.")
+            logger.info(
+                f"[LOG_DEBUG] REJECTED: vm_exists=False "
+                f"for {log_stream}"
+            )
             return jsonify({"error": "VM not found."}), 404
 
-        # Process the logs (e.g., save to a file, database, etc.)
-        logger.debug(
-            f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
-        )
-
         # Strip ANSI escape codes and drop empty lines
+        raw_count = len(messages)
         messages = [ANSI_ESCAPE.sub("", m) for m in messages]
         messages = [m for m in messages if m.strip()]
 
+        logger.info(
+            f"[LOG_DEBUG] {log_stream}: "
+            f"raw={raw_count}, after_filter={len(messages)}"
+        )
+
         if not messages:
+            logger.info(
+                f"[LOG_DEBUG] {log_stream}: "
+                f"ALL messages filtered out!"
+            )
             return jsonify({"message": "No log messages after filtering."}), 200
 
         # Determine log type from log_group
@@ -779,6 +792,12 @@ def receive_vm_logs():
         # Save the logs to the database atomically (cap at 1MB per log type)
         MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
+
+        logger.info(
+            f"[LOG_DEBUG] {log_stream}: appending "
+            f"{len(new_logs)} bytes as {log_type}"
+        )
+
         database.append_logs_by_hostname(
             hostname=log_stream,
             new_logs=new_logs,
@@ -786,9 +805,15 @@ def receive_vm_logs():
             max_size=MAX_LOG_SIZE,
         )
 
+        logger.info(
+            f"[LOG_DEBUG] {log_stream}: append done"
+        )
+
         return jsonify({"message": "VM logs posted successfully."}), 200
     except Exception as e:
-        logger.error(f"Error receiving VM logs: {e}")
+        logger.error(
+            f"[LOG_DEBUG] EXCEPTION: {e}", exc_info=True
+        )
         return jsonify({"error": "Failed to post VM logs."}), 500
 
 

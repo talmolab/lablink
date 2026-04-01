@@ -696,11 +696,20 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query, (max_size, max_size, new_logs, hostname)
                 )
+                rowcount = cursor.rowcount
                 self.conn.commit()
+                logger.info(
+                    f"[LOG_DEBUG] DB append: "
+                    f"hostname={hostname}, type={log_type}, "
+                    f"bytes={len(new_logs)}, "
+                    f"rowcount={rowcount}"
+                )
             except Exception as e:
                 logger.error(
-                    f"Failed to append {log_type} logs "
-                    f"for VM '{hostname}': {e}"
+                    f"[LOG_DEBUG] DB EXCEPTION: "
+                    f"hostname={hostname}, "
+                    f"type={log_type}: {e}",
+                    exc_info=True,
                 )
                 self.conn.rollback()
                 raise
