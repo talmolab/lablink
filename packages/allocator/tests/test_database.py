@@ -444,6 +444,135 @@ def test_save_docker_logs_by_hostname(db_instance):
     db_instance.conn.commit.assert_called_once()
 
 
+def test_append_logs_by_hostname(db_instance):
+    """Test atomically appending logs for a VM."""
+    hostname = "log-vm-04"
+    new_logs = "new line 1\nnew line 2"
+    db_instance.append_logs_by_hostname(
+        hostname, new_logs, log_type="cloud_init"
+    )
+    db_instance.cursor.execute.assert_called_once()
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    params = call_args[0][1]
+    # Verify the query uses atomic COALESCE-based append
+    assert "COALESCE" in query
+    assert "cloudinitlogs" in query
+    # Params: (max_size, max_size, new_logs, hostname)
+    assert params == (1 * 1024 * 1024, 1 * 1024 * 1024, new_logs, hostname)
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_append_docker_logs_by_hostname(db_instance):
+    """Test atomically appending docker logs for a VM."""
+    hostname = "log-vm-05"
+    new_logs = "docker line 1"
+    db_instance.append_logs_by_hostname(
+        hostname, new_logs, log_type="docker"
+    )
+    call_args = db_instance.cursor.execute.call_args
+    query = call_args[0][0]
+    assert "dockerlogs" in query
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_append_logs_custom_max_size(db_instance):
+    """Test appending logs with a custom max_size."""
+    hostname = "log-vm-06"
+    new_logs = "some logs"
+    custom_max = 512 * 1024  # 512KB
+    db_instance.append_logs_by_hostname(
+        hostname, new_logs, log_type="cloud_init", max_size=custom_max
+    )
+    call_args = db_instance.cursor.execute.call_args
+    params = call_args[0][1]
+    assert params == (custom_max, custom_max, new_logs, hostname)
+
+
+def test_append_logs_rollback_on_error(db_instance):
+    """Test that append_logs rolls back on database error."""
+    hostname = "log-vm-07"
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.append_logs_by_hostname(hostname, "logs")
+    db_instance.conn.rollback.assert_called_once()
+
+
+def test_old_read_modify_write_race_condition():
+    """Demonstrate the race condition in the old read-modify-write pattern.
+
+    The old code did:
+        1. existing = db.get_vm_logs(hostname)  # READ
+        2. vm_log = existing + new_logs          # MODIFY
+        3. db.save_logs_by_hostname(vm_log)      # WRITE
+
+    With concurrent requests for the same VM, two requests could read
+    the same snapshot, append their own data, and overwrite each other:
+
+        Request A: reads "line1"
+        Request B: reads "line1"           (same snapshot)
+        Request A: writes "line1\\nline2"
+        Request B: writes "line1\\nline3"   (overwrites A's line2)
+
+    Result: "line2" is permanently lost.
+
+    The fix uses a single SQL UPDATE with COALESCE to make the
+    append atomic — PostgreSQL's row-level locking ensures no
+    interleaving.
+    """
+    # Simulate the old non-atomic pattern
+    shared_state = {"logs": "initial"}
+
+    def old_read():
+        return shared_state["logs"]
+
+    def old_write(value):
+        shared_state["logs"] = value
+
+    # Simulate two concurrent requests with interleaved execution
+    # Request A reads
+    snapshot_a = old_read()
+    # Request B reads (same snapshot — race!)
+    snapshot_b = old_read()
+
+    # Request A appends and writes
+    old_write(snapshot_a + "\nbatch_A")
+    # Request B appends and writes (overwrites A's append)
+    old_write(snapshot_b + "\nbatch_B")
+
+    # batch_A is lost — this is the bug
+    assert "batch_A" not in shared_state["logs"]
+    assert shared_state["logs"] == "initial\nbatch_B"
+
+
+def test_atomic_append_prevents_race_condition(db_instance):
+    """Verify append_logs_by_hostname uses atomic SQL (no read step).
+
+    The new method issues a single UPDATE query that appends within
+    PostgreSQL, so row-level locking prevents concurrent requests
+    from overwriting each other's data.
+    """
+    hostname = "race-vm"
+
+    # Simulate two concurrent appends — both call append_logs
+    db_instance.append_logs_by_hostname(
+        hostname, "batch_A", log_type="docker"
+    )
+    db_instance.append_logs_by_hostname(
+        hostname, "batch_B", log_type="docker"
+    )
+
+    # Verify two separate atomic UPDATEs were issued (not read-modify-write)
+    assert db_instance.cursor.execute.call_count == 2
+    for call in db_instance.cursor.execute.call_args_list:
+        query = call[0][0]
+        # Each call is a single UPDATE — no SELECT (read) step
+        assert "UPDATE" in query
+        assert "SELECT" not in query or "COALESCE" in query
+    # No get_vm_logs calls — the old read step is eliminated
+    db_instance.cursor.fetchone.assert_not_called()
+
+
 def test_get_all_vm_status(db_instance):
     """Test getting the status of all VMs."""
     statuses_data = [("vm1", "running"), ("vm2", "error"), ("vm3", "initializing")]
