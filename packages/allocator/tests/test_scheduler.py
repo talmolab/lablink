@@ -279,11 +279,18 @@ def test_parse_rrule_to_cron_daily(scheduler_service):
         assert call_kwargs["minute"] == 0
 
 
-def test_execute_scheduled_destruction_success(scheduler_service, mock_database):
+def test_execute_scheduled_destruction_success(
+    scheduler_service, mock_database, tmp_path
+):
     """Test successful execution of scheduled destruction via standalone function."""
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
 
     schedule_id = 42
+
+    # Create terraform dir with tfvars so destroy proceeds
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
 
     # Mock successful terraform destroy
     with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
@@ -307,7 +314,7 @@ def test_execute_scheduled_destruction_success(scheduler_service, mock_database)
             with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
                 execute_scheduled_destruction_job(
                     schedule_id=schedule_id,
-                    terraform_dir="/test/terraform",
+                    terraform_dir=str(terraform_dir),
                 )
 
         # Verify status updated to executing
@@ -333,12 +340,17 @@ def test_execute_scheduled_destruction_success(scheduler_service, mock_database)
 
 
 def test_execute_scheduled_destruction_terraform_failure(
-    scheduler_service, mock_database
+    scheduler_service, mock_database, tmp_path
 ):
     """Test handling of terraform destroy failure via standalone function."""
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
 
     schedule_id = 42
+
+    # Create terraform dir with tfvars so destroy proceeds
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
 
     # Mock terraform destroy failure
     with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
@@ -366,7 +378,7 @@ def test_execute_scheduled_destruction_terraform_failure(
             with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
                 execute_scheduled_destruction_job(
                     schedule_id=schedule_id,
-                    terraform_dir="/test/terraform",
+                    terraform_dir=str(terraform_dir),
                 )
 
         # Verify status was updated to failed
