@@ -450,7 +450,7 @@ def run_destroy(cfg: Config) -> None:
             ctx.verify_mode = ssl.CERT_NONE
 
         try:
-            resp = urlopen(req, timeout=600, context=ctx)  # noqa: S310
+            resp = urlopen(req, timeout=1800, context=ctx)  # noqa: S310
             raw = resp.read().decode()
 
             try:
@@ -486,11 +486,25 @@ def run_destroy(cfg: Config) -> None:
                     UnicodeDecodeError,
                 ):
                     error_msg = str(e)
-                console.print(
-                    f"  [red]Client destroy failed "
-                    f"(HTTP {e.code}):[/red] {error_msg}"
-                )
-                raise SystemExit(1)
+
+                # No client VMs were ever launched — safe to skip
+                if "tfvars does not exist" in error_msg:
+                    console.print(
+                        "  [yellow]No client VMs were "
+                        "launched.[/yellow] Skipping "
+                        "client destroy."
+                    )
+                    console.print(
+                        "  Continuing with allocator "
+                        "terraform destroy..."
+                    )
+                else:
+                    console.print(
+                        f"  [red]Client destroy failed "
+                        f"(HTTP {e.code}):[/red] "
+                        f"{error_msg}"
+                    )
+                    raise SystemExit(1)
 
         except URLError as e:
             console.print(
