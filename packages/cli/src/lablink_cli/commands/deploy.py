@@ -477,6 +477,17 @@ def run_destroy(cfg: Config) -> None:
                     "Check your admin credentials."
                 )
                 raise SystemExit(1)
+            elif e.code == 404:
+                # No client VMs were ever launched
+                console.print(
+                    "  [yellow]No client VMs were "
+                    "launched.[/yellow] Skipping "
+                    "client destroy."
+                )
+                console.print(
+                    "  Continuing with allocator "
+                    "terraform destroy..."
+                )
             else:
                 try:
                     body = json.loads(e.read().decode())
@@ -487,24 +498,12 @@ def run_destroy(cfg: Config) -> None:
                 ):
                     error_msg = str(e)
 
-                # No client VMs were ever launched — safe to skip
-                if "tfvars does not exist" in error_msg:
-                    console.print(
-                        "  [yellow]No client VMs were "
-                        "launched.[/yellow] Skipping "
-                        "client destroy."
-                    )
-                    console.print(
-                        "  Continuing with allocator "
-                        "terraform destroy..."
-                    )
-                else:
-                    console.print(
-                        f"  [red]Client destroy failed "
-                        f"(HTTP {e.code}):[/red] "
-                        f"{error_msg}"
-                    )
-                    raise SystemExit(1)
+                console.print(
+                    f"  [red]Client destroy failed "
+                    f"(HTTP {e.code}):[/red] "
+                    f"{error_msg}"
+                )
+                raise SystemExit(1)
 
         except URLError as e:
             console.print(
