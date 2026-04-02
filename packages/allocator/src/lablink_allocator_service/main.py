@@ -438,6 +438,15 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
+    # Check if tfvars exists — if not, no client VMs were ever launched
+    tfvars_path = TERRAFORM_DIR / "terraform.runtime.tfvars"
+    if not tfvars_path.exists():
+        msg = "tfvars does not exist — no client VMs were launched"
+        logger.info(msg)
+        if _wants_json():
+            return jsonify({"status": "error", "error": msg}), 404
+        return render_template("delete-dashboard.html", error=msg), 404
+
     try:
         # Destroy Terraform resources
         apply_cmd = [

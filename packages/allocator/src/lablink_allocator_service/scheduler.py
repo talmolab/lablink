@@ -60,23 +60,31 @@ def execute_scheduled_destruction_job(
             status="executing",
         )
 
-        # Run terraform destroy
-        logger.info("Running terraform destroy")
-        cmd = [
-            "terraform",
-            "destroy",
-            "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
-        ]
+        # Check if tfvars exists — if not, no client VMs were ever launched
+        tfvars_path = os.path.join(terraform_dir, "terraform.runtime.tfvars")
+        if not os.path.exists(tfvars_path):
+            logger.info(
+                "tfvars does not exist — no client VMs were launched, "
+                "skipping terraform destroy"
+            )
+        else:
+            # Run terraform destroy
+            logger.info("Running terraform destroy")
+            cmd = [
+                "terraform",
+                "destroy",
+                "-auto-approve",
+                "-var-file=terraform.runtime.tfvars",
+            ]
 
-        subprocess.run(
-            cmd,
-            cwd=terraform_dir,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 min timeout
-        )
+            subprocess.run(
+                cmd,
+                cwd=terraform_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 min timeout
+            )
 
         # Clear database
         logger.info("Clearing all VMs from database")
