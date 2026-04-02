@@ -953,7 +953,6 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    fake_db.get_vm_logs.return_value = {"cloud_init_logs": "Sample log data for VM."}
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -970,13 +969,11 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"message": "VM logs posted successfully."}
     fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
-    fake_db.get_vm_logs.assert_called_once_with(
-        hostname="lablink-vm-test-1", log_type="cloud_init"
-    )
-    fake_db.save_logs_by_hostname.assert_called_once_with(
+    fake_db.append_logs_by_hostname.assert_called_once_with(
         hostname="lablink-vm-test-1",
-        logs="Sample log data for VM.\nMessage 1\nMessage 2",
+        new_logs="Message 1\nMessage 2",
         log_type="cloud_init",
+        max_size=1 * 1024 * 1024,
     )
 
 
@@ -985,7 +982,6 @@ def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
-    fake_db.get_vm_logs.return_value = {"docker_logs": "Existing docker log."}
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1001,13 +997,11 @@ def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
     assert resp.status_code == 200
     assert resp.is_json
     assert resp.get_json() == {"message": "VM logs posted successfully."}
-    fake_db.get_vm_logs.assert_called_once_with(
-        hostname="lablink-vm-test-1", log_type="docker"
-    )
-    fake_db.save_logs_by_hostname.assert_called_once_with(
+    fake_db.append_logs_by_hostname.assert_called_once_with(
         hostname="lablink-vm-test-1",
-        logs="Existing docker log.\nDocker msg 1",
+        new_logs="Docker msg 1",
         log_type="docker",
+        max_size=1 * 1024 * 1024,
     )
 
 
@@ -1026,8 +1020,7 @@ def test_posting_vm_logs_missing_data(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"error": "Log group, stream, and messages are required."}
     fake_db.vm_exists.assert_not_called()
-    fake_db.get_vm_logs.assert_not_called()
-    fake_db.save_logs_by_hostname.assert_not_called()
+    fake_db.append_logs_by_hostname.assert_not_called()
 
 
 def test_posting_vm_logs_vm_not_exists(client, api_token_headers, monkeypatch):
@@ -1051,8 +1044,7 @@ def test_posting_vm_logs_vm_not_exists(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"error": "VM not found."}
     fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
-    fake_db.get_vm_logs.assert_not_called()
-    fake_db.save_logs_by_hostname.assert_not_called()
+    fake_db.append_logs_by_hostname.assert_not_called()
 
 
 def test_posting_vm_logs_internal_error(client, api_token_headers, monkeypatch):
@@ -1076,8 +1068,7 @@ def test_posting_vm_logs_internal_error(client, api_token_headers, monkeypatch):
     assert resp.is_json
     assert resp.get_json() == {"error": "Failed to post VM logs."}
     fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
-    fake_db.get_vm_logs.assert_not_called()
-    fake_db.save_logs_by_hostname.assert_not_called()
+    fake_db.append_logs_by_hostname.assert_not_called()
 
 
 def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch):

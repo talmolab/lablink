@@ -583,6 +583,15 @@ class StartupScreen(Screen):
                 id="script-path",
                 disabled=not is_file,
             )
+            yield Button(
+                "Check path",
+                id="check-path",
+                disabled=not is_file,
+            )
+            yield Label(
+                "",
+                id="path-status",
+            )
 
             yield Label(
                 "On error", classes="field-label"
@@ -634,18 +643,38 @@ class StartupScreen(Screen):
         editor = self.query_one("#script-editor", TextArea)
         path_input = self.query_one("#script-path", Input)
 
+        check_btn = self.query_one("#check-path", Button)
         if idx == 0:
             # None
             editor.disabled = True
             path_input.disabled = True
+            check_btn.disabled = True
         elif idx == 1:
             # Template
             editor.disabled = False
             path_input.disabled = True
+            check_btn.disabled = True
         elif idx == 2:
             # File from disk
             editor.disabled = True
             path_input.disabled = False
+            check_btn.disabled = False
+
+    @on(Button.Pressed, "#check-path")
+    def _check_path(self) -> None:
+        path_input = self.query_one("#script-path", Input)
+        status = self.query_one("#path-status", Label)
+        local_path = path_input.value.strip()
+        if not local_path:
+            status.update("No path entered.")
+            return
+        p = Path(local_path)
+        if not p.exists():
+            status.update(f"Not found: {local_path}")
+        elif not p.is_file():
+            status.update(f"Not a file: {local_path}")
+        else:
+            status.update(f"Found: {local_path}")
 
     @on(Button.Pressed, "#back")
     def _back(self) -> None:
@@ -832,6 +861,13 @@ class ConfigWizard(App):
     }
     .nav-buttons Button {
         margin: 0 1;
+    }
+    #check-path {
+        margin: 1 2;
+    }
+    #path-status {
+        margin: 0 2;
+        color: $text-muted;
     }
     .error {
         color: $error;
