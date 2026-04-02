@@ -35,11 +35,15 @@ class _LockedCursor:
 
     def __enter__(self):
         self._lock.acquire()
-        self._cm = self._conn.cursor()
-        # Support both context-manager cursors and plain cursors
-        if hasattr(self._cm, '__enter__'):
-            return self._cm.__enter__()
-        return self._cm
+        try:
+            self._cm = self._conn.cursor()
+            # Support both context-manager cursors and plain cursors
+            if hasattr(self._cm, '__enter__'):
+                return self._cm.__enter__()
+            return self._cm
+        except Exception:
+            self._lock.release()
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
