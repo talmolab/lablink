@@ -667,6 +667,28 @@ def test_threading_lock_prevents_interleaved_reads_and_writes(
     assert db_instance.cursor.execute.call_count == 10
 
 
+def test_lock_released_when_cursor_creation_fails(db_instance):
+    """Verify the lock is released if conn.cursor() raises.
+
+    Without the fix, a failed cursor() call would leave the RLock
+    permanently acquired, deadlocking all subsequent database operations.
+    """
+    # Make cursor() raise on first call, then succeed on second
+    db_instance.conn.cursor.side_effect = [
+        Exception("connection closed"),
+        MagicMock(),
+    ]
+
+    # First call should raise but NOT deadlock
+    with pytest.raises(Exception, match="connection closed"):
+        with db_instance._cursor as cursor:
+            pass  # pragma: no cover
+
+    # Second call should succeed — proves the lock was released
+    with db_instance._cursor as cursor:
+        assert cursor is not None
+
+
 def test_get_all_vm_status(db_instance):
     """Test getting the status of all VMs."""
     statuses_data = [("vm1", "running"), ("vm2", "error"), ("vm3", "initializing")]
