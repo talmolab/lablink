@@ -1,5 +1,4 @@
 import requests
-import os
 import time
 import random
 
@@ -8,6 +7,10 @@ import logging
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.connect_crd import connect_to_crd, set_logger
+from lablink_client_service.http_utils import (
+    get_auth_headers,
+    get_client_env,
+)
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 logger = logging.getLogger(__name__)
@@ -22,35 +25,12 @@ def subscribe(cfg: Config) -> None:
 
     logger.info("Starting LabLink client service")
 
-    # Define the URL for the POST request
-    # Use ALLOCATOR_URL env var if set (supports HTTPS),
-    # otherwise use host:port with HTTP
-    allocator_url = os.getenv("ALLOCATOR_URL")
-    if allocator_url:
-        base_url = allocator_url.rstrip("/")
-    else:
-        base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
-
-    # Sanitize URL to remove prepended dots
-    # Handles cases like:
-    # - http://.lablink.sleap.ai -> http://lablink.sleap.ai
-    # - https://.lablink.sleap.ai -> https://lablink.sleap.ai
-    # - .lablink.sleap.ai -> lablink.sleap.ai
-    base_url = base_url.replace("://.", "://")
-    if base_url.startswith("."):
-        base_url = base_url[1:]
-
+    base_url, api_token, hostname = get_client_env(cfg)
     url = f"{base_url}/vm_startup"
 
-    # Define hostname for the client
-    hostname = os.getenv("VM_NAME")
     logger.info(f"Connecting to allocator as '{hostname}'")
 
-    # API token for bearer authentication
-    api_token = os.getenv("API_TOKEN", "")
-    headers = {}
-    if api_token:
-        headers["Authorization"] = f"Bearer {api_token}"
+    headers = get_auth_headers(api_token)
 
     # Retry loop: Keep trying to connect until successful or VM is terminated
     # This ensures the VM can connect to CRD even if there are transient network issues

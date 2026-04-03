@@ -174,7 +174,7 @@ class TestValidateConfig:
         cfg.dns.enabled = True
         cfg.dns.domain = ""
         errors = validate_config(cfg)
-        assert any("DNS enabled but no domain" in e for e in errors)
+        assert any("DNS enabled" in e and "domain" in e for e in errors)
 
     def test_ssl_requires_dns(self):
         cfg = self._make_valid_cfg()
@@ -199,7 +199,7 @@ class TestValidateConfig:
         cfg.ssl.provider = "acm"
         cfg.ssl.certificate_arn = ""
         errors = validate_config(cfg)
-        assert any("certificate ARN" in e for e in errors)
+        assert any("certificate_arn" in e for e in errors)
 
     def test_cloudflare_terraform_managed(self):
         cfg = self._make_valid_cfg()
@@ -209,6 +209,20 @@ class TestValidateConfig:
         cfg.ssl.provider = "cloudflare"
         errors = validate_config(cfg)
         assert any("terraform_managed=false" in e for e in errors)
+
+    def test_domain_leading_dot(self):
+        cfg = self._make_valid_cfg()
+        cfg.dns.enabled = True
+        cfg.dns.domain = ".example.com"
+        errors = validate_config(cfg)
+        assert any("start with a dot" in e for e in errors)
+
+    def test_domain_trailing_dot(self):
+        cfg = self._make_valid_cfg()
+        cfg.dns.enabled = True
+        cfg.dns.domain = "example.com."
+        errors = validate_config(cfg)
+        assert any("end with a dot" in e for e in errors)
 
 
 # ------------------------------------------------------------------
