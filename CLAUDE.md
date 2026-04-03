@@ -64,6 +64,9 @@ Use these commands for common development tasks:
 
 See `.claude/commands/README.md` for full documentation.
 
+### Workflows
+Before implementing changes, present a plan and get user approval. Do not start coding until the approach is confirmed, especially for refactors or multi-file changes.
+
 ## Quick Reference
 
 ```bash
@@ -96,3 +99,9 @@ docker build -t lablink-allocator:dev -f packages/allocator/Dockerfile.dev .
 - [ ] Tests added/updated
 - [ ] No secrets committed
 - [ ] Backwards compatible (or documented)
+
+## Debugging / Investigation
+When investigating issues, explore the full codebase before concluding something is unimplemented or dead code. Check all packages/modules — implementations may exist in unexpected locations (e.g., Terraform configs in a different package).
+
+### Testing
+When fixing bugs or adding features, always update existing tests to account for new behavior (e.g., new validation checks, changed function signatures). Run the full test suite before considering a task complete.
