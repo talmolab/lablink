@@ -8,6 +8,11 @@ import requests
 import hydra
 
 from lablink_client_service.conf.structured_config import Config
+from lablink_client_service.http_utils import (
+    get_auth_headers,
+    get_client_env,
+    sanitize_url,
+)
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
@@ -26,12 +31,10 @@ def check_gpu_health(allocator_url: str, interval: int = 20, api_token: str = ""
     """
     logger.info("Starting GPU health monitoring")
     last_status = None
-    base_url = allocator_url.rstrip("/")
-    base_url = base_url.replace("://.", "://")
+    base_url = sanitize_url(allocator_url)
 
     headers = {"Content-Type": "application/json"}
-    if api_token:
-        headers["Authorization"] = f"Bearer {api_token}"
+    headers.update(get_auth_headers(api_token))
 
     while True:
         curr_status = None
@@ -125,18 +128,8 @@ def main(cfg: Config) -> None:
         module_name="check_gpu",
     )
     # Check GPU health
-    # Use ALLOCATOR_URL env var if set (supports HTTPS),
-    # otherwise use host:port with HTTP
-    allocator_url_env = os.getenv("ALLOCATOR_URL")
-    if allocator_url_env:
-        allocator_url = allocator_url_env
-    else:
-        allocator_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
-
-    allocator_url = allocator_url.replace("://.", "://")
-
-    api_token = os.getenv("API_TOKEN", "")
-    check_gpu_health(allocator_url=allocator_url, api_token=api_token)
+    base_url, api_token, _ = get_client_env(cfg)
+    check_gpu_health(allocator_url=base_url, api_token=api_token)
 
 
 if __name__ == "__main__":

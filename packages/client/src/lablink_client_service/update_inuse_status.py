@@ -8,6 +8,7 @@ import psutil
 import hydra
 
 from lablink_client_service.conf.structured_config import Config
+from lablink_client_service.http_utils import get_auth_headers, get_client_env
 from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 # Default logger setup
@@ -79,9 +80,7 @@ def call_api(process_name, url, api_token=""):
     hostname = os.getenv("VM_NAME")
     status = is_process_running(process_name=process_name)
 
-    headers = {}
-    if api_token:
-        headers["Authorization"] = f"Bearer {api_token}"
+    headers = get_auth_headers(api_token)
 
     retry_count = 0
 
@@ -129,19 +128,8 @@ def main(cfg: Config) -> None:
     logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.info("Starting in-use status monitoring service")
 
-    # Define the URL for the POST request
-    # Use ALLOCATOR_URL env var if set (supports HTTPS),
-    # otherwise use host:port with HTTP
-    allocator_url = os.getenv("ALLOCATOR_URL")
-    if allocator_url:
-        base_url = allocator_url.rstrip("/")
-    else:
-        base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
+    base_url, api_token, _ = get_client_env(cfg)
     url = f"{base_url}/api/update_inuse_status"
-
-    url = url.replace("://.", "://")
-
-    api_token = os.getenv("API_TOKEN", "")
 
     # Start listening for the process
     listen_for_process(
