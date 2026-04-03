@@ -41,6 +41,7 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ips,
     get_ssh_private_key,
     get_instance_timings,
+    has_runtime_tfvars,
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
@@ -438,6 +439,14 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
+    # Check if tfvars exists — if not, no client VMs were ever launched
+    if not has_runtime_tfvars(TERRAFORM_DIR):
+        msg = "tfvars does not exist — no client VMs were launched"
+        logger.info(msg)
+        if _wants_json():
+            return jsonify({"status": "error", "error": msg}), 404
+        return render_template("delete-dashboard.html", error=msg), 404
+
     try:
         # Destroy Terraform resources
         apply_cmd = [

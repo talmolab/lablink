@@ -7,6 +7,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+TFVARS_FILENAME = "terraform.runtime.tfvars"
+
+
+def has_runtime_tfvars(terraform_dir: str) -> bool:
+    """Check if the runtime tfvars file exists in the given terraform directory.
+
+    Args:
+        terraform_dir: Path to the Terraform directory.
+
+    Returns:
+        True if terraform.runtime.tfvars exists, False otherwise.
+    """
+    return Path(terraform_dir, TFVARS_FILENAME).exists()
+
+
 def get_instance_ips(terraform_dir: str) -> list:
     """Get the public IP addresses of the instances created by Terraform.
     Args:

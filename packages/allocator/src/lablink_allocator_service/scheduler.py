@@ -60,23 +60,32 @@ def execute_scheduled_destruction_job(
             status="executing",
         )
 
-        # Run terraform destroy
-        logger.info("Running terraform destroy")
-        cmd = [
-            "terraform",
-            "destroy",
-            "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
-        ]
+        # Check if tfvars exists — if not, no client VMs were ever launched
+        from lablink_allocator_service.utils.terraform_utils import has_runtime_tfvars
 
-        subprocess.run(
-            cmd,
-            cwd=terraform_dir,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 min timeout
-        )
+        if not has_runtime_tfvars(terraform_dir):
+            logger.info(
+                "tfvars does not exist — no client VMs were launched, "
+                "skipping terraform destroy"
+            )
+        else:
+            # Run terraform destroy
+            logger.info("Running terraform destroy")
+            cmd = [
+                "terraform",
+                "destroy",
+                "-auto-approve",
+                "-var-file=terraform.runtime.tfvars",
+            ]
+
+            subprocess.run(
+                cmd,
+                cwd=terraform_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 min timeout
+            )
 
         # Clear database
         logger.info("Clearing all VMs from database")
