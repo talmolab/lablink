@@ -61,8 +61,9 @@ def execute_scheduled_destruction_job(
         )
 
         # Check if tfvars exists — if not, no client VMs were ever launched
-        tfvars_path = os.path.join(terraform_dir, "terraform.runtime.tfvars")
-        if not os.path.exists(tfvars_path):
+        from lablink_allocator_service.utils.terraform_utils import has_runtime_tfvars
+
+        if not has_runtime_tfvars(terraform_dir):
             logger.info(
                 "tfvars does not exist — no client VMs were launched, "
                 "skipping terraform destroy"
