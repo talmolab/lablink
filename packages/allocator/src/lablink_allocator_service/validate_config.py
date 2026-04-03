@@ -46,14 +46,19 @@ def validate_domain_format(domain: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_config_logic(cfg: DictConfig) -> Tuple[bool, str]:
-    """Validate configuration logic and dependencies.
+def get_config_errors(cfg) -> list:
+    """Return a list of DNS/SSL validation errors (empty = valid).
+
+    This is the single source of truth for DNS/SSL validation rules,
+    shared by both the allocator's validate_config CLI and the
+    lablink CLI's config validation.
 
     Args:
-        cfg: Loaded Hydra/OmegaConf configuration object.
+        cfg: Any config object with .dns and .ssl attributes
+            (works with both Config dataclass and DictConfig).
 
     Returns:
-        Tuple of (is_valid, error_message)
+        List of error message strings.
     """
     errors = []
 
@@ -85,6 +90,20 @@ def validate_config_logic(cfg: DictConfig) -> Tuple[bool, str]:
         errors.append(
             "CloudFlare SSL requires terraform_managed=false (external DNS management)"
         )
+
+    return errors
+
+
+def validate_config_logic(cfg: DictConfig) -> Tuple[bool, str]:
+    """Validate configuration logic and dependencies.
+
+    Args:
+        cfg: Loaded Hydra/OmegaConf configuration object.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    errors = get_config_errors(cfg)
 
     if errors:
         error_msg = "[FAIL] Config validation failed:\n"

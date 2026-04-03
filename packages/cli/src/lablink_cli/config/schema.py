@@ -14,6 +14,9 @@ from typing import Any
 import yaml
 
 # Re-export the canonical config dataclasses from the allocator.
+from lablink_allocator_service.validate_config import (
+    get_config_errors,
+)
 from lablink_allocator_service.conf.structured_config import (  # noqa: F401
     AllocatorConfig,
     AppConfig,
@@ -110,24 +113,8 @@ def validate_config(cfg: Config) -> list[str]:
             f"environment must be one of: "
             f"{', '.join(VALID_ENVIRONMENTS)}"
         )
-    if cfg.dns.enabled and not cfg.dns.domain:
-        errors.append("DNS enabled but no domain specified")
-    if cfg.ssl.provider != "none" and not cfg.dns.enabled:
-        errors.append(
-            f"SSL provider '{cfg.ssl.provider}' "
-            "requires DNS to be enabled"
-        )
-    if cfg.ssl.provider == "letsencrypt" and not cfg.ssl.email:
-        errors.append("Let's Encrypt requires an email address")
-    if cfg.ssl.provider == "acm" and not cfg.ssl.certificate_arn:
-        errors.append("ACM provider requires a certificate ARN")
-    if (
-        cfg.ssl.provider == "cloudflare"
-        and cfg.dns.terraform_managed
-    ):
-        errors.append(
-            "CloudFlare SSL requires terraform_managed=false"
-        )
+    # DNS/SSL validation — shared with allocator's validate_config
+    errors.extend(get_config_errors(cfg))
     return errors
 
 
