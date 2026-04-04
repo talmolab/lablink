@@ -180,11 +180,6 @@ def cleanup(
         "--dry-run",
         help="Show what would be deleted without making changes",
     ),
-    include_remote: bool = typer.Option(
-        False,
-        "--include-remote",
-        help="Also delete S3 bucket and DynamoDB lock table",
-    ),
 ) -> None:
     """Clean up orphaned AWS resources and local state."""
     from lablink_cli.commands.cleanup import run_cleanup
@@ -192,7 +187,6 @@ def cleanup(
     run_cleanup(
         _load_cfg(config),
         dry_run=dry_run,
-        include_remote=include_remote,
     )
 
 

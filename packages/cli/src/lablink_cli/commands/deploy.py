@@ -488,6 +488,17 @@ def run_destroy(cfg: Config) -> None:
                     "  Continuing with allocator "
                     "terraform destroy..."
                 )
+            elif e.code == 502:
+                # Allocator unhealthy (e.g. Docker died)
+                console.print(
+                    "  [yellow]Allocator is unhealthy "
+                    "(502).[/yellow] Skipping "
+                    "client destroy."
+                )
+                console.print(
+                    "  Continuing with allocator "
+                    "terraform destroy..."
+                )
             else:
                 try:
                     body = json.loads(e.read().decode())
