@@ -154,7 +154,6 @@ jobs:
       - name: Run linting
         if: steps.should_run.outputs.should_run == 'true'
         run: |
-          source .venv/bin/activate
           echo "Running ruff check..."
           uv run ruff check src tests
           echo "✅ Linting passed"
@@ -164,7 +163,6 @@ jobs:
       - name: Run tests
         if: steps.should_run.outputs.should_run == 'true' && inputs.skip_tests != 'true'
         run: |
-          source .venv/bin/activate
           echo "Running test suite..."
           uv run pytest tests \
             --ignore=tests/terraform \
