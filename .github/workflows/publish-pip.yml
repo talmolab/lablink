@@ -192,7 +192,7 @@ jobs:
            inputs.dry_run == false)
         run: |
           echo "Publishing ${{ matrix.package }} to PyPI..."
-          uv publish dist/${{ matrix.package }}*
+          uv publish dist/*
           echo "✅ Published successfully!"
           echo ""
           echo "📦 Package published to PyPI"
