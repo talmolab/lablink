@@ -177,12 +177,11 @@ jobs:
         if: steps.should_run.outputs.should_run == 'true'
         run: |
           echo "Building package..."
-          uv build
+          uv build --package ${{ matrix.package }}
           echo "✅ Package built successfully"
           echo ""
           echo "Build artifacts:"
           ls -lh dist/
-        working-directory: ${{ matrix.dir }}
 
       # PUBLISH (unless dry run)
       - name: Publish to PyPI
@@ -193,13 +192,13 @@ jobs:
            inputs.dry_run == false)
         run: |
           echo "Publishing ${{ matrix.package }} to PyPI..."
-          uv publish
+          uv publish dist/${{ matrix.package }}*
           echo "✅ Published successfully!"
           echo ""
           echo "📦 Package published to PyPI"
 
           # Extract version for reference
-          VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+          VERSION=$(grep '^version = ' ${{ matrix.dir }}/pyproject.toml | cut -d'"' -f2)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Version: ${VERSION}"
           echo ""
@@ -207,7 +206,6 @@ jobs:
           echo "   gh workflow run lablink-images.yml -f environment=prod \\"
           echo "     -f allocator_version=<allocator-version> \\"
           echo "     -f client_version=<client-version>"
-        working-directory: ${{ matrix.dir }}
 
       # Dry run summary
       - name: Dry run summary
