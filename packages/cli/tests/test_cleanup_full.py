@@ -136,7 +136,7 @@ class TestRunCleanup:
         run_cleanup(mock_cfg, dry_run=False)
 
         mock_s3.assert_called_once_with(
-            session, "mylab", "dev", False
+            session, "mylab", "dev", "lablink-tf-state-123456789012", False
         )
         mock_dynamo.assert_called_once_with(
             session, "mylab", "dev", "lablink-tf-state-123456789012", False

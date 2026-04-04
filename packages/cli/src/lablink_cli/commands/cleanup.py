@@ -329,14 +329,11 @@ def cleanup_s3_env_state(
     session: boto3.Session,
     deployment_name: str,
     environment: str,
+    bucket_name: str,
     dry_run: bool,
 ) -> None:
     """Delete environment-specific Terraform state files from S3."""
     console.print("[bold]S3 Terraform State[/bold]")
-    account_id = (
-        session.client("sts").get_caller_identity()["Account"]
-    )
-    bucket_name = resolve_bucket_name(account_id)
     s3 = session.client("s3")
 
     try:
@@ -506,7 +503,7 @@ def run_cleanup(
     )
     bucket_name = resolve_bucket_name(account_id)
     cleanup_s3_env_state(
-        session, deployment_name, environment, dry_run
+        session, deployment_name, environment, bucket_name, dry_run
     )
     console.print()
     cleanup_dynamodb_env_locks(

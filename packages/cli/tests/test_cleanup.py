@@ -179,39 +179,37 @@ class TestCleanupElasticIps:
 class TestCleanupS3EnvState:
     def test_bucket_not_found(self):
         session = MagicMock()
-        sts = MagicMock()
         s3 = MagicMock()
-        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
-        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        session.client.return_value = s3
         s3.head_bucket.side_effect = ClientError(
             {"Error": {"Code": "404", "Message": ""}},
             "HeadBucket",
         )
 
-        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        cleanup_s3_env_state(
+            session, "mylab", "dev", "lablink-tf-state-123456789012", dry_run=False
+        )
         s3.list_object_versions.assert_not_called()
 
     def test_dry_run_no_delete(self):
         session = MagicMock()
-        sts = MagicMock()
         s3 = MagicMock()
-        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
-        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        session.client.return_value = s3
         s3.head_bucket.return_value = {}
         s3.list_object_versions.return_value = {
             "Versions": [{"Key": "mylab/dev/terraform.tfstate", "VersionId": "v1"}],
             "DeleteMarkers": [],
         }
 
-        cleanup_s3_env_state(session, "mylab", "dev", dry_run=True)
+        cleanup_s3_env_state(
+            session, "mylab", "dev", "lablink-tf-state-123456789012", dry_run=True
+        )
         s3.delete_object.assert_not_called()
 
     def test_deletes_env_scoped_objects(self):
         session = MagicMock()
-        sts = MagicMock()
         s3 = MagicMock()
-        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
-        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        session.client.return_value = s3
         s3.head_bucket.return_value = {}
         s3.list_object_versions.return_value = {
             "Versions": [
@@ -221,7 +219,9 @@ class TestCleanupS3EnvState:
             "DeleteMarkers": [],
         }
 
-        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        cleanup_s3_env_state(
+            session, "mylab", "dev", "lablink-tf-state-123456789012", dry_run=False
+        )
         assert s3.delete_object.call_count == 2
         s3.list_object_versions.assert_called_once_with(
             Bucket="lablink-tf-state-123456789012", Prefix="mylab/dev/"
@@ -229,17 +229,17 @@ class TestCleanupS3EnvState:
 
     def test_no_state_files(self):
         session = MagicMock()
-        sts = MagicMock()
         s3 = MagicMock()
-        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
-        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        session.client.return_value = s3
         s3.head_bucket.return_value = {}
         s3.list_object_versions.return_value = {
             "Versions": [],
             "DeleteMarkers": [],
         }
 
-        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        cleanup_s3_env_state(
+            session, "mylab", "dev", "lablink-tf-state-123456789012", dry_run=False
+        )
         s3.delete_object.assert_not_called()
 
 
