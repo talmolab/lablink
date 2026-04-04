@@ -14,6 +14,7 @@ from lablink_allocator_service.conf.structured_config import Config
 from lablink_cli.commands.setup import (
     _get_session,
     check_credentials,
+    resolve_bucket_name,
 )
 from lablink_cli.commands.utils import (
     get_deploy_dir as _get_deploy_dir,
@@ -322,17 +323,20 @@ def cleanup_iam(
 
 
 # ------------------------------------------------------------------
-# S3 state cleanup
+# S3 environment state cleanup
 # ------------------------------------------------------------------
-def cleanup_s3_state(
-    session: boto3.Session, dry_run: bool
+def cleanup_s3_env_state(
+    session: boto3.Session,
+    deployment_name: str,
+    environment: str,
+    dry_run: bool,
 ) -> None:
-    """Delete Terraform state from S3 bucket."""
+    """Delete environment-specific Terraform state files from S3."""
     console.print("[bold]S3 Terraform State[/bold]")
     account_id = (
         session.client("sts").get_caller_identity()["Account"]
     )
-    bucket_name = f"lablink-tf-state-{account_id}"
+    bucket_name = resolve_bucket_name(account_id)
     s3 = session.client("s3")
 
     try:
@@ -343,74 +347,94 @@ def cleanup_s3_state(
         )
         return
 
-    # List and delete all objects
+    prefix = f"{deployment_name}/{environment}/"
     try:
-        resp = s3.list_object_versions(Bucket=bucket_name)
+        resp = s3.list_object_versions(
+            Bucket=bucket_name, Prefix=prefix
+        )
         versions = resp.get("Versions", []) + resp.get(
             "DeleteMarkers", []
         )
         if not versions:
-            console.print("  [dim]bucket is empty[/dim]")
-        else:
-            for v in versions:
-                key = v["Key"]
-                vid = v["VersionId"]
-                if dry_run:
-                    console.print(
-                        f"  [yellow]would delete[/yellow] "
-                        f"s3://{bucket_name}/{key} ({vid})"
-                    )
-                else:
-                    s3.delete_object(
-                        Bucket=bucket_name,
-                        Key=key,
-                        VersionId=vid,
-                    )
-                    console.print(
-                        f"  [green]deleted[/green] "
-                        f"s3://{bucket_name}/{key}"
-                    )
+            console.print("  [dim]no state files found[/dim]")
+            return
 
-        # Delete bucket itself
-        if dry_run:
-            console.print(
-                f"  [yellow]would delete[/yellow] "
-                f"bucket: {bucket_name}"
-            )
-        else:
-            s3.delete_bucket(Bucket=bucket_name)
-            console.print(
-                f"  [green]deleted[/green] "
-                f"bucket: {bucket_name}"
-            )
+        for v in versions:
+            key = v["Key"]
+            vid = v["VersionId"]
+            if dry_run:
+                console.print(
+                    f"  [yellow]would delete[/yellow] "
+                    f"s3://{bucket_name}/{key} ({vid})"
+                )
+            else:
+                s3.delete_object(
+                    Bucket=bucket_name,
+                    Key=key,
+                    VersionId=vid,
+                )
+                console.print(
+                    f"  [green]deleted[/green] "
+                    f"s3://{bucket_name}/{key}"
+                )
     except ClientError as e:
         console.print(f"  [red]error:[/red] {e}")
 
 
 # ------------------------------------------------------------------
-# DynamoDB lock table
+# DynamoDB environment lock entries
 # ------------------------------------------------------------------
-def cleanup_dynamodb(
-    session: boto3.Session, dry_run: bool
+def cleanup_dynamodb_env_locks(
+    session: boto3.Session,
+    deployment_name: str,
+    environment: str,
+    bucket_name: str,
+    dry_run: bool,
 ) -> None:
-    """Delete the Terraform lock table."""
-    console.print("[bold]DynamoDB Lock Table[/bold]")
+    """Delete environment-specific lock entries from DynamoDB."""
+    console.print("[bold]DynamoDB Lock Entries[/bold]")
     dynamodb = session.client("dynamodb")
     table_name = "lock-table"
 
-    try:
-        dynamodb.describe_table(TableName=table_name)
-        if dry_run:
-            console.print(
-                f"  [yellow]would delete[/yellow] {table_name}"
+    lock_ids = [
+        f"{bucket_name}/{deployment_name}/{environment}"
+        f"/terraform.tfstate-md5",
+        f"{bucket_name}/{deployment_name}/{environment}"
+        f"/client/terraform.tfstate-md5",
+    ]
+
+    found = False
+    for lock_id in lock_ids:
+        try:
+            resp = dynamodb.get_item(
+                TableName=table_name,
+                Key={"LockID": {"S": lock_id}},
             )
-        else:
-            dynamodb.delete_table(TableName=table_name)
-            console.print(
-                f"  [green]deleted[/green] {table_name}"
-            )
-    except dynamodb.exceptions.ResourceNotFoundException:
-        console.print("  [dim]not found[/dim]")
+            if "Item" not in resp:
+                continue
+            found = True
+            if dry_run:
+                console.print(
+                    f"  [yellow]would delete[/yellow] {lock_id}"
+                )
+            else:
+                dynamodb.delete_item(
+                    TableName=table_name,
+                    Key={"LockID": {"S": lock_id}},
+                )
+                console.print(
+                    f"  [green]deleted[/green] {lock_id}"
+                )
+        except ClientError as e:
+            code = e.response["Error"]["Code"]
+            if code == "ResourceNotFoundException":
+                console.print(
+                    "  [dim]lock table not found[/dim]"
+                )
+                return
+            raise
+    if not found:
+        console.print("  [dim]no lock entries found[/dim]")
 
 
 # ------------------------------------------------------------------
@@ -440,7 +464,6 @@ def cleanup_local(cfg: Config, dry_run: bool) -> None:
 def run_cleanup(
     cfg: Config,
     dry_run: bool = False,
-    include_remote: bool = False,
 ) -> None:
     """Clean up orphaned AWS resources."""
     region = cfg.app.region
@@ -477,12 +500,19 @@ def run_cleanup(
     cleanup_iam(session, deployment_name, environment, software, dry_run)
     console.print()
 
-    # Remote state resources (S3 + DynamoDB)
-    if include_remote:
-        cleanup_s3_state(session, dry_run)
-        console.print()
-        cleanup_dynamodb(session, dry_run)
-        console.print()
+    # Environment-specific remote state
+    account_id = (
+        session.client("sts").get_caller_identity()["Account"]
+    )
+    bucket_name = resolve_bucket_name(account_id)
+    cleanup_s3_env_state(
+        session, deployment_name, environment, dry_run
+    )
+    console.print()
+    cleanup_dynamodb_env_locks(
+        session, deployment_name, environment, bucket_name, dry_run
+    )
+    console.print()
 
     # Local state
     cleanup_local(cfg, dry_run)

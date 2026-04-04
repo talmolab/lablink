@@ -9,12 +9,12 @@ from botocore.exceptions import ClientError
 
 from lablink_cli.commands.cleanup import (
     _delete_if_exists,
-    cleanup_dynamodb,
+    cleanup_dynamodb_env_locks,
     cleanup_ec2_instances,
     cleanup_elastic_ips,
     cleanup_key_pairs,
     cleanup_local,
-    cleanup_s3_state,
+    cleanup_s3_env_state,
     cleanup_security_groups,
 )
 
@@ -174,9 +174,9 @@ class TestCleanupElasticIps:
 
 
 # ------------------------------------------------------------------
-# cleanup_s3_state
+# cleanup_s3_env_state
 # ------------------------------------------------------------------
-class TestCleanupS3State:
+class TestCleanupS3EnvState:
     def test_bucket_not_found(self):
         session = MagicMock()
         sts = MagicMock()
@@ -188,8 +188,8 @@ class TestCleanupS3State:
             "HeadBucket",
         )
 
-        cleanup_s3_state(session, dry_run=False)
-        s3.delete_bucket.assert_not_called()
+        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        s3.list_object_versions.assert_not_called()
 
     def test_dry_run_no_delete(self):
         session = MagicMock()
@@ -199,48 +199,104 @@ class TestCleanupS3State:
         sts.get_caller_identity.return_value = {"Account": "123456789012"}
         s3.head_bucket.return_value = {}
         s3.list_object_versions.return_value = {
-            "Versions": [{"Key": "state.tf", "VersionId": "v1"}],
+            "Versions": [{"Key": "mylab/dev/terraform.tfstate", "VersionId": "v1"}],
             "DeleteMarkers": [],
         }
 
-        cleanup_s3_state(session, dry_run=True)
+        cleanup_s3_env_state(session, "mylab", "dev", dry_run=True)
         s3.delete_object.assert_not_called()
-        s3.delete_bucket.assert_not_called()
+
+    def test_deletes_env_scoped_objects(self):
+        session = MagicMock()
+        sts = MagicMock()
+        s3 = MagicMock()
+        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
+        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        s3.head_bucket.return_value = {}
+        s3.list_object_versions.return_value = {
+            "Versions": [
+                {"Key": "mylab/dev/terraform.tfstate", "VersionId": "v1"},
+                {"Key": "mylab/dev/client/terraform.tfstate", "VersionId": "v2"},
+            ],
+            "DeleteMarkers": [],
+        }
+
+        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        assert s3.delete_object.call_count == 2
+        s3.list_object_versions.assert_called_once_with(
+            Bucket="lablink-tf-state-123456789012", Prefix="mylab/dev/"
+        )
+
+    def test_no_state_files(self):
+        session = MagicMock()
+        sts = MagicMock()
+        s3 = MagicMock()
+        session.client.side_effect = lambda svc, **kw: sts if svc == "sts" else s3
+        sts.get_caller_identity.return_value = {"Account": "123456789012"}
+        s3.head_bucket.return_value = {}
+        s3.list_object_versions.return_value = {
+            "Versions": [],
+            "DeleteMarkers": [],
+        }
+
+        cleanup_s3_env_state(session, "mylab", "dev", dry_run=False)
+        s3.delete_object.assert_not_called()
 
 
 # ------------------------------------------------------------------
-# cleanup_dynamodb
+# cleanup_dynamodb_env_locks
 # ------------------------------------------------------------------
-class TestCleanupDynamodb:
-    def test_table_not_found(self):
+class TestCleanupDynamodbEnvLocks:
+    def test_no_lock_entries(self):
         session = MagicMock()
         dynamodb = MagicMock()
         session.client.return_value = dynamodb
+        dynamodb.get_item.return_value = {}
 
-        not_found_exc = type("ResourceNotFoundException", (Exception,), {})
-        dynamodb.exceptions.ResourceNotFoundException = not_found_exc
-        dynamodb.describe_table.side_effect = not_found_exc()
+        cleanup_dynamodb_env_locks(
+            session, "mylab", "dev", "lablink-tf-state-123", dry_run=False
+        )
+        dynamodb.delete_item.assert_not_called()
 
-        cleanup_dynamodb(session, dry_run=False)
-        dynamodb.delete_table.assert_not_called()
-
-    def test_delete_table(self):
+    def test_deletes_lock_entries(self):
         session = MagicMock()
         dynamodb = MagicMock()
         session.client.return_value = dynamodb
-        dynamodb.describe_table.return_value = {"Table": {}}
+        dynamodb.get_item.return_value = {
+            "Item": {"LockID": {"S": "some-lock"}}
+        }
 
-        cleanup_dynamodb(session, dry_run=False)
-        dynamodb.delete_table.assert_called_once_with(TableName="lock-table")
+        cleanup_dynamodb_env_locks(
+            session, "mylab", "dev", "lablink-tf-state-123", dry_run=False
+        )
+        assert dynamodb.delete_item.call_count == 2
 
     def test_dry_run_no_delete(self):
         session = MagicMock()
         dynamodb = MagicMock()
         session.client.return_value = dynamodb
-        dynamodb.describe_table.return_value = {"Table": {}}
+        dynamodb.get_item.return_value = {
+            "Item": {"LockID": {"S": "some-lock"}}
+        }
 
-        cleanup_dynamodb(session, dry_run=True)
-        dynamodb.delete_table.assert_not_called()
+        cleanup_dynamodb_env_locks(
+            session, "mylab", "dev", "lablink-tf-state-123", dry_run=True
+        )
+        dynamodb.delete_item.assert_not_called()
+
+    def test_table_not_found(self):
+        session = MagicMock()
+        dynamodb = MagicMock()
+        session.client.return_value = dynamodb
+        dynamodb.get_item.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": ""}},
+            "GetItem",
+        )
+
+        cleanup_dynamodb_env_locks(
+            session, "mylab", "dev", "lablink-tf-state-123", dry_run=False
+        )
+        dynamodb.delete_item.assert_not_called()
 
 
 # ------------------------------------------------------------------
