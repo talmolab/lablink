@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
 import pytest
 
 from lablink_cli.commands.deploy import (
     _prepare_working_dir,
     _run_terraform,
+    run_destroy,
 )
 
 
@@ -110,3 +112,123 @@ class TestRunTerraform:
             ["output"], cwd=tmp_path, check=False
         )
         assert returncode == 1
+
+
+# ------------------------------------------------------------------
+# run_destroy — HTTP error handling
+# ------------------------------------------------------------------
+class TestRunDestroyHttpErrors:
+    """Test that run_destroy handles allocator HTTP errors correctly."""
+
+    def _setup_deploy_dir(self, tmp_path):
+        """Create a minimal deploy directory."""
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+        (deploy_dir / ".terraform").mkdir()
+        (deploy_dir / "backend.tf").write_text("")
+        config_dir = deploy_dir / "config"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("")
+        return deploy_dir
+
+    @patch("lablink_cli.commands.deploy.shutil.rmtree")
+    @patch("lablink_cli.commands.deploy._run_terraform")
+    @patch("lablink_cli.commands.deploy._terraform_init")
+    @patch(
+        "lablink_cli.commands.deploy.config_to_dict",
+        return_value={"app": {}, "db": {}},
+    )
+    @patch(
+        "lablink_cli.commands.deploy"
+        ".resolve_admin_credentials",
+        return_value=("admin", "pass"),
+    )
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    @patch("lablink_cli.commands.deploy.get_deploy_dir")
+    @patch("lablink_cli.commands.deploy.check_credentials")
+    @patch("lablink_cli.commands.deploy._get_session")
+    @patch("builtins.input", return_value="yes")
+    def test_502_skips_client_destroy(
+        self,
+        mock_input,
+        mock_session,
+        mock_creds,
+        mock_deploy_dir,
+        mock_url,
+        mock_admin,
+        mock_cfg_dict,
+        mock_tf_init,
+        mock_tf_run,
+        mock_rmtree,
+        mock_cfg,
+        tmp_path,
+    ):
+        error = HTTPError(
+            "https://allocator.example.com/destroy",
+            502,
+            "Bad Gateway",
+            {},
+            None,
+        )
+        deploy_dir = self._setup_deploy_dir(tmp_path)
+        mock_deploy_dir.return_value = deploy_dir
+
+        with patch(
+            "urllib.request.urlopen"
+        ) as mock_urlopen:
+            mock_urlopen.side_effect = error
+            run_destroy(mock_cfg)
+
+        # Should proceed to terraform destroy
+        mock_tf_run.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy._run_terraform")
+    @patch("lablink_cli.commands.deploy._terraform_init")
+    @patch(
+        "lablink_cli.commands.deploy"
+        ".resolve_admin_credentials",
+        return_value=("admin", "pass"),
+    )
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    @patch("lablink_cli.commands.deploy.get_deploy_dir")
+    @patch("lablink_cli.commands.deploy.check_credentials")
+    @patch("lablink_cli.commands.deploy._get_session")
+    @patch("builtins.input", return_value="yes")
+    def test_500_exits(
+        self,
+        mock_input,
+        mock_session,
+        mock_creds,
+        mock_deploy_dir,
+        mock_url,
+        mock_admin,
+        mock_tf_init,
+        mock_tf_run,
+        mock_cfg,
+        tmp_path,
+    ):
+        error = HTTPError(
+            "https://allocator.example.com/destroy",
+            500,
+            "Internal Server Error",
+            {},
+            None,
+        )
+        deploy_dir = self._setup_deploy_dir(tmp_path)
+        mock_deploy_dir.return_value = deploy_dir
+
+        with patch(
+            "urllib.request.urlopen"
+        ) as mock_urlopen:
+            mock_urlopen.side_effect = error
+            with pytest.raises(SystemExit):
+                run_destroy(mock_cfg)
+
+        # Should NOT proceed to terraform destroy
+        mock_tf_run.assert_not_called()
