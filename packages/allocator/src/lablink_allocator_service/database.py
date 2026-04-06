@@ -1209,8 +1209,10 @@ class PostgresqlDatabase:
     def record_reboot(self, hostname: str) -> None:
         """Record a reboot attempt for a VM.
 
-        Sets status to 'rebooting', increments reboot_count, and updates
-        last_reboot_time.
+        Sets status to 'rebooting', increments reboot_count, updates
+        last_reboot_time, and clears assignment fields (useremail,
+        crdcommand, pin) so the VM becomes available for reassignment
+        after it comes back online.
 
         Args:
             hostname: The hostname of the VM being rebooted.
@@ -1219,7 +1221,10 @@ class PostgresqlDatabase:
             UPDATE {self.table_name}
             SET status = 'rebooting',
                 reboot_count = COALESCE(reboot_count, 0) + 1,
-                last_reboot_time = NOW()
+                last_reboot_time = NOW(),
+                useremail = NULL,
+                crdcommand = NULL,
+                pin = NULL
             WHERE hostname = %s;
         """
         with self._cursor as cursor:
