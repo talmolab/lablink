@@ -131,6 +131,12 @@ def test_record_reboot(db_instance):
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
     db_instance.conn.commit.assert_called_once()
 
+    # Verify assignment fields are cleared in the query
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "useremail = NULL" in query
+    assert "crdcommand = NULL" in query
+    assert "pin = NULL" in query
+
 
 def test_record_reboot_error(db_instance, caplog):
     """Test error handling in record_reboot."""
