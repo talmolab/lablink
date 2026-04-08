@@ -18,59 +18,70 @@ from lablink_cli.commands.deploy import (
 # _prepare_working_dir
 # ------------------------------------------------------------------
 class TestPrepareWorkingDir:
+    @patch("lablink_cli.commands.deploy.get_terraform_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_creates_directory(
-        self, mock_save, mock_deploy_dir, mock_cfg, tmp_path
+        self, mock_save, mock_deploy_dir, mock_get_tf, mock_cfg, tmp_path
     ):
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
 
-        # Use a real temp directory as TERRAFORM_SRC
-        tf_src = tmp_path / "terraform_src"
-        tf_src.mkdir()
-        (tf_src / "main.tf").write_text('region = "us-west-2"')
-        (tf_src / "variables.tf").write_text("# variables")
-        (tf_src / "user_data.sh").write_text("#!/bin/bash")
+        # Simulate cached terraform files
+        tf_cache = tmp_path / "tf_cache"
+        tf_cache.mkdir()
+        (tf_cache / "main.tf").write_text('variable "region" {}')
+        (tf_cache / "variables.tf").write_text("# variables")
+        (tf_cache / "user_data.sh").write_text("#!/bin/bash")
+        mock_get_tf.return_value = tf_cache
 
-        import lablink_cli.commands.deploy as deploy_mod
+        result = _prepare_working_dir(mock_cfg)
+        assert result == deploy_dir
+        assert (deploy_dir / "config").exists()
+        assert (deploy_dir / "main.tf").exists()
+        assert (deploy_dir / "user_data.sh").exists()
 
-        original_src = deploy_mod.TERRAFORM_SRC
-        deploy_mod.TERRAFORM_SRC = tf_src
-        try:
-            result = _prepare_working_dir(mock_cfg)
-            assert result == deploy_dir
-            assert (deploy_dir / "config").exists()
-            assert (deploy_dir / "main.tf").exists()
-            assert (deploy_dir / "user_data.sh").exists()
-        finally:
-            deploy_mod.TERRAFORM_SRC = original_src
-
+    @patch("lablink_cli.commands.deploy.get_terraform_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
-    def test_region_override(
-        self, mock_save, mock_deploy_dir, mock_cfg, tmp_path
+    def test_copies_hcl_files(
+        self, mock_save, mock_deploy_dir, mock_get_tf, mock_cfg, tmp_path
     ):
+        deploy_dir = tmp_path / "deploy"
+        mock_deploy_dir.return_value = deploy_dir
+
+        tf_cache = tmp_path / "tf_cache"
+        tf_cache.mkdir()
+        (tf_cache / "main.tf").write_text('variable "region" {}')
+        (tf_cache / "backend-dev.hcl").write_text("# dev")
+        mock_get_tf.return_value = tf_cache
+
+        result = _prepare_working_dir(mock_cfg)
+        assert (result / "backend-dev.hcl").exists()
+
+    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_deploy_dir")
+    @patch("lablink_cli.commands.deploy.save_config")
+    def test_no_region_string_replacement(
+        self, mock_save, mock_deploy_dir, mock_get_tf, mock_cfg, tmp_path
+    ):
+        """Region should NOT be string-replaced in main.tf."""
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
         mock_cfg.app.region = "eu-west-1"
 
-        # Use a real temp directory as TERRAFORM_SRC
-        tf_src = tmp_path / "terraform_src"
-        tf_src.mkdir()
-        (tf_src / "main.tf").write_text('region = "us-west-2"')
+        tf_cache = tmp_path / "tf_cache"
+        tf_cache.mkdir()
+        (tf_cache / "main.tf").write_text(
+            'provider "aws" {\n  region = var.region\n}'
+        )
+        mock_get_tf.return_value = tf_cache
 
-        import lablink_cli.commands.deploy as deploy_mod
-
-        original_src = deploy_mod.TERRAFORM_SRC
-        deploy_mod.TERRAFORM_SRC = tf_src
-        try:
-            result = _prepare_working_dir(mock_cfg)
-            content = (result / "main.tf").read_text()
-            assert 'region = "eu-west-1"' in content
-            assert 'region = "us-west-2"' not in content
-        finally:
-            deploy_mod.TERRAFORM_SRC = original_src
+        result = _prepare_working_dir(mock_cfg)
+        content = (result / "main.tf").read_text()
+        # File should be unchanged — region is passed via -var, not replaced
+        assert "var.region" in content
+        assert "eu-west-1" not in content
 
 
 # ------------------------------------------------------------------
