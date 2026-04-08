@@ -255,5 +255,34 @@ def show_config(
         console.print("\n[green]Config is valid.[/green]")
 
 
+@app.command("cache-clear")
+def cache_clear() -> None:
+    """Clear cached Terraform template downloads."""
+    import shutil
+
+    from rich.console import Console
+
+    from lablink_cli.terraform_source import CACHE_DIR
+
+    console = Console()
+
+    if not CACHE_DIR.exists():
+        console.print("[dim]No cache to clear.[/dim]")
+        return
+
+    # List cached versions before clearing
+    versions = [d.name for d in CACHE_DIR.iterdir() if d.is_dir()]
+    if not versions:
+        console.print("[dim]Cache is empty.[/dim]")
+        return
+
+    for v in sorted(versions):
+        console.print(f"  Removing {v}...")
+    shutil.rmtree(CACHE_DIR)
+    console.print(
+        f"[green]Cleared {len(versions)} cached version(s).[/green]"
+    )
+
+
 def main() -> None:
     app()
