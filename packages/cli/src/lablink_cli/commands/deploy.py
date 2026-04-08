@@ -39,7 +39,7 @@ def _prepare_working_dir(
     version = template_version or TEMPLATE_VERSION
     skip_checksum = template_version is not None
 
-    if skip_checksum and template_version:
+    if template_version:
         console.print(
             f"  [yellow]Warning: using override version "
             f"{template_version}, skipping checksum "
