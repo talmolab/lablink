@@ -8,6 +8,8 @@ import pytest
 import yaml
 
 from lablink_cli.commands.utils import (
+    _resolve_from_config,
+    _resolve_from_deploy_dir,
     get_allocator_url,
     get_deploy_dir,
     resolve_admin_credentials,
@@ -157,3 +159,59 @@ class TestResolveAdminCredentials:
             mock_dir.return_value = tmp_path / "nonexistent"
             with pytest.raises(SystemExit):
                 resolve_admin_credentials(mock_cfg)
+
+
+# ------------------------------------------------------------------
+# _resolve_from_config
+# ------------------------------------------------------------------
+class TestResolveFromConfig:
+    def test_returns_credentials(self, mock_cfg):
+        mock_cfg.app.admin_user = "myuser"
+        mock_cfg.app.admin_password = "mypass"
+        result = _resolve_from_config(mock_cfg)
+        assert result == ("myuser", "mypass")
+
+    def test_returns_none_when_missing(self, mock_cfg):
+        mock_cfg.app.admin_user = "MISSING"
+        mock_cfg.app.admin_password = "MISSING"
+        result = _resolve_from_config(mock_cfg)
+        assert result is None
+
+    def test_returns_none_when_empty(self, mock_cfg):
+        mock_cfg.app.admin_user = ""
+        mock_cfg.app.admin_password = ""
+        result = _resolve_from_config(mock_cfg)
+        assert result is None
+
+    def test_returns_none_when_partial(self, mock_cfg):
+        mock_cfg.app.admin_user = "myuser"
+        mock_cfg.app.admin_password = "MISSING"
+        result = _resolve_from_config(mock_cfg)
+        assert result is None
+
+
+class TestResolveFromDeployDir:
+    def test_returns_credentials(self, mock_cfg, tmp_path):
+        deploy_config = tmp_path / "config" / "config.yaml"
+        deploy_config.parent.mkdir(parents=True)
+        data = {"app": {"admin_user": "deploy-user", "admin_password": "deploy-pw"}}
+        deploy_config.write_text(yaml.dump(data))
+        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
+            mock_dir.return_value = tmp_path
+            result = _resolve_from_deploy_dir(mock_cfg)
+        assert result == ("deploy-user", "deploy-pw")
+
+    def test_returns_none_when_no_deploy_dir(self, mock_cfg, tmp_path):
+        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
+            mock_dir.return_value = tmp_path / "nonexistent"
+            result = _resolve_from_deploy_dir(mock_cfg)
+        assert result is None
+
+    def test_returns_none_when_missing_keys(self, mock_cfg, tmp_path):
+        deploy_config = tmp_path / "config" / "config.yaml"
+        deploy_config.parent.mkdir(parents=True)
+        deploy_config.write_text(yaml.dump({"app": {}}))
+        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
+            mock_dir.return_value = tmp_path
+            result = _resolve_from_deploy_dir(mock_cfg)
+        assert result is None

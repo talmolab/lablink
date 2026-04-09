@@ -164,6 +164,62 @@ def get_allocator_url(cfg: Config) -> str:
     return ""
 
 
+_MISSING = ("MISSING", "")
+
+
+def _resolve_from_config(
+    cfg: Config,
+) -> tuple[str, str] | None:
+    """Try to get credentials from the main config."""
+    user = cfg.app.admin_user
+    pw = cfg.app.admin_password
+    if user not in _MISSING and pw not in _MISSING:
+        return user, pw
+    return None
+
+
+def _resolve_from_deploy_dir(
+    cfg: Config,
+) -> tuple[str, str] | None:
+    """Try to get credentials from the deployment config."""
+    import yaml
+
+    deploy_config_path = (
+        get_deploy_dir(cfg) / "config" / "config.yaml"
+    )
+    if not deploy_config_path.exists():
+        return None
+
+    with open(deploy_config_path) as f:
+        deploy_cfg = yaml.safe_load(f) or {}
+
+    app_cfg = deploy_cfg.get("app", {})
+    user = app_cfg.get("admin_user", "")
+    pw = app_cfg.get("admin_password", "")
+
+    if user and user not in _MISSING and pw and pw not in _MISSING:
+        return user, pw
+    return None
+
+
+def _resolve_from_prompt() -> tuple[str, str]:
+    """Prompt the user for admin credentials."""
+    import getpass
+
+    admin_user = (
+        input("  Admin username [admin]: ").strip()
+        or "admin"
+    )
+    admin_pw = getpass.getpass("  Admin password: ")
+    if not admin_pw:
+        console.print(
+            "  [red]Admin password is required[/red]"
+        )
+        raise SystemExit(1)
+    console.print()
+    return admin_user, admin_pw
+
+
 def resolve_admin_credentials(
     cfg: Config,
 ) -> tuple[str, str]:
@@ -176,40 +232,8 @@ def resolve_admin_credentials(
 
     Returns ``(admin_user, admin_password)``.
     """
-    import getpass
-
-    import yaml
-
-    admin_user = cfg.app.admin_user
-    admin_pw = cfg.app.admin_password
-
-    deploy_config_path = (
-        get_deploy_dir(cfg) / "config" / "config.yaml"
+    return (
+        _resolve_from_config(cfg)
+        or _resolve_from_deploy_dir(cfg)
+        or _resolve_from_prompt()
     )
-    if (
-        admin_user in ("MISSING", "")
-        or admin_pw in ("MISSING", "")
-    ) and deploy_config_path.exists():
-        with open(deploy_config_path) as f:
-            deploy_cfg = yaml.safe_load(f) or {}
-        app_cfg = deploy_cfg.get("app", {})
-        if admin_user in ("MISSING", ""):
-            admin_user = app_cfg.get("admin_user", "")
-        if admin_pw in ("MISSING", ""):
-            admin_pw = app_cfg.get("admin_password", "")
-
-    if admin_user in ("MISSING", ""):
-        admin_user = (
-            input("  Admin username [admin]: ").strip()
-            or "admin"
-        )
-    if admin_pw in ("MISSING", ""):
-        admin_pw = getpass.getpass("  Admin password: ")
-        if not admin_pw:
-            console.print(
-                "  [red]Admin password is required[/red]"
-            )
-            raise SystemExit(1)
-        console.print()
-
-    return admin_user, admin_pw
