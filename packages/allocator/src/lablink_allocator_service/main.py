@@ -2,6 +2,7 @@ import os
 import logging
 import secrets
 import subprocess
+import time
 from pathlib import Path
 import tempfile
 from zipfile import ZipFile
@@ -216,8 +217,6 @@ def home():
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
-    import time as _time
-
     checks = {
         "database": "ok" if database is not None else "not initialized",
         "scheduler": "ok" if scheduler_service is not None else "not initialized",
@@ -234,7 +233,7 @@ def health_check():
     }
 
     if _startup_time is not None:
-        payload["uptime_seconds"] = round(_time.monotonic() - _startup_time, 1)
+        payload["uptime_seconds"] = round(time.monotonic() - _startup_time, 1)
 
     return jsonify(payload), code
 
@@ -1073,7 +1072,7 @@ def main():
     global scheduler_service, reboot_service, _startup_time
 
     try:
-        _startup_time = __import__("time").monotonic()
+        _startup_time = time.monotonic()
         with app.app_context():
             db.create_all()
             init_database()

@@ -374,7 +374,7 @@ def run_deploy(
     console.print()
 
     # --- Deployment timing ---
-    from lablink_cli.commands.status import check_http, run_status
+    from lablink_cli.commands.status import run_status
     from lablink_cli.commands.utils import get_terraform_outputs
 
     outputs = get_terraform_outputs(deploy_dir)
@@ -413,6 +413,8 @@ def run_deploy(
 
     # Phase 2: If DNS/SSL configured, verify endpoint reachability
     if cfg.dns.enabled and cfg.dns.domain and poll_result["healthy"]:
+        from lablink_cli.commands.status import check_http
+
         scheme = "https" if has_ssl else "http"
         endpoint_url = f"{scheme}://{cfg.dns.domain}"
         console.print(
