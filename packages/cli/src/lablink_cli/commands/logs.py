@@ -101,19 +101,12 @@ def fetch_client_logs(
 # ------------------------------------------------------------------
 # Log fetching — allocator VM (via SSH)
 # ------------------------------------------------------------------
-def _run_ssh_command(
+def _ssh_via_instance_connect(
     instance_id: str,
-    public_ip: str,
     region: str,
     command: str,
-    deploy_dir: Path,
 ) -> str | None:
-    """Run a command on the allocator via SSH.
-
-    Tries ec2-instance-connect first, then falls back to direct SSH
-    using the terraform private key.
-    """
-    # Attempt 1: ec2-instance-connect ssh
+    """Try SSH via ec2-instance-connect. Returns stdout or None."""
     try:
         result = subprocess.run(
             [
@@ -139,15 +132,22 @@ def _run_ssh_command(
             return result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
+    return None
 
-    # Attempt 2: direct SSH with terraform private key
+
+def _ssh_via_private_key(
+    public_ip: str,
+    command: str,
+    deploy_dir: Path,
+) -> str | None:
+    """Try SSH with terraform private key. Returns stdout/stderr or None."""
+    ip = public_ip if public_ip != "—" else None
+    if not ip:
+        return None
+
     outputs = get_terraform_outputs(deploy_dir)
     private_key_pem = outputs.get("private_key_pem", "")
     if not private_key_pem:
-        return None
-
-    ip = public_ip if public_ip != "—" else None
-    if not ip:
         return None
 
     key_file = None
@@ -179,12 +179,32 @@ def _run_ssh_command(
         )
         if result.returncode == 0:
             return result.stdout
-        return result.stderr or f"SSH exited with code {result.returncode}"
+        return (
+            result.stderr
+            or f"SSH exited with code {result.returncode}"
+        )
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return None
     finally:
         if key_file and os.path.exists(key_file.name):
             os.unlink(key_file.name)
+
+
+def _run_ssh_command(
+    instance_id: str,
+    public_ip: str,
+    region: str,
+    command: str,
+    deploy_dir: Path,
+) -> str | None:
+    """Run a command on the allocator via SSH.
+
+    Tries ec2-instance-connect first, then falls back to direct SSH
+    using the terraform private key.
+    """
+    return _ssh_via_instance_connect(
+        instance_id, region, command
+    ) or _ssh_via_private_key(public_ip, command, deploy_dir)
 
 
 _LOG_DELIMITER = "===LABLINK_LOG_SEPARATOR==="
