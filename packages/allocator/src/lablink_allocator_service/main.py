@@ -95,6 +95,9 @@ scheduler_service = None
 # Auto-reboot service (initialized in main())
 reboot_service = None
 
+# Startup timestamp for uptime tracking (set in main())
+_startup_time: float | None = None
+
 
 def init_database():
     """Initialize the database connection."""
@@ -209,6 +212,30 @@ def notify_participants():
 def home():
     return render_template("index.html")
 
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Return structured readiness status."""
+    import time as _time
+
+    checks = {
+        "database": "ok" if database is not None else "not initialized",
+        "scheduler": "ok" if scheduler_service is not None else "not initialized",
+        "reboot_service": "ok" if reboot_service is not None else "not initialized",
+    }
+
+    all_ready = all(v == "ok" for v in checks.values())
+    status = "healthy" if all_ready else "starting"
+    code = 200 if all_ready else 503
+
+    payload = {
+        "status": status,
+        "checks": checks,
+    }
+
+    if _startup_time is not None:
+        payload["uptime_seconds"] = round(_time.monotonic() - _startup_time, 1)
+
+    return jsonify(payload), code
 
 @app.route("/admin/create")
 @auth.login_required
@@ -1041,9 +1068,10 @@ def scheduled_destruction_page():
 
 def main():
     """Main entry point for the allocator service."""
-    global scheduler_service, reboot_service
+    global scheduler_service, reboot_service, _startup_time
 
     try:
+        _startup_time = __import__("time").monotonic()
         with app.app_context():
             db.create_all()
             init_database()
