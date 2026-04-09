@@ -171,6 +171,55 @@ class TestGetTerraformFiles:
         mock_download.assert_not_called()
         assert result == cache_dir
 
+    @patch("lablink_cli.terraform_source._download_tarball")
+    def test_bundle_path_extracts_local_tarball(self, mock_download, tmp_path):
+        """--terraform-bundle should extract from local file, no download."""
+        tarball_data = _make_test_tarball(tmp_path)
+        bundle_file = tmp_path / "template.tar.gz"
+        bundle_file.write_bytes(tarball_data)
+
+        with patch(
+            "lablink_cli.terraform_source.CACHE_DIR",
+            tmp_path / "cache",
+        ):
+            result = get_terraform_files(
+                "v0.1.0",
+                bundle_path=str(bundle_file),
+                skip_checksum=True,
+            )
+
+        mock_download.assert_not_called()
+        assert (result / "main.tf").exists()
+        assert (result / "alb.tf").exists()
+        assert (result / "user_data.sh").exists()
+
+    @patch("lablink_cli.terraform_source._download_tarball")
+    def test_bundle_path_ignores_cache(self, mock_download, tmp_path):
+        """Bundle should work even when cache already exists."""
+        # Pre-populate cache with different content
+        cache_dir = tmp_path / "cache" / "v0.1.0"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "main.tf").write_text("# old cached")
+
+        tarball_data = _make_test_tarball(tmp_path)
+        bundle_file = tmp_path / "template.tar.gz"
+        bundle_file.write_bytes(tarball_data)
+
+        with patch(
+            "lablink_cli.terraform_source.CACHE_DIR",
+            tmp_path / "cache",
+        ):
+            # Cache hit returns existing cache, bundle is not used
+            result = get_terraform_files(
+                "v0.1.0",
+                bundle_path=str(bundle_file),
+                skip_checksum=True,
+            )
+
+        # Cache hit takes priority — existing cache returned
+        assert result == cache_dir
+        assert (result / "main.tf").read_text() == "# old cached"
+
 
 @pytest.mark.integration
 class TestIntegrationDownload:
