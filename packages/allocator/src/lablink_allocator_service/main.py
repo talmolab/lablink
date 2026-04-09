@@ -212,6 +212,7 @@ def notify_participants():
 def home():
     return render_template("index.html")
 
+
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -236,6 +237,7 @@ def health_check():
         payload["uptime_seconds"] = round(_time.monotonic() - _startup_time, 1)
 
     return jsonify(payload), code
+
 
 @app.route("/admin/create")
 @auth.login_required
