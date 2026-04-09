@@ -345,59 +345,42 @@ def estimate_costs(cfg: Config) -> list[dict]:
     return costs
 
 
+def _render_terraform_state(deploy_dir) -> dict:
+    """Read and display Terraform outputs. Returns outputs dict."""
+    if not deploy_dir.exists():
+        return {}
 
-
-# ------------------------------------------------------------------
-# Main entry point
-# ------------------------------------------------------------------
-def run_status(cfg: Config) -> None:
-    """Run health checks and show cost estimate."""
-    deploy_dir = _get_deploy_dir(cfg)
-
-    console.print()
-    console.print(
-        Panel(
-            "[bold]LabLink Status[/bold]\n"
-            f"Deployment: {cfg.deployment_name}  |  "
-            f"Environment: {cfg.environment}",
-            border_style="cyan",
+    console.print("[bold]Terraform State[/bold]")
+    outputs = get_terraform_outputs(deploy_dir)
+    if outputs:
+        state_table = Table(show_header=False)
+        state_table.add_column("Key", style="bold")
+        state_table.add_column("Value")
+        for k, v in outputs.items():
+            if k == "private_key_pem":
+                v = "(sensitive)"
+            state_table.add_row(k, str(v))
+        console.print(state_table)
+    else:
+        console.print(
+            "  [yellow]No Terraform state found[/yellow]"
         )
-    )
     console.print()
+    return outputs
 
-    # --- Terraform outputs ---
-    outputs = {}
-    if deploy_dir.exists():
-        console.print("[bold]Terraform State[/bold]")
-        outputs = get_terraform_outputs(deploy_dir)
-        if outputs:
-            state_table = Table(show_header=False)
-            state_table.add_column("Key", style="bold")
-            state_table.add_column("Value")
-            for k, v in outputs.items():
-                if k == "private_key_pem":
-                    v = "(sensitive)"
-                state_table.add_row(k, str(v))
-            console.print(state_table)
-        else:
-            console.print(
-                "  [yellow]No Terraform state found[/yellow]"
-            )
-        console.print()
 
+def _render_health_checks(cfg: Config, outputs: dict) -> None:
+    """Run and display health checks."""
     ip = outputs.get("ec2_public_ip", "")
     domain = cfg.dns.domain if cfg.dns.enabled else ""
     use_https = cfg.ssl.provider != "none"
 
-    # --- Health checks ---
     console.print("[bold]Health Checks[/bold]")
     checks = []
 
-    # DNS
     if domain:
         checks.append(check_dns(domain, ip))
 
-    # HTTP
     if domain and use_https:
         url = f"https://{domain}"
     elif domain:
@@ -410,7 +393,6 @@ def run_status(cfg: Config) -> None:
     if url:
         checks.append(check_http(url))
 
-    # SSL
     if domain and use_https:
         checks.append(check_ssl_cert(domain))
 
@@ -443,73 +425,77 @@ def run_status(cfg: Config) -> None:
         )
     console.print()
 
-    # --- Client VMs ---
+
+def _render_client_vms(cfg: Config) -> None:
+    """Query and display client VM status."""
     console.print("[bold]Client VMs[/bold]")
     vms = get_client_vms(cfg)
-    if vms:
-        vm_table = Table(show_header=True)
-        vm_table.add_column("Name")
-        vm_table.add_column("Instance ID")
-        vm_table.add_column("Type")
-        vm_table.add_column("State")
-        vm_table.add_column("Public IP")
-
-        running_count = 0
-        stopped_count = 0
-        for vm in vms:
-            state = vm["state"]
-            if state == "running":
-                running_count += 1
-                state_str = "[green]running[/green]"
-            elif state == "stopped":
-                stopped_count += 1
-                state_str = "[red]stopped[/red]"
-            else:
-                state_str = f"[yellow]{state}[/yellow]"
-            vm_table.add_row(
-                vm["name"],
-                vm["instance_id"],
-                vm["type"],
-                state_str,
-                vm["public_ip"] or "—",
-            )
-
-        console.print(vm_table)
-
-        # Summary with hourly burn rate
-        parts = []
-        if running_count:
-            parts.append(
-                f"[green]{running_count} running[/green]"
-            )
-        if stopped_count:
-            parts.append(
-                f"[red]{stopped_count} stopped[/red]"
-            )
-        console.print(f"  {', '.join(parts)}")
-
-        if running_count:
-            # Estimate hourly cost for running VMs
-            vm_type = vms[0]["type"]
-            hourly = FALLBACK_COSTS["ec2"].get(vm_type)
-            if hourly:
-                daily = hourly  # FALLBACK_COSTS already stores daily
-                hourly_rate = daily / 24
-                total_hourly = hourly_rate * running_count
-                console.print(
-                    f"  [dim]Estimated burn rate: "
-                    f"${total_hourly:.2f}/hr "
-                    f"(${total_hourly * 24:.2f}/day) "
-                    f"for {running_count} "
-                    f"x {vm_type}[/dim]"
-                )
-    else:
+    if not vms:
         console.print(
             "  [dim]No client VMs found[/dim]"
         )
+        console.print()
+        return
+
+    vm_table = Table(show_header=True)
+    vm_table.add_column("Name")
+    vm_table.add_column("Instance ID")
+    vm_table.add_column("Type")
+    vm_table.add_column("State")
+    vm_table.add_column("Public IP")
+
+    running_count = 0
+    stopped_count = 0
+    for vm in vms:
+        state = vm["state"]
+        if state == "running":
+            running_count += 1
+            state_str = "[green]running[/green]"
+        elif state == "stopped":
+            stopped_count += 1
+            state_str = "[red]stopped[/red]"
+        else:
+            state_str = f"[yellow]{state}[/yellow]"
+        vm_table.add_row(
+            vm["name"],
+            vm["instance_id"],
+            vm["type"],
+            state_str,
+            vm["public_ip"] or "—",
+        )
+
+    console.print(vm_table)
+
+    parts = []
+    if running_count:
+        parts.append(
+            f"[green]{running_count} running[/green]"
+        )
+    if stopped_count:
+        parts.append(
+            f"[red]{stopped_count} stopped[/red]"
+        )
+    console.print(f"  {', '.join(parts)}")
+
+    if running_count:
+        vm_type = vms[0]["type"]
+        hourly = FALLBACK_COSTS["ec2"].get(vm_type)
+        if hourly:
+            daily = hourly
+            hourly_rate = daily / 24
+            total_hourly = hourly_rate * running_count
+            console.print(
+                f"  [dim]Estimated burn rate: "
+                f"${total_hourly:.2f}/hr "
+                f"(${total_hourly * 24:.2f}/day) "
+                f"for {running_count} "
+                f"x {vm_type}[/dim]"
+            )
     console.print()
 
-    # --- Cost estimate ---
+
+def _render_cost_estimate(cfg: Config) -> None:
+    """Calculate and display cost estimate."""
     console.print("[bold]Cost Estimate (daily)[/bold]")
     costs = estimate_costs(cfg)
 
@@ -543,3 +529,27 @@ def run_status(cfg: Config) -> None:
         "  [dim]Prices are on-demand estimates. "
         "Actual costs may vary.[/dim]"
     )
+
+
+# ------------------------------------------------------------------
+# Main entry point
+# ------------------------------------------------------------------
+def run_status(cfg: Config) -> None:
+    """Run health checks and show cost estimate."""
+    deploy_dir = _get_deploy_dir(cfg)
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold]LabLink Status[/bold]\n"
+            f"Deployment: {cfg.deployment_name}  |  "
+            f"Environment: {cfg.environment}",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
+    outputs = _render_terraform_state(deploy_dir)
+    _render_health_checks(cfg, outputs)
+    _render_client_vms(cfg)
+    _render_cost_estimate(cfg)

@@ -8,6 +8,10 @@ from unittest.mock import MagicMock, patch
 
 from lablink_cli.commands.status import (
     FALLBACK_COSTS,
+    _render_client_vms,
+    _render_cost_estimate,
+    _render_health_checks,
+    _render_terraform_state,
     check_dns,
     check_http,
     estimate_costs,
@@ -165,3 +169,110 @@ class TestFallbackCosts:
     def test_all_ec2_costs_positive(self):
         for itype, cost in FALLBACK_COSTS["ec2"].items():
             assert cost > 0, f"{itype} cost should be positive"
+
+
+# ------------------------------------------------------------------
+# _render_terraform_state
+# ------------------------------------------------------------------
+class TestRenderTerraformState:
+    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    def test_returns_outputs(self, mock_outputs, tmp_path):
+        mock_outputs.return_value = {
+            "ec2_public_ip": "1.2.3.4",
+            "ec2_key_name": "mykey",
+        }
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_terraform_state(deploy_dir)
+        assert result["ec2_public_ip"] == "1.2.3.4"
+
+    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    def test_no_deploy_dir(self, mock_outputs, tmp_path):
+        deploy_dir = tmp_path / "nonexistent"
+        result = _render_terraform_state(deploy_dir)
+        assert result == {}
+        mock_outputs.assert_not_called()
+
+    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    def test_empty_outputs(self, mock_outputs, tmp_path):
+        mock_outputs.return_value = {}
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_terraform_state(deploy_dir)
+        assert result == {}
+
+
+# ------------------------------------------------------------------
+# _render_health_checks
+# ------------------------------------------------------------------
+class TestRenderHealthChecks:
+    @patch("lablink_cli.commands.status.check_ssl_cert")
+    @patch("lablink_cli.commands.status.check_http")
+    @patch("lablink_cli.commands.status.check_dns")
+    def test_with_domain_and_ssl(
+        self, mock_dns, mock_http, mock_ssl, mock_cfg
+    ):
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "test.example.com"
+        mock_cfg.ssl.provider = "letsencrypt"
+        mock_dns.return_value = {
+            "check": "DNS", "status": "pass", "detail": ""
+        }
+        mock_http.return_value = {
+            "check": "HTTP", "status": "pass", "detail": ""
+        }
+        mock_ssl.return_value = {
+            "check": "SSL", "status": "pass", "detail": ""
+        }
+        outputs = {"ec2_public_ip": "1.2.3.4"}
+
+        _render_health_checks(mock_cfg, outputs)
+        mock_dns.assert_called_once()
+        mock_http.assert_called_once()
+        mock_ssl.assert_called_once()
+
+    def test_no_domain_no_ip(self, mock_cfg):
+        mock_cfg.dns.enabled = False
+        mock_cfg.dns.domain = ""
+        mock_cfg.ssl.provider = "none"
+        outputs = {}
+
+        _render_health_checks(mock_cfg, outputs)
+
+
+# ------------------------------------------------------------------
+# _render_client_vms
+# ------------------------------------------------------------------
+class TestRenderClientVms:
+    @patch("lablink_cli.commands.status.get_client_vms")
+    def test_no_vms(self, mock_vms, mock_cfg):
+        mock_vms.return_value = []
+        _render_client_vms(mock_cfg)
+
+    @patch("lablink_cli.commands.status.get_client_vms")
+    def test_with_running_vms(self, mock_vms, mock_cfg):
+        mock_vms.return_value = [
+            {
+                "name": "client-1",
+                "instance_id": "i-123",
+                "type": "g4dn.xlarge",
+                "state": "running",
+                "public_ip": "1.2.3.4",
+            },
+        ]
+        _render_client_vms(mock_cfg)
+
+
+# ------------------------------------------------------------------
+# _render_cost_estimate
+# ------------------------------------------------------------------
+class TestRenderCostEstimate:
+    @patch("lablink_cli.commands.status.estimate_costs")
+    def test_renders_without_error(self, mock_costs, mock_cfg):
+        mock_costs.return_value = [
+            {"resource": "Allocator EC2", "daily": 2.0, "note": "always on"},
+            {"resource": "Client VM", "daily": 12.6, "note": "per VM"},
+        ]
+        _render_cost_estimate(mock_cfg)
