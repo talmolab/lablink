@@ -14,6 +14,7 @@ from lablink_cli.commands.status import (
     _render_health_checks,
     _render_terraform_state,
     check_dns,
+    check_health_endpoint,
     check_http,
     estimate_costs,
 )
@@ -75,6 +76,61 @@ class TestCheckHttp:
 
         result = check_http("http://example.com")
         assert result["status"] == "fail"
+
+
+# ------------------------------------------------------------------
+# check_health_endpoint
+# ------------------------------------------------------------------
+class TestCheckHealthEndpoint:
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_healthy(self, mock_urlopen):
+        import json
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(
+            {"status": "healthy", "checks": {"database": "ok"}, "uptime_seconds": 42.5}
+        ).encode()
+        mock_resp.getcode.return_value = 200
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        result = check_health_endpoint("http://1.2.3.4:5000")
+        assert result["status"] == "pass"
+        assert result["healthy"] is True
+        assert result["uptime_seconds"] == 42.5
+
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_starting(self, mock_urlopen):
+        import json
+        from io import BytesIO
+        from urllib.error import HTTPError
+
+        body = json.dumps(
+            {"status": "starting", "checks": {"database": "not initialized"}}
+        ).encode()
+        error = HTTPError(
+            url="http://1.2.3.4:5000/api/health",
+            code=503,
+            msg="Service Unavailable",
+            hdrs={},
+            fp=BytesIO(body),
+        )
+        mock_urlopen.side_effect = error
+
+        result = check_health_endpoint("http://1.2.3.4:5000")
+        assert result["status"] == "starting"
+        assert result["healthy"] is False
+
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_connection_refused(self, mock_urlopen):
+        from urllib.error import URLError
+
+        mock_urlopen.side_effect = URLError("connection refused")
+
+        result = check_health_endpoint("http://1.2.3.4:5000")
+        assert result["status"] == "unreachable"
+        assert result["healthy"] is False
 
 
 # ------------------------------------------------------------------
