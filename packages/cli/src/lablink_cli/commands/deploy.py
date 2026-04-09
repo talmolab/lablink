@@ -17,6 +17,13 @@ from lablink_cli.commands.utils import (
     get_deploy_dir,
     resolve_admin_credentials,
 )
+from lablink_cli.api import (
+    AllocatorAPI,
+    AllocatorAuthError,
+    AllocatorError,
+    AllocatorNotFoundError,
+    AllocatorUnavailableError,
+)
 from lablink_cli.config.schema import config_to_dict, save_config
 from lablink_cli.terraform_source import get_terraform_files
 
@@ -373,20 +380,124 @@ def run_deploy(
     )
 
 
+def _destroy_client_vms(
+    cfg: Config,
+    admin_user: str,
+    admin_pw: str,
+) -> None:
+    """Destroy client VMs via the allocator API."""
+    allocator_url = get_allocator_url(cfg)
+    if not allocator_url:
+        console.print(
+            "[yellow]Could not determine allocator "
+            "URL — skipping client VM destroy.[/yellow]\n"
+            "Client VMs will be terminated when the "
+            "allocator is destroyed."
+        )
+        return
+
+    console.print(
+        "[bold]Destroying client VMs via "
+        "allocator...[/bold]"
+    )
+    console.print(
+        f"  [dim]POST {allocator_url}/destroy[/dim]"
+    )
+
+    api = AllocatorAPI(
+        allocator_url, admin_user, admin_pw, cfg.ssl.provider
+    )
+    try:
+        api.destroy_vms()
+        console.print(
+            "  [green]client VMs destroyed[/green]"
+        )
+    except AllocatorAuthError:
+        console.print(
+            "  [red]Authentication failed.[/red] "
+            "Check your admin credentials."
+        )
+        raise SystemExit(1)
+    except AllocatorNotFoundError:
+        console.print(
+            "  [yellow]No client VMs were "
+            "launched.[/yellow] Skipping "
+            "client destroy."
+        )
+        console.print(
+            "  Continuing with allocator "
+            "terraform destroy..."
+        )
+    except AllocatorUnavailableError as e:
+        console.print(
+            f"  [yellow]Could not connect to "
+            f"allocator:[/yellow] {e}"
+        )
+        console.print(
+            "  Continuing with allocator "
+            "terraform destroy..."
+        )
+    except AllocatorError as e:
+        console.print(
+            f"  [red]Client destroy failed:[/red] {e}"
+        )
+        raise SystemExit(1)
+
+    console.print()
+
+
+def _terraform_destroy(
+    deploy_dir: Path,
+    cfg: Config,
+    admin_user: str,
+    admin_pw: str,
+) -> None:
+    """Refresh config, re-init terraform, destroy, and clean up."""
+    import yaml
+
+    config_path = deploy_dir / "config" / "config.yaml"
+    cfg_dict = config_to_dict(cfg)
+    cfg_dict["app"]["admin_user"] = admin_user
+    cfg_dict["app"]["admin_password"] = admin_pw
+    cfg_dict["db"]["password"] = "DESTROY_PLACEHOLDER"
+
+    with open(config_path, "w") as f:
+        yaml.dump(
+            cfg_dict,
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
+
+    if (deploy_dir / "backend.tf").exists():
+        _terraform_init(deploy_dir, cfg)
+
+    console.print(
+        "[bold]Destroying allocator "
+        "infrastructure...[/bold]"
+    )
+    _run_terraform(
+        [
+            "destroy",
+            "-auto-approve",
+            f"-var=deployment_name={cfg.deployment_name}",
+            f"-var=environment={cfg.environment}",
+            f"-var=region={cfg.app.region}",
+        ],
+        cwd=deploy_dir,
+    )
+    console.print()
+
+    shutil.rmtree(deploy_dir)
+    console.print(
+        f"  [green]cleaned[/green] {deploy_dir}"
+    )
+    console.print()
+    console.print("[bold]Infrastructure destroyed.[/bold]")
+
+
 def run_destroy(cfg: Config) -> None:
-    """Destroy LabLink infrastructure.
-
-    1. Call allocator /destroy to tear down client VMs & clear DB
-    2. Run local terraform destroy to tear down the allocator itself
-    3. Clean up the local deploy directory
-    """
-    import base64
-    import json
-    import ssl
-    from urllib.error import HTTPError, URLError
-    from urllib.request import Request, urlopen
-
-    # Validate AWS credentials (needed for terraform destroy)
+    """Destroy LabLink infrastructure."""
     check_credentials(_get_session(cfg.app.region))
 
     deploy_dir = get_deploy_dir(cfg)
@@ -398,7 +509,6 @@ def run_destroy(cfg: Config) -> None:
         )
         raise SystemExit(1)
 
-    # Check for terraform state
     has_state = (
         (deploy_dir / "terraform.tfstate").exists()
         or (deploy_dir / ".terraform").exists()
@@ -409,9 +519,6 @@ def run_destroy(cfg: Config) -> None:
             "Nothing to destroy."
         )
         raise SystemExit(1)
-
-    # Resolve allocator URL
-    allocator_url = get_allocator_url(cfg)
 
     console.print()
     console.print(
@@ -430,7 +537,6 @@ def run_destroy(cfg: Config) -> None:
 
     admin_user, admin_pw = resolve_admin_credentials(cfg)
 
-    # Confirm
     console.print(
         "[bold yellow]Are you sure?[/bold yellow] "
         "Type 'yes' to confirm: ",
@@ -442,164 +548,5 @@ def run_destroy(cfg: Config) -> None:
         raise SystemExit(0)
     console.print()
 
-    # --- Step 1: Destroy client VMs via allocator API ---
-    if allocator_url:
-        console.print(
-            "[bold]Destroying client VMs via "
-            "allocator...[/bold]"
-        )
-        console.print(
-            f"  [dim]POST {allocator_url}/destroy[/dim]"
-        )
-
-        url = f"{allocator_url}/destroy"
-        credentials = base64.b64encode(
-            f"{admin_user}:{admin_pw}".encode()
-        ).decode()
-
-        req = Request(url, data=b"", method="POST")
-        req.add_header(
-            "Authorization", f"Basic {credentials}"
-        )
-        req.add_header("Accept", "application/json")
-
-        # SSL context — handle self-signed certs
-        ctx = ssl.create_default_context()
-        if cfg.ssl.provider == "self_signed":
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-
-        try:
-            resp = urlopen(req, timeout=1800, context=ctx)  # noqa: S310
-            raw = resp.read().decode()
-
-            try:
-                body = json.loads(raw)
-            except json.JSONDecodeError:
-                body = None
-
-            if body and body.get("status") == "error":
-                console.print(
-                    f"  [red]Client destroy failed:"
-                    f"[/red] "
-                    f"{body.get('error', 'unknown error')}"
-                )
-                raise SystemExit(1)
-
-            console.print(
-                "  [green]client VMs destroyed[/green]"
-            )
-
-        except HTTPError as e:
-            if e.code == 401:
-                console.print(
-                    "  [red]Authentication failed.[/red] "
-                    "Check your admin credentials."
-                )
-                raise SystemExit(1)
-            elif e.code == 404:
-                # No client VMs were ever launched
-                console.print(
-                    "  [yellow]No client VMs were "
-                    "launched.[/yellow] Skipping "
-                    "client destroy."
-                )
-                console.print(
-                    "  Continuing with allocator "
-                    "terraform destroy..."
-                )
-            elif e.code == 502:
-                # Allocator unhealthy (e.g. Docker died)
-                console.print(
-                    "  [yellow]Allocator is unhealthy "
-                    "(502).[/yellow] Skipping "
-                    "client destroy."
-                )
-                console.print(
-                    "  Continuing with allocator "
-                    "terraform destroy..."
-                )
-            else:
-                try:
-                    body = json.loads(e.read().decode())
-                    error_msg = body.get("error", str(e))
-                except (
-                    json.JSONDecodeError,
-                    UnicodeDecodeError,
-                ):
-                    error_msg = str(e)
-
-                console.print(
-                    f"  [red]Client destroy failed "
-                    f"(HTTP {e.code}):[/red] "
-                    f"{error_msg}"
-                )
-                raise SystemExit(1)
-
-        except URLError as e:
-            console.print(
-                f"  [yellow]Could not connect to "
-                f"allocator:[/yellow] {e.reason}"
-            )
-            console.print(
-                "  Continuing with allocator "
-                "terraform destroy..."
-            )
-
-        console.print()
-    else:
-        console.print(
-            "[yellow]Could not determine allocator "
-            "URL — skipping client VM destroy.[/yellow]\n"
-            "Client VMs will be terminated when the "
-            "allocator is destroyed."
-        )
-        console.print()
-
-    # --- Step 2: Refresh config in deploy dir ---
-    # Passwords needed for terraform to read the config,
-    # but destroy doesn't use them — write the values we have
-    import yaml
-
-    config_path = deploy_dir / "config" / "config.yaml"
-    cfg_dict = config_to_dict(cfg)
-    cfg_dict["app"]["admin_user"] = admin_user
-    cfg_dict["app"]["admin_password"] = admin_pw
-    cfg_dict["db"]["password"] = "DESTROY_PLACEHOLDER"
-
-    with open(config_path, "w") as f:
-        yaml.dump(
-            cfg_dict,
-            f,
-            default_flow_style=False,
-            sort_keys=False,
-        )
-
-    # Re-init if needed
-    if (deploy_dir / "backend.tf").exists():
-        _terraform_init(deploy_dir, cfg)
-
-    # --- Step 3: Destroy allocator via terraform ---
-    console.print(
-        "[bold]Destroying allocator "
-        "infrastructure...[/bold]"
-    )
-    _run_terraform(
-        [
-            "destroy",
-            "-auto-approve",
-            f"-var=deployment_name={cfg.deployment_name}",
-            f"-var=environment={cfg.environment}",
-            f"-var=region={cfg.app.region}",
-        ],
-        cwd=deploy_dir,
-    )
-    console.print()
-
-    # --- Step 4: Clean up local deploy directory ---
-    shutil.rmtree(deploy_dir)
-    console.print(
-        f"  [green]cleaned[/green] {deploy_dir}"
-    )
-    console.print()
-    console.print("[bold]Infrastructure destroyed.[/bold]")
+    _destroy_client_vms(cfg, admin_user, admin_pw)
+    _terraform_destroy(deploy_dir, cfg, admin_user, admin_pw)

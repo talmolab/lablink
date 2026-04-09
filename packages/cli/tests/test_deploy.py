@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-from urllib.error import HTTPError
 
 import pytest
 
+from lablink_cli.api import (
+    AllocatorAuthError,
+    AllocatorNotFoundError,
+    AllocatorUnavailableError,
+)
 from lablink_cli.commands.deploy import (
+    _destroy_client_vms,
     _prepare_working_dir,
     _run_terraform,
-    run_destroy,
+    _terraform_destroy,
 )
 
 
@@ -126,22 +131,71 @@ class TestRunTerraform:
 
 
 # ------------------------------------------------------------------
-# run_destroy — HTTP error handling
+# _destroy_client_vms
 # ------------------------------------------------------------------
-class TestRunDestroyHttpErrors:
-    """Test that run_destroy handles allocator HTTP errors correctly."""
+class TestDestroyClientVms:
+    @patch("lablink_cli.commands.deploy.AllocatorAPI")
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    def test_success(self, mock_url, mock_api_cls, mock_cfg):
+        mock_api = MagicMock()
+        mock_api.destroy_vms.return_value = {"status": "ok"}
+        mock_api_cls.return_value = mock_api
 
-    def _setup_deploy_dir(self, tmp_path):
-        """Create a minimal deploy directory."""
-        deploy_dir = tmp_path / "deploy"
-        deploy_dir.mkdir()
-        (deploy_dir / ".terraform").mkdir()
-        (deploy_dir / "backend.tf").write_text("")
-        config_dir = deploy_dir / "config"
-        config_dir.mkdir()
-        (config_dir / "config.yaml").write_text("")
-        return deploy_dir
+        _destroy_client_vms(mock_cfg, "admin", "pass")
+        mock_api.destroy_vms.assert_called_once()
 
+    @patch("lablink_cli.commands.deploy.AllocatorAPI")
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    def test_auth_error_exits(self, mock_url, mock_api_cls, mock_cfg):
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = AllocatorAuthError("401")
+        mock_api_cls.return_value = mock_api
+
+        with pytest.raises(SystemExit):
+            _destroy_client_vms(mock_cfg, "admin", "pass")
+
+    @patch("lablink_cli.commands.deploy.AllocatorAPI")
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    def test_unavailable_continues(self, mock_url, mock_api_cls, mock_cfg):
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = AllocatorUnavailableError("502")
+        mock_api_cls.return_value = mock_api
+
+        _destroy_client_vms(mock_cfg, "admin", "pass")
+
+    @patch("lablink_cli.commands.deploy.AllocatorAPI")
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    def test_not_found_continues(self, mock_url, mock_api_cls, mock_cfg):
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = AllocatorNotFoundError("404")
+        mock_api_cls.return_value = mock_api
+
+        _destroy_client_vms(mock_cfg, "admin", "pass")
+
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value=None,
+    )
+    def test_no_url_skips(self, mock_url, mock_cfg):
+        _destroy_client_vms(mock_cfg, "admin", "pass")
+
+
+# ------------------------------------------------------------------
+# _terraform_destroy
+# ------------------------------------------------------------------
+class TestTerraformDestroy:
     @patch("lablink_cli.commands.deploy.shutil.rmtree")
     @patch("lablink_cli.commands.deploy._run_terraform")
     @patch("lablink_cli.commands.deploy._terraform_init")
@@ -149,27 +203,8 @@ class TestRunDestroyHttpErrors:
         "lablink_cli.commands.deploy.config_to_dict",
         return_value={"app": {}, "db": {}},
     )
-    @patch(
-        "lablink_cli.commands.deploy"
-        ".resolve_admin_credentials",
-        return_value=("admin", "pass"),
-    )
-    @patch(
-        "lablink_cli.commands.deploy.get_allocator_url",
-        return_value="https://allocator.example.com",
-    )
-    @patch("lablink_cli.commands.deploy.get_deploy_dir")
-    @patch("lablink_cli.commands.deploy.check_credentials")
-    @patch("lablink_cli.commands.deploy._get_session")
-    @patch("builtins.input", return_value="yes")
-    def test_502_skips_client_destroy(
+    def test_runs_destroy_sequence(
         self,
-        mock_input,
-        mock_session,
-        mock_creds,
-        mock_deploy_dir,
-        mock_url,
-        mock_admin,
         mock_cfg_dict,
         mock_tf_init,
         mock_tf_run,
@@ -177,69 +212,15 @@ class TestRunDestroyHttpErrors:
         mock_cfg,
         tmp_path,
     ):
-        error = HTTPError(
-            "https://allocator.example.com/destroy",
-            502,
-            "Bad Gateway",
-            {},
-            None,
-        )
-        deploy_dir = self._setup_deploy_dir(tmp_path)
-        mock_deploy_dir.return_value = deploy_dir
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+        (deploy_dir / "backend.tf").write_text("")
+        config_dir = deploy_dir / "config"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("")
 
-        with patch(
-            "urllib.request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.side_effect = error
-            run_destroy(mock_cfg)
+        _terraform_destroy(deploy_dir, mock_cfg, "admin", "pass")
 
-        # Should proceed to terraform destroy
+        mock_tf_init.assert_called_once_with(deploy_dir, mock_cfg)
         mock_tf_run.assert_called_once()
-
-    @patch("lablink_cli.commands.deploy._run_terraform")
-    @patch("lablink_cli.commands.deploy._terraform_init")
-    @patch(
-        "lablink_cli.commands.deploy"
-        ".resolve_admin_credentials",
-        return_value=("admin", "pass"),
-    )
-    @patch(
-        "lablink_cli.commands.deploy.get_allocator_url",
-        return_value="https://allocator.example.com",
-    )
-    @patch("lablink_cli.commands.deploy.get_deploy_dir")
-    @patch("lablink_cli.commands.deploy.check_credentials")
-    @patch("lablink_cli.commands.deploy._get_session")
-    @patch("builtins.input", return_value="yes")
-    def test_500_exits(
-        self,
-        mock_input,
-        mock_session,
-        mock_creds,
-        mock_deploy_dir,
-        mock_url,
-        mock_admin,
-        mock_tf_init,
-        mock_tf_run,
-        mock_cfg,
-        tmp_path,
-    ):
-        error = HTTPError(
-            "https://allocator.example.com/destroy",
-            500,
-            "Internal Server Error",
-            {},
-            None,
-        )
-        deploy_dir = self._setup_deploy_dir(tmp_path)
-        mock_deploy_dir.return_value = deploy_dir
-
-        with patch(
-            "urllib.request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.side_effect = error
-            with pytest.raises(SystemExit):
-                run_destroy(mock_cfg)
-
-        # Should NOT proceed to terraform destroy
-        mock_tf_run.assert_not_called()
+        mock_rmtree.assert_called_once_with(deploy_dir)
