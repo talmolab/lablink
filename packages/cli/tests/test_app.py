@@ -107,6 +107,52 @@ class TestCLICommands:
         assert "deploy" in out or "usage" in out
 
 
+class TestCacheClear:
+    def test_cache_clear_command_exists(self):
+        result = runner.invoke(app, ["cache-clear", "--help"])
+        assert result.exit_code == 0
+        assert "cache" in _plain(result.output).lower()
+
+    def test_cache_clear_no_cache_dir(self, tmp_path):
+        nonexistent = tmp_path / "nonexistent"
+        with patch(
+            "lablink_cli.terraform_source.CACHE_DIR", nonexistent
+        ):
+            result = runner.invoke(app, ["cache-clear"])
+        assert result.exit_code == 0
+        assert "no cache" in _plain(result.output).lower()
+
+    def test_cache_clear_empty_dir(self, tmp_path):
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+
+        with patch(
+            "lablink_cli.terraform_source.CACHE_DIR", cache_dir
+        ):
+            result = runner.invoke(app, ["cache-clear"])
+        assert result.exit_code == 0
+        assert "empty" in _plain(result.output).lower()
+
+    def test_cache_clear_removes_versions(self, tmp_path):
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        (cache_dir / "v0.1.0").mkdir()
+        (cache_dir / "v0.1.0" / "main.tf").write_text("# tf")
+        (cache_dir / "v0.1.1").mkdir()
+        (cache_dir / "v0.1.1" / "main.tf").write_text("# tf")
+
+        with patch(
+            "lablink_cli.terraform_source.CACHE_DIR", cache_dir
+        ):
+            result = runner.invoke(app, ["cache-clear"])
+        assert result.exit_code == 0
+        output = _plain(result.output).lower()
+        assert "v0.1.0" in output
+        assert "v0.1.1" in output
+        assert "cleared 2" in output
+        assert not cache_dir.exists()
+
+
 class TestShowConfig:
     def test_show_config_missing_file(self, tmp_path):
         result = runner.invoke(

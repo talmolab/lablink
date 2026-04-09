@@ -18,36 +18,56 @@ from lablink_cli.commands.utils import (
     resolve_admin_credentials,
 )
 from lablink_cli.config.schema import config_to_dict, save_config
+from lablink_cli.terraform_source import get_terraform_files
 
 console = Console()
 
 
-# Bundled terraform files shipped with the CLI package
-TERRAFORM_SRC = (
-    Path(__file__).resolve().parent.parent / "terraform"
-)
-
-
-def _prepare_working_dir(cfg: Config) -> Path:
+def _prepare_working_dir(
+    cfg: Config,
+    *,
+    template_version: str | None = None,
+    terraform_bundle: str | None = None,
+) -> Path:
     """Set up the Terraform working directory.
 
-    Copies bundled .tf files and writes config/config.yaml.
-    Returns the working directory path.
+    Downloads (or loads from cache/bundle) the template's .tf files,
+    copies them into the deploy directory, and writes config/config.yaml.
     """
+    from lablink_cli import TEMPLATE_VERSION
+
+    version = template_version or TEMPLATE_VERSION
+    skip_checksum = template_version is not None
+
+    if template_version:
+        console.print(
+            f"  [yellow]Warning: using override version "
+            f"{template_version}, skipping checksum "
+            f"verification[/yellow]"
+        )
+
+    tf_source = get_terraform_files(
+        version,
+        bundle_path=terraform_bundle,
+        skip_checksum=skip_checksum,
+    )
+
     deploy_dir = get_deploy_dir(cfg)
     deploy_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy .tf files and user_data.sh (overwrite to stay current)
-    for src_file in TERRAFORM_SRC.glob("*.tf"):
+    # Copy .tf and .hcl files
+    for src_file in tf_source.glob("*.tf"):
+        shutil.copy2(src_file, deploy_dir / src_file.name)
+    for src_file in tf_source.glob("*.hcl"):
         shutil.copy2(src_file, deploy_dir / src_file.name)
 
     # Copy user_data.sh
-    user_data_src = TERRAFORM_SRC / "user_data.sh"
+    user_data_src = tf_source / "user_data.sh"
     if user_data_src.exists():
         shutil.copy2(user_data_src, deploy_dir / "user_data.sh")
 
     # Copy .terraform.lock.hcl if present (pins provider versions)
-    lock_file = TERRAFORM_SRC / ".terraform.lock.hcl"
+    lock_file = tf_source / ".terraform.lock.hcl"
     if lock_file.exists():
         shutil.copy2(
             lock_file, deploy_dir / ".terraform.lock.hcl"
@@ -60,14 +80,13 @@ def _prepare_working_dir(cfg: Config) -> Path:
 
     # Copy custom startup script if configured
     if cfg.startup_script.enabled and cfg.startup_script.path:
-        # Check ~/.lablink/ first, then bundled terraform dir
         user_script = (
             Path.home() / ".lablink" / "custom-startup.sh"
         )
         if user_script.exists():
             src_startup = user_script
         else:
-            src_startup = TERRAFORM_SRC / cfg.startup_script.path
+            src_startup = tf_source / cfg.startup_script.path
 
         if src_startup.exists():
             dest_startup = (
@@ -77,15 +96,6 @@ def _prepare_working_dir(cfg: Config) -> Path:
                 parents=True, exist_ok=True
             )
             shutil.copy2(src_startup, dest_startup)
-
-    # Override the hardcoded region in main.tf
-    main_tf = deploy_dir / "main.tf"
-    content = main_tf.read_text()
-    content = content.replace(
-        'region = "us-west-2"',
-        f'region = "{cfg.app.region}"',
-    )
-    main_tf.write_text(content)
 
     return deploy_dir
 
@@ -203,7 +213,12 @@ def _prompt_passwords() -> dict[str, str]:
     }
 
 
-def run_deploy(cfg: Config) -> None:
+def run_deploy(
+    cfg: Config,
+    *,
+    template_version: str | None = None,
+    terraform_bundle: str | None = None,
+) -> None:
     """Deploy LabLink infrastructure."""
     console.print()
     console.print(
@@ -221,7 +236,11 @@ def run_deploy(cfg: Config) -> None:
     check_credentials(_get_session(cfg.app.region))
 
     # Prepare working directory
-    deploy_dir = _prepare_working_dir(cfg)
+    deploy_dir = _prepare_working_dir(
+        cfg,
+        template_version=template_version,
+        terraform_bundle=terraform_bundle,
+    )
 
     # Prompt for credentials
     passwords = _prompt_passwords()
@@ -258,6 +277,7 @@ def run_deploy(cfg: Config) -> None:
             "plan",
             f"-var=deployment_name={cfg.deployment_name}",
             f"-var=environment={cfg.environment}",
+            f"-var=region={cfg.app.region}",
             "-out=tfplan",
         ],
         cwd=deploy_dir,
@@ -570,6 +590,7 @@ def run_destroy(cfg: Config) -> None:
             "-auto-approve",
             f"-var=deployment_name={cfg.deployment_name}",
             f"-var=environment={cfg.environment}",
+            f"-var=region={cfg.app.region}",
         ],
         cwd=deploy_dir,
     )

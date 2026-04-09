@@ -26,16 +26,14 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-lablink_cli = ["terraform/**/*"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: real network tests (deselect with '-m not integration')"]
+addopts = "-m 'not integration'"
 
 [tool.coverage.run]
 omit = [
     "src/lablink_cli/tui/*",
-    "src/lablink_cli/terraform/*",
 ]
 
 [tool.coverage.report]
