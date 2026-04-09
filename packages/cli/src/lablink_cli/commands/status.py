@@ -443,7 +443,17 @@ def _render_health_checks(cfg: Config, outputs: dict) -> None:
     if domain:
         checks.append(check_dns(domain, outputs.get("ec2_public_ip", "")))
     if url:
-        checks.append(check_http(url))
+        health = check_health_endpoint(url)
+        detail = health.get("detail", "")
+        if health["healthy"] and health.get("uptime_seconds") is not None:
+            detail += f" (uptime: {health['uptime_seconds']}s)"
+        checks.append({
+            "check": "Allocator Health",
+            "status": "pass" if health["healthy"] else (
+                "warn" if health["status"] == "starting" else "fail"
+            ),
+            "detail": detail,
+        })
     if domain and use_https:
         checks.append(check_ssl_cert(domain))
 

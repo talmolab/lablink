@@ -303,10 +303,10 @@ class TestRenderTerraformState:
 # ------------------------------------------------------------------
 class TestRenderHealthChecks:
     @patch("lablink_cli.commands.status.check_ssl_cert")
-    @patch("lablink_cli.commands.status.check_http")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
     @patch("lablink_cli.commands.status.check_dns")
     def test_with_domain_and_ssl(
-        self, mock_dns, mock_http, mock_ssl, mock_cfg
+        self, mock_dns, mock_health, mock_ssl, mock_cfg
     ):
         mock_cfg.dns.enabled = True
         mock_cfg.dns.domain = "test.example.com"
@@ -314,8 +314,11 @@ class TestRenderHealthChecks:
         mock_dns.return_value = {
             "check": "DNS", "status": "pass", "detail": ""
         }
-        mock_http.return_value = {
-            "check": "HTTP", "status": "pass", "detail": ""
+        mock_health.return_value = {
+            "status": "pass",
+            "healthy": True,
+            "uptime_seconds": 42.0,
+            "detail": "healthy",
         }
         mock_ssl.return_value = {
             "check": "SSL", "status": "pass", "detail": ""
@@ -324,7 +327,7 @@ class TestRenderHealthChecks:
 
         _render_health_checks(mock_cfg, outputs)
         mock_dns.assert_called_once()
-        mock_http.assert_called_once()
+        mock_health.assert_called_once()
         mock_ssl.assert_called_once()
 
     def test_no_domain_no_ip(self, mock_cfg):
