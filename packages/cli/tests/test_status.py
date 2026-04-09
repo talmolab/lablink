@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from lablink_cli.commands.status import (
     FALLBACK_COSTS,
+    _build_health_url,
     _render_client_vms,
     _render_cost_estimate,
     _render_health_checks,
@@ -169,6 +170,43 @@ class TestFallbackCosts:
     def test_all_ec2_costs_positive(self):
         for itype, cost in FALLBACK_COSTS["ec2"].items():
             assert cost > 0, f"{itype} cost should be positive"
+
+
+# ------------------------------------------------------------------
+# _build_health_url
+# ------------------------------------------------------------------
+class TestBuildHealthUrl:
+    def test_https_domain(self, mock_cfg):
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "test.example.com"
+        mock_cfg.ssl.provider = "letsencrypt"
+        outputs = {"ec2_public_ip": "1.2.3.4"}
+
+        assert _build_health_url(mock_cfg, outputs) == "https://test.example.com"
+
+    def test_http_domain(self, mock_cfg):
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "test.example.com"
+        mock_cfg.ssl.provider = "none"
+        outputs = {"ec2_public_ip": "1.2.3.4"}
+
+        assert _build_health_url(mock_cfg, outputs) == "http://test.example.com"
+
+    def test_ip_fallback(self, mock_cfg):
+        mock_cfg.dns.enabled = False
+        mock_cfg.dns.domain = ""
+        mock_cfg.ssl.provider = "none"
+        outputs = {"ec2_public_ip": "1.2.3.4"}
+
+        assert _build_health_url(mock_cfg, outputs) == "http://1.2.3.4"
+
+    def test_no_domain_no_ip(self, mock_cfg):
+        mock_cfg.dns.enabled = False
+        mock_cfg.dns.domain = ""
+        mock_cfg.ssl.provider = "none"
+        outputs = {}
+
+        assert _build_health_url(mock_cfg, outputs) == ""
 
 
 # ------------------------------------------------------------------

@@ -6,8 +6,9 @@ import json
 import socket
 import ssl
 from datetime import datetime, timezone
-from urllib.request import Request, urlopen
+from pathlib import Path
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 import boto3
 from botocore.exceptions import ClientError
@@ -345,7 +346,7 @@ def estimate_costs(cfg: Config) -> list[dict]:
     return costs
 
 
-def _render_terraform_state(deploy_dir) -> dict:
+def _render_terraform_state(deploy_dir: Path) -> dict:
     """Read and display Terraform outputs. Returns outputs dict."""
     if not deploy_dir.exists():
         return {}
@@ -369,30 +370,34 @@ def _render_terraform_state(deploy_dir) -> dict:
     return outputs
 
 
+def _build_health_url(cfg: Config, outputs: dict) -> str:
+    """Build the URL to use for HTTP health checks."""
+    domain = cfg.dns.domain if cfg.dns.enabled else ""
+    ip = outputs.get("ec2_public_ip", "")
+    use_https = cfg.ssl.provider != "none"
+
+    if domain and use_https:
+        return f"https://{domain}"
+    if domain:
+        return f"http://{domain}"
+    if ip:
+        return f"http://{ip}"
+    return ""
+
+
 def _render_health_checks(cfg: Config, outputs: dict) -> None:
     """Run and display health checks."""
-    ip = outputs.get("ec2_public_ip", "")
     domain = cfg.dns.domain if cfg.dns.enabled else ""
     use_https = cfg.ssl.provider != "none"
+    url = _build_health_url(cfg, outputs)
 
     console.print("[bold]Health Checks[/bold]")
     checks = []
 
     if domain:
-        checks.append(check_dns(domain, ip))
-
-    if domain and use_https:
-        url = f"https://{domain}"
-    elif domain:
-        url = f"http://{domain}"
-    elif ip:
-        url = f"http://{ip}"
-    else:
-        url = ""
-
+        checks.append(check_dns(domain, outputs.get("ec2_public_ip", "")))
     if url:
         checks.append(check_http(url))
-
     if domain and use_https:
         checks.append(check_ssl_cert(domain))
 
