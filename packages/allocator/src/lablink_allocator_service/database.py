@@ -133,6 +133,32 @@ class PostgresqlDatabase:
             rows = cursor.fetchall()
         return [dict(zip(column_names, row)) for row in rows]
 
+    def get_all_vms_for_export(self, include_logs: bool = False) -> list:
+        """Get all VMs with metrics data for export.
+
+        Excludes sensitive columns (pin, crdcommand). Logs are excluded
+        by default since the export targets quantitative metrics.
+
+        Args:
+            include_logs: Whether to include cloudinitlogs and dockerlogs.
+
+        Returns:
+            list: A list of VM dicts with metrics columns.
+        """
+        exclude = {"pin", "crdcommand"}
+        if not include_logs:
+            exclude |= {"cloudinitlogs", "dockerlogs"}
+        column_names = [
+            col
+            for col in self.get_column_names()
+            if col not in exclude
+        ]
+        query_columns = ", ".join(column_names)
+        with self._cursor as cursor:
+            cursor.execute(f"SELECT {query_columns} FROM {self.table_name};")
+            rows = cursor.fetchall()
+        return [dict(zip(column_names, row)) for row in rows]
+
     def get_row_count(self) -> int:
         """Get the number of rows in the table.
         Returns:

@@ -895,6 +895,26 @@ def receive_vm_metrics(hostname):
         return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
+@app.route("/api/export-metrics", methods=["GET"])
+@require_auth
+def export_metrics():
+    """Export VM metrics data as JSON."""
+    try:
+        include_logs = request.args.get("include_logs", "false").lower() == "true"
+        vms = database.get_all_vms_for_export(include_logs=include_logs)
+
+        # Serialize datetime objects to ISO format strings
+        for vm in vms:
+            for key, value in vm.items():
+                if hasattr(value, "isoformat"):
+                    vm[key] = value.isoformat()
+
+        return jsonify({"vms": vms, "count": len(vms)}), 200
+    except Exception as e:
+        logger.error(f"Error exporting metrics: {e}")
+        return jsonify({"error": "Failed to export metrics."}), 500
+
+
 @app.route("/api/schedule-destruction", methods=["POST"])
 @auth.login_required
 def create_scheduled_destruction() -> Response | tuple[Response, int]:

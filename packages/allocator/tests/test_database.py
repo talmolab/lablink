@@ -877,6 +877,123 @@ def test_get_all_vms(db_instance):
         assert vms == expected_vms
 
 
+def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
+    """Test that export excludes pin and crdcommand columns."""
+    with patch.object(db_instance, "get_column_names") as mock_get_columns:
+        column_names = [
+            "hostname",
+            "pin",
+            "crdcommand",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+            "cloudinitlogs",
+            "dockerlogs",
+            "terraformapplydurationseconds",
+            "createdat",
+        ]
+        mock_get_columns.return_value = column_names
+
+        vm_data = [
+            ("vm1", "email1", False, "Healthy", "running", 45.0, "2023-01-01"),
+        ]
+        db_instance.cursor.fetchall.return_value = vm_data
+
+        vms = db_instance.get_all_vms_for_export(include_logs=False)
+
+        # pin, crdcommand, cloudinitlogs, dockerlogs should all be excluded
+        expected_columns = [
+            "hostname",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+            "terraformapplydurationseconds",
+            "createdat",
+        ]
+        query_columns = ", ".join(expected_columns)
+        db_instance.cursor.execute.assert_called_with(
+            f"SELECT {query_columns} FROM vms;"
+        )
+        assert "pin" not in vms[0]
+        assert "crdcommand" not in vms[0]
+        assert "cloudinitlogs" not in vms[0]
+        assert "dockerlogs" not in vms[0]
+
+
+def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
+    """Test that export includes logs when include_logs=True."""
+    with patch.object(db_instance, "get_column_names") as mock_get_columns:
+        column_names = [
+            "hostname",
+            "pin",
+            "crdcommand",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+            "cloudinitlogs",
+            "dockerlogs",
+            "createdat",
+        ]
+        mock_get_columns.return_value = column_names
+
+        vm_data = [
+            ("vm1", "email1", False, "Healthy", "running", "cloud logs", "docker logs", "2023-01-01"),
+        ]
+        db_instance.cursor.fetchall.return_value = vm_data
+
+        vms = db_instance.get_all_vms_for_export(include_logs=True)
+
+        # pin and crdcommand excluded, but logs included
+        expected_columns = [
+            "hostname",
+            "useremail",
+            "inuse",
+            "healthy",
+            "status",
+            "cloudinitlogs",
+            "dockerlogs",
+            "createdat",
+        ]
+        query_columns = ", ".join(expected_columns)
+        db_instance.cursor.execute.assert_called_with(
+            f"SELECT {query_columns} FROM vms;"
+        )
+        assert "pin" not in vms[0]
+        assert "crdcommand" not in vms[0]
+        assert vms[0]["cloudinitlogs"] == "cloud logs"
+        assert vms[0]["dockerlogs"] == "docker logs"
+
+
+def test_get_all_vms_for_export_default_excludes_logs(db_instance):
+    """Test that the default behavior excludes logs."""
+    with patch.object(db_instance, "get_column_names") as mock_get_columns:
+        column_names = [
+            "hostname",
+            "pin",
+            "crdcommand",
+            "useremail",
+            "cloudinitlogs",
+            "dockerlogs",
+        ]
+        mock_get_columns.return_value = column_names
+
+        db_instance.cursor.fetchall.return_value = [("vm1", "email1")]
+
+        vms = db_instance.get_all_vms_for_export()
+
+        # Default should exclude logs
+        expected_columns = ["hostname", "useremail"]
+        query_columns = ", ".join(expected_columns)
+        db_instance.cursor.execute.assert_called_with(
+            f"SELECT {query_columns} FROM vms;"
+        )
+        assert "cloudinitlogs" not in vms[0]
+        assert "dockerlogs" not in vms[0]
+
+
 def test_naive_utc():
     """Test the _naive_utc static method."""
     from datetime import datetime, timezone, timedelta
