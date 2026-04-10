@@ -284,5 +284,45 @@ def cache_clear() -> None:
     )
 
 
+@app.command("export-metrics")
+def export_metrics(
+    output: str = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help=(
+            "Output file path "
+            "(default: metrics.csv or metrics.json based on --format)"
+        ),
+    ),
+    format: str = typer.Option(
+        "csv",
+        "--format",
+        "-f",
+        help="Output format: csv or json",
+    ),
+    include_logs: bool = typer.Option(
+        False,
+        "--include-logs",
+        help="Include cloud_init_logs and docker_logs columns",
+    ),
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """Export VM metrics to a CSV or JSON file."""
+    from lablink_cli.commands.export_metrics import run_export_metrics
+
+    run_export_metrics(
+        _load_cfg(config),
+        output=output,
+        include_logs=include_logs,
+        format=format,
+    )
+
+
 def main() -> None:
     app()
