@@ -92,6 +92,23 @@ def test_export_metrics_empty(client, admin_headers, monkeypatch):
     assert result == {"vms": [], "count": 0}
 
 
+def test_export_metrics_database_error(
+    client, admin_headers, monkeypatch
+):
+    """Test that a database exception returns 500 with an error message."""
+    fake_db = MagicMock()
+    fake_db.get_all_vms_for_export.side_effect = RuntimeError("db is down")
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.get(EXPORT_METRICS_ENDPOINT, headers=admin_headers)
+
+    assert resp.status_code == 500
+    assert resp.is_json
+    assert resp.get_json() == {"error": "Failed to export metrics."}
+
+
 def test_export_metrics_datetime_serialization(
     client, admin_headers, monkeypatch
 ):

@@ -76,10 +76,15 @@ def run_export_metrics(
         body = json.loads(resp.read().decode())
     except HTTPError as e:
         console.print(f"[red]HTTP {e.code}: {e.reason}[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
     except URLError as e:
         console.print(f"[red]Connection error: {e.reason}[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
+    except json.JSONDecodeError as e:
+        console.print(
+            f"[red]Invalid JSON response from allocator: {e}[/red]"
+        )
+        raise SystemExit(1) from e
 
     vms = body.get("vms", [])
     if not vms:

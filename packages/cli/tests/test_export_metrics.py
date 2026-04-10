@@ -273,6 +273,30 @@ class TestRunExportMetrics:
         assert (tmp_path / "metrics.json").exists()
         assert not (tmp_path / "metrics.csv").exists()
 
+    def test_malformed_json_response(self, mock_cfg, tmp_path):
+        """Test graceful handling when the response body isn't valid JSON."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b"<html>500 bad gateway</html>"
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "secret"),
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.urlopen",
+                return_value=mock_resp,
+            ),
+            pytest.raises(SystemExit),
+        ):
+            run_export_metrics(
+                mock_cfg, output=str(tmp_path / "m.csv")
+            )
+
     def test_default_output_matches_csv_format(
         self, mock_cfg, tmp_path, monkeypatch
     ):
