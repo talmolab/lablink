@@ -177,3 +177,130 @@ class TestRunExportMetrics:
             pytest.raises(SystemExit),
         ):
             run_export_metrics(mock_cfg, output=str(tmp_path / "m.csv"))
+
+    def test_writes_json(self, mock_cfg, tmp_path):
+        """Test that format='json' writes a valid JSON file."""
+        output_path = tmp_path / "metrics.json"
+
+        vms = [
+            {
+                "hostname": "vm-1",
+                "useremail": "user@example.com",
+                "inuse": False,
+                "healthy": "Healthy",
+                "status": "running",
+                "terraformapplydurationseconds": 45.0,
+                "createdat": "2023-01-01T00:00:00",
+            },
+            {
+                "hostname": "vm-2",
+                "useremail": "user2@example.com",
+                "inuse": True,
+                "healthy": "Healthy",
+                "status": "running",
+                "terraformapplydurationseconds": 50.0,
+                "createdat": "2023-01-01T00:01:00",
+            },
+        ]
+        response_body = json.dumps({"vms": vms, "count": 2}).encode()
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_body
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "secret"),
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.urlopen",
+                return_value=mock_resp,
+            ),
+        ):
+            run_export_metrics(
+                mock_cfg, output=str(output_path), format="json"
+            )
+
+        assert output_path.exists()
+        with open(output_path) as f:
+            data = json.load(f)
+
+        assert data == vms
+
+    def test_invalid_format(self, mock_cfg, tmp_path):
+        """Test that an invalid format value raises an error."""
+        with pytest.raises(SystemExit):
+            run_export_metrics(
+                mock_cfg,
+                output=str(tmp_path / "m.txt"),
+                format="xml",
+            )
+
+    def test_default_output_matches_json_format(
+        self, mock_cfg, tmp_path, monkeypatch
+    ):
+        """When format=json and output is None, default filename is metrics.json."""
+        monkeypatch.chdir(tmp_path)
+
+        response_body = json.dumps({
+            "vms": [{"hostname": "vm-1"}],
+            "count": 1,
+        }).encode()
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_body
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "secret"),
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.urlopen",
+                return_value=mock_resp,
+            ),
+        ):
+            run_export_metrics(mock_cfg, output=None, format="json")
+
+        assert (tmp_path / "metrics.json").exists()
+        assert not (tmp_path / "metrics.csv").exists()
+
+    def test_default_output_matches_csv_format(
+        self, mock_cfg, tmp_path, monkeypatch
+    ):
+        """When format=csv and output is None, default filename is metrics.csv."""
+        monkeypatch.chdir(tmp_path)
+
+        response_body = json.dumps({
+            "vms": [{"hostname": "vm-1"}],
+            "count": 1,
+        }).encode()
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_body
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "secret"),
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.urlopen",
+                return_value=mock_resp,
+            ),
+        ):
+            run_export_metrics(mock_cfg, output=None, format="csv")
+
+        assert (tmp_path / "metrics.csv").exists()

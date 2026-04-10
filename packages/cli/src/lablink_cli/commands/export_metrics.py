@@ -20,18 +20,34 @@ from lablink_cli.commands.utils import (
 console = Console()
 
 
+VALID_FORMATS = ("csv", "json")
+
+
 def run_export_metrics(
     cfg,
-    output: str = "metrics.csv",
+    output: str | None = None,
     include_logs: bool = False,
+    format: str = "csv",
 ) -> None:
-    """Export VM metrics from the allocator to a CSV file.
+    """Export VM metrics from the allocator to a file.
 
     Args:
         cfg: LabLink configuration object.
-        output: Path for the output CSV file.
+        output: Path for the output file. If None, defaults to
+            ``metrics.<format>`` in the current directory.
         include_logs: Whether to include cloud_init and docker log columns.
+        format: Output format, one of "csv" or "json".
     """
+    if format not in VALID_FORMATS:
+        console.print(
+            f"[red]Invalid format '{format}'. Must be one of: "
+            f"{', '.join(VALID_FORMATS)}[/red]"
+        )
+        raise SystemExit(1)
+
+    if output is None:
+        output = f"metrics.{format}"
+
     allocator_url = get_allocator_url(cfg)
     if not allocator_url:
         console.print("[red]Could not determine allocator URL.[/red]")
@@ -71,12 +87,16 @@ def run_export_metrics(
         return
 
     output_path = Path(output)
-    fieldnames = list(vms[0].keys())
 
-    with open(output_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(vms)
+    if format == "json":
+        with open(output_path, "w") as f:
+            json.dump(vms, f, indent=2)
+    else:
+        fieldnames = list(vms[0].keys())
+        with open(output_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(vms)
 
     console.print(
         f"[green]Exported {len(vms)} VMs to {output_path}[/green]"
