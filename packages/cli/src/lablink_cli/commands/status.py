@@ -7,7 +7,7 @@ import socket
 import ssl
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import boto3
@@ -87,6 +87,52 @@ def check_http(url: str) -> dict:
         else:
             result["status"] = "warn"
             result["detail"] = f"{url} → HTTP {code}"
+    except URLError as e:
+        result["detail"] = f"{url} → {e.reason}"
+    except Exception as e:
+        result["detail"] = f"{url} → {e}"
+    return result
+
+
+def check_health_endpoint(base_url: str) -> dict:
+    """Check the allocator /api/health endpoint for structured readiness.
+
+    Returns a dict with:
+      - status: "pass" | "starting" | "unreachable"
+      - healthy: bool
+      - uptime_seconds: float | None
+      - checks: dict | None (from the health endpoint response)
+      - detail: str
+    """
+    url = f"{base_url.rstrip('/')}/api/health"
+    result: dict = {
+        "status": "unreachable",
+        "healthy": False,
+        "uptime_seconds": None,
+        "checks": None,
+        "detail": "",
+    }
+    try:
+        req = Request(url, method="GET")
+        resp = urlopen(req, timeout=10)  # noqa: S310
+        body = json.loads(resp.read().decode())
+        if body.get("status") == "healthy":
+            result["status"] = "pass"
+            result["healthy"] = True
+        else:
+            result["status"] = "starting"
+        result["uptime_seconds"] = body.get("uptime_seconds")
+        result["checks"] = body.get("checks")
+        result["detail"] = f"{url} → {body.get('status')}"
+    except HTTPError as e:
+        try:
+            body = json.loads(e.read().decode())
+            result["status"] = "starting"
+            result["uptime_seconds"] = body.get("uptime_seconds")
+            result["checks"] = body.get("checks")
+            result["detail"] = f"{url} → {body.get('status')}"
+        except Exception:
+            result["detail"] = f"{url} → HTTP {e.code}"
     except URLError as e:
         result["detail"] = f"{url} → {e.reason}"
     except Exception as e:
@@ -397,7 +443,17 @@ def _render_health_checks(cfg: Config, outputs: dict) -> None:
     if domain:
         checks.append(check_dns(domain, outputs.get("ec2_public_ip", "")))
     if url:
-        checks.append(check_http(url))
+        health = check_health_endpoint(url)
+        detail = health.get("detail", "")
+        if health["healthy"] and health.get("uptime_seconds") is not None:
+            detail += f" (uptime: {health['uptime_seconds']}s)"
+        checks.append({
+            "check": "Allocator Health",
+            "status": "pass" if health["healthy"] else (
+                "warn" if health["status"] == "starting" else "fail"
+            ),
+            "detail": detail,
+        })
     if domain and use_https:
         checks.append(check_ssl_cert(domain))
 

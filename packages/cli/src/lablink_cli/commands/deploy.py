@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from rich.console import Console
@@ -12,6 +13,7 @@ from rich.panel import Panel
 from lablink_allocator_service.conf.structured_config import Config
 
 from lablink_cli.commands.setup import check_credentials, _get_session
+from lablink_cli.commands.status import check_health_endpoint
 from lablink_cli.commands.utils import (
     get_allocator_url,
     get_deploy_dir,
@@ -220,6 +222,58 @@ def _prompt_passwords() -> dict[str, str]:
     }
 
 
+def _poll_allocator_health(
+    poll_url: str,
+    *,
+    max_wait: int = 120,
+) -> dict:
+    """Poll the allocator health endpoint with adaptive intervals.
+
+    Intervals: 3s for first 30s, 5s for 30-90s, 10s after 90s.
+
+    Returns dict with:
+      - healthy: bool
+      - elapsed: float (seconds from start to healthy or timeout)
+      - timed_out: bool
+      - uptime_seconds: float | None (from allocator's self-reported uptime)
+    """
+    start = time.monotonic()
+    elapsed = 0.0
+
+    while elapsed < max_wait:
+        result = check_health_endpoint(poll_url)
+        elapsed = time.monotonic() - start
+
+        if result["healthy"]:
+            return {
+                "healthy": True,
+                "elapsed": elapsed,
+                "timed_out": False,
+                "uptime_seconds": result.get("uptime_seconds"),
+            }
+
+        # Adaptive interval based on elapsed time
+        if elapsed < 30:
+            interval = 3
+        elif elapsed < 90:
+            interval = 5
+        else:
+            interval = 10
+
+        console.print(
+            f"[dim]  {result['status']}... ({elapsed:.0f}s / {max_wait}s)[/dim]"
+        )
+        time.sleep(interval)
+        elapsed = time.monotonic() - start
+
+    return {
+        "healthy": False,
+        "elapsed": elapsed,
+        "timed_out": True,
+        "uptime_seconds": None,
+    }
+
+
 def run_deploy(
     cfg: Config,
     *,
@@ -319,54 +373,76 @@ def run_deploy(
     )
     console.print()
 
-    # Wait and run health checks
-    import time
+    # --- Deployment timing ---
+    from lablink_cli.commands.status import run_status
+    from lablink_cli.commands.utils import get_terraform_outputs
 
-    from lablink_cli.commands.status import (
-        check_http,
-        run_status,
-    )
+    outputs = get_terraform_outputs(deploy_dir)
+    ec2_ip = outputs.get("ec2_public_ip", "")
 
     has_ssl = cfg.ssl.provider != "none"
     max_wait = 300 if has_ssl else 120
-    interval = 15
-    elapsed = 0
 
-    console.print(
-        f"[bold]Waiting for allocator to become healthy"
-        f" (up to {max_wait // 60} min)...[/bold]"
-    )
+    # Phase 1: Poll EC2 IP directly for allocator readiness
+    if ec2_ip:
+        direct_url = f"http://{ec2_ip}:5000"
+        console.print(
+            f"[bold]Waiting for allocator to become healthy"
+            f" (up to {max_wait // 60} min)...[/bold]"
+        )
+        poll_result = _poll_allocator_health(
+            direct_url, max_wait=max_wait
+        )
 
-    # Determine URL to poll
-    if cfg.dns.enabled and cfg.dns.domain:
-        scheme = "https" if has_ssl else "http"
-        poll_url = f"{scheme}://{cfg.dns.domain}"
+        if poll_result["healthy"]:
+            console.print(
+                f"[green]Allocator healthy after"
+                f" {poll_result['elapsed']:.0f}s[/green]"
+            )
+        else:
+            console.print(
+                "[yellow]Timed out waiting for healthy status."
+                " Running status check anyway...[/yellow]"
+            )
     else:
-        poll_url = None
+        console.print(
+            "[yellow]No EC2 IP found in Terraform outputs."
+            " Skipping health check.[/yellow]"
+        )
+        poll_result = {"healthy": False, "elapsed": 0, "timed_out": True}
 
-    # Initial wait for instance boot + docker pull
-    time.sleep(60)
-    elapsed = 60
+    # Phase 2: If DNS/SSL configured, verify endpoint reachability
+    if cfg.dns.enabled and cfg.dns.domain and poll_result["healthy"]:
+        from lablink_cli.commands.status import check_http
 
-    while elapsed < max_wait:
-        if poll_url:
-            result = check_http(poll_url)
-            if result["status"] == "pass":
+        scheme = "https" if has_ssl else "http"
+        endpoint_url = f"{scheme}://{cfg.dns.domain}"
+        console.print(
+            f"[bold]Checking endpoint reachability at"
+            f" {endpoint_url}...[/bold]"
+        )
+
+        dns_start = time.monotonic()
+        dns_max = 180 if has_ssl else 60
+        dns_elapsed = 0.0
+
+        while dns_elapsed < dns_max:
+            http_result = check_http(endpoint_url)
+            dns_elapsed = time.monotonic() - dns_start
+            if http_result["status"] == "pass":
                 console.print(
-                    f"[green]Allocator healthy after"
-                    f" {elapsed}s[/green]"
+                    f"[green]Endpoint reachable after"
+                    f" {dns_elapsed:.0f}s[/green]"
                 )
                 break
-        time.sleep(interval)
-        elapsed += interval
-        console.print(
-            f"[dim]  Waiting... ({elapsed}s / {max_wait}s)[/dim]"
-        )
-    else:
-        console.print(
-            "[yellow]Timed out waiting for healthy status."
-            " Running status check anyway...[/yellow]"
-        )
+            time.sleep(10)
+            dns_elapsed = time.monotonic() - dns_start
+        else:
+            console.print(
+                f"[yellow]Endpoint {endpoint_url} not yet"
+                f" reachable after {dns_elapsed:.0f}s."
+                f" DNS/SSL may still be propagating.[/yellow]"
+            )
 
     console.print()
     run_status(cfg)

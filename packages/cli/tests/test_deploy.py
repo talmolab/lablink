@@ -13,6 +13,7 @@ from lablink_cli.api import (
 )
 from lablink_cli.commands.deploy import (
     _destroy_client_vms,
+    _poll_allocator_health,
     _prepare_working_dir,
     _run_terraform,
     _terraform_destroy,
@@ -224,3 +225,63 @@ class TestTerraformDestroy:
         mock_tf_init.assert_called_once_with(deploy_dir, mock_cfg)
         mock_tf_run.assert_called_once()
         mock_rmtree.assert_called_once_with(deploy_dir)
+
+
+# ------------------------------------------------------------------
+# _poll_allocator_health
+# ------------------------------------------------------------------
+class TestPollAllocatorHealth:
+    @patch("lablink_cli.commands.deploy.time")
+    @patch("lablink_cli.commands.deploy.check_health_endpoint")
+    def test_healthy_on_first_poll(self, mock_check, mock_time):
+        """Returns immediately when allocator is healthy on first poll."""
+        mock_time.monotonic.side_effect = [0.0, 5.0]
+        mock_check.return_value = {
+            "status": "pass",
+            "healthy": True,
+            "uptime_seconds": 30.0,
+        }
+
+        result = _poll_allocator_health("http://1.2.3.4:5000", max_wait=120)
+        assert result["healthy"] is True
+        assert result["elapsed"] == 5.0
+        mock_time.sleep.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy.time")
+    @patch("lablink_cli.commands.deploy.check_health_endpoint")
+    def test_healthy_after_retries(self, mock_check, mock_time):
+        """Keeps polling until healthy."""
+        # monotonic: start, check1, sleep1, check2, sleep2, check3
+        mock_time.monotonic.side_effect = [0.0, 3.0, 4.0, 6.0, 7.0, 9.0]
+        mock_check.side_effect = [
+            {"status": "unreachable", "healthy": False, "uptime_seconds": None},
+            {"status": "starting", "healthy": False, "uptime_seconds": 2.0},
+            {"status": "pass", "healthy": True, "uptime_seconds": 8.0},
+        ]
+
+        result = _poll_allocator_health("http://1.2.3.4:5000", max_wait=120)
+        assert result["healthy"] is True
+        assert mock_time.sleep.call_count == 2
+
+    @patch("lablink_cli.commands.deploy.time")
+    @patch("lablink_cli.commands.deploy.check_health_endpoint")
+    def test_timeout(self, mock_check, mock_time):
+        """Returns unhealthy after max_wait exceeded."""
+        call_count = 0
+
+        def mock_monotonic():
+            nonlocal call_count
+            val = call_count * 10.0
+            call_count += 1
+            return val
+
+        mock_time.monotonic.side_effect = mock_monotonic
+        mock_check.return_value = {
+            "status": "unreachable",
+            "healthy": False,
+            "uptime_seconds": None,
+        }
+
+        result = _poll_allocator_health("http://1.2.3.4:5000", max_wait=30)
+        assert result["healthy"] is False
+        assert result["timed_out"] is True
