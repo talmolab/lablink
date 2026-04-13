@@ -427,22 +427,39 @@ class TestRunDeployMetrics:
 # ------------------------------------------------------------------
 # run_destroy — export prompt before tearing down (issue #317)
 # ------------------------------------------------------------------
-def _patch_destroy_deps(deploy_dir):
-    """Mocks for run_destroy. Stubs everything except the export prompt logic."""
-    return [
-        patch("lablink_cli.commands.deploy.check_credentials"),
-        patch("lablink_cli.commands.deploy._get_session"),
-        patch(
-            "lablink_cli.commands.deploy.get_deploy_dir",
-            return_value=deploy_dir,
+def _patch_destroy_deps(deploy_dir, stack):
+    """Enter run_destroy dep mocks into ``stack`` and return a dict of the mocks.
+
+    Tests that need to assert against a mock (e.g. ``_terraform_destroy``) can
+    look it up by key instead of re-patching — avoids shadowing the shared
+    patch with a redundant second one.
+    """
+    return {
+        "check_credentials": stack.enter_context(
+            patch("lablink_cli.commands.deploy.check_credentials")
         ),
-        patch(
-            "lablink_cli.commands.deploy.resolve_admin_credentials",
-            return_value=("admin", "pw"),
+        "get_session": stack.enter_context(
+            patch("lablink_cli.commands.deploy._get_session")
         ),
-        patch("lablink_cli.commands.deploy._destroy_client_vms"),
-        patch("lablink_cli.commands.deploy._terraform_destroy"),
-    ]
+        "get_deploy_dir": stack.enter_context(
+            patch(
+                "lablink_cli.commands.deploy.get_deploy_dir",
+                return_value=deploy_dir,
+            )
+        ),
+        "resolve_admin_credentials": stack.enter_context(
+            patch(
+                "lablink_cli.commands.deploy.resolve_admin_credentials",
+                return_value=("admin", "pw"),
+            )
+        ),
+        "destroy_client_vms": stack.enter_context(
+            patch("lablink_cli.commands.deploy._destroy_client_vms")
+        ),
+        "terraform_destroy": stack.enter_context(
+            patch("lablink_cli.commands.deploy._terraform_destroy")
+        ),
+    }
 
 
 def _setup_destroy_dir(deploy_dir):
@@ -458,8 +475,7 @@ class TestRunDestroyExportPrompt:
 
         # input(): "yes" (confirm destroy), "y" (export)
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            _patch_destroy_deps(deploy_dir, stack)
             mock_export = stack.enter_context(
                 patch("lablink_cli.commands.deploy.run_export_metrics")
             )
@@ -477,8 +493,7 @@ class TestRunDestroyExportPrompt:
         _setup_destroy_dir(deploy_dir)
 
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            _patch_destroy_deps(deploy_dir, stack)
             mock_export = stack.enter_context(
                 patch("lablink_cli.commands.deploy.run_export_metrics")
             )
@@ -496,13 +511,9 @@ class TestRunDestroyExportPrompt:
         _setup_destroy_dir(deploy_dir)
 
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            mocks = _patch_destroy_deps(deploy_dir, stack)
             mock_export = stack.enter_context(
                 patch("lablink_cli.commands.deploy.run_export_metrics")
-            )
-            mock_destroy_clients = stack.enter_context(
-                patch("lablink_cli.commands.deploy._destroy_client_vms")
             )
             stack.enter_context(
                 patch("builtins.input", side_effect=["yes", "n"])
@@ -511,7 +522,7 @@ class TestRunDestroyExportPrompt:
             run_destroy(mock_cfg)
 
             mock_export.assert_not_called()
-            mock_destroy_clients.assert_called_once()
+            mocks["destroy_client_vms"].assert_called_once()
 
     def test_destroy_proceeds_if_export_fails(self, mock_cfg, tmp_path):
         """Export raising Exception should NOT block destruction."""
@@ -519,16 +530,12 @@ class TestRunDestroyExportPrompt:
         _setup_destroy_dir(deploy_dir)
 
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            mocks = _patch_destroy_deps(deploy_dir, stack)
             stack.enter_context(
                 patch(
                     "lablink_cli.commands.deploy.run_export_metrics",
                     side_effect=RuntimeError("network down"),
                 )
-            )
-            mock_terraform_destroy = stack.enter_context(
-                patch("lablink_cli.commands.deploy._terraform_destroy")
             )
             stack.enter_context(
                 patch("builtins.input", side_effect=["yes", "y"])
@@ -536,7 +543,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mock_terraform_destroy.assert_called_once()
+            mocks["terraform_destroy"].assert_called_once()
 
     def test_destroy_proceeds_when_export_raises_systemexit(
         self, mock_cfg, tmp_path
@@ -553,16 +560,12 @@ class TestRunDestroyExportPrompt:
         _setup_destroy_dir(deploy_dir)
 
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            mocks = _patch_destroy_deps(deploy_dir, stack)
             stack.enter_context(
                 patch(
                     "lablink_cli.commands.deploy.run_export_metrics",
                     side_effect=SystemExit(1),
                 )
-            )
-            mock_terraform_destroy = stack.enter_context(
-                patch("lablink_cli.commands.deploy._terraform_destroy")
             )
             stack.enter_context(
                 patch("builtins.input", side_effect=["yes", "y"])
@@ -570,7 +573,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mock_terraform_destroy.assert_called_once()
+            mocks["terraform_destroy"].assert_called_once()
 
     def test_no_export_prompt_when_user_cancels_destroy(
         self, mock_cfg, tmp_path
@@ -580,8 +583,7 @@ class TestRunDestroyExportPrompt:
         _setup_destroy_dir(deploy_dir)
 
         with ExitStack() as stack:
-            for cm in _patch_destroy_deps(deploy_dir):
-                stack.enter_context(cm)
+            _patch_destroy_deps(deploy_dir, stack)
             mock_export = stack.enter_context(
                 patch("lablink_cli.commands.deploy.run_export_metrics")
             )
