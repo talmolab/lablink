@@ -416,9 +416,11 @@ def run_deploy(
 
         max_wait = 300 if has_ssl else 120
 
-        # Phase 1: Poll EC2 IP directly for allocator readiness
+        # Phase 1: Poll EC2 IP directly for allocator readiness.
+        # Uses port 80 (nginx) — the EC2 security group does not expose
+        # Flask's 5000 externally; nginx reverse-proxies to it internally.
         if ec2_ip:
-            direct_url = f"http://{ec2_ip}:5000"
+            direct_url = f"http://{ec2_ip}"
             console.print(
                 f"[bold]Waiting for allocator to become healthy"
                 f" (up to {max_wait // 60} min)...[/bold]"
