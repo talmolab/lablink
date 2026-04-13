@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
@@ -26,7 +27,14 @@ from lablink_cli.api import (
     AllocatorNotFoundError,
     AllocatorUnavailableError,
 )
+from lablink_cli.commands.export_metrics import run_export_metrics
 from lablink_cli.config.schema import config_to_dict, save_config
+from lablink_cli.deployment_metrics import (
+    DeploymentMetrics,
+    cache_path_for,
+    phase_timer,
+    write_metrics,
+)
 from lablink_cli.terraform_source import get_terraform_files
 
 console = Console()
@@ -281,6 +289,8 @@ def run_deploy(
     terraform_bundle: str | None = None,
 ) -> None:
     """Deploy LabLink infrastructure."""
+    from lablink_cli import TEMPLATE_VERSION
+
     console.print()
     console.print(
         Panel(
@@ -328,88 +338,146 @@ def run_deploy(
             sort_keys=False,
         )
 
-    # Terraform init
-    _terraform_init(deploy_dir, cfg)
-
-    # Terraform plan — pass deployment_name and environment
-    console.print("[bold]Step 2/3:[/bold] Terraform plan")
-    _run_terraform(
-        [
-            "plan",
-            f"-var=deployment_name={cfg.deployment_name}",
-            f"-var=environment={cfg.environment}",
-            f"-var=region={cfg.app.region}",
-            "-out=tfplan",
-        ],
-        cwd=deploy_dir,
-    )
-    console.print()
-
-    # Confirm before apply
-    console.print(
-        "[bold yellow]Review the plan above.[/bold yellow] "
-        "Type 'yes' to apply: ",
-        end="",
-    )
-    answer = input()
-    if answer.strip().lower() != "yes":
-        console.print(
-            "[dim]Cancelled. No resources were created.[/dim]"
-        )
-        raise SystemExit(0)
-    console.print()
-
-    # Terraform apply
-    console.print("[bold]Step 3/3:[/bold] Terraform apply")
-    _run_terraform(
-        ["apply", "-auto-approve", "tfplan"], cwd=deploy_dir
-    )
-    console.print()
-
-    # Show outputs
-    console.print("[bold]Deployment complete![/bold]")
-    _run_terraform(
-        ["output"], cwd=deploy_dir, check=False
-    )
-    console.print()
-
-    # --- Deployment timing ---
-    from lablink_cli.commands.status import run_status
-    from lablink_cli.commands.utils import get_terraform_outputs
-
-    outputs = get_terraform_outputs(deploy_dir)
-    ec2_ip = outputs.get("ec2_public_ip", "")
-
+    # Initialize deployment metrics — written incrementally so failed
+    # or interrupted deploys still leave a useful partial record on disk.
     has_ssl = cfg.ssl.provider != "none"
-    max_wait = 300 if has_ssl else 120
+    deploy_start_dt = datetime.now(timezone.utc)
+    metrics = DeploymentMetrics(
+        deployment_name=cfg.deployment_name,
+        region=cfg.app.region,
+        template_version=template_version or TEMPLATE_VERSION,
+        ssl_enabled=has_ssl,
+        allocator_deploy_start_time=deploy_start_dt.isoformat(),
+    )
+    metrics_path = cache_path_for(cfg.deployment_name, deploy_start_dt)
+    write_metrics(metrics_path, metrics)
 
-    # Phase 1: Poll EC2 IP directly for allocator readiness
-    if ec2_ip:
-        direct_url = f"http://{ec2_ip}:5000"
-        console.print(
-            f"[bold]Waiting for allocator to become healthy"
-            f" (up to {max_wait // 60} min)...[/bold]"
-        )
-        poll_result = _poll_allocator_health(
-            direct_url, max_wait=max_wait
-        )
+    try:
+        # Terraform init
+        with phase_timer(
+            metrics, "allocator_terraform_init_duration_seconds", metrics_path
+        ):
+            _terraform_init(deploy_dir, cfg)
 
-        if poll_result["healthy"]:
-            console.print(
-                f"[green]Allocator healthy after"
-                f" {poll_result['elapsed']:.0f}s[/green]"
+        # Terraform plan — pass deployment_name and environment
+        console.print("[bold]Step 2/3:[/bold] Terraform plan")
+        with phase_timer(
+            metrics, "allocator_terraform_plan_duration_seconds", metrics_path
+        ):
+            _run_terraform(
+                [
+                    "plan",
+                    f"-var=deployment_name={cfg.deployment_name}",
+                    f"-var=environment={cfg.environment}",
+                    f"-var=region={cfg.app.region}",
+                    "-out=tfplan",
+                ],
+                cwd=deploy_dir,
             )
+        console.print()
+
+        # Confirm before apply (user think-time intentionally excluded from phases)
+        console.print(
+            "[bold yellow]Review the plan above.[/bold yellow] "
+            "Type 'yes' to apply: ",
+            end="",
+        )
+        answer = input()
+        if answer.strip().lower() != "yes":
+            console.print(
+                "[dim]Cancelled. No resources were created.[/dim]"
+            )
+            raise SystemExit(0)
+        console.print()
+
+        # Terraform apply
+        console.print("[bold]Step 3/3:[/bold] Terraform apply")
+        with phase_timer(
+            metrics, "allocator_terraform_apply_duration_seconds", metrics_path
+        ):
+            _run_terraform(
+                ["apply", "-auto-approve", "tfplan"], cwd=deploy_dir
+            )
+        console.print()
+
+        # Show outputs
+        console.print("[bold]Deployment complete![/bold]")
+        _run_terraform(
+            ["output"], cwd=deploy_dir, check=False
+        )
+        console.print()
+
+        # --- Deployment timing ---
+        from lablink_cli.commands.status import run_status
+        from lablink_cli.commands.utils import get_terraform_outputs
+
+        outputs = get_terraform_outputs(deploy_dir)
+        ec2_ip = outputs.get("ec2_public_ip", "")
+
+        max_wait = 300 if has_ssl else 120
+
+        # Phase 1: Poll EC2 IP directly for allocator readiness
+        if ec2_ip:
+            direct_url = f"http://{ec2_ip}:5000"
+            console.print(
+                f"[bold]Waiting for allocator to become healthy"
+                f" (up to {max_wait // 60} min)...[/bold]"
+            )
+            with phase_timer(
+                metrics,
+                "allocator_health_check_duration_seconds",
+                metrics_path,
+            ):
+                poll_result = _poll_allocator_health(
+                    direct_url, max_wait=max_wait
+                )
+
+            if poll_result["healthy"]:
+                console.print(
+                    f"[green]Allocator healthy after"
+                    f" {poll_result['elapsed']:.0f}s[/green]"
+                )
+            else:
+                console.print(
+                    "[yellow]Timed out waiting for healthy status."
+                    " Running status check anyway...[/yellow]"
+                )
         else:
             console.print(
-                "[yellow]Timed out waiting for healthy status."
-                " Running status check anyway...[/yellow]"
+                "[yellow]No EC2 IP found in Terraform outputs."
+                " Skipping health check.[/yellow]"
             )
-    else:
-        console.print(
-            "[yellow]No EC2 IP found in Terraform outputs."
-            " Skipping health check.[/yellow]"
+            poll_result = {"healthy": False, "elapsed": 0, "timed_out": True}
+
+        # Mark success and record total time (sum of timed phases — excludes
+        # user prompt time, which is the reproducible "machine work" measure).
+        deploy_end_dt = datetime.now(timezone.utc)
+        metrics.allocator_deploy_end_time = deploy_end_dt.isoformat()
+        metrics.allocator_total_deployment_duration_seconds = round(
+            sum(
+                v
+                for v in (
+                    metrics.allocator_terraform_init_duration_seconds,
+                    metrics.allocator_terraform_plan_duration_seconds,
+                    metrics.allocator_terraform_apply_duration_seconds,
+                    metrics.allocator_health_check_duration_seconds,
+                )
+                if v is not None
+            ),
+            3,
         )
-        poll_result = {"healthy": False, "elapsed": 0, "timed_out": True}
+        metrics.status = "success"
+        write_metrics(metrics_path, metrics)
+
+    except Exception as e:
+        # Persist the failure so we have a record of what timed out / blew up.
+        # SystemExit (user cancellation, terraform exit code) is a BaseException
+        # subclass and intentionally NOT caught here — cancellation leaves the
+        # file in 'in_progress' state, which is correct semantics.
+        metrics.status = "failed"
+        metrics.error = str(e)
+        write_metrics(metrics_path, metrics)
+        raise
 
     # Phase 2: If DNS/SSL configured, verify endpoint reachability
     if cfg.dns.enabled and cfg.dns.domain and poll_result["healthy"]:
@@ -453,6 +521,10 @@ def run_deploy(
     )
     console.print(
         "[dim]To tear down:[/dim] [bold]lablink destroy[/bold]"
+    )
+    console.print(
+        "[dim]To export deployment metrics:[/dim] "
+        "[bold]lablink export-metrics --allocator[/bold]"
     )
 
 
@@ -622,6 +694,23 @@ def run_destroy(cfg: Config) -> None:
     if answer.strip().lower() != "yes":
         console.print("[dim]Cancelled.[/dim]")
         raise SystemExit(0)
+    console.print()
+
+    # Offer one last chance to export metrics — once destroy runs, the
+    # allocator's per-VM metrics are gone forever. Default = yes.
+    console.print(
+        "[bold]Export metrics before destroying?[/bold] [Y/n]: ",
+        end="",
+    )
+    export_answer = input().strip().lower()
+    if export_answer in ("", "y", "yes"):
+        try:
+            run_export_metrics(cfg, client=True, allocator=True)
+        except Exception as e:
+            console.print(
+                f"[yellow]Export failed: {e}. "
+                f"Continuing with destroy...[/yellow]"
+            )
     console.print()
 
     _destroy_client_vms(cfg, admin_user, admin_pw)

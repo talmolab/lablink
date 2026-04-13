@@ -306,6 +306,22 @@ def export_metrics(
         "--include-logs",
         help="Include cloud_init_logs and docker_logs columns",
     ),
+    client: bool = typer.Option(
+        False,
+        "--client",
+        help=(
+            "Export per-VM client metrics from the allocator "
+            "(default if no flag is given exports both)."
+        ),
+    ),
+    allocator: bool = typer.Option(
+        False,
+        "--allocator",
+        help=(
+            "Export per-deploy allocator metrics from the local cache. "
+            "Works without a running allocator (e.g. after `lablink destroy`)."
+        ),
+    ),
     config: str = typer.Option(
         None,
         "--config",
@@ -313,14 +329,26 @@ def export_metrics(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Export VM metrics to a CSV or JSON file."""
+    """Export deployment metrics to CSV or JSON.
+
+    Pass --client for per-VM metrics from the allocator. Pass --allocator
+    for per-deploy metrics from the local cache. With no flag, exports
+    both. The --allocator-only path skips the network entirely.
+    """
     from lablink_cli.commands.export_metrics import run_export_metrics
 
+    # Skip config load when only --allocator is requested — it doesn't need
+    # the config and we want this command to work even after `lablink destroy`.
+    needs_cfg = client or not allocator
+    cfg = _load_cfg(config) if needs_cfg else None
+
     run_export_metrics(
-        _load_cfg(config),
+        cfg,
         output=output,
         include_logs=include_logs,
         format=format,
+        client=client,
+        allocator=allocator,
     )
 
 
