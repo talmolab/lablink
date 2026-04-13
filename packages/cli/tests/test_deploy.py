@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from lablink_cli import deployment_metrics
 from lablink_cli.api import (
     AllocatorAuthError,
     AllocatorNotFoundError,
@@ -17,6 +20,8 @@ from lablink_cli.commands.deploy import (
     _prepare_working_dir,
     _run_terraform,
     _terraform_destroy,
+    run_deploy,
+    run_destroy,
 )
 
 
@@ -285,3 +290,274 @@ class TestPollAllocatorHealth:
         result = _poll_allocator_health("http://1.2.3.4:5000", max_wait=30)
         assert result["healthy"] is False
         assert result["timed_out"] is True
+
+
+# ------------------------------------------------------------------
+# run_deploy — metrics instrumentation (issue #317)
+# ------------------------------------------------------------------
+def _patch_deploy_deps(deploy_dir):
+    """Common mock context for run_deploy. Stubs everything except metrics wiring."""
+    return [
+        patch(
+            "lablink_cli.commands.deploy._prepare_working_dir",
+            return_value=deploy_dir,
+        ),
+        patch("lablink_cli.commands.deploy.check_credentials"),
+        patch("lablink_cli.commands.deploy._get_session"),
+        patch(
+            "lablink_cli.commands.deploy._prompt_passwords",
+            return_value={
+                "admin_user": "admin",
+                "admin_password": "pw",
+                "db_password": "dbpw",
+            },
+        ),
+        patch("lablink_cli.commands.deploy._terraform_init"),
+        patch(
+            "lablink_cli.commands.utils.get_terraform_outputs",
+            return_value={"ec2_public_ip": "1.2.3.4"},
+        ),
+        patch(
+            "lablink_cli.commands.deploy._poll_allocator_health",
+            return_value={
+                "healthy": True,
+                "elapsed": 12.0,
+                "timed_out": False,
+                "uptime_seconds": 5.0,
+            },
+        ),
+        patch("lablink_cli.commands.status.run_status"),
+        patch("builtins.input", return_value="yes"),
+    ]
+
+
+class TestRunDeployMetrics:
+    def test_writes_success_metrics(self, mock_cfg, tmp_path, monkeypatch):
+        """Successful deploy → cache file with status='success' and all durations."""
+        cache_dir = tmp_path / "cache"
+        monkeypatch.setattr(
+            deployment_metrics, "DEPLOYMENTS_DIR", cache_dir
+        )
+
+        deploy_dir = tmp_path / "deploy"
+        (deploy_dir / "config").mkdir(parents=True)
+        (deploy_dir / "config" / "config.yaml").write_text(
+            "app: {}\ndb: {}\n"
+        )
+
+        with ExitStack() as stack:
+            for cm in _patch_deploy_deps(deploy_dir):
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch("lablink_cli.commands.deploy._run_terraform")
+            )
+            run_deploy(mock_cfg)
+
+        cache_files = list(cache_dir.glob("*.json"))
+        assert len(cache_files) == 1, f"expected 1 cache file, got {cache_files}"
+
+        data = json.loads(cache_files[0].read_text())
+        assert data["status"] == "success"
+        assert data["deployment_name"] == "mylab"
+        assert data["region"] == "us-east-1"
+        assert data["ssl_enabled"] is False  # mock_cfg has ssl.provider="none"
+        assert data["template_version"] is not None
+        assert data["allocator_deploy_start_time"] is not None
+        assert data["allocator_deploy_end_time"] is not None
+        assert data["allocator_terraform_init_duration_seconds"] is not None
+        assert data["allocator_terraform_plan_duration_seconds"] is not None
+        assert data["allocator_terraform_apply_duration_seconds"] is not None
+        assert data["allocator_health_check_duration_seconds"] is not None
+        assert data["allocator_total_deployment_duration_seconds"] is not None
+        assert data["error"] is None
+
+    def test_writes_failure_metrics_when_apply_raises(
+        self, mock_cfg, tmp_path, monkeypatch
+    ):
+        """Failed apply → status='failed' with earlier phase durations preserved."""
+        cache_dir = tmp_path / "cache"
+        monkeypatch.setattr(
+            deployment_metrics, "DEPLOYMENTS_DIR", cache_dir
+        )
+
+        deploy_dir = tmp_path / "deploy"
+        (deploy_dir / "config").mkdir(parents=True)
+        (deploy_dir / "config" / "config.yaml").write_text(
+            "app: {}\ndb: {}\n"
+        )
+
+        def fail_on_apply(args, cwd=None, check=True):
+            if args and args[0] == "apply":
+                raise RuntimeError("terraform apply blew up")
+            return 0
+
+        with ExitStack() as stack:
+            for cm in _patch_deploy_deps(deploy_dir):
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch(
+                    "lablink_cli.commands.deploy._run_terraform",
+                    side_effect=fail_on_apply,
+                )
+            )
+            with pytest.raises(RuntimeError, match="terraform apply blew up"):
+                run_deploy(mock_cfg)
+
+        cache_files = list(cache_dir.glob("*.json"))
+        assert len(cache_files) == 1
+
+        data = json.loads(cache_files[0].read_text())
+        assert data["status"] == "failed"
+        assert "terraform apply blew up" in data["error"]
+        assert (
+            data["allocator_terraform_init_duration_seconds"] is not None
+        ), "init succeeded — its duration should be persisted"
+        assert (
+            data["allocator_terraform_plan_duration_seconds"] is not None
+        ), "plan succeeded — its duration should be persisted"
+        # apply ran but raised — phase_timer's try/finally should still record duration
+        assert (
+            data["allocator_terraform_apply_duration_seconds"] is not None
+        ), "apply duration should be recorded even on failure"
+        assert (
+            data["allocator_health_check_duration_seconds"] is None
+        ), "health check should not have run after apply failed"
+
+
+# ------------------------------------------------------------------
+# run_destroy — export prompt before tearing down (issue #317)
+# ------------------------------------------------------------------
+def _patch_destroy_deps(deploy_dir):
+    """Mocks for run_destroy. Stubs everything except the export prompt logic."""
+    return [
+        patch("lablink_cli.commands.deploy.check_credentials"),
+        patch("lablink_cli.commands.deploy._get_session"),
+        patch(
+            "lablink_cli.commands.deploy.get_deploy_dir",
+            return_value=deploy_dir,
+        ),
+        patch(
+            "lablink_cli.commands.deploy.resolve_admin_credentials",
+            return_value=("admin", "pw"),
+        ),
+        patch("lablink_cli.commands.deploy._destroy_client_vms"),
+        patch("lablink_cli.commands.deploy._terraform_destroy"),
+    ]
+
+
+def _setup_destroy_dir(deploy_dir):
+    deploy_dir.mkdir(parents=True)
+    (deploy_dir / "terraform.tfstate").write_text("{}")
+
+
+class TestRunDestroyExportPrompt:
+    def test_prompts_and_runs_export_when_yes(self, mock_cfg, tmp_path):
+        """User confirms destroy AND accepts export → run_export_metrics called."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        # input(): "yes" (confirm destroy), "y" (export)
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            mock_export = stack.enter_context(
+                patch("lablink_cli.commands.deploy.run_export_metrics")
+            )
+            stack.enter_context(
+                patch("builtins.input", side_effect=["yes", "y"])
+            )
+
+            run_destroy(mock_cfg)
+
+            mock_export.assert_called_once()
+
+    def test_default_empty_input_runs_export(self, mock_cfg, tmp_path):
+        """Default on Enter (empty input) is to export (destruction is irreversible)."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            mock_export = stack.enter_context(
+                patch("lablink_cli.commands.deploy.run_export_metrics")
+            )
+            stack.enter_context(
+                patch("builtins.input", side_effect=["yes", ""])
+            )
+
+            run_destroy(mock_cfg)
+
+            mock_export.assert_called_once()
+
+    def test_skips_export_when_n(self, mock_cfg, tmp_path):
+        """User says 'n' to export prompt → skip export, still destroy."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            mock_export = stack.enter_context(
+                patch("lablink_cli.commands.deploy.run_export_metrics")
+            )
+            mock_destroy_clients = stack.enter_context(
+                patch("lablink_cli.commands.deploy._destroy_client_vms")
+            )
+            stack.enter_context(
+                patch("builtins.input", side_effect=["yes", "n"])
+            )
+
+            run_destroy(mock_cfg)
+
+            mock_export.assert_not_called()
+            mock_destroy_clients.assert_called_once()
+
+    def test_destroy_proceeds_if_export_fails(self, mock_cfg, tmp_path):
+        """Export raising should NOT block destruction."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch(
+                    "lablink_cli.commands.deploy.run_export_metrics",
+                    side_effect=RuntimeError("network down"),
+                )
+            )
+            mock_terraform_destroy = stack.enter_context(
+                patch("lablink_cli.commands.deploy._terraform_destroy")
+            )
+            stack.enter_context(
+                patch("builtins.input", side_effect=["yes", "y"])
+            )
+
+            run_destroy(mock_cfg)
+
+            mock_terraform_destroy.assert_called_once()
+
+    def test_no_export_prompt_when_user_cancels_destroy(
+        self, mock_cfg, tmp_path
+    ):
+        """'no' to destroy → no export prompt (preserves existing cancel flow)."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            mock_export = stack.enter_context(
+                patch("lablink_cli.commands.deploy.run_export_metrics")
+            )
+            # Only one input call expected (the destroy confirmation).
+            # If a second input() were attempted, side_effect would raise StopIteration.
+            stack.enter_context(
+                patch("builtins.input", side_effect=["no"])
+            )
+
+            with pytest.raises(SystemExit):
+                run_destroy(mock_cfg)
+
+            mock_export.assert_not_called()
