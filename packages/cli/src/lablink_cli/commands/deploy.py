@@ -706,9 +706,13 @@ def run_destroy(cfg: Config) -> None:
     )
     export_answer = input().strip().lower()
     if export_answer in ("", "y", "yes"):
+        # Catch both Exception and SystemExit — run_export_metrics raises
+        # SystemExit(1) on network/HTTP failures (it doubles as a CLI entry
+        # point), and we must not let that abort the destroy itself.
+        # KeyboardInterrupt is intentionally left uncaught so Ctrl-C aborts.
         try:
             run_export_metrics(cfg, client=True, allocator=True)
-        except Exception as e:
+        except (Exception, SystemExit) as e:
             console.print(
                 f"[yellow]Export failed: {e}. "
                 f"Continuing with destroy...[/yellow]"

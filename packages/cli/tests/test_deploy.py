@@ -514,7 +514,7 @@ class TestRunDestroyExportPrompt:
             mock_destroy_clients.assert_called_once()
 
     def test_destroy_proceeds_if_export_fails(self, mock_cfg, tmp_path):
-        """Export raising should NOT block destruction."""
+        """Export raising Exception should NOT block destruction."""
         deploy_dir = tmp_path / "deploy"
         _setup_destroy_dir(deploy_dir)
 
@@ -525,6 +525,40 @@ class TestRunDestroyExportPrompt:
                 patch(
                     "lablink_cli.commands.deploy.run_export_metrics",
                     side_effect=RuntimeError("network down"),
+                )
+            )
+            mock_terraform_destroy = stack.enter_context(
+                patch("lablink_cli.commands.deploy._terraform_destroy")
+            )
+            stack.enter_context(
+                patch("builtins.input", side_effect=["yes", "y"])
+            )
+
+            run_destroy(mock_cfg)
+
+            mock_terraform_destroy.assert_called_once()
+
+    def test_destroy_proceeds_when_export_raises_systemexit(
+        self, mock_cfg, tmp_path
+    ):
+        """Export raising SystemExit (the real failure shape from
+        _export_client_metrics on HTTP/URL/JSON errors) must not abort destroy.
+
+        Regression guard: SystemExit inherits from BaseException, not
+        Exception, so a plain `except Exception` would miss it and let the
+        SystemExit propagate out of run_destroy — killing the destroy before
+        _terraform_destroy runs.
+        """
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            for cm in _patch_destroy_deps(deploy_dir):
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch(
+                    "lablink_cli.commands.deploy.run_export_metrics",
+                    side_effect=SystemExit(1),
                 )
             )
             mock_terraform_destroy = stack.enter_context(
