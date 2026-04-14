@@ -255,33 +255,90 @@ def show_config(
         console.print("\n[green]Config is valid.[/green]")
 
 
-@app.command("cache-clear")
-def cache_clear() -> None:
-    """Clear cached Terraform template downloads."""
+def _clear_terraform_cache(console) -> None:
+    """Clear the Terraform template cache at ``terraform_source.CACHE_DIR``."""
     import shutil
 
-    from rich.console import Console
+    from lablink_cli import terraform_source
 
-    from lablink_cli.terraform_source import CACHE_DIR
+    cache_dir = terraform_source.CACHE_DIR
 
-    console = Console()
-
-    if not CACHE_DIR.exists():
+    if not cache_dir.exists():
         console.print("[dim]No cache to clear.[/dim]")
         return
 
-    # List cached versions before clearing
-    versions = [d.name for d in CACHE_DIR.iterdir() if d.is_dir()]
+    versions = [d.name for d in cache_dir.iterdir() if d.is_dir()]
     if not versions:
         console.print("[dim]Cache is empty.[/dim]")
         return
 
     for v in sorted(versions):
         console.print(f"  Removing {v}...")
-    shutil.rmtree(CACHE_DIR)
+    shutil.rmtree(cache_dir)
     console.print(
         f"[green]Cleared {len(versions)} cached version(s).[/green]"
     )
+
+
+def _clear_deployments_cache(console) -> None:
+    """Clear the CLI-local deployment metrics cache (issue #317)."""
+    from lablink_cli import deployment_metrics
+
+    cache_dir = deployment_metrics.DEPLOYMENTS_DIR
+
+    if not cache_dir.exists():
+        console.print("[dim]No deployments cache to clear.[/dim]")
+        return
+
+    records = list(cache_dir.glob("*.json"))
+    if not records:
+        console.print("[dim]Deployments cache is empty.[/dim]")
+        return
+
+    for p in records:
+        p.unlink()
+    console.print(
+        f"[green]Cleared {len(records)} deployment record(s).[/green]"
+    )
+
+
+@app.command("cache-clear")
+def cache_clear(
+    deployments: bool = typer.Option(
+        False,
+        "--deployments",
+        help=(
+            "Clear the local deployment metrics cache "
+            "(~/.lablink/deployments/) instead of the Terraform template "
+            "cache."
+        ),
+    ),
+    all_caches: bool = typer.Option(
+        False,
+        "--all",
+        help=(
+            "Clear all LabLink caches (Terraform templates AND deployment "
+            "metrics)."
+        ),
+    ),
+) -> None:
+    """Clear LabLink caches.
+
+    By default clears only the Terraform template cache (backwards-compatible
+    with the original command). Use --deployments to clear the CLI-local
+    deployment metrics cache, or --all to clear both.
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if all_caches:
+        _clear_terraform_cache(console)
+        _clear_deployments_cache(console)
+    elif deployments:
+        _clear_deployments_cache(console)
+    else:
+        _clear_terraform_cache(console)
 
 
 @app.command("export-metrics")
