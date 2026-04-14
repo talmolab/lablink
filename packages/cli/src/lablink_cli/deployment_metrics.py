@@ -2,6 +2,12 @@
 
 Stored on the operator's machine under ``~/.lablink/deployments/`` so that
 metrics for failed deploys (or for already-destroyed allocators) survive.
+
+Records start life with ``status="in_progress"`` and are promoted to
+``success`` / ``failed`` by :func:`~lablink_cli.commands.deploy.run_deploy`.
+Plan-confirmation cancels and Ctrl-C leave the file in ``in_progress``
+indefinitely — use ``lablink cache-clear --deployments --stale`` to prune
+just those, or ``--deployments`` to wipe the whole cache.
 """
 
 from __future__ import annotations

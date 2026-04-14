@@ -486,6 +486,12 @@ class TestRunDestroyExportPrompt:
             run_destroy(mock_cfg)
 
             mock_export.assert_called_once()
+            # Output path should be deployment-scoped + UTC-timestamped so
+            # repeat destroys in the same cwd don't overwrite prior exports.
+            kwargs = mock_export.call_args.kwargs
+            assert "output" in kwargs
+            assert kwargs["output"].startswith(f"metrics-{mock_cfg.deployment_name}-")
+            assert kwargs["output"].endswith(".csv")
 
     def test_default_empty_input_runs_export(self, mock_cfg, tmp_path):
         """Default on Enter (empty input) is to export (destruction is irreversible)."""
@@ -504,6 +510,8 @@ class TestRunDestroyExportPrompt:
             run_destroy(mock_cfg)
 
             mock_export.assert_called_once()
+            kwargs = mock_export.call_args.kwargs
+            assert kwargs["output"].startswith(f"metrics-{mock_cfg.deployment_name}-")
 
     def test_skips_export_when_n(self, mock_cfg, tmp_path):
         """User says 'n' to export prompt → skip export, still destroy."""

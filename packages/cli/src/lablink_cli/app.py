@@ -280,8 +280,16 @@ def _clear_terraform_cache(console) -> None:
     )
 
 
-def _clear_deployments_cache(console) -> None:
-    """Clear the CLI-local deployment metrics cache (issue #317)."""
+def _clear_deployments_cache(console, stale_only: bool = False) -> None:
+    """Clear the CLI-local deployment metrics cache (issue #317).
+
+    With ``stale_only=True``, delete only records whose ``status`` is
+    ``in_progress`` — the leftovers from plan-cancel or Ctrl-C that never
+    reached ``success`` / ``failed``. Malformed JSON files are treated as
+    stale under ``stale_only`` (they are un-promotable by definition).
+    """
+    import json
+
     from lablink_cli import deployment_metrics
 
     cache_dir = deployment_metrics.DEPLOYMENTS_DIR
@@ -290,15 +298,35 @@ def _clear_deployments_cache(console) -> None:
         console.print("[dim]No deployments cache to clear.[/dim]")
         return
 
-    records = list(cache_dir.glob("*.json"))
-    if not records:
+    all_records = list(cache_dir.glob("*.json"))
+    if not all_records:
         console.print("[dim]Deployments cache is empty.[/dim]")
         return
 
+    if stale_only:
+        records = []
+        for p in all_records:
+            try:
+                data = json.loads(p.read_text())
+            except json.JSONDecodeError:
+                records.append(p)
+                continue
+            if data.get("status") == "in_progress":
+                records.append(p)
+        if not records:
+            console.print(
+                "[dim]No stale (in_progress) deployment records to clear.[/dim]"
+            )
+            return
+    else:
+        records = all_records
+
     for p in records:
         p.unlink()
+    label = "stale deployment record" if stale_only else "deployment record"
+    suffix = "s" if len(records) != 1 else ""
     console.print(
-        f"[green]Cleared {len(records)} deployment record(s).[/green]"
+        f"[green]Cleared {len(records)} {label}{suffix}.[/green]"
     )
 
 
@@ -321,22 +349,37 @@ def cache_clear(
             "metrics)."
         ),
     ),
+    stale: bool = typer.Option(
+        False,
+        "--stale",
+        help=(
+            "With --deployments, delete only in-progress records "
+            "(leftovers from plan-cancel or Ctrl-C) instead of the whole "
+            "deployments cache. Ignored without --deployments."
+        ),
+    ),
 ) -> None:
     """Clear LabLink caches.
 
     By default clears only the Terraform template cache (backwards-compatible
     with the original command). Use --deployments to clear the CLI-local
-    deployment metrics cache, or --all to clear both.
+    deployment metrics cache, or --all to clear both. Combine --deployments
+    with --stale to prune only in-progress records.
     """
     from rich.console import Console
 
     console = Console()
 
+    if stale and not deployments:
+        console.print(
+            "[yellow]--stale has no effect without --deployments.[/yellow]"
+        )
+
     if all_caches:
         _clear_terraform_cache(console)
         _clear_deployments_cache(console)
     elif deployments:
-        _clear_deployments_cache(console)
+        _clear_deployments_cache(console, stale_only=stale)
     else:
         _clear_terraform_cache(console)
 

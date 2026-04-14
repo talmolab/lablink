@@ -706,12 +706,22 @@ def run_destroy(cfg: Config) -> None:
     )
     export_answer = input().strip().lower()
     if export_answer in ("", "y", "yes"):
+        # Timestamped filename prevents overwriting prior exports when the
+        # same cwd is reused for multiple deployments. The absolute cwd is
+        # announced so files don't land "somewhere" invisibly.
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+        output_base = f"metrics-{cfg.deployment_name}-{timestamp}.csv"
+        console.print(
+            f"[dim]Writing metrics to {Path.cwd().resolve()}/[/dim]"
+        )
         # Catch both Exception and SystemExit — run_export_metrics raises
         # SystemExit(1) on network/HTTP failures (it doubles as a CLI entry
         # point), and we must not let that abort the destroy itself.
         # KeyboardInterrupt is intentionally left uncaught so Ctrl-C aborts.
         try:
-            run_export_metrics(cfg, client=True, allocator=True)
+            run_export_metrics(
+                cfg, output=output_base, client=True, allocator=True
+            )
         except (Exception, SystemExit) as e:
             console.print(
                 f"[yellow]Export failed: {e}. "
