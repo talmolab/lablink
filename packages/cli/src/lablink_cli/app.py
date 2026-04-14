@@ -291,8 +291,10 @@ def export_metrics(
         "--output",
         "-o",
         help=(
-            "Output file path "
-            "(default: metrics.csv or metrics.json based on --format)"
+            "Output file path. With a single source flag, it's the literal "
+            "output path. With both flags (or none), it's a base name: "
+            "_client / _allocator suffixes are added before the extension. "
+            "Default: metrics_client.<fmt> and/or metrics_allocator.<fmt>."
         ),
     ),
     format: str = typer.Option(

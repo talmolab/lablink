@@ -61,7 +61,7 @@ class TestRunExportMetrics:
                 return_value=mock_resp,
             ),
         ):
-            run_export_metrics(mock_cfg, output=str(output_path))
+            run_export_metrics(mock_cfg, output=str(output_path), client=True)
 
         assert output_path.exists()
         with open(output_path) as f:
@@ -224,7 +224,10 @@ class TestRunExportMetrics:
             ),
         ):
             run_export_metrics(
-                mock_cfg, output=str(output_path), format="json"
+                mock_cfg,
+                output=str(output_path),
+                format="json",
+                client=True,
             )
 
         assert output_path.exists()
@@ -245,7 +248,7 @@ class TestRunExportMetrics:
     def test_default_output_matches_json_format(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """When format=json and output is None, default filename is metrics.json."""
+        """--client + format=json + no -o → metrics_client.json default."""
         monkeypatch.chdir(tmp_path)
 
         response_body = json.dumps({
@@ -270,10 +273,12 @@ class TestRunExportMetrics:
                 return_value=mock_resp,
             ),
         ):
-            run_export_metrics(mock_cfg, output=None, format="json")
+            run_export_metrics(
+                mock_cfg, output=None, format="json", client=True
+            )
 
-        assert (tmp_path / "metrics.json").exists()
-        assert not (tmp_path / "metrics.csv").exists()
+        assert (tmp_path / "metrics_client.json").exists()
+        assert not (tmp_path / "metrics_client.csv").exists()
 
     def test_malformed_json_response(self, mock_cfg, tmp_path):
         """Test graceful handling when the response body isn't valid JSON."""
@@ -302,7 +307,7 @@ class TestRunExportMetrics:
     def test_default_output_matches_csv_format(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """When format=csv and output is None, default filename is metrics.csv."""
+        """--client + format=csv + no -o → metrics_client.csv default."""
         monkeypatch.chdir(tmp_path)
 
         response_body = json.dumps({
@@ -327,9 +332,11 @@ class TestRunExportMetrics:
                 return_value=mock_resp,
             ),
         ):
-            run_export_metrics(mock_cfg, output=None, format="csv")
+            run_export_metrics(
+                mock_cfg, output=None, format="csv", client=True
+            )
 
-        assert (tmp_path / "metrics.csv").exists()
+        assert (tmp_path / "metrics_client.csv").exists()
 
 
 # ------------------------------------------------------------------
@@ -375,7 +382,7 @@ class TestExportMetricsFlags:
     def test_both_flags_writes_csv_sidecar(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """--client --allocator → metrics.csv + metrics_allocator.csv."""
+        """Both flags + -o metrics.csv → _client + _allocator sidecar files."""
         records = [
             {
                 "deployment_name": "lab-a",
@@ -393,29 +400,32 @@ class TestExportMetricsFlags:
         mock_resp = MagicMock()
         mock_resp.read.return_value = _vm_response_body()
 
-        output_path = tmp_path / "metrics.csv"
-        sidecar_path = tmp_path / "metrics_allocator.csv"
+        base_path = tmp_path / "metrics.csv"
+        client_path = tmp_path / "metrics_client.csv"
+        allocator_path = tmp_path / "metrics_allocator.csv"
 
         with ExitStack() as stack:
             for cm in _patch_export_calls(mock_resp):
                 stack.enter_context(cm)
             run_export_metrics(
                 mock_cfg,
-                output=str(output_path),
+                output=str(base_path),
                 client=True,
                 allocator=True,
             )
 
-        assert output_path.exists()
-        assert sidecar_path.exists()
-        with open(sidecar_path) as f:
+        assert client_path.exists()
+        assert allocator_path.exists()
+        # -o base name was not itself written
+        assert not base_path.exists()
+        with open(allocator_path) as f:
             rows = list(csv.DictReader(f))
         assert {r["deployment_name"] for r in rows} == {"lab-a", "lab-b"}
 
     def test_both_flags_writes_json_sidecar(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """--client --allocator with --format json → JSON sidecar shape."""
+        """JSON mode: both flags write _client.json and _allocator.json sidecars."""
         records = [
             {"deployment_name": "lab-a", "status": "success"},
             {"deployment_name": "lab-b", "status": "success"},
@@ -425,22 +435,25 @@ class TestExportMetricsFlags:
         mock_resp = MagicMock()
         mock_resp.read.return_value = _vm_response_body()
 
-        output_path = tmp_path / "metrics.json"
-        sidecar_path = tmp_path / "metrics_allocator.json"
+        base_path = tmp_path / "metrics.json"
+        client_path = tmp_path / "metrics_client.json"
+        allocator_path = tmp_path / "metrics_allocator.json"
 
         with ExitStack() as stack:
             for cm in _patch_export_calls(mock_resp):
                 stack.enter_context(cm)
             run_export_metrics(
                 mock_cfg,
-                output=str(output_path),
+                output=str(base_path),
                 format="json",
                 client=True,
                 allocator=True,
             )
 
-        assert sidecar_path.exists()
-        data = json.loads(sidecar_path.read_text())
+        assert client_path.exists()
+        assert allocator_path.exists()
+        assert not base_path.exists()
+        data = json.loads(allocator_path.read_text())
         assert data["count"] == 2
         assert {r["deployment_name"] for r in data["allocator_metrics"]} == {
             "lab-a",
@@ -448,23 +461,25 @@ class TestExportMetricsFlags:
         }
 
     def test_no_flags_defaults_to_both(self, mock_cfg, tmp_path, monkeypatch):
-        """No flags → same as --client --allocator (export everything)."""
+        """No flags → same as --client --allocator (-o is treated as base name)."""
         records = [{"deployment_name": "lab-a", "status": "success"}]
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
         mock_resp.read.return_value = _vm_response_body()
 
-        output_path = tmp_path / "metrics.csv"
-        sidecar_path = tmp_path / "metrics_allocator.csv"
+        base_path = tmp_path / "metrics.csv"
+        client_path = tmp_path / "metrics_client.csv"
+        allocator_path = tmp_path / "metrics_allocator.csv"
 
         with ExitStack() as stack:
             for cm in _patch_export_calls(mock_resp):
                 stack.enter_context(cm)
-            run_export_metrics(mock_cfg, output=str(output_path))
+            run_export_metrics(mock_cfg, output=str(base_path))
 
-        assert output_path.exists()
-        assert sidecar_path.exists()
+        assert client_path.exists()
+        assert allocator_path.exists()
+        assert not base_path.exists()
 
     def test_client_only_skips_allocator_file(
         self, mock_cfg, tmp_path, monkeypatch
@@ -560,7 +575,7 @@ class TestExportMetricsFlags:
     def test_vm_metrics_unchanged_when_cache_empty(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """Existing metrics.json shape stays intact regardless of cache state."""
+        """--client JSON shape is a top-level VM list (regression guard)."""
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, [])
 
         vms = [{"hostname": "vm-1", "status": "running"}]
@@ -575,7 +590,10 @@ class TestExportMetricsFlags:
             for cm in _patch_export_calls(mock_resp):
                 stack.enter_context(cm)
             run_export_metrics(
-                mock_cfg, output=str(output_path), format="json"
+                mock_cfg,
+                output=str(output_path),
+                format="json",
+                client=True,
             )
 
         # Existing contract: top-level JSON is the VM list (see test_writes_json).

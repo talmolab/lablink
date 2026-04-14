@@ -35,12 +35,14 @@ console = Console()
 VALID_FORMATS = ("csv", "json")
 
 
-def _allocator_sidecar_path(output_path: Path, fmt: str) -> Path:
-    """Return the sidecar path next to ``output_path``.
+def _suffixed_path(output_path: Path, suffix: str, fmt: str) -> Path:
+    """Return ``output_path`` with ``suffix`` inserted before the extension.
 
-    e.g. ``metrics.csv`` → ``metrics_allocator.csv``.
+    Used when both ``--client`` and ``--allocator`` are set and the user's
+    ``-o`` value acts as a base name — we write to ``{stem}_client.{fmt}``
+    and ``{stem}_allocator.{fmt}`` so both outputs are symmetrically named.
     """
-    return output_path.with_name(f"{output_path.stem}_allocator.{fmt}")
+    return output_path.with_name(f"{output_path.stem}{suffix}.{fmt}")
 
 
 def _export_client_metrics(
@@ -163,10 +165,12 @@ def run_export_metrics(
     Args:
         cfg: LabLink config (only required for ``client=True``; pass ``None``
             when only ``allocator=True``).
-        output: Path for the primary output file. When both flags are set,
-            this is the client output and the allocator file is written next
-            to it with an ``_allocator`` suffix. When only ``allocator=True``,
-            this is the allocator file directly.
+        output: Path for the output file(s). With a single flag, this is the
+            literal output path. With both flags, it's a **base** name: the
+            client file gets a ``_client`` suffix and the allocator file gets
+            an ``_allocator`` suffix inserted before the extension. If unset,
+            defaults to ``metrics_client.<fmt>`` and/or
+            ``metrics_allocator.<fmt>`` in the current directory.
         include_logs: For client metrics, include cloud_init / docker logs.
         format: ``csv`` or ``json``.
         client: Export per-VM metrics fetched from the allocator.
@@ -186,29 +190,23 @@ def run_export_metrics(
         client = True
         allocator = True
 
-    # Resolve output paths. When both sources are exported, --output names
-    # the client file and the allocator file is a sidecar. When only the
-    # allocator is exported, --output names it directly (no sidecar suffix).
-    if client:
-        client_path = Path(output) if output else Path(f"metrics.{format}")
-    else:
-        client_path = None
+    # Path resolution:
+    # - Single flag + no -o     → metrics_{role}.{fmt} in cwd
+    # - Single flag + -o foo.x  → foo.x (literal)
+    # - Both flags  + no -o     → metrics_client.{fmt} + metrics_allocator.{fmt}
+    # - Both flags  + -o foo.x  → foo_client.x + foo_allocator.x (base name)
+    both = client and allocator
 
-    if allocator:
-        if client:
-            assert client_path is not None  # for type narrowing
-            allocator_path = _allocator_sidecar_path(client_path, format)
-        else:
-            allocator_path = (
-                Path(output) if output else Path(f"metrics_allocator.{format}")
-            )
-    else:
-        allocator_path = None
+    def _path_for(role: str) -> Path:
+        if output is None:
+            return Path(f"metrics_{role}.{format}")
+        p = Path(output)
+        return _suffixed_path(p, f"_{role}", format) if both else p
 
     if client:
-        assert client_path is not None
-        _export_client_metrics(cfg, client_path, format, include_logs)
+        _export_client_metrics(
+            cfg, _path_for("client"), format, include_logs
+        )
 
     if allocator:
-        assert allocator_path is not None
-        _export_allocator_metrics(allocator_path, format)
+        _export_allocator_metrics(_path_for("allocator"), format)
