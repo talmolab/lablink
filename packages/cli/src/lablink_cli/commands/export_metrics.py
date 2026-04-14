@@ -1,4 +1,15 @@
-"""Export VM metrics from the allocator to a CSV file."""
+"""Export deployment metrics to CSV or JSON.
+
+Two metric sources, selectable via flags:
+
+* ``--client``    : per-VM client metrics fetched from the allocator's
+                    ``/api/export-metrics`` endpoint.
+* ``--allocator`` : per-deploy allocator metrics from the local CLI cache
+                    at ``~/.lablink/deployments/`` (issue #317).
+
+Default (no flag) exports both. ``--allocator`` alone never touches the
+network, so it works even after ``lablink destroy``.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +27,7 @@ from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
 )
+from lablink_cli.deployment_metrics import load_all_metrics
 
 console = Console()
 
@@ -23,31 +35,23 @@ console = Console()
 VALID_FORMATS = ("csv", "json")
 
 
-def run_export_metrics(
-    cfg,
-    output: str | None = None,
-    include_logs: bool = False,
-    format: str = "csv",
-) -> None:
-    """Export VM metrics from the allocator to a file.
+def _suffixed_path(output_path: Path, suffix: str, fmt: str) -> Path:
+    """Return ``output_path`` with ``suffix`` inserted before the extension.
 
-    Args:
-        cfg: LabLink configuration object.
-        output: Path for the output file. If None, defaults to
-            ``metrics.<format>`` in the current directory.
-        include_logs: Whether to include cloud_init and docker log columns.
-        format: Output format, one of "csv" or "json".
+    Used when both ``--client`` and ``--allocator`` are set and the user's
+    ``-o`` value acts as a base name — we write to ``{stem}_client.{fmt}``
+    and ``{stem}_allocator.{fmt}`` so both outputs are symmetrically named.
     """
-    if format not in VALID_FORMATS:
-        console.print(
-            f"[red]Invalid format '{format}'. Must be one of: "
-            f"{', '.join(VALID_FORMATS)}[/red]"
-        )
-        raise SystemExit(1)
+    return output_path.with_name(f"{output_path.stem}{suffix}.{fmt}")
 
-    if output is None:
-        output = f"metrics.{format}"
 
+def _export_client_metrics(
+    cfg,
+    output_path: Path,
+    fmt: str,
+    include_logs: bool,
+) -> None:
+    """Fetch per-VM metrics from the allocator and write to ``output_path``."""
     allocator_url = get_allocator_url(cfg)
     if not allocator_url:
         console.print("[red]Could not determine allocator URL.[/red]")
@@ -91,9 +95,7 @@ def run_export_metrics(
         console.print("[yellow]No VMs found to export.[/yellow]")
         return
 
-    output_path = Path(output)
-
-    if format == "json":
+    if fmt == "json":
         with open(output_path, "w") as f:
             json.dump(vms, f, indent=2)
     else:
@@ -106,3 +108,105 @@ def run_export_metrics(
     console.print(
         f"[green]Exported {len(vms)} VMs to {output_path}[/green]"
     )
+
+
+def _export_allocator_metrics(output_path: Path, fmt: str) -> None:
+    """Read CLI-local allocator deployment cache and write to ``output_path``.
+
+    Empty cache → print a yellow notice and skip writing the file (don't
+    create a confusing zero-row CSV / empty-list JSON).
+    """
+    records = load_all_metrics()
+    if not records:
+        console.print(
+            "[yellow]No allocator deployment metrics found in "
+            "~/.lablink/deployments/. Run `lablink deploy` first.[/yellow]"
+        )
+        return
+
+    if fmt == "json":
+        with open(output_path, "w") as f:
+            json.dump(
+                {"allocator_metrics": records, "count": len(records)},
+                f,
+                indent=2,
+            )
+    else:  # csv
+        # Union of keys across all records → stable header even when records
+        # have different optional fields populated (failed vs successful deploys).
+        fieldnames: list[str] = []
+        seen: set[str] = set()
+        for rec in records:
+            for k in rec:
+                if k not in seen:
+                    seen.add(k)
+                    fieldnames.append(k)
+        with open(output_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(records)
+
+    console.print(
+        f"[green]Exported {len(records)} allocator deployment "
+        f"records to {output_path}[/green]"
+    )
+
+
+def run_export_metrics(
+    cfg,
+    output: str | None = None,
+    include_logs: bool = False,
+    format: str = "csv",
+    client: bool = False,
+    allocator: bool = False,
+) -> None:
+    """Export client and/or allocator metrics.
+
+    Args:
+        cfg: LabLink config (only required for ``client=True``; pass ``None``
+            when only ``allocator=True``).
+        output: Path for the output file(s). With a single flag, this is the
+            literal output path. With both flags, it's a **base** name: the
+            client file gets a ``_client`` suffix and the allocator file gets
+            an ``_allocator`` suffix inserted before the extension. If unset,
+            defaults to ``metrics_client.<fmt>`` and/or
+            ``metrics_allocator.<fmt>`` in the current directory.
+        include_logs: For client metrics, include cloud_init / docker logs.
+        format: ``csv`` or ``json``.
+        client: Export per-VM metrics fetched from the allocator.
+        allocator: Export per-deploy metrics from the CLI-local cache.
+
+    No flags → both (the common "give me everything" case).
+    """
+    if format not in VALID_FORMATS:
+        console.print(
+            f"[red]Invalid format '{format}'. Must be one of: "
+            f"{', '.join(VALID_FORMATS)}[/red]"
+        )
+        raise SystemExit(1)
+
+    # Default: if neither flag is set, export both.
+    if not client and not allocator:
+        client = True
+        allocator = True
+
+    # Path resolution:
+    # - Single flag + no -o     → metrics_{role}.{fmt} in cwd
+    # - Single flag + -o foo.x  → foo.x (literal)
+    # - Both flags  + no -o     → metrics_client.{fmt} + metrics_allocator.{fmt}
+    # - Both flags  + -o foo.x  → foo_client.x + foo_allocator.x (base name)
+    both = client and allocator
+
+    def _path_for(role: str) -> Path:
+        if output is None:
+            return Path(f"metrics_{role}.{format}")
+        p = Path(output)
+        return _suffixed_path(p, f"_{role}", format) if both else p
+
+    if client:
+        _export_client_metrics(
+            cfg, _path_for("client"), format, include_logs
+        )
+
+    if allocator:
+        _export_allocator_metrics(_path_for("allocator"), format)

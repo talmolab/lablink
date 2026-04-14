@@ -152,6 +152,188 @@ class TestCacheClear:
         assert "cleared 2" in output
         assert not cache_dir.exists()
 
+    # --- --deployments flag (issue #317) ---
+
+    def test_cache_clear_deployments_no_dir(self, tmp_path):
+        """--deployments with non-existent cache dir exits cleanly."""
+        nonexistent = tmp_path / "nonexistent"
+        with patch(
+            "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", nonexistent
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments"]
+            )
+        assert result.exit_code == 0
+
+    def test_cache_clear_deployments_empty_dir(self, tmp_path):
+        """--deployments with empty cache dir exits cleanly."""
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        with patch(
+            "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments"]
+            )
+        assert result.exit_code == 0
+        assert "empty" in _plain(result.output).lower()
+
+    def test_cache_clear_deployments_removes_records(self, tmp_path):
+        """--deployments deletes every *.json file in the cache."""
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "mylab-2026-04-13.json").write_text('{"x":1}')
+        (dep_dir / "mylab-2026-04-14.json").write_text('{"x":2}')
+
+        with patch(
+            "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments"]
+            )
+        assert result.exit_code == 0
+        assert list(dep_dir.glob("*.json")) == []
+        assert "cleared 2" in _plain(result.output).lower()
+
+    def test_cache_clear_deployments_does_not_touch_terraform(
+        self, tmp_path
+    ):
+        """--deployments should leave the Terraform template cache alone."""
+        tf_dir = tmp_path / "tf"
+        tf_dir.mkdir()
+        (tf_dir / "v0.1.0").mkdir()
+        (tf_dir / "v0.1.0" / "main.tf").write_text("# tf")
+
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "mylab.json").write_text('{"x":1}')
+
+        with (
+            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch(
+                "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+            ),
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments"]
+            )
+
+        assert result.exit_code == 0
+        # Terraform cache untouched
+        assert (tf_dir / "v0.1.0" / "main.tf").exists()
+        # Deployment cache wiped
+        assert list(dep_dir.glob("*.json")) == []
+
+    def test_cache_clear_default_does_not_touch_deployments(
+        self, tmp_path
+    ):
+        """Bare `cache-clear` preserves the deployments cache (backwards compat)."""
+        tf_dir = tmp_path / "tf"
+        tf_dir.mkdir()
+        (tf_dir / "v0.1.0").mkdir()
+        (tf_dir / "v0.1.0" / "main.tf").write_text("# tf")
+
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "mylab.json").write_text('{"x":1}')
+
+        with (
+            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch(
+                "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+            ),
+        ):
+            result = runner.invoke(app, ["cache-clear"])
+
+        assert result.exit_code == 0
+        # Deployment cache untouched
+        assert (dep_dir / "mylab.json").exists()
+
+    def test_cache_clear_all_removes_both(self, tmp_path):
+        """--all clears both the Terraform and deployment caches."""
+        tf_dir = tmp_path / "tf"
+        tf_dir.mkdir()
+        (tf_dir / "v0.1.0").mkdir()
+        (tf_dir / "v0.1.0" / "main.tf").write_text("# tf")
+
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "mylab.json").write_text('{"x":1}')
+
+        with (
+            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch(
+                "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+            ),
+        ):
+            result = runner.invoke(app, ["cache-clear", "--all"])
+
+        assert result.exit_code == 0
+        assert not tf_dir.exists()
+        assert list(dep_dir.glob("*.json")) == []
+
+    # --- --stale flag (issue #317 follow-up) ---
+
+    def test_cache_clear_deployments_stale_removes_only_in_progress(
+        self, tmp_path
+    ):
+        """--deployments --stale deletes in_progress records; keeps success/failed."""
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "a.json").write_text('{"status": "in_progress"}')
+        (dep_dir / "b.json").write_text('{"status": "success"}')
+        (dep_dir / "c.json").write_text('{"status": "failed"}')
+        (dep_dir / "d.json").write_text('{"status": "in_progress"}')
+        # Malformed JSON is un-promotable by definition → treated as stale.
+        (dep_dir / "e.json").write_text("{not json")
+
+        with patch(
+            "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments", "--stale"]
+            )
+
+        assert result.exit_code == 0
+        remaining = {p.name for p in dep_dir.glob("*.json")}
+        assert remaining == {"b.json", "c.json"}
+        assert "3 stale" in _plain(result.output).lower()
+
+    def test_cache_clear_deployments_stale_no_matches(self, tmp_path):
+        """--stale with only success/failed records exits cleanly, deletes nothing."""
+        dep_dir = tmp_path / "deployments"
+        dep_dir.mkdir()
+        (dep_dir / "a.json").write_text('{"status": "success"}')
+        (dep_dir / "b.json").write_text('{"status": "failed"}')
+
+        with patch(
+            "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
+        ):
+            result = runner.invoke(
+                app, ["cache-clear", "--deployments", "--stale"]
+            )
+
+        assert result.exit_code == 0
+        assert {p.name for p in dep_dir.glob("*.json")} == {
+            "a.json",
+            "b.json",
+        }
+        assert "no stale" in _plain(result.output).lower()
+
+    def test_cache_clear_stale_without_deployments_warns(self, tmp_path):
+        """--stale alone (no --deployments) should warn and still clear tf cache."""
+        tf_dir = tmp_path / "tf"
+        tf_dir.mkdir()
+        (tf_dir / "v0.1.0").mkdir()
+        (tf_dir / "v0.1.0" / "main.tf").write_text("# tf")
+
+        with patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir):
+            result = runner.invoke(app, ["cache-clear", "--stale"])
+
+        assert result.exit_code == 0
+        assert "no effect" in _plain(result.output).lower()
+        assert not tf_dir.exists()
+
 
 class TestShowConfig:
     def test_show_config_missing_file(self, tmp_path):

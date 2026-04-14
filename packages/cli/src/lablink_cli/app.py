@@ -255,33 +255,133 @@ def show_config(
         console.print("\n[green]Config is valid.[/green]")
 
 
-@app.command("cache-clear")
-def cache_clear() -> None:
-    """Clear cached Terraform template downloads."""
+def _clear_terraform_cache(console) -> None:
+    """Clear the Terraform template cache at ``terraform_source.CACHE_DIR``."""
     import shutil
 
-    from rich.console import Console
+    from lablink_cli import terraform_source
 
-    from lablink_cli.terraform_source import CACHE_DIR
+    cache_dir = terraform_source.CACHE_DIR
 
-    console = Console()
-
-    if not CACHE_DIR.exists():
+    if not cache_dir.exists():
         console.print("[dim]No cache to clear.[/dim]")
         return
 
-    # List cached versions before clearing
-    versions = [d.name for d in CACHE_DIR.iterdir() if d.is_dir()]
+    versions = [d.name for d in cache_dir.iterdir() if d.is_dir()]
     if not versions:
         console.print("[dim]Cache is empty.[/dim]")
         return
 
     for v in sorted(versions):
         console.print(f"  Removing {v}...")
-    shutil.rmtree(CACHE_DIR)
+    shutil.rmtree(cache_dir)
     console.print(
         f"[green]Cleared {len(versions)} cached version(s).[/green]"
     )
+
+
+def _clear_deployments_cache(console, stale_only: bool = False) -> None:
+    """Clear the CLI-local deployment metrics cache (issue #317).
+
+    With ``stale_only=True``, delete only records whose ``status`` is
+    ``in_progress`` — the leftovers from plan-cancel or Ctrl-C that never
+    reached ``success`` / ``failed``. Malformed JSON files are treated as
+    stale under ``stale_only`` (they are un-promotable by definition).
+    """
+    import json
+
+    from lablink_cli import deployment_metrics
+
+    cache_dir = deployment_metrics.DEPLOYMENTS_DIR
+
+    if not cache_dir.exists():
+        console.print("[dim]No deployments cache to clear.[/dim]")
+        return
+
+    all_records = list(cache_dir.glob("*.json"))
+    if not all_records:
+        console.print("[dim]Deployments cache is empty.[/dim]")
+        return
+
+    if stale_only:
+        records = []
+        for p in all_records:
+            try:
+                data = json.loads(p.read_text())
+            except json.JSONDecodeError:
+                records.append(p)
+                continue
+            if data.get("status") == "in_progress":
+                records.append(p)
+        if not records:
+            console.print(
+                "[dim]No stale (in_progress) deployment records to clear.[/dim]"
+            )
+            return
+    else:
+        records = all_records
+
+    for p in records:
+        p.unlink()
+    label = "stale deployment record" if stale_only else "deployment record"
+    suffix = "s" if len(records) != 1 else ""
+    console.print(
+        f"[green]Cleared {len(records)} {label}{suffix}.[/green]"
+    )
+
+
+@app.command("cache-clear")
+def cache_clear(
+    deployments: bool = typer.Option(
+        False,
+        "--deployments",
+        help=(
+            "Clear the local deployment metrics cache "
+            "(~/.lablink/deployments/) instead of the Terraform template "
+            "cache."
+        ),
+    ),
+    all_caches: bool = typer.Option(
+        False,
+        "--all",
+        help=(
+            "Clear all LabLink caches (Terraform templates AND deployment "
+            "metrics)."
+        ),
+    ),
+    stale: bool = typer.Option(
+        False,
+        "--stale",
+        help=(
+            "With --deployments, delete only in-progress records "
+            "(leftovers from plan-cancel or Ctrl-C) instead of the whole "
+            "deployments cache. Ignored without --deployments."
+        ),
+    ),
+) -> None:
+    """Clear LabLink caches.
+
+    By default clears only the Terraform template cache (backwards-compatible
+    with the original command). Use --deployments to clear the CLI-local
+    deployment metrics cache, or --all to clear both. Combine --deployments
+    with --stale to prune only in-progress records.
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if stale and not deployments:
+        console.print(
+            "[yellow]--stale has no effect without --deployments.[/yellow]"
+        )
+
+    if all_caches:
+        _clear_terraform_cache(console)
+        _clear_deployments_cache(console)
+    elif deployments:
+        _clear_deployments_cache(console, stale_only=stale)
+    else:
+        _clear_terraform_cache(console)
 
 
 @app.command("export-metrics")
@@ -291,8 +391,10 @@ def export_metrics(
         "--output",
         "-o",
         help=(
-            "Output file path "
-            "(default: metrics.csv or metrics.json based on --format)"
+            "Output file path. With a single source flag, it's the literal "
+            "output path. With both flags (or none), it's a base name: "
+            "_client / _allocator suffixes are added before the extension. "
+            "Default: metrics_client.<fmt> and/or metrics_allocator.<fmt>."
         ),
     ),
     format: str = typer.Option(
@@ -306,6 +408,22 @@ def export_metrics(
         "--include-logs",
         help="Include cloud_init_logs and docker_logs columns",
     ),
+    client: bool = typer.Option(
+        False,
+        "--client",
+        help=(
+            "Export per-VM client metrics from the allocator "
+            "(default if no flag is given exports both)."
+        ),
+    ),
+    allocator: bool = typer.Option(
+        False,
+        "--allocator",
+        help=(
+            "Export per-deploy allocator metrics from the local cache. "
+            "Works without a running allocator (e.g. after `lablink destroy`)."
+        ),
+    ),
     config: str = typer.Option(
         None,
         "--config",
@@ -313,14 +431,26 @@ def export_metrics(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Export VM metrics to a CSV or JSON file."""
+    """Export deployment metrics to CSV or JSON.
+
+    Pass --client for per-VM metrics from the allocator. Pass --allocator
+    for per-deploy metrics from the local cache. With no flag, exports
+    both. The --allocator-only path skips the network entirely.
+    """
     from lablink_cli.commands.export_metrics import run_export_metrics
 
+    # Skip config load when only --allocator is requested — it doesn't need
+    # the config and we want this command to work even after `lablink destroy`.
+    needs_cfg = client or not allocator
+    cfg = _load_cfg(config) if needs_cfg else None
+
     run_export_metrics(
-        _load_cfg(config),
+        cfg,
         output=output,
         include_logs=include_logs,
         format=format,
+        client=client,
+        allocator=allocator,
     )
 
 
