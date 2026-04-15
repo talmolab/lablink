@@ -396,8 +396,8 @@ def test_reboot_vm_instance_not_found(monkeypatch):
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
-def test_check_and_reboot_respects_max_attempts(mock_reboot):
-    """Test that VMs exceeding max attempts are skipped."""
+def test_check_and_reboot_releases_on_max_attempts(mock_reboot):
+    """Test that VMs exceeding max attempts have their assignment released."""
     mock_db = MagicMock()
     mock_db.get_failed_vms.return_value = [
         {
@@ -418,6 +418,33 @@ def test_check_and_reboot_respects_max_attempts(mock_reboot):
     service._check_and_reboot()
 
     mock_reboot.assert_not_called()
+    mock_db.release_assignment.assert_called_once_with("vm-1")
+
+
+@patch.object(AutoRebootService, "_reboot_vm")
+def test_check_and_reboot_below_max_does_not_release(mock_reboot):
+    """Test that VMs below max_attempts are not released."""
+    mock_db = MagicMock()
+    mock_db.get_failed_vms.return_value = [
+        {
+            "hostname": "vm-1",
+            "status": "error",
+            "healthy": None,
+            "reboot_count": 1,
+            "last_reboot_time": None,
+        }
+    ]
+
+    service = AutoRebootService(
+        database=mock_db,
+        max_attempts=3,
+        cooldown_seconds=300,
+        terraform_dir="/tmp/terraform",
+    )
+    service._check_and_reboot()
+
+    mock_reboot.assert_called_once_with("vm-1")
+    mock_db.release_assignment.assert_not_called()
 
 
 @patch.object(AutoRebootService, "_reboot_vm")

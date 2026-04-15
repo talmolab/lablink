@@ -89,12 +89,21 @@ class AutoRebootService:
         for vm in failed_vms:
             hostname = vm["hostname"]
 
-            # Check max attempts
+            # Max attempts exhausted: release the student's assignment
+            # so they can be re-routed to a fresh VM. The VM is marked
+            # 'error' and will not be retried until admin intervention.
             if vm["reboot_count"] >= self.max_attempts:
-                logger.debug(
-                    f"VM '{hostname}' has reached max reboot attempts "
-                    f"({self.max_attempts}), skipping"
+                logger.warning(
+                    f"VM '{hostname}' exhausted reboot attempts "
+                    f"({self.max_attempts}), releasing assignment"
                 )
+                try:
+                    self.database.release_assignment(hostname)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to release assignment for "
+                        f"'{hostname}': {e}"
+                    )
                 continue
 
             # Check cooldown
