@@ -440,6 +440,42 @@ class PostgresqlDatabase:
                 f"No VM found for email in the database: {email}"
             )
 
+    def get_assigned_vm_for_email(self, email: str) -> Optional[dict]:
+        """Look up whether an email already has a VM assigned.
+
+        Used by /api/request_vm to decide between reassignment (same
+        hostname, new CRD) and fresh assignment (new hostname).
+
+        Args:
+            email: The student's email address.
+
+        Returns:
+            A dict with hostname, status, reboot_count if an assignment
+            exists, or None if the email has no VM.
+        """
+        query = f"""
+            SELECT hostname, status, COALESCE(reboot_count, 0)
+            FROM {self.table_name}
+            WHERE useremail = %s
+            LIMIT 1;
+        """
+        try:
+            with self._cursor as cursor:
+                cursor.execute(query, (email,))
+                row = cursor.fetchone()
+            if row is None:
+                return None
+            return {
+                "hostname": row[0],
+                "status": row[1],
+                "reboot_count": row[2],
+            }
+        except Exception as e:
+            logger.error(
+                f"Failed to look up assigned VM for '{email}': {e}"
+            )
+            return None
+
     def assign_vm(self, email, crd_command, pin) -> None:
         """Assign a VM to a user.
 

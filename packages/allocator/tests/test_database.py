@@ -1326,3 +1326,40 @@ def test_cancel_scheduled_destruction(db_instance):
         (schedule_id,),
     )
     db_instance.conn.commit.assert_called_once()
+
+
+def test_get_assigned_vm_for_email_found(db_instance):
+    """Test looking up an email that already owns a VM."""
+    db_instance.cursor.fetchone.return_value = ("vm-7", "running", 0)
+
+    result = db_instance.get_assigned_vm_for_email("student@test.edu")
+
+    assert result == {
+        "hostname": "vm-7",
+        "status": "running",
+        "reboot_count": 0,
+    }
+    # Query should filter on useremail and bind the email parameter
+    query = db_instance.cursor.execute.call_args[0][0]
+    args = db_instance.cursor.execute.call_args[0][1]
+    assert "useremail" in query
+    assert args == ("student@test.edu",)
+
+
+def test_get_assigned_vm_for_email_not_found(db_instance):
+    """Test looking up an email with no existing VM."""
+    db_instance.cursor.fetchone.return_value = None
+
+    result = db_instance.get_assigned_vm_for_email("unknown@test.edu")
+
+    assert result is None
+
+
+def test_get_assigned_vm_for_email_error(db_instance, caplog):
+    """Test error handling in get_assigned_vm_for_email."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+
+    result = db_instance.get_assigned_vm_for_email("student@test.edu")
+
+    assert result is None
+    assert "Failed to look up assigned VM" in caplog.text
