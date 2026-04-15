@@ -1290,6 +1290,17 @@ class PostgresqlDatabase:
         across reboots. If reboot attempts are exhausted, the
         assignment is explicitly released via `release_assignment`.
 
+        Note: setting `crdcommand = NULL` fires the Postgres trigger
+        `trigger_crd_command_insert_or_update`, which emits a NOTIFY
+        with a NULL-valued CrdCommand payload. The LISTEN loop in
+        `listen_for_notifications` discards such payloads (see the
+        `hostname is None or pin is None or command is None` guard),
+        but each reboot still produces a spurious "Invalid notification
+        payload" warning in any client currently listening. The proper
+        fix is to add a `WHEN (NEW.CrdCommand IS NOT NULL)` guard to
+        the trigger definition; tracked for PR 4 of the failed-VM
+        recovery roadmap.
+
         Args:
             hostname: The hostname of the VM being rebooted.
         """
@@ -1325,6 +1336,12 @@ class PostgresqlDatabase:
         status to 'error' so the pool reflects the VM as unassignable
         until an admin intervenes. reboot_count is preserved for
         diagnostics.
+
+        Note: like `record_reboot`, setting `crdcommand = NULL` fires
+        the Postgres NOTIFY trigger with a NULL payload, producing a
+        discarded notification and a spurious warning log in any
+        listening client. The trigger-level fix is tracked for PR 4 of
+        the failed-VM recovery roadmap.
 
         Args:
             hostname: The hostname of the VM whose assignment is being released.
