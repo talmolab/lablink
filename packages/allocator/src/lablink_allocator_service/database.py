@@ -1246,6 +1246,40 @@ class PostgresqlDatabase:
                 self.conn.rollback()
                 raise
 
+    def release_assignment(self, hostname: str) -> None:
+        """Release a VM's student assignment when it is deemed unrecoverable.
+
+        Called by the auto-reboot service when reboot_count exceeds
+        max_attempts. Clears useremail, crdcommand, pin and sets
+        status to 'error' so the pool reflects the VM as unassignable
+        until an admin intervenes. reboot_count is preserved for
+        diagnostics.
+
+        Args:
+            hostname: The hostname of the VM whose assignment is being released.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET useremail = NULL,
+                crdcommand = NULL,
+                pin = NULL,
+                status = 'error'
+            WHERE hostname = %s;
+        """
+        with self._cursor as cursor:
+            try:
+                cursor.execute(query, (hostname,))
+                self.conn.commit()
+                logger.info(
+                    f"Released assignment for unrecoverable VM '{hostname}'"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to release assignment for '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
+
     def get_reboot_info(self, hostname: str) -> Optional[dict]:
         """Get reboot tracking info for a VM.
 

@@ -149,6 +149,27 @@ def test_record_reboot_error(db_instance, caplog):
     db_instance.conn.rollback.assert_called_once()
 
 
+def test_release_assignment(db_instance):
+    """Test releasing a VM's assignment when reboot attempts are exhausted."""
+    db_instance.release_assignment("vm-1")
+    db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
+    db_instance.conn.commit.assert_called_once()
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "useremail = NULL" in query
+    assert "crdcommand = NULL" in query
+    assert "pin = NULL" in query
+    assert "status = 'error'" in query
+
+
+def test_release_assignment_error(db_instance):
+    """Test error handling in release_assignment."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.release_assignment("vm-1")
+    db_instance.conn.rollback.assert_called_once()
+
+
 def test_get_reboot_info(db_instance):
     """Test getting reboot info for a VM."""
     last_reboot = datetime(2025, 1, 1, 12, 0, 0)
