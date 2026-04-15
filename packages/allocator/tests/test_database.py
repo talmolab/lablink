@@ -1363,3 +1363,39 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
 
     assert result is None
     assert "Failed to look up assigned VM" in caplog.text
+
+
+def test_reassign_crd(db_instance):
+    """Test reassigning a new CRD command to an existing VM."""
+    db_instance.reassign_crd(
+        hostname="vm-7",
+        crd_command=(
+            "DISPLAY= /opt/google/chrome-remote-desktop/start-host "
+            "--code='4/abc' --redirect-url='...'"
+        ),
+        pin="987654",
+    )
+
+    db_instance.cursor.execute.assert_called_once()
+    query = db_instance.cursor.execute.call_args[0][0]
+    args = db_instance.cursor.execute.call_args[0][1]
+
+    # Query targets the right columns and the given hostname
+    assert "crdcommand" in query.lower()
+    assert "pin" in query.lower()
+    assert "WHERE hostname" in query
+    # Parameter order: (crd_command, pin, hostname)
+    assert args[2] == "vm-7"
+    assert "4/abc" in args[0]
+    assert args[1] == "987654"
+
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_reassign_crd_error(db_instance, caplog):
+    """Test error handling in reassign_crd."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.reassign_crd("vm-7", "cmd", "000000")
+    db_instance.conn.rollback.assert_called_once()
+    assert "Failed to reassign CRD" in caplog.text

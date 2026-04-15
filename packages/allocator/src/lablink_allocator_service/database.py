@@ -512,6 +512,41 @@ class PostgresqlDatabase:
                 self.conn.rollback()
                 raise
 
+    def reassign_crd(
+        self, hostname: str, crd_command: str, pin: str
+    ) -> None:
+        """Reassign a new CRD command and PIN to an already-assigned VM.
+
+        Used when a student whose VM failed and was rebooted resubmits
+        /api/request_vm with a newly-generated CRD enrollment code.
+        The existing Postgres trigger on UPDATE OF CrdCommand fires
+        pg_notify, which wakes the client's /vm_startup LISTEN loop
+        (or is picked up on the next /vm_startup call after reboot).
+
+        Args:
+            hostname: The VM whose CRD is being reassigned.
+            crd_command: The newly-generated CRD enrollment command.
+            pin: The PIN to pair with the command.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET crdcommand = %s, pin = %s
+            WHERE hostname = %s;
+        """
+        with self._cursor as cursor:
+            try:
+                cursor.execute(query, (crd_command, pin, hostname))
+                self.conn.commit()
+                logger.info(
+                    f"Reassigned CRD for VM '{hostname}'"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to reassign CRD for '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
+
     def get_first_available_vm(self) -> str:
         """Get the first available VM that is not assigned.
 
