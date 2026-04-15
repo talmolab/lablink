@@ -446,12 +446,23 @@ class PostgresqlDatabase:
         Used by /api/request_vm to decide between reassignment (same
         hostname, new CRD) and fresh assignment (new hostname).
 
+        Re-raises on DB error rather than swallowing: "lookup failed"
+        and "no assignment exists" are semantically different states.
+        Treating them identically (by returning None in both cases)
+        would silently route a student with an existing assignment to
+        the fresh-assignment path under a transient DB blip, producing
+        a dual-assignment. The caller's outer try/except handles the
+        raised exception and renders the generic error page.
+
         Args:
             email: The student's email address.
 
         Returns:
             A dict with hostname, status, reboot_count if an assignment
             exists, or None if the email has no VM.
+
+        Raises:
+            Exception: on DB connection or query failure.
         """
         query = f"""
             SELECT hostname, status, COALESCE(reboot_count, 0)
@@ -474,7 +485,7 @@ class PostgresqlDatabase:
             logger.error(
                 f"Failed to look up assigned VM for '{email}': {e}"
             )
-            return None
+            raise
 
     def assign_vm(self, email, crd_command, pin) -> None:
         """Assign a VM to a user.
@@ -513,8 +524,12 @@ class PostgresqlDatabase:
                 raise
 
     def reassign_crd(
-        self, hostname: str, crd_command: str, pin: str
-    ) -> None:
+        self,
+        hostname: str,
+        crd_command: str,
+        pin: str,
+        expected_email: str,
+    ) -> bool:
         """Reassign a new CRD command and PIN to an already-assigned VM.
 
         Used when a student whose VM failed and was rebooted resubmits
@@ -523,23 +538,50 @@ class PostgresqlDatabase:
         pg_notify, which wakes the client's /vm_startup LISTEN loop
         (or is picked up on the next /vm_startup call after reboot).
 
+        The UPDATE is conditional on `useremail = expected_email` to
+        close the race where the auto-reboot service's
+        `release_assignment` fires between the caller's
+        `get_assigned_vm_for_email` and this call. If the row's
+        useremail no longer matches (e.g., released and reassigned to
+        a different student), the UPDATE writes zero rows and the
+        method returns False so the caller can surface a retry-page
+        to the student.
+
         Args:
             hostname: The VM whose CRD is being reassigned.
             crd_command: The newly-generated CRD enrollment command.
             pin: The PIN to pair with the command.
+            expected_email: The email this row is expected to be
+                assigned to at the time of the UPDATE. Serves as an
+                optimistic-concurrency guard.
+
+        Returns:
+            True if the row was updated, False if the assignment has
+            changed (row no longer owned by expected_email).
         """
         query = f"""
             UPDATE {self.table_name}
             SET crdcommand = %s, pin = %s
-            WHERE hostname = %s;
+            WHERE hostname = %s AND useremail = %s;
         """
         with self._cursor as cursor:
             try:
-                cursor.execute(query, (crd_command, pin, hostname))
-                self.conn.commit()
-                logger.info(
-                    f"Reassigned CRD for VM '{hostname}'"
+                cursor.execute(
+                    query, (crd_command, pin, hostname, expected_email)
                 )
+                updated = cursor.rowcount > 0
+                self.conn.commit()
+                if updated:
+                    logger.info(
+                        f"Reassigned CRD for VM '{hostname}'"
+                    )
+                else:
+                    logger.warning(
+                        f"Could not reassign CRD for VM '{hostname}': "
+                        f"row no longer owned by '{expected_email}' "
+                        f"(concurrent release or reassignment)"
+                    )
+                return updated
             except Exception as e:
                 logger.error(
                     f"Failed to reassign CRD for '{hostname}': {e}"

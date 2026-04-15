@@ -293,11 +293,24 @@ def submit_vm_details():
             status = existing["status"]
 
             if status == "running":
-                database.reassign_crd(
+                reassigned = database.reassign_crd(
                     hostname=hostname,
                     crd_command=crd_command,
                     pin=PIN,
+                    expected_email=email,
                 )
+                if not reassigned:
+                    # Race: the row was released/reassigned between
+                    # get_assigned_vm_for_email and this UPDATE.
+                    logger.warning(
+                        f"Reassign race for '{email}' on '{hostname}'; "
+                        f"asking student to retry"
+                    )
+                    return render_template(
+                        "index.html",
+                        error="Your VM assignment changed. Please try "
+                        "again — a fresh VM will be assigned.",
+                    )
                 logger.info(
                     f"Reassigned CRD for '{email}' on existing VM "
                     f"'{hostname}'"
@@ -310,11 +323,22 @@ def submit_vm_details():
                 # Queue the CRD on the row. When the client's
                 # /vm_startup call lands after recovery, the existing
                 # race-condition path returns it immediately.
-                database.reassign_crd(
+                reassigned = database.reassign_crd(
                     hostname=hostname,
                     crd_command=crd_command,
                     pin=PIN,
+                    expected_email=email,
                 )
+                if not reassigned:
+                    logger.warning(
+                        f"Reassign race for '{email}' on recovering "
+                        f"VM '{hostname}'; asking student to retry"
+                    )
+                    return render_template(
+                        "index.html",
+                        error="Your VM assignment changed. Please try "
+                        "again — a fresh VM will be assigned.",
+                    )
                 logger.info(
                     f"Queued CRD for '{email}' on recovering VM "
                     f"'{hostname}' (status={status})"

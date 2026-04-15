@@ -1,11 +1,13 @@
 """Tests for /api/request_vm reassignment branching.
 
-Covers the four cases of the request-flow change in PR 1:
+Covers the cases of the request-flow change in PR 1:
 1. Email has no existing assignment -> fresh assignment (regression).
 2. Email has an existing running VM -> reassign_crd, success page.
 3. Email has an existing rebooting/initializing VM -> reassign_crd,
    recovery page.
 4. Email has an existing error VM -> retry-shortly message.
+5. Reassign race -> reassign_crd returns False -> retry page.
+6. Unknown status -> fall through to fresh assignment.
 """
 
 from unittest.mock import MagicMock
@@ -32,6 +34,7 @@ def test_request_vm_existing_running_reassigns_same_host(
         "status": "running",
         "reboot_count": 0,
     }
+    fake_db.reassign_crd.return_value = True
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     resp = client.post(
@@ -43,15 +46,13 @@ def test_request_vm_existing_running_reassigns_same_host(
     )
 
     assert resp.status_code == 200
-    fake_db.reassign_crd.assert_called_once()
-    # Args may be positional or keyword — accept either
-    call_args = fake_db.reassign_crd.call_args
-    hostname_arg = (
-        call_args.kwargs.get("hostname")
-        if "hostname" in call_args.kwargs
-        else call_args.args[0]
+    # Conditional UPDATE carries expected_email for optimistic concurrency
+    fake_db.reassign_crd.assert_called_once_with(
+        hostname="vm-7",
+        crd_command=VALID_CRD_COMMAND,
+        pin=main.PIN,
+        expected_email="student@test.edu",
     )
-    assert hostname_arg == "vm-7"
     # Fresh assignment path is NOT taken
     fake_db.assign_vm.assert_not_called()
     fake_db.get_unassigned_vms.assert_not_called()
@@ -71,6 +72,7 @@ def test_request_vm_existing_rebooting_renders_recovery_page(
         "status": "rebooting",
         "reboot_count": 1,
     }
+    fake_db.reassign_crd.return_value = True
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     resp = client.post(
@@ -87,6 +89,46 @@ def test_request_vm_existing_rebooting_renders_recovery_page(
     # Recovery page mentions the hostname
     assert b"vm-3" in resp.data
     assert b"Recovering" in resp.data
+
+
+def test_request_vm_reassign_race_renders_retry_message(
+    client, monkeypatch
+):
+    """reassign_crd returning False (race) renders a retry-page.
+
+    Simulates the race where auto-reboot's release_assignment fires
+    between get_assigned_vm_for_email and reassign_crd. The UPDATE's
+    useremail guard fails, reassign_crd returns False, the handler
+    asks the student to retry instead of rendering a misleading
+    success page.
+    """
+    from lablink_allocator_service import main
+
+    fake_db = MagicMock()
+    fake_db.get_assigned_vm_for_email.return_value = {
+        "hostname": "vm-7",
+        "status": "running",
+        "reboot_count": 0,
+    }
+    fake_db.reassign_crd.return_value = False  # race loss
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    resp = client.post(
+        REQUEST_VM_ENDPOINT,
+        data={
+            "email": "student@test.edu",
+            "crd_command": VALID_CRD_COMMAND,
+        },
+    )
+
+    assert resp.status_code == 200
+    fake_db.reassign_crd.assert_called_once()
+    # Not falsely presented as success
+    assert b"VM Assigned Successfully" not in resp.data
+    # Retry guidance surfaced to the student
+    assert b"try again" in resp.data.lower()
+    # Fresh assignment NOT auto-triggered (student must retry explicitly)
+    fake_db.assign_vm.assert_not_called()
 
 
 def test_request_vm_existing_error_renders_retry_message(
