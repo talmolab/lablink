@@ -131,11 +131,14 @@ def test_record_reboot(db_instance):
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
     db_instance.conn.commit.assert_called_once()
 
-    # Verify assignment fields are cleared in the query
+    # Verify CRD-session fields are cleared but the student's assignment
+    # is preserved (so the student keeps their VM slot across reboots).
     query = db_instance.cursor.execute.call_args[0][0]
-    assert "useremail = NULL" in query
     assert "crdcommand = NULL" in query
     assert "pin = NULL" in query
+    assert "useremail = NULL" not in query
+    assert "status = 'rebooting'" in query
+    assert "reboot_count" in query
 
 
 def test_record_reboot_error(db_instance, caplog):

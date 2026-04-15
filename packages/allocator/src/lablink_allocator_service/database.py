@@ -1210,9 +1210,14 @@ class PostgresqlDatabase:
         """Record a reboot attempt for a VM.
 
         Sets status to 'rebooting', increments reboot_count, updates
-        last_reboot_time, and clears assignment fields (useremail,
-        crdcommand, pin) so the VM becomes available for reassignment
-        after it comes back online.
+        last_reboot_time, and clears the CRD session fields
+        (crdcommand, pin) — the Chrome Remote Desktop enrollment
+        token is one-shot and is invalidated by the reboot, so it must
+        be reissued when the student reconnects.
+
+        `useremail` is preserved so the student keeps their VM slot
+        across reboots. If reboot attempts are exhausted, the
+        assignment is explicitly released via `release_assignment`.
 
         Args:
             hostname: The hostname of the VM being rebooted.
@@ -1222,7 +1227,6 @@ class PostgresqlDatabase:
             SET status = 'rebooting',
                 reboot_count = COALESCE(reboot_count, 0) + 1,
                 last_reboot_time = NOW(),
-                useremail = NULL,
                 crdcommand = NULL,
                 pin = NULL
             WHERE hostname = %s;
