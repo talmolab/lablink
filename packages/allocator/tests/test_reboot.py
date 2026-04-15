@@ -131,6 +131,15 @@ def test_record_reboot(db_instance):
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
     db_instance.conn.commit.assert_called_once()
 
+    # Verify CRD-session fields are cleared but the student's assignment
+    # is preserved (so the student keeps their VM slot across reboots).
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "crdcommand = NULL" in query
+    assert "pin = NULL" in query
+    assert "useremail = NULL" not in query
+    assert "status = 'rebooting'" in query
+    assert "reboot_count" in query
+
 
 def test_record_reboot_error(db_instance, caplog):
     """Test error handling in record_reboot."""
@@ -138,6 +147,30 @@ def test_record_reboot_error(db_instance, caplog):
     with pytest.raises(Exception, match="DB error"):
         db_instance.record_reboot("vm-1")
     db_instance.conn.rollback.assert_called_once()
+
+
+def test_release_assignment(db_instance):
+    """Test releasing a VM's assignment when reboot attempts are exhausted."""
+    db_instance.release_assignment("vm-1")
+    db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
+    db_instance.conn.commit.assert_called_once()
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "useremail = NULL" in query
+    assert "crdcommand = NULL" in query
+    assert "pin = NULL" in query
+    assert "status = 'error'" in query
+    # reboot_count is intentionally preserved for diagnostics
+    assert "reboot_count" not in query
+
+
+def test_release_assignment_error(db_instance, caplog):
+    """Test error handling in release_assignment."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.release_assignment("vm-1")
+    db_instance.conn.rollback.assert_called_once()
+    assert "Failed to release assignment for" in caplog.text
 
 
 def test_get_reboot_info(db_instance):
@@ -363,8 +396,8 @@ def test_reboot_vm_instance_not_found(monkeypatch):
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
-def test_check_and_reboot_respects_max_attempts(mock_reboot):
-    """Test that VMs exceeding max attempts are skipped."""
+def test_check_and_reboot_releases_on_max_attempts(mock_reboot):
+    """Test that VMs exceeding max attempts have their assignment released."""
     mock_db = MagicMock()
     mock_db.get_failed_vms.return_value = [
         {
@@ -385,6 +418,33 @@ def test_check_and_reboot_respects_max_attempts(mock_reboot):
     service._check_and_reboot()
 
     mock_reboot.assert_not_called()
+    mock_db.release_assignment.assert_called_once_with("vm-1")
+
+
+@patch.object(AutoRebootService, "_reboot_vm")
+def test_check_and_reboot_below_max_does_not_release(mock_reboot):
+    """Test that VMs below max_attempts are not released."""
+    mock_db = MagicMock()
+    mock_db.get_failed_vms.return_value = [
+        {
+            "hostname": "vm-1",
+            "status": "error",
+            "healthy": None,
+            "reboot_count": 1,
+            "last_reboot_time": None,
+        }
+    ]
+
+    service = AutoRebootService(
+        database=mock_db,
+        max_attempts=3,
+        cooldown_seconds=300,
+        terraform_dir="/tmp/terraform",
+    )
+    service._check_and_reboot()
+
+    mock_reboot.assert_called_once_with("vm-1")
+    mock_db.release_assignment.assert_not_called()
 
 
 @patch.object(AutoRebootService, "_reboot_vm")

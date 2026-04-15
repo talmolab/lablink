@@ -285,21 +285,96 @@ def submit_vm_details():
                 "Please ask your instructor for help.",
             )
 
-        # Check if there are any available VMs
+        # If this email already owns a VM, reassign the new CRD to it
+        # in place instead of picking a new VM.
+        existing = database.get_assigned_vm_for_email(email=email)
+        if existing is not None:
+            hostname = existing["hostname"]
+            status = existing["status"]
+
+            def _attempt_reassign():
+                """Try to reassign CRD; return True on success, or render
+                a retry-page response if the row was released under us."""
+                if database.reassign_crd(
+                    hostname=hostname,
+                    crd_command=crd_command,
+                    pin=PIN,
+                    expected_email=email,
+                ):
+                    return None  # success; caller continues
+                # Race: release_assignment fired between lookup and UPDATE.
+                logger.warning(
+                    f"Reassign race for '{email}' on '{hostname}' "
+                    f"(status={status}); asking student to retry"
+                )
+                return render_template(
+                    "index.html",
+                    error="Your VM assignment changed. Please try "
+                    "again — a fresh VM will be assigned.",
+                )
+
+            if status == "running":
+                race_response = _attempt_reassign()
+                if race_response is not None:
+                    return race_response
+                logger.info(
+                    f"Reassigned CRD for '{email}' on existing VM "
+                    f"'{hostname}'"
+                )
+                return render_template(
+                    "success.html", host=hostname, pin=PIN
+                )
+
+            if status in ("rebooting", "initializing"):
+                # Queue the CRD on the row. When the client's
+                # /vm_startup call lands after recovery, the existing
+                # race-condition path returns it immediately.
+                race_response = _attempt_reassign()
+                if race_response is not None:
+                    return race_response
+                logger.info(
+                    f"Queued CRD for '{email}' on recovering VM "
+                    f"'{hostname}' (status={status})"
+                )
+                return render_template(
+                    "recovery.html", host=hostname, status=status
+                )
+
+            if status == "error":
+                # Reboot-service will release the assignment on its
+                # next tick. Ask the student to retry then.
+                logger.warning(
+                    f"VM '{hostname}' is in error state; asking "
+                    f"'{email}' to retry"
+                )
+                return render_template(
+                    "index.html",
+                    error="Your previous VM could not be recovered. "
+                    "Please wait up to 60 seconds and try again — a "
+                    "fresh VM will be assigned.",
+                )
+
+            # Any other status: log and fall through to fresh assignment
+            logger.warning(
+                f"Unexpected status '{status}' for '{email}' on "
+                f"'{hostname}'; falling through to fresh assignment"
+            )
+
+        # No existing assignment: assign a fresh VM from the pool
         if len(database.get_unassigned_vms()) == 0:
             logger.error("No available VMs found.")
             return render_template(
                 "index.html",
-                error="No available VMs. Please try again later. Please ask your "
-                "instructor for help",
+                error="No available VMs. Please try again later. Please "
+                "ask your instructor for help",
             )
 
-        # Assign the VM
         database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
 
-        # Display success message
         assigned_vm = database.get_vm_details(email=email)
-        return render_template("success.html", host=assigned_vm[0], pin=assigned_vm[1])
+        return render_template(
+            "success.html", host=assigned_vm[0], pin=assigned_vm[1]
+        )
     except Exception as e:
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(

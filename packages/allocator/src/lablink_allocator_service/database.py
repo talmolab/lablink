@@ -440,6 +440,53 @@ class PostgresqlDatabase:
                 f"No VM found for email in the database: {email}"
             )
 
+    def get_assigned_vm_for_email(self, email: str) -> Optional[dict]:
+        """Look up whether an email already has a VM assigned.
+
+        Used by /api/request_vm to decide between reassignment (same
+        hostname, new CRD) and fresh assignment (new hostname).
+
+        Re-raises on DB error rather than swallowing: "lookup failed"
+        and "no assignment exists" are semantically different states.
+        Treating them identically (by returning None in both cases)
+        would silently route a student with an existing assignment to
+        the fresh-assignment path under a transient DB blip, producing
+        a dual-assignment. The caller's outer try/except handles the
+        raised exception and renders the generic error page.
+
+        Args:
+            email: The student's email address.
+
+        Returns:
+            A dict with hostname, status, reboot_count if an assignment
+            exists, or None if the email has no VM.
+
+        Raises:
+            Exception: on DB connection or query failure.
+        """
+        query = f"""
+            SELECT hostname, status, COALESCE(reboot_count, 0)
+            FROM {self.table_name}
+            WHERE useremail = %s
+            LIMIT 1;
+        """
+        try:
+            with self._cursor as cursor:
+                cursor.execute(query, (email,))
+                row = cursor.fetchone()
+            if row is None:
+                return None
+            return {
+                "hostname": row[0],
+                "status": row[1],
+                "reboot_count": row[2],
+            }
+        except Exception as e:
+            logger.error(
+                f"Failed to look up assigned VM for '{email}': {e}"
+            )
+            raise
+
     def assign_vm(self, email, crd_command, pin) -> None:
         """Assign a VM to a user.
 
@@ -472,6 +519,72 @@ class PostgresqlDatabase:
             except Exception as e:
                 logger.error(
                     f"Failed to assign VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
+
+    def reassign_crd(
+        self,
+        hostname: str,
+        crd_command: str,
+        pin: str,
+        expected_email: str,
+    ) -> bool:
+        """Reassign a new CRD command and PIN to an already-assigned VM.
+
+        Used when a student whose VM failed and was rebooted resubmits
+        /api/request_vm with a newly-generated CRD enrollment code.
+        The existing Postgres trigger on UPDATE OF CrdCommand fires
+        pg_notify, which wakes the client's /vm_startup LISTEN loop
+        (or is picked up on the next /vm_startup call after reboot).
+
+        The UPDATE is conditional on `useremail = expected_email` to
+        close the race where the auto-reboot service's
+        `release_assignment` fires between the caller's
+        `get_assigned_vm_for_email` and this call. If the row's
+        useremail no longer matches (e.g., released and reassigned to
+        a different student), the UPDATE writes zero rows and the
+        method returns False so the caller can surface a retry-page
+        to the student.
+
+        Args:
+            hostname: The VM whose CRD is being reassigned.
+            crd_command: The newly-generated CRD enrollment command.
+            pin: The PIN to pair with the command.
+            expected_email: The email this row is expected to be
+                assigned to at the time of the UPDATE. Serves as an
+                optimistic-concurrency guard.
+
+        Returns:
+            True if the row was updated, False if the assignment has
+            changed (row no longer owned by expected_email).
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET crdcommand = %s, pin = %s
+            WHERE hostname = %s AND useremail = %s;
+        """
+        with self._cursor as cursor:
+            try:
+                cursor.execute(
+                    query, (crd_command, pin, hostname, expected_email)
+                )
+                updated = cursor.rowcount > 0
+                self.conn.commit()
+                if updated:
+                    logger.info(
+                        f"Reassigned CRD for VM '{hostname}'"
+                    )
+                else:
+                    logger.warning(
+                        f"Could not reassign CRD for VM '{hostname}': "
+                        f"row no longer owned by '{expected_email}' "
+                        f"(concurrent release or reassignment)"
+                    )
+                return updated
+            except Exception as e:
+                logger.error(
+                    f"Failed to reassign CRD for '{hostname}': {e}"
                 )
                 self.conn.rollback()
                 raise
@@ -1209,8 +1322,26 @@ class PostgresqlDatabase:
     def record_reboot(self, hostname: str) -> None:
         """Record a reboot attempt for a VM.
 
-        Sets status to 'rebooting', increments reboot_count, and updates
-        last_reboot_time.
+        Sets status to 'rebooting', increments reboot_count, updates
+        last_reboot_time, and clears the CRD session fields
+        (crdcommand, pin) — the Chrome Remote Desktop enrollment
+        token is one-shot and is invalidated by the reboot, so it must
+        be reissued when the student reconnects.
+
+        `useremail` is preserved so the student keeps their VM slot
+        across reboots. If reboot attempts are exhausted, the
+        assignment is explicitly released via `release_assignment`.
+
+        Note: setting `crdcommand = NULL` fires the Postgres trigger
+        `trigger_crd_command_insert_or_update`, which emits a NOTIFY
+        with a NULL-valued CrdCommand payload. The LISTEN loop in
+        `listen_for_notifications` discards such payloads (see the
+        `hostname is None or pin is None or command is None` guard),
+        but each reboot still produces a spurious "Invalid notification
+        payload" warning in any client currently listening. The proper
+        fix is to add a `WHEN (NEW.CrdCommand IS NOT NULL)` guard to
+        the trigger definition; tracked for PR 4 of the failed-VM
+        recovery roadmap.
 
         Args:
             hostname: The hostname of the VM being rebooted.
@@ -1219,7 +1350,9 @@ class PostgresqlDatabase:
             UPDATE {self.table_name}
             SET status = 'rebooting',
                 reboot_count = COALESCE(reboot_count, 0) + 1,
-                last_reboot_time = NOW()
+                last_reboot_time = NOW(),
+                crdcommand = NULL,
+                pin = NULL
             WHERE hostname = %s;
         """
         with self._cursor as cursor:
@@ -1233,6 +1366,46 @@ class PostgresqlDatabase:
                 logger.error(
                     f"Failed to record reboot "
                     f"for VM '{hostname}': {e}"
+                )
+                self.conn.rollback()
+                raise
+
+    def release_assignment(self, hostname: str) -> None:
+        """Release a VM's student assignment when it is deemed unrecoverable.
+
+        Called by the auto-reboot service when reboot_count exceeds
+        max_attempts. Clears useremail, crdcommand, pin and sets
+        status to 'error' so the pool reflects the VM as unassignable
+        until an admin intervenes. reboot_count is preserved for
+        diagnostics.
+
+        Note: like `record_reboot`, setting `crdcommand = NULL` fires
+        the Postgres NOTIFY trigger with a NULL payload, producing a
+        discarded notification and a spurious warning log in any
+        listening client. The trigger-level fix is tracked for PR 4 of
+        the failed-VM recovery roadmap.
+
+        Args:
+            hostname: The hostname of the VM whose assignment is being released.
+        """
+        query = f"""
+            UPDATE {self.table_name}
+            SET useremail = NULL,
+                crdcommand = NULL,
+                pin = NULL,
+                status = 'error'
+            WHERE hostname = %s;
+        """
+        with self._cursor as cursor:
+            try:
+                cursor.execute(query, (hostname,))
+                self.conn.commit()
+                logger.info(
+                    f"Released assignment for unrecoverable VM '{hostname}'"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to release assignment for '{hostname}': {e}"
                 )
                 self.conn.rollback()
                 raise

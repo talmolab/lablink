@@ -1326,3 +1326,107 @@ def test_cancel_scheduled_destruction(db_instance):
         (schedule_id,),
     )
     db_instance.conn.commit.assert_called_once()
+
+
+def test_get_assigned_vm_for_email_found(db_instance):
+    """Test looking up an email that already owns a VM."""
+    db_instance.cursor.fetchone.return_value = ("vm-7", "running", 0)
+
+    result = db_instance.get_assigned_vm_for_email("student@test.edu")
+
+    assert result == {
+        "hostname": "vm-7",
+        "status": "running",
+        "reboot_count": 0,
+    }
+    # Query should filter on useremail and bind the email parameter
+    query = db_instance.cursor.execute.call_args[0][0]
+    args = db_instance.cursor.execute.call_args[0][1]
+    assert "useremail" in query
+    assert args == ("student@test.edu",)
+
+
+def test_get_assigned_vm_for_email_not_found(db_instance):
+    """Test looking up an email with no existing VM."""
+    db_instance.cursor.fetchone.return_value = None
+
+    result = db_instance.get_assigned_vm_for_email("unknown@test.edu")
+
+    assert result is None
+
+
+def test_get_assigned_vm_for_email_error(db_instance, caplog):
+    """Test that get_assigned_vm_for_email re-raises DB errors.
+
+    Re-raising is deliberate: the caller must not conflate "lookup
+    failed" with "no assignment exists" (see method docstring).
+    """
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.get_assigned_vm_for_email("student@test.edu")
+    assert "Failed to look up assigned VM" in caplog.text
+
+
+def test_reassign_crd_succeeds_when_row_still_owned(db_instance):
+    """Test reassigning a new CRD command when the row is still owned."""
+    db_instance.cursor.rowcount = 1
+
+    result = db_instance.reassign_crd(
+        hostname="vm-7",
+        crd_command=(
+            "DISPLAY= /opt/google/chrome-remote-desktop/start-host "
+            "--code='4/abc' --redirect-url='...'"
+        ),
+        pin="987654",
+        expected_email="student@test.edu",
+    )
+
+    assert result is True
+    db_instance.cursor.execute.assert_called_once()
+    query = db_instance.cursor.execute.call_args[0][0]
+    args = db_instance.cursor.execute.call_args[0][1]
+
+    # Query targets the right columns and guards on useremail
+    assert "crdcommand" in query.lower()
+    assert "pin" in query.lower()
+    assert "WHERE hostname" in query
+    assert "useremail" in query.lower()
+    # Parameter order: (crd_command, pin, hostname, expected_email)
+    assert "4/abc" in args[0]
+    assert args[1] == "987654"
+    assert args[2] == "vm-7"
+    assert args[3] == "student@test.edu"
+
+    db_instance.conn.commit.assert_called_once()
+
+
+def test_reassign_crd_returns_false_when_row_released(db_instance, caplog):
+    """Test that reassign_crd returns False when useremail no longer matches.
+
+    Simulates the race where the auto-reboot service's release_assignment
+    fires between the caller's get_assigned_vm_for_email and reassign_crd.
+    """
+    db_instance.cursor.rowcount = 0
+
+    result = db_instance.reassign_crd(
+        hostname="vm-7",
+        crd_command="cmd",
+        pin="987654",
+        expected_email="student@test.edu",
+    )
+
+    assert result is False
+    db_instance.conn.commit.assert_called_once()
+    assert "row no longer owned by 'student@test.edu'" in caplog.text
+
+
+def test_reassign_crd_error(db_instance, caplog):
+    """Test error handling in reassign_crd."""
+    db_instance.cursor.execute.side_effect = Exception("DB error")
+    with pytest.raises(Exception, match="DB error"):
+        db_instance.reassign_crd(
+            "vm-7", "cmd", "000000", "student@test.edu"
+        )
+    db_instance.conn.rollback.assert_called_once()
+    assert "Failed to reassign CRD" in caplog.text
