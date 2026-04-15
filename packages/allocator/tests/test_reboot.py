@@ -106,6 +106,22 @@ def test_get_failed_vms_includes_stale_initializing(db_instance):
     assert "15 minutes" in query
 
 
+def test_get_failed_vms_default_stale_initializing_is_25_minutes(db_instance):
+    """Default stale_initializing_minutes is 25 to accommodate custom startups.
+
+    user_data.sh no longer prematurely reports status='running' right
+    after docker run; readiness is now reported by start.sh after
+    custom-startup.sh finishes. The legitimate 'initializing' window
+    can therefore span the full duration of tutorial-data downloads
+    and other custom-startup work.
+    """
+    db_instance.cursor.fetchall.return_value = []
+    db_instance.get_failed_vms()  # no explicit arguments
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "25 minutes" in query
+
+
 def test_get_failed_vms_includes_stuck_rebooting(db_instance):
     """Test that VMs stuck in rebooting state are re-eligible."""
     db_instance.cursor.fetchall.return_value = [
