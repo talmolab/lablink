@@ -160,14 +160,17 @@ def test_release_assignment(db_instance):
     assert "crdcommand = NULL" in query
     assert "pin = NULL" in query
     assert "status = 'error'" in query
+    # reboot_count is intentionally preserved for diagnostics
+    assert "reboot_count" not in query
 
 
-def test_release_assignment_error(db_instance):
+def test_release_assignment_error(db_instance, caplog):
     """Test error handling in release_assignment."""
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
         db_instance.release_assignment("vm-1")
     db_instance.conn.rollback.assert_called_once()
+    assert "Failed to release assignment for" in caplog.text
 
 
 def test_get_reboot_info(db_instance):
