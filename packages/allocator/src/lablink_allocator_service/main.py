@@ -332,9 +332,9 @@ def submit_vm_details():
                 )
                 return render_template(
                     "index.html",
-                    error="Your previous VM encountered a problem and "
-                    "could not be recovered. Please try again in a "
-                    "moment — a fresh VM will be assigned.",
+                    error="Your previous VM could not be recovered. "
+                    "Please wait up to 60 seconds and try again — a "
+                    "fresh VM will be assigned.",
                 )
 
             # Any other status: log and fall through to fresh assignment

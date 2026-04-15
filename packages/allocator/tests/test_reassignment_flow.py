@@ -141,3 +141,34 @@ def test_request_vm_no_existing_assignment_picks_fresh_vm(
     fake_db.assign_vm.assert_called_once()
     fake_db.reassign_crd.assert_not_called()
     assert b"vm-free-1" in resp.data
+
+
+def test_request_vm_unexpected_status_falls_through_to_fresh_assignment(
+    client, monkeypatch
+):
+    """Unknown status on existing row falls through to fresh assignment."""
+    from lablink_allocator_service import main
+
+    fake_db = MagicMock()
+    fake_db.get_assigned_vm_for_email.return_value = {
+        "hostname": "vm-unknown-state",
+        "status": "stopped",  # not handled explicitly
+        "reboot_count": 0,
+    }
+    fake_db.get_unassigned_vms.return_value = ["vm-free-2"]
+    fake_db.get_vm_details.return_value = ["vm-free-2", "123456", "cmd"]
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    resp = client.post(
+        REQUEST_VM_ENDPOINT,
+        data={
+            "email": "student@test.edu",
+            "crd_command": VALID_CRD_COMMAND,
+        },
+    )
+
+    assert resp.status_code == 200
+    # Fell through to fresh-assignment path
+    fake_db.reassign_crd.assert_not_called()
+    fake_db.assign_vm.assert_called_once()
+    assert b"vm-free-2" in resp.data
