@@ -14,6 +14,21 @@ echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
 echo "SUBJECT_SOFTWARE: $SUBJECT_SOFTWARE"
 echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 
+# Helper to POST VM status to the allocator. Mirrors the send_status
+# pattern in user_data.sh. Best-effort — a failed POST does not abort
+# the container, since the allocator's stale-initializing timer will
+# eventually trigger a reboot if we never reach "running".
+send_status() {
+  local status="$1"
+  echo ">> Reporting status='$status' to allocator..."
+  curl -sS -X POST "$ALLOCATOR_URL/api/vm-status" \
+    -H "Authorization: Bearer $API_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
+    --max-time 5 \
+    || echo ">> WARNING: failed to report status=$status (continuing)"
+}
+
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
   mkdir -p /home/client/Desktop
@@ -41,6 +56,10 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script exited with code $rc"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
+      # Report the failure proactively so the allocator's reboot service
+      # reacts within its next tick (~60s) instead of waiting out the
+      # 25-min stale-initializing timeout.
+      send_status "error"
       exit $rc
     fi
   fi
@@ -51,6 +70,13 @@ fi
 # Create a logs directory
 LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
+
+# Flip VM status from 'initializing' (reported by cloud-init) to
+# 'running' now that custom-startup has finished and client services
+# are about to launch. Previously user_data.sh reported 'running' too
+# early — right after `docker run` returned — before any of the
+# container's own startup work had completed.
+send_status "running"
 
 # Run subscribe in background, but preserve stdout + stderr to docker logs and file
 # Services read ALLOCATOR_URL from environment if set (HTTPS support), otherwise use allocator.host
