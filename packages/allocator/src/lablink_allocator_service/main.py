@@ -292,25 +292,31 @@ def submit_vm_details():
             hostname = existing["hostname"]
             status = existing["status"]
 
-            if status == "running":
-                reassigned = database.reassign_crd(
+            def _attempt_reassign():
+                """Try to reassign CRD; return True on success, or render
+                a retry-page response if the row was released under us."""
+                if database.reassign_crd(
                     hostname=hostname,
                     crd_command=crd_command,
                     pin=PIN,
                     expected_email=email,
+                ):
+                    return None  # success; caller continues
+                # Race: release_assignment fired between lookup and UPDATE.
+                logger.warning(
+                    f"Reassign race for '{email}' on '{hostname}' "
+                    f"(status={status}); asking student to retry"
                 )
-                if not reassigned:
-                    # Race: the row was released/reassigned between
-                    # get_assigned_vm_for_email and this UPDATE.
-                    logger.warning(
-                        f"Reassign race for '{email}' on '{hostname}'; "
-                        f"asking student to retry"
-                    )
-                    return render_template(
-                        "index.html",
-                        error="Your VM assignment changed. Please try "
-                        "again — a fresh VM will be assigned.",
-                    )
+                return render_template(
+                    "index.html",
+                    error="Your VM assignment changed. Please try "
+                    "again — a fresh VM will be assigned.",
+                )
+
+            if status == "running":
+                race_response = _attempt_reassign()
+                if race_response is not None:
+                    return race_response
                 logger.info(
                     f"Reassigned CRD for '{email}' on existing VM "
                     f"'{hostname}'"
@@ -323,22 +329,9 @@ def submit_vm_details():
                 # Queue the CRD on the row. When the client's
                 # /vm_startup call lands after recovery, the existing
                 # race-condition path returns it immediately.
-                reassigned = database.reassign_crd(
-                    hostname=hostname,
-                    crd_command=crd_command,
-                    pin=PIN,
-                    expected_email=email,
-                )
-                if not reassigned:
-                    logger.warning(
-                        f"Reassign race for '{email}' on recovering "
-                        f"VM '{hostname}'; asking student to retry"
-                    )
-                    return render_template(
-                        "index.html",
-                        error="Your VM assignment changed. Please try "
-                        "again — a fresh VM will be assigned.",
-                    )
+                race_response = _attempt_reassign()
+                if race_response is not None:
+                    return race_response
                 logger.info(
                     f"Queued CRD for '{email}' on recovering VM "
                     f"'{hostname}' (status={status})"
