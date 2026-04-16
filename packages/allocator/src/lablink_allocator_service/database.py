@@ -1264,7 +1264,7 @@ class PostgresqlDatabase:
 
     def get_failed_vms(
         self,
-        stale_initializing_minutes: int = 15,
+        stale_initializing_minutes: int = 25,
         stale_rebooting_minutes: int = 10,
     ) -> List[dict]:
         """Get VMs that need a reboot attempt.
@@ -1274,7 +1274,12 @@ class PostgresqlDatabase:
 
         Args:
             stale_initializing_minutes: Minutes after which an initializing VM
-                is considered stale and eligible for reboot.
+                is considered stale and eligible for reboot. Default 25 min —
+                VMs can now legitimately sit in 'initializing' for the full
+                duration of custom-startup.sh (ilastik downloads, large
+                tutorial datasets, etc.) because user_data.sh no longer
+                prematurely flips status to 'running'; start.sh does that
+                once client services are about to launch.
             stale_rebooting_minutes: Minutes after which a rebooting VM is
                 considered stuck and eligible for another reboot attempt.
 

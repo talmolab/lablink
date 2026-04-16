@@ -150,7 +150,7 @@ if docker run -dit $DOCKER_GPU_ARGS \
     -e API_TOKEN="${api_token}" \
     --network host \
     "${image_name}"; then
-    send_status "running"
+    echo ">> Container launched; start.sh inside the container will POST status='running' after custom-startup completes and client services launch."
 else
     echo "Container launch failed!"
     send_status "error"
