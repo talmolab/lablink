@@ -1,7 +1,13 @@
 """Automated VM reboot service.
 
-Periodically checks for failed VMs and reboots them via SSH hard reboot
-(cloud-init clean + reboot) with stop/start fallback.
+Periodically checks for failed VMs and reboots them.
+
+Assigned VMs get a warm reboot (plain ``sudo reboot``) so the container
+survives via its ``--restart unless-stopped`` policy. Unassigned VMs get
+a cold reboot (``cloud-init clean && sudo reboot``) that recreates the
+container from scratch. Both paths fall back to EC2 stop/start (always
+cold) when SSH is unavailable.
+
 Respects cooldown periods and maximum reboot attempt limits.
 """
 
@@ -119,17 +125,19 @@ class AutoRebootService:
                     )
                     continue
 
-            self._reboot_vm(hostname)
+            assigned = vm.get("useremail") is not None
+            self._reboot_vm(hostname, assigned=assigned)
 
-    def _ssh_hard_reboot(self, ip: str, key_path: str) -> bool:
-        """Perform a hard reboot via SSH (cloud-init clean + reboot).
+    def _ssh_reboot(self, ip: str, key_path: str, command: str) -> bool:
+        """Send a reboot command to a VM via SSH.
 
         Args:
             ip: The public IP address of the instance.
             key_path: Path to the SSH private key file.
+            command: The shell command to execute (e.g. "sudo reboot").
 
         Returns:
-            True if the SSH reboot command was sent successfully, False otherwise.
+            True if the SSH command was sent successfully, False otherwise.
         """
         cmd = [
             "ssh",
@@ -137,7 +145,7 @@ class AutoRebootService:
             "-o", "ConnectTimeout=10",
             "-i", key_path,
             f"ubuntu@{ip}",
-            "sudo cloud-init clean && sudo reboot",
+            command,
         ]
         try:
             result = subprocess.run(
@@ -145,35 +153,61 @@ class AutoRebootService:
             )
             # Exit code 0 = success, 255 = connection reset by reboot (expected)
             if result.returncode in (0, 255):
-                logger.info(f"SSH hard reboot sent to {ip}")
+                logger.info(f"SSH reboot sent to {ip}: {command}")
                 return True
             logger.warning(
-                f"SSH hard reboot to {ip} returned exit code {result.returncode}: "
+                f"SSH reboot to {ip} returned exit code {result.returncode}: "
                 f"{result.stderr.strip()}"
             )
             return False
         except subprocess.TimeoutExpired:
-            logger.warning(f"SSH hard reboot to {ip} timed out")
+            logger.warning(f"SSH reboot to {ip} timed out")
             return False
         except Exception as e:
-            logger.error(f"SSH hard reboot to {ip} failed: {e}")
+            logger.error(f"SSH reboot to {ip} failed: {e}")
             return False
 
-    def _reboot_vm(self, hostname: str) -> bool:
+    def _ssh_cold_reboot(self, ip: str, key_path: str) -> bool:
+        """Cold reboot: wipe cloud-init state so user_data re-runs.
+
+        Used for unassigned VMs where we want a fresh container.
+        """
+        return self._ssh_reboot(
+            ip, key_path, "sudo cloud-init clean && sudo reboot"
+        )
+
+    def _ssh_warm_reboot(self, ip: str, key_path: str) -> bool:
+        """Warm reboot: plain OS reboot, container survives via restart policy.
+
+        Used for assigned VMs to preserve the student's container state.
+        cloud-init is NOT cleaned, so user_data does not re-run and the
+        existing container (with --restart unless-stopped) auto-starts
+        when the Docker daemon comes back.
+        """
+        return self._ssh_reboot(ip, key_path, "sudo reboot")
+
+    def _reboot_vm(self, hostname: str, assigned: bool = False) -> bool:
         """Reboot a single VM by hostname.
 
         Tries two methods in order:
-        1. SSH hard reboot (cloud-init clean + reboot)
-        2. Stop/start — last resort, relies on per-boot cloud-init
-           config to re-run user_data
+        1. SSH reboot — warm (plain reboot) for assigned VMs to preserve
+           the container, cold (cloud-init clean + reboot) for unassigned.
+        2. Stop/start — last resort. Always a cold reboot because
+           cloud-init re-runs user_data on the next boot.
 
         Args:
             hostname: The VM hostname (matches EC2 Name tag).
+            assigned: True if the VM has a student assigned (useremail set).
+                Assigned VMs get a warm reboot to preserve the container.
 
         Returns:
             True if reboot was initiated, False otherwise.
         """
-        logger.info(f"Attempting to reboot VM '{hostname}'")
+        reboot_type = "warm" if assigned else "cold"
+        logger.info(
+            f"Attempting {reboot_type} reboot for VM '{hostname}' "
+            f"(assigned={assigned})"
+        )
 
         # Look up EC2 instance ID by hostname (Name tag)
         instance_id = get_instance_id_by_name(
@@ -186,29 +220,33 @@ class AutoRebootService:
             )
             return False
 
-        # 1) Try SSH hard reboot
+        # 1) Try SSH reboot (warm or cold depending on assignment)
         ip = get_instance_public_ip(
             instance_id, region=self.region
         )
         if ip and self.terraform_dir:
             try:
                 key_path = get_ssh_private_key(self.terraform_dir)
-                if self._ssh_hard_reboot(ip, key_path):
+                ssh_reboot = (
+                    self._ssh_warm_reboot if assigned
+                    else self._ssh_cold_reboot
+                )
+                if ssh_reboot(ip, key_path):
                     self.database.record_reboot(hostname)
                     logger.info(
-                        f"SSH hard reboot initiated for VM "
+                        f"SSH {reboot_type} reboot initiated for VM "
                         f"'{hostname}' ({instance_id})"
                     )
                     return True
             except Exception as e:
                 logger.warning(
-                    f"Could not get SSH key for hard reboot: {e}"
+                    f"Could not get SSH key for reboot: {e}"
                 )
 
-        # 2) Last resort: stop/start
+        # 2) Last resort: stop/start (always cold — cloud-init re-runs)
         logger.info(
             f"SSH unavailable for VM '{hostname}', falling back "
-            f"to stop/start"
+            f"to stop/start (cold reboot)"
         )
         success = stop_start_ec2_instance(
             instance_id, region=self.region
