@@ -1292,7 +1292,7 @@ class PostgresqlDatabase:
         query = f"""
             SELECT hostname, status, healthy,
                    COALESCE(reboot_count, 0) as reboot_count,
-                   last_reboot_time
+                   last_reboot_time, useremail
             FROM {self.table_name}
             WHERE status = 'error'
                OR (healthy = 'Unhealthy'
@@ -1317,6 +1317,7 @@ class PostgresqlDatabase:
                     "healthy": row[2],
                     "reboot_count": row[3],
                     "last_reboot_time": row[4],
+                    "useremail": row[5],
                 }
                 for row in rows
             ]
