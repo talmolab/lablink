@@ -139,7 +139,7 @@ if [ -n "$EXISTING" ]; then
 fi
 
 echo ">> Starting container..."
-if docker run -dit $DOCKER_GPU_ARGS \
+if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     --mount type=bind,src=/etc/config,dst=/docker_scripts/,ro \
     -e ALLOCATOR_HOST="${allocator_ip}" \
     -e ALLOCATOR_URL="${allocator_url}" \
