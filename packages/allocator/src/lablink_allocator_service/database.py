@@ -1285,7 +1285,7 @@ class PostgresqlDatabase:
 
         Returns:
             list: VMs eligible for reboot with hostname, status, healthy,
-                  reboot_count, and last_reboot_time.
+                  reboot_count, last_reboot_time, and useremail.
         """
         init_minutes = int(stale_initializing_minutes)
         reboot_minutes = int(stale_rebooting_minutes)
