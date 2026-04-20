@@ -1,22 +1,6 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-# --- Warm-reboot idempotence guard ---
-# If a container for our image already exists on this host, provisioning
-# already completed on a prior boot. Docker's --restart unless-stopped
-# policy will resume the container automatically — running user_data.sh
-# again would destroy the student's writable layer (including the CRD
-# host registration in /home/client/.config/chrome-remote-desktop/).
-#
-# The cold-reboot path in the allocator's reboot service explicitly runs
-# `docker rm -f` before `cloud-init clean && reboot`, so reaching this
-# point with an existing container unambiguously means a warm re-run.
-if docker ps -a --filter "ancestor=${image_name}" -q 2>/dev/null | grep -q .; then
-    echo ">> Existing container for image ${image_name} detected."
-    echo ">> Warm reboot — skipping provisioning; restart policy handles the container."
-    exit 0
-fi
-
 # Start time
 CLOUD_INIT_START_TIME=$(date +%s)
 
@@ -64,6 +48,26 @@ nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME
     >> /var/log/log_shipper.log 2>&1 &
 LOG_SHIPPER_CLOUD_INIT_PID=$!
 echo ">> Log shipper started (PID: $LOG_SHIPPER_CLOUD_INIT_PID)"
+
+# --- Warm-reboot idempotence guard ---
+# If a container for our image already exists, provisioning already
+# completed on a prior boot. Restart the docker log shipper (killed by
+# the OS reboot, like the cloud-init shipper started above) and skip
+# the rest — Docker's --restart unless-stopped resumes the container
+# with its writable layer intact (student work, CRD host registration).
+#
+# The cold-reboot path in the allocator's reboot service explicitly runs
+# `docker rm -f` before `cloud-init clean && reboot`, so reaching this
+# point with an existing container unambiguously means a warm re-run.
+EXISTING_CONTAINER=$(docker ps -a --filter "ancestor=${image_name}" -q 2>/dev/null | head -n 1 || true)
+if [ -n "$EXISTING_CONTAINER" ]; then
+    echo ">> Existing container detected: $EXISTING_CONTAINER"
+    echo ">> Warm reboot — restarting docker log shipper and skipping provisioning."
+    nohup /usr/local/bin/log_shipper.sh "docker:$EXISTING_CONTAINER" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$API_TOKEN" \
+        >> /var/log/log_shipper.log 2>&1 &
+    echo ">> Docker log shipper started (PID: $!)"
+    exit 0
+fi
 
 echo ">> Checking GPU Support…"
 
