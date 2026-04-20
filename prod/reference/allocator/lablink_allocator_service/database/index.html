@@ -5832,7 +5832,7 @@ considered stuck and eligible for another reboot attempt.</p>
             <td>
               <div class="doc-md-description">
                 <p>VMs eligible for reboot with hostname, status, healthy,
-  reboot_count, and last_reboot_time.</p>
+  reboot_count, last_reboot_time, and useremail.</p>
               </div>
             </td>
           </tr>
@@ -5902,7 +5902,8 @@ considered stuck and eligible for another reboot attempt.</p>
 <span class="normal"><a href="#__codelineno-0-1322">1322</a></span>
 <span class="normal"><a href="#__codelineno-0-1323">1323</a></span>
 <span class="normal"><a href="#__codelineno-0-1324">1324</a></span>
-<span class="normal"><a href="#__codelineno-0-1325">1325</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1265" name="__codelineno-0-1265"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_failed_vms</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-1325">1325</a></span>
+<span class="normal"><a href="#__codelineno-0-1326">1326</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1265" name="__codelineno-0-1265"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_failed_vms</span><span class="p">(</span>
 <a id="__codelineno-0-1266" name="__codelineno-0-1266"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-1267" name="__codelineno-0-1267"></a>    <span class="n">stale_initializing_minutes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span>
 <a id="__codelineno-0-1268" name="__codelineno-0-1268"></a>    <span class="n">stale_rebooting_minutes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
@@ -5925,14 +5926,14 @@ considered stuck and eligible for another reboot attempt.</p>
 <a id="__codelineno-0-1285" name="__codelineno-0-1285"></a>
 <a id="__codelineno-0-1286" name="__codelineno-0-1286"></a><span class="sd">    Returns:</span>
 <a id="__codelineno-0-1287" name="__codelineno-0-1287"></a><span class="sd">        list: VMs eligible for reboot with hostname, status, healthy,</span>
-<a id="__codelineno-0-1288" name="__codelineno-0-1288"></a><span class="sd">              reboot_count, and last_reboot_time.</span>
+<a id="__codelineno-0-1288" name="__codelineno-0-1288"></a><span class="sd">              reboot_count, last_reboot_time, and useremail.</span>
 <a id="__codelineno-0-1289" name="__codelineno-0-1289"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-1290" name="__codelineno-0-1290"></a>    <span class="n">init_minutes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stale_initializing_minutes</span><span class="p">)</span>
 <a id="__codelineno-0-1291" name="__codelineno-0-1291"></a>    <span class="n">reboot_minutes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stale_rebooting_minutes</span><span class="p">)</span>
 <a id="__codelineno-0-1292" name="__codelineno-0-1292"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-1293" name="__codelineno-0-1293"></a><span class="s2">        SELECT hostname, status, healthy,</span>
 <a id="__codelineno-0-1294" name="__codelineno-0-1294"></a><span class="s2">               COALESCE(reboot_count, 0) as reboot_count,</span>
-<a id="__codelineno-0-1295" name="__codelineno-0-1295"></a><span class="s2">               last_reboot_time</span>
+<a id="__codelineno-0-1295" name="__codelineno-0-1295"></a><span class="s2">               last_reboot_time, useremail</span>
 <a id="__codelineno-0-1296" name="__codelineno-0-1296"></a><span class="s2">        FROM </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
 <a id="__codelineno-0-1297" name="__codelineno-0-1297"></a><span class="s2">        WHERE status = &#39;error&#39;</span>
 <a id="__codelineno-0-1298" name="__codelineno-0-1298"></a><span class="s2">           OR (healthy = &#39;Unhealthy&#39;</span>
@@ -5957,12 +5958,13 @@ considered stuck and eligible for another reboot attempt.</p>
 <a id="__codelineno-0-1317" name="__codelineno-0-1317"></a>                <span class="s2">&quot;healthy&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
 <a id="__codelineno-0-1318" name="__codelineno-0-1318"></a>                <span class="s2">&quot;reboot_count&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
 <a id="__codelineno-0-1319" name="__codelineno-0-1319"></a>                <span class="s2">&quot;last_reboot_time&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
-<a id="__codelineno-0-1320" name="__codelineno-0-1320"></a>            <span class="p">}</span>
-<a id="__codelineno-0-1321" name="__codelineno-0-1321"></a>            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span>
-<a id="__codelineno-0-1322" name="__codelineno-0-1322"></a>        <span class="p">]</span>
-<a id="__codelineno-0-1323" name="__codelineno-0-1323"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1324" name="__codelineno-0-1324"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get failed VMs: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-1325" name="__codelineno-0-1325"></a>        <span class="k">return</span> <span class="p">[]</span>
+<a id="__codelineno-0-1320" name="__codelineno-0-1320"></a>                <span class="s2">&quot;useremail&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+<a id="__codelineno-0-1321" name="__codelineno-0-1321"></a>            <span class="p">}</span>
+<a id="__codelineno-0-1322" name="__codelineno-0-1322"></a>            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span>
+<a id="__codelineno-0-1323" name="__codelineno-0-1323"></a>        <span class="p">]</span>
+<a id="__codelineno-0-1324" name="__codelineno-0-1324"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1325" name="__codelineno-0-1325"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get failed VMs: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-1326" name="__codelineno-0-1326"></a>        <span class="k">return</span> <span class="p">[]</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6240,8 +6242,7 @@ or None if not found.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1418">1418</a></span>
-<span class="normal"><a href="#__codelineno-0-1419">1419</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1419">1419</a></span>
 <span class="normal"><a href="#__codelineno-0-1420">1420</a></span>
 <span class="normal"><a href="#__codelineno-0-1421">1421</a></span>
 <span class="normal"><a href="#__codelineno-0-1422">1422</a></span>
@@ -6270,37 +6271,38 @@ or None if not found.</p>
 <span class="normal"><a href="#__codelineno-0-1445">1445</a></span>
 <span class="normal"><a href="#__codelineno-0-1446">1446</a></span>
 <span class="normal"><a href="#__codelineno-0-1447">1447</a></span>
-<span class="normal"><a href="#__codelineno-0-1448">1448</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1418" name="__codelineno-0-1418"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_reboot_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
-<a id="__codelineno-0-1419" name="__codelineno-0-1419"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get reboot tracking info for a VM.</span>
-<a id="__codelineno-0-1420" name="__codelineno-0-1420"></a>
-<a id="__codelineno-0-1421" name="__codelineno-0-1421"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-1422" name="__codelineno-0-1422"></a><span class="sd">        hostname: The hostname of the VM.</span>
-<a id="__codelineno-0-1423" name="__codelineno-0-1423"></a>
-<a id="__codelineno-0-1424" name="__codelineno-0-1424"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-1425" name="__codelineno-0-1425"></a><span class="sd">        dict with reboot_count and last_reboot_time,</span>
-<a id="__codelineno-0-1426" name="__codelineno-0-1426"></a><span class="sd">            or None if not found.</span>
-<a id="__codelineno-0-1427" name="__codelineno-0-1427"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1428" name="__codelineno-0-1428"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-1429" name="__codelineno-0-1429"></a><span class="s2">        SELECT COALESCE(reboot_count, 0), last_reboot_time</span>
-<a id="__codelineno-0-1430" name="__codelineno-0-1430"></a><span class="s2">        FROM </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
-<a id="__codelineno-0-1431" name="__codelineno-0-1431"></a><span class="s2">        WHERE hostname = %s;</span>
-<a id="__codelineno-0-1432" name="__codelineno-0-1432"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1433" name="__codelineno-0-1433"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-1434" name="__codelineno-0-1434"></a>        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
-<a id="__codelineno-0-1435" name="__codelineno-0-1435"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
-<a id="__codelineno-0-1436" name="__codelineno-0-1436"></a>            <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
-<a id="__codelineno-0-1437" name="__codelineno-0-1437"></a>        <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
-<a id="__codelineno-0-1438" name="__codelineno-0-1438"></a>            <span class="k">return</span> <span class="p">{</span>
-<a id="__codelineno-0-1439" name="__codelineno-0-1439"></a>                <span class="s2">&quot;reboot_count&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-<a id="__codelineno-0-1440" name="__codelineno-0-1440"></a>                <span class="s2">&quot;last_reboot_time&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-<a id="__codelineno-0-1441" name="__codelineno-0-1441"></a>            <span class="p">}</span>
-<a id="__codelineno-0-1442" name="__codelineno-0-1442"></a>        <span class="k">return</span> <span class="kc">None</span>
-<a id="__codelineno-0-1443" name="__codelineno-0-1443"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1444" name="__codelineno-0-1444"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-1445" name="__codelineno-0-1445"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to get reboot info &quot;</span>
-<a id="__codelineno-0-1446" name="__codelineno-0-1446"></a>            <span class="sa">f</span><span class="s2">&quot;for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1447" name="__codelineno-0-1447"></a>        <span class="p">)</span>
-<a id="__codelineno-0-1448" name="__codelineno-0-1448"></a>        <span class="k">return</span> <span class="kc">None</span>
+<span class="normal"><a href="#__codelineno-0-1448">1448</a></span>
+<span class="normal"><a href="#__codelineno-0-1449">1449</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1419" name="__codelineno-0-1419"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_reboot_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<a id="__codelineno-0-1420" name="__codelineno-0-1420"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get reboot tracking info for a VM.</span>
+<a id="__codelineno-0-1421" name="__codelineno-0-1421"></a>
+<a id="__codelineno-0-1422" name="__codelineno-0-1422"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-1423" name="__codelineno-0-1423"></a><span class="sd">        hostname: The hostname of the VM.</span>
+<a id="__codelineno-0-1424" name="__codelineno-0-1424"></a>
+<a id="__codelineno-0-1425" name="__codelineno-0-1425"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-1426" name="__codelineno-0-1426"></a><span class="sd">        dict with reboot_count and last_reboot_time,</span>
+<a id="__codelineno-0-1427" name="__codelineno-0-1427"></a><span class="sd">            or None if not found.</span>
+<a id="__codelineno-0-1428" name="__codelineno-0-1428"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1429" name="__codelineno-0-1429"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-1430" name="__codelineno-0-1430"></a><span class="s2">        SELECT COALESCE(reboot_count, 0), last_reboot_time</span>
+<a id="__codelineno-0-1431" name="__codelineno-0-1431"></a><span class="s2">        FROM </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
+<a id="__codelineno-0-1432" name="__codelineno-0-1432"></a><span class="s2">        WHERE hostname = %s;</span>
+<a id="__codelineno-0-1433" name="__codelineno-0-1433"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1434" name="__codelineno-0-1434"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-1435" name="__codelineno-0-1435"></a>        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+<a id="__codelineno-0-1436" name="__codelineno-0-1436"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
+<a id="__codelineno-0-1437" name="__codelineno-0-1437"></a>            <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+<a id="__codelineno-0-1438" name="__codelineno-0-1438"></a>        <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+<a id="__codelineno-0-1439" name="__codelineno-0-1439"></a>            <span class="k">return</span> <span class="p">{</span>
+<a id="__codelineno-0-1440" name="__codelineno-0-1440"></a>                <span class="s2">&quot;reboot_count&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+<a id="__codelineno-0-1441" name="__codelineno-0-1441"></a>                <span class="s2">&quot;last_reboot_time&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<a id="__codelineno-0-1442" name="__codelineno-0-1442"></a>            <span class="p">}</span>
+<a id="__codelineno-0-1443" name="__codelineno-0-1443"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-1444" name="__codelineno-0-1444"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1445" name="__codelineno-0-1445"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-1446" name="__codelineno-0-1446"></a>            <span class="sa">f</span><span class="s2">&quot;Failed to get reboot info &quot;</span>
+<a id="__codelineno-0-1447" name="__codelineno-0-1447"></a>            <span class="sa">f</span><span class="s2">&quot;for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1448" name="__codelineno-0-1448"></a>        <span class="p">)</span>
+<a id="__codelineno-0-1449" name="__codelineno-0-1449"></a>        <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -8036,8 +8038,7 @@ recovery roadmap.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1327">1327</a></span>
-<span class="normal"><a href="#__codelineno-0-1328">1328</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1328">1328</a></span>
 <span class="normal"><a href="#__codelineno-0-1329">1329</a></span>
 <span class="normal"><a href="#__codelineno-0-1330">1330</a></span>
 <span class="normal"><a href="#__codelineno-0-1331">1331</a></span>
@@ -8085,56 +8086,57 @@ recovery roadmap.</p>
 <span class="normal"><a href="#__codelineno-0-1373">1373</a></span>
 <span class="normal"><a href="#__codelineno-0-1374">1374</a></span>
 <span class="normal"><a href="#__codelineno-0-1375">1375</a></span>
-<span class="normal"><a href="#__codelineno-0-1376">1376</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1327" name="__codelineno-0-1327"></a><span class="k">def</span><span class="w"> </span><span class="nf">record_reboot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-1328" name="__codelineno-0-1328"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Record a reboot attempt for a VM.</span>
-<a id="__codelineno-0-1329" name="__codelineno-0-1329"></a>
-<a id="__codelineno-0-1330" name="__codelineno-0-1330"></a><span class="sd">    Sets status to &#39;rebooting&#39;, increments reboot_count, updates</span>
-<a id="__codelineno-0-1331" name="__codelineno-0-1331"></a><span class="sd">    last_reboot_time, and clears the CRD session fields</span>
-<a id="__codelineno-0-1332" name="__codelineno-0-1332"></a><span class="sd">    (crdcommand, pin) — the Chrome Remote Desktop enrollment</span>
-<a id="__codelineno-0-1333" name="__codelineno-0-1333"></a><span class="sd">    token is one-shot and is invalidated by the reboot, so it must</span>
-<a id="__codelineno-0-1334" name="__codelineno-0-1334"></a><span class="sd">    be reissued when the student reconnects.</span>
-<a id="__codelineno-0-1335" name="__codelineno-0-1335"></a>
-<a id="__codelineno-0-1336" name="__codelineno-0-1336"></a><span class="sd">    `useremail` is preserved so the student keeps their VM slot</span>
-<a id="__codelineno-0-1337" name="__codelineno-0-1337"></a><span class="sd">    across reboots. If reboot attempts are exhausted, the</span>
-<a id="__codelineno-0-1338" name="__codelineno-0-1338"></a><span class="sd">    assignment is explicitly released via `release_assignment`.</span>
-<a id="__codelineno-0-1339" name="__codelineno-0-1339"></a>
-<a id="__codelineno-0-1340" name="__codelineno-0-1340"></a><span class="sd">    Note: setting `crdcommand = NULL` fires the Postgres trigger</span>
-<a id="__codelineno-0-1341" name="__codelineno-0-1341"></a><span class="sd">    `trigger_crd_command_insert_or_update`, which emits a NOTIFY</span>
-<a id="__codelineno-0-1342" name="__codelineno-0-1342"></a><span class="sd">    with a NULL-valued CrdCommand payload. The LISTEN loop in</span>
-<a id="__codelineno-0-1343" name="__codelineno-0-1343"></a><span class="sd">    `listen_for_notifications` discards such payloads (see the</span>
-<a id="__codelineno-0-1344" name="__codelineno-0-1344"></a><span class="sd">    `hostname is None or pin is None or command is None` guard),</span>
-<a id="__codelineno-0-1345" name="__codelineno-0-1345"></a><span class="sd">    but each reboot still produces a spurious &quot;Invalid notification</span>
-<a id="__codelineno-0-1346" name="__codelineno-0-1346"></a><span class="sd">    payload&quot; warning in any client currently listening. The proper</span>
-<a id="__codelineno-0-1347" name="__codelineno-0-1347"></a><span class="sd">    fix is to add a `WHEN (NEW.CrdCommand IS NOT NULL)` guard to</span>
-<a id="__codelineno-0-1348" name="__codelineno-0-1348"></a><span class="sd">    the trigger definition; tracked for PR 4 of the failed-VM</span>
-<a id="__codelineno-0-1349" name="__codelineno-0-1349"></a><span class="sd">    recovery roadmap.</span>
-<a id="__codelineno-0-1350" name="__codelineno-0-1350"></a>
-<a id="__codelineno-0-1351" name="__codelineno-0-1351"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-1352" name="__codelineno-0-1352"></a><span class="sd">        hostname: The hostname of the VM being rebooted.</span>
-<a id="__codelineno-0-1353" name="__codelineno-0-1353"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1354" name="__codelineno-0-1354"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-1355" name="__codelineno-0-1355"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
-<a id="__codelineno-0-1356" name="__codelineno-0-1356"></a><span class="s2">        SET status = &#39;rebooting&#39;,</span>
-<a id="__codelineno-0-1357" name="__codelineno-0-1357"></a><span class="s2">            reboot_count = COALESCE(reboot_count, 0) + 1,</span>
-<a id="__codelineno-0-1358" name="__codelineno-0-1358"></a><span class="s2">            last_reboot_time = NOW(),</span>
-<a id="__codelineno-0-1359" name="__codelineno-0-1359"></a><span class="s2">            crdcommand = NULL,</span>
-<a id="__codelineno-0-1360" name="__codelineno-0-1360"></a><span class="s2">            pin = NULL</span>
-<a id="__codelineno-0-1361" name="__codelineno-0-1361"></a><span class="s2">        WHERE hostname = %s;</span>
-<a id="__codelineno-0-1362" name="__codelineno-0-1362"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1363" name="__codelineno-0-1363"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
-<a id="__codelineno-0-1364" name="__codelineno-0-1364"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-1365" name="__codelineno-0-1365"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
-<a id="__codelineno-0-1366" name="__codelineno-0-1366"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-<a id="__codelineno-0-1367" name="__codelineno-0-1367"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-1368" name="__codelineno-0-1368"></a>                <span class="sa">f</span><span class="s2">&quot;Recorded reboot for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
-<a id="__codelineno-0-1369" name="__codelineno-0-1369"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1370" name="__codelineno-0-1370"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1371" name="__codelineno-0-1371"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-1372" name="__codelineno-0-1372"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to record reboot &quot;</span>
-<a id="__codelineno-0-1373" name="__codelineno-0-1373"></a>                <span class="sa">f</span><span class="s2">&quot;for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1374" name="__codelineno-0-1374"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1375" name="__codelineno-0-1375"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-<a id="__codelineno-0-1376" name="__codelineno-0-1376"></a>            <span class="k">raise</span>
+<span class="normal"><a href="#__codelineno-0-1376">1376</a></span>
+<span class="normal"><a href="#__codelineno-0-1377">1377</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1328" name="__codelineno-0-1328"></a><span class="k">def</span><span class="w"> </span><span class="nf">record_reboot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-1329" name="__codelineno-0-1329"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Record a reboot attempt for a VM.</span>
+<a id="__codelineno-0-1330" name="__codelineno-0-1330"></a>
+<a id="__codelineno-0-1331" name="__codelineno-0-1331"></a><span class="sd">    Sets status to &#39;rebooting&#39;, increments reboot_count, updates</span>
+<a id="__codelineno-0-1332" name="__codelineno-0-1332"></a><span class="sd">    last_reboot_time, and clears the CRD session fields</span>
+<a id="__codelineno-0-1333" name="__codelineno-0-1333"></a><span class="sd">    (crdcommand, pin) — the Chrome Remote Desktop enrollment</span>
+<a id="__codelineno-0-1334" name="__codelineno-0-1334"></a><span class="sd">    token is one-shot and is invalidated by the reboot, so it must</span>
+<a id="__codelineno-0-1335" name="__codelineno-0-1335"></a><span class="sd">    be reissued when the student reconnects.</span>
+<a id="__codelineno-0-1336" name="__codelineno-0-1336"></a>
+<a id="__codelineno-0-1337" name="__codelineno-0-1337"></a><span class="sd">    `useremail` is preserved so the student keeps their VM slot</span>
+<a id="__codelineno-0-1338" name="__codelineno-0-1338"></a><span class="sd">    across reboots. If reboot attempts are exhausted, the</span>
+<a id="__codelineno-0-1339" name="__codelineno-0-1339"></a><span class="sd">    assignment is explicitly released via `release_assignment`.</span>
+<a id="__codelineno-0-1340" name="__codelineno-0-1340"></a>
+<a id="__codelineno-0-1341" name="__codelineno-0-1341"></a><span class="sd">    Note: setting `crdcommand = NULL` fires the Postgres trigger</span>
+<a id="__codelineno-0-1342" name="__codelineno-0-1342"></a><span class="sd">    `trigger_crd_command_insert_or_update`, which emits a NOTIFY</span>
+<a id="__codelineno-0-1343" name="__codelineno-0-1343"></a><span class="sd">    with a NULL-valued CrdCommand payload. The LISTEN loop in</span>
+<a id="__codelineno-0-1344" name="__codelineno-0-1344"></a><span class="sd">    `listen_for_notifications` discards such payloads (see the</span>
+<a id="__codelineno-0-1345" name="__codelineno-0-1345"></a><span class="sd">    `hostname is None or pin is None or command is None` guard),</span>
+<a id="__codelineno-0-1346" name="__codelineno-0-1346"></a><span class="sd">    but each reboot still produces a spurious &quot;Invalid notification</span>
+<a id="__codelineno-0-1347" name="__codelineno-0-1347"></a><span class="sd">    payload&quot; warning in any client currently listening. The proper</span>
+<a id="__codelineno-0-1348" name="__codelineno-0-1348"></a><span class="sd">    fix is to add a `WHEN (NEW.CrdCommand IS NOT NULL)` guard to</span>
+<a id="__codelineno-0-1349" name="__codelineno-0-1349"></a><span class="sd">    the trigger definition; tracked for PR 4 of the failed-VM</span>
+<a id="__codelineno-0-1350" name="__codelineno-0-1350"></a><span class="sd">    recovery roadmap.</span>
+<a id="__codelineno-0-1351" name="__codelineno-0-1351"></a>
+<a id="__codelineno-0-1352" name="__codelineno-0-1352"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-1353" name="__codelineno-0-1353"></a><span class="sd">        hostname: The hostname of the VM being rebooted.</span>
+<a id="__codelineno-0-1354" name="__codelineno-0-1354"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1355" name="__codelineno-0-1355"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-1356" name="__codelineno-0-1356"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
+<a id="__codelineno-0-1357" name="__codelineno-0-1357"></a><span class="s2">        SET status = &#39;rebooting&#39;,</span>
+<a id="__codelineno-0-1358" name="__codelineno-0-1358"></a><span class="s2">            reboot_count = COALESCE(reboot_count, 0) + 1,</span>
+<a id="__codelineno-0-1359" name="__codelineno-0-1359"></a><span class="s2">            last_reboot_time = NOW(),</span>
+<a id="__codelineno-0-1360" name="__codelineno-0-1360"></a><span class="s2">            crdcommand = NULL,</span>
+<a id="__codelineno-0-1361" name="__codelineno-0-1361"></a><span class="s2">            pin = NULL</span>
+<a id="__codelineno-0-1362" name="__codelineno-0-1362"></a><span class="s2">        WHERE hostname = %s;</span>
+<a id="__codelineno-0-1363" name="__codelineno-0-1363"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1364" name="__codelineno-0-1364"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+<a id="__codelineno-0-1365" name="__codelineno-0-1365"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-1366" name="__codelineno-0-1366"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
+<a id="__codelineno-0-1367" name="__codelineno-0-1367"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<a id="__codelineno-0-1368" name="__codelineno-0-1368"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-1369" name="__codelineno-0-1369"></a>                <span class="sa">f</span><span class="s2">&quot;Recorded reboot for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+<a id="__codelineno-0-1370" name="__codelineno-0-1370"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1371" name="__codelineno-0-1371"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1372" name="__codelineno-0-1372"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-1373" name="__codelineno-0-1373"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to record reboot &quot;</span>
+<a id="__codelineno-0-1374" name="__codelineno-0-1374"></a>                <span class="sa">f</span><span class="s2">&quot;for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1375" name="__codelineno-0-1375"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1376" name="__codelineno-0-1376"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+<a id="__codelineno-0-1377" name="__codelineno-0-1377"></a>            <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -8198,8 +8200,7 @@ the failed-VM recovery roadmap.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/database.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1378">1378</a></span>
-<span class="normal"><a href="#__codelineno-0-1379">1379</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1379">1379</a></span>
 <span class="normal"><a href="#__codelineno-0-1380">1380</a></span>
 <span class="normal"><a href="#__codelineno-0-1381">1381</a></span>
 <span class="normal"><a href="#__codelineno-0-1382">1382</a></span>
@@ -8236,45 +8237,46 @@ the failed-VM recovery roadmap.</p>
 <span class="normal"><a href="#__codelineno-0-1413">1413</a></span>
 <span class="normal"><a href="#__codelineno-0-1414">1414</a></span>
 <span class="normal"><a href="#__codelineno-0-1415">1415</a></span>
-<span class="normal"><a href="#__codelineno-0-1416">1416</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1378" name="__codelineno-0-1378"></a><span class="k">def</span><span class="w"> </span><span class="nf">release_assignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-1379" name="__codelineno-0-1379"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Release a VM&#39;s student assignment when it is deemed unrecoverable.</span>
-<a id="__codelineno-0-1380" name="__codelineno-0-1380"></a>
-<a id="__codelineno-0-1381" name="__codelineno-0-1381"></a><span class="sd">    Called by the auto-reboot service when reboot_count exceeds</span>
-<a id="__codelineno-0-1382" name="__codelineno-0-1382"></a><span class="sd">    max_attempts. Clears useremail, crdcommand, pin and sets</span>
-<a id="__codelineno-0-1383" name="__codelineno-0-1383"></a><span class="sd">    status to &#39;error&#39; so the pool reflects the VM as unassignable</span>
-<a id="__codelineno-0-1384" name="__codelineno-0-1384"></a><span class="sd">    until an admin intervenes. reboot_count is preserved for</span>
-<a id="__codelineno-0-1385" name="__codelineno-0-1385"></a><span class="sd">    diagnostics.</span>
-<a id="__codelineno-0-1386" name="__codelineno-0-1386"></a>
-<a id="__codelineno-0-1387" name="__codelineno-0-1387"></a><span class="sd">    Note: like `record_reboot`, setting `crdcommand = NULL` fires</span>
-<a id="__codelineno-0-1388" name="__codelineno-0-1388"></a><span class="sd">    the Postgres NOTIFY trigger with a NULL payload, producing a</span>
-<a id="__codelineno-0-1389" name="__codelineno-0-1389"></a><span class="sd">    discarded notification and a spurious warning log in any</span>
-<a id="__codelineno-0-1390" name="__codelineno-0-1390"></a><span class="sd">    listening client. The trigger-level fix is tracked for PR 4 of</span>
-<a id="__codelineno-0-1391" name="__codelineno-0-1391"></a><span class="sd">    the failed-VM recovery roadmap.</span>
-<a id="__codelineno-0-1392" name="__codelineno-0-1392"></a>
-<a id="__codelineno-0-1393" name="__codelineno-0-1393"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-1394" name="__codelineno-0-1394"></a><span class="sd">        hostname: The hostname of the VM whose assignment is being released.</span>
-<a id="__codelineno-0-1395" name="__codelineno-0-1395"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1396" name="__codelineno-0-1396"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-1397" name="__codelineno-0-1397"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
-<a id="__codelineno-0-1398" name="__codelineno-0-1398"></a><span class="s2">        SET useremail = NULL,</span>
-<a id="__codelineno-0-1399" name="__codelineno-0-1399"></a><span class="s2">            crdcommand = NULL,</span>
-<a id="__codelineno-0-1400" name="__codelineno-0-1400"></a><span class="s2">            pin = NULL,</span>
-<a id="__codelineno-0-1401" name="__codelineno-0-1401"></a><span class="s2">            status = &#39;error&#39;</span>
-<a id="__codelineno-0-1402" name="__codelineno-0-1402"></a><span class="s2">        WHERE hostname = %s;</span>
-<a id="__codelineno-0-1403" name="__codelineno-0-1403"></a><span class="s2">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1404" name="__codelineno-0-1404"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
-<a id="__codelineno-0-1405" name="__codelineno-0-1405"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-1406" name="__codelineno-0-1406"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
-<a id="__codelineno-0-1407" name="__codelineno-0-1407"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-<a id="__codelineno-0-1408" name="__codelineno-0-1408"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-1409" name="__codelineno-0-1409"></a>                <span class="sa">f</span><span class="s2">&quot;Released assignment for unrecoverable VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
-<a id="__codelineno-0-1410" name="__codelineno-0-1410"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1411" name="__codelineno-0-1411"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1412" name="__codelineno-0-1412"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-1413" name="__codelineno-0-1413"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to release assignment for &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1414" name="__codelineno-0-1414"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1415" name="__codelineno-0-1415"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
-<a id="__codelineno-0-1416" name="__codelineno-0-1416"></a>            <span class="k">raise</span>
+<span class="normal"><a href="#__codelineno-0-1416">1416</a></span>
+<span class="normal"><a href="#__codelineno-0-1417">1417</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1379" name="__codelineno-0-1379"></a><span class="k">def</span><span class="w"> </span><span class="nf">release_assignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-1380" name="__codelineno-0-1380"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Release a VM&#39;s student assignment when it is deemed unrecoverable.</span>
+<a id="__codelineno-0-1381" name="__codelineno-0-1381"></a>
+<a id="__codelineno-0-1382" name="__codelineno-0-1382"></a><span class="sd">    Called by the auto-reboot service when reboot_count exceeds</span>
+<a id="__codelineno-0-1383" name="__codelineno-0-1383"></a><span class="sd">    max_attempts. Clears useremail, crdcommand, pin and sets</span>
+<a id="__codelineno-0-1384" name="__codelineno-0-1384"></a><span class="sd">    status to &#39;error&#39; so the pool reflects the VM as unassignable</span>
+<a id="__codelineno-0-1385" name="__codelineno-0-1385"></a><span class="sd">    until an admin intervenes. reboot_count is preserved for</span>
+<a id="__codelineno-0-1386" name="__codelineno-0-1386"></a><span class="sd">    diagnostics.</span>
+<a id="__codelineno-0-1387" name="__codelineno-0-1387"></a>
+<a id="__codelineno-0-1388" name="__codelineno-0-1388"></a><span class="sd">    Note: like `record_reboot`, setting `crdcommand = NULL` fires</span>
+<a id="__codelineno-0-1389" name="__codelineno-0-1389"></a><span class="sd">    the Postgres NOTIFY trigger with a NULL payload, producing a</span>
+<a id="__codelineno-0-1390" name="__codelineno-0-1390"></a><span class="sd">    discarded notification and a spurious warning log in any</span>
+<a id="__codelineno-0-1391" name="__codelineno-0-1391"></a><span class="sd">    listening client. The trigger-level fix is tracked for PR 4 of</span>
+<a id="__codelineno-0-1392" name="__codelineno-0-1392"></a><span class="sd">    the failed-VM recovery roadmap.</span>
+<a id="__codelineno-0-1393" name="__codelineno-0-1393"></a>
+<a id="__codelineno-0-1394" name="__codelineno-0-1394"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-1395" name="__codelineno-0-1395"></a><span class="sd">        hostname: The hostname of the VM whose assignment is being released.</span>
+<a id="__codelineno-0-1396" name="__codelineno-0-1396"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1397" name="__codelineno-0-1397"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-1398" name="__codelineno-0-1398"></a><span class="s2">        UPDATE </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span>
+<a id="__codelineno-0-1399" name="__codelineno-0-1399"></a><span class="s2">        SET useremail = NULL,</span>
+<a id="__codelineno-0-1400" name="__codelineno-0-1400"></a><span class="s2">            crdcommand = NULL,</span>
+<a id="__codelineno-0-1401" name="__codelineno-0-1401"></a><span class="s2">            pin = NULL,</span>
+<a id="__codelineno-0-1402" name="__codelineno-0-1402"></a><span class="s2">            status = &#39;error&#39;</span>
+<a id="__codelineno-0-1403" name="__codelineno-0-1403"></a><span class="s2">        WHERE hostname = %s;</span>
+<a id="__codelineno-0-1404" name="__codelineno-0-1404"></a><span class="s2">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1405" name="__codelineno-0-1405"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+<a id="__codelineno-0-1406" name="__codelineno-0-1406"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-1407" name="__codelineno-0-1407"></a>            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">hostname</span><span class="p">,))</span>
+<a id="__codelineno-0-1408" name="__codelineno-0-1408"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<a id="__codelineno-0-1409" name="__codelineno-0-1409"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-1410" name="__codelineno-0-1410"></a>                <span class="sa">f</span><span class="s2">&quot;Released assignment for unrecoverable VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+<a id="__codelineno-0-1411" name="__codelineno-0-1411"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1412" name="__codelineno-0-1412"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1413" name="__codelineno-0-1413"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-1414" name="__codelineno-0-1414"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to release assignment for &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1415" name="__codelineno-0-1415"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1416" name="__codelineno-0-1416"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+<a id="__codelineno-0-1417" name="__codelineno-0-1417"></a>            <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

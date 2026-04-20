@@ -2963,9 +2963,13 @@
     <div class="doc doc-contents first">
 
         <p>Automated VM reboot service.</p>
-<p>Periodically checks for failed VMs and reboots them via SSH hard reboot
-(cloud-init clean + reboot) with stop/start fallback.
-Respects cooldown periods and maximum reboot attempt limits.</p>
+<p>Periodically checks for failed VMs and reboots them.</p>
+<p>Assigned VMs get a warm reboot (plain <code>sudo reboot</code>) so the container
+survives via its <code>--restart unless-stopped</code> policy. Unassigned VMs get
+a cold reboot (<code>cloud-init clean &amp;&amp; sudo reboot</code>) that recreates the
+container from scratch. Both paths fall back to EC2 stop/start (always
+cold) when SSH is unavailable.</p>
+<p>Respects cooldown periods and maximum reboot attempt limits.</p>
 
 
 
@@ -3142,13 +3146,7 @@ Respects cooldown periods and maximum reboot attempt limits.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/reboot.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span>
-<span class="normal"><a href="#__codelineno-0-40">40</a></span>
-<span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-42">42</a></span>
 <span class="normal"><a href="#__codelineno-0-43">43</a></span>
 <span class="normal"><a href="#__codelineno-0-44">44</a></span>
 <span class="normal"><a href="#__codelineno-0-45">45</a></span>
@@ -3158,23 +3156,29 @@ Respects cooldown periods and maximum reboot attempt limits.</p>
 <span class="normal"><a href="#__codelineno-0-49">49</a></span>
 <span class="normal"><a href="#__codelineno-0-50">50</a></span>
 <span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">database</span><span class="p">:</span> <span class="n">PostgresqlDatabase</span><span class="p">,</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;us-west-2&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">terraform_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">cooldown_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">check_interval_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="p">):</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">region</span> <span class="o">=</span> <span class="n">region</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">max_attempts</span> <span class="o">=</span> <span class="n">max_attempts</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cooldown_seconds</span> <span class="o">=</span> <span class="n">cooldown_seconds</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">check_interval_seconds</span> <span class="o">=</span> <span class="n">check_interval_seconds</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">database</span><span class="p">:</span> <span class="n">PostgresqlDatabase</span><span class="p">,</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;us-west-2&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">terraform_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="n">cooldown_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="n">check_interval_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="p">):</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">region</span> <span class="o">=</span> <span class="n">region</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">max_attempts</span> <span class="o">=</span> <span class="n">max_attempts</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cooldown_seconds</span> <span class="o">=</span> <span class="n">cooldown_seconds</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">check_interval_seconds</span> <span class="o">=</span> <span class="n">check_interval_seconds</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -3327,25 +3331,25 @@ Respects cooldown periods and maximum reboot attempt limits.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/reboot.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-60">60</a></span>
 <span class="normal"><a href="#__codelineno-0-61">61</a></span>
 <span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Start the auto-reboot monitoring thread.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">ensure_reboot_columns</span><span class="p">()</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="sa">f</span><span class="s2">&quot;Auto-reboot service started (interval=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">check_interval_seconds</span><span class="si">}</span><span class="s2">s, &quot;</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="sa">f</span><span class="s2">&quot;max_attempts=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_attempts</span><span class="si">}</span><span class="s2">, cooldown=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cooldown_seconds</span><span class="si">}</span><span class="s2">s)&quot;</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Start the auto-reboot monitoring thread.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">ensure_reboot_columns</span><span class="p">()</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="sa">f</span><span class="s2">&quot;Auto-reboot service started (interval=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">check_interval_seconds</span><span class="si">}</span><span class="s2">s, &quot;</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="sa">f</span><span class="s2">&quot;max_attempts=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_attempts</span><span class="si">}</span><span class="s2">, cooldown=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cooldown_seconds</span><span class="si">}</span><span class="s2">s)&quot;</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3368,17 +3372,17 @@ Respects cooldown periods and maximum reboot attempt limits.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/reboot.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span>
-<span class="normal"><a href="#__codelineno-0-67">67</a></span>
-<span class="normal"><a href="#__codelineno-0-68">68</a></span>
-<span class="normal"><a href="#__codelineno-0-69">69</a></span>
-<span class="normal"><a href="#__codelineno-0-70">70</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Stop the auto-reboot monitoring thread.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="p">:</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-reboot service stopped&quot;</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Stop the auto-reboot monitoring thread.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="p">:</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-reboot service stopped&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
