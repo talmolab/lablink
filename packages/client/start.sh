@@ -101,6 +101,11 @@ check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
+# Run heartbeat loop (silent-failure detection)
+heartbeat \
+  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
+  2>&1 | tee "$LOG_DIR/heartbeat.log" &
+
 touch "$LOG_DIR/placeholder.log"
 
 # End time
@@ -119,4 +124,4 @@ curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   }" --max-time 5 || true
 
 # Keep container alive
-tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/placeholder.log"
+tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"

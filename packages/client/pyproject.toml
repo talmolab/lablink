@@ -32,6 +32,7 @@ Issues = "https://github.com/talmolab/lablink/issues"
 
 [project.scripts]
 check_gpu = "lablink_client_service.check_gpu:main"
+heartbeat = "lablink_client_service.heartbeat:main"
 subscribe = "lablink_client_service.subscribe:main"
 update_inuse_status = "lablink_client_service.update_inuse_status:main"
 
