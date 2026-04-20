@@ -57,8 +57,16 @@ def test_update_vm_status_rebooting(db_instance):
 def test_get_failed_vms(db_instance):
     """Test retrieving failed VMs."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-1", "error", None, 0, None, None),
-        ("vm-2", "running", "Unhealthy", 1, datetime(2025, 1, 1), "user@test.com"),
+        ("vm-1", "error", None, 0, None, None, None),
+        (
+            "vm-2",
+            "running",
+            "Unhealthy",
+            1,
+            datetime(2025, 1, 1),
+            "user@test.com",
+            None,
+        ),
     ]
 
     result = db_instance.get_failed_vms()
@@ -75,8 +83,8 @@ def test_get_failed_vms(db_instance):
 def test_get_failed_vms_includes_useremail(db_instance):
     """Test that get_failed_vms returns useremail for assignment-aware reboot."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-assigned", "error", None, 1, None, "student@example.com"),
-        ("vm-unassigned", "error", None, 0, None, None),
+        ("vm-assigned", "error", None, 1, None, "student@example.com", None),
+        ("vm-unassigned", "error", None, 0, None, None, None),
     ]
 
     result = db_instance.get_failed_vms()
@@ -103,7 +111,7 @@ def test_get_failed_vms_error(db_instance, caplog):
 def test_get_failed_vms_includes_stale_initializing(db_instance):
     """Test that stale initializing VMs are included in failed VMs query."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-stale", "initializing", None, 0, None, None),
+        ("vm-stale", "initializing", None, 0, None, None, None),
     ]
 
     result = db_instance.get_failed_vms(stale_initializing_minutes=15)
@@ -138,7 +146,7 @@ def test_get_failed_vms_default_stale_initializing_is_25_minutes(db_instance):
 def test_get_failed_vms_includes_stuck_rebooting(db_instance):
     """Test that VMs stuck in rebooting state are re-eligible."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-stuck", "rebooting", None, 1, datetime(2025, 1, 1), None),
+        ("vm-stuck", "rebooting", None, 1, datetime(2025, 1, 1), None, None),
     ]
 
     result = db_instance.get_failed_vms(stale_rebooting_minutes=10)
@@ -152,6 +160,201 @@ def test_get_failed_vms_includes_stuck_rebooting(db_instance):
     assert "rebooting" in query
     assert "last_reboot_time" in query
     assert "10 minutes" in query
+
+
+def test_get_failed_vms_includes_silent_running_vm(db_instance):
+    """Running VM with stale last_seen_at is flagged for reboot."""
+    stale = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    db_instance.cursor.fetchall.return_value = [
+        ("vm-silent", "running", "Healthy", 0, None, "s@test", stale),
+    ]
+
+    result = db_instance.get_failed_vms(stale_heartbeat_minutes=3)
+
+    assert len(result) == 1
+    assert result[0]["hostname"] == "vm-silent"
+    assert result[0]["last_seen_at"] == stale
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "last_seen_at" in query
+    assert "3 minutes" in query
+
+
+def test_get_failed_vms_default_stale_heartbeat_is_3_minutes(db_instance):
+    """Default stale_heartbeat_minutes is 3 (6x the 30s heartbeat cadence)."""
+    db_instance.cursor.fetchall.return_value = []
+    db_instance.get_failed_vms()  # no explicit arguments
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "3 minutes" in query
+
+
+def test_get_failed_vms_null_last_seen_not_flagged(db_instance):
+    """Brand-new VMs with last_seen_at IS NULL must not be flagged.
+
+    Otherwise every VM would be marked silent immediately on creation,
+    before the heartbeat thread has had a chance to post.
+    """
+    db_instance.cursor.fetchall.return_value = []
+    db_instance.get_failed_vms(stale_heartbeat_minutes=3)
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "last_seen_at IS NOT NULL" in query
+
+
+def test_get_failed_vms_heartbeat_only_matches_running(db_instance):
+    """The heartbeat staleness branch guards on status='running' so we
+    don't double-count VMs already caught by the rebooting/initializing
+    stale predicates."""
+    db_instance.cursor.fetchall.return_value = []
+    db_instance.get_failed_vms()
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    # The heartbeat branch appears alongside status = 'running'
+    assert "status = 'running'" in query
+    assert "last_seen_at IS NOT NULL" in query
+
+
+def test_record_heartbeat_updates_columns(db_instance):
+    """record_heartbeat persists all five columns and bumps last_seen_at."""
+    db_instance.cursor.fetchone.return_value = (None, None, None)
+    ok = db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="abc-123",
+        crd_active=True,
+        docker_healthy=True,
+        disk_free_pct=87,
+    )
+    assert ok is True
+
+    # The UPDATE call is the second execute (first was the SELECT).
+    update_call = db_instance.cursor.execute.call_args_list[-1]
+    query = update_call[0][0]
+    params = update_call[0][1]
+    assert "last_seen_at = NOW()" in query
+    assert "boot_id = %s" in query
+    assert "crd_active = %s" in query
+    assert "docker_healthy = %s" in query
+    assert "disk_free_pct = %s" in query
+    assert params == ("abc-123", True, True, 87, "vm-1")
+
+
+def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
+    """Heartbeat for an unknown hostname returns False and logs warning."""
+    db_instance.cursor.fetchone.return_value = None
+
+    ok = db_instance.record_heartbeat(
+        hostname="vm-missing",
+        boot_id="bid",
+        crd_active=True,
+        docker_healthy=True,
+        disk_free_pct=50,
+    )
+
+    assert ok is False
+    assert "unknown hostname" in caplog.text.lower()
+
+
+def test_record_heartbeat_warns_on_boot_id_change(db_instance, caplog):
+    """Heartbeat with a different boot_id than stored emits a warning."""
+    db_instance.cursor.fetchone.return_value = ("prev-bid", True, True)
+
+    db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="new-bid",
+        crd_active=True,
+        docker_healthy=True,
+        disk_free_pct=50,
+    )
+
+    assert "boot_id changed" in caplog.text
+
+
+def test_record_heartbeat_warns_on_crd_flip(db_instance, caplog):
+    """Heartbeat where crd_active transitions True -> False warns."""
+    db_instance.cursor.fetchone.return_value = ("bid", True, True)
+
+    db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="bid",
+        crd_active=False,
+        docker_healthy=True,
+        disk_free_pct=50,
+    )
+
+    assert "crd_active flipped False" in caplog.text
+
+
+def test_record_heartbeat_warns_on_docker_flip(db_instance, caplog):
+    """Heartbeat where docker_healthy transitions True -> False warns."""
+    db_instance.cursor.fetchone.return_value = ("bid", True, True)
+
+    db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="bid",
+        crd_active=True,
+        docker_healthy=False,
+        disk_free_pct=50,
+    )
+
+    assert "docker_healthy flipped False" in caplog.text
+
+
+def test_record_heartbeat_warns_on_low_disk(db_instance, caplog):
+    """disk_free_pct under 10 % emits a warning."""
+    db_instance.cursor.fetchone.return_value = ("bid", True, True)
+
+    db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="bid",
+        crd_active=True,
+        docker_healthy=True,
+        disk_free_pct=5,
+    )
+
+    assert "disk_free_pct low" in caplog.text
+
+
+def test_record_heartbeat_no_warn_on_first_boot_id(db_instance, caplog):
+    """First heartbeat (previous boot_id is NULL) must not warn."""
+    db_instance.cursor.fetchone.return_value = (None, None, None)
+
+    db_instance.record_heartbeat(
+        hostname="vm-1",
+        boot_id="new-bid",
+        crd_active=True,
+        docker_healthy=True,
+        disk_free_pct=50,
+    )
+
+    assert "boot_id changed" not in caplog.text
+
+
+def test_touch_last_seen_only_updates_timestamp(db_instance):
+    """touch_last_seen updates last_seen_at without touching other columns."""
+    db_instance.touch_last_seen("vm-1")
+
+    query = db_instance.cursor.execute.call_args[0][0]
+    assert "last_seen_at = NOW()" in query
+    # No other mutable columns touched.
+    assert "boot_id" not in query
+    assert "crd_active" not in query
+    assert "docker_healthy" not in query
+    assert "status" not in query
+
+
+def test_touch_last_seen_swallows_errors(db_instance, caplog):
+    """touch_last_seen logs and continues on DB error; never raises.
+
+    It is called on the hot path of every client->allocator endpoint,
+    so a failure here must not take the endpoint down.
+    """
+    db_instance.cursor.execute.side_effect = Exception("DB down")
+
+    # No exception should propagate.
+    db_instance.touch_last_seen("vm-1")
+
+    assert "touch last_seen" in caplog.text.lower()
 
 
 def test_record_reboot(db_instance):
