@@ -143,9 +143,20 @@ def start_crd_daemon() -> None:
         f"/opt/google/chrome-remote-desktop/user-session start -- "
         f"--config={config_path} --start"
     )
-    result = subprocess.run(
-        command, shell=True, capture_output=True, text=True
-    )
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        logger.error(
+            "Timed out waiting for CRD daemon to start; subscribe "
+            "will retry on the next NOTIFY"
+        )
+        return
     if result.returncode == 0:
         logger.info(f"CRD daemon restarted using {config_path}")
     else:
