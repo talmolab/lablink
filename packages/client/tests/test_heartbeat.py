@@ -143,12 +143,20 @@ def test_send_heartbeat_does_not_raise_on_4xx(mock_post):
 
 
 @patch("lablink_client_service.heartbeat.time.sleep")
+@patch(
+    "lablink_client_service.heartbeat.build_payload",
+    return_value={"vm_id": "vm-1"},
+)
 @patch("lablink_client_service.heartbeat.send_heartbeat")
 @patch("lablink_client_service.heartbeat.read_boot_id", return_value="bid-1")
 def test_run_heartbeat_loop_reads_boot_id_once(
-    mock_boot, mock_send, mock_sleep, vm_env
+    mock_boot, mock_send, mock_build, mock_sleep, vm_env
 ):
     # Break out of the infinite loop after the second tick.
+    # build_payload is patched so the real samplers (which shell out to
+    # pgrep/docker via subprocess.run) never run — subprocess uses
+    # time.sleep internally on Linux, which would consume the mock's
+    # side_effect list prematurely.
     mock_sleep.side_effect = [None, KeyboardInterrupt]
 
     with pytest.raises(KeyboardInterrupt):
@@ -160,3 +168,4 @@ def test_run_heartbeat_loop_reads_boot_id_once(
 
     assert mock_boot.call_count == 1
     assert mock_send.call_count == 2
+    assert mock_build.call_count == 2
