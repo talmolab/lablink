@@ -206,6 +206,7 @@ def test_start_crd_daemon_success(mock_glob, mock_run):
         shell=True,
         capture_output=True,
         text=True,
+        timeout=30,
     )
 
 
@@ -228,6 +229,28 @@ def test_start_crd_daemon_failure(mock_glob, mock_run):
         "/home/client/.config/chrome-remote-desktop/host#abc.json"
     ]
     mock_run.return_value = MagicMock(returncode=1, stderr="oops")
+
+    # Should not raise
+    start_crd_daemon()
+    mock_run.assert_called_once()
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_start_crd_daemon_timeout(mock_glob, mock_run):
+    """TimeoutExpired from user-session is caught, logged, and swallowed.
+
+    Without this, a hanging `user-session start` would block the subscribe
+    loop forever and prevent any subsequent CRD reassignment.
+    """
+    import subprocess
+
+    mock_glob.return_value = [
+        "/home/client/.config/chrome-remote-desktop/host#abc.json"
+    ]
+    mock_run.side_effect = subprocess.TimeoutExpired(
+        cmd="user-session start", timeout=30
+    )
 
     # Should not raise
     start_crd_daemon()
