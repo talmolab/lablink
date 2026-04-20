@@ -57,8 +57,8 @@ def test_update_vm_status_rebooting(db_instance):
 def test_get_failed_vms(db_instance):
     """Test retrieving failed VMs."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-1", "error", None, 0, None),
-        ("vm-2", "running", "Unhealthy", 1, datetime(2025, 1, 1)),
+        ("vm-1", "error", None, 0, None, None),
+        ("vm-2", "running", "Unhealthy", 1, datetime(2025, 1, 1), "user@test.com"),
     ]
 
     result = db_instance.get_failed_vms()
@@ -70,6 +70,19 @@ def test_get_failed_vms(db_instance):
     assert result[1]["hostname"] == "vm-2"
     assert result[1]["healthy"] == "Unhealthy"
     assert result[1]["reboot_count"] == 1
+
+
+def test_get_failed_vms_includes_useremail(db_instance):
+    """Test that get_failed_vms returns useremail for assignment-aware reboot."""
+    db_instance.cursor.fetchall.return_value = [
+        ("vm-assigned", "error", None, 1, None, "student@example.com"),
+        ("vm-unassigned", "error", None, 0, None, None),
+    ]
+
+    result = db_instance.get_failed_vms()
+
+    assert result[0]["useremail"] == "student@example.com"
+    assert result[1]["useremail"] is None
 
 
 def test_get_failed_vms_empty(db_instance):
@@ -90,7 +103,7 @@ def test_get_failed_vms_error(db_instance, caplog):
 def test_get_failed_vms_includes_stale_initializing(db_instance):
     """Test that stale initializing VMs are included in failed VMs query."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-stale", "initializing", None, 0, None),
+        ("vm-stale", "initializing", None, 0, None, None),
     ]
 
     result = db_instance.get_failed_vms(stale_initializing_minutes=15)
@@ -125,7 +138,7 @@ def test_get_failed_vms_default_stale_initializing_is_25_minutes(db_instance):
 def test_get_failed_vms_includes_stuck_rebooting(db_instance):
     """Test that VMs stuck in rebooting state are re-eligible."""
     db_instance.cursor.fetchall.return_value = [
-        ("vm-stuck", "rebooting", None, 1, datetime(2025, 1, 1)),
+        ("vm-stuck", "rebooting", None, 1, datetime(2025, 1, 1), None),
     ]
 
     result = db_instance.get_failed_vms(stale_rebooting_minutes=10)
@@ -227,8 +240,8 @@ def test_ensure_reboot_columns(db_instance):
 # --- AutoRebootService tests ---
 
 
-def test_ssh_hard_reboot_success(monkeypatch):
-    """Test successful SSH hard reboot."""
+def test_ssh_cold_reboot_success(monkeypatch):
+    """Test successful SSH cold reboot."""
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
@@ -240,18 +253,21 @@ def test_ssh_hard_reboot_success(monkeypatch):
     mock_run.return_value.returncode = 0
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._ssh_hard_reboot("1.2.3.4", "/tmp/key.pem")
+    result = service._ssh_cold_reboot("1.2.3.4", "/tmp/key.pem")
 
     assert result is True
     mock_run.assert_called_once()
     cmd = mock_run.call_args[0][0]
     assert "ssh" in cmd
     assert "ubuntu@1.2.3.4" in cmd
-    assert "sudo cloud-init clean && sudo reboot" in cmd
+    remote_cmd = cmd[-1]
+    assert "docker ps -aq" in remote_cmd
+    assert "xargs -r docker rm -f" in remote_cmd
+    assert "sudo cloud-init clean && sudo reboot" in remote_cmd
 
 
-def test_ssh_hard_reboot_exit_255(monkeypatch):
-    """Test SSH hard reboot with exit code 255 (connection reset by reboot)."""
+def test_ssh_cold_reboot_exit_255(monkeypatch):
+    """Test SSH cold reboot with exit code 255 (connection reset by reboot)."""
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
@@ -262,12 +278,12 @@ def test_ssh_hard_reboot_exit_255(monkeypatch):
     mock_run.return_value.returncode = 255
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._ssh_hard_reboot("1.2.3.4", "/tmp/key.pem")
+    result = service._ssh_cold_reboot("1.2.3.4", "/tmp/key.pem")
     assert result is True
 
 
-def test_ssh_hard_reboot_timeout(monkeypatch):
-    """Test SSH hard reboot timeout."""
+def test_ssh_cold_reboot_timeout(monkeypatch):
+    """Test SSH cold reboot timeout."""
     import subprocess
 
     mock_db = MagicMock()
@@ -279,12 +295,12 @@ def test_ssh_hard_reboot_timeout(monkeypatch):
     mock_run = MagicMock(side_effect=subprocess.TimeoutExpired("ssh", 30))
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._ssh_hard_reboot("1.2.3.4", "/tmp/key.pem")
+    result = service._ssh_cold_reboot("1.2.3.4", "/tmp/key.pem")
     assert result is False
 
 
-def test_ssh_hard_reboot_failure(monkeypatch):
-    """Test SSH hard reboot with non-zero exit code."""
+def test_ssh_cold_reboot_failure(monkeypatch):
+    """Test SSH cold reboot with non-zero exit code."""
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
@@ -296,8 +312,48 @@ def test_ssh_hard_reboot_failure(monkeypatch):
     mock_run.return_value.stderr = "Connection refused"
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._ssh_hard_reboot("1.2.3.4", "/tmp/key.pem")
+    result = service._ssh_cold_reboot("1.2.3.4", "/tmp/key.pem")
     assert result is False
+
+
+def test_ssh_warm_reboot_success(monkeypatch):
+    """Test warm reboot sends 'sudo reboot' without cloud-init clean."""
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 0
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._ssh_warm_reboot("1.2.3.4", "/tmp/key.pem")
+
+    assert result is True
+    cmd = mock_run.call_args[0][0]
+    assert "ubuntu@1.2.3.4" in cmd
+    assert cmd[-1] == "sudo reboot"
+
+
+def test_ssh_warm_reboot_does_not_clean_cloud_init(monkeypatch):
+    """Warm reboot must NOT run cloud-init clean (container would be destroyed)."""
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        terraform_dir="/tmp/terraform",
+    )
+
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 0
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    service._ssh_warm_reboot("1.2.3.4", "/tmp/key.pem")
+
+    cmd = mock_run.call_args[0][0]
+    full_cmd = " ".join(cmd)
+    assert "cloud-init clean" not in full_cmd
 
 
 def test_reboot_vm_ssh_success(monkeypatch):
@@ -317,7 +373,7 @@ def test_reboot_vm_ssh_success(monkeypatch):
     mock_run.return_value.returncode = 0
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._reboot_vm("vm-1")
+    result = service._reboot_vm("vm-1", assigned=False)
 
     assert result is True
     mock_db.record_reboot.assert_called_once_with("vm-1")
@@ -343,7 +399,7 @@ def test_reboot_vm_ssh_fails_stop_start_succeeds(monkeypatch):
     mock_run.return_value.stderr = "Connection refused"
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._reboot_vm("vm-1")
+    result = service._reboot_vm("vm-1", assigned=False)
 
     assert result is True
     mock_db.record_reboot.assert_called_once_with("vm-1")
@@ -362,7 +418,7 @@ def test_reboot_vm_no_ip_stop_start_succeeds(monkeypatch):
         terraform_dir="/tmp/terraform",
     )
 
-    result = service._reboot_vm("vm-1")
+    result = service._reboot_vm("vm-1", assigned=False)
 
     assert result is True
     mock_db.record_reboot.assert_called_once_with("vm-1")
@@ -388,7 +444,7 @@ def test_reboot_vm_all_methods_fail(monkeypatch):
     mock_run.return_value.stderr = "Connection refused"
     monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
 
-    result = service._reboot_vm("vm-1")
+    result = service._reboot_vm("vm-1", assigned=False)
 
     assert result is False
     mock_db.record_reboot.assert_not_called()
@@ -405,10 +461,64 @@ def test_reboot_vm_instance_not_found(monkeypatch):
         terraform_dir="/tmp/terraform",
     )
 
-    result = service._reboot_vm("vm-nonexistent")
+    result = service._reboot_vm("vm-nonexistent", assigned=False)
 
     assert result is False
     mock_db.record_reboot.assert_not_called()
+
+
+def test_reboot_vm_uses_warm_reboot_for_assigned_vm(monkeypatch):
+    """Assigned VMs (useremail set) get warm reboot to preserve container."""
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
+    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 0
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._reboot_vm("vm-1", assigned=True)
+
+    assert result is True
+    cmd = mock_run.call_args[0][0]
+    assert cmd[-1] == "sudo reboot"
+    assert "cloud-init clean" not in " ".join(cmd)
+    mock_db.record_reboot.assert_called_once_with("vm-1")
+
+
+def test_reboot_vm_uses_cold_reboot_for_unassigned_vm(monkeypatch):
+    """Unassigned VMs (no useremail) get cold reboot with cloud-init clean."""
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
+    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 0
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._reboot_vm("vm-1", assigned=False)
+
+    assert result is True
+    cmd = mock_run.call_args[0][0]
+    remote_cmd = cmd[-1]
+    assert "docker ps -aq" in remote_cmd
+    assert "xargs -r docker rm -f" in remote_cmd
+    assert "sudo cloud-init clean && sudo reboot" in remote_cmd
+    mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
@@ -422,6 +532,7 @@ def test_check_and_reboot_releases_on_max_attempts(mock_reboot):
             "healthy": None,
             "reboot_count": 3,
             "last_reboot_time": None,
+            "useremail": None,
         }
     ]
 
@@ -448,6 +559,7 @@ def test_check_and_reboot_below_max_does_not_release(mock_reboot):
             "healthy": None,
             "reboot_count": 1,
             "last_reboot_time": None,
+            "useremail": None,
         }
     ]
 
@@ -459,7 +571,7 @@ def test_check_and_reboot_below_max_does_not_release(mock_reboot):
     )
     service._check_and_reboot()
 
-    mock_reboot.assert_called_once_with("vm-1")
+    mock_reboot.assert_called_once_with("vm-1", assigned=False)
     mock_db.release_assignment.assert_not_called()
 
 
@@ -475,6 +587,7 @@ def test_check_and_reboot_respects_cooldown(mock_reboot):
             "healthy": None,
             "reboot_count": 1,
             "last_reboot_time": recent_reboot,
+            "useremail": None,
         }
     ]
 
@@ -500,6 +613,7 @@ def test_check_and_reboot_triggers_reboot(mock_reboot):
             "healthy": None,
             "reboot_count": 0,
             "last_reboot_time": None,
+            "useremail": None,
         }
     ]
 
@@ -511,7 +625,7 @@ def test_check_and_reboot_triggers_reboot(mock_reboot):
     )
     service._check_and_reboot()
 
-    mock_reboot.assert_called_once_with("vm-1")
+    mock_reboot.assert_called_once_with("vm-1", assigned=False)
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
@@ -526,6 +640,7 @@ def test_check_and_reboot_after_cooldown_expired(mock_reboot):
             "healthy": None,
             "reboot_count": 1,
             "last_reboot_time": old_reboot,
+            "useremail": None,
         }
     ]
 
@@ -537,7 +652,7 @@ def test_check_and_reboot_after_cooldown_expired(mock_reboot):
     )
     service._check_and_reboot()
 
-    mock_reboot.assert_called_once_with("vm-1")
+    mock_reboot.assert_called_once_with("vm-1", assigned=False)
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
@@ -553,6 +668,7 @@ def test_check_and_reboot_naive_timestamp(mock_reboot):
             "healthy": None,
             "reboot_count": 1,
             "last_reboot_time": naive_old_reboot,
+            "useremail": None,
         }
     ]
 
@@ -564,7 +680,7 @@ def test_check_and_reboot_naive_timestamp(mock_reboot):
     )
     service._check_and_reboot()
 
-    mock_reboot.assert_called_once_with("vm-1")
+    mock_reboot.assert_called_once_with("vm-1", assigned=False)
 
 
 @patch.object(AutoRebootService, "_reboot_vm")
@@ -596,3 +712,161 @@ def test_start_and_stop():
 
     service.stop()
     assert not service._thread.is_alive()
+
+
+@patch.object(AutoRebootService, "_reboot_vm")
+def test_check_and_reboot_passes_assigned_true_for_assigned_vm(mock_reboot):
+    """Test that assigned VMs get assigned=True passed to _reboot_vm."""
+    mock_db = MagicMock()
+    mock_db.get_failed_vms.return_value = [
+        {
+            "hostname": "vm-1",
+            "status": "error",
+            "healthy": None,
+            "reboot_count": 0,
+            "last_reboot_time": None,
+            "useremail": "student@example.com",
+        }
+    ]
+
+    service = AutoRebootService(
+        database=mock_db,
+        max_attempts=3,
+        cooldown_seconds=300,
+        terraform_dir="/tmp/terraform",
+    )
+    service._check_and_reboot()
+
+    mock_reboot.assert_called_once_with("vm-1", assigned=True)
+
+
+@patch.object(AutoRebootService, "_reboot_vm")
+def test_check_and_reboot_passes_assigned_false_for_unassigned_vm(mock_reboot):
+    """Test that unassigned VMs get assigned=False passed to _reboot_vm."""
+    mock_db = MagicMock()
+    mock_db.get_failed_vms.return_value = [
+        {
+            "hostname": "vm-1",
+            "status": "error",
+            "healthy": None,
+            "reboot_count": 0,
+            "last_reboot_time": None,
+            "useremail": None,
+        }
+    ]
+
+    service = AutoRebootService(
+        database=mock_db,
+        max_attempts=3,
+        cooldown_seconds=300,
+        terraform_dir="/tmp/terraform",
+    )
+    service._check_and_reboot()
+
+    mock_reboot.assert_called_once_with("vm-1", assigned=False)
+
+
+def test_reboot_vm_ssh_fails_stop_start_assigned_falls_back(monkeypatch):
+    """Assigned VM: SSH warm reboot fails, stop/start fallback still fires.
+
+    Documents that stop/start is invoked regardless of assignment state.
+    The "stop/start is always cold" semantic refers to post-boot behavior
+    (cloud-init re-runs user_data), not to whether fallback triggers.
+    """
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
+    )
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4"
+    )
+    monkeypatch.setattr(
+        reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem"
+    )
+    mock_stop_start = MagicMock(return_value=True)
+    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    # SSH fails with a non-zero, non-255 exit code
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stderr = "Connection refused"
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._reboot_vm("vm-1", assigned=True)
+
+    assert result is True
+    # SSH attempt was the warm path (sudo reboot, no cloud-init clean)
+    cmd = mock_run.call_args[0][0]
+    assert cmd[-1] == "sudo reboot"
+    # Stop/start was invoked as fallback
+    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    mock_db.record_reboot.assert_called_once_with("vm-1")
+
+
+def test_reboot_vm_no_ip_assigned_falls_back_to_stop_start(monkeypatch):
+    """Assigned VM with no public IP skips SSH and goes straight to stop/start."""
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
+    )
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_public_ip", lambda *a, **kw: None
+    )
+    mock_stop_start = MagicMock(return_value=True)
+    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+
+    # Guard: subprocess.run must NOT be called (no SSH attempt without IP)
+    mock_run = MagicMock()
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    result = service._reboot_vm("vm-1", assigned=True)
+
+    assert result is True
+    mock_run.assert_not_called()
+    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    mock_db.record_reboot.assert_called_once_with("vm-1")
+
+
+def test_reboot_vm_all_methods_fail_assigned(monkeypatch):
+    """Assigned VM: when SSH and stop/start both fail, no reboot recorded."""
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
+    )
+    monkeypatch.setattr(
+        reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4"
+    )
+    monkeypatch.setattr(
+        reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem"
+    )
+    mock_stop_start = MagicMock(return_value=False)
+    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+
+    mock_db = MagicMock()
+    service = AutoRebootService(
+        database=mock_db,
+        region="us-west-2",
+        terraform_dir="/tmp/terraform",
+    )
+
+    mock_run = MagicMock()
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stderr = "Connection refused"
+    monkeypatch.setattr(reboot_mod.subprocess, "run", mock_run)
+
+    result = service._reboot_vm("vm-1", assigned=True)
+
+    assert result is False
+    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    mock_db.record_reboot.assert_not_called()

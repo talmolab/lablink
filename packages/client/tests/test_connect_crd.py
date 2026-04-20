@@ -9,6 +9,8 @@ from lablink_client_service.connect_crd import (
     construct_command,
     reconstruct_command,
     connect_to_crd,
+    is_crd_registered,
+    start_crd_daemon,
 )
 
 
@@ -167,3 +169,89 @@ def test_cleanup_logs_exception(mock_sleep, mock_shutdown):
         connect_crd.cleanup_logs()
         mock_logger.error.assert_called_once()
         mock_sleep.assert_not_called()
+
+
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_is_crd_registered_true(mock_glob):
+    """Registered when a host#<hash>.json exists."""
+    mock_glob.return_value = [
+        "/home/client/.config/chrome-remote-desktop/host#abc.json"
+    ]
+    assert is_crd_registered() is True
+    mock_glob.assert_called_once_with(
+        "/home/client/.config/chrome-remote-desktop/host#*.json"
+    )
+
+
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_is_crd_registered_false(mock_glob):
+    """Not registered when no host config files are present."""
+    mock_glob.return_value = []
+    assert is_crd_registered() is False
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_start_crd_daemon_success(mock_glob, mock_run):
+    """Daemon start invokes user-session with the discovered config path."""
+    config_path = "/home/client/.config/chrome-remote-desktop/host#abc.json"
+    mock_glob.return_value = [config_path]
+    mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+    start_crd_daemon()
+
+    mock_run.assert_called_once_with(
+        f"/opt/google/chrome-remote-desktop/user-session start -- "
+        f"--config={config_path} --start",
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_start_crd_daemon_no_config(mock_glob, mock_run):
+    """Logs an error and skips subprocess when no host config is found."""
+    mock_glob.return_value = []
+
+    start_crd_daemon()
+
+    mock_run.assert_not_called()
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_start_crd_daemon_failure(mock_glob, mock_run):
+    """Non-zero exit from user-session is logged but does not raise."""
+    mock_glob.return_value = [
+        "/home/client/.config/chrome-remote-desktop/host#abc.json"
+    ]
+    mock_run.return_value = MagicMock(returncode=1, stderr="oops")
+
+    # Should not raise
+    start_crd_daemon()
+    mock_run.assert_called_once()
+
+
+@patch("lablink_client_service.connect_crd.subprocess.run")
+@patch("lablink_client_service.connect_crd.glob.glob")
+def test_start_crd_daemon_timeout(mock_glob, mock_run):
+    """TimeoutExpired from user-session is caught, logged, and swallowed.
+
+    Without this, a hanging `user-session start` would block the subscribe
+    loop forever and prevent any subsequent CRD reassignment.
+    """
+    import subprocess
+
+    mock_glob.return_value = [
+        "/home/client/.config/chrome-remote-desktop/host#abc.json"
+    ]
+    mock_run.side_effect = subprocess.TimeoutExpired(
+        cmd="user-session start", timeout=30
+    )
+
+    # Should not raise
+    start_crd_daemon()
+    mock_run.assert_called_once()

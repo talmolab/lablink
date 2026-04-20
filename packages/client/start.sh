@@ -29,6 +29,13 @@ send_status() {
     || echo ">> WARNING: failed to report status=$status (continuing)"
 }
 
+# Report 'initializing' as soon as the container's start.sh begins. On cold
+# reboot this is redundant with user_data.sh's earlier post, but on warm
+# reboot user_data.sh's guard may exit before reaching its send_status —
+# this call guarantees the transition rebooting → initializing → running
+# regardless of which path brought the container up.
+send_status "initializing"
+
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
   mkdir -p /home/client/Desktop

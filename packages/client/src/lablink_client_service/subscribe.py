@@ -6,7 +6,12 @@ import hydra
 import logging
 
 from lablink_client_service.conf.structured_config import Config
-from lablink_client_service.connect_crd import connect_to_crd, set_logger
+from lablink_client_service.connect_crd import (
+    connect_to_crd,
+    is_crd_registered,
+    set_logger,
+    start_crd_daemon,
+)
 from lablink_client_service.http_utils import (
     get_auth_headers,
     get_client_env,
@@ -66,8 +71,16 @@ def subscribe(cfg: Config) -> None:
                     command = data["command"]
                     pin = data["pin"]
 
-                    # Execute the command
-                    connect_to_crd(pin=pin, command=command)
+                    # On warm container restart, the previous host registration
+                    # survives in the writable layer. Re-exchanging the auth
+                    # code would fail, so just restart the daemon instead.
+                    if is_crd_registered():
+                        logger.info(
+                            "Existing CRD registration found; restarting daemon"
+                        )
+                        start_crd_daemon()
+                    else:
+                        connect_to_crd(pin=pin, command=command)
                     logger.info("CRD setup complete")
                     break  # Success - exit retry loop
                 else:

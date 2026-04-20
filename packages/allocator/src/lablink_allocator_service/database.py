@@ -1285,14 +1285,14 @@ class PostgresqlDatabase:
 
         Returns:
             list: VMs eligible for reboot with hostname, status, healthy,
-                  reboot_count, and last_reboot_time.
+                  reboot_count, last_reboot_time, and useremail.
         """
         init_minutes = int(stale_initializing_minutes)
         reboot_minutes = int(stale_rebooting_minutes)
         query = f"""
             SELECT hostname, status, healthy,
                    COALESCE(reboot_count, 0) as reboot_count,
-                   last_reboot_time
+                   last_reboot_time, useremail
             FROM {self.table_name}
             WHERE status = 'error'
                OR (healthy = 'Unhealthy'
@@ -1317,6 +1317,7 @@ class PostgresqlDatabase:
                     "healthy": row[2],
                     "reboot_count": row[3],
                     "last_reboot_time": row[4],
+                    "useremail": row[5],
                 }
                 for row in rows
             ]
