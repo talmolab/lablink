@@ -596,6 +596,8 @@ def vm_startup():
     if not vm:
         return jsonify({"error": "VM not found."}), 404
 
+    database.touch_last_seen(hostname=hostname)
+
     # Check if the VM already has a CRD command assigned (handles race condition
     # where user submitted CRD before client called /vm_startup)
     if vm.get("crdcommand") and vm.get("pin"):
@@ -758,12 +760,43 @@ def update_gpu_health():
         return jsonify({"error": "GPU status and hostname are required."}), 400
 
     try:
+        database.touch_last_seen(hostname=hostname)
         database.update_health(hostname=hostname, healthy=gpu_status)
         logger.debug(f"Updated GPU health status for {hostname} to {gpu_status}")
         return jsonify({"message": "GPU health status updated successfully."}), 200
     except Exception as e:
         logger.error(f"Error updating GPU health status: {e}")
         return jsonify({"error": "Failed to update GPU health status."}), 500
+
+
+@app.route("/api/heartbeat", methods=["POST"])
+@require_api_token
+def heartbeat():
+    """Record a client-VM liveness heartbeat."""
+    data = request.get_json() or {}
+    hostname = data.get("vm_id")
+    if not hostname:
+        return jsonify({"error": "vm_id is required."}), 400
+
+    boot_id = data.get("boot_id")
+    crd_active = data.get("crd_active")
+    docker_healthy = data.get("docker_healthy")
+    disk_free_pct = data.get("disk_free_pct")
+
+    try:
+        ok = database.record_heartbeat(
+            hostname=hostname,
+            boot_id=boot_id,
+            crd_active=crd_active,
+            docker_healthy=docker_healthy,
+            disk_free_pct=disk_free_pct,
+        )
+        if not ok:
+            return jsonify({"error": "Unknown hostname."}), 404
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        logger.error(f"Error recording heartbeat for {hostname}: {e}")
+        return jsonify({"error": "Failed to record heartbeat."}), 500
 
 
 @app.route("/api/vm-status", methods=["POST"])
@@ -777,6 +810,7 @@ def update_vm_status():
         if not hostname or status is None:
             return jsonify({"error": "Hostname and status are required."}), 400
 
+        database.touch_last_seen(hostname=hostname)
         database.update_vm_status(hostname=hostname, status=status)
 
         return jsonify({"message": "VM status updated successfully."}), 200
@@ -958,6 +992,7 @@ def receive_vm_metrics(hostname):
             logger.error(f"VM with hostname {hostname} does not exist.")
             return jsonify({"error": "VM not found."}), 404
 
+        database.touch_last_seen(hostname=hostname)
         # Update VM metrics and calculate total startup time atomically
         # This combines two database operations into one for better performance
         database.update_vm_metrics_atomic(hostname=hostname, metrics=data)
