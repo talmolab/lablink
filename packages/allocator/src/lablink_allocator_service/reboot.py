@@ -168,12 +168,21 @@ class AutoRebootService:
             return False
 
     def _ssh_cold_reboot(self, ip: str, key_path: str) -> bool:
-        """Cold reboot: wipe cloud-init state so user_data re-runs.
+        """Cold reboot: destroy container, wipe cloud-init state, reboot.
 
-        Used for unassigned VMs where we want a fresh container.
+        Used for unassigned VMs where we want a fresh container. The
+        explicit ``docker rm -f`` ensures the container is gone before
+        reboot, so the warm-reboot idempotence guard in ``user_data.sh``
+        falls through to full provisioning on the next boot rather than
+        no-op'ing. ``xargs -r`` skips the rm entirely when no containers
+        exist, and ``;`` (not ``&&``) lets cloud-init clean + reboot
+        proceed even if rm fails.
         """
         return self._ssh_reboot(
-            ip, key_path, "sudo cloud-init clean && sudo reboot"
+            ip,
+            key_path,
+            "sudo docker ps -aq | sudo xargs -r docker rm -f; "
+            "sudo cloud-init clean && sudo reboot",
         )
 
     def _ssh_warm_reboot(self, ip: str, key_path: str) -> bool:

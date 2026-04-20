@@ -260,7 +260,10 @@ def test_ssh_cold_reboot_success(monkeypatch):
     cmd = mock_run.call_args[0][0]
     assert "ssh" in cmd
     assert "ubuntu@1.2.3.4" in cmd
-    assert "sudo cloud-init clean && sudo reboot" in cmd
+    remote_cmd = cmd[-1]
+    assert "docker ps -aq" in remote_cmd
+    assert "xargs -r docker rm -f" in remote_cmd
+    assert "sudo cloud-init clean && sudo reboot" in remote_cmd
 
 
 def test_ssh_cold_reboot_exit_255(monkeypatch):
@@ -511,7 +514,10 @@ def test_reboot_vm_uses_cold_reboot_for_unassigned_vm(monkeypatch):
 
     assert result is True
     cmd = mock_run.call_args[0][0]
-    assert "sudo cloud-init clean && sudo reboot" in cmd
+    remote_cmd = cmd[-1]
+    assert "docker ps -aq" in remote_cmd
+    assert "xargs -r docker rm -f" in remote_cmd
+    assert "sudo cloud-init clean && sudo reboot" in remote_cmd
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 

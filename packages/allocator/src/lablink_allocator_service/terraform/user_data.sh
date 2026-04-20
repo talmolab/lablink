@@ -1,6 +1,22 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+# --- Warm-reboot idempotence guard ---
+# If a container for our image already exists on this host, provisioning
+# already completed on a prior boot. Docker's --restart unless-stopped
+# policy will resume the container automatically — running user_data.sh
+# again would destroy the student's writable layer (including the CRD
+# host registration in /home/client/.config/chrome-remote-desktop/).
+#
+# The cold-reboot path in the allocator's reboot service explicitly runs
+# `docker rm -f` before `cloud-init clean && reboot`, so reaching this
+# point with an existing container unambiguously means a warm re-run.
+if docker ps -a --filter "ancestor=${image_name}" -q 2>/dev/null | grep -q .; then
+    echo ">> Existing container for image ${image_name} detected."
+    echo ">> Warm reboot — skipping provisioning; restart policy handles the container."
+    exit 0
+fi
+
 # Start time
 CLOUD_INIT_START_TIME=$(date +%s)
 
