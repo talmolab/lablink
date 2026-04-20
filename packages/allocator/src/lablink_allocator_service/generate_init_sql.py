@@ -78,7 +78,12 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     ContainerEndTime TIMESTAMP,
     ContainerStartupDurationSeconds FLOAT,
     TotalStartupDurationSeconds FLOAT,
-    CreatedAt TIMESTAMP DEFAULT NOW()
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    LastSeenAt TIMESTAMP,
+    BootId VARCHAR(64),
+    CrdActive BOOLEAN,
+    DockerHealthy BOOLEAN,
+    DiskFreePct SMALLINT
 );
 
 CREATE OR REPLACE FUNCTION notify_crd_command_update()
@@ -99,6 +104,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_crd_command_insert_or_update
 AFTER INSERT OR UPDATE OF CrdCommand ON {VM_TABLE}
 FOR EACH ROW
+WHEN (NEW.CrdCommand IS NOT NULL)
 EXECUTE FUNCTION notify_crd_command_update();
 
 """
