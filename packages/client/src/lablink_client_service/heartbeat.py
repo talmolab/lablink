@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import subprocess
-import time
+import threading
 from datetime import datetime, timezone
 
 import hydra
@@ -125,8 +125,15 @@ def run_heartbeat_loop(
     allocator_url: str,
     api_token: str = "",
     interval: int = HEARTBEAT_INTERVAL_SECONDS,
+    stop_event: threading.Event | None = None,
 ) -> None:
-    """Long-running loop that sends a heartbeat every `interval` seconds."""
+    """Long-running loop that sends a heartbeat every `interval` seconds.
+
+    Mirrors the AutoRebootService loop shape in reboot.py: an Event-driven
+    sleep so callers can stop the loop, and an outer exception guard so a
+    rogue exception in a sampler does not silently kill the thread and
+    leave the container running with no liveness signal.
+    """
     logger.info("Starting heartbeat loop")
     base_url = sanitize_url(allocator_url)
     headers = {"Content-Type": "application/json"}
@@ -135,10 +142,16 @@ def run_heartbeat_loop(
     vm_id = os.getenv("VM_NAME")
     boot_id = read_boot_id()
 
-    while True:
-        payload = build_payload(vm_id=vm_id, boot_id=boot_id)
-        send_heartbeat(base_url=base_url, headers=headers, payload=payload)
-        time.sleep(interval)
+    if stop_event is None:
+        stop_event = threading.Event()
+
+    while not stop_event.is_set():
+        try:
+            payload = build_payload(vm_id=vm_id, boot_id=boot_id)
+            send_heartbeat(base_url=base_url, headers=headers, payload=payload)
+        except Exception:
+            logger.exception("Heartbeat iteration failed; continuing")
+        stop_event.wait(interval)
 
 
 @hydra.main(version_base=None, config_name="config")

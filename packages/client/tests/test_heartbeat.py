@@ -1,6 +1,7 @@
 """Tests for the client-side heartbeat module."""
 
 import subprocess
+import threading
 from unittest.mock import patch, MagicMock, mock_open
 
 import pytest
@@ -142,30 +143,72 @@ def test_send_heartbeat_does_not_raise_on_4xx(mock_post):
     )
 
 
-@patch("lablink_client_service.heartbeat.time.sleep")
 @patch(
     "lablink_client_service.heartbeat.build_payload",
     return_value={"vm_id": "vm-1"},
 )
-@patch("lablink_client_service.heartbeat.send_heartbeat")
 @patch("lablink_client_service.heartbeat.read_boot_id", return_value="bid-1")
-def test_run_heartbeat_loop_reads_boot_id_once(
-    mock_boot, mock_send, mock_build, mock_sleep, vm_env
+def test_run_heartbeat_loop_reads_boot_id_once_and_respects_stop_event(
+    mock_boot, mock_build, vm_env
 ):
-    # Break out of the infinite loop after the second tick.
-    # build_payload is patched so the real samplers (which shell out to
-    # pgrep/docker via subprocess.run) never run — subprocess uses
-    # time.sleep internally on Linux, which would consume the mock's
-    # side_effect list prematurely.
-    mock_sleep.side_effect = [None, KeyboardInterrupt]
+    """The loop caches boot_id across ticks and exits cleanly when
+    stop_event is set. Uses a captured send_heartbeat that flips the
+    event on its second call, so the loop runs exactly twice and then
+    returns — no time.sleep patching, no KeyboardInterrupt gymnastics.
+    """
+    stop = threading.Event()
+    calls = []
 
-    with pytest.raises(KeyboardInterrupt):
+    def capture(base_url, headers, payload):
+        calls.append(payload)
+        if len(calls) >= 2:
+            stop.set()
+
+    with patch(
+        "lablink_client_service.heartbeat.send_heartbeat", side_effect=capture
+    ):
         heartbeat.run_heartbeat_loop(
             allocator_url="http://alloc",
             api_token="tok",
             interval=0,
+            stop_event=stop,
         )
 
     assert mock_boot.call_count == 1
-    assert mock_send.call_count == 2
     assert mock_build.call_count == 2
+    assert len(calls) == 2
+
+
+@patch("lablink_client_service.heartbeat.read_boot_id", return_value="bid-1")
+def test_run_heartbeat_loop_logs_and_continues_on_unexpected_exception(
+    mock_boot, vm_env, caplog
+):
+    """An exception outside the samplers' caught tuples must not kill the
+    loop: log the traceback and proceed to the next tick. Without the
+    outer guard, the thread would die silently and the container would
+    remain alive but go silent — triggering an unnecessary reboot cycle
+    instead of letting the process self-heal on the next iteration.
+    """
+    stop = threading.Event()
+    call_count = {"n": 0}
+
+    def raise_then_stop(vm_id, boot_id):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise RuntimeError("simulated sampler failure")
+        stop.set()
+        return {"vm_id": vm_id}
+
+    with patch(
+        "lablink_client_service.heartbeat.build_payload",
+        side_effect=raise_then_stop,
+    ):
+        with patch("lablink_client_service.heartbeat.send_heartbeat"):
+            heartbeat.run_heartbeat_loop(
+                allocator_url="http://alloc",
+                interval=0,
+                stop_event=stop,
+            )
+
+    assert call_count["n"] == 2  # continued past the raising iteration
+    assert "simulated sampler failure" in caplog.text
