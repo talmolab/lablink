@@ -1267,24 +1267,22 @@ class PostgresqlDatabase:
         hostname: str,
         boot_id: Optional[str],
         crd_active: Optional[bool],
-        docker_healthy: Optional[bool],
         disk_free_pct: Optional[int],
     ) -> bool:
         """Record a client-VM heartbeat and emit warnings on anomalies.
 
-        Updates last_seen_at and the four reported health fields. Logs a
+        Updates last_seen_at and the three reported health fields. Logs a
         warning (not an error) when:
 
         - boot_id changed vs the previous value (unexpected host reboot),
         - crd_active transitioned from True to False,
-        - docker_healthy transitioned from True to False,
         - disk_free_pct dropped below 10.
 
         Returns True if the row was updated, False if the hostname is
         unknown.
         """
         select_query = (
-            f"SELECT boot_id, crd_active, docker_healthy "
+            f"SELECT boot_id, crd_active "
             f"FROM {self.table_name} WHERE hostname = %s;"
         )
         update_query = f"""
@@ -1292,7 +1290,6 @@ class PostgresqlDatabase:
             SET last_seen_at = NOW(),
                 boot_id = %s,
                 crd_active = %s,
-                docker_healthy = %s,
                 disk_free_pct = %s
             WHERE hostname = %s;
         """
@@ -1305,7 +1302,7 @@ class PostgresqlDatabase:
                         f"Heartbeat for unknown hostname {hostname}"
                     )
                     return False
-                prev_boot_id, prev_crd, prev_docker = row
+                prev_boot_id, prev_crd = row
 
                 if (
                     boot_id is not None
@@ -1320,10 +1317,6 @@ class PostgresqlDatabase:
                     logger.warning(
                         f"crd_active flipped False for {hostname}"
                     )
-                if prev_docker is True and docker_healthy is False:
-                    logger.warning(
-                        f"docker_healthy flipped False for {hostname}"
-                    )
                 if disk_free_pct is not None and disk_free_pct < 10:
                     logger.warning(
                         f"disk_free_pct low for {hostname}: "
@@ -1335,7 +1328,6 @@ class PostgresqlDatabase:
                     (
                         boot_id,
                         crd_active,
-                        docker_healthy,
                         disk_free_pct,
                         hostname,
                     ),

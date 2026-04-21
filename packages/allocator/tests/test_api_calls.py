@@ -2140,7 +2140,6 @@ def _heartbeat_payload(**overrides):
         "boot_id": "bid-abc",
         "timestamp": "2026-04-20T12:00:00+00:00",
         "crd_active": True,
-        "docker_healthy": True,
         "disk_free_pct": 80,
     }
     base.update(overrides)
@@ -2167,7 +2166,6 @@ def test_heartbeat_success(client, api_token_headers, monkeypatch):
         hostname="test-vm-dev-1",
         boot_id="bid-abc",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=80,
     )
 
@@ -2251,13 +2249,13 @@ def test_heartbeat_accepts_null_health_fields(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    payload = _heartbeat_payload(crd_active=None, docker_healthy=None)
+    payload = _heartbeat_payload(crd_active=None, disk_free_pct=None)
     resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
 
     assert resp.status_code == 200
     call = fake_db.record_heartbeat.call_args
     assert call.kwargs["crd_active"] is None
-    assert call.kwargs["docker_healthy"] is None
+    assert call.kwargs["disk_free_pct"] is None
 
 
 # -- Cross-endpoint last_seen_at refresh --------------------------------

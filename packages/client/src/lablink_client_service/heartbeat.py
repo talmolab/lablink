@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL_SECONDS = 30
 HEARTBEAT_POST_TIMEOUT_SECONDS = 5
-DOCKER_PROBE_TIMEOUT_SECONDS = 3
 BOOT_ID_PATH = "/proc/sys/kernel/random/boot_id"
 
 
@@ -57,20 +56,6 @@ def sample_crd_active() -> bool:
         return False
 
 
-def sample_docker_healthy() -> bool:
-    """Return True if `docker info` returns within the probe timeout."""
-    try:
-        result = subprocess.run(
-            ["docker", "info"],
-            capture_output=True,
-            timeout=DOCKER_PROBE_TIMEOUT_SECONDS,
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        logger.debug(f"docker_healthy probe failed: {e}")
-        return False
-
-
 def sample_disk_free_pct(path: str = "/") -> int:
     """Return integer percent of free space on the filesystem at `path`."""
     try:
@@ -90,7 +75,6 @@ def build_payload(vm_id: str | None, boot_id: str | None) -> dict:
         "boot_id": boot_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "crd_active": sample_crd_active(),
-        "docker_healthy": sample_docker_healthy(),
         "disk_free_pct": sample_disk_free_pct(),
     }
 

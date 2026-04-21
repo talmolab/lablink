@@ -82,7 +82,6 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     last_seen_at TIMESTAMP,
     boot_id VARCHAR(64),
     crd_active BOOLEAN,
-    docker_healthy BOOLEAN,
     disk_free_pct SMALLINT
 );
 

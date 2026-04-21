@@ -216,13 +216,12 @@ def test_get_failed_vms_heartbeat_only_matches_running(db_instance):
 
 
 def test_record_heartbeat_updates_columns(db_instance):
-    """record_heartbeat persists all five columns and bumps last_seen_at."""
-    db_instance.cursor.fetchone.return_value = (None, None, None)
+    """record_heartbeat persists all four columns and bumps last_seen_at."""
+    db_instance.cursor.fetchone.return_value = (None, None)
     ok = db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="abc-123",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=87,
     )
     assert ok is True
@@ -234,9 +233,8 @@ def test_record_heartbeat_updates_columns(db_instance):
     assert "last_seen_at = NOW()" in query
     assert "boot_id = %s" in query
     assert "crd_active = %s" in query
-    assert "docker_healthy = %s" in query
     assert "disk_free_pct = %s" in query
-    assert params == ("abc-123", True, True, 87, "vm-1")
+    assert params == ("abc-123", True, 87, "vm-1")
 
 
 def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
@@ -247,7 +245,6 @@ def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
         hostname="vm-missing",
         boot_id="bid",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=50,
     )
 
@@ -257,13 +254,12 @@ def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
 
 def test_record_heartbeat_warns_on_boot_id_change(db_instance, caplog):
     """Heartbeat with a different boot_id than stored emits a warning."""
-    db_instance.cursor.fetchone.return_value = ("prev-bid", True, True)
+    db_instance.cursor.fetchone.return_value = ("prev-bid", True)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="new-bid",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=50,
     )
 
@@ -272,43 +268,26 @@ def test_record_heartbeat_warns_on_boot_id_change(db_instance, caplog):
 
 def test_record_heartbeat_warns_on_crd_flip(db_instance, caplog):
     """Heartbeat where crd_active transitions True -> False warns."""
-    db_instance.cursor.fetchone.return_value = ("bid", True, True)
+    db_instance.cursor.fetchone.return_value = ("bid", True)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="bid",
         crd_active=False,
-        docker_healthy=True,
         disk_free_pct=50,
     )
 
     assert "crd_active flipped False" in caplog.text
 
 
-def test_record_heartbeat_warns_on_docker_flip(db_instance, caplog):
-    """Heartbeat where docker_healthy transitions True -> False warns."""
-    db_instance.cursor.fetchone.return_value = ("bid", True, True)
-
-    db_instance.record_heartbeat(
-        hostname="vm-1",
-        boot_id="bid",
-        crd_active=True,
-        docker_healthy=False,
-        disk_free_pct=50,
-    )
-
-    assert "docker_healthy flipped False" in caplog.text
-
-
 def test_record_heartbeat_warns_on_low_disk(db_instance, caplog):
     """disk_free_pct under 10 % emits a warning."""
-    db_instance.cursor.fetchone.return_value = ("bid", True, True)
+    db_instance.cursor.fetchone.return_value = ("bid", True)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="bid",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=5,
     )
 
@@ -317,13 +296,12 @@ def test_record_heartbeat_warns_on_low_disk(db_instance, caplog):
 
 def test_record_heartbeat_no_warn_on_first_boot_id(db_instance, caplog):
     """First heartbeat (previous boot_id is NULL) must not warn."""
-    db_instance.cursor.fetchone.return_value = (None, None, None)
+    db_instance.cursor.fetchone.return_value = (None, None)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="new-bid",
         crd_active=True,
-        docker_healthy=True,
         disk_free_pct=50,
     )
 
@@ -339,7 +317,6 @@ def test_touch_last_seen_only_updates_timestamp(db_instance):
     # No other mutable columns touched.
     assert "boot_id" not in query
     assert "crd_active" not in query
-    assert "docker_healthy" not in query
     assert "status" not in query
 
 

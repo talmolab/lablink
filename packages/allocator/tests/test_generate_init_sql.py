@@ -69,7 +69,6 @@ def test_vm_table_includes_heartbeat_columns(monkeypatch):
         "last_seen_at",
         "boot_id",
         "crd_active",
-        "docker_healthy",
         "disk_free_pct",
     ]:
         assert col in written

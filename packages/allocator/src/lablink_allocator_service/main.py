@@ -780,7 +780,6 @@ def heartbeat():
 
     boot_id = data.get("boot_id")
     crd_active = data.get("crd_active")
-    docker_healthy = data.get("docker_healthy")
     disk_free_pct = data.get("disk_free_pct")
 
     try:
@@ -788,7 +787,6 @@ def heartbeat():
             hostname=hostname,
             boot_id=boot_id,
             crd_active=crd_active,
-            docker_healthy=docker_healthy,
             disk_free_pct=disk_free_pct,
         )
         if not ok:
