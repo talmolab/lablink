@@ -117,8 +117,13 @@ RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpassw
     chmod 0440 /etc/sudoers.d/${USERNAME} && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 
-# Add USERNAME to the chrome-remote-desktop group
-RUN usermod -aG chrome-remote-desktop ${USERNAME}
+# Add USERNAME to the chrome-remote-desktop group.
+# `groupadd -f` guarantees the group exists even when the CRD package
+# postinst skips creating it (observed with Google's current
+# chrome-remote-desktop deb), making the build robust to upstream
+# packaging changes.
+RUN groupadd -f chrome-remote-desktop && \
+    usermod -aG chrome-remote-desktop ${USERNAME}
 
 # Ensure Chrome directories are accessible to the client user
 RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
