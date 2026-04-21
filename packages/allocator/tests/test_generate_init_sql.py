@@ -61,11 +61,15 @@ def test_vm_table_includes_heartbeat_columns(monkeypatch):
     written = "".join(
         call.args[0] for call in handle.write.call_args_list
     )
+    # Columns must be declared in lowercase-with-underscores so Postgres
+    # stores them as `last_seen_at` etc. — queries throughout database.py
+    # reference them that way. CamelCase names (e.g. `LastSeenAt`) would
+    # be folded to `lastseenat`, breaking every query.
     for col in [
-        "LastSeenAt",
-        "BootId",
-        "CrdActive",
-        "DockerHealthy",
-        "DiskFreePct",
+        "last_seen_at",
+        "boot_id",
+        "crd_active",
+        "docker_healthy",
+        "disk_free_pct",
     ]:
         assert col in written

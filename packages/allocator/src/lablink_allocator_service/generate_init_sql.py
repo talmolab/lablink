@@ -79,11 +79,11 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     ContainerStartupDurationSeconds FLOAT,
     TotalStartupDurationSeconds FLOAT,
     CreatedAt TIMESTAMP DEFAULT NOW(),
-    LastSeenAt TIMESTAMP,
-    BootId VARCHAR(64),
-    CrdActive BOOLEAN,
-    DockerHealthy BOOLEAN,
-    DiskFreePct SMALLINT
+    last_seen_at TIMESTAMP,
+    boot_id VARCHAR(64),
+    crd_active BOOLEAN,
+    docker_healthy BOOLEAN,
+    disk_free_pct SMALLINT
 );
 
 CREATE OR REPLACE FUNCTION notify_crd_command_update()
