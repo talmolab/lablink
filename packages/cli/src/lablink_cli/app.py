@@ -105,6 +105,13 @@ def deploy(
         "--terraform-bundle",
         help="Path to a local template tarball for offline deploys.",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts. Does not bypass credential prompts "
+        "(admin/db passwords still required interactively).",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure with Terraform."""
     from lablink_cli.commands.deploy import run_deploy
@@ -113,6 +120,7 @@ def deploy(
         _load_cfg(config),
         template_version=template_version,
         terraform_bundle=terraform_bundle,
+        yes=yes,
     )
 
 
@@ -124,11 +132,18 @@ def destroy(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts. Does not bypass credential prompts "
+        "(admin/db passwords still required interactively).",
+    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config))
+    run_destroy(_load_cfg(config), yes=yes)
 
 
 @app.command("launch-client")

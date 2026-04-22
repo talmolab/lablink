@@ -605,3 +605,77 @@ class TestRunDestroyExportPrompt:
                 run_destroy(mock_cfg)
 
             mock_export.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# run_deploy / run_destroy — -y / --yes auto-accept flag
+# ------------------------------------------------------------------
+class TestRunDeployYesFlag:
+    def test_yes_skips_apply_confirm(self, mock_cfg, tmp_path, monkeypatch):
+        """yes=True → no input() for apply-confirm; terraform apply still runs."""
+        cache_dir = tmp_path / "cache"
+        monkeypatch.setattr(
+            deployment_metrics, "DEPLOYMENTS_DIR", cache_dir
+        )
+
+        deploy_dir = tmp_path / "deploy"
+        (deploy_dir / "config").mkdir(parents=True)
+        (deploy_dir / "config" / "config.yaml").write_text(
+            "app: {}\ndb: {}\n"
+        )
+
+        with ExitStack() as stack:
+            # Enter helper mocks; then override builtins.input with a strict
+            # mock that fails the test if input() is called at all.
+            for cm in _patch_deploy_deps(deploy_dir):
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError(
+                        "input() must not be called when yes=True"
+                    ),
+                )
+            )
+            mock_tf = stack.enter_context(
+                patch("lablink_cli.commands.deploy._run_terraform")
+            )
+
+            run_deploy(mock_cfg, yes=True)
+
+        apply_calls = [
+            c
+            for c in mock_tf.call_args_list
+            if c.args and c.args[0] == ["apply", "-auto-approve", "tfplan"]
+        ]
+        assert len(apply_calls) == 1, (
+            f"expected one `terraform apply` call, got {mock_tf.call_args_list}"
+        )
+
+
+class TestRunDestroyYesFlag:
+    def test_yes_skips_all_prompts_and_exports_by_default(
+        self, mock_cfg, tmp_path
+    ):
+        """yes=True → no input() for destroy-confirm or export prompt; export runs."""
+        deploy_dir = tmp_path / "deploy"
+        _setup_destroy_dir(deploy_dir)
+
+        with ExitStack() as stack:
+            mocks = _patch_destroy_deps(deploy_dir, stack)
+            mock_export = stack.enter_context(
+                patch("lablink_cli.commands.deploy.run_export_metrics")
+            )
+            stack.enter_context(
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError(
+                        "input() must not be called when yes=True"
+                    ),
+                )
+            )
+
+            run_destroy(mock_cfg, yes=True)
+
+            mock_export.assert_called_once()
+            mocks["terraform_destroy"].assert_called_once()
