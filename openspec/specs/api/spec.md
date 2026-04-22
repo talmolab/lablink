@@ -117,12 +117,11 @@ expired CRD token, out-of-band EC2 termination) can be detected.
   - `boot_id`: Kernel per-boot UUID from `/proc/sys/kernel/random/boot_id`
   - `timestamp`: ISO 8601 client-clock timestamp
   - `crd_active`: Boolean — is chrome-remote-desktop running
-  - `docker_healthy`: Boolean — does `docker info` succeed
   - `disk_free_pct`: Integer — percent free on the container filesystem
 - **THEN** the allocator updates `last_seen_at = NOW()` on the VM row
 - **AND** persists the reported fields
-- **AND** logs warnings on unexpected `boot_id` change, `crd_active` or
-  `docker_healthy` transitioning to `false`, or `disk_free_pct` below 10 %
+- **AND** logs warnings on unexpected `boot_id` change,
+  `crd_active` transitioning to `false`, or `disk_free_pct` below 10 %
 - **AND** returns 200 `{"ok": true}`
 
 #### Scenario: Heartbeat for unknown hostname

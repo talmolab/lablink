@@ -25,8 +25,6 @@ The database SHALL store VM information in a `vms` table with the following sche
   - `boot_id`: VARCHAR(64) (nullable, kernel per-boot UUID reported by
     the client; used to detect unexpected host reboots)
   - `crd_active`: BOOLEAN (nullable, last heartbeat's CRD-daemon status)
-  - `docker_healthy`: BOOLEAN (nullable, last heartbeat's Docker daemon
-    probe result)
   - `disk_free_pct`: SMALLINT (nullable, percent free on the container
     filesystem at the last heartbeat)
 
