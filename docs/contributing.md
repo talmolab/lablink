@@ -859,7 +859,13 @@ mkdocs serve
 docs/
 ├── index.md           # Homepage
 ├── prerequisites.md   # Getting Started
-├── quickstart.md
+├── quickstart.md           # Landing (picks template vs CLI)
+├── quickstart-template.md  # Template-repo walkthrough
+├── cli/                    # CLI tutorials
+│   ├── index.md
+│   ├── installation.md
+│   ├── first-deployment.md
+│   └── managing-deployments.md
 ├── adapting.md        # Admin Guide
 ├── workshop-guide.md
 ├── configuration.md
