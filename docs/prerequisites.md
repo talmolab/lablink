@@ -177,5 +177,5 @@ uv python install 3.11
 
 Once you have the required tools installed:
 
-1. [**Quickstart**](quickstart.md): Deploy LabLink to AWS using the automated setup scripts
+1. [**Quickstart**](quickstart.md): Pick a deployment path (template repo or CLI)
 2. [**AWS Setup (Manual)**](aws-setup.md): Reference guide for creating AWS resources individually

@@ -1,9 +1,8 @@
 # AWS Setup from Scratch
 
 !!! tip "Automated Setup Recommended"
-    The [Quickstart](quickstart.md) guide uses `setup.sh` to automate all required AWS resource creation.
-    This manual guide is provided as a reference for advanced users who prefer to create
-    resources individually. See [Quickstart](quickstart.md) for the recommended approach.
+    The [Quickstart: Template repo](quickstart-template.md) guide uses `setup.sh` to automate all required AWS resource creation. The [Quickstart: CLI](cli/first-deployment.md) path automates the same work through `lablink configure`.
+    This manual guide is provided as a reference for advanced users who prefer to create resources individually.
 
 This comprehensive guide walks you through setting up all required AWS resources for LabLink deployment from scratch.
 
@@ -316,7 +315,7 @@ region = "us-west-2"
 ## Step 3: Elastic IP Allocation
 
 !!! tip "Automated Setup"
-    The `scripts/setup-aws-infrastructure.sh` script from the template repository also handles Elastic IP allocation. See the [Quickstart](quickstart.md) for the script-driven workflow.
+    The `scripts/setup-aws-infrastructure.sh` script from the template repository also handles Elastic IP allocation. See the [Quickstart: Template repo](quickstart-template.md) for the script-driven workflow.
 
 Allocate static IPs for test and production environments.
 
@@ -1563,7 +1562,7 @@ Running EC2 instances cost extra. See [Cost Estimation](cost-estimation.md) for 
 
 With AWS resources configured:
 
-1. **[Quickstart](quickstart.md)**: Deploy LabLink to AWS
+1. **[Quickstart](quickstart.md)**: Pick a deployment path — template repo or CLI
 2. **[Security](security.md)**: Review security best practices
 3. **[Workflows](workflows.md)**: Understand CI/CD pipelines
 
