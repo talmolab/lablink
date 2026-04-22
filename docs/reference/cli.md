@@ -65,7 +65,7 @@ Takes no options.
 
 ---
 
-## Deployment
+## Deployment commands
 
 ### `deploy`
 
@@ -122,7 +122,7 @@ Calls the allocator's create-VM endpoint. The allocator provisions the VMs in it
 
 ---
 
-## Operations
+## Operations commands
 
 ### `status`
 
@@ -189,7 +189,7 @@ With no source flag, both are exported and `_client` / `_allocator` suffixes are
 
 ---
 
-## Maintenance
+## Maintenance commands
 
 ### `show-config`
 

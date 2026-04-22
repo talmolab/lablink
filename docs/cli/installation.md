@@ -1,57 +1,54 @@
 # Installing the CLI
 
-The `lablink` command is distributed with the [LabLink repository](https://github.com/talmolab/lablink) under `packages/cli/`. Until it's published to PyPI, install it from source.
+The `lablink` command is distributed with the [LabLink repository](https://github.com/talmolab/lablink) as one of three packages in a `uv` workspace (`packages/allocator`, `packages/client`, `packages/cli`). Until the CLI is published to PyPI, install it from source with `uv sync`.
 
 !!! note "PyPI coming soon"
-    Once published, `pip install lablink` will be the recommended install. For now, use one of the methods below.
+    Once published, `uv tool install lablink` (or `pip install lablink`) will be the recommended install. For now, use the workspace install below.
 
 ## Prerequisites
 
 Before installing, make sure you have:
 
-- **Python 3.10+** — check with `python --version`.
+- **[uv](https://docs.astral.sh/uv/)** — the Python project manager used by this repo. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [official install guide](https://docs.astral.sh/uv/getting-started/installation/).
+- **Python 3.10+** — uv can manage this for you (`uv python install 3.11`). Check with `python --version`.
 - **Terraform 1.6+** — the CLI drives Terraform under the hood. Install from [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install).
 - **AWS credentials** configured locally (either `aws configure` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables). See [Prerequisites](../prerequisites.md#configure-aws-credentials).
 - **An AWS account** with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See [AWS Setup (Manual)](../aws-setup.md) for the full permission list.
 
 ## Install from source
 
-Clone the repo and install the CLI package in editable mode:
+Clone the repo and run `uv sync` at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on `lablink-allocator-service`, which uv resolves from the workspace automatically.
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
 cd lablink
-pip install -e packages/cli
+uv sync
 ```
 
-!!! tip "Use a virtual environment"
-    Install into a dedicated venv so the `lablink` command and its dependencies stay isolated:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -e packages/cli
-    ```
-    Or with `uv`:
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    uv pip install -e packages/cli
-    ```
-
-Verify the install:
+uv creates `.venv/` on first sync. Run the CLI either directly through uv:
 
 ```bash
+uv run lablink --help
+```
+
+…or by activating the venv:
+
+```bash
+source .venv/bin/activate
 lablink --help
 ```
 
-You should see the grouped command list (Setup, Deployment, Operations, Maintenance).
+You should see the grouped command list (Setup, Deployment, Operations, Maintenance) — the same panels Typer prints for `--help`.
+
+!!! tip "Running from outside the repo"
+    If you want `lablink` available from any directory, activate `.venv` in your shell profile, or install via `uv tool install --from ./packages/cli lablink-cli` (note: this will fail today because the CLI's workspace dep on `lablink-allocator-service` isn't yet resolvable outside the workspace — revisit after PyPI publish).
 
 ## Check your environment
 
 Run `lablink doctor` to validate prerequisites end-to-end:
 
 ```bash
-lablink doctor
+uv run lablink doctor
 ```
 
 It checks:
@@ -82,12 +79,12 @@ Pass `--config /path/to/config.yaml` to any command to use a different config fi
 
 ## Upgrading
 
-Pull the latest source and reinstall:
+Pull the latest source and re-sync:
 
 ```bash
 cd lablink
 git pull
-pip install -e packages/cli --upgrade
+uv sync
 ```
 
 !!! note "Template version"

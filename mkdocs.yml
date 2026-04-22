@@ -97,7 +97,6 @@ nav:
       - Prerequisites: prerequisites.md
       - Quickstart: quickstart.md
       - "Quickstart: Template repo": quickstart-template.md
-      - "Quickstart: CLI": cli/first-deployment.md
       - AWS Setup (Manual): aws-setup.md
   - CLI:
       - Overview: cli/index.md

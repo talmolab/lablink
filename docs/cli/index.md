@@ -1,9 +1,9 @@
 # LabLink CLI
 
-The `lablink` command is a local alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS, but drives Terraform from your own machine instead of GitHub Actions.
+The `lablink` command is a CLI-driven alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives Terraform from your own machine instead of GitHub Actions.
 
 !!! note "Status: pre-PyPI"
-    The CLI is not yet published to PyPI. For now, install it from source — see [Installation](installation.md). `pip install lablink` will be the path once the package is released.
+    The CLI is not yet published to PyPI. For now, install it from source with `uv sync` — see [Installation](installation.md). `uv tool install lablink` will be the path once the package is released.
 
 ## CLI vs. template repo
 
@@ -34,12 +34,6 @@ Pick the **template repo** when you want to:
 - Run workshops where multiple people may trigger deploys
 
 You can also switch between them later — both read the same `config.yaml` schema.
-
-## Current limitations
-
-- **Local deployment only.** The CLI manages Terraform state in an S3 bucket you control from your own AWS credentials; it does not integrate with GitHub Actions or shared CI-managed state.
-- **Not on PyPI yet.** Install from source (see [Installation](installation.md)).
-- **No Windows support tested.** macOS and Linux only for now.
 
 ## Next steps
 
