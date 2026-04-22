@@ -2611,6 +2611,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/client/lablink_client_service/heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    heartbeat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/client/lablink_client_service/http_utils/" class="md-nav__link">
         
   
@@ -3125,10 +3153,12 @@
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="bug-fixes">Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>fix: the error where the user does not already exist (#324)</li>
 <li>fix: defer VM status='running' until container startup completes (#321)</li>
 </ul>
 <h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
 <ul>
+<li>feat: heartbeat liveness signal for silent-failure detection (#323)</li>
 <li>feat: warm reboot for assigned VMs to preserve container state (#322)</li>
 <li>feat: dynamic health checks with adaptive polling for deployment metrics (#318)</li>
 </ul>

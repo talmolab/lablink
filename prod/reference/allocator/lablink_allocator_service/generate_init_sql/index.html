@@ -2358,6 +2358,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../client/lablink_client_service/heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    heartbeat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../client/lablink_client_service/http_utils/" class="md-nav__link">
         
   
@@ -2767,7 +2795,12 @@
 <span class="normal"><a href="#__codelineno-0-104">104</a></span>
 <span class="normal"><a href="#__codelineno-0-105">105</a></span>
 <span class="normal"><a href="#__codelineno-0-106">106</a></span>
-<span class="normal"><a href="#__codelineno-0-107">107</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate PostgreSQL initialization SQL script.&quot;&quot;&quot;</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6"></a>    <span class="n">config</span> <span class="o">=</span> <span class="n">get_config</span><span class="p">()</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7"></a>
@@ -2844,33 +2877,38 @@
 <a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="s2">    ContainerEndTime TIMESTAMP,</span>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="s2">    ContainerStartupDurationSeconds FLOAT,</span>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="s2">    TotalStartupDurationSeconds FLOAT,</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="s2">    CreatedAt TIMESTAMP DEFAULT NOW()</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="s2">);</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="s2">CREATE OR REPLACE FUNCTION notify_crd_command_update()</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="s2">RETURNS TRIGGER AS $$</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="s2">BEGIN</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="s2">    PERFORM pg_notify(</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="s2">        &#39;</span><span class="si">{</span><span class="n">MESSAGE_CHANNEL</span><span class="si">}</span><span class="s2">&#39;,</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="s2">        json_build_object(</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="s2">            &#39;HostName&#39;, NEW.HostName,</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="s2">            &#39;CrdCommand&#39;, NEW.CrdCommand,</span>
-<a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="s2">            &#39;Pin&#39;, NEW.Pin</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="s2">        )::text</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="s2">    );</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="s2">    RETURN NEW;</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="s2">END;</span>
-<a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="s2">$$ LANGUAGE plpgsql;</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>
-<a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="s2">CREATE TRIGGER trigger_crd_command_insert_or_update</span>
-<a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="s2">AFTER INSERT OR UPDATE OF CrdCommand ON </span><span class="si">{</span><span class="n">VM_TABLE</span><span class="si">}</span>
-<a id="__codelineno-0-101" name="__codelineno-0-101"></a><span class="s2">FOR EACH ROW</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a><span class="s2">EXECUTE FUNCTION notify_crd_command_update();</span>
-<a id="__codelineno-0-103" name="__codelineno-0-103"></a>
-<a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-105" name="__codelineno-0-105"></a>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/app/init.sql&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="s2">    CreatedAt TIMESTAMP DEFAULT NOW(),</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="s2">    last_seen_at TIMESTAMP,</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="s2">    boot_id VARCHAR(64),</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="s2">    crd_active BOOLEAN,</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="s2">    disk_free_pct SMALLINT</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="s2">);</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="s2">CREATE OR REPLACE FUNCTION notify_crd_command_update()</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="s2">RETURNS TRIGGER AS $$</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="s2">BEGIN</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="s2">    PERFORM pg_notify(</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="s2">        &#39;</span><span class="si">{</span><span class="n">MESSAGE_CHANNEL</span><span class="si">}</span><span class="s2">&#39;,</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="s2">        json_build_object(</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="s2">            &#39;HostName&#39;, NEW.HostName,</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="s2">            &#39;CrdCommand&#39;, NEW.CrdCommand,</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="s2">            &#39;Pin&#39;, NEW.Pin</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="s2">        )::text</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a><span class="s2">    );</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="s2">    RETURN NEW;</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="s2">END;</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a><span class="s2">$$ LANGUAGE plpgsql;</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="s2">CREATE TRIGGER trigger_crd_command_insert_or_update</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="s2">AFTER INSERT OR UPDATE OF CrdCommand ON </span><span class="si">{</span><span class="n">VM_TABLE</span><span class="si">}</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a><span class="s2">FOR EACH ROW</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="s2">WHEN (NEW.CrdCommand IS NOT NULL)</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a><span class="s2">EXECUTE FUNCTION notify_crd_command_update();</span>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/app/init.sql&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
