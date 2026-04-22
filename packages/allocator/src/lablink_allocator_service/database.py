@@ -10,15 +10,6 @@ import psycopg2.pool
 # Set up logging
 logger = logging.getLogger(__name__)
 
-try:
-    import psycopg2  # noqa: F811 (re-imported for the ImportError guard)
-except ImportError as e:
-    logger.error(
-        "psycopg2 is not installed in the development environment. "
-        "Please install it using `pip install psycopg2`"
-    )
-    raise e
-
 
 # Pool sizing. Internal: end users deploying the allocator don't need to
 # reason about this. Raise these in-code if production metrics show
