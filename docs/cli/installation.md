@@ -1,6 +1,6 @@
 # Installing the CLI
 
-The `lablink` command is distributed with the [LabLink repository](https://github.com/talmolab/lablink) as one of three packages in a `uv` workspace (`packages/allocator`, `packages/client`, `packages/cli`). Until the CLI is published to PyPI, install it from source with `uv sync`.
+The `lablink` command is distributed with the [LabLink repository](https://github.com/talmolab/lablink) as one of three packages in a `uv` workspace (`packages/allocator`, `packages/client`, `packages/cli`). Until the CLI is published to PyPI, install it from source with `uv sync --all-packages`.
 
 !!! note "PyPI coming soon"
     Once published, `uv tool install lablink` (or `pip install lablink`) will be the recommended install. For now, use the workspace install below.
@@ -17,12 +17,12 @@ Before installing, make sure you have:
 
 ## Install from source
 
-Clone the repo and run `uv sync` at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on `lablink-allocator-service`, which uv resolves from the workspace automatically.
+Clone the repo and run `uv sync --all-packages` at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on `lablink-allocator-service`, which uv resolves from the workspace automatically.
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
 cd lablink
-uv sync
+uv sync --all-packages
 ```
 
 uv creates `.venv/` on first sync. Run the CLI either directly through uv:
@@ -84,7 +84,7 @@ Pull the latest source and re-sync:
 ```bash
 cd lablink
 git pull
-uv sync
+uv sync --all-packages
 ```
 
 !!! note "Template version"

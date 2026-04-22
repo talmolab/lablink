@@ -3,7 +3,7 @@
 The `lablink` command is a CLI-driven alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives Terraform from your own machine instead of GitHub Actions.
 
 !!! note "Status: pre-PyPI"
-    The CLI is not yet published to PyPI. For now, install it from source with `uv sync` — see [Installation](installation.md). `uv tool install lablink` will be the path once the package is released.
+    The CLI is not yet published to PyPI. For now, install it from source with `uv sync --all-packages` — see [Installation](installation.md). `uv tool install lablink` will be the path once the package is released.
 
 ## CLI vs. template repo
 
