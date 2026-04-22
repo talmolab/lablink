@@ -96,7 +96,14 @@ nav:
   - Getting Started:
       - Prerequisites: prerequisites.md
       - Quickstart: quickstart.md
+      - "Quickstart: Template repo": quickstart-template.md
+      - "Quickstart: CLI": cli/first-deployment.md
       - AWS Setup (Manual): aws-setup.md
+  - CLI:
+      - Overview: cli/index.md
+      - Installation: cli/installation.md
+      - First Deployment: cli/first-deployment.md
+      - Managing Deployments: cli/managing-deployments.md
   - Admin Guide:
       - Adapting for Your Software: adapting.md
       - Workshop Guide: workshop-guide.md
@@ -118,8 +125,7 @@ nav:
       - Allocator Changelog: changelog-allocator.md
       - Client Changelog: changelog-client.md
       - Releases: https://github.com/talmolab/lablink/releases
-  - Reference:
-      - API Reference: reference/
+  - Reference: reference/
 
 extra:
   version:
