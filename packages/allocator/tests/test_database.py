@@ -678,11 +678,11 @@ def test_threading_lock_prevents_interleaved_reads_and_writes(
     assert db_instance.cursor.execute.call_count == 10
 
 
-def test_lock_released_when_cursor_creation_fails(db_instance):
-    """Verify the lock is released if conn.cursor() raises.
+def test_cursor_creation_failure_does_not_poison_pool(db_instance):
+    """Verify the connection is returned to the pool if conn.cursor() raises.
 
-    Without the fix, a failed cursor() call would leave the RLock
-    permanently acquired, deadlocking all subsequent database operations.
+    Without the fix, a failed cursor() call would leave the connection
+    leaked from the pool, preventing subsequent database operations.
     """
     # Make cursor() raise on first call, then succeed on second
     db_instance.conn.cursor.side_effect = [
@@ -1496,11 +1496,16 @@ def test_cursor_discards_connection_on_exception(db_instance):
 def test_cursor_sets_autocommit_per_checkout(db_instance):
     """Every checkout applies ISOLATION_LEVEL_AUTOCOMMIT, preserving
     the pre-refactor per-statement-transaction behavior."""
+    # mock_psycopg2 is the module-level mock installed in sys.modules before
+    # database.py was imported; the production code's psycopg2.extensions
+    # resolves to mock_psycopg2.extensions, so reference the same sentinel here.
     mock_conn = db_instance.conn
     mock_conn.set_isolation_level.reset_mock()
     with db_instance._cursor:
         pass
-    mock_conn.set_isolation_level.assert_called_once()
+    mock_conn.set_isolation_level.assert_called_once_with(
+        mock_psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+    )
 
 
 def test_del_closes_pool(mock_db_connection):

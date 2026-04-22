@@ -40,13 +40,14 @@ class _PooledCursor:
 
     def __enter__(self):
         self._conn = self._pool.getconn()
-        # Mirror pre-refactor behavior: every connection runs in autocommit.
-        # Applied per checkout — cheap, and defensive against anything that
-        # ever flips isolation levels on a pooled conn.
-        self._conn.set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-        )
         try:
+            # Mirror pre-refactor behavior: every connection runs in
+            # autocommit. Applied per checkout — cheap, and defensive
+            # against anything that ever flips isolation levels on a
+            # pooled conn.
+            self._conn.set_isolation_level(
+                psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+            )
             self._cur = self._conn.cursor()
             return self._cur
         except Exception:
