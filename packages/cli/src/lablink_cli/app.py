@@ -27,7 +27,7 @@ def _load_cfg(config: str | None):
     return load_config(config_path)
 
 
-@app.command()
+@app.command(rich_help_panel="Setup")
 def configure(
     config: str = typer.Option(
         None,
@@ -66,7 +66,7 @@ def configure(
     run_setup(load_config(config_path), config_path=config_path)
 
 
-@app.command()
+@app.command(rich_help_panel="Setup")
 def setup(
     config: str = typer.Option(
         None,
@@ -86,7 +86,7 @@ def setup(
     run_setup(_load_cfg(config), config_path=config_path)
 
 
-@app.command()
+@app.command(rich_help_panel="Deployment")
 def deploy(
     config: str = typer.Option(
         None,
@@ -105,6 +105,13 @@ def deploy(
         "--terraform-bundle",
         help="Path to a local template tarball for offline deploys.",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts. Does not bypass credential prompts "
+        "(admin/db passwords still required interactively).",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure with Terraform."""
     from lablink_cli.commands.deploy import run_deploy
@@ -113,10 +120,11 @@ def deploy(
         _load_cfg(config),
         template_version=template_version,
         terraform_bundle=terraform_bundle,
+        yes=yes,
     )
 
 
-@app.command()
+@app.command(rich_help_panel="Deployment")
 def destroy(
     config: str = typer.Option(
         None,
@@ -124,14 +132,21 @@ def destroy(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts. Does not bypass credential prompts "
+        "(admin/db passwords still required interactively).",
+    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config))
+    run_destroy(_load_cfg(config), yes=yes)
 
 
-@app.command("launch-client")
+@app.command("launch-client", rich_help_panel="Deployment")
 def launch_client(
     num_vms: int = typer.Option(
         ...,
@@ -152,7 +167,7 @@ def launch_client(
     run_launch(_load_cfg(config), num_vms=num_vms)
 
 
-@app.command()
+@app.command(rich_help_panel="Operations")
 def status(
     config: str = typer.Option(
         None,
@@ -167,7 +182,7 @@ def status(
     run_status(_load_cfg(config))
 
 
-@app.command()
+@app.command(rich_help_panel="Operations")
 def logs(
     config: str = typer.Option(
         None,
@@ -182,7 +197,7 @@ def logs(
     run_logs(_load_cfg(config))
 
 
-@app.command()
+@app.command(rich_help_panel="Maintenance")
 def cleanup(
     config: str = typer.Option(
         None,
@@ -205,7 +220,7 @@ def cleanup(
     )
 
 
-@app.command()
+@app.command(rich_help_panel="Setup")
 def doctor() -> None:
     """Check prerequisites and configuration."""
     from lablink_cli.commands.doctor import run_doctor
@@ -213,7 +228,7 @@ def doctor() -> None:
     run_doctor()
 
 
-@app.command("show-config")
+@app.command("show-config", rich_help_panel="Maintenance")
 def show_config(
     config: str = typer.Option(
         None,
@@ -330,7 +345,7 @@ def _clear_deployments_cache(console, stale_only: bool = False) -> None:
     )
 
 
-@app.command("cache-clear")
+@app.command("cache-clear", rich_help_panel="Maintenance")
 def cache_clear(
     deployments: bool = typer.Option(
         False,
@@ -384,7 +399,7 @@ def cache_clear(
         _clear_terraform_cache(console)
 
 
-@app.command("export-metrics")
+@app.command("export-metrics", rich_help_panel="Operations")
 def export_metrics(
     output: str = typer.Option(
         None,

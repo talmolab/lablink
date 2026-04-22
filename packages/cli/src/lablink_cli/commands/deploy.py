@@ -287,8 +287,9 @@ def run_deploy(
     *,
     template_version: str | None = None,
     terraform_bundle: str | None = None,
+    yes: bool = False,
 ) -> None:
-    """Deploy LabLink infrastructure."""
+    """Deploy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
     from lablink_cli import TEMPLATE_VERSION
 
     console.print()
@@ -376,19 +377,21 @@ def run_deploy(
             )
         console.print()
 
-        # Confirm before apply (user think-time intentionally excluded from phases)
-        console.print(
-            "[bold yellow]Review the plan above.[/bold yellow] "
-            "Type 'yes' to apply: ",
-            end="",
-        )
-        answer = input()
-        if answer.strip().lower() != "yes":
+        # Confirm before apply (user think-time intentionally excluded from phases).
+        # ``yes=True`` skips this gate for scripted invocations.
+        if not yes:
             console.print(
-                "[dim]Cancelled. No resources were created.[/dim]"
+                "[bold yellow]Review the plan above.[/bold yellow] "
+                "Type 'yes' to apply: ",
+                end="",
             )
-            raise SystemExit(0)
-        console.print()
+            answer = input()
+            if answer.strip().lower() != "yes":
+                console.print(
+                    "[dim]Cancelled. No resources were created.[/dim]"
+                )
+                raise SystemExit(0)
+            console.print()
 
         # Terraform apply
         console.print("[bold]Step 3/3:[/bold] Terraform apply")
@@ -646,8 +649,8 @@ def _terraform_destroy(
     console.print("[bold]Infrastructure destroyed.[/bold]")
 
 
-def run_destroy(cfg: Config) -> None:
-    """Destroy LabLink infrastructure."""
+def run_destroy(cfg: Config, *, yes: bool = False) -> None:
+    """Destroy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
     check_credentials(_get_session(cfg.app.region))
 
     deploy_dir = get_deploy_dir(cfg)
@@ -687,24 +690,29 @@ def run_destroy(cfg: Config) -> None:
 
     admin_user, admin_pw = resolve_admin_credentials(cfg)
 
-    console.print(
-        "[bold yellow]Are you sure?[/bold yellow] "
-        "Type 'yes' to confirm: ",
-        end="",
-    )
-    answer = input()
-    if answer.strip().lower() != "yes":
-        console.print("[dim]Cancelled.[/dim]")
-        raise SystemExit(0)
-    console.print()
+    if not yes:
+        console.print(
+            "[bold yellow]Are you sure?[/bold yellow] "
+            "Type 'yes' to confirm: ",
+            end="",
+        )
+        answer = input()
+        if answer.strip().lower() != "yes":
+            console.print("[dim]Cancelled.[/dim]")
+            raise SystemExit(0)
+        console.print()
 
     # Offer one last chance to export metrics — once destroy runs, the
     # allocator's per-VM metrics are gone forever. Default = yes.
-    console.print(
-        "[bold]Export metrics before destroying?[/bold] [Y/n]: ",
-        end="",
-    )
-    export_answer = input().strip().lower()
+    # Under ``yes=True`` we take that default without prompting.
+    if yes:
+        export_answer = ""
+    else:
+        console.print(
+            "[bold]Export metrics before destroying?[/bold] [Y/n]: ",
+            end="",
+        )
+        export_answer = input().strip().lower()
     if export_answer in ("", "y", "yes"):
         # Timestamped filename prevents overwriting prior exports when the
         # same cwd is reused for multiple deployments. The absolute cwd is

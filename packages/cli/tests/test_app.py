@@ -106,6 +106,16 @@ class TestCLICommands:
         out = _plain(result.output).lower()
         assert "deploy" in out or "usage" in out
 
+    def test_help_groups_commands_into_panels(self):
+        """Top-level --help groups commands under the four Option-A panels."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        out = _plain(result.output)
+        for panel in ("Setup", "Deployment", "Operations", "Maintenance"):
+            assert panel in out, (
+                f"expected panel heading {panel!r} in --help output"
+            )
+
 
 class TestCacheClear:
     def test_cache_clear_command_exists(self):
