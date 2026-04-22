@@ -10,7 +10,11 @@ mock_psycopg2.IntegrityError = type("IntegrityError", (Exception,), {})
 
 with patch.dict(
     "sys.modules",
-    {"psycopg2": mock_psycopg2, "psycopg2.extensions": MagicMock()},
+    {
+        "psycopg2": mock_psycopg2,
+        "psycopg2.extensions": MagicMock(),
+        "psycopg2.pool": mock_psycopg2.pool,
+    },
 ):
     from lablink_allocator_service.database import PostgresqlDatabase
     import lablink_allocator_service.reboot as reboot_mod
@@ -19,18 +23,23 @@ with patch.dict(
 
 @pytest.fixture
 def mock_db_connection():
+    """Fixture returning (mock_conn, mock_cursor, mock_pool)."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_cursor_context = MagicMock()
-    mock_cursor_context.__enter__ = MagicMock(return_value=mock_cursor)
-    mock_cursor_context.__exit__ = MagicMock(return_value=False)
-    mock_conn.cursor.return_value = mock_cursor_context
-    mock_psycopg2.connect.return_value = mock_conn
-    return mock_conn, mock_cursor
+    # conn.cursor() returns the cursor directly (real psycopg2 behavior).
+    mock_conn.cursor.return_value = mock_cursor
+
+    mock_pool = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+    mock_psycopg2.pool.ThreadedConnectionPool.return_value = mock_pool
+
+    return mock_conn, mock_cursor, mock_pool
 
 
 @pytest.fixture
 def db_instance(mock_db_connection):
+    """Fixture returning a PostgresqlDatabase wired to a mocked pool."""
+    mock_conn, mock_cursor, mock_pool = mock_db_connection
     db = PostgresqlDatabase(
         dbname="testdb",
         user="testuser",
@@ -40,7 +49,9 @@ def db_instance(mock_db_connection):
         table_name="vms",
         message_channel="test_channel",
     )
-    db.conn, db.cursor = mock_db_connection
+    db.conn = mock_conn
+    db.cursor = mock_cursor
+    db._pool = mock_pool
     return db
 
 
@@ -51,7 +62,6 @@ def test_update_vm_status_rebooting(db_instance):
     """Test that 'rebooting' is a valid VM status."""
     db_instance.update_vm_status("vm-1", "rebooting")
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1", "rebooting"))
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_get_failed_vms(db_instance):
@@ -338,7 +348,6 @@ def test_record_reboot(db_instance):
     """Test recording a reboot attempt."""
     db_instance.record_reboot("vm-1")
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
-    db_instance.conn.commit.assert_called_once()
 
     # Verify CRD-session fields are cleared but the student's assignment
     # is preserved (so the student keeps their VM slot across reboots).
@@ -355,14 +364,12 @@ def test_record_reboot_error(db_instance, caplog):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
         db_instance.record_reboot("vm-1")
-    db_instance.conn.rollback.assert_called_once()
 
 
 def test_release_assignment(db_instance):
     """Test releasing a VM's assignment when reboot attempts are exhausted."""
     db_instance.release_assignment("vm-1")
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
-    db_instance.conn.commit.assert_called_once()
 
     query = db_instance.cursor.execute.call_args[0][0]
     assert "useremail = NULL" in query
@@ -378,7 +385,6 @@ def test_release_assignment_error(db_instance, caplog):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
         db_instance.release_assignment("vm-1")
-    db_instance.conn.rollback.assert_called_once()
     assert "Failed to release assignment for" in caplog.text
 
 

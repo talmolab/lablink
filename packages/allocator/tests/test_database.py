@@ -16,33 +16,51 @@ mock_psycopg2.IntegrityError = MockIntegrityError
 
 with patch.dict(
     "sys.modules",
-    {"psycopg2": mock_psycopg2, "psycopg2.extensions": MagicMock()},
+    {
+        "psycopg2": mock_psycopg2,
+        "psycopg2.extensions": MagicMock(),
+        "psycopg2.pool": mock_psycopg2.pool,
+    },
 ):
     from lablink_allocator_service.database import PostgresqlDatabase
 
 
 @pytest.fixture
 def mock_db_connection():
-    """Fixture to create a mock database connection and cursor."""
+    """Fixture returning (mock_conn, mock_cursor, mock_pool).
+
+    The connection-pool mock is wired so that:
+      - PostgresqlDatabase.__init__ receives a mock pool (via the patched
+        psycopg2.pool.ThreadedConnectionPool factory) instead of opening
+        a real pool.
+      - mock_pool.getconn() returns mock_conn.
+      - mock_conn.cursor() returns mock_cursor directly.
+
+    Tests that previously reassigned db.conn and db.cursor after
+    instantiation continue to work via the convenience aliases set in
+    db_instance below.
+    """
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
 
-    # Make cursor() return a context manager that returns the mock cursor
-    mock_cursor_context = MagicMock()
-    mock_cursor_context.__enter__ = MagicMock(return_value=mock_cursor)
-    mock_cursor_context.__exit__ = MagicMock(return_value=False)
-    mock_conn.cursor.return_value = mock_cursor_context
+    # conn.cursor() returns the cursor directly (real psycopg2 behavior).
+    # _PooledCursor calls conn.cursor() and uses the result as the cursor.
+    mock_conn.cursor.return_value = mock_cursor
 
-    # When PostgresqlDatabase is initialized, it calls psycopg2.connect()
-    mock_psycopg2.connect.return_value = mock_conn
-    return mock_conn, mock_cursor
+    mock_pool = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+
+    # PostgresqlDatabase.__init__ calls psycopg2.pool.ThreadedConnectionPool(...).
+    # Route that through the mock so no real connection is attempted.
+    mock_psycopg2.pool.ThreadedConnectionPool.return_value = mock_pool
+
+    return mock_conn, mock_cursor, mock_pool
 
 
 @pytest.fixture
 def db_instance(mock_db_connection):
-    """Fixture to create an instance of the PostgresqlDatabase class."""
-    # The mock_db_connection fixture ensures that the call to psycopg2.connect()
-    # in the __init__ method returns our mock connection.
+    """Fixture returning a PostgresqlDatabase wired to a mocked pool."""
+    mock_conn, mock_cursor, mock_pool = mock_db_connection
     db = PostgresqlDatabase(
         dbname="testdb",
         user="testuser",
@@ -52,8 +70,11 @@ def db_instance(mock_db_connection):
         table_name="vms",
         message_channel="test_channel",
     )
-    # We can also directly access the mocked connection and cursor for manipulation
-    db.conn, db.cursor = mock_db_connection
+    # Convenience aliases so test bodies can keep using db_instance.cursor
+    # and db_instance.conn without knowing about pool internals.
+    db.conn = mock_conn
+    db.cursor = mock_cursor
+    db._pool = mock_pool
     return db
 
 
@@ -110,7 +131,6 @@ def test_insert_vm(db_instance):
     # The values should correspond to the mocked column names
     expected_values = [hostname, False, None, None, None, None, None, None, None]
     db_instance.cursor.execute.assert_called_with(expected_sql, expected_values)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_get_vm_by_hostname_found(db_instance):
@@ -305,7 +325,6 @@ def test_assign_vm(db_instance):
     db_instance.cursor.execute.assert_called_with(
         ANY, (email, crd_command, pin, hostname)
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_assign_vm_no_available(db_instance):
@@ -335,14 +354,12 @@ def test_update_vm_in_use(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "UPDATE vms SET inuse = %s WHERE hostname = %s", (in_use, hostname)
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_clear_database(db_instance):
     """Test clearing all VMs from the database."""
     db_instance.clear_database()
     db_instance.cursor.execute.assert_called_with("DELETE FROM vms;")
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_update_health(db_instance):
@@ -353,7 +370,6 @@ def test_update_health(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "UPDATE vms SET healthy = %s WHERE hostname = %s;", (healthy, hostname)
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_get_gpu_health(db_instance):
@@ -430,7 +446,6 @@ def test_save_logs_by_hostname(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "UPDATE vms SET cloudinitlogs = %s WHERE hostname = %s;", (logs, hostname)
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_save_docker_logs_by_hostname(db_instance):
@@ -441,7 +456,6 @@ def test_save_docker_logs_by_hostname(db_instance):
     db_instance.cursor.execute.assert_called_with(
         "UPDATE vms SET dockerlogs = %s WHERE hostname = %s;", (logs, hostname)
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_append_logs_by_hostname(db_instance):
@@ -460,7 +474,6 @@ def test_append_logs_by_hostname(db_instance):
     assert "cloudinitlogs" in query
     # Params: (max_size, max_size, new_logs, hostname)
     assert params == (1 * 1024 * 1024, 1 * 1024 * 1024, new_logs, hostname)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_append_docker_logs_by_hostname(db_instance):
@@ -473,7 +486,6 @@ def test_append_docker_logs_by_hostname(db_instance):
     call_args = db_instance.cursor.execute.call_args
     query = call_args[0][0]
     assert "dockerlogs" in query
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_append_logs_custom_max_size(db_instance):
@@ -495,7 +507,6 @@ def test_append_logs_rollback_on_error(db_instance):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
         db_instance.append_logs_by_hostname(hostname, "logs")
-    db_instance.conn.rollback.assert_called_once()
 
 
 def test_old_read_modify_write_race_condition():
@@ -708,7 +719,6 @@ def test_update_vm_status(db_instance):
 
     # Using ANY to avoid matching the exact whitespace in the multi-line query string
     db_instance.cursor.execute.assert_called_with(ANY, (hostname, status))
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_update_vm_status_invalid(db_instance, caplog):
@@ -730,20 +740,21 @@ def test_load_database():
         )
 
     mock_init.assert_called_once_with(
-        "db", "user", "pass", "host", 5432, "table", "channel"
+        "db", "user", "pass", "host", 5432, "table", "channel",
+        pool_min_size=2, pool_max_size=20,
     )
 
     assert isinstance(inst, PostgresqlDatabase)
 
 
 def test_del(db_instance):
-    """Test that the destructor closes the database connection."""
-    conn = db_instance.conn
+    """Test that the destructor closes all pooled connections."""
+    pool = db_instance._pool
 
     # Call __del__ directly for predictable testing, as garbage collection is not guaranteed
     db_instance.__del__()
 
-    conn.close.assert_called_once()
+    pool.closeall.assert_called_once()
 
 
 def test_get_crd_command_no_vm(db_instance):
@@ -778,7 +789,6 @@ def test_assign_vm_db_error(db_instance, caplog):
     with pytest.raises(Exception, match="DB error"):
         db_instance.assign_vm("user@example.com", "cmd", "123")
     assert "Failed to assign VM" in caplog.text
-    db_instance.conn.rollback.assert_called_once()
 
 
 def test_get_gpu_health_not_found(db_instance):
@@ -824,7 +834,6 @@ def test_update_vm_status_db_error(db_instance, caplog):
     db_instance.cursor.execute.side_effect = Exception("DB error")
     db_instance.update_vm_status(hostname, status)
     assert "Failed to update status for VM" in caplog.text
-    db_instance.conn.rollback.assert_called_once()
 
 
 def test_get_all_vms(db_instance):
@@ -1038,7 +1047,6 @@ def test_update_vm_metrics_atomic_cloud_init_only(db_instance):
 
     # Check values passed (timestamps, duration, inlined duration for total, hostname)
     assert values == (1609459200, 1609459260, 60.0, 60.0, hostname)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_update_vm_metrics_atomic_container_only(db_instance):
@@ -1065,7 +1073,6 @@ def test_update_vm_metrics_atomic_container_only(db_instance):
 
     # Extra value for inlined container duration in total formula
     assert values == (1609459300, 1609459360, 60.0, 60.0, hostname)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_create_scheduled_destruction(db_instance):
@@ -1110,7 +1117,6 @@ def test_create_scheduled_destruction(db_instance):
         True,
         1,
     )
-    db_instance.conn.commit.assert_called_once()
     assert schedule_id == 1
 
 
@@ -1162,7 +1168,6 @@ def test_create_scheduled_destruction_error(db_instance, caplog):
         )
 
     assert "Failed to create scheduled destruction" in caplog.text
-    db_instance.conn.rollback.assert_called_once()
 
 
 def test_get_scheduled_destruction(db_instance):
@@ -1295,7 +1300,6 @@ def test_update_scheduled_destruction_status(db_instance):
     args = db_instance.cursor.execute.call_args[0]
     assert "".join(args[0].split()) == "".join(expected_query.split())
     assert args[1] == (status, execution_result, schedule_id)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_update_scheduled_destruction_status_failed(db_instance):
@@ -1312,7 +1316,6 @@ def test_update_scheduled_destruction_status_failed(db_instance):
 
     args = db_instance.cursor.execute.call_args[0]
     assert args[1] == (status, execution_result, schedule_id)
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_cancel_scheduled_destruction(db_instance):
@@ -1325,7 +1328,6 @@ def test_cancel_scheduled_destruction(db_instance):
         "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;",
         (schedule_id,),
     )
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_get_assigned_vm_for_email_found(db_instance):
@@ -1398,7 +1400,6 @@ def test_reassign_crd_succeeds_when_row_still_owned(db_instance):
     assert args[2] == "vm-7"
     assert args[3] == "student@test.edu"
 
-    db_instance.conn.commit.assert_called_once()
 
 
 def test_reassign_crd_returns_false_when_row_released(db_instance, caplog):
@@ -1417,7 +1418,6 @@ def test_reassign_crd_returns_false_when_row_released(db_instance, caplog):
     )
 
     assert result is False
-    db_instance.conn.commit.assert_called_once()
     assert "row no longer owned by 'student@test.edu'" in caplog.text
 
 
@@ -1428,5 +1428,92 @@ def test_reassign_crd_error(db_instance, caplog):
         db_instance.reassign_crd(
             "vm-7", "cmd", "000000", "student@test.edu"
         )
-    db_instance.conn.rollback.assert_called_once()
     assert "Failed to reassign CRD" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Pool-behavior tests (PR 1: connection pool refactor)
+# ---------------------------------------------------------------------------
+
+
+def test_pool_size_validation_rejects_min_zero():
+    """pool_min_size must be >= 1."""
+    with pytest.raises(ValueError, match="Invalid pool sizes"):
+        PostgresqlDatabase(
+            dbname="testdb",
+            user="testuser",
+            password="testpassword",
+            host="localhost",
+            port=5432,
+            table_name="vms",
+            message_channel="test_channel",
+            pool_min_size=0,
+            pool_max_size=5,
+        )
+
+
+def test_pool_size_validation_rejects_max_below_min():
+    """pool_max_size must be >= pool_min_size."""
+    with pytest.raises(ValueError, match="Invalid pool sizes"):
+        PostgresqlDatabase(
+            dbname="testdb",
+            user="testuser",
+            password="testpassword",
+            host="localhost",
+            port=5432,
+            table_name="vms",
+            message_channel="test_channel",
+            pool_min_size=5,
+            pool_max_size=2,
+        )
+
+
+def test_cursor_returns_connection_on_success(db_instance):
+    """After a successful `with self._cursor` block, the pool's
+    putconn is called once with close=False."""
+    mock_pool = db_instance._pool
+    with db_instance._cursor as cur:
+        cur.execute("SELECT 1;")
+    mock_pool.putconn.assert_called_once()
+    # close defaults to False on success; verify via kwargs or positional
+    _, kwargs = mock_pool.putconn.call_args
+    assert kwargs.get("close", False) is False
+
+
+def test_cursor_discards_connection_on_exception(db_instance):
+    """If a query raises, putconn is called with close=True so the bad
+    connection is evicted from the pool."""
+    mock_pool = db_instance._pool
+    db_instance.cursor.execute.side_effect = RuntimeError("boom")
+    with pytest.raises(RuntimeError):
+        with db_instance._cursor as cur:
+            cur.execute("SELECT 1;")
+    mock_pool.putconn.assert_called_once()
+    _, kwargs = mock_pool.putconn.call_args
+    assert kwargs.get("close") is True
+
+
+def test_cursor_sets_autocommit_per_checkout(db_instance):
+    """Every checkout applies ISOLATION_LEVEL_AUTOCOMMIT, preserving
+    the pre-refactor per-statement-transaction behavior."""
+    mock_conn = db_instance.conn
+    mock_conn.set_isolation_level.reset_mock()
+    with db_instance._cursor:
+        pass
+    mock_conn.set_isolation_level.assert_called_once()
+
+
+def test_del_closes_pool(mock_db_connection):
+    """__del__ closes the pool (releases all connections)."""
+    mock_conn, mock_cursor, mock_pool = mock_db_connection
+    db = PostgresqlDatabase(
+        dbname="testdb",
+        user="testuser",
+        password="testpassword",
+        host="localhost",
+        port=5432,
+        table_name="vms",
+        message_channel="test_channel",
+    )
+    db.__del__()
+    mock_pool.closeall.assert_called_once()

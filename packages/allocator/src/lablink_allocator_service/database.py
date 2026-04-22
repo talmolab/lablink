@@ -2,16 +2,16 @@ from datetime import datetime, timezone
 import select
 import json
 import logging
-import threading
 from typing import List, Optional
 
 import psycopg2
+import psycopg2.pool
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 try:
-    import psycopg2
+    import psycopg2  # noqa: F811 (re-imported for the ImportError guard)
 except ImportError as e:
     logger.error(
         "psycopg2 is not installed in the development environment. "
@@ -20,41 +20,52 @@ except ImportError as e:
     raise e
 
 
-class _LockedCursor:
-    """Context manager that acquires a lock before opening a cursor.
+# Pool sizing. Internal: end users deploying the allocator don't need to
+# reason about this. Raise these in-code if production metrics show
+# getconn blocking during traffic bursts.
+POOL_MIN_SIZE = 2
+POOL_MAX_SIZE = 20
 
-    Delegates to conn.cursor() as a context manager so it works with
-    both real psycopg2 connections and mock objects that return a
-    context-manager from cursor().
+
+class _PooledCursor:
+    """Checks out an autocommit connection from the pool, opens a cursor,
+    and returns both to the pool/closes on exit. Preserves the per-call
+    context-manager API previously provided by _LockedCursor.
     """
 
-    def __init__(self, conn, lock):
-        self._conn = conn
-        self._lock = lock
-        self._cm = None
+    def __init__(self, pool):
+        self._pool = pool
+        self._conn = None
+        self._cur = None
 
     def __enter__(self):
-        self._lock.acquire()
+        self._conn = self._pool.getconn()
+        # Mirror pre-refactor behavior: every connection runs in autocommit.
+        # Applied per checkout — cheap, and defensive against anything that
+        # ever flips isolation levels on a pooled conn.
+        self._conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        )
         try:
-            self._cm = self._conn.cursor()
-            # Support both context-manager cursors and plain cursors
-            if hasattr(self._cm, '__enter__'):
-                return self._cm.__enter__()
-            return self._cm
+            self._cur = self._conn.cursor()
+            return self._cur
         except Exception:
-            self._lock.release()
+            self._pool.putconn(self._conn)
+            self._conn = None
             raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
-            if self._cm is not None:
-                if hasattr(self._cm, '__exit__'):
-                    self._cm.__exit__(exc_type, exc_val, exc_tb)
-                else:
-                    self._cm.close()
+            if self._cur is not None:
+                self._cur.close()
         finally:
-            self._lock.release()
-        return False
+            if self._conn is not None:
+                # On exception, discard the conn so a bad connection doesn't
+                # re-enter the pool. Happy path: return it for reuse.
+                self._pool.putconn(
+                    self._conn, close=(exc_type is not None)
+                )
+        return False  # don't swallow exceptions
 
 
 class PostgresqlDatabase:
@@ -72,8 +83,11 @@ class PostgresqlDatabase:
         port: int,
         table_name: str,
         message_channel: str,
+        pool_min_size: int = POOL_MIN_SIZE,
+        pool_max_size: int = POOL_MAX_SIZE,
     ):
-        """Initialize the database connection.
+        """Initialize the database connection pool.
+
         Args:
             dbname (str): The name of the database.
             user (str): The username to connect to the database.
@@ -82,7 +96,19 @@ class PostgresqlDatabase:
             port (int): The port number for the database connection.
             table_name (str): The name of the table to interact with.
             message_channel (str): The name of the message channel to listen to.
+            pool_min_size (int): Minimum pooled connections. Defaults to
+                POOL_MIN_SIZE. Override in tests only.
+            pool_max_size (int): Maximum pooled connections. Defaults to
+                POOL_MAX_SIZE. Override in tests only.
+
+        Raises:
+            ValueError: If pool sizing is invalid.
         """
+        if pool_min_size < 1 or pool_max_size < pool_min_size:
+            raise ValueError(
+                f"Invalid pool sizes: min={pool_min_size}, max={pool_max_size}"
+            )
+
         self.dbname = dbname
         self.user = user
         self.password = password
@@ -91,8 +117,9 @@ class PostgresqlDatabase:
         self.table_name = table_name
         self.message_channel = message_channel
 
-        # Connect to the PostgreSQL database
-        self.conn = psycopg2.connect(
+        self._pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=pool_min_size,
+            maxconn=pool_max_size,
             dbname=dbname,
             user=user,
             password=password,
@@ -100,21 +127,16 @@ class PostgresqlDatabase:
             port=port,
         )
 
-        # Set the isolation level to autocommit
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-
-        # Reentrant lock for thread-safe access to the shared connection
-        self._lock = threading.RLock()
-
     @property
     def _cursor(self):
-        """Return a context manager that acquires the lock and yields a cursor.
+        """Return a context manager that checks out a pooled connection
+        and yields a cursor.
 
         Usage:
             with self._cursor as cursor:
                 cursor.execute(...)
         """
-        return _LockedCursor(self.conn, self._lock)
+        return _PooledCursor(self._pool)
 
     def get_all_vms(self) -> list:
         """Get all VMs from the table, excluding logs.
@@ -219,10 +241,8 @@ class PostgresqlDatabase:
                     f"({columns}) VALUES ({placeholders});"
                 )
                 cursor.execute(sql, values)
-                self.conn.commit()
             except Exception as e:
                 logger.error(f"Failed to insert VM '{hostname}': {e}")
-                self.conn.rollback()
                 raise
 
     def get_vm_by_hostname(self, hostname: str) -> dict:
@@ -512,7 +532,6 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query, (email, crd_command, pin, hostname)
                 )
-                self.conn.commit()
                 logger.info(
                     f"Assigned VM '{hostname}' to user '{email}'"
                 )
@@ -520,7 +539,6 @@ class PostgresqlDatabase:
                 logger.error(
                     f"Failed to assign VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def reassign_crd(
@@ -570,7 +588,6 @@ class PostgresqlDatabase:
                     query, (crd_command, pin, hostname, expected_email)
                 )
                 updated = cursor.rowcount > 0
-                self.conn.commit()
                 if updated:
                     logger.info(
                         f"Reassigned CRD for VM '{hostname}'"
@@ -586,7 +603,6 @@ class PostgresqlDatabase:
                 logger.error(
                     f"Failed to reassign CRD for '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def get_first_available_vm(self) -> str:
@@ -619,27 +635,19 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (in_use, hostname))
-                self.conn.commit()
             except Exception as e:
                 logger.error(
                     f"Failed to update in-use status "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def clear_database(self) -> None:
         """Delete all VMs from the table."""
         query = f"DELETE FROM {self.table_name};"
         with self._cursor as cursor:
-            try:
-                cursor.execute(query)
-                self.conn.commit()
-                logger.info("Cleared all VMs from database")
-            except Exception as e:
-                logger.error(f"Failed to clear database: {e}")
-                self.conn.rollback()
-                raise
+            cursor.execute(query)
+            logger.info("Cleared all VMs from database")
 
     def update_health(self, hostname: str, healthy: str) -> None:
         """Modify the health status of a VM.
@@ -655,13 +663,11 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (healthy, hostname))
-                self.conn.commit()
             except Exception as e:
                 logger.error(
                     f"Failed to update health status "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def get_gpu_health(self, hostname: str) -> str:
@@ -783,13 +789,11 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (logs, hostname))
-                self.conn.commit()
             except Exception as e:
                 logger.error(
                     f"Failed to save {log_type} logs "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def append_logs_by_hostname(
@@ -839,13 +843,11 @@ class PostgresqlDatabase:
                 cursor.execute(
                     query, (max_size, max_size, new_logs, hostname)
                 )
-                self.conn.commit()
             except Exception as e:
                 logger.error(
                     f"Failed to append {log_type} logs "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def get_all_vm_status(self) -> dict:
@@ -895,7 +897,6 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (hostname, status))
-                self.conn.commit()
                 logger.debug(
                     f"VM '{hostname}' status: {status}"
                 )
@@ -904,27 +905,36 @@ class PostgresqlDatabase:
                     f"Failed to update status "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
 
     @classmethod
     def load_database(
-        cls, dbname, user, password, host, port, table_name, message_channel
+        cls,
+        dbname,
+        user,
+        password,
+        host,
+        port,
+        table_name,
+        message_channel,
+        pool_min_size: int = POOL_MIN_SIZE,
+        pool_max_size: int = POOL_MAX_SIZE,
     ) -> "PostgresqlDatabase":
         """Loads an existing database from PostgreSQL.
 
-        Args:
-            dbname (str): The name of the database.
-            user (str): The username to connect to the database.
-            password (str): The password for the user.
-            host (str): The host where the database is located.
-            port (int): The port number for the database connection.
-            table_name (str): The name of the table to interact with.
-            message_channel (str): The name of the message channel to listen to.
-
-        Returns:
-            PostgresqlDatabase: An instance of the PostgresqlDatabase class.
+        Args match __init__. Provided for callers that prefer the
+        classmethod style.
         """
-        return cls(dbname, user, password, host, port, table_name, message_channel)
+        return cls(
+            dbname,
+            user,
+            password,
+            host,
+            port,
+            table_name,
+            message_channel,
+            pool_min_size=pool_min_size,
+            pool_max_size=pool_max_size,
+        )
 
     @staticmethod
     def _naive_utc(dt: datetime) -> datetime:
@@ -972,12 +982,10 @@ class PostgresqlDatabase:
                         self._naive_utc(per_instance_end_time),
                     ),
                 )
-                self.conn.commit()
             except Exception as e:
                 logger.error(
                     f"Failed to update Terraform timing for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def update_vm_metrics_atomic(self, hostname: str, metrics: dict) -> None:
@@ -1057,7 +1065,6 @@ class PostgresqlDatabase:
             try:
                 cursor.execute(query, tuple(values))
                 result = cursor.fetchone()
-                self.conn.commit()
 
                 # Log total startup time when available
                 if result and result[0] is not None and result[0] > 0:
@@ -1068,7 +1075,6 @@ class PostgresqlDatabase:
                 logger.error(
                     f"Failed to update metrics for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def create_scheduled_destruction(
@@ -1107,7 +1113,6 @@ class PostgresqlDatabase:
                     ),
                 )
                 destruction_id = cursor.fetchone()[0]
-                self.conn.commit()
                 logger.info(
                     f"Created scheduled destruction "
                     f"'{schedule_name}' "
@@ -1116,7 +1121,6 @@ class PostgresqlDatabase:
                 return destruction_id
 
             except psycopg2.IntegrityError as e:
-                self.conn.rollback()
                 if (
                     'schedule_name' in str(e)
                     or 'unique constraint' in str(e).lower()
@@ -1136,7 +1140,6 @@ class PostgresqlDatabase:
                     ) from e
 
             except Exception as e:
-                self.conn.rollback()
                 logger.error(
                     f"Failed to create scheduled destruction "
                     f"'{schedule_name}': {e}"
@@ -1229,7 +1232,6 @@ class PostgresqlDatabase:
             cursor.execute(
                 query, (status, execution_result, schedule_id)
             )
-            self.conn.commit()
 
     def cancel_scheduled_destruction(self, schedule_id: int) -> None:
         """Cancel a scheduled destruction."""
@@ -1239,7 +1241,6 @@ class PostgresqlDatabase:
         )
         with self._cursor as cursor:
             cursor.execute(query, (schedule_id,))
-            self.conn.commit()
 
     def ensure_reboot_columns(self) -> None:
         """Add reboot tracking columns to vm_table if they don't exist."""
@@ -1255,12 +1256,10 @@ class PostgresqlDatabase:
                         f"ADD COLUMN IF NOT EXISTS "
                         f"{col_name} {col_type};"
                     )
-                    self.conn.commit()
                 except Exception as e:
                     logger.error(
                         f"Failed to add column {col_name}: {e}"
                     )
-                    self.conn.rollback()
 
     def record_heartbeat(
         self,
@@ -1332,11 +1331,9 @@ class PostgresqlDatabase:
                         hostname,
                     ),
                 )
-                self.conn.commit()
                 return True
         except Exception as e:
             logger.error(f"Failed to record heartbeat for {hostname}: {e}")
-            self.conn.rollback()
             return False
 
     def touch_last_seen(self, hostname: str) -> None:
@@ -1354,10 +1351,8 @@ class PostgresqlDatabase:
         try:
             with self._cursor as cursor:
                 cursor.execute(query, (hostname,))
-                self.conn.commit()
         except Exception as e:
             logger.error(f"Failed to touch last_seen for {hostname}: {e}")
-            self.conn.rollback()
 
     def get_failed_vms(
         self,
@@ -1474,7 +1469,6 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (hostname,))
-                self.conn.commit()
                 logger.info(
                     f"Recorded reboot for VM '{hostname}'"
                 )
@@ -1483,7 +1477,6 @@ class PostgresqlDatabase:
                     f"Failed to record reboot "
                     f"for VM '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def release_assignment(self, hostname: str) -> None:
@@ -1515,7 +1508,6 @@ class PostgresqlDatabase:
         with self._cursor as cursor:
             try:
                 cursor.execute(query, (hostname,))
-                self.conn.commit()
                 logger.info(
                     f"Released assignment for unrecoverable VM '{hostname}'"
                 )
@@ -1523,7 +1515,6 @@ class PostgresqlDatabase:
                 logger.error(
                     f"Failed to release assignment for '{hostname}': {e}"
                 )
-                self.conn.rollback()
                 raise
 
     def get_reboot_info(self, hostname: str) -> Optional[dict]:
@@ -1559,6 +1550,10 @@ class PostgresqlDatabase:
             return None
 
     def __del__(self):
-        """Close the database connection when the object is deleted."""
-        if hasattr(self, "conn") and self.conn:
-            self.conn.close()
+        """Close all pooled connections when the object is deleted."""
+        if hasattr(self, "_pool") and self._pool is not None:
+            try:
+                self._pool.closeall()
+            except Exception:
+                # Pool may already be closed; nothing to do.
+                pass
