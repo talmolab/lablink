@@ -1517,3 +1517,44 @@ def test_del_closes_pool(mock_db_connection):
     )
     db.__del__()
     mock_pool.closeall.assert_called_once()
+
+
+def test_concurrent_queries_do_not_serialize(real_db):
+    """4 threads each running SELECT pg_sleep(0.2) should complete in
+    well under the serial time (~800ms). Under the old single-lock
+    design they would serialize. With the pool they overlap."""
+    import threading
+    import time
+
+    barrier = threading.Barrier(4)
+    start_times: list[float] = []
+    end_times: list[float] = []
+    errors: list[BaseException] = []
+
+    def slow_query():
+        try:
+            barrier.wait(timeout=5)
+            t0 = time.monotonic()
+            with real_db._cursor as cur:
+                cur.execute("SELECT pg_sleep(0.2);")
+            end_times.append(time.monotonic())
+            start_times.append(t0)
+        except BaseException as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=slow_query) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Thread errors: {errors}"
+    assert len(start_times) == 4 and len(end_times) == 4
+
+    total = max(end_times) - min(start_times)
+    # Serial time would be ~4 × 0.2 = 0.8s. Parallel should finish in
+    # well under 0.5s. Give generous slack for CI jitter.
+    assert total < 0.5, (
+        f"Queries appear serialized: wall-clock total {total:.2f}s "
+        f"(serial would be ~0.8s)"
+    )

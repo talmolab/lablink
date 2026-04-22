@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from unittest.mock import MagicMock
 from omegaconf import OmegaConf
@@ -331,3 +333,71 @@ def write_config_file(tmp_path):
         return str(config_file)
 
     return _write
+
+
+@pytest.fixture
+def real_db():
+    """Yield a PostgresqlDatabase connected to a real Postgres.
+
+    Used by the concurrency test that asserts pool checkouts actually
+    overlap in wall-clock time. If Postgres is unreachable (typical for
+    local dev without a running instance), the fixture calls pytest.skip
+    so the rest of the suite is unaffected.
+
+    Connection details come from env vars with defaults matching the CI
+    service container.
+    """
+    # Import here so the fixture doesn't force real-psycopg2 import at
+    # module load time (tests/test_database.py patches psycopg2 at import).
+    try:
+        import psycopg2
+    except ImportError:
+        pytest.skip("psycopg2 not installed")
+
+    from lablink_allocator_service.database import PostgresqlDatabase
+
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = int(os.getenv("POSTGRES_PORT", "5432"))
+    user = os.getenv("POSTGRES_USER", "lablink")
+    password = os.getenv("POSTGRES_PASSWORD", "lablink")
+    dbname = os.getenv("POSTGRES_DB", "lablink_db")
+
+    # Probe connectivity before building the pool; the pool eagerly opens
+    # min_conn connections and will raise on unreachable hosts.
+    try:
+        probe = psycopg2.connect(
+            dbname=dbname, user=user, password=password,
+            host=host, port=port,
+        )
+        probe.close()
+    except psycopg2.Error as e:
+        pytest.skip(f"Postgres not reachable at {host}:{port}: {e}")
+
+    # Ensure a minimal vms table exists for the test queries.
+    setup = psycopg2.connect(
+        dbname=dbname, user=user, password=password, host=host, port=port,
+    )
+    setup.autocommit = True
+    with setup.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS vms ("
+            "hostname text PRIMARY KEY"
+            ");"
+        )
+    setup.close()
+
+    db = PostgresqlDatabase(
+        dbname=dbname,
+        user=user,
+        password=password,
+        host=host,
+        port=port,
+        table_name="vms",
+        message_channel="test_channel",
+        pool_min_size=2,
+        pool_max_size=8,
+    )
+    try:
+        yield db
+    finally:
+        db._pool.closeall()
