@@ -25,6 +25,8 @@ Students visit a link, enter their email, and get a full cloud desktop with your
 
 LabLink is **software-agnostic**. You can [adapt it for any software](adapting.md) that runs in Docker.
 
+Prefer a local workflow over the template repository? The [LabLink CLI](cli/index.md) deploys the same infrastructure from your own machine with `lablink configure && lablink deploy`.
+
 ---
 
 ## Getting Started
@@ -37,7 +39,7 @@ LabLink is **software-agnostic**. You can [adapt it for any software](adapting.m
 
 === "Quickstart"
 
-    :material-rocket-launch: Deploy LabLink to AWS using the template repository and automated setup scripts.
+    :material-rocket-launch: Deploy LabLink to AWS — pick the template repo path or the CLI path.
 
     [:octicons-arrow-right-24: Get started](quickstart.md)
 
