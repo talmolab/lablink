@@ -20,6 +20,13 @@ The database SHALL store VM information in a `vms` table with the following sche
   - `crd_command`: TEXT (nullable, command to run)
   - `created_at`: TIMESTAMP DEFAULT NOW()
   - `updated_at`: TIMESTAMP DEFAULT NOW()
+  - `last_seen_at`: TIMESTAMP (nullable, updated on heartbeat or any
+    authenticated client-to-allocator request)
+  - `boot_id`: VARCHAR(64) (nullable, kernel per-boot UUID reported by
+    the client; used to detect unexpected host reboots)
+  - `crd_active`: BOOLEAN (nullable, last heartbeat's CRD-daemon status)
+  - `disk_free_pct`: SMALLINT (nullable, percent free on the container
+    filesystem at the last heartbeat)
 
 ### Requirement: VM State Machine
 VMs SHALL transition through defined states based on their lifecycle.
@@ -52,6 +59,35 @@ The database SHALL notify the allocator of VM state changes for real-time update
 - **WHEN** any row in the `vms` table is updated
 - **THEN** a PostgreSQL NOTIFY is sent on the `vm_updates` channel
 - **AND** the payload contains the updated VM information
+
+#### Scenario: CRD-command trigger guard
+- **GIVEN** the `trigger_crd_command_insert_or_update` trigger is
+  configured on the VM table
+- **WHEN** a VM row is updated with `CrdCommand = NULL` (e.g. during
+  `record_reboot` or `release_assignment`)
+- **THEN** the trigger's `WHEN (NEW.CrdCommand IS NOT NULL)` guard
+  suppresses the NOTIFY
+- **AND** legitimate non-null `CrdCommand` updates still fire a NOTIFY
+
+### Requirement: Heartbeat Liveness
+The allocator SHALL detect silent client-VM failures by tracking a
+`last_seen_at` timestamp refreshed on every authenticated
+client-to-allocator interaction.
+
+#### Scenario: Heartbeat staleness
+- **GIVEN** a VM row with `status = 'running'` and
+  `last_seen_at IS NOT NULL`
+- **WHEN** `last_seen_at` is older than the configured staleness
+  threshold (default 3 minutes)
+- **THEN** the VM is returned by `get_failed_vms()` and feeds into the
+  reboot pipeline
+
+#### Scenario: Brand-new VM guard
+- **GIVEN** a VM row with `last_seen_at IS NULL` (no heartbeat received
+  yet)
+- **WHEN** `get_failed_vms()` runs
+- **THEN** the VM is NOT flagged as silent, regardless of `status` or
+  `created_at`
 
 ### Requirement: Hostname Uniqueness
 Each VM hostname SHALL be unique in the database.

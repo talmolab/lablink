@@ -1262,15 +1262,114 @@ class PostgresqlDatabase:
                     )
                     self.conn.rollback()
 
+    def record_heartbeat(
+        self,
+        hostname: str,
+        boot_id: Optional[str],
+        crd_active: Optional[bool],
+        disk_free_pct: Optional[int],
+    ) -> bool:
+        """Record a client-VM heartbeat and emit warnings on anomalies.
+
+        Updates last_seen_at and the three reported health fields. Logs a
+        warning (not an error) when:
+
+        - boot_id changed vs the previous value (unexpected host reboot),
+        - crd_active transitioned from True to False,
+        - disk_free_pct dropped below 10.
+
+        Returns True if the row was updated, False if the hostname is
+        unknown.
+        """
+        select_query = (
+            f"SELECT boot_id, crd_active "
+            f"FROM {self.table_name} WHERE hostname = %s;"
+        )
+        update_query = f"""
+            UPDATE {self.table_name}
+            SET last_seen_at = NOW(),
+                boot_id = %s,
+                crd_active = %s,
+                disk_free_pct = %s
+            WHERE hostname = %s;
+        """
+        try:
+            with self._cursor as cursor:
+                cursor.execute(select_query, (hostname,))
+                row = cursor.fetchone()
+                if row is None:
+                    logger.warning(
+                        f"Heartbeat for unknown hostname {hostname}"
+                    )
+                    return False
+                prev_boot_id, prev_crd = row
+
+                if (
+                    boot_id is not None
+                    and prev_boot_id is not None
+                    and prev_boot_id != boot_id
+                ):
+                    logger.warning(
+                        f"boot_id changed for {hostname}: "
+                        f"{prev_boot_id} -> {boot_id}"
+                    )
+                if prev_crd is True and crd_active is False:
+                    logger.warning(
+                        f"crd_active flipped False for {hostname}"
+                    )
+                if disk_free_pct is not None and disk_free_pct < 10:
+                    logger.warning(
+                        f"disk_free_pct low for {hostname}: "
+                        f"{disk_free_pct}%"
+                    )
+
+                cursor.execute(
+                    update_query,
+                    (
+                        boot_id,
+                        crd_active,
+                        disk_free_pct,
+                        hostname,
+                    ),
+                )
+                self.conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to record heartbeat for {hostname}: {e}")
+            self.conn.rollback()
+            return False
+
+    def touch_last_seen(self, hostname: str) -> None:
+        """Bump last_seen_at for a VM without touching other columns.
+
+        Called at the top of every authenticated client->allocator
+        endpoint so that any client traffic refreshes the liveness
+        timer. Heartbeat remains the primary signal; this is cheap
+        insurance against false-positive staleness.
+        """
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET last_seen_at = NOW() WHERE hostname = %s;"
+        )
+        try:
+            with self._cursor as cursor:
+                cursor.execute(query, (hostname,))
+                self.conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to touch last_seen for {hostname}: {e}")
+            self.conn.rollback()
+
     def get_failed_vms(
         self,
         stale_initializing_minutes: int = 25,
         stale_rebooting_minutes: int = 10,
+        stale_heartbeat_minutes: int = 3,
     ) -> List[dict]:
         """Get VMs that need a reboot attempt.
 
         Detects VMs in error state, with unhealthy GPUs, stuck initializing,
-        or stuck in rebooting state (failed to come back after a reboot).
+        stuck in rebooting state (failed to come back after a reboot), or
+        running but silent (no heartbeat within the staleness window).
 
         Args:
             stale_initializing_minutes: Minutes after which an initializing VM
@@ -1282,17 +1381,23 @@ class PostgresqlDatabase:
                 once client services are about to launch.
             stale_rebooting_minutes: Minutes after which a rebooting VM is
                 considered stuck and eligible for another reboot attempt.
+            stale_heartbeat_minutes: Minutes after which a running VM is
+                considered silent and eligible for reboot. Default 3 min
+                (6x the 30s heartbeat cadence). Brand-new VMs with
+                last_seen_at IS NULL are not flagged — they must heartbeat
+                at least once to be eligible for staleness detection.
 
         Returns:
             list: VMs eligible for reboot with hostname, status, healthy,
-                  reboot_count, last_reboot_time, and useremail.
+                  reboot_count, last_reboot_time, useremail, and last_seen_at.
         """
         init_minutes = int(stale_initializing_minutes)
         reboot_minutes = int(stale_rebooting_minutes)
+        heartbeat_minutes = int(stale_heartbeat_minutes)
         query = f"""
             SELECT hostname, status, healthy,
                    COALESCE(reboot_count, 0) as reboot_count,
-                   last_reboot_time, useremail
+                   last_reboot_time, useremail, last_seen_at
             FROM {self.table_name}
             WHERE status = 'error'
                OR (healthy = 'Unhealthy'
@@ -1304,7 +1409,11 @@ class PostgresqlDatabase:
                OR (status = 'rebooting'
                    AND last_reboot_time IS NOT NULL
                    AND last_reboot_time < NOW()
-                   - INTERVAL '{reboot_minutes} minutes');
+                   - INTERVAL '{reboot_minutes} minutes')
+               OR (status = 'running'
+                   AND last_seen_at IS NOT NULL
+                   AND last_seen_at < NOW()
+                   - INTERVAL '{heartbeat_minutes} minutes');
         """
         try:
             with self._cursor as cursor:
@@ -1318,6 +1427,7 @@ class PostgresqlDatabase:
                     "reboot_count": row[3],
                     "last_reboot_time": row[4],
                     "useremail": row[5],
+                    "last_seen_at": row[6],
                 }
                 for row in rows
             ]

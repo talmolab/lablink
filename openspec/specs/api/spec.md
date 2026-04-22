@@ -105,6 +105,38 @@ The allocator SHALL provide endpoints for client VMs to report health status.
 - **WHEN** the client submits health check data
 - **THEN** the VM's health status is updated in the database
 
+### Requirement: Heartbeat Endpoint
+The allocator SHALL provide an endpoint for client VMs to report active
+liveness so silent failures (dead container, broken network, hung host,
+expired CRD token, out-of-band EC2 termination) can be detected.
+
+#### Scenario: Client reports liveness
+- **GIVEN** a registered client VM
+- **WHEN** the client submits `POST /api/heartbeat` with JSON body:
+  - `vm_id`: The VM's hostname (required)
+  - `boot_id`: Kernel per-boot UUID from `/proc/sys/kernel/random/boot_id`
+  - `timestamp`: ISO 8601 client-clock timestamp
+  - `crd_active`: Boolean — is chrome-remote-desktop running
+  - `disk_free_pct`: Integer — percent free on the container filesystem
+- **THEN** the allocator updates `last_seen_at = NOW()` on the VM row
+- **AND** persists the reported fields
+- **AND** logs warnings on unexpected `boot_id` change,
+  `crd_active` transitioning to `false`, or `disk_free_pct` below 10 %
+- **AND** returns 200 `{"ok": true}`
+
+#### Scenario: Heartbeat for unknown hostname
+- **GIVEN** a hostname not present in the VM table
+- **WHEN** the client submits `POST /api/heartbeat`
+- **THEN** the allocator returns 404
+
+#### Scenario: Passive liveness refresh
+- **GIVEN** an authenticated client-to-allocator endpoint other than
+  `/api/heartbeat` (e.g. `/api/gpu_health`, `/api/vm-status`,
+  `/api/vm-metrics/<hostname>`, `/vm_startup`)
+- **WHEN** the client submits a valid request
+- **THEN** the allocator refreshes `last_seen_at` for the VM as a
+  side-effect, so ongoing traffic prevents false-positive staleness
+
 ### Requirement: Status Update Endpoint
 The allocator SHALL provide an endpoint for client VMs to update their in-use status.
 

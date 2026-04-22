@@ -17,6 +17,7 @@ VM_STATUS_UPDATE_ENDPOINT = "/api/vm-status"
 VM_LOGS_ENDPOINT = "/api/vm-logs"
 METRICS_ENDPOINT = "/api/vm-metrics"
 SCHEDULE_DESTRUCTION_ENDPOINT = "/api/schedule-destruction"
+HEARTBEAT_ENDPOINT = "/api/heartbeat"
 
 
 def test_vm_startup_success(client, api_token_headers, monkeypatch):
@@ -2129,3 +2130,205 @@ def test_request_vm_does_not_require_token(client, monkeypatch):
 
     # Should NOT return 401 - returns 200 with "no available VMs" message
     assert resp.status_code != 401
+
+
+# -- Heartbeat endpoint --------------------------------------------------
+
+def _heartbeat_payload(**overrides):
+    base = {
+        "vm_id": "test-vm-dev-1",
+        "boot_id": "bid-abc",
+        "timestamp": "2026-04-20T12:00:00+00:00",
+        "crd_active": True,
+        "disk_free_pct": 80,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_heartbeat_success(client, api_token_headers, monkeypatch):
+    """Valid heartbeat payload returns 200 and calls record_heartbeat."""
+    fake_db = MagicMock()
+    fake_db.record_heartbeat.return_value = True
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        HEARTBEAT_ENDPOINT,
+        json=_heartbeat_payload(),
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+    fake_db.record_heartbeat.assert_called_once_with(
+        hostname="test-vm-dev-1",
+        boot_id="bid-abc",
+        crd_active=True,
+        disk_free_pct=80,
+    )
+
+
+def test_heartbeat_rejects_missing_token(client, monkeypatch):
+    """Heartbeat endpoint requires API token."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(HEARTBEAT_ENDPOINT, json=_heartbeat_payload())
+
+    assert resp.status_code == 401
+    fake_db.record_heartbeat.assert_not_called()
+
+
+def test_heartbeat_rejects_missing_vm_id(client, api_token_headers, monkeypatch):
+    """Missing vm_id returns 400."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    payload = _heartbeat_payload()
+    payload.pop("vm_id")
+    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
+
+    assert resp.status_code == 400
+    fake_db.record_heartbeat.assert_not_called()
+
+
+def test_heartbeat_unknown_hostname_returns_404(
+    client, api_token_headers, monkeypatch
+):
+    """record_heartbeat returning False surfaces as 404."""
+    fake_db = MagicMock()
+    fake_db.record_heartbeat.return_value = False
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        HEARTBEAT_ENDPOINT,
+        json=_heartbeat_payload(vm_id="ghost"),
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 404
+
+
+def test_heartbeat_db_error_returns_500(client, api_token_headers, monkeypatch):
+    """Unexpected exceptions surface as 500."""
+    fake_db = MagicMock()
+    fake_db.record_heartbeat.side_effect = Exception("boom")
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        HEARTBEAT_ENDPOINT,
+        json=_heartbeat_payload(),
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 500
+
+
+def test_heartbeat_accepts_null_health_fields(
+    client, api_token_headers, monkeypatch
+):
+    """Partial sampler failure (null booleans) must still be accepted.
+
+    The client sets a field to None when its probe fails; we want the
+    row updated with whatever was reported rather than rejecting the
+    whole heartbeat.
+    """
+    fake_db = MagicMock()
+    fake_db.record_heartbeat.return_value = True
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    payload = _heartbeat_payload(crd_active=None, disk_free_pct=None)
+    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
+
+    assert resp.status_code == 200
+    call = fake_db.record_heartbeat.call_args
+    assert call.kwargs["crd_active"] is None
+    assert call.kwargs["disk_free_pct"] is None
+
+
+# -- Cross-endpoint last_seen_at refresh --------------------------------
+
+def test_gpu_health_bumps_last_seen(client, api_token_headers, monkeypatch):
+    """POST /api/gpu_health refreshes last_seen_at for the VM."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        UPDATE_GPU_HEALTH_ENDPOINT,
+        json={"hostname": "vm-1", "gpu_status": "Healthy"},
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 200
+    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
+
+
+def test_vm_status_bumps_last_seen(client, api_token_headers, monkeypatch):
+    """POST /api/vm-status refreshes last_seen_at for the VM."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        VM_STATUS_UPDATE_ENDPOINT,
+        json={"hostname": "vm-1", "status": "running"},
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 200
+    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
+
+
+def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
+    """POST /api/vm-metrics/<hostname> refreshes last_seen_at."""
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        f"{METRICS_ENDPOINT}/vm-1",
+        json={"container_start": 0, "container_end": 1},
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 200
+    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
+
+
+def test_vm_startup_bumps_last_seen(client, api_token_headers, monkeypatch):
+    """POST /vm_startup refreshes last_seen_at once the VM is found."""
+    fake_db = MagicMock()
+    fake_db.get_vm_by_hostname.return_value = {
+        "hostname": "vm-1",
+        "crdcommand": "cmd",
+        "pin": "123456",
+    }
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    resp = client.post(
+        VM_STARTUP_ENDPOINT,
+        json={"hostname": "vm-1"},
+        headers=api_token_headers,
+    )
+
+    assert resp.status_code == 200
+    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
