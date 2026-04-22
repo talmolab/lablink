@@ -7,33 +7,36 @@ The `lablink` command is a CLI-driven alternative to the [lablink-template](http
 
 ## CLI vs. template repo
 
-Both paths deploy the same allocator service and manage the same set of AWS resources. They differ in **where Terraform runs** and **where state lives**.
+Both paths deploy the same allocator service and manage the same set of AWS resources. The practical difference is **how much of the deployment you own and configure yourself**.
 
 | | Template repo | CLI |
 |---|---|---|
+| What you maintain | A full repo forked from `lablink-template` (Dockerfile, Terraform `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
+| Customization surface | Every file in the repo — tweak AMIs, Docker images, Terraform resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL, monitoring) |
 | Where Terraform runs | GitHub Actions | Your machine |
 | Where state lives | Shared S3 (per-repo) | Local S3 bucket you own |
 | How you trigger a deploy | Push to `main` / run workflow | `lablink deploy` |
 | Secrets management | GitHub repository secrets | AWS credentials on your machine, passwords prompted |
 | Who can deploy | Anyone with repo access | Whoever has the AWS creds locally |
-| Best for | Workshops, shared environments, production | Solo development, pre-workshop iteration, local debugging |
+| Best for | Deployments you need to customize — bring-your-own Docker image, extra AWS resources, custom CI, bespoke workflow edits | Standard deployments where you just want it up — no repo to own, no workflow to maintain |
 
 ## When to pick which
 
 Pick the **CLI** when you want to:
 
-- Stand a deployment up quickly from your laptop
-- Iterate on configuration or Terraform changes without pushing commits
-- Debug a failed deploy with direct access to Terraform output and logs
-- Export metrics from a deployment that's already been torn down
+- Stand up a standard deployment without maintaining a fork of the template
+- Keep the surface small — one config file, no Dockerfile or `.tf` edits
+- Skip hopping between a GitHub repo, Actions logs, and local tooling
+- Drive Terraform directly from your laptop and see its output inline
 
 Pick the **template repo** when you want to:
 
-- Hand the deployment off to a team via GitHub permissions
-- Run reproducible, audited deploys from CI
-- Run workshops where multiple people may trigger deploys
+- Bring your own Docker image, custom AMI baking, or your own entrypoint
+- Add or modify AWS resources Terraform doesn't provision by default
+- Customize the GitHub Actions workflow (extra steps, different triggers, etc.)
+- Hand the deployment off to a team via GitHub permissions instead of sharing AWS credentials
 
-You can also switch between them later — both read the same `config.yaml` schema.
+You can switch between them later — both read the same `config.yaml` schema for the settings the CLI exposes.
 
 ## Next steps
 

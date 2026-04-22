@@ -10,9 +10,9 @@ Pick whichever fits your setup. You can switch between them later; both read the
 
     ---
 
-    Create a repository from [lablink-template](https://github.com/talmolab/lablink-template). Push commits to `main` — GitHub Actions runs Terraform with shared S3-backed state.
+    Create a repository from [lablink-template](https://github.com/talmolab/lablink-template). You own the full repo — Dockerfile, Terraform `.tf` files, GitHub Actions workflows — and deploys run through CI.
 
-    Best for **workshops**, shared environments, and **production**: deploys are auditable, reproducible, and anyone with repo access can trigger one.
+    Best when you need to **customize** the deployment: bring-your-own Docker image, custom AMI, extra AWS resources, or bespoke workflow edits.
 
     [:octicons-arrow-right-24: Quickstart: Template repo](quickstart-template.md)
 
@@ -20,9 +20,9 @@ Pick whichever fits your setup. You can switch between them later; both read the
 
     ---
 
-    Install the `lablink` CLI and run `lablink configure && lablink deploy` from your own machine. Terraform state lives in an S3 bucket you own.
+    Install the `lablink` CLI and run `lablink configure && lablink deploy` from your own machine. A single `config.yaml` drives everything; Terraform templates are pulled from a pinned release under the hood.
 
-    Best for **solo iteration**, **local debugging**, and pre-workshop tinkering — no commits, no CI, direct access to Terraform output.
+    Best when you want a **standard deployment without maintaining a repo** — one config file, no Dockerfile or `.tf` to edit.
 
     [:octicons-arrow-right-24: Quickstart: CLI](cli/first-deployment.md)
 
@@ -32,12 +32,13 @@ Pick whichever fits your setup. You can switch between them later; both read the
 
 | If you want to… | Use |
 |---|---|
+| Use your own Docker image or custom AMI | Template repo |
+| Add or modify AWS resources Terraform doesn't provision by default | Template repo |
+| Customize the GitHub Actions workflow | Template repo |
 | Hand the deployment off to a team via GitHub permissions | Template repo |
-| Run reproducible, audited deploys from CI | Template repo |
-| Run a workshop where multiple people may trigger deploys | Template repo |
-| Stand a deployment up quickly from your laptop | CLI |
-| Iterate on config or Terraform changes without pushing commits | CLI |
-| Debug a failed deploy with direct Terraform access | CLI |
+| Stand up a standard deployment without forking the template | CLI |
+| Keep the configuration surface small — one `config.yaml`, no repo to own | CLI |
+| Drive Terraform directly from your laptop and see its output inline | CLI |
 | Export metrics from a deployment that's already been torn down | CLI |
 
 ## Prerequisites (both paths)
