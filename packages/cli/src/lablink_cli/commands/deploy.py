@@ -289,12 +289,7 @@ def run_deploy(
     terraform_bundle: str | None = None,
     yes: bool = False,
 ) -> None:
-    """Deploy LabLink infrastructure.
-
-    ``yes=True`` skips the interactive "Type 'yes' to apply" confirmation
-    after ``terraform plan``. Credential prompts in ``_prompt_passwords``
-    are not affected and still require interactive input.
-    """
+    """Deploy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
     from lablink_cli import TEMPLATE_VERSION
 
     console.print()
@@ -655,12 +650,7 @@ def _terraform_destroy(
 
 
 def run_destroy(cfg: Config, *, yes: bool = False) -> None:
-    """Destroy LabLink infrastructure.
-
-    ``yes=True`` skips the "Are you sure?" confirmation and auto-accepts
-    the metrics-export prompt's existing default (= export). Credential
-    lookup via ``resolve_admin_credentials`` is unaffected.
-    """
+    """Destroy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
     check_credentials(_get_session(cfg.app.region))
 
     deploy_dir = get_deploy_dir(cfg)
