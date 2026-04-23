@@ -8,9 +8,6 @@ ARG USERNAME="client"
 # Set non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set user
-ENV USER=root
-
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
@@ -130,7 +127,13 @@ RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
 # Switch to non-root user for Google Chrome Remote Desktop to work.
+# USER/LOGNAME/HOME must match the actual runtime uid — start-host uses
+# them to decide whether it is running as root (it refuses to) and to
+# resolve paths like ~/.config/chrome-remote-desktop.
 USER ${USERNAME}
+ENV USER=${USERNAME} \
+    LOGNAME=${USERNAME} \
+    HOME=/home/${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Create scripts directory with miniforge, uv, and nvm installation scripts
