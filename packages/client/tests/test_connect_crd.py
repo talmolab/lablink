@@ -125,7 +125,15 @@ def test_connect_to_crd(
     assert call.kwargs["input"] == "123456\n123456\n"
     assert call.kwargs["capture_output"] is True
     assert call.kwargs["text"] is True
-    assert call.kwargs["env"]["DISPLAY"] == ""
+    env = call.kwargs["env"]
+    assert env["DISPLAY"] == ""
+    # USER/LOGNAME/HOME must match the current uid so start-host does
+    # not abort on getpwnam_r mismatch.
+    import pwd
+    pw = pwd.getpwuid(os.getuid())
+    assert env["USER"] == pw.pw_name
+    assert env["LOGNAME"] == pw.pw_name
+    assert env["HOME"] == pw.pw_dir
 
 
 @patch("lablink_client_service.connect_crd.is_crd_registered", return_value=False)

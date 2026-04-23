@@ -1,5 +1,6 @@
 import argparse
 import glob
+import pwd
 import socket
 import subprocess
 import logging
@@ -100,7 +101,18 @@ def connect_to_crd(command, pin):
     input_pin = pin + "\n"
     input_pin_verification = input_pin + input_pin
 
-    env = {**os.environ, "DISPLAY": ""}
+    # Populate USER/LOGNAME/HOME from the current uid so start-host's
+    # username lookup matches getpwuid(). With shell=True this was
+    # normalized implicitly by /bin/sh; under execve we must pass it
+    # ourselves or start-host aborts (SIGTRAP) on the mismatch.
+    pw = pwd.getpwuid(os.getuid())
+    env = {
+        **os.environ,
+        "DISPLAY": "",
+        "USER": pw.pw_name,
+        "LOGNAME": pw.pw_name,
+        "HOME": pw.pw_dir,
+    }
 
     result = subprocess.run(
         argv,
