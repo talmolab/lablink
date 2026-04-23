@@ -28,7 +28,7 @@ This repository contains the **core LabLink packages, Docker images, and documen
 
 - **[lablink-cli](packages/cli/)** - Command-line tool to deploy and manage LabLink infrastructure
   ```bash
-  pip install lablink-cli
+  uv tool install lablink-cli
   ```
 
 ### Docker Images (Published to GHCR)
