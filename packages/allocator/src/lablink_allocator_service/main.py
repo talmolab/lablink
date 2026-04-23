@@ -22,7 +22,7 @@ from flask import (
 )
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
+
 import psycopg2
 
 from lablink_allocator_service.get_config import get_config
@@ -56,11 +56,9 @@ TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
 # Load the configuration
 cfg = get_config()
 
-db_uri = f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
-os.environ["DATABASE_URL"] = db_uri
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", db_uri)
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
+os.environ["DATABASE_URL"] = (
+    f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
+)
 
 # Validate that required secrets are configured
 _missing = []
@@ -1202,7 +1200,6 @@ def main():
     try:
         _startup_time = time.monotonic()
         with app.app_context():
-            db.create_all()
             init_database()
 
         # Initialize scheduler service
