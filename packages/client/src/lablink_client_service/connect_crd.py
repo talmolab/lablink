@@ -1,5 +1,6 @@
 import argparse
 import glob
+import socket
 import subprocess
 import logging
 import time
@@ -52,66 +53,62 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def construct_command(args) -> str:
-    """Constructs the Linux CRD command to connect to a remote machine.
+def construct_command(args) -> list[str]:
+    """Build the start-host argv to register this VM with CRD.
 
-    Args:
-        args (argparse.Namespace): The command line arguments.
-
-    Returns:
-        str: The Linux CRD command to connect to a remote machine.
+    Returns a list for subprocess with ``shell=False``; ``DISPLAY`` is set
+    via the environment by the caller rather than as a shell prefix. A
+    single pair of matching surrounding quotes is stripped from the
+    code (Google's copy-pasteable command wraps it in double quotes).
+    Input validation of the code itself happens at the allocator in
+    ``check_crd_input``; with ``shell=False`` here, any stray
+    metacharacters would be passed as a literal argument to start-host
+    rather than interpreted by a shell.
     """
 
-    redirect_url = "'https://remotedesktop.google.com/_/oauthredirect'"
-    name = os.getenv("VM_NAME", "$(hostname)")
+    redirect_url = "https://remotedesktop.google.com/_/oauthredirect"
+    name = os.getenv("VM_NAME") or socket.gethostname()
 
     if args.code is None:
         raise ValueError("Code must be provided to construct the command.")
+    code = args.code
+    if len(code) >= 2 and code[0] == code[-1] and code[0] in ("'", '"'):
+        code = code[1:-1]
 
-    command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host"
-    command += f" --code={args.code}"
-    command += f" --redirect-url={redirect_url}"
-    command += f" --name={name}"
+    return [
+        "/opt/google/chrome-remote-desktop/start-host",
+        f"--code={code}",
+        f"--redirect-url={redirect_url}",
+        f"--name={name}",
+    ]
 
-    return command
 
-
-def reconstruct_command(command: str) -> str:
-    """Reconstructs the Chrome Remote Desktop command.
-
-    Args:
-        command (str): CRD command to connect to the machine.
-
-    Returns:
-        str: Reconstructed command to connect to the machine.
-    """
+def reconstruct_command(command: str) -> list[str]:
+    """Parse the allocator-supplied CRD command and return a safe argv."""
     arg_to_parse = command.split()
 
-    # Parse the command line arguments
     parser = create_parser()
     args, _ = parser.parse_known_args(args=arg_to_parse)
 
-    # Construct the command to be executed
-    command = construct_command(args)
-
-    return command
+    return construct_command(args)
 
 
 def connect_to_crd(command, pin):
-    # Parse the command line arguments
-    command = reconstruct_command(command)
+    argv = reconstruct_command(command)
 
     # input the pin code with verification
     input_pin = pin + "\n"
     input_pin_verification = input_pin + input_pin
 
-    # Execute the command
+    env = {**os.environ, "DISPLAY": ""}
+
     result = subprocess.run(
-        command,
+        argv,
         input=input_pin_verification,
-        shell=True,
+        shell=False,
         capture_output=True,
         text=True,
+        env=env,
     )
 
     # start-host writes the host config to ~/.config/chrome-remote-desktop/
