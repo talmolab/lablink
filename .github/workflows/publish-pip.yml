@@ -7,11 +7,12 @@ on:
     tags:
       - lablink-allocator-service_v*
       - lablink-client-service_v*
+      - lablink-cli_v*
   workflow_dispatch:
     inputs:
       package:
         type: choice
-        options: [lablink-allocator-service, lablink-client-service]
+        options: [lablink-allocator-service, lablink-client-service, lablink-cli]
         required: true
         description: Which package to publish
       dry_run:
@@ -35,13 +36,20 @@ jobs:
       matrix:
         include:
           - package: lablink-allocator-service
+            module: lablink_allocator_service
             dir: packages/allocator
             tag_prefix: lablink-allocator-service_v
             path_filter: packages/allocator
           - package: lablink-client-service
+            module: lablink_client_service
             dir: packages/client
             tag_prefix: lablink-client-service_v
             path_filter: packages/client
+          - package: lablink-cli
+            module: lablink_cli
+            dir: packages/cli
+            tag_prefix: lablink-cli_v
+            path_filter: packages/cli
 
     steps:
       # Check if this matrix job should run
@@ -166,7 +174,7 @@ jobs:
           echo "Running test suite..."
           uv run pytest tests \
             --ignore=tests/terraform \
-            --cov=src/${{ matrix.package }} \
+            --cov=src/${{ matrix.module }} \
             --cov-report=term-missing \
             --cov-fail-under=0
           echo "✅ Tests passed"
