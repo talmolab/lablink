@@ -17,8 +17,8 @@ REQUEST_VM_ENDPOINT = "/api/request_vm"
 
 VALID_CRD_COMMAND = (
     "DISPLAY= /opt/google/chrome-remote-desktop/start-host "
-    "--code='4/abc123' --redirect-url='https://example.com' "
-    "--name='vm-1'"
+    "--code=4/abc123 --redirect-url=https://example.com "
+    "--name=vm-1"
 )
 
 

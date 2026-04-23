@@ -14,10 +14,19 @@ from lablink_client_service.connect_crd import (
 )
 
 
-CRD_COMMAND_WITH_CODE = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
-    "--code='hidden_code' " \
-    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
+CRD_COMMAND_WITH_CODE = (
+    "/opt/google/chrome-remote-desktop/start-host "
+    "--code=hidden_code "
+    "--redirect-url=https://remotedesktop.google.com/_/oauthredirect "
     "--name=$(hostname)"
+)
+
+EXPECTED_ARGV = [
+    "/opt/google/chrome-remote-desktop/start-host",
+    "--code=hidden_code",
+    "--redirect-url=https://remotedesktop.google.com/_/oauthredirect",
+    "--name=test_vm",
+]
 
 
 def test_construct_command_with_code():
@@ -25,23 +34,29 @@ def test_construct_command_with_code():
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
         command = construct_command(args)
 
-    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
-                "--code=test_code " \
-                "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
-                "--name=test_vm"
-    assert command == expected
+    assert command == [
+        "/opt/google/chrome-remote-desktop/start-host",
+        "--code=test_code",
+        "--redirect-url=https://remotedesktop.google.com/_/oauthredirect",
+        "--name=test_vm",
+    ]
 
 
 def test_construct_command_without_vm_name():
     args = argparse.Namespace(code="test_code")
     with patch.dict(os.environ, {}, clear=True):
-        command = construct_command(args)
+        with patch(
+            "lablink_client_service.connect_crd.socket.gethostname",
+            return_value="fallback-host",
+        ):
+            command = construct_command(args)
 
-    expected = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
-                "--code=test_code " \
-                "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
-                "--name=$(hostname)"
-    assert command == expected
+    assert command == [
+        "/opt/google/chrome-remote-desktop/start-host",
+        "--code=test_code",
+        "--redirect-url=https://remotedesktop.google.com/_/oauthredirect",
+        "--name=fallback-host",
+    ]
 
 
 def test_construct_command_without_code():
@@ -52,40 +67,41 @@ def test_construct_command_without_code():
         construct_command(args)
 
 
-@patch("lablink_client_service.connect_crd.construct_command")
-@patch("lablink_client_service.connect_crd.create_parser")
-def test_reconstruct_command(mock_create_parser, mock_construct_command):
-    mock_parser = MagicMock()
-    mock_args = argparse.Namespace(code="test_code")
-    mock_parser.parse_known_args.return_value = (mock_args, [])
-    mock_create_parser.return_value = mock_parser
-    mock_construct_command.return_value = "test_command"
-
-    result = reconstruct_command(
-        "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
-        "--code=test_code " \
-        "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
-        "--name=test_vm"
-    )
-
-    mock_create_parser.assert_called_once()
-    mock_parser.parse_known_args.assert_called_once_with(
-        args=[
-            "DISPLAY=",
-            "/opt/google/chrome-remote-desktop/start-host",
-            "--code=test_code",
-            "--redirect-url='https://remotedesktop.google.com/_/oauthredirect'",
-            "--name=test_vm",
-        ]
-    )
-    mock_construct_command.assert_called_once_with(mock_args)
-    assert result == "test_command"
+@pytest.mark.parametrize(
+    "good_code,expected_arg",
+    [
+        ("4/abc123", "--code=4/abc123"),
+        ("test_code", "--code=test_code"),
+        ("4/0Aerz0j_I9c7gCgYIARAA-GBASNwF", "--code=4/0Aerz0j_I9c7gCgYIARAA-GBASNwF"),
+        ("a-b_c/d", "--code=a-b_c/d"),
+        # Google's copy-pasteable command wraps the code in double
+        # quotes; we strip a single matched pair.
+        ('"4/abc123"', "--code=4/abc123"),
+        ("'4/abc123'", "--code=4/abc123"),
+    ],
+)
+def test_construct_command_accepts_legitimate_codes(good_code, expected_arg):
+    args = argparse.Namespace(code=good_code)
+    with patch.dict(os.environ, {"VM_NAME": "vm-1"}):
+        argv = construct_command(args)
+    assert argv[1] == expected_arg
 
 
-def test_whole_reconstruction():
-    crd_command = CRD_COMMAND_WITH_CODE
-    command = reconstruct_command(crd_command)
-    assert command == crd_command
+def test_construct_command_passes_metacharacters_as_literal_argv():
+    """With shell=False, a stray metacharacter in the code is passed
+    as a literal arg to start-host — no shell interprets it. This is
+    the security-critical property; validation is the allocator's job.
+    """
+    args = argparse.Namespace(code="x;id")
+    with patch.dict(os.environ, {"VM_NAME": "vm-1"}):
+        argv = construct_command(args)
+    assert argv[1] == "--code=x;id"  # literal, not a shell statement
+
+
+def test_reconstruct_command_returns_list_argv():
+    with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
+        argv = reconstruct_command(CRD_COMMAND_WITH_CODE)
+    assert argv == EXPECTED_ARGV
 
 
 @patch("lablink_client_service.connect_crd.is_crd_registered", return_value=False)
@@ -94,52 +110,37 @@ def test_whole_reconstruction():
 def test_connect_to_crd(
     mock_reconstruct_command, mock_subprocess_run, mock_is_registered
 ):
-    input_command = CRD_COMMAND_WITH_CODE
-    reconstructed_command = CRD_COMMAND_WITH_CODE
-
-    mock_reconstruct_command.return_value = reconstructed_command
-    pin = "123456"
+    mock_reconstruct_command.return_value = list(EXPECTED_ARGV)
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = "Connection successful"
     mock_result.stderr = ""
     mock_subprocess_run.return_value = mock_result
 
-    connect_to_crd(input_command, pin)
+    connect_to_crd(CRD_COMMAND_WITH_CODE, "123456")
 
-    mock_reconstruct_command.assert_called_once_with(input_command)
-    mock_subprocess_run.assert_called_once_with(
-        input_command,
-        input="123456\n123456\n",
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
+    mock_reconstruct_command.assert_called_once_with(CRD_COMMAND_WITH_CODE)
+    call = mock_subprocess_run.call_args
+    assert call.args[0] == EXPECTED_ARGV
+    assert call.kwargs["shell"] is False
+    assert call.kwargs["input"] == "123456\n123456\n"
+    assert call.kwargs["capture_output"] is True
+    assert call.kwargs["text"] is True
+    assert call.kwargs["env"]["DISPLAY"] == ""
 
 
 @patch("lablink_client_service.connect_crd.is_crd_registered", return_value=False)
 @patch("lablink_client_service.connect_crd.subprocess.run")
 def test_whole_connection_workflow(mock_subprocess_run, mock_is_registered):
-    input_command = CRD_COMMAND_WITH_CODE
-    pin = "123456"
-    mock_subprocess_run.return_value = MagicMock(
-        returncode=0, stdout="", stderr=""
-    )
+    mock_subprocess_run.return_value = MagicMock(returncode=0, stderr="")
 
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
-        connect_to_crd(input_command, pin)
+        connect_to_crd(CRD_COMMAND_WITH_CODE, "123456")
 
-    expected_command = "DISPLAY= /opt/google/chrome-remote-desktop/start-host " \
-    "--code='hidden_code' " \
-    "--redirect-url='https://remotedesktop.google.com/_/oauthredirect' " \
-    "--name=test_vm"
-    mock_subprocess_run.assert_called_once_with(
-        expected_command,
-        input="123456\n123456\n",
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
+    call = mock_subprocess_run.call_args
+    assert call.args[0] == EXPECTED_ARGV
+    assert call.kwargs["shell"] is False
+    assert call.kwargs["input"] == "123456\n123456\n"
+    assert call.kwargs["env"]["DISPLAY"] == ""
 
 
 @patch("lablink_client_service.connect_crd.start_crd_daemon")
