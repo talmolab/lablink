@@ -6,11 +6,32 @@ import typer
 
 app = typer.Typer(
     name="lablink",
-    help="Deploy and manage LabLink teaching lab infrastructure.",
     no_args_is_help=True,
 )
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        from importlib.metadata import version
+
+        typer.echo(f"lablink-cli {version('lablink-cli')}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    _version: bool = typer.Option(
+        False,
+        "--version",
+        "-v",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show the CLI version and exit.",
+    ),
+) -> None:
+    """Deploy and manage LabLink teaching lab infrastructure."""
 
 
 def _load_cfg(config: str | None):

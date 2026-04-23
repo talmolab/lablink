@@ -4,6 +4,7 @@
 
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
+[![PyPI - lablink-cli](https://img.shields.io/pypi/v/lablink-cli?label=cli)](https://pypi.org/project/lablink-cli/)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
 [![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
 
@@ -23,6 +24,11 @@ This repository contains the **core LabLink packages, Docker images, and documen
 - **[lablink-client](packages/client/)** - Client Service
   ```bash
   pip install lablink-client
+  ```
+
+- **[lablink-cli](packages/cli/)** - Command-line tool to deploy and manage LabLink infrastructure
+  ```bash
+  uv tool install lablink-cli
   ```
 
 ### Docker Images (Published to GHCR)
@@ -114,11 +120,14 @@ lablink/
 │   │   ├── tests/                   # Unit tests including Terraform tests
 │   │   ├── Dockerfile               # Production image (from PyPI)
 │   │   └── Dockerfile.dev           # Development image (local code)
-│   └── client/                      # Client Python package
-│       ├── src/lablink_client/      # Source code
-│       ├── tests/                   # Unit tests
-│       ├── Dockerfile               # Production image (from PyPI)
-│       └── Dockerfile.dev           # Development image (local code)
+│   ├── client/                      # Client Python package
+│   │   ├── src/lablink_client/      # Source code
+│   │   ├── tests/                   # Unit tests
+│   │   ├── Dockerfile               # Production image (from PyPI)
+│   │   └── Dockerfile.dev           # Development image (local code)
+│   └── cli/                         # CLI Python package (Typer + Textual)
+│       ├── src/lablink_cli/         # Source code (commands, TUI, config)
+│       └── tests/                   # Unit tests
 ├── docs/                            # MkDocs documentation
 └── .github/workflows/               # CI/CD workflows
     ├── ci.yml                       # Tests, linting, Docker builds
@@ -137,6 +146,7 @@ LabLink uses **independent versioning** for its packages:
 
 - **lablink-allocator-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-allocator-service)](https://pypi.org/project/lablink-allocator-service/)
 - **lablink-client-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
+- **lablink-cli**: [![PyPI](https://img.shields.io/pypi/v/lablink-cli)](https://pypi.org/project/lablink-cli/)
 
 See the [Release Process](https://talmolab.github.io/lablink/contributing/#release-process) for how releases are managed.
 

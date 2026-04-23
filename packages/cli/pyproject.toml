@@ -1,5 +1,10 @@
 [project]
 name = "lablink-cli"
+authors = [
+  {name = "Elizabeth Berrigan", email = "eberrigan@salk.edu"},
+  {name = "Talmo Pereira", email = "talmo@salk.edu"},
+  {name = "Andrew Park", email = "hep003@ucsd.edu"},
+]
 version = "0.1.0"
 description = "CLI tool for deploying and managing LabLink infrastructure"
 readme = "README.md"
@@ -41,3 +46,7 @@ exclude_lines = [
     "pragma: no cover",
     "if __name__",
 ]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink"
+Issues = "https://github.com/talmolab/lablink/issues"

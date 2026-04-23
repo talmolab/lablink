@@ -56,6 +56,18 @@ class TestCLICommands:
         out = _plain(result.output).lower()
         assert "lablink" in out or "deploy" in out
 
+    def test_version_long_flag(self):
+        from importlib.metadata import version
+
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert f"lablink-cli {version('lablink-cli')}" in _plain(result.output)
+
+    def test_version_short_flag(self):
+        result = runner.invoke(app, ["-v"])
+        assert result.exit_code == 0
+        assert "lablink-cli" in _plain(result.output)
+
     def test_doctor_command_exists(self):
         result = runner.invoke(app, ["doctor", "--help"])
         assert result.exit_code == 0
