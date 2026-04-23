@@ -6,7 +6,6 @@ import typer
 
 app = typer.Typer(
     name="lablink",
-    help="Deploy and manage LabLink teaching lab infrastructure.",
     no_args_is_help=True,
 )
 
