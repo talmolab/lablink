@@ -8,9 +8,6 @@ ARG USERNAME="client"
 # Set non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set user
-ENV USER=root
-
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
@@ -130,7 +127,16 @@ RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
 # Switch to non-root user for Google Chrome Remote Desktop to work.
+# Align USER/LOGNAME/HOME with the runtime uid. Docker's USER directive
+# only changes the effective uid; $USER / $LOGNAME / $HOME are left
+# untouched and would otherwise inherit stale values from the build
+# stage. Keeping them wrong pollutes every tool that reads them (CRD
+# logs visible username-mismatch warnings; anything else that looks at
+# $HOME or $USER sees the wrong value) and makes debugging harder.
 USER ${USERNAME}
+ENV USER=${USERNAME} \
+    LOGNAME=${USERNAME} \
+    HOME=/home/${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Create scripts directory with miniforge, uv, and nvm installation scripts

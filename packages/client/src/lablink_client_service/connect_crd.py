@@ -114,10 +114,27 @@ def connect_to_crd(command, pin):
         text=True,
     )
 
-    if result.returncode == 0:
+    # start-host writes the host config to ~/.config/chrome-remote-desktop/
+    # BEFORE it tries to launch the daemon via systemctl. In Docker there
+    # is no systemd running, so the systemctl call fails and start-host
+    # reports a non-zero exit — but the registration itself succeeded.
+    # If the host config is present, start the daemon directly via
+    # chrome-remote-desktop --start, bypassing systemd entirely.
+    if is_crd_registered():
+        logger.info(
+            "CRD host registered (start-host exit=%d); "
+            "starting daemon via chrome-remote-desktop --start.",
+            result.returncode,
+        )
+        start_crd_daemon()
+    elif result.returncode == 0:
         logger.info("CRD connection established successfully")
-    elif result.stderr:
-        logger.error(f"CRD connection failed: {result.stderr}")
+    else:
+        logger.error(
+            "CRD connection failed (exit %d): %s",
+            result.returncode,
+            result.stderr.strip(),
+        )
 
 
 def is_crd_registered() -> bool:
@@ -128,21 +145,26 @@ def is_crd_registered() -> bool:
 def start_crd_daemon() -> None:
     """Start the CRD daemon from an existing host registration.
 
-    Used on warm container restarts where start-host would fail because
-    the auth code is already consumed or the host is already registered.
-    Mirrors the invocation that start-host uses on first boot (observed
-    via ps -ef): user-session runs as root and drops privileges to the
-    client user internally, then daemonizes.
+    Runs the same command systemd's ``chrome-remote-desktop@<user>``
+    unit would invoke (``/opt/google/chrome-remote-desktop/chrome-remote-desktop
+    --start --new-session``), bypassing systemd entirely. Used both on
+    warm container restarts (where start-host would fail because the
+    auth code is already consumed) and on first boot after start-host
+    registers the host but cannot launch the daemon because systemctl
+    is not available in the container.
     """
-    config_paths = glob.glob(CRD_HOST_CONFIG_GLOB)
-    if not config_paths:
-        logger.error("No CRD host config found; cannot restart daemon")
+    if not is_crd_registered():
+        logger.error("No CRD host config found; cannot start daemon")
         return
-    config_path = config_paths[0]
     command = (
-        f"/opt/google/chrome-remote-desktop/user-session start -- "
-        f"--config={config_path} --start"
+        "/opt/google/chrome-remote-desktop/chrome-remote-desktop "
+        "--start --new-session"
     )
+    env = {
+        **os.environ,
+        "XDG_SESSION_CLASS": "user",
+        "XDG_SESSION_TYPE": "x11",
+    }
     try:
         result = subprocess.run(
             command,
@@ -150,6 +172,7 @@ def start_crd_daemon() -> None:
             capture_output=True,
             text=True,
             timeout=30,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         logger.error(
@@ -158,8 +181,8 @@ def start_crd_daemon() -> None:
         )
         return
     if result.returncode == 0:
-        logger.info(f"CRD daemon restarted using {config_path}")
+        logger.info("CRD daemon started")
     else:
         logger.error(
-            f"Failed to restart CRD daemon: {result.stderr.strip()}"
+            f"Failed to start CRD daemon: {result.stderr.strip()}"
         )
