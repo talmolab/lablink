@@ -502,9 +502,12 @@ jobs:
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
             set +e
             runtime_dir="/run/user/$(id -u)"
-            sudo mkdir -p "$runtime_dir"
-            sudo chown "$(id -u):$(id -g)" "$runtime_dir"
-            sudo chmod 0700 "$runtime_dir"
+            sudo mkdir -p "$runtime_dir" \
+              || { echo "FAIL: mkdir $runtime_dir"; exit 1; }
+            sudo chown "$(id -u):$(id -g)" "$runtime_dir" \
+              || { echo "FAIL: chown $runtime_dir"; exit 1; }
+            sudo chmod 0700 "$runtime_dir" \
+              || { echo "FAIL: chmod $runtime_dir"; exit 1; }
             export XDG_RUNTIME_DIR="$runtime_dir"
 
             timeout 30 bash -c "{ echo 123456; echo 123456; } | DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=4/FAKE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=ci-smoke" >/tmp/out 2>&1
