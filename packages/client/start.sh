@@ -9,9 +9,12 @@ CONTAINER_START_TIME=$(date +%s)
 # (SIGTRAP, exit 133, no log line) when it is missing. Outside a
 # container, systemd-logind creates /run/user/$UID on login; Docker
 # does not run logind, so we create it ourselves before CRD runs.
+# /run is a fresh tmpfs owned by root, so mkdir requires sudo here —
+# the client user has passwordless sudo via /etc/sudoers.d/client.
 runtime_dir="/run/user/$(id -u)"
-mkdir -p "$runtime_dir"
-chmod 0700 "$runtime_dir"
+sudo mkdir -p "$runtime_dir"
+sudo chown "$(id -u):$(id -g)" "$runtime_dir"
+sudo chmod 0700 "$runtime_dir"
 export XDG_RUNTIME_DIR="$runtime_dir"
 
 # Activate virtual environment
