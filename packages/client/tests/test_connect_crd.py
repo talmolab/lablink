@@ -220,21 +220,24 @@ def test_is_crd_registered_false(mock_glob):
 @patch("lablink_client_service.connect_crd.subprocess.run")
 @patch("lablink_client_service.connect_crd.glob.glob")
 def test_start_crd_daemon_success(mock_glob, mock_run):
-    """Daemon start invokes user-session with the discovered config path."""
+    """Daemon start invokes chrome-remote-desktop --start --new-session,
+    matching the ExecStart in /lib/systemd/system/chrome-remote-desktop@.service.
+    """
     config_path = "/home/client/.config/chrome-remote-desktop/host#abc.json"
     mock_glob.return_value = [config_path]
     mock_run.return_value = MagicMock(returncode=0, stderr="")
 
     start_crd_daemon()
 
-    mock_run.assert_called_once_with(
-        f"/opt/google/chrome-remote-desktop/user-session start -- "
-        f"--config={config_path} --start",
-        shell=True,
-        capture_output=True,
-        text=True,
-        timeout=30,
+    call = mock_run.call_args
+    assert call.args[0] == (
+        "/opt/google/chrome-remote-desktop/chrome-remote-desktop "
+        "--start --new-session"
     )
+    assert call.kwargs["shell"] is True
+    assert call.kwargs["timeout"] == 30
+    assert call.kwargs["env"]["XDG_SESSION_CLASS"] == "user"
+    assert call.kwargs["env"]["XDG_SESSION_TYPE"] == "x11"
 
 
 @patch("lablink_client_service.connect_crd.subprocess.run")
@@ -251,7 +254,7 @@ def test_start_crd_daemon_no_config(mock_glob, mock_run):
 @patch("lablink_client_service.connect_crd.subprocess.run")
 @patch("lablink_client_service.connect_crd.glob.glob")
 def test_start_crd_daemon_failure(mock_glob, mock_run):
-    """Non-zero exit from user-session is logged but does not raise."""
+    """Non-zero exit is logged but does not raise."""
     mock_glob.return_value = [
         "/home/client/.config/chrome-remote-desktop/host#abc.json"
     ]
@@ -265,9 +268,9 @@ def test_start_crd_daemon_failure(mock_glob, mock_run):
 @patch("lablink_client_service.connect_crd.subprocess.run")
 @patch("lablink_client_service.connect_crd.glob.glob")
 def test_start_crd_daemon_timeout(mock_glob, mock_run):
-    """TimeoutExpired from user-session is caught, logged, and swallowed.
+    """TimeoutExpired is caught, logged, and swallowed.
 
-    Without this, a hanging `user-session start` would block the subscribe
+    Without this, a hanging daemon start would block the subscribe
     loop forever and prevent any subsequent CRD reassignment.
     """
     import subprocess
@@ -276,7 +279,7 @@ def test_start_crd_daemon_timeout(mock_glob, mock_run):
         "/home/client/.config/chrome-remote-desktop/host#abc.json"
     ]
     mock_run.side_effect = subprocess.TimeoutExpired(
-        cmd="user-session start", timeout=30
+        cmd="chrome-remote-desktop --start", timeout=30
     )
 
     # Should not raise
