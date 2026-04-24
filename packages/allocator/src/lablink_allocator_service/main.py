@@ -33,6 +33,7 @@ from lablink_allocator_service.utils.aws_utils import (
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
+from lablink_allocator_service.utils.crd_validation import check_crd_input
 from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
@@ -177,26 +178,6 @@ def require_auth(f):
         return auth.login_required(f)(*args, **kwargs)
 
     return decorated
-
-
-def check_crd_input(crd_command: str) -> bool:
-    """Check if the CRD command is valid.
-
-    Args:
-        crd_command (string): The CRD command to check.
-
-    Returns:
-        bool: True if the command is valid, False otherwise.
-    """
-    if crd_command is None:
-        logger.error("CRD command is None.")
-        return False
-
-    elif "--code" not in crd_command:
-        logger.error("Invalid CRD command: --code not found.")
-        return False
-
-    return True
 
 
 def notify_participants():

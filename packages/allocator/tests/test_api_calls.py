@@ -412,6 +412,34 @@ def test_request_vm_invalid_crd(client, monkeypatch):
     fake_db.assign_vm.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "malicious_command",
+    [
+        "--code=x;id",
+        "--code=$(id)",
+        "--code=`whoami`",
+        "--code=x|sh",
+        "--code=x${IFS}y",
+    ],
+)
+def test_request_vm_rejects_injection_payloads(client, monkeypatch, malicious_command):
+    """The real check_crd_input must reject shell-metacharacter payloads
+    before they reach the database. Regression test for the command
+    injection vulnerability (CVE: crd_command → shell=True on client)."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    data = {"email": "user@example.com", "crd_command": malicious_command}
+    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+
+    assert resp.status_code == 200
+    assert b"Invalid" in resp.data
+    fake_db.assign_vm.assert_not_called()
+    fake_db.reassign_crd.assert_not_called()
+
+
 def test_request_vm_no_vm_available(client, monkeypatch):
     """Test the /api/request_vm endpoint when no VMs are available."""
     # Mock the database
