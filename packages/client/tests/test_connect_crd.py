@@ -151,7 +151,7 @@ def test_connect_to_crd_starts_daemon_when_host_registered_despite_nonzero_exit(
     """start-host returns non-zero in Docker because systemctl can't
     run, but host registration still succeeded (config file written).
     In that case connect_to_crd should start the daemon itself via
-    user-session instead of surfacing an error."""
+    start_crd_daemon() instead of surfacing an error."""
     mock_subprocess_run.return_value = MagicMock(
         returncode=1, stdout="", stderr="Failed to start host."
     )

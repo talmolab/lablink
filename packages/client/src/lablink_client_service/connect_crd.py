@@ -119,11 +119,11 @@ def connect_to_crd(command, pin):
     # is no systemd running, so the systemctl call fails and start-host
     # reports a non-zero exit — but the registration itself succeeded.
     # If the host config is present, start the daemon directly via
-    # user-session, bypassing systemd entirely.
+    # chrome-remote-desktop --start, bypassing systemd entirely.
     if is_crd_registered():
         logger.info(
             "CRD host registered (start-host exit=%d); "
-            "starting daemon via user-session.",
+            "starting daemon via chrome-remote-desktop --start.",
             result.returncode,
         )
         start_crd_daemon()

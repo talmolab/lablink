@@ -127,9 +127,12 @@ RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
 # Switch to non-root user for Google Chrome Remote Desktop to work.
-# USER/LOGNAME/HOME must match the actual runtime uid — start-host uses
-# them to decide whether it is running as root (it refuses to) and to
-# resolve paths like ~/.config/chrome-remote-desktop.
+# Align USER/LOGNAME/HOME with the runtime uid. Docker's USER directive
+# only changes the effective uid; $USER / $LOGNAME / $HOME are left
+# untouched and would otherwise inherit stale values from the build
+# stage. Keeping them wrong pollutes every tool that reads them (CRD
+# logs visible username-mismatch warnings; anything else that looks at
+# $HOME or $USER sees the wrong value) and makes debugging harder.
 USER ${USERNAME}
 ENV USER=${USERNAME} \
     LOGNAME=${USERNAME} \
