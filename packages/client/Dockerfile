@@ -72,16 +72,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
-# Pre-create the chrome-remote-desktop system user and group before the
-# CRD install so the postinst sees them and does not skip user-ownership
-# setup. The CRD runtime opens /etc/passwd and aborts via
-# base::ImmediateCrash() (SIGTRAP, exit 133, no log line) if the
-# chrome-remote-desktop user is missing — even though the group alone
-# was enough pre-v148.
-RUN groupadd -r chrome-remote-desktop && \
-    useradd -r -g chrome-remote-desktop -M -s /usr/sbin/nologin \
-            -d /var/lib/chrome-remote-desktop chrome-remote-desktop
-
 # Install Chrome Remote Desktop
 # CRD v147+ creates _crd_network system user; Ubuntu 22.04 adduser rejects the
 # leading underscore. Relax NAME_REGEX_SYSTEM so the postinst script succeeds.
@@ -124,9 +114,13 @@ RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpassw
     chmod 0440 /etc/sudoers.d/${USERNAME} && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 
-# Add USERNAME to the chrome-remote-desktop group (group is pre-created
-# above so the CRD install sees it).
-RUN usermod -aG chrome-remote-desktop ${USERNAME}
+# Add USERNAME to the chrome-remote-desktop group.
+# `groupadd -f` guarantees the group exists even when the CRD package
+# postinst skips creating it (observed with Google's current
+# chrome-remote-desktop deb), making the build robust to upstream
+# packaging changes.
+RUN groupadd -f chrome-remote-desktop && \
+    usermod -aG chrome-remote-desktop ${USERNAME}
 
 # Ensure Chrome directories are accessible to the client user
 RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
