@@ -443,7 +443,7 @@ jobs:
           echo "Docker container output:"
           echo "$OUTPUT"
 
-          if echo "$OUTPUT" | grep -q "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY" && 
+          if echo "$OUTPUT" | grep -q "CUSTOM_STARTUP_SCRIPT_EXECUTED_SUCCESSFULLY" &&
              echo "$OUTPUT" | grep -q "JQ_VERSION: jq-"; then
             echo "✓ custom-startup.sh executed successfully and jq installed!"
           else
@@ -451,3 +451,73 @@ jobs:
             exit 1
           fi
           rm "$TEMP_SCRIPT_FILE"
+
+      # CRD smoke tests (issue #332). Three cumulative layers — each catches a
+      # distinct failure mode. Do not collapse into a single step; see issue
+      # for rationale.
+      - name: Verify runtime env matches runtime uid (CRD layer 1)
+        run: |
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
+            set -eu
+            running_user=$(id -un)
+            if [ "${USER:-}" != "$running_user" ]; then
+              echo "FAIL: USER=${USER:-} != id -un=$running_user"
+              exit 1
+            fi
+            if [ "${LOGNAME:-}" != "$running_user" ]; then
+              echo "FAIL: LOGNAME=${LOGNAME:-} != id -un=$running_user"
+              exit 1
+            fi
+            if [ "${HOME:-}" != "/home/$running_user" ]; then
+              echo "FAIL: HOME=${HOME:-} (expected /home/$running_user)"
+              exit 1
+            fi
+            echo "✓ USER=$USER  LOGNAME=$LOGNAME  HOME=$HOME  uid=$(id -u)($running_user)"
+          '
+
+      - name: Verify CRD install integrity (CRD layer 2)
+        run: |
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
+            set -eu
+            test -x /opt/google/chrome-remote-desktop/start-host \
+              || { echo "FAIL: start-host missing"; exit 1; }
+            test -x /opt/google/chrome-remote-desktop/chrome-remote-desktop \
+              || { echo "FAIL: chrome-remote-desktop wrapper missing"; exit 1; }
+            getent group chrome-remote-desktop >/dev/null \
+              || { echo "FAIL: chrome-remote-desktop group missing"; exit 1; }
+            groups client | grep -qw chrome-remote-desktop \
+              || { echo "FAIL: client not in chrome-remote-desktop group"; exit 1; }
+            echo "✓ CRD install integrity OK. Installed version:"
+            dpkg -l chrome-remote-desktop | tail -1
+          '
+
+      # Layer 3 runs actual CRD code — the only layer that catches an
+      # upstream regression (e.g. CRD v148 SIGTRAP in PR #330) rather than
+      # a known-shape defect. Demoted to continue-on-error until the flake
+      # rate of reaching Google's OAuth endpoint is understood; promote
+      # to required once stable.
+      - name: Smoke test start-host does not SIGTRAP (CRD layer 3)
+        continue-on-error: true
+        run: |
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
+            set +e
+            runtime_dir="/run/user/$(id -u)"
+            sudo mkdir -p "$runtime_dir" \
+              || { echo "FAIL: mkdir $runtime_dir"; exit 1; }
+            sudo chown "$(id -u):$(id -g)" "$runtime_dir" \
+              || { echo "FAIL: chown $runtime_dir"; exit 1; }
+            sudo chmod 0700 "$runtime_dir" \
+              || { echo "FAIL: chmod $runtime_dir"; exit 1; }
+            export XDG_RUNTIME_DIR="$runtime_dir"
+
+            timeout 30 bash -c "{ echo 123456; echo 123456; } | DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=4/FAKE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=ci-smoke" >/tmp/out 2>&1
+            rc=$?
+            if [ "$rc" = "133" ]; then
+              echo "FAIL: start-host SIGTRAPed (exit 133 = 128 + SIGTRAP)."
+              echo "--- captured output ---"
+              cat /tmp/out
+              exit 1
+            fi
+            echo "✓ start-host exited with rc=$rc (not SIGTRAP)."
+            head -20 /tmp/out
+          '
