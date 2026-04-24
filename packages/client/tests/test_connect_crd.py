@@ -88,15 +88,19 @@ def test_whole_reconstruction():
     assert command == crd_command
 
 
+@patch("lablink_client_service.connect_crd.is_crd_registered", return_value=False)
 @patch("lablink_client_service.connect_crd.subprocess.run")
 @patch("lablink_client_service.connect_crd.reconstruct_command")
-def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
+def test_connect_to_crd(
+    mock_reconstruct_command, mock_subprocess_run, mock_is_registered
+):
     input_command = CRD_COMMAND_WITH_CODE
     reconstructed_command = CRD_COMMAND_WITH_CODE
 
     mock_reconstruct_command.return_value = reconstructed_command
     pin = "123456"
     mock_result = MagicMock()
+    mock_result.returncode = 0
     mock_result.stdout = "Connection successful"
     mock_result.stderr = ""
     mock_subprocess_run.return_value = mock_result
@@ -113,10 +117,14 @@ def test_connect_to_crd(mock_reconstruct_command, mock_subprocess_run):
     )
 
 
+@patch("lablink_client_service.connect_crd.is_crd_registered", return_value=False)
 @patch("lablink_client_service.connect_crd.subprocess.run")
-def test_whole_connection_workflow(mock_subprocess_run):
+def test_whole_connection_workflow(mock_subprocess_run, mock_is_registered):
     input_command = CRD_COMMAND_WITH_CODE
     pin = "123456"
+    mock_subprocess_run.return_value = MagicMock(
+        returncode=0, stdout="", stderr=""
+    )
 
     with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
         connect_to_crd(input_command, pin)
@@ -132,6 +140,25 @@ def test_whole_connection_workflow(mock_subprocess_run):
         capture_output=True,
         text=True,
     )
+
+
+@patch("lablink_client_service.connect_crd.start_crd_daemon")
+@patch("lablink_client_service.connect_crd.is_crd_registered", return_value=True)
+@patch("lablink_client_service.connect_crd.subprocess.run")
+def test_connect_to_crd_starts_daemon_when_host_registered_despite_nonzero_exit(
+    mock_subprocess_run, mock_is_registered, mock_start_daemon
+):
+    """start-host returns non-zero in Docker because systemctl can't
+    run, but host registration still succeeded (config file written).
+    In that case connect_to_crd should start the daemon itself via
+    user-session instead of surfacing an error."""
+    mock_subprocess_run.return_value = MagicMock(
+        returncode=1, stdout="", stderr="Failed to start host."
+    )
+    with patch.dict(os.environ, {"VM_NAME": "test_vm"}):
+        connect_to_crd(CRD_COMMAND_WITH_CODE, "123456")
+    mock_is_registered.assert_called_once()
+    mock_start_daemon.assert_called_once()
 
 
 def test_set_logger():

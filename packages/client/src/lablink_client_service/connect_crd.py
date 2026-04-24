@@ -114,10 +114,27 @@ def connect_to_crd(command, pin):
         text=True,
     )
 
-    if result.returncode == 0:
+    # start-host writes the host config to ~/.config/chrome-remote-desktop/
+    # BEFORE it tries to launch the daemon via systemctl. In Docker there
+    # is no systemd running, so the systemctl call fails and start-host
+    # reports a non-zero exit — but the registration itself succeeded.
+    # If the host config is present, start the daemon directly via
+    # user-session, bypassing systemd entirely.
+    if is_crd_registered():
+        logger.info(
+            "CRD host registered (start-host exit=%d); "
+            "starting daemon via user-session.",
+            result.returncode,
+        )
+        start_crd_daemon()
+    elif result.returncode == 0:
         logger.info("CRD connection established successfully")
-    elif result.stderr:
-        logger.error(f"CRD connection failed: {result.stderr}")
+    else:
+        logger.error(
+            "CRD connection failed (exit %d): %s",
+            result.returncode,
+            result.stderr.strip(),
+        )
 
 
 def is_crd_registered() -> bool:
