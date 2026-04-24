@@ -4,6 +4,16 @@ export PYTHONUNBUFFERED=1
 # Start
 CONTAINER_START_TIME=$(date +%s)
 
+# Ensure XDG_RUNTIME_DIR exists. Chrome Remote Desktop's start-host
+# stats this path early in init and aborts via base::ImmediateCrash()
+# (SIGTRAP, exit 133, no log line) when it is missing. Outside a
+# container, systemd-logind creates /run/user/$UID on login; Docker
+# does not run logind, so we create it ourselves before CRD runs.
+runtime_dir="/run/user/$(id -u)"
+mkdir -p "$runtime_dir"
+chmod 0700 "$runtime_dir"
+export XDG_RUNTIME_DIR="$runtime_dir"
+
 # Activate virtual environment
 source /home/client/.venv/bin/activate
 
