@@ -16,7 +16,10 @@ def _version_callback(value: bool) -> None:
     if value:
         from importlib.metadata import version
 
+        from lablink_cli import TEMPLATE_VERSION
+
         typer.echo(f"lablink-cli {version('lablink-cli')}")
+        typer.echo(f"lablink-template {TEMPLATE_VERSION}")
         raise typer.Exit()
 
 
