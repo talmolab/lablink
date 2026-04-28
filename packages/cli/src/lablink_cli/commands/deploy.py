@@ -248,31 +248,34 @@ def _poll_allocator_health(
     start = time.monotonic()
     elapsed = 0.0
 
-    while elapsed < max_wait:
-        result = check_health_endpoint(poll_url)
-        elapsed = time.monotonic() - start
+    with console.status(
+        f"connecting... (0s / {max_wait}s)", spinner="dots"
+    ) as status:
+        while elapsed < max_wait:
+            result = check_health_endpoint(poll_url)
+            elapsed = time.monotonic() - start
 
-        if result["healthy"]:
-            return {
-                "healthy": True,
-                "elapsed": elapsed,
-                "timed_out": False,
-                "uptime_seconds": result.get("uptime_seconds"),
-            }
+            if result["healthy"]:
+                return {
+                    "healthy": True,
+                    "elapsed": elapsed,
+                    "timed_out": False,
+                    "uptime_seconds": result.get("uptime_seconds"),
+                }
 
-        # Adaptive interval based on elapsed time
-        if elapsed < 30:
-            interval = 3
-        elif elapsed < 90:
-            interval = 5
-        else:
-            interval = 10
+            # Adaptive interval based on elapsed time
+            if elapsed < 30:
+                interval = 3
+            elif elapsed < 90:
+                interval = 5
+            else:
+                interval = 10
 
-        console.print(
-            f"[dim]  {result['status']}... ({elapsed:.0f}s / {max_wait}s)[/dim]"
-        )
-        time.sleep(interval)
-        elapsed = time.monotonic() - start
+            status.update(
+                f"{result['status']}... ({elapsed:.0f}s / {max_wait}s)"
+            )
+            time.sleep(interval)
+            elapsed = time.monotonic() - start
 
     return {
         "healthy": False,
@@ -417,7 +420,7 @@ def run_deploy(
         outputs = get_terraform_outputs(deploy_dir)
         ec2_ip = outputs.get("ec2_public_ip", "")
 
-        max_wait = 300 if has_ssl else 120
+        max_wait = 300
 
         # Phase 1: Poll EC2 IP directly for allocator readiness.
         # Uses port 80 (nginx) — the EC2 security group does not expose
