@@ -6,7 +6,6 @@ import typer
 
 app = typer.Typer(
     name="lablink",
-    no_args_is_help=True,
 )
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
@@ -23,8 +22,9 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def _root(
+    ctx: typer.Context,
     _version: bool = typer.Option(
         False,
         "--version",
@@ -35,6 +35,31 @@ def _root(
     ),
 ) -> None:
     """Deploy and manage LabLink teaching lab infrastructure."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if not DEFAULT_CONFIG.exists():
+        from rich.console import Console
+        from rich.panel import Panel
+
+        Console().print(
+            Panel(
+                "Welcome to LabLink. First-time setup:\n\n"
+                "  1. [bold]lablink configure[/bold]   "
+                "create config + AWS state resources\n"
+                "  2. [bold]lablink doctor[/bold]      "
+                "verify prerequisites\n"
+                "  3. [bold]lablink deploy[/bold]      "
+                "deploy the allocator\n\n"
+                "For the full command list, run 'lablink --help'.",
+                border_style="cyan",
+                title="Getting started",
+                title_align="left",
+            )
+        )
+        raise typer.Exit()
+
+    typer.echo(ctx.get_help())
 
 
 def _load_cfg(config: str | None):
