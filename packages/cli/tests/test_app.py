@@ -65,7 +65,7 @@ class TestCLICommands:
         assert result.exit_code == 0
         out = _plain(result.output)
         assert f"lablink-cli {version('lablink-cli')}" in out
-        assert f"lablink-template {TEMPLATE_VERSION}" in out
+        assert f"lablink-template {TEMPLATE_VERSION.lstrip('v')}" in out
 
     def test_version_short_flag(self):
         from lablink_cli import TEMPLATE_VERSION
@@ -74,7 +74,7 @@ class TestCLICommands:
         assert result.exit_code == 0
         out = _plain(result.output)
         assert "lablink-cli" in out
-        assert f"lablink-template {TEMPLATE_VERSION}" in out
+        assert f"lablink-template {TEMPLATE_VERSION.lstrip('v')}" in out
 
     def test_doctor_command_exists(self):
         result = runner.invoke(app, ["doctor", "--help"])

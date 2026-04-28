@@ -19,7 +19,7 @@ def _version_callback(value: bool) -> None:
         from lablink_cli import TEMPLATE_VERSION
 
         typer.echo(f"lablink-cli {version('lablink-cli')}")
-        typer.echo(f"lablink-template {TEMPLATE_VERSION}")
+        typer.echo(f"lablink-template {TEMPLATE_VERSION.lstrip('v')}")
         raise typer.Exit()
 
 
@@ -31,7 +31,7 @@ def _root(
         "-v",
         callback=_version_callback,
         is_eager=True,
-        help="Show the CLI version and exit.",
+        help="Show CLI and template versions and exit.",
     ),
 ) -> None:
     """Deploy and manage LabLink teaching lab infrastructure."""
