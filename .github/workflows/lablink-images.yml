@@ -487,6 +487,8 @@ jobs:
               || { echo "FAIL: chrome-remote-desktop group missing"; exit 1; }
             groups client | grep -qw chrome-remote-desktop \
               || { echo "FAIL: client not in chrome-remote-desktop group"; exit 1; }
+            dpkg-query -W -f="\${Version}" chrome-remote-desktop | grep -qE "^148\." \
+              || { echo "FAIL: CRD pin drift — installed version not on 148.x line"; exit 1; }
             echo "✓ CRD install integrity OK. Installed version:"
             dpkg -l chrome-remote-desktop | tail -1
           '

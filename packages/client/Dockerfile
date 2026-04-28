@@ -75,10 +75,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Chrome Remote Desktop
 # CRD v147+ creates _crd_network system user; Ubuntu 22.04 adduser rejects the
 # leading underscore. Relax NAME_REGEX_SYSTEM so the postinst script succeeds.
+# Pin chrome-remote-desktop to the 148.x line. The v147 -> v148 transition on
+# 2026-04-11 introduced stricter XDG_RUNTIME_DIR / systemctl checks that
+# silently broke CRD host registration on every fresh client VM (#330).
+# Wildcard pinning blocks future major-version drift (the historical risk
+# class) while still resolving against whatever 148.x patch is currently in
+# Google's stable repo -- their purge cadence retires older patches within
+# weeks, so an exact-version pin is brittle. apt-mark hold prevents later
+# RUN steps from silently upgrading. Bump the major intentionally after
+# re-running the verification in #331.
 RUN  echo 'NAME_REGEX_SYSTEM="^[a-z_][-a-z0-9_]*$"' >> /etc/adduser.conf && \
     curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
     echo "deb [arch=amd64] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" > /etc/apt/sources.list.d/chrome-remote-desktop.list && \
-    apt-get update && apt-get install --assume-yes chrome-remote-desktop && \
+    apt-get update && \
+    apt-get install --assume-yes 'chrome-remote-desktop=148.*' && \
+    apt-mark hold chrome-remote-desktop && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure Chrome Remote Desktop to use Gnome by default
