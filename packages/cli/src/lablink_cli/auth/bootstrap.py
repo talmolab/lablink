@@ -26,17 +26,14 @@ from lablink_cli.auth.utils import aws_config_path
 
 console = Console()
 
-IDENTITY_CENTER_CONSOLE_URL = (
-    "https://console.aws.amazon.com/singlesignon/home"
-)
-CREATE_PERMISSION_SET_URL = (
-    "https://console.aws.amazon.com/singlesignon/home"
-    "#/instances/permissionsets/create"
-)
-ASSIGN_USERS_URL = (
-    "https://console.aws.amazon.com/singlesignon/home"
-    "#/instances/aws-accounts"
-)
+# Identity Center console URL. We don't deep-link to /permissionsets/create
+# or /aws-accounts because those hash-routed URLs are unstable across AWS
+# console releases (they fail with "Cannot read properties of undefined
+# (reading 'noHash')" if the SPA isn't initialized yet). The textual copy
+# in each _step_ function below tells the user where to navigate from home.
+IDENTITY_CENTER_CONSOLE_URL = "https://console.aws.amazon.com/singlesignon/home"
+CREATE_PERMISSION_SET_URL = IDENTITY_CENTER_CONSOLE_URL
+ASSIGN_USERS_URL = IDENTITY_CENTER_CONSOLE_URL
 
 # Matches https://d-XXXXXXXXXX.awsapps.com/start or
 # https://<alias>.awsapps.com/start
@@ -182,10 +179,14 @@ def _step_enable_identity_center() -> tuple[str, str]:
         "  1. Click [bold]Enable[/bold]. (If asked, choose "
         "[bold]account instance[/bold] for personal accounts — either works.)\n"
         "  2. Wait ~30 seconds for it to provision.\n"
-        "  3. Click [bold]Add user[/bold] and enter your name + email.\n"
-        "  4. Check email for the password-set link; set a password and MFA.\n"
-        "  5. Once done, copy the [bold]SSO Start URL[/bold] from "
-        "Identity Center → Settings summary.\n"
+        "  3. In the left sidebar, click [bold]Users[/bold] → "
+        "[bold]Add user[/bold].\n"
+        "  4. Fill in your name + email and submit.\n"
+        "  5. Check your email for the [bold]Accept invitation[/bold] link; "
+        "set a password and MFA.\n"
+        "  6. Return to the Identity Center home (the page you opened in step 1).\n"
+        "  7. Copy the [bold]SSO Start URL[/bold] from the "
+        "[bold]AWS access portal URLs[/bold] section on the dashboard.\n"
     )
 
     while True:
@@ -224,22 +225,26 @@ def _step_create_permission_set() -> str:
         f"\nNow we need a Permission Set — this controls what LabLink can do.\n"
         f"{clipboard_msg}\n"
     )
-    input("Press Enter to open the AWS Console at the Create Permission Set page...")
+    input("Press Enter to open the Identity Center console...")
     webbrowser.open(CREATE_PERMISSION_SET_URL)
 
     console.print(
         "\nIn the AWS Console:\n"
-        "  1. Choose [bold]Custom permission set[/bold].\n"
-        "  2. Under [bold]AWS managed policies[/bold], attach all of:\n"
+        "  1. In the left sidebar, click [bold]Permission sets[/bold].\n"
+        "  2. Click [bold]Create permission set[/bold].\n"
+        "  3. Choose [bold]Custom permission set[/bold] and click "
+        "[bold]Next[/bold].\n"
+        "  4. Under [bold]AWS managed policies[/bold], search for and "
+        "attach each of:\n"
     )
     for arn in policy.MANAGED_POLICY_ARNS:
         name = arn.split("/")[-1]
         console.print(f"     • {name}")
     console.print(
-        "  3. Click [bold]Inline policy[/bold] and paste from clipboard "
-        "(Ctrl/Cmd-V).\n"
-        "  4. Name it [bold]lablink[/bold] (or your preference) and click "
-        "[bold]Create[/bold].\n"
+        "  5. Expand [bold]Custom inline policy[/bold], paste from "
+        "clipboard (Ctrl/Cmd-V), then click [bold]Next[/bold].\n"
+        "  6. Name it [bold]lablink[/bold] (or your preference) and click "
+        "[bold]Next[/bold] → [bold]Create[/bold].\n"
     )
 
     permission_set_name = typer.prompt(
@@ -255,16 +260,19 @@ def _step_assign_user(permission_set_name: str) -> None:
         f"\nLast step — assign your user to your AWS account with the "
         f"[bold]{permission_set_name}[/bold] permission set.\n"
     )
-    input("Press Enter to open the AWS Console at the Assign Users page...")
+    input("Press Enter to open the Identity Center console...")
     webbrowser.open(ASSIGN_USERS_URL)
 
     console.print(
         "\nIn the AWS Console:\n"
-        "  1. Select your AWS account.\n"
-        "  2. Click [bold]Assign users or groups[/bold].\n"
-        "  3. Select your user.\n"
-        f"  4. Select the [bold]{permission_set_name}[/bold] permission set.\n"
-        "  5. Click [bold]Submit[/bold].\n"
+        "  1. In the left sidebar, click [bold]AWS accounts[/bold].\n"
+        "  2. Check the box next to your AWS account.\n"
+        "  3. Click [bold]Assign users or groups[/bold].\n"
+        "  4. On the [bold]Users[/bold] tab, select your user, click "
+        "[bold]Next[/bold].\n"
+        f"  5. Select the [bold]{permission_set_name}[/bold] permission set, "
+        "click [bold]Next[/bold].\n"
+        "  6. Click [bold]Submit[/bold].\n"
     )
     input("Press Enter when done...")
 
