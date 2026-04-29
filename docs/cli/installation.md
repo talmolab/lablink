@@ -12,8 +12,9 @@ Before installing, make sure you have:
 - **[uv](https://docs.astral.sh/uv/)** — the Python project manager used by this repo. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [official install guide](https://docs.astral.sh/uv/getting-started/installation/).
 - **Python 3.10+** — uv can manage this for you (`uv python install 3.11`). Check with `python --version`.
 - **Terraform 1.6+** — the CLI drives Terraform under the hood. Install from [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install).
-- **AWS credentials** configured locally (either `aws configure` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables). See [Prerequisites](../prerequisites.md#configure-aws-credentials).
-- **An AWS account** with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See [AWS Setup (Manual)](../aws-setup.md) for the full permission list.
+- **AWS CLI** — required by `lablink login` (which wraps `aws sso login` for the Identity Center flow) and used by `lablink logs` for one of two SSH paths. Install per the [AWS install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html). If you're skipping `lablink login` and using env-var access keys instead, AWS CLI is technically optional but still recommended.
+- **An AWS account** with the ability to enable AWS Identity Center (any standard account works). The CLI walks you through Identity Center setup the first time you run `lablink login` — see [Sign in](login.md).
+- **AWS credentials** are *not* configured up front anymore — `lablink login` handles that as the first step of [First Deployment](first-deployment.md). Existing access-key users keep working: env vars (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) and `~/.aws/credentials` profiles are honored as a fallback.
 
 ## Install from source
 
@@ -116,6 +117,7 @@ uv sync --all-packages
 
 ## Next steps
 
+- [Sign in to AWS via Identity Center](login.md) (run `lablink login` first)
 - [Run your first deployment](first-deployment.md)
 - [Day-to-day operations](managing-deployments.md)
 - Full command reference: [CLI Reference](../reference/cli.md)

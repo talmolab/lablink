@@ -4,6 +4,9 @@
     The [Quickstart: Template repo](quickstart-template.md) guide uses `setup.sh` to automate all required AWS resource creation. The [Quickstart: CLI](cli/first-deployment.md) path automates the same work through `lablink configure`.
     This manual guide is provided as a reference for advanced users who prefer to create resources individually.
 
+!!! info "CLI users: a different path is available"
+    If you're using the [CLI](cli/index.md), you can authenticate without access keys via [`lablink login`](cli/login.md) (AWS Identity Center). This page is for users of the [template repo](quickstart-template.md) or anyone who prefers to set up access keys manually — both are fully supported.
+
 This comprehensive guide walks you through setting up all required AWS resources for LabLink deployment from scratch.
 
 ## Overview

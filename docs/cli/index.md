@@ -41,6 +41,7 @@ You can switch between them later — both read the same `config.yaml` schema fo
 ## Next steps
 
 1. [Install the CLI](installation.md)
-2. [Run your first deployment](first-deployment.md)
-3. [Manage an existing deployment](managing-deployments.md)
-4. Full command reference: [CLI Reference](../reference/cli.md)
+2. [Sign in to AWS via Identity Center](login.md) — `lablink login`
+3. [Run your first deployment](first-deployment.md)
+4. [Manage an existing deployment](managing-deployments.md)
+5. Full command reference: [CLI Reference](../reference/cli.md)
