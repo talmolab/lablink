@@ -142,8 +142,8 @@ class TestEstimateCosts:
         mock_cfg.ssl.provider = "none"
         mock_cfg.monitoring.enabled = False
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         # Should have allocator EC2, EBS, EIP at minimum
@@ -157,8 +157,8 @@ class TestEstimateCosts:
         mock_cfg.ssl.provider = "none"
         mock_cfg.monitoring.enabled = False
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         resource_names = [c["resource"] for c in costs]
@@ -169,8 +169,8 @@ class TestEstimateCosts:
         mock_cfg.ssl.provider = "acm"
         mock_cfg.monitoring.enabled = False
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         resource_names = [c["resource"] for c in costs]
@@ -181,8 +181,8 @@ class TestEstimateCosts:
         mock_cfg.ssl.provider = "none"
         mock_cfg.monitoring.enabled = True
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         resource_names = [c["resource"] for c in costs]
@@ -195,8 +195,8 @@ class TestEstimateCosts:
         mock_cfg.monitoring.enabled = False
         mock_cfg.machine.machine_type = "g4dn.xlarge"
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         resource_names = [c["resource"] for c in costs]
@@ -207,8 +207,8 @@ class TestEstimateCosts:
         mock_cfg.ssl.provider = "acm"
         mock_cfg.monitoring.enabled = True
 
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
+        with patch("lablink_cli.auth.credentials.get_session") as mock_get_session:
+            mock_get_session.side_effect = Exception("no creds")
             costs = estimate_costs(mock_cfg)
 
         for c in costs:

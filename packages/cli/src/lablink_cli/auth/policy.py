@@ -91,6 +91,20 @@ AUDIT_ACTIONS: list[str] = [
     "budgets:DescribeBudgets",
 ]
 
+# Resource overrides for actions whose inline policy entries are scoped
+# to specific resources. simulate_principal_policy without ResourceArns
+# evaluates against "*", which would falsely report scoped actions as
+# denied. For these, the audit must simulate against the actual resource.
+AUDIT_RESOURCE_OVERRIDES: dict[str, list[str]] = {
+    "s3:ListBucket": [
+        "arn:aws:s3:::lablink-tf-state-*",
+        "arn:aws:s3:::*-cloudtrail-bucket-*",
+    ],
+    "dynamodb:DescribeTable": [
+        "arn:aws:dynamodb:*:*:table/lock-table",
+    ],
+}
+
 PERMISSION_SET_NAME_DEFAULT = "lablink"
 
 

@@ -126,7 +126,7 @@ def _check_lablink_permissions(region: str | None) -> dict:
         NotLoggedInError,
         SSOTokenExpiredError,
     )
-    from lablink_cli.auth.policy import AUDIT_ACTIONS
+    from lablink_cli.auth.policy import AUDIT_ACTIONS, AUDIT_RESOURCE_OVERRIDES
 
     result = {"check": "LabLink permissions", "status": "fail"}
     try:
@@ -159,13 +159,35 @@ def _check_lablink_permissions(region: str | None) -> dict:
         )
 
         iam = session.client("iam")
-        evaluation = iam.simulate_principal_policy(
-            PolicySourceArn=principal_arn,
-            ActionNames=AUDIT_ACTIONS,
-        )
+
+        # Group actions by resource scope so we can simulate scoped
+        # actions against their actual resources (otherwise AWS evaluates
+        # them against "*" and falsely reports them as denied).
+        unscoped_actions = [
+            a for a in AUDIT_ACTIONS if a not in AUDIT_RESOURCE_OVERRIDES
+        ]
+        eval_results = []
+        if unscoped_actions:
+            eval_results.extend(
+                iam.simulate_principal_policy(
+                    PolicySourceArn=principal_arn,
+                    ActionNames=unscoped_actions,
+                ).get("EvaluationResults", [])
+            )
+        for action, resource_arns in AUDIT_RESOURCE_OVERRIDES.items():
+            if action not in AUDIT_ACTIONS:
+                continue
+            eval_results.extend(
+                iam.simulate_principal_policy(
+                    PolicySourceArn=principal_arn,
+                    ActionNames=[action],
+                    ResourceArns=resource_arns,
+                ).get("EvaluationResults", [])
+            )
+
         denied = [
             r["EvalActionName"]
-            for r in evaluation.get("EvaluationResults", [])
+            for r in eval_results
             if r.get("EvalDecision") != "allowed"
         ]
 

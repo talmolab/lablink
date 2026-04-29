@@ -10,7 +10,6 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-import boto3
 from botocore.exceptions import ClientError
 from rich.console import Console
 from rich.panel import Panel
