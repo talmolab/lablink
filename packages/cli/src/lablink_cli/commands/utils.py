@@ -54,13 +54,13 @@ def query_ec2_instances(
     Returns:
         List of VM info dicts.
     """
-    from lablink_cli.commands.setup import _get_session
+    from lablink_cli.auth.credentials import get_session
 
     if states is None:
         states = ["running"]
 
     try:
-        session = _get_session(region)
+        session = get_session(region=region)
         ec2 = session.client("ec2")
     except Exception:
         return []

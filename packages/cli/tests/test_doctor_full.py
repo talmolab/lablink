@@ -19,37 +19,39 @@ from lablink_cli.commands.doctor import (
 # _check_aws_credentials
 # ------------------------------------------------------------------
 class TestCheckAwsCredentials:
-    @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
-    def test_valid(self, mock_session, mock_check):
-        mock_check.return_value = {
-            "account": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
+    @patch("lablink_cli.auth.credentials.get_session")
+    def test_valid(self, mock_get_session):
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = {
+            "Account": "123456789012",
+            "Arn": "arn:aws:iam::123456789012:user/test",
         }
+        mock_get_session.return_value.client.return_value = mock_sts
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "pass"
 
-    @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
-    def test_invalid_exits(self, mock_session, mock_check):
-        mock_check.side_effect = SystemExit(1)
+    @patch("lablink_cli.auth.credentials.get_session")
+    def test_invalid_exits(self, mock_get_session):
+        from lablink_cli.auth.credentials import NotLoggedInError
+
+        mock_get_session.side_effect = NotLoggedInError("not logged in")
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "fail"
 
-    @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
-    def test_exception(self, mock_session, mock_check):
-        mock_check.side_effect = Exception("network error")
+    @patch("lablink_cli.auth.credentials.get_session")
+    def test_exception(self, mock_get_session):
+        mock_get_session.side_effect = Exception("network error")
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "fail"
         assert "network error" in result["detail"]
 
-    @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
-    def test_default_region(self, mock_session, mock_check):
-        mock_check.side_effect = SystemExit(1)
+    @patch("lablink_cli.auth.credentials.get_session")
+    def test_default_region(self, mock_get_session):
+        from lablink_cli.auth.credentials import NotLoggedInError
+
+        mock_get_session.side_effect = NotLoggedInError("not logged in")
         _check_aws_credentials(None)
-        mock_session.assert_called_once_with("us-east-1")
+        mock_get_session.assert_called_once_with(region="us-east-1")
 
 
 # ------------------------------------------------------------------
@@ -141,7 +143,7 @@ class TestCheckS3Bucket:
         result = _check_s3_bucket(cfg)
         assert result["status"] == "fail"
 
-    @patch("lablink_cli.commands.setup._get_session")
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_bucket_exists(self, mock_session):
         cfg = MagicMock()
         cfg.bucket_name = "my-bucket"
@@ -153,7 +155,7 @@ class TestCheckS3Bucket:
         result = _check_s3_bucket(cfg)
         assert result["status"] == "pass"
 
-    @patch("lablink_cli.commands.setup._get_session")
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_bucket_not_found(self, mock_session):
         cfg = MagicMock()
         cfg.bucket_name = "my-bucket"

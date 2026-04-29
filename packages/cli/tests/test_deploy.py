@@ -303,7 +303,7 @@ def _patch_deploy_deps(deploy_dir):
             return_value=deploy_dir,
         ),
         patch("lablink_cli.commands.deploy.check_credentials"),
-        patch("lablink_cli.commands.deploy._get_session"),
+        patch("lablink_cli.commands.deploy.get_session"),
         patch(
             "lablink_cli.commands.deploy._prompt_passwords",
             return_value={
@@ -439,7 +439,7 @@ def _patch_destroy_deps(deploy_dir, stack):
             patch("lablink_cli.commands.deploy.check_credentials")
         ),
         "get_session": stack.enter_context(
-            patch("lablink_cli.commands.deploy._get_session")
+            patch("lablink_cli.commands.deploy.get_session")
         ),
         "get_deploy_dir": stack.enter_context(
             patch(

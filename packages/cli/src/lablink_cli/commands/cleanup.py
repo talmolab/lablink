@@ -11,8 +11,8 @@ from rich.panel import Panel
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.auth.credentials import get_session
 from lablink_cli.commands.setup import (
-    _get_session,
     check_credentials,
     resolve_bucket_name,
 )
@@ -481,7 +481,7 @@ def run_cleanup(
     )
     console.print()
 
-    session = _get_session(region)
+    session = get_session(region=region)
     check_credentials(session)
     ec2 = session.client("ec2")
 

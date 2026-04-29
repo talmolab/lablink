@@ -107,7 +107,7 @@ class TestParseInstances:
 # query_ec2_instances
 # ------------------------------------------------------------------
 class TestQueryEc2Instances:
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_returns_instances(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
@@ -116,7 +116,7 @@ class TestQueryEc2Instances:
         ])
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "my-tag-*")
 
@@ -129,14 +129,14 @@ class TestQueryEc2Instances:
             ]
         )
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_custom_states(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
         mock_ec2.describe_instances.return_value = _make_ec2_response([])
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             query_ec2_instances(
                 "us-east-1", "tag", states=["running", "stopped"]
@@ -146,25 +146,25 @@ class TestQueryEc2Instances:
         state_filter = call_args[1]["Filters"][1]
         assert state_filter["Values"] == ["running", "stopped"]
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_session_error_returns_empty(self, mock_get_session):
         mock_get_session.side_effect = Exception("no credentials")
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "tag")
 
         assert result == []
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_describe_error_returns_empty(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
         mock_ec2.describe_instances.side_effect = Exception("API error")
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "tag")
 

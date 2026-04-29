@@ -63,30 +63,53 @@ def _check_terraform() -> dict:
 
 
 def _check_aws_credentials(region: str | None) -> dict:
-    """Check AWS credentials are valid."""
-    result = {"check": "AWS credentials", "status": "fail"}
+    """Check AWS credentials are valid.
 
+    Validates inline via sts:GetCallerIdentity rather than calling
+    setup.check_credentials, because the latter raises SystemExit on
+    failure — which would exit `lablink doctor` instead of continuing
+    with the remaining checks.
+    """
+    result = {"check": "AWS credentials", "status": "fail"}
     try:
-        from lablink_cli.commands.setup import (
-            _get_session,
-            check_credentials,
+        from botocore.exceptions import ClientError
+
+        from lablink_cli.auth.credentials import (
+            NotLoggedInError,
+            SSOTokenExpiredError,
+            get_session,
         )
 
-        session = _get_session(region or "us-east-1")
-        identity = check_credentials(session)
+        try:
+            session = get_session(region=region or "us-east-1")
+        except NotLoggedInError:
+            result["detail"] = (
+                "Not signed in. Run [bold]lablink login[/bold] to sign in "
+                "via AWS Identity Center."
+            )
+            return result
+        except SSOTokenExpiredError:
+            result["detail"] = (
+                "SSO session expired. Run [bold]lablink login[/bold] to "
+                "refresh."
+            )
+            return result
+
+        try:
+            identity = session.client("sts").get_caller_identity()
+        except ClientError as e:
+            result["detail"] = (
+                f"Credentials present but rejected by STS: {e}. "
+                "Run [bold]lablink login[/bold] to refresh."
+            )
+            return result
+
         result["status"] = "pass"
         result["detail"] = (
-            f"Account: {identity['account']}, "
-            f"Identity: {identity['arn']}"
-        )
-    except SystemExit:
-        result["detail"] = (
-            "Invalid or missing. Run 'aws configure' "
-            "or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY"
+            f"Account: {identity['Account']}, ARN: {identity['Arn']}"
         )
     except Exception as e:
-        result["detail"] = str(e)
-
+        result["detail"] = f"Unexpected error: {e}"
     return result
 
 
@@ -154,9 +177,9 @@ def _check_s3_bucket(cfg) -> dict:
         return result
 
     try:
-        from lablink_cli.commands.setup import _get_session
+        from lablink_cli.auth.credentials import get_session
 
-        session = _get_session(cfg.app.region)
+        session = get_session(region=cfg.app.region)
         s3 = session.client("s3")
         s3.head_bucket(Bucket=bucket_name)
         result["status"] = "pass"

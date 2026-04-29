@@ -56,7 +56,7 @@ class TestRunCleanup:
     @patch("lablink_cli.commands.cleanup.cleanup_security_groups")
     @patch("lablink_cli.commands.cleanup.cleanup_ec2_instances")
     @patch("lablink_cli.commands.cleanup.check_credentials")
-    @patch("lablink_cli.commands.cleanup._get_session")
+    @patch("lablink_cli.commands.cleanup.get_session")
     def test_dry_run(
         self,
         mock_session,
@@ -108,7 +108,7 @@ class TestRunCleanup:
     @patch("lablink_cli.commands.cleanup.cleanup_security_groups")
     @patch("lablink_cli.commands.cleanup.cleanup_ec2_instances")
     @patch("lablink_cli.commands.cleanup.check_credentials")
-    @patch("lablink_cli.commands.cleanup._get_session")
+    @patch("lablink_cli.commands.cleanup.get_session")
     def test_s3_and_dynamo_always_called(
         self,
         mock_session,

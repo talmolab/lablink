@@ -17,12 +17,9 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.auth.credentials import get_session
+
 console = Console()
-
-
-def _get_session(region: str) -> boto3.Session:
-    """Create a boto3 session for the given region."""
-    return boto3.Session(region_name=region)
 
 
 # ------------------------------------------------------------------
@@ -266,7 +263,7 @@ def run_setup(cfg: Config, config_path: Path | None = None) -> None:
 
     # Step 1: Credentials
     console.print("[bold]Step 1/3:[/bold] Checking AWS credentials")
-    session = _get_session(region)
+    session = get_session(region=region)
     identity = check_credentials(session)
     console.print(
         f"  [green]authenticated[/green] "
