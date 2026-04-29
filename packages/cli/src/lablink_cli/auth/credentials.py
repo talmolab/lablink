@@ -127,3 +127,18 @@ def get_session(region: str | None = None) -> boto3.Session:
         "No AWS credentials found. Run `lablink login` to sign in via "
         "AWS Identity Center."
     )
+
+
+def subprocess_env() -> dict[str, str]:
+    """Build env vars for subprocesses (e.g. terraform) that need AWS credentials.
+
+    Tools like Terraform's S3 backend don't auto-detect SSO profiles from
+    ~/.aws/config — they only check env vars, ~/.aws/credentials, and IMDS.
+    When the lablink SSO profile exists, set AWS_PROFILE=lablink so Terraform
+    picks it up. When the user is on legacy access-key creds (env vars or
+    ~/.aws/credentials), do nothing — those mechanisms work without help.
+    """
+    env = os.environ.copy()
+    if _has_sso_profile():
+        env["AWS_PROFILE"] = PROFILE_NAME
+    return env

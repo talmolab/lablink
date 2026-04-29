@@ -124,6 +124,8 @@ def _run_terraform(
     check: bool = True,
 ) -> int:
     """Run a terraform command with live-streamed output."""
+    from lablink_cli.auth.credentials import subprocess_env
+
     cmd = ["terraform"] + args
     console.print(
         f"  [dim]$ {' '.join(cmd)}[/dim]"
@@ -132,6 +134,7 @@ def _run_terraform(
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
+        env=subprocess_env(),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
