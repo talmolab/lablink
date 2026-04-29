@@ -248,13 +248,18 @@ class TestGetTerraformOutputs:
             "ec2_public_ip": "10.0.0.1",
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----",
         }
-        mock_run.assert_called_once_with(
-            ["terraform", "output", "-json"],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        # Assert the command, cwd, and capture flags — but not env, since
+        # subprocess_env() injects AWS_PROFILE based on the developer's
+        # local ~/.aws/config and we don't want the test to depend on that.
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        args = mock_run.call_args.args[0]
+        assert args == ["terraform", "output", "-json"]
+        assert kwargs["cwd"] == tmp_path
+        assert kwargs["capture_output"] is True
+        assert kwargs["text"] is True
+        assert kwargs["check"] is True
+        assert "env" in kwargs  # subprocess_env was used
 
     def test_subprocess_error(self, tmp_path):
         with patch("subprocess.run") as mock_run:
