@@ -77,8 +77,7 @@ def _write_profile_field(field: str, value: str) -> None:
 
 def _token_expiry_human() -> str:
     """Return a human-readable 'in 4h 12m' for the cached SSO token."""
-    sso_config = _read_sso_config()
-    cache_path = sso_cache_path(sso_config.start_url)
+    cache_path = sso_cache_path(SSO_SESSION_NAME)
 
     try:
         data = json.loads(cache_path.read_text())

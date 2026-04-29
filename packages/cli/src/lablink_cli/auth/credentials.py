@@ -78,10 +78,10 @@ def _read_sso_start_url() -> str | None:
 
 def _token_is_valid() -> bool:
     """Return True if the cached SSO token exists and has not expired."""
-    start_url = _read_sso_start_url()
-    if start_url is None:
+    if _read_sso_start_url() is None:
+        # No [sso-session lablink] block → no cache to check.
         return False
-    cache_path = sso_cache_path(start_url)
+    cache_path = sso_cache_path(SSO_SESSION_NAME)
     if not cache_path.exists():
         return False
     try:

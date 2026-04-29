@@ -230,8 +230,11 @@ def _step_create_permission_set() -> str:
 
     console.print(
         "\nIn the AWS Console:\n"
-        "  1. In the left sidebar, click [bold]Permission sets[/bold].\n"
-        "  2. Click [bold]Create permission set[/bold].\n"
+        "  1. In the left sidebar, find [bold]Permission sets[/bold]. "
+        "(In newer consoles it's nested under "
+        "[bold]Multi-account permissions[/bold] — expand that first.)\n"
+        "  2. Click the [bold]Create permission set[/bold] button on the "
+        "Permission sets page.\n"
         "  3. Choose [bold]Custom permission set[/bold] and click "
         "[bold]Next[/bold].\n"
         "  4. Under [bold]AWS managed policies[/bold], search for and "
@@ -265,7 +268,9 @@ def _step_assign_user(permission_set_name: str) -> None:
 
     console.print(
         "\nIn the AWS Console:\n"
-        "  1. In the left sidebar, click [bold]AWS accounts[/bold].\n"
+        "  1. In the left sidebar, find [bold]AWS accounts[/bold]. "
+        "(In newer consoles it's nested under "
+        "[bold]Multi-account permissions[/bold] — expand that first.)\n"
         "  2. Check the box next to your AWS account.\n"
         "  3. Click [bold]Assign users or groups[/bold].\n"
         "  4. On the [bold]Users[/bold] tab, select your user, click "

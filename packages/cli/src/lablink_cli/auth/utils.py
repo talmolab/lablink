@@ -26,8 +26,14 @@ def aws_credentials_path() -> Path:
     return Path(os.environ.get("HOME", str(Path.home()))) / ".aws" / "credentials"
 
 
-def sso_cache_path(start_url: str) -> Path:
-    """Return the AWS-CLI-compatible cache path for an SSO access token."""
+def sso_cache_path(sso_session_name: str) -> Path:
+    """Return the AWS-CLI-compatible cache path for an SSO access token.
+
+    AWS CLI v2 hashes the sso-session name (modern `[sso-session NAME]`
+    config) to derive the cache filename, not the start URL. Earlier
+    legacy configs used the start URL — but since we always write
+    `[sso-session lablink]` blocks, we always pass the session name.
+    """
     home = Path(os.environ.get("HOME", str(Path.home())))
-    digest = hashlib.sha1(start_url.encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(sso_session_name.encode("utf-8")).hexdigest()
     return home / ".aws" / "sso" / "cache" / f"{digest}.json"

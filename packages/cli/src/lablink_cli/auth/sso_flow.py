@@ -24,6 +24,7 @@ import typer
 from rich.console import Console
 
 from lablink_cli.auth import credentials
+from lablink_cli.auth.credentials import SSO_SESSION_NAME
 from lablink_cli.auth.utils import sso_cache_path
 
 console = Console()
@@ -56,9 +57,9 @@ def _ensure_aws_cli_installed() -> None:
         )
 
 
-def _read_cached_access_token(start_url: str) -> str:
+def _read_cached_access_token() -> str:
     """Read the SSO access token AWS CLI cached after `aws sso login`."""
-    cache_path = sso_cache_path(start_url)
+    cache_path = sso_cache_path(SSO_SESSION_NAME)
     if not cache_path.exists():
         raise LoginFailedError(
             f"Expected SSO token cache at {cache_path} but it does not exist. "
@@ -98,7 +99,7 @@ def login(sso_config: SSOConfig) -> str:
             f"`aws sso login` failed with exit code {result.returncode}."
         )
 
-    return _read_cached_access_token(sso_config.start_url)
+    return _read_cached_access_token()
 
 
 def select_account(*, sso_config: SSOConfig, access_token: str) -> str:

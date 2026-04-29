@@ -18,13 +18,16 @@ def sso_config():
     )
 
 
-def _write_token_cache(tmp_path, start_url: str, payload: dict) -> None:
-    """Helper: write an AWS-CLI-style token cache file at the expected path."""
+def _write_token_cache(tmp_path, sso_session_name: str, payload: dict) -> None:
+    """Helper: write an AWS-CLI-style token cache file at the expected path.
+
+    AWS CLI v2 hashes the sso-session name (modern config), not the start URL.
+    """
     import hashlib
 
     cache_dir = tmp_path / ".aws" / "sso" / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    digest = hashlib.sha1(start_url.encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(sso_session_name.encode("utf-8")).hexdigest()
     (cache_dir / f"{digest}.json").write_text(json.dumps(payload))
 
 
@@ -49,7 +52,7 @@ def test_login_runs_aws_sso_login_and_returns_cached_token(
     monkeypatch.setenv("HOME", str(tmp_path))
     _write_token_cache(
         tmp_path,
-        sso_config.start_url,
+        "lablink",
         {"accessToken": "TOKEN-XYZ", "expiresAt": "2099-01-01T00:00:00Z"},
     )
 
