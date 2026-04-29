@@ -101,11 +101,6 @@ def _is_valid_sso_start_url(url: str) -> bool:
     return bool(_SSO_URL_RE.match(url.strip()))
 
 
-def _extract_region_from_url(url: str) -> str | None:
-    """Identity Center start URLs don't encode region; return None."""
-    return None
-
-
 def _write_aws_config(result: SSOBootstrapResult) -> None:
     """Write [sso-session lablink] and [profile lablink] without clobbering others."""
     config_path = aws_config_path()

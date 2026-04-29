@@ -17,12 +17,6 @@ def fake_home(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_extract_region_from_start_url():
-    url = "https://d-9067abc123.awsapps.com/start"
-    # Default fallback when the URL doesn't carry region info.
-    assert bootstrap._extract_region_from_url(url) is None
-
-
 def test_validate_start_url_accepts_well_formed():
     assert bootstrap._is_valid_sso_start_url(
         "https://d-9067abc123.awsapps.com/start"
