@@ -799,6 +799,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verify-the-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#check-your-environment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2831,6 +2842,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verify-the-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#check-your-environment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2927,9 +2949,25 @@
 <p class="admonition-title">Running from outside the repo</p>
 <p>If you want <code>lablink</code> available from any directory, activate <code>.venv</code> in your shell profile, or install via <code>uv tool install --from ./packages/cli lablink-cli</code> (note: this will fail today because the CLI's workspace dep on <code>lablink-allocator-service</code> isn't yet resolvable outside the workspace — revisit after PyPI publish).</p>
 </div>
+<h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permanent link">&para;</a></h2>
+<p>Once installed, run <code>lablink</code> with no arguments to confirm everything is wired up:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink
+</code></pre></div>
+<p>On a fresh install (no config yet), you'll see a <strong>Getting started</strong> panel pointing at the next three commands:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>╭─ Getting started ──────────────────────────────────────╮
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>│ Welcome to LabLink. First-time setup:                  │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│                                                        │
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│   1. lablink configure   create config + AWS state…    │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│   2. lablink doctor      verify prerequisites          │
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│   3. lablink deploy      deploy the allocator          │
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│                                                        │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>│ For the full command list, run &#39;lablink --help&#39;.       │
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>╰────────────────────────────────────────────────────────╯
+</code></pre></div>
+<p>If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means <code>~/.lablink/config.yaml</code> already exists from a previous run — that's fine, skip ahead to <a href="../first-deployment/#step-1-configure">Step 1: Configure</a>.</p>
 <h2 id="check-your-environment">Check your environment<a class="headerlink" href="#check-your-environment" title="Permanent link">&para;</a></h2>
 <p>Run <code>lablink doctor</code> to validate prerequisites end-to-end:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
 </code></pre></div>
 <p>It checks:</p>
 <table>
@@ -2998,9 +3036,9 @@
 <p>Pass <code>--config /path/to/config.yaml</code> to any command to use a different config file.</p>
 <h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
 <p>Pull the latest source and re-sync:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Template version</p>
