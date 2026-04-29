@@ -11,6 +11,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from lablink_cli.auth.credentials import get_session
+
 console = Console()
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
@@ -77,7 +79,6 @@ def _check_aws_credentials(region: str | None) -> dict:
         from lablink_cli.auth.credentials import (
             NotLoggedInError,
             SSOTokenExpiredError,
-            get_session,
         )
 
         try:
@@ -111,6 +112,81 @@ def _check_aws_credentials(region: str | None) -> dict:
     except Exception as e:
         result["detail"] = f"Unexpected error: {e}"
     return result
+
+
+def _check_lablink_permissions(region: str | None) -> dict:
+    """Audit the live SSO role's permissions against AUDIT_ACTIONS.
+
+    Uses iam:SimulatePrincipalPolicy to dry-run each known lablink action
+    and report any denials with a hint to run `lablink login --update-policy`.
+    Marked 'warn' (skipped) when the caller isn't on a lablink Identity
+    Center role — env-var users haven't opted in to the permission audit.
+    """
+    from lablink_cli.auth.credentials import (
+        NotLoggedInError,
+        SSOTokenExpiredError,
+    )
+    from lablink_cli.auth.policy import AUDIT_ACTIONS
+
+    result = {"check": "LabLink permissions", "status": "fail"}
+    try:
+        try:
+            session = get_session(region=region or "us-east-1")
+        except (NotLoggedInError, SSOTokenExpiredError):
+            result["status"] = "warn"
+            result["detail"] = (
+                "Not signed in via Identity Center; skipping permission audit."
+            )
+            return result
+
+        identity = session.client("sts").get_caller_identity()
+        arn = identity.get("Arn", "")
+        if "assumed-role" not in arn or "lablink" not in arn.lower():
+            result["status"] = "warn"
+            result["detail"] = (
+                "Not on a lablink Identity Center role; "
+                "skipping permission audit."
+            )
+            return result
+
+        # Convert SSO assumed-role ARN to the underlying IAM role ARN:
+        # arn:aws:sts::ACCOUNT:assumed-role/AWSReservedSSO_lablink_HASH/USER
+        # → arn:aws:iam::ACCOUNT:role/AWSReservedSSO_lablink_HASH
+        principal_arn = (
+            arn.replace(":sts:", ":iam:")
+            .replace("assumed-role", "role")
+            .rsplit("/", 1)[0]
+        )
+
+        iam = session.client("iam")
+        evaluation = iam.simulate_principal_policy(
+            PolicySourceArn=principal_arn,
+            ActionNames=AUDIT_ACTIONS,
+        )
+        denied = [
+            r["EvalActionName"]
+            for r in evaluation.get("EvaluationResults", [])
+            if r.get("EvalDecision") != "allowed"
+        ]
+
+        if not denied:
+            result["status"] = "pass"
+            result["detail"] = (
+                f"All {len(AUDIT_ACTIONS)} required actions allowed."
+            )
+            return result
+
+        result["status"] = "fail"
+        result["detail"] = (
+            "Permission set is missing actions: "
+            + ", ".join(denied)
+            + ". Run [bold]lablink login --update-policy[/bold] to refresh."
+        )
+        return result
+    except Exception as e:
+        result["status"] = "warn"
+        result["detail"] = f"Permission audit unavailable: {e}"
+        return result
 
 
 def _check_config_exists() -> dict:
@@ -177,8 +253,6 @@ def _check_s3_bucket(cfg) -> dict:
         return result
 
     try:
-        from lablink_cli.auth.credentials import get_session
-
         session = get_session(region=cfg.app.region)
         s3 = session.client("s3")
         s3.head_bucket(Bucket=bucket_name)
@@ -249,10 +323,13 @@ def run_doctor() -> None:
     region = cfg.app.region if cfg else None
     checks.append(_check_aws_credentials(region))
 
-    # 5. S3 state bucket
+    # 5. LabLink permission audit (SSO users only)
+    checks.append(_check_lablink_permissions(region))
+
+    # 6. S3 state bucket
     checks.append(_check_s3_bucket(cfg))
 
-    # 6. AMI for region
+    # 7. AMI for region
     checks.append(_check_ami(cfg))
 
     # Display results

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,7 +29,10 @@ def _write_token_cache(tmp_path, start_url: str, payload: dict) -> None:
 
 
 def test_ensure_aws_cli_installed_passes_when_aws_on_path():
-    with patch("lablink_cli.auth.sso_flow.shutil.which", return_value="/usr/local/bin/aws"):
+    with patch(
+        "lablink_cli.auth.sso_flow.shutil.which",
+        return_value="/usr/local/bin/aws",
+    ):
         sso_flow._ensure_aws_cli_installed()
 
 

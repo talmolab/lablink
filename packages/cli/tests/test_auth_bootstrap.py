@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import configparser
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -133,7 +132,10 @@ def test_clear_state_removes_file(fake_home):
 def test_copy_to_clipboard_falls_back_to_file_when_pyperclip_unavailable(
     fake_home,
 ):
-    with patch("lablink_cli.auth.bootstrap._pyperclip_copy", side_effect=Exception("no clip")):
+    with patch(
+        "lablink_cli.auth.bootstrap._pyperclip_copy",
+        side_effect=Exception("no clip"),
+    ):
         path = bootstrap._copy_to_clipboard("policy json contents")
 
     # Fallback writes the JSON to a file in ~/.lablink and returns the path

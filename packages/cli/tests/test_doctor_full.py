@@ -19,7 +19,7 @@ from lablink_cli.commands.doctor import (
 # _check_aws_credentials
 # ------------------------------------------------------------------
 class TestCheckAwsCredentials:
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_valid(self, mock_get_session):
         mock_sts = MagicMock()
         mock_sts.get_caller_identity.return_value = {
@@ -30,7 +30,7 @@ class TestCheckAwsCredentials:
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "pass"
 
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_invalid_exits(self, mock_get_session):
         from lablink_cli.auth.credentials import NotLoggedInError
 
@@ -38,14 +38,14 @@ class TestCheckAwsCredentials:
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "fail"
 
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_exception(self, mock_get_session):
         mock_get_session.side_effect = Exception("network error")
         result = _check_aws_credentials("us-east-1")
         assert result["status"] == "fail"
         assert "network error" in result["detail"]
 
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_default_region(self, mock_get_session):
         from lablink_cli.auth.credentials import NotLoggedInError
 
@@ -143,7 +143,7 @@ class TestCheckS3Bucket:
         result = _check_s3_bucket(cfg)
         assert result["status"] == "fail"
 
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_bucket_exists(self, mock_session):
         cfg = MagicMock()
         cfg.bucket_name = "my-bucket"
@@ -155,7 +155,7 @@ class TestCheckS3Bucket:
         result = _check_s3_bucket(cfg)
         assert result["status"] == "pass"
 
-    @patch("lablink_cli.auth.credentials.get_session")
+    @patch("lablink_cli.commands.doctor.get_session")
     def test_bucket_not_found(self, mock_session):
         cfg = MagicMock()
         cfg.bucket_name = "my-bucket"
@@ -174,6 +174,7 @@ class TestCheckS3Bucket:
 class TestRunDoctor:
     @patch("lablink_cli.commands.doctor._check_ami")
     @patch("lablink_cli.commands.doctor._check_s3_bucket")
+    @patch("lablink_cli.commands.doctor._check_lablink_permissions")
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
@@ -184,6 +185,7 @@ class TestRunDoctor:
         mock_cfg_exists,
         mock_cfg_valid,
         mock_aws,
+        mock_perms,
         mock_s3,
         mock_ami,
     ):
@@ -198,6 +200,9 @@ class TestRunDoctor:
             mock_cfg,
         )
         mock_aws.return_value = {"check": "AWS", "status": "pass", "detail": "ok"}
+        mock_perms.return_value = {
+            "check": "LabLink permissions", "status": "pass", "detail": "ok"
+        }
         mock_s3.return_value = {"check": "S3", "status": "pass", "detail": "ok"}
         mock_ami.return_value = {"check": "AMI", "status": "pass", "detail": "ok"}
 
@@ -206,6 +211,7 @@ class TestRunDoctor:
 
     @patch("lablink_cli.commands.doctor._check_ami")
     @patch("lablink_cli.commands.doctor._check_s3_bucket")
+    @patch("lablink_cli.commands.doctor._check_lablink_permissions")
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
@@ -216,6 +222,7 @@ class TestRunDoctor:
         mock_cfg_exists,
         mock_cfg_valid,
         mock_aws,
+        mock_perms,
         mock_s3,
         mock_ami,
     ):
@@ -228,6 +235,9 @@ class TestRunDoctor:
             None,
         )
         mock_aws.return_value = {"check": "AWS", "status": "fail", "detail": ""}
+        mock_perms.return_value = {
+            "check": "LabLink permissions", "status": "warn", "detail": "skipped"
+        }
         mock_s3.return_value = {"check": "S3", "status": "warn", "detail": ""}
         mock_ami.return_value = {"check": "AMI", "status": "warn", "detail": ""}
 
