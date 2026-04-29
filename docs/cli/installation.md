@@ -43,6 +43,30 @@ You should see the grouped command list (Setup, Deployment, Operations, Maintena
 !!! tip "Running from outside the repo"
     If you want `lablink` available from any directory, activate `.venv` in your shell profile, or install via `uv tool install --from ./packages/cli lablink-cli` (note: this will fail today because the CLI's workspace dep on `lablink-allocator-service` isn't yet resolvable outside the workspace — revisit after PyPI publish).
 
+## Verify the installation
+
+Once installed, run `lablink` with no arguments to confirm everything is wired up:
+
+```bash
+uv run lablink
+```
+
+On a fresh install (no config yet), you'll see a **Getting started** panel pointing at the next three commands:
+
+```text
+╭─ Getting started ──────────────────────────────────────╮
+│ Welcome to LabLink. First-time setup:                  │
+│                                                        │
+│   1. lablink configure   create config + AWS state…    │
+│   2. lablink doctor      verify prerequisites          │
+│   3. lablink deploy      deploy the allocator          │
+│                                                        │
+│ For the full command list, run 'lablink --help'.       │
+╰────────────────────────────────────────────────────────╯
+```
+
+If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means `~/.lablink/config.yaml` already exists from a previous run — that's fine, skip ahead to [Step 1: Configure](first-deployment.md#step-1-configure).
+
 ## Check your environment
 
 Run `lablink doctor` to validate prerequisites end-to-end:

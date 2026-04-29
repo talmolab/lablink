@@ -120,11 +120,31 @@ class TestCLICommands:
         result = runner.invoke(app, ["logs", "--help"])
         assert result.exit_code == 0
 
-    def test_no_args_shows_help(self):
-        result = runner.invoke(app, [])
-        assert result.exit_code in (0, 2)
-        out = _plain(result.output).lower()
-        assert "deploy" in out or "usage" in out
+    def test_no_args_no_config_shows_welcome(self, tmp_path):
+        """With no config, bare `lablink` prints the first-run welcome panel."""
+        missing = tmp_path / "no-such-config.yaml"
+        with patch("lablink_cli.app.DEFAULT_CONFIG", missing):
+            result = runner.invoke(app, [])
+        assert result.exit_code == 0
+        out = _plain(result.output)
+        assert "Welcome to LabLink" in out
+        assert "lablink configure" in out
+        assert "lablink doctor" in out
+        assert "lablink deploy" in out
+
+    def test_no_args_with_config_shows_help(self, tmp_path):
+        """With a config present, bare `lablink` falls through to --help output."""
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text("deployment_name: test\n")
+        with patch("lablink_cli.app.DEFAULT_CONFIG", cfg):
+            result = runner.invoke(app, [])
+        assert result.exit_code == 0
+        out = _plain(result.output)
+        assert "Welcome to LabLink" not in out
+        for panel in ("Setup", "Deployment", "Operations", "Maintenance"):
+            assert panel in out, (
+                f"expected panel heading {panel!r} in no-args help fallthrough"
+            )
 
     def test_help_groups_commands_into_panels(self):
         """Top-level --help groups commands under the four Option-A panels."""
