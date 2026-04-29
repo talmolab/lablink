@@ -282,9 +282,9 @@ def estimate_costs(cfg: Config) -> list[dict]:
 
     # Try AWS Pricing API (only available in us-east-1)
     try:
-        pricing = boto3.client(
-            "pricing", region_name="us-east-1"
-        )
+        from lablink_cli.auth.credentials import get_session
+
+        pricing = get_session(region="us-east-1").client("pricing")
         use_api = True
     except Exception:
         use_api = False
