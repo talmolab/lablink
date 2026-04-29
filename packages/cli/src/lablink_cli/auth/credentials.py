@@ -38,7 +38,8 @@ class SSOTokenExpiredError(AuthError):
     """SSO token exists but is past expiresAt."""
 
 
-def _has_sso_profile() -> bool:
+def has_sso_profile() -> bool:
+    """Return True if ~/.aws/config has a [profile lablink] block."""
     cfg_path = aws_config_path()
     if not cfg_path.exists():
         return False
@@ -101,7 +102,7 @@ def _token_is_valid() -> bool:
 
 def is_logged_in() -> bool:
     """Return True if a valid SSO token cache is present."""
-    if not _has_sso_profile():
+    if not has_sso_profile():
         return False
     return _token_is_valid()
 
@@ -113,7 +114,7 @@ def get_session(region: str | None = None) -> boto3.Session:
         NotLoggedInError: when no SSO profile, env vars, or default creds exist.
         SSOTokenExpiredError: when the SSO profile exists but its token is expired.
     """
-    if _has_sso_profile():
+    if has_sso_profile():
         if not _token_is_valid():
             raise SSOTokenExpiredError(
                 "Your AWS session has expired. Run `lablink login` and try again."
@@ -139,6 +140,6 @@ def subprocess_env() -> dict[str, str]:
     ~/.aws/credentials), do nothing — those mechanisms work without help.
     """
     env = os.environ.copy()
-    if _has_sso_profile():
+    if has_sso_profile():
         env["AWS_PROFILE"] = PROFILE_NAME
     return env

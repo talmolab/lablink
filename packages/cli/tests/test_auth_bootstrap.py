@@ -136,7 +136,7 @@ def test_copy_to_clipboard_falls_back_to_file_when_pyperclip_unavailable(
         "lablink_cli.auth.bootstrap._pyperclip_copy",
         side_effect=Exception("no clip"),
     ):
-        path = bootstrap._copy_to_clipboard("policy json contents")
+        path = bootstrap.copy_to_clipboard("policy json contents")
 
     # Fallback writes the JSON to a file in ~/.lablink and returns the path
     assert path is not None
@@ -173,7 +173,7 @@ def test_run_bootstrap_writes_config_after_user_completes_console_steps(
         "lablink_cli.auth.bootstrap.webbrowser.open", lambda *a, **kw: True
     )
     monkeypatch.setattr(
-        "lablink_cli.auth.bootstrap._copy_to_clipboard", lambda payload: None
+        "lablink_cli.auth.bootstrap.copy_to_clipboard", lambda payload: None
     )
 
     result = bootstrap.run_bootstrap(deployment_region="us-east-1")

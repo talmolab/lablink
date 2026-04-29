@@ -16,12 +16,13 @@ from lablink_cli.auth import policy
 from lablink_cli.auth.bootstrap import (
     CREATE_PERMISSION_SET_URL,
     SSOBootstrapResult,
-    _copy_to_clipboard,
+    copy_to_clipboard,
     run_bootstrap,
 )
 from lablink_cli.auth.credentials import (
     PROFILE_NAME,
     SSO_SESSION_NAME,
+    has_sso_profile,
     is_logged_in,
 )
 from lablink_cli.auth.sso_flow import (
@@ -33,15 +34,6 @@ from lablink_cli.auth.sso_flow import (
 from lablink_cli.auth.utils import aws_config_path, sso_cache_path
 
 console = Console()
-
-
-def _has_sso_profile() -> bool:
-    cfg_path = aws_config_path()
-    if not cfg_path.exists():
-        return False
-    parser = configparser.ConfigParser()
-    parser.read(cfg_path)
-    return f"profile {PROFILE_NAME}" in parser.sections()
 
 
 def _read_sso_config() -> SSOConfig:
@@ -137,7 +129,7 @@ def run_login(
     """Top-level login orchestrator."""
     if update_policy:
         payload = policy.render_inline_policy_json()
-        _copy_to_clipboard(payload)
+        copy_to_clipboard(payload)
         console.print(
             Panel(
                 "Permission set policy JSON copied to your clipboard.\n\n"
@@ -159,7 +151,7 @@ def run_login(
         if not typer.confirm("Re-login?", default=False):
             return
 
-    if not _has_sso_profile():
+    if not has_sso_profile():
         result: SSOBootstrapResult = run_bootstrap(
             deployment_region=deployment_region or "us-east-1"
         )

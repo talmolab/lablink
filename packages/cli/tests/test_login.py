@@ -15,7 +15,7 @@ def test_login_runs_bootstrap_when_no_sso_profile():
     with (
         patch("lablink_cli.commands.login.is_logged_in", return_value=False),
         patch(
-            "lablink_cli.commands.login._has_sso_profile", return_value=False
+            "lablink_cli.commands.login.has_sso_profile", return_value=False
         ),
         patch("lablink_cli.commands.login.run_bootstrap") as mock_bootstrap,
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
@@ -36,7 +36,7 @@ def test_login_runs_bootstrap_when_no_sso_profile():
 def test_login_skips_bootstrap_when_sso_profile_exists():
     with (
         patch("lablink_cli.commands.login.is_logged_in", return_value=False),
-        patch("lablink_cli.commands.login._has_sso_profile", return_value=True),
+        patch("lablink_cli.commands.login.has_sso_profile", return_value=True),
         patch("lablink_cli.commands.login.run_bootstrap") as mock_bootstrap,
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
     ):
@@ -65,7 +65,7 @@ def test_login_already_logged_in_relogs_when_user_confirms():
     with (
         patch("lablink_cli.commands.login.is_logged_in", return_value=True),
         patch("lablink_cli.commands.login._token_expiry_human", return_value="4h 12m"),
-        patch("lablink_cli.commands.login._has_sso_profile", return_value=True),
+        patch("lablink_cli.commands.login.has_sso_profile", return_value=True),
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
     ):
         result = runner.invoke(app, ["login"], input="y\n")
@@ -76,7 +76,7 @@ def test_login_already_logged_in_relogs_when_user_confirms():
 
 def test_login_update_policy_flag_reprints_deeplink():
     with (
-        patch("lablink_cli.commands.login._copy_to_clipboard") as mock_copy,
+        patch("lablink_cli.commands.login.copy_to_clipboard") as mock_copy,
         patch("lablink_cli.commands.login.webbrowser.open"),
     ):
         result = runner.invoke(app, ["login", "--update-policy"])

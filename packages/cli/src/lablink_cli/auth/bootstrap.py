@@ -141,7 +141,7 @@ def _pyperclip_copy(text: str) -> None:
     pyperclip.copy(text)
 
 
-def _copy_to_clipboard(payload: str) -> Path | None:
+def copy_to_clipboard(payload: str) -> Path | None:
     """Copy payload to clipboard. On failure, write to a file and return its path."""
     try:
         _pyperclip_copy(payload)
@@ -208,7 +208,7 @@ def _step_enable_identity_center() -> tuple[str, str]:
 def _step_create_permission_set() -> str:
     """Walk the user through creating the lablink permission set."""
     payload = policy.render_inline_policy_json()
-    fallback_path = _copy_to_clipboard(payload)
+    fallback_path = copy_to_clipboard(payload)
 
     if fallback_path is None:
         clipboard_msg = (
