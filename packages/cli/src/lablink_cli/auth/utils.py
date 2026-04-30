@@ -22,7 +22,14 @@ def aws_config_path() -> Path:
 
 
 def aws_credentials_path() -> Path:
-    """Return the path to ~/.aws/credentials."""
+    """Return the path to ~/.aws/credentials, honoring AWS_SHARED_CREDENTIALS_FILE.
+
+    Matches boto3 / AWS CLI v2 resolution: the env var, when set, points at
+    the credentials file directly; otherwise fall back to ``$HOME/.aws/credentials``.
+    """
+    explicit = os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+    if explicit:
+        return Path(explicit)
     return Path(os.environ.get("HOME", str(Path.home()))) / ".aws" / "credentials"
 
 

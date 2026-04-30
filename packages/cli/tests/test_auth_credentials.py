@@ -108,6 +108,34 @@ def test_is_logged_in_false_when_no_sso_profile(tmp_path, monkeypatch):
     assert credentials.is_logged_in() is False
 
 
+def test_get_session_honors_aws_shared_credentials_file(tmp_path, monkeypatch):
+    """Setting AWS_SHARED_CREDENTIALS_FILE points credential discovery there."""
+    aws_dir = tmp_path / ".aws"
+    aws_dir.mkdir()
+    (aws_dir / "config").write_text("")  # no SSO profile
+
+    # Default path is empty; alternate path has a usable [default] profile.
+    alt_creds = tmp_path / "alt-credentials"
+    alt_creds.write_text(
+        "[default]\n"
+        "aws_access_key_id = AKIATEST\n"
+        "aws_secret_access_key = secrettest\n"
+    )
+
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(aws_dir / "config"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(alt_creds))
+    monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+
+    with patch("lablink_cli.auth.credentials.boto3.Session") as mock_session_cls:
+        mock_session_cls.return_value = MagicMock()
+        # Should resolve via the alt path instead of raising NotLoggedInError.
+        credentials.get_session(region="us-east-1")
+        kwargs = mock_session_cls.call_args.kwargs
+        assert "profile_name" not in kwargs
+
+
 def test_get_session_raises_sso_token_expired_when_token_stale(tmp_path, monkeypatch):
     """Profile exists but cached token is past expiresAt → SSOTokenExpiredError."""
     aws_dir = tmp_path / ".aws"
