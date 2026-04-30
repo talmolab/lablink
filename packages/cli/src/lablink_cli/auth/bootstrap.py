@@ -105,48 +105,61 @@ def _step_enable_identity_center() -> tuple[str, str]:
     """Walk the user through enabling Identity Center. Returns (start_url, region)."""
     console.print(
         Panel(
-            "Welcome to LabLink. It looks like this is your first login.\n"
-            "Setup takes about 5 minutes and only happens once.\n\n"
-            "You will:\n"
-            "  1. Enable AWS Identity Center in your AWS account\n"
-            "  2. Create yourself a user (your name, email, password)\n"
-            "  3. Attach the LabLink permission set to your user\n\n"
-            "You'll need an authenticator app on your phone (Authy, Google\n"
-            "Authenticator, 1Password) for the password setup step — Identity\n"
-            "Center enforces MFA.",
+            "Welcome to LabLink. This is your first sign-in.\n\n"
+            "We'll set up an AWS sign-in for you so the CLI can deploy lab\n"
+            "infrastructure on your behalf — no access keys, no copy-pasting\n"
+            "secrets. You'll sign in through your browser each session.\n\n"
+            "First-time setup takes [bold]10–15 minutes[/bold]. You'll do "
+            "three things in the AWS web console:\n\n"
+            "  [bold]1.[/bold] Turn on AWS's sign-in service "
+            "(it's called [italic]Identity Center[/italic])\n"
+            "  [bold]2.[/bold] Create a sign-in for yourself "
+            "(name, email, password)\n"
+            "  [bold]3.[/bold] Grant your sign-in permission to run lablink\n\n"
+            "[bold yellow]Before you continue:[/bold yellow] install an "
+            "authenticator app on your phone\n"
+            "(Authy, Google Authenticator, 1Password, or similar). AWS "
+            "requires\ntwo-factor authentication and you'll pair the app "
+            "partway through.",
             title="First-time setup",
             border_style="cyan",
         )
     )
-    input("Press Enter to open the AWS Console in your browser...")
+    input("Press Enter when you're ready to open the AWS Console...")
     webbrowser.open(IDENTITY_CENTER_CONSOLE_URL)
 
     console.print(
-        "\nIn the AWS Console:\n"
+        "\n[bold]Step 1 of 3: Turn on the AWS sign-in service[/bold]\n"
+        "In the AWS Console tab that just opened:\n"
         "  1. Click [bold]Enable[/bold]. (If asked, choose "
-        "[bold]account instance[/bold] for personal accounts — either works.)\n"
-        "  2. Wait ~30 seconds for it to provision.\n"
+        "[bold]account instance[/bold] for personal accounts.)\n"
+        "  2. Wait ~30 seconds while AWS sets things up.\n"
         "  3. In the left sidebar, click [bold]Users[/bold] → "
         "[bold]Add user[/bold].\n"
-        "  4. Fill in your name + email and submit.\n"
-        "  5. Check your email for the [bold]Accept invitation[/bold] link; "
-        "set a password and MFA.\n"
-        "  6. Return to the Identity Center home (the page you opened in step 1).\n"
-        "  7. Copy the [bold]SSO Start URL[/bold] from the "
-        "[bold]AWS access portal URLs[/bold] section on the dashboard.\n"
+        "  4. Fill in your name and email, then submit.\n"
+        "  5. Check your email for an [bold]Accept invitation[/bold] link. "
+        "Click it,\n"
+        "     set a password, and pair your authenticator app.\n"
+        "  6. Return to the Identity Center home page (the page you opened "
+        "in step 1).\n"
+        "  7. On the dashboard, find the [bold]AWS access portal URLs[/bold] "
+        "section\n"
+        "     and copy the link shown there — we'll call this your "
+        "[bold]sign-in link[/bold]\n"
+        "     (AWS labels it the [italic]SSO Start URL[/italic]).\n"
     )
 
     while True:
-        start_url = typer.prompt("SSO Start URL")
+        start_url = typer.prompt("Paste your sign-in link here")
         if _is_valid_sso_start_url(start_url):
             break
         console.print(
-            "[red]That doesn't look like an SSO Start URL.[/red] "
-            "Expected something like https://d-9067abc123.awsapps.com/start"
+            "[red]That doesn't look like an AWS sign-in link.[/red] "
+            "Expected something like [dim]https://d-9067abc123.awsapps.com/start[/dim]"
         )
 
     sso_region = typer.prompt(
-        "AWS region where Identity Center is enabled",
+        "AWS region (shown in the top-right corner of the AWS Console)",
         default="us-east-1",
     )
     return start_url.strip(), sso_region.strip()
