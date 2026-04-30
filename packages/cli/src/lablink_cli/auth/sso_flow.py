@@ -109,8 +109,16 @@ def select_account(*, sso_config: SSOConfig, access_token: str) -> str:
 
     if not accounts:
         raise credentials.AuthError(
-            "Your Identity Center user has no AWS accounts assigned. "
-            "Did you assign your user to an account during bootstrap?"
+            "Your Identity Center user has no AWS accounts assigned.\n"
+            "The 'Assign user to AWS account' step in the bootstrap was "
+            "skipped or didn't apply.\n"
+            "To fix:\n"
+            "  1. Open the AWS Identity Center console.\n"
+            "  2. Go to AWS accounts, select your account, click "
+            "'Assign users or groups'.\n"
+            "  3. Pick your user and the 'lablink' permission set, then "
+            "submit.\n"
+            "  4. Re-run `lablink login`."
         )
 
     if len(accounts) == 1:
@@ -147,8 +155,11 @@ def resolve_role(
 
     if not roles:
         raise credentials.AuthError(
-            "No permission sets are assigned to your user for this account. "
-            "Re-run bootstrap to assign one."
+            "No permission sets are assigned to your user for this account.\n"
+            "In the AWS Identity Center console, go to AWS accounts, select "
+            "your account, click 'Assign users or groups', and assign your "
+            "user with the 'lablink' permission set. Then re-run "
+            "`lablink login`."
         )
 
     if preferred_role_name:

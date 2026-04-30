@@ -15,6 +15,7 @@ from rich.panel import Panel
 from lablink_cli.auth import policy
 from lablink_cli.auth.bootstrap import (
     CREATE_PERMISSION_SET_URL,
+    BootstrapState,
     SSOBootstrapResult,
     copy_to_clipboard,
     run_bootstrap,
@@ -125,6 +126,7 @@ def run_steady_state() -> None:
 def run_login(
     deployment_region: str | None = None,
     update_policy: bool = False,
+    reset_bootstrap: bool = False,
 ) -> None:
     """Top-level login orchestrator."""
     if update_policy:
@@ -142,6 +144,18 @@ def run_login(
         )
         webbrowser.open(CREATE_PERMISSION_SET_URL)
         return
+
+    if reset_bootstrap:
+        state_path = BootstrapState.path()
+        if state_path.exists():
+            BootstrapState.clear()
+            console.print(
+                f"[dim]Discarded in-progress bootstrap state at {state_path}.[/dim]"
+            )
+        else:
+            console.print(
+                "[dim]No in-progress bootstrap state to reset.[/dim]"
+            )
 
     if is_logged_in():
         expiry = _token_expiry_human()
