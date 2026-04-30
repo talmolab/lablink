@@ -105,6 +105,25 @@ AUDIT_RESOURCE_OVERRIDES: dict[str, list[str]] = {
     ],
 }
 
+# Maps each audit action back to the policy that grants it. Used by the
+# post-login verifier so we can report "missing CloudWatchFullAccess"
+# instead of "missing cloudwatch:DescribeAlarms". Inline-policy actions
+# map to the literal "<inline>" sentinel.
+ACTION_TO_POLICY_NAME: dict[str, str] = {
+    "ec2:DescribeInstances": "AmazonEC2FullAccess",
+    "elasticloadbalancing:DescribeLoadBalancers": "ElasticLoadBalancingFullAccess",
+    "route53:ListHostedZones": "AmazonRoute53FullAccess",
+    "iam:GetRole": "IAMFullAccess",
+    "cloudwatch:DescribeAlarms": "CloudWatchFullAccess",
+    "logs:DescribeLogGroups": "CloudWatchLogsFullAccess",
+    "cloudtrail:DescribeTrails": "AWSCloudTrail_FullAccess",
+    "sns:ListTopics": "AmazonSNSFullAccess",
+    "sts:GetCallerIdentity": "<inline>",
+    "s3:ListBucket": "<inline>",
+    "dynamodb:DescribeTable": "<inline>",
+    "budgets:DescribeBudgets": "<inline>",
+}
+
 PERMISSION_SET_NAME_DEFAULT = "lablink"
 
 

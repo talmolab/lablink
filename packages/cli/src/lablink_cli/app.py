@@ -83,6 +83,13 @@ def login(
         "--update-policy",
         help="Re-print the permission-set deep-link with current policy JSON.",
     ),
+    manual: bool = typer.Option(
+        False,
+        "--manual",
+        help="Skip the CloudShell automation and walk through the AWS "
+        "Console manually (useful in CloudShell-unavailable regions or "
+        "for security auditors who prefer to do every step by hand).",
+    ),
     config: str = typer.Option(
         None,
         "--config",
@@ -103,7 +110,11 @@ def login(
         except typer.Exit:
             pass
 
-    run_login(deployment_region=deployment_region, update_policy=update_policy)
+    run_login(
+        deployment_region=deployment_region,
+        update_policy=update_policy,
+        manual=manual,
+    )
 
 
 @app.command(rich_help_panel="Setup")

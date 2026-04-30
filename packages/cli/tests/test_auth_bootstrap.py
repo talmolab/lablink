@@ -32,6 +32,49 @@ def test_validate_start_url_rejects_garbage():
     assert not bootstrap._is_valid_sso_start_url("")
 
 
+def test_email_validator_accepts_well_formed_addresses():
+    assert bootstrap._is_valid_email("alice@example.com")
+    assert bootstrap._is_valid_email("a.b+tag@sub.example.org")
+
+
+def test_email_validator_rejects_garbage():
+    assert not bootstrap._is_valid_email("not-an-email")
+    assert not bootstrap._is_valid_email("missing@tld")
+    assert not bootstrap._is_valid_email("")
+    assert not bootstrap._is_valid_email("two@@signs.com")
+
+
+def test_render_bootstrap_script_inlines_policy_data():
+    """The CloudShell heredoc must always reflect the live policy data."""
+    from lablink_cli.auth import policy as policy_mod
+
+    script = bootstrap.render_bootstrap_script("alice@example.com")
+
+    # Email is substituted into the script as a literal.
+    assert 'EMAIL="alice@example.com"' in script
+
+    # Every managed policy ARN appears in the for-loop.
+    for arn in policy_mod.MANAGED_POLICY_ARNS:
+        assert arn in script
+
+    # Inline policy is embedded as multi-line indented JSON inside a
+    # single-quoted bash variable. Multi-line keeps each line short
+    # enough that terminals don't soft-wrap and break the paste.
+    import json
+    inline_indented = json.dumps(policy_mod.INLINE_POLICY, indent=2)
+    assert inline_indented in script
+    # And it's wrapped as a bash variable, not a CLI arg.
+    assert "INLINE_POLICY='" in script
+    assert '--inline-policy "$INLINE_POLICY"' in script
+
+    # Permission set name comes from the canonical default, not hardcoded.
+    assert f'PS_NAME="{policy_mod.PERMISSION_SET_NAME_DEFAULT}"' in script
+
+    # Heredoc opens and closes with the right tag.
+    assert "bash <<'LABLINK_SETUP'" in script
+    assert script.rstrip().endswith("LABLINK_SETUP")
+
+
 def test_write_aws_config_creates_sso_session_and_profile_blocks(fake_home):
     cfg = bootstrap.SSOBootstrapResult(
         start_url="https://d-test.awsapps.com/start",
@@ -101,12 +144,41 @@ def test_copy_to_clipboard_falls_back_to_file_when_pyperclip_unavailable(
     assert fake_home in path.parents
 
 
-def test_run_bootstrap_writes_config_after_user_completes_console_steps(
-    fake_home, monkeypatch
-):
-    """Smoke test: run_bootstrap fully drives the flow with mocked I/O."""
-    # User pastes a valid SSO Start URL, hits Enter for region default,
-    # accepts default permission-set name, and presses Enter at each prompt.
+def test_run_bootstrap_default_uses_cloudshell_flow(fake_home, monkeypatch):
+    """Smoke test: default run_bootstrap drives the CloudShell flow with mocked I/O."""
+    inputs = iter(
+        [
+            "",  # Press Enter to open Identity Center console
+            "https://d-9067abc123.awsapps.com/start",  # SSO Start URL
+            "us-east-1",  # SSO region
+            "alice@example.com",  # Email for Identity Center user
+            "",  # Press Enter once CloudShell script prints "Done."
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda *a, **kw: next(inputs))
+    monkeypatch.setattr(
+        "lablink_cli.auth.bootstrap.typer.prompt",
+        lambda *a, **kw: next(inputs),
+    )
+    monkeypatch.setattr(
+        "lablink_cli.auth.bootstrap.webbrowser.open", lambda *a, **kw: True
+    )
+
+    result = bootstrap.run_bootstrap(deployment_region="us-east-1")
+
+    assert result.start_url == "https://d-9067abc123.awsapps.com/start"
+    assert result.sso_region == "us-east-1"
+    assert result.permission_set_name == "lablink"
+
+    config_path = fake_home / ".aws" / "config"
+    assert config_path.exists()
+    parser = configparser.ConfigParser()
+    parser.read(config_path)
+    assert "sso-session lablink" in parser.sections()
+
+
+def test_run_bootstrap_manual_uses_console_clickthrough(fake_home, monkeypatch):
+    """--manual mode runs the original 8-policy + assign-user flow."""
     inputs = iter(
         [
             "",  # Press Enter to open Identity Center console
@@ -131,16 +203,7 @@ def test_run_bootstrap_writes_config_after_user_completes_console_steps(
         "lablink_cli.auth.bootstrap.copy_to_clipboard", lambda payload: None
     )
 
-    result = bootstrap.run_bootstrap(deployment_region="us-east-1")
-
-    assert result.start_url == "https://d-9067abc123.awsapps.com/start"
-    assert result.sso_region == "us-east-1"
+    result = bootstrap.run_bootstrap(deployment_region="us-east-1", manual=True)
     assert result.permission_set_name == "lablink"
-
-    config_path = fake_home / ".aws" / "config"
-    assert config_path.exists()
-    parser = configparser.ConfigParser()
-    parser.read(config_path)
-    assert "sso-session lablink" in parser.sections()
 
 

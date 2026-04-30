@@ -122,9 +122,124 @@ def run_steady_state() -> None:
     console.print(f"[dim]ARN: {identity.get('Arn', '')}[/dim]\n")
 
 
+def _verify_permission_set() -> list[str]:
+    """Return policy names that are missing from the active SSO role.
+
+    Uses iam:SimulatePrincipalPolicy against AUDIT_ACTIONS so the check
+    works regardless of which managed policy grants which action. Empty
+    list = everything is in place.
+    """
+    from botocore.exceptions import ClientError
+
+    session = boto3.Session(profile_name=PROFILE_NAME)
+    arn = session.client("sts").get_caller_identity().get("Arn", "")
+    # arn:aws:sts::ACCOUNT:assumed-role/AWSReservedSSO_lablink_HASH/USER
+    # → arn:aws:iam::ACCOUNT:role/AWSReservedSSO_lablink_HASH
+    principal_arn = (
+        arn.replace(":sts:", ":iam:")
+        .replace("assumed-role", "role")
+        .rsplit("/", 1)[0]
+    )
+
+    iam = session.client("iam")
+    unscoped = [
+        a for a in policy.AUDIT_ACTIONS
+        if a not in policy.AUDIT_RESOURCE_OVERRIDES
+    ]
+    eval_results = []
+    try:
+        if unscoped:
+            eval_results.extend(
+                iam.simulate_principal_policy(
+                    PolicySourceArn=principal_arn,
+                    ActionNames=unscoped,
+                ).get("EvaluationResults", [])
+            )
+        for action, resource_arns in policy.AUDIT_RESOURCE_OVERRIDES.items():
+            if action not in policy.AUDIT_ACTIONS:
+                continue
+            eval_results.extend(
+                iam.simulate_principal_policy(
+                    PolicySourceArn=principal_arn,
+                    ActionNames=[action],
+                    ResourceArns=resource_arns,
+                ).get("EvaluationResults", [])
+            )
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "AccessDenied":
+            # The simulate call itself needs iam:SimulatePrincipalPolicy,
+            # which is part of IAMFullAccess. If we can't even simulate,
+            # IAMFullAccess (or similar IAM read perms) is missing.
+            return ["IAMFullAccess"]
+        raise
+
+    denied_actions = [
+        r["EvalActionName"]
+        for r in eval_results
+        if r.get("EvalDecision") != "allowed"
+    ]
+    if not denied_actions:
+        return []
+
+    # Map denied actions back to policy names; dedupe while preserving order.
+    seen: set[str] = set()
+    missing: list[str] = []
+    for action in denied_actions:
+        name = policy.ACTION_TO_POLICY_NAME.get(action, action)
+        if name not in seen:
+            seen.add(name)
+            missing.append(name)
+    return missing
+
+
+def _run_verifier_with_retry(*, max_attempts: int = 3) -> None:
+    """Run _verify_permission_set with a small retry loop.
+
+    On failure, lists missing policies and waits for the user to fix
+    them in the AWS Console, then re-runs. Exits with a hint if the
+    user hits the retry cap.
+    """
+    for attempt in range(1, max_attempts + 1):
+        missing = _verify_permission_set()
+        if not missing:
+            console.print(
+                "[green]✓[/green] Permission set has every required policy.\n"
+            )
+            return
+
+        console.print(
+            f"\n[yellow]Permission set is missing {len(missing)} "
+            f"policy/policies:[/yellow]"
+        )
+        for name in missing:
+            if name == "<inline>":
+                console.print(
+                    "  • [bold]inline policy[/bold] — run "
+                    "[bold]lablink login --update-policy[/bold] to refresh."
+                )
+            else:
+                console.print(f"  • [bold]{name}[/bold]")
+
+        if attempt == max_attempts:
+            console.print(
+                "\n[yellow]Reached retry limit.[/yellow] Fix the policies above "
+                "and run [bold]lablink doctor[/bold] when ready."
+            )
+            return
+
+        console.print(
+            "\nIn the AWS Console, attach the missing policy/policies to your "
+            "[bold]lablink[/bold] permission set, then press Enter to "
+            "re-check.\n"
+            f"[dim]Attempt {attempt} of {max_attempts}.[/dim]"
+        )
+        input()
+
+
 def run_login(
     deployment_region: str | None = None,
     update_policy: bool = False,
+    manual: bool = False,
 ) -> None:
     """Top-level login orchestrator."""
     if update_policy:
@@ -151,10 +266,12 @@ def run_login(
         if not typer.confirm("Re-login?", default=False):
             return
 
+    bootstrapped = False
     if not has_sso_profile():
         try:
             result: SSOBootstrapResult = run_bootstrap(
-                deployment_region=deployment_region or "us-east-1"
+                deployment_region=deployment_region or "us-east-1",
+                manual=manual,
             )
         except KeyboardInterrupt:
             console.print(
@@ -166,5 +283,13 @@ def run_login(
             f"\n[green]✓[/green] Identity Center configured "
             f"({result.start_url})\n"
         )
+        bootstrapped = True
 
     run_steady_state()
+
+    # Verify the permission set has every policy lablink needs. This is
+    # most useful right after a fresh bootstrap (typo'd email, paste
+    # mangled, manual flow forgot a policy) but cheap enough to run on
+    # every login — catches policy drift if AWS removed something.
+    if bootstrapped or manual:
+        _run_verifier_with_retry()

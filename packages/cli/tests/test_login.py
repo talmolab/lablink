@@ -19,6 +19,7 @@ def test_login_runs_bootstrap_when_no_sso_profile():
         ),
         patch("lablink_cli.commands.login.run_bootstrap") as mock_bootstrap,
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
+        patch("lablink_cli.commands.login._run_verifier_with_retry"),
     ):
         mock_bootstrap.return_value = MagicMock(
             start_url="https://d-test.awsapps.com/start",
@@ -39,6 +40,7 @@ def test_login_skips_bootstrap_when_sso_profile_exists():
         patch("lablink_cli.commands.login.has_sso_profile", return_value=True),
         patch("lablink_cli.commands.login.run_bootstrap") as mock_bootstrap,
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
+        patch("lablink_cli.commands.login._run_verifier_with_retry"),
     ):
         result = runner.invoke(app, ["login"])
 
@@ -67,6 +69,7 @@ def test_login_already_logged_in_relogs_when_user_confirms():
         patch("lablink_cli.commands.login._token_expiry_human", return_value="4h 12m"),
         patch("lablink_cli.commands.login.has_sso_profile", return_value=True),
         patch("lablink_cli.commands.login.run_steady_state") as mock_steady,
+        patch("lablink_cli.commands.login._run_verifier_with_retry"),
     ):
         result = runner.invoke(app, ["login"], input="y\n")
 
@@ -103,3 +106,97 @@ def test_login_keyboard_interrupt_during_bootstrap_prints_hint():
     assert "Bootstrap interrupted" in result.stdout
     assert "Re-run" in result.stdout and "lablink login" in result.stdout
     mock_steady.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# _verify_permission_set
+# ------------------------------------------------------------------
+def _fake_sso_session(arn="arn:aws:sts::123456789012:assumed-role/"
+                          "AWSReservedSSO_lablink_abc/alice"):
+    """Build a MagicMock boto3 session with sts.get_caller_identity wired."""
+    fake_session = MagicMock()
+    fake_iam = MagicMock()
+    fake_session.client.side_effect = lambda svc: (
+        MagicMock(get_caller_identity=lambda: {"Arn": arn})
+        if svc == "sts" else fake_iam
+    )
+    return fake_session, fake_iam
+
+
+def test_verifier_returns_empty_list_when_all_actions_allowed():
+    from lablink_cli.commands.login import _verify_permission_set
+    from lablink_cli.auth.policy import AUDIT_ACTIONS
+
+    fake_session, fake_iam = _fake_sso_session()
+    fake_iam.simulate_principal_policy.return_value = {
+        "EvaluationResults": [
+            {"EvalActionName": a, "EvalDecision": "allowed"}
+            for a in AUDIT_ACTIONS
+        ]
+    }
+    with patch(
+        "lablink_cli.commands.login.boto3.Session", return_value=fake_session
+    ):
+        assert _verify_permission_set() == []
+
+
+def test_verifier_maps_denied_actions_to_friendly_policy_names():
+    from lablink_cli.commands.login import _verify_permission_set
+
+    fake_session, fake_iam = _fake_sso_session()
+    fake_iam.simulate_principal_policy.return_value = {
+        "EvaluationResults": [
+            {
+                "EvalActionName": "cloudwatch:DescribeAlarms",
+                "EvalDecision": "implicitDeny",
+            },
+            {"EvalActionName": "ec2:DescribeInstances", "EvalDecision": "allowed"},
+        ]
+    }
+    with patch(
+        "lablink_cli.commands.login.boto3.Session", return_value=fake_session
+    ):
+        missing = _verify_permission_set()
+
+    assert "CloudWatchFullAccess" in missing
+    assert "AmazonEC2FullAccess" not in missing
+
+
+def test_verifier_treats_simulate_access_denied_as_missing_iam_full_access():
+    """When IAMFullAccess is missing, simulate_principal_policy itself fails."""
+    from botocore.exceptions import ClientError
+
+    from lablink_cli.commands.login import _verify_permission_set
+
+    fake_session, fake_iam = _fake_sso_session()
+    fake_iam.simulate_principal_policy.side_effect = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "denied"}},
+        "SimulatePrincipalPolicy",
+    )
+    with patch(
+        "lablink_cli.commands.login.boto3.Session", return_value=fake_session
+    ):
+        assert _verify_permission_set() == ["IAMFullAccess"]
+
+
+def test_verifier_dedupes_when_multiple_actions_map_to_inline_policy():
+    from lablink_cli.commands.login import _verify_permission_set
+
+    fake_session, fake_iam = _fake_sso_session()
+    fake_iam.simulate_principal_policy.return_value = {
+        "EvaluationResults": [
+            {"EvalActionName": a, "EvalDecision": "implicitDeny"}
+            for a in (
+                "sts:GetCallerIdentity",
+                "s3:ListBucket",
+                "dynamodb:DescribeTable",
+            )
+        ]
+    }
+    with patch(
+        "lablink_cli.commands.login.boto3.Session", return_value=fake_session
+    ):
+        missing = _verify_permission_set()
+
+    # Three inline-policy actions denied → reported once.
+    assert missing == ["<inline>"]
