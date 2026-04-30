@@ -15,7 +15,6 @@ from rich.panel import Panel
 from lablink_cli.auth import policy
 from lablink_cli.auth.bootstrap import (
     CREATE_PERMISSION_SET_URL,
-    BootstrapState,
     SSOBootstrapResult,
     copy_to_clipboard,
     run_bootstrap,
@@ -126,7 +125,6 @@ def run_steady_state() -> None:
 def run_login(
     deployment_region: str | None = None,
     update_policy: bool = False,
-    reset_bootstrap: bool = False,
 ) -> None:
     """Top-level login orchestrator."""
     if update_policy:
@@ -136,7 +134,7 @@ def run_login(
             Panel(
                 "Permission set policy JSON copied to your clipboard.\n\n"
                 "Open the AWS Console, navigate to your [bold]lablink[/bold]\n"
-                "permission set, and repla  ce its inline policy with the\n"
+                "permission set, and replace its inline policy with the\n"
                 "clipboard contents.",
                 title="Update policy",
                 border_style="cyan",
@@ -144,18 +142,6 @@ def run_login(
         )
         webbrowser.open(CREATE_PERMISSION_SET_URL)
         return
-
-    if reset_bootstrap:
-        state_path = BootstrapState.path()
-        if state_path.exists():
-            BootstrapState.clear()
-            console.print(
-                f"[dim]Discarded in-progress bootstrap state at {state_path}.[/dim]"
-            )
-        else:
-            console.print(
-                "[dim]No in-progress bootstrap state to reset.[/dim]"
-            )
 
     if is_logged_in():
         expiry = _token_expiry_human()
@@ -166,9 +152,16 @@ def run_login(
             return
 
     if not has_sso_profile():
-        result: SSOBootstrapResult = run_bootstrap(
-            deployment_region=deployment_region or "us-east-1"
-        )
+        try:
+            result: SSOBootstrapResult = run_bootstrap(
+                deployment_region=deployment_region or "us-east-1"
+            )
+        except KeyboardInterrupt:
+            console.print(
+                "\n[yellow]Bootstrap interrupted.[/yellow] "
+                "Re-run [bold]lablink login[/bold] to start over."
+            )
+            raise typer.Exit(1) from None
         console.print(
             f"\n[green]✓[/green] Identity Center configured "
             f"({result.start_url})\n"

@@ -10,11 +10,10 @@ and writes ~/.aws/config.
 from __future__ import annotations
 
 import configparser
-import json
 import os
 import re
 import webbrowser
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -48,53 +47,6 @@ class SSOBootstrapResult:
     sso_region: str
     permission_set_name: str
     deployment_region: str
-
-
-@dataclass
-class BootstrapState:
-    """Bootstrap progress, persisted to ~/.lablink/bootstrap-state.json.
-
-    Resumability is purely file-based: instances do not hold a file
-    handle. `load` / `save` / `clear` operate on the well-known path
-    each time, so a Ctrl-C between steps simply leaves the file behind
-    for the next invocation to pick up.
-    """
-
-    sso_start_url: str
-    sso_region: str
-    permission_set_name: str
-    steps_complete: list[str] = field(default_factory=list)
-
-    @classmethod
-    def path(cls) -> Path:
-        """Return the on-disk location of the persisted state."""
-        home = Path(os.environ.get("HOME", str(Path.home())))
-        return home / ".lablink" / "bootstrap-state.json"
-
-    @classmethod
-    def load(cls) -> "BootstrapState | None":
-        """Read state from disk. Returns None if missing or corrupt."""
-        path = cls.path()
-        if not path.exists():
-            return None
-        try:
-            data = json.loads(path.read_text())
-            return cls(**data)
-        except (json.JSONDecodeError, TypeError, OSError):
-            return None
-
-    def save(self) -> None:
-        """Persist this state to disk, creating parent dirs as needed."""
-        path = self.path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2))
-
-    @classmethod
-    def clear(cls) -> None:
-        """Remove the persisted state file if it exists."""
-        path = cls.path()
-        if path.exists():
-            path.unlink()
 
 
 def _is_valid_sso_start_url(url: str) -> bool:
@@ -278,40 +230,24 @@ def _step_assign_user(permission_set_name: str) -> None:
 
 
 def run_bootstrap(*, deployment_region: str) -> SSOBootstrapResult:
-    """Run the full first-time bootstrap flow with resumability."""
-    state = BootstrapState.load()
+    """Run the full first-time bootstrap flow.
 
-    if state is None:
-        start_url, sso_region = _step_enable_identity_center()
-        state = BootstrapState(
-            sso_start_url=start_url,
-            sso_region=sso_region,
-            permission_set_name=policy.PERMISSION_SET_NAME_DEFAULT,
-            steps_complete=["enable"],
-        )
-        state.save()
-    else:
-        console.print(
-            "[dim]Resuming bootstrap from a previous run...[/dim]"
-        )
-
-    if "permission_set" not in state.steps_complete:
-        permission_set_name = _step_create_permission_set()
-        state.permission_set_name = permission_set_name
-        state.steps_complete.append("permission_set")
-        state.save()
-
-    if "assign" not in state.steps_complete:
-        _step_assign_user(state.permission_set_name)
-        state.steps_complete.append("assign")
-        state.save()
+    Each step's effect on AWS (Identity Center enabled, user created,
+    permission set created, user assigned) persists in AWS regardless
+    of whether the CLI exits. So if the user Ctrl-Cs partway through,
+    re-running `lablink login` simply walks them through the same
+    console steps again — they confirm what's already there and paste
+    the URL once more. No local state needs to be remembered.
+    """
+    start_url, sso_region = _step_enable_identity_center()
+    permission_set_name = _step_create_permission_set()
+    _step_assign_user(permission_set_name)
 
     result = SSOBootstrapResult(
-        start_url=state.sso_start_url,
-        sso_region=state.sso_region,
-        permission_set_name=state.permission_set_name,
+        start_url=start_url,
+        sso_region=sso_region,
+        permission_set_name=permission_set_name,
         deployment_region=deployment_region,
     )
     _write_aws_config(result)
-    BootstrapState.clear()
     return result

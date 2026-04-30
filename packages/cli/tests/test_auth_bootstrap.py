@@ -84,45 +84,6 @@ def test_write_aws_config_preserves_other_profiles(fake_home):
     assert "profile lablink" in parser.sections()
 
 
-def test_state_file_round_trip(fake_home):
-    state = bootstrap.BootstrapState(
-        sso_start_url="https://d-test.awsapps.com/start",
-        sso_region="us-east-1",
-        permission_set_name="lablink",
-        steps_complete=["enable", "permission_set"],
-    )
-    state.save()
-    loaded = bootstrap.BootstrapState.load()
-    assert loaded == state
-    # Confirm state was written under the fake HOME, not real ~/.lablink
-    assert (fake_home / ".lablink" / "bootstrap-state.json").exists()
-
-
-def test_load_state_returns_none_when_missing(fake_home):
-    assert not (fake_home / ".lablink" / "bootstrap-state.json").exists()
-    assert bootstrap.BootstrapState.load() is None
-
-
-def test_load_state_returns_none_when_corrupt(fake_home):
-    state_path = fake_home / ".lablink" / "bootstrap-state.json"
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text("not valid json {{{")
-    assert bootstrap.BootstrapState.load() is None
-
-
-def test_clear_state_removes_file(fake_home):
-    state = bootstrap.BootstrapState(
-        sso_start_url="x", sso_region="y", permission_set_name="z",
-        steps_complete=["enable"],
-    )
-    state.save()
-    state_file = fake_home / ".lablink" / "bootstrap-state.json"
-    assert state_file.exists()
-    bootstrap.BootstrapState.clear()
-    assert not state_file.exists()
-    assert bootstrap.BootstrapState.load() is None
-
-
 def test_copy_to_clipboard_falls_back_to_file_when_pyperclip_unavailable(
     fake_home,
 ):
@@ -183,29 +144,3 @@ def test_run_bootstrap_writes_config_after_user_completes_console_steps(
     assert "sso-session lablink" in parser.sections()
 
 
-def test_run_bootstrap_resumes_from_saved_state(fake_home, monkeypatch):
-    """If state shows enable+permission_set complete, only assign + write is needed."""
-    state_file = fake_home / ".lablink" / "bootstrap-state.json"
-    bootstrap.BootstrapState(
-        sso_start_url="https://d-9067abc123.awsapps.com/start",
-        sso_region="us-east-1",
-        permission_set_name="lablink",
-        steps_complete=["enable", "permission_set"],
-    ).save()
-    assert state_file.exists()
-
-    inputs = iter(
-        [
-            "",  # Press Enter to open assign user page
-            "",  # Press Enter once assigned
-        ]
-    )
-    monkeypatch.setattr("builtins.input", lambda *a, **kw: next(inputs))
-    monkeypatch.setattr(
-        "lablink_cli.auth.bootstrap.webbrowser.open", lambda *a, **kw: True
-    )
-
-    result = bootstrap.run_bootstrap(deployment_region="us-east-1")
-    assert result.start_url == "https://d-9067abc123.awsapps.com/start"
-    # State should be cleared after completion
-    assert bootstrap.BootstrapState.load() is None

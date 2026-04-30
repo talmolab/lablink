@@ -83,12 +83,6 @@ def login(
         "--update-policy",
         help="Re-print the permission-set deep-link with current policy JSON.",
     ),
-    reset_bootstrap: bool = typer.Option(
-        False,
-        "--reset-bootstrap",
-        help="Discard any in-progress bootstrap state and start over. "
-        "Use this if you typo'd the SSO Start URL on a previous run.",
-    ),
     config: str = typer.Option(
         None,
         "--config",
@@ -109,11 +103,7 @@ def login(
         except typer.Exit:
             pass
 
-    run_login(
-        deployment_region=deployment_region,
-        update_policy=update_policy,
-        reset_bootstrap=reset_bootstrap,
-    )
+    run_login(deployment_region=deployment_region, update_policy=update_policy)
 
 
 @app.command(rich_help_panel="Setup")
