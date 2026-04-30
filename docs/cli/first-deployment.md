@@ -4,9 +4,20 @@ This walkthrough takes you from a clean install through a live allocator and bac
 
 ## Before you start
 
-Make sure you've completed [Installation](installation.md) and that `lablink doctor` reports clean values for "Terraform installed" and "AWS credentials". The other checks will light up as you go.
+Make sure you've completed [Installation](installation.md). The other prerequisite checks will light up as you complete each step below.
 
-## Step 1: Configure
+## Step 1: Sign in to AWS
+
+```bash
+lablink login
+```
+
+Authenticates your machine to AWS so the rest of the CLI can deploy. First run is a one-time guided Identity Center setup; after that, it's a quick browser sign-in. See [Sign in (lablink login)](login.md) for details and troubleshooting.
+
+!!! note "Already using `aws configure`?"
+    If you previously ran `aws configure` with access keys, those credentials still work — `lablink` falls back to env vars and `~/.aws/credentials` if no SSO profile exists. You can skip ahead to Step 2 and migrate to SSO later.
+
+## Step 2: Configure
 
 ```bash
 lablink configure
@@ -34,13 +45,13 @@ You can inspect what was written with:
 lablink show-config
 ```
 
-## Step 2: Sanity check
+## Step 3: Sanity check
 
 ```bash
 lablink doctor
 ```
 
-All six checks should now pass:
+All seven checks should now pass:
 
 ```text
 ┌─────────────────────────┬────────┬─────────────────────────────────────┐
@@ -50,14 +61,15 @@ All six checks should now pass:
 │ Config file             │ PASS   │ ~/.lablink/config.yaml              │
 │ Config validates        │ PASS   │ No errors                           │
 │ AWS credentials         │ PASS   │ Account: 123…, Identity: arn:…      │
+│ LabLink permissions     │ PASS   │ All required actions allowed        │
 │ S3 state bucket         │ PASS   │ tf-state-lablink-…                  │
 │ AMI for region          │ PASS   │ us-west-2 → ami-0bd08c9d…           │
 └─────────────────────────┴────────┴─────────────────────────────────────┘
 ```
 
-If any row is `FAIL`, the detail column tells you which command to run next (usually `lablink configure` or `aws configure`).
+If any row is `FAIL`, the detail column tells you which command to run next — usually `lablink login` (sign in / refresh token), `lablink login --update-policy` (permission set drift), or `lablink configure` (config issues).
 
-## Step 3: Deploy
+## Step 4: Deploy
 
 ```bash
 lablink deploy
@@ -78,7 +90,7 @@ Expect 2–5 minutes for Terraform + another 1–3 minutes for the allocator to 
 
 When deploy completes, note the `ec2_public_ip` in the Terraform output — that's your allocator URL.
 
-## Step 4: Verify
+## Step 5: Verify
 
 ```bash
 lablink status
@@ -93,7 +105,7 @@ This shows four sections:
 
 Open the allocator in a browser using `http://<ec2_public_ip>` (or your configured domain) and log in with username `admin` and the admin password you entered during deploy.
 
-## Step 5: Launch a client VM
+## Step 6: Launch a client VM
 
 ```bash
 lablink launch-client --num-vms 1
@@ -101,7 +113,7 @@ lablink launch-client --num-vms 1
 
 The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own Terraform workspace (not the CLI's). Run `lablink status` again to see the new VM appear.
 
-## Step 6: Tear down
+## Step 7: Tear down
 
 When you're done, destroy everything the CLI created:
 

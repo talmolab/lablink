@@ -54,13 +54,13 @@ def query_ec2_instances(
     Returns:
         List of VM info dicts.
     """
-    from lablink_cli.commands.setup import _get_session
+    from lablink_cli.auth.credentials import get_session
 
     if states is None:
         states = ["running"]
 
     try:
-        session = _get_session(region)
+        session = get_session(region=region)
         ec2 = session.client("ec2")
     except Exception:
         return []
@@ -115,11 +115,18 @@ def list_all_vms(cfg: Config) -> list[dict]:
 
 
 def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
-    """Read terraform outputs as a dict."""
+    """Read terraform outputs as a dict.
+
+    Uses subprocess_env() so terraform inherits AWS_PROFILE=lablink
+    (when SSO is configured) and can read state from S3 backend.
+    """
+    from lablink_cli.auth.credentials import subprocess_env
+
     try:
         result = subprocess.run(
             ["terraform", "output", "-json"],
             cwd=deploy_dir,
+            env=subprocess_env(),
             capture_output=True,
             text=True,
             check=True,

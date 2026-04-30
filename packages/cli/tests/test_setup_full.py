@@ -13,7 +13,7 @@ class TestRunSetup:
     @patch("lablink_cli.commands.setup.create_dynamodb_table")
     @patch("lablink_cli.commands.setup.create_s3_bucket")
     @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
+    @patch("lablink_cli.commands.setup.get_session")
     def test_basic_setup(
         self,
         mock_session,
@@ -44,7 +44,7 @@ class TestRunSetup:
     @patch("lablink_cli.commands.setup.create_dynamodb_table")
     @patch("lablink_cli.commands.setup.create_s3_bucket")
     @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
+    @patch("lablink_cli.commands.setup.get_session")
     def test_with_dns(
         self,
         mock_session,
@@ -73,7 +73,7 @@ class TestRunSetup:
     @patch("lablink_cli.commands.setup.create_dynamodb_table")
     @patch("lablink_cli.commands.setup.create_s3_bucket")
     @patch("lablink_cli.commands.setup.check_credentials")
-    @patch("lablink_cli.commands.setup._get_session")
+    @patch("lablink_cli.commands.setup.get_session")
     def test_default_config_path(
         self,
         mock_session,

@@ -107,7 +107,7 @@ class TestParseInstances:
 # query_ec2_instances
 # ------------------------------------------------------------------
 class TestQueryEc2Instances:
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_returns_instances(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
@@ -116,7 +116,7 @@ class TestQueryEc2Instances:
         ])
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "my-tag-*")
 
@@ -129,14 +129,14 @@ class TestQueryEc2Instances:
             ]
         )
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_custom_states(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
         mock_ec2.describe_instances.return_value = _make_ec2_response([])
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             query_ec2_instances(
                 "us-east-1", "tag", states=["running", "stopped"]
@@ -146,25 +146,25 @@ class TestQueryEc2Instances:
         state_filter = call_args[1]["Filters"][1]
         assert state_filter["Values"] == ["running", "stopped"]
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_session_error_returns_empty(self, mock_get_session):
         mock_get_session.side_effect = Exception("no credentials")
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "tag")
 
         assert result == []
 
-    @patch("lablink_cli.commands.utils._get_session", create=True)
+    @patch("lablink_cli.auth.credentials.get_session")
     def test_describe_error_returns_empty(self, mock_get_session):
         mock_ec2 = MagicMock()
         mock_get_session.return_value.client.return_value = mock_ec2
         mock_ec2.describe_instances.side_effect = Exception("API error")
 
         with patch(
-            "lablink_cli.commands.setup._get_session", mock_get_session
+            "lablink_cli.auth.credentials.get_session", mock_get_session
         ):
             result = query_ec2_instances("us-east-1", "tag")
 
@@ -248,13 +248,18 @@ class TestGetTerraformOutputs:
             "ec2_public_ip": "10.0.0.1",
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----",
         }
-        mock_run.assert_called_once_with(
-            ["terraform", "output", "-json"],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        # Assert the command, cwd, and capture flags — but not env, since
+        # subprocess_env() injects AWS_PROFILE based on the developer's
+        # local ~/.aws/config and we don't want the test to depend on that.
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        args = mock_run.call_args.args[0]
+        assert args == ["terraform", "output", "-json"]
+        assert kwargs["cwd"] == tmp_path
+        assert kwargs["capture_output"] is True
+        assert kwargs["text"] is True
+        assert kwargs["check"] is True
+        assert "env" in kwargs  # subprocess_env was used
 
     def test_subprocess_error(self, tmp_path):
         with patch("subprocess.run") as mock_run:

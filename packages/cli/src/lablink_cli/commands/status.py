@@ -10,7 +10,6 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-import boto3
 from botocore.exceptions import ClientError
 from rich.console import Console
 from rich.panel import Panel
@@ -282,9 +281,9 @@ def estimate_costs(cfg: Config) -> list[dict]:
 
     # Try AWS Pricing API (only available in us-east-1)
     try:
-        pricing = boto3.client(
-            "pricing", region_name="us-east-1"
-        )
+        from lablink_cli.auth.credentials import get_session
+
+        pricing = get_session(region="us-east-1").client("pricing")
         use_api = True
     except Exception:
         use_api = False

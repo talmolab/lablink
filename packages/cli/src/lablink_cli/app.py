@@ -77,6 +77,46 @@ def _load_cfg(config: str | None):
 
 
 @app.command(rich_help_panel="Setup")
+def login(
+    update_policy: bool = typer.Option(
+        False,
+        "--update-policy",
+        help="Re-print the permission-set deep-link with current policy JSON.",
+    ),
+    reset_bootstrap: bool = typer.Option(
+        False,
+        "--reset-bootstrap",
+        help="Discard any in-progress bootstrap state and start over. "
+        "Use this if you typo'd the SSO Start URL on a previous run.",
+    ),
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml). "
+        "Used only to determine deployment region for ~/.aws/config.",
+    ),
+) -> None:
+    """Sign in to AWS via Identity Center (no access keys required)."""
+    from lablink_cli.commands.login import run_login
+
+    deployment_region = None
+    config_path = Path(config) if config else DEFAULT_CONFIG
+    if config_path.exists():
+        try:
+            cfg = _load_cfg(str(config_path))
+            deployment_region = cfg.app.region
+        except typer.Exit:
+            pass
+
+    run_login(
+        deployment_region=deployment_region,
+        update_policy=update_policy,
+        reset_bootstrap=reset_bootstrap,
+    )
+
+
+@app.command(rich_help_panel="Setup")
 def configure(
     config: str = typer.Option(
         None,

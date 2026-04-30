@@ -11,7 +11,33 @@ Before starting, ensure you have completed:
 
 - [x] [Prerequisites](prerequisites.md): AWS Account, AWS CLI, GitHub CLI (`gh`), and Git installed
 
-## Step 1: Create Your Repository
+## Step 1: Authenticate to AWS
+
+The setup script you'll run in Step 3 needs AWS credentials with permission to create OIDC providers, IAM roles, S3 buckets, and DynamoDB tables. Configure them locally with:
+
+```bash
+aws configure
+```
+
+Enter your:
+
+- **AWS Access Key ID** (from IAM → Security credentials in the AWS Console)
+- **AWS Secret Access Key**
+- **Default region** (e.g., `us-west-2`)
+- **Default output format** (`json`)
+
+Verify you're authenticated:
+
+```bash
+aws sts get-caller-identity
+```
+
+You should see your account ID and IAM user ARN.
+
+!!! info "After setup completes, GitHub Actions takes over"
+    These local credentials are only used by `./scripts/setup.sh` to create the GitHub Actions OIDC role. Once setup finishes, all subsequent deployments run in GitHub Actions and use the OIDC role — no long-lived secrets in your repo.
+
+## Step 2: Create Your Repository
 
 <div class="video-container">
   <video controls width="100%">
@@ -29,7 +55,7 @@ git clone https://github.com/YOUR_ORG/YOUR_REPO.git
 cd YOUR_REPO
 ```
 
-## Step 2: Run Setup
+## Step 3: Run Setup
 
 <div class="video-container">
   <video controls width="100%">
@@ -64,7 +90,7 @@ It automatically:
 !!! tip "Manual Setup"
     If you prefer to create AWS resources individually, see the [AWS Setup (Manual)](aws-setup.md) guide.
 
-## Step 3: Configure
+## Step 4: Configure
 
 After setup completes, the script automatically runs `./scripts/configure.sh` to generate your deployment configuration.
 
@@ -82,7 +108,7 @@ It generates `lablink-infrastructure/config/config.yaml` with your settings.
     ./scripts/configure.sh
     ```
 
-## Step 4: Commit and Deploy
+## Step 5: Commit and Deploy
 
 <div class="video-container">
   <video controls width="100%">
@@ -118,7 +144,7 @@ The workflow will:
 - Initialize Terraform with the S3 backend
 - Deploy the allocator EC2 instance, security groups, and SSH key pair
 
-## Step 5: Verify
+## Step 6: Verify
 
 <div class="video-container">
   <video controls width="100%">
@@ -163,7 +189,7 @@ sudo docker ps
 sudo docker exec $(sudo docker ps -q) psql -U lablink -d lablink_db -c "SELECT hostname FROM vms;"
 ```
 
-## Step 6: Cleanup
+## Step 7: Cleanup
 
 <div class="video-container">
   <video controls width="100%">

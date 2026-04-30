@@ -40,25 +40,11 @@ Verify installation:
 aws --version
 ```
 
-#### Configure AWS Credentials
+!!! note "AWS authentication is path-specific"
+    How you authenticate to AWS depends on which deployment path you choose. The relevant quickstart documents the auth step for that path:
 
-You have two options:
-
-**Option 1: AWS Access Keys (Local Development)**
-```bash
-aws configure
-```
-
-Enter your:
-
-- AWS Access Key ID
-- AWS Secret Access Key
-- Default region (e.g., `us-west-2`)
-- Default output format (`json`)
-
-**Option 2: OIDC (GitHub Actions)**
-
-For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See [AWS Setup from Scratch](aws-setup.md#step-4-github-actions-oidc-configuration) for details.
+    - **CLI:** [Sign in (lablink login)](cli/login.md) — Identity Center, no access keys
+    - **Template repo:** [Quickstart: Template repo](quickstart-template.md#step-1-authenticate-to-aws) — `aws configure` for the local `setup.sh` script, then OIDC takes over for GitHub Actions deployments
 
 ### 3. GitHub CLI (`gh`)
 

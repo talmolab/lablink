@@ -107,6 +107,8 @@ def _ssh_via_instance_connect(
     command: str,
 ) -> str | None:
     """Try SSH via ec2-instance-connect. Returns stdout or None."""
+    from lablink_cli.auth.credentials import subprocess_env
+
     try:
         result = subprocess.run(
             [
@@ -124,6 +126,7 @@ def _ssh_via_instance_connect(
                 "--",
                 command,
             ],
+            env=subprocess_env(),
             capture_output=True,
             text=True,
             timeout=30,

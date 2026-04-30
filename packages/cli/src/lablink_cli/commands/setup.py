@@ -17,12 +17,9 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.auth.credentials import get_session
+
 console = Console()
-
-
-def _get_session(region: str) -> boto3.Session:
-    """Create a boto3 session for the given region."""
-    return boto3.Session(region_name=region)
 
 
 # ------------------------------------------------------------------
@@ -44,27 +41,13 @@ def check_credentials(session: boto3.Session) -> dict:
         )
         console.print()
         console.print(
-            "  To create access keys, visit:"
+            "  Run [bold]lablink login[/bold] to sign in via "
+            "AWS Identity Center (no access keys required)."
         )
         console.print(
-            "  [link=https://console.aws.amazon.com/iam/"
-            "home#/security_credentials]"
-            "https://console.aws.amazon.com/iam/"
-            "home#/security_credentials"
-            "[/link]"
-        )
-        console.print()
-        console.print(
-            "  Then configure them with one of:"
-        )
-        console.print(
-            '  [dim]1. Run: [bold]aws configure[/bold]'
-            "[/dim]"
-        )
-        console.print(
-            "  [dim]2. Set environment variables: "
-            "[bold]AWS_ACCESS_KEY_ID[/bold] and "
-            "[bold]AWS_SECRET_ACCESS_KEY[/bold][/dim]"
+            "  [dim]Existing access-key users: ensure "
+            "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars are "
+            "set, or that ~/.aws/credentials has a default profile.[/dim]"
         )
         console.print()
         console.print(f"  [dim]Error: {e}[/dim]")
@@ -266,7 +249,7 @@ def run_setup(cfg: Config, config_path: Path | None = None) -> None:
 
     # Step 1: Credentials
     console.print("[bold]Step 1/3:[/bold] Checking AWS credentials")
-    session = _get_session(region)
+    session = get_session(region=region)
     identity = check_credentials(session)
     console.print(
         f"  [green]authenticated[/green] "

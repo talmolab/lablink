@@ -13,7 +13,8 @@ from rich.panel import Panel
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.commands.setup import check_credentials, _get_session
+from lablink_cli.auth.credentials import get_session
+from lablink_cli.commands.setup import check_credentials
 from lablink_cli.commands.status import check_health_endpoint
 from lablink_cli.commands.utils import (
     get_allocator_url,
@@ -123,6 +124,8 @@ def _run_terraform(
     check: bool = True,
 ) -> int:
     """Run a terraform command with live-streamed output."""
+    from lablink_cli.auth.credentials import subprocess_env
+
     cmd = ["terraform"] + args
     console.print(
         f"  [dim]$ {' '.join(cmd)}[/dim]"
@@ -131,6 +134,7 @@ def _run_terraform(
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
+        env=subprocess_env(),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -166,12 +170,11 @@ def _terraform_init(
     reconfigure = (deploy_dir / ".terraform").exists()
 
     # Resolve bucket name from AWS account
-    import boto3
+    from lablink_cli.auth.credentials import get_session
 
     account_id = (
-        boto3.client(
-            "sts", region_name=cfg.app.region
-        )
+        get_session(region=cfg.app.region)
+        .client("sts")
         .get_caller_identity()["Account"]
     )
     bucket_name = f"lablink-tf-state-{account_id}"
@@ -308,7 +311,7 @@ def run_deploy(
     console.print()
 
     # Validate AWS credentials
-    check_credentials(_get_session(cfg.app.region))
+    check_credentials(get_session(region=cfg.app.region))
 
     # Prepare working directory
     deploy_dir = _prepare_working_dir(
@@ -654,7 +657,7 @@ def _terraform_destroy(
 
 def run_destroy(cfg: Config, *, yes: bool = False) -> None:
     """Destroy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
-    check_credentials(_get_session(cfg.app.region))
+    check_credentials(get_session(region=cfg.app.region))
 
     deploy_dir = get_deploy_dir(cfg)
 
