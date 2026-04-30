@@ -136,7 +136,7 @@ def run_login(
             Panel(
                 "Permission set policy JSON copied to your clipboard.\n\n"
                 "Open the AWS Console, navigate to your [bold]lablink[/bold]\n"
-                "permission set, and replace its inline policy with the\n"
+                "permission set, and repla  ce its inline policy with the\n"
                 "clipboard contents.",
                 title="Update policy",
                 border_style="cyan",

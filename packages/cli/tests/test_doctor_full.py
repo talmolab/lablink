@@ -167,6 +167,33 @@ class TestCheckS3Bucket:
         result = _check_s3_bucket(cfg)
         assert result["status"] == "fail"
 
+    @patch("lablink_cli.commands.doctor.get_session")
+    def test_skipped_when_not_logged_in(self, mock_session):
+        """A NotLoggedInError must not be misreported as a missing bucket."""
+        from lablink_cli.auth.credentials import NotLoggedInError
+
+        cfg = MagicMock()
+        cfg.bucket_name = "my-bucket"
+        cfg.app.region = "us-east-1"
+        mock_session.side_effect = NotLoggedInError("not signed in")
+
+        result = _check_s3_bucket(cfg)
+        assert result["status"] == "warn"
+        assert "not signed in" in result["detail"].lower()
+
+    @patch("lablink_cli.commands.doctor.get_session")
+    def test_skipped_when_sso_token_expired(self, mock_session):
+        from lablink_cli.auth.credentials import SSOTokenExpiredError
+
+        cfg = MagicMock()
+        cfg.bucket_name = "my-bucket"
+        cfg.app.region = "us-east-1"
+        mock_session.side_effect = SSOTokenExpiredError("expired")
+
+        result = _check_s3_bucket(cfg)
+        assert result["status"] == "warn"
+        assert "not signed in" in result["detail"].lower()
+
 
 # ------------------------------------------------------------------
 # run_doctor (integration-level)

@@ -258,6 +258,11 @@ def _check_config_valid() -> tuple[dict, object | None]:
 
 def _check_s3_bucket(cfg) -> dict:
     """Check that the S3 bucket for Terraform state exists."""
+    from lablink_cli.auth.credentials import (
+        NotLoggedInError,
+        SSOTokenExpiredError,
+    )
+
     result = {"check": "S3 state bucket", "status": "fail"}
 
     if cfg is None:
@@ -276,8 +281,13 @@ def _check_s3_bucket(cfg) -> dict:
 
     try:
         session = get_session(region=cfg.app.region)
-        s3 = session.client("s3")
-        s3.head_bucket(Bucket=bucket_name)
+    except (NotLoggedInError, SSOTokenExpiredError):
+        result["status"] = "warn"
+        result["detail"] = "Skipped (not signed in)"
+        return result
+
+    try:
+        session.client("s3").head_bucket(Bucket=bucket_name)
         result["status"] = "pass"
         result["detail"] = bucket_name
     except Exception:
