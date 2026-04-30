@@ -116,7 +116,7 @@ def select_account(*, sso_config: SSOConfig, access_token: str) -> str:
             "  1. Open the AWS Identity Center console.\n"
             "  2. Go to AWS accounts, select your account, click "
             "'Assign users or groups'.\n"
-            "  3. Pick your user and the 'lablink' permission set, then "
+            "  3. Pick your user and the correct permission set, then "
             "submit.\n"
             "  4. Re-run `lablink login`."
         )
