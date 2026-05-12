@@ -104,6 +104,121 @@ def test_launch_vm_success(
     )
 
 
+@patch("lablink_allocator_service.main.current_instance_security_group",
+       return_value="sg-fake-allocator")
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_vm_appends_allocator_sg_id_var(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    mock_current_sg,
+    client,
+    admin_headers,
+    monkeypatch,
+    omega_config,
+    tmp_path,
+):
+    """When running on EC2, the allocator's own SG id is appended as a
+    -var to terraform apply so client SG ingress can lock down to it."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
+                        terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [R("apply ok"), R("{}")]
+
+    resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                        data={"num_vms": "1"})
+    assert resp.status_code == 200
+
+    apply_args, _ = mock_run.call_args_list[0]
+    apply_cmd_list = apply_args[0]
+    assert "-var=allocator_sg_id=sg-fake-allocator" in apply_cmd_list
+    mock_current_sg.assert_called_once()
+
+
+@patch(
+    "lablink_allocator_service.main.current_instance_security_group",
+)
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_vm_skips_sg_var_when_not_on_ec2(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    mock_current_sg,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Outside EC2 (IMDSv2 unreachable), the allocator_sg_id var is
+    skipped — the apply command still goes through. Terraform itself
+    will fail with a missing-variable error in that case, which is the
+    correct signal that the deploy is mis-configured for dev."""
+    from lablink_allocator_service.utils.aws_utils import NotOnEC2Error
+
+    mock_current_sg.side_effect = NotOnEC2Error("no IMDS")
+
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
+                        terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [R("apply ok"), R("{}")]
+
+    resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                        data={"num_vms": "1"})
+    assert resp.status_code == 200
+
+    apply_args, _ = mock_run.call_args_list[0]
+    apply_cmd_list = apply_args[0]
+    assert not any(
+        a.startswith("-var=allocator_sg_id=") for a in apply_cmd_list
+    )
+
+
 @patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_missing_allocator_outputs_returns_error(
     mock_run, client, admin_headers, monkeypatch, tmp_path

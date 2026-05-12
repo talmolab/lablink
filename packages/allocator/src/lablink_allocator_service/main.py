@@ -27,6 +27,8 @@ from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
+    current_instance_security_group,
+    NotOnEC2Error,
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
@@ -418,7 +420,12 @@ def launch():
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
             f.write(f'api_token = "{API_TOKEN}"\n')
 
-        # Apply with the new number of instances
+        # Apply with the new number of instances.
+        # Look up the allocator's own SG via IMDSv2 so client EC2s can
+        # restrict :6080 / :7070 ingress to allocator-only. Outside EC2
+        # (dev / local test), skip the var; Terraform will fail with a
+        # missing-variable error in that case, which is the correct
+        # signal that this code path requires EC2.
         apply_cmd = [
             "terraform",
             "apply",
@@ -426,6 +433,15 @@ def launch():
             "-var-file=terraform.runtime.tfvars",
             f"-var=instance_count={total_vms}",
         ]
+        try:
+            sg_id = current_instance_security_group()
+            apply_cmd.append(f"-var=allocator_sg_id={sg_id}")
+        except NotOnEC2Error:
+            logger.warning(
+                "Not running on EC2 (IMDSv2 unreachable); "
+                "skipping -var=allocator_sg_id=. Terraform apply will "
+                "fail unless the variable is supplied another way."
+            )
 
         logger.debug(f"Running command: {' '.join(apply_cmd)}")
 
