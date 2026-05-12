@@ -17,6 +17,7 @@ from flask import (
     request,
     jsonify,
     render_template,
+    redirect,
     send_file,
     after_this_request,
 )
@@ -33,7 +34,6 @@ from lablink_allocator_service.utils.aws_utils import (
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
-from lablink_allocator_service.utils.crd_validation import check_crd_input
 from lablink_allocator_service.utils.scp import (
     find_files_in_container,
     extract_files_from_docker,
@@ -47,6 +47,14 @@ from lablink_allocator_service.utils.terraform_utils import (
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
+from lablink_allocator_service.client_session import (
+    prepare_browser_session,
+    RotationFailed,
+)
+from lablink_allocator_service.signed_cookie import (
+    sign,
+    get_or_create_cookie_secret,
+)
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -244,118 +252,80 @@ def delete_instances():
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
+    import uuid
+
     try:
-        data = request.form
-        email = data.get("email")
-        crd_command = data.get("crd_command")
+        email = (request.form.get("email") or "").strip().lower()
+        if not email:
+            return render_template("index.html", error="Email is required.")
 
-        # If email or crd_command is not provided, return an error
-        if not email or not crd_command:
-            return render_template(
-                "index.html", error="Email and CRD command are required."
-            )
-
-        # Check if the CRD command is valid
-        if not check_crd_input(crd_command=crd_command):
-            logger.error("Invalid CRD command: --code not found.")
-            return render_template(
-                "index.html",
-                error="Invalid CRD command received. "
-                "Please ask your instructor for help.",
-            )
-
-        # If this email already owns a VM, reassign the new CRD to it
-        # in place instead of picking a new VM.
+        # Idempotent rejoin: if this email already owns a running seat,
+        # keep them on it and continue to prep a fresh browser session.
         existing = database.get_assigned_vm_for_email(email=email)
-        if existing is not None:
+        if existing is not None and existing["status"] == "running":
             hostname = existing["hostname"]
-            status = existing["status"]
+        else:
+            # Fresh assignment. assign_vm raises ValueError if no VM is
+            # available; we treat that as 503 (no seats).
+            try:
+                database.assign_vm(email=email)
+            except ValueError:
+                logger.warning("Pool empty when '%s' asked for a seat", email)
+                return render_template("no_seats.html"), 503
+            re_lookup = database.get_assigned_vm_for_email(email=email)
+            if re_lookup is None:
+                # Shouldn't happen: assign_vm succeeded but lookup missed.
+                logger.error(
+                    "Assigned VM not visible to follow-up lookup for '%s'",
+                    email,
+                )
+                return render_template("no_seats.html"), 503
+            hostname = re_lookup["hostname"]
 
-            def _attempt_reassign():
-                """Try to reassign CRD; return True on success, or render
-                a retry-page response if the row was released under us."""
-                if database.reassign_crd(
-                    hostname=hostname,
-                    crd_command=crd_command,
-                    pin=PIN,
-                    expected_email=email,
-                ):
-                    return None  # success; caller continues
-                # Race: release_assignment fired between lookup and UPDATE.
-                logger.warning(
-                    f"Reassign race for '{email}' on '{hostname}' "
-                    f"(status={status}); asking student to retry"
-                )
-                return render_template(
-                    "index.html",
-                    error="Your VM assignment changed. Please try "
-                    "again — a fresh VM will be assigned.",
-                )
-
-            if status == "running":
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
-                logger.info(
-                    f"Reassigned CRD for '{email}' on existing VM "
-                    f"'{hostname}'"
-                )
-                return render_template(
-                    "success.html", host=hostname, pin=PIN
-                )
-
-            if status in ("rebooting", "initializing"):
-                # Queue the CRD on the row. When the client's
-                # /vm_startup call lands after recovery, the existing
-                # race-condition path returns it immediately.
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
-                logger.info(
-                    f"Queued CRD for '{email}' on recovering VM "
-                    f"'{hostname}' (status={status})"
-                )
-                return render_template(
-                    "recovery.html", host=hostname, status=status
-                )
-
-            if status == "error":
-                # Reboot-service will release the assignment on its
-                # next tick. Ask the student to retry then.
-                logger.warning(
-                    f"VM '{hostname}' is in error state; asking "
-                    f"'{email}' to retry"
-                )
-                return render_template(
-                    "index.html",
-                    error="Your previous VM could not be recovered. "
-                    "Please wait up to 60 seconds and try again — a "
-                    "fresh VM will be assigned.",
-                )
-
-            # Any other status: log and fall through to fresh assignment
+        # Mint per-session identifiers and rotate the VNC password on the
+        # assigned client. RotationFailed → mark unhealthy and ask the
+        # student to retry; the failed-VM recovery loop will pick it up.
+        session_id = uuid.uuid4()
+        browser_token = secrets.token_urlsafe(16)
+        try:
+            prepare_browser_session(
+                database=database,
+                hostname=hostname,
+                session_id=session_id,
+                browser_token=browser_token,
+            )
+        except RotationFailed as exc:
             logger.warning(
-                f"Unexpected status '{status}' for '{email}' on "
-                f"'{hostname}'; falling through to fresh assignment"
+                "Password rotation failed for '%s' on '%s': %s",
+                email, hostname, exc,
             )
+            try:
+                database.update_health(hostname=hostname, healthy="Unhealthy")
+            except Exception:
+                logger.exception("Could not mark '%s' unhealthy", hostname)
+            return render_template("rotation_failed.html"), 503
 
-        # No existing assignment: assign a fresh VM from the pool
-        if len(database.get_unassigned_vms()) == 0:
-            logger.error("No available VMs found.")
-            return render_template(
-                "index.html",
-                error="No available VMs. Please try again later. Please "
-                "ask your instructor for help",
-            )
+        # Sign the session_id and set the cookie. Secure flag is decided
+        # by whether the inbound request was https — front door
+        # (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.
+        conn = database._pool.getconn()
+        try:
+            secret = get_or_create_cookie_secret(conn)
+        finally:
+            database._pool.putconn(conn)
 
-        database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
-
-        assigned_vm = database.get_vm_details(email=email)
-        return render_template(
-            "success.html", host=assigned_vm[0], pin=assigned_vm[1]
+        signed = sign(str(session_id), secret=secret)
+        resp = redirect("/desktop", code=303)
+        is_https = request.headers.get("X-Forwarded-Proto") == "https"
+        resp.set_cookie(
+            "lablink_session", signed,
+            httponly=True, samesite="Strict",
+            secure=is_https, path="/",
         )
+        return resp
+
     except Exception as e:
-        logger.error(f"Error in submit_vm_details: {e}")
+        logger.error("Error in submit_vm_details: %s", e, exc_info=True)
         return render_template(
             "index.html",
             error="An unexpected error occurred while processing your request. "
@@ -570,31 +540,12 @@ def vm_startup():
     if not hostname:
         return jsonify({"error": "Hostname is required."}), 400
 
-    # Check if the VM exists in the database
     vm = database.get_vm_by_hostname(hostname)
     if not vm:
         return jsonify({"error": "VM not found."}), 404
 
     database.touch_last_seen(hostname=hostname)
-
-    # Check if the VM already has a CRD command assigned (handles race condition
-    # where user submitted CRD before client called /vm_startup)
-    if vm.get("crdcommand") and vm.get("pin"):
-        logger.info(
-            f"VM '{hostname}' already has CRD command assigned, returning immediately"
-        )
-        return jsonify({
-            "status": "success",
-            "pin": vm["pin"],
-            "command": vm["crdcommand"],
-        }), 200
-
-    # Otherwise, wait for the CRD command via PostgreSQL LISTEN/NOTIFY
-    result = database.listen_for_notifications(
-        channel=MESSAGE_CHANNEL, target_hostname=hostname
-    )
-
-    return jsonify(result), 200
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/api/scp-client", methods=["GET"])
