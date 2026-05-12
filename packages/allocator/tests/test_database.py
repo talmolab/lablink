@@ -198,7 +198,7 @@ def test_get_unassigned_vms(db_instance):
     result = db_instance.get_unassigned_vms()
 
     expected_query = (
-        "SELECT hostname FROM vms WHERE crdcommand IS NULL AND status = 'running'"
+        "SELECT hostname FROM vms WHERE useremail IS NULL AND status = 'running'"
     )
     db_instance.cursor.execute.assert_called_with(expected_query)
     assert result == ["vm-free-1", "vm-free-2"]
@@ -229,7 +229,7 @@ def test_get_assigned_vms(db_instance):
     result = db_instance.get_assigned_vms()
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT hostname FROM vms WHERE crdcommand IS NOT NULL"
+        "SELECT hostname FROM vms WHERE useremail IS NOT NULL"
     )
     assert result == ["vm-in-use-1", "vm-in-use-2"]
 
