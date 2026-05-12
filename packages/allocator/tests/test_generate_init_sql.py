@@ -1,74 +1,40 @@
-"""Tests for generate_init_sql — in particular the trigger WHEN guard."""
+"""Tests for generate_init_sql — schema shape and absence of CRD residue."""
 
-from unittest.mock import patch, mock_open, MagicMock
-
-
-def test_crd_command_trigger_has_when_guard(monkeypatch):
-    """The notify trigger must only fire when CrdCommand is non-null.
-
-    Without the WHEN guard, record_reboot and release_assignment (which
-    set CrdCommand = NULL) produce NOTIFY payloads the LISTEN loop
-    already discards, spamming "Invalid notification payload" warnings
-    in every listening client.
-    """
-    mock_config = MagicMock()
-    mock_config.db.dbname = "d"
-    mock_config.db.user = "u"
-    mock_config.db.password = "p"
-    mock_config.db.table_name = "vms"
-    mock_config.db.message_channel = "ch"
-
-    monkeypatch.setattr(
-        "lablink_allocator_service.generate_init_sql.get_config",
-        lambda: mock_config,
-    )
-
-    from lablink_allocator_service.generate_init_sql import main
-
-    m = mock_open()
-    with patch("builtins.open", m):
-        main()
-
-    handle = m()
-    written = "".join(
-        call.args[0] for call in handle.write.call_args_list
-    )
-    assert "CREATE TRIGGER trigger_crd_command_insert_or_update" in written
-    assert "WHEN (NEW.CrdCommand IS NOT NULL)" in written
+from lablink_allocator_service.generate_init_sql import build_init_sql
 
 
-def test_vm_table_includes_heartbeat_columns(monkeypatch):
-    """The VM table schema must declare the five heartbeat columns."""
-    mock_config = MagicMock()
-    mock_config.db.dbname = "d"
-    mock_config.db.user = "u"
-    mock_config.db.password = "p"
-    mock_config.db.table_name = "vms"
-    mock_config.db.message_channel = "ch"
+def test_build_init_sql_returns_string():
+    sql = build_init_sql()
+    assert isinstance(sql, str)
+    assert "CREATE TABLE" in sql
 
-    monkeypatch.setattr(
-        "lablink_allocator_service.generate_init_sql.get_config",
-        lambda: mock_config,
-    )
 
-    from lablink_allocator_service.generate_init_sql import main
+def test_per_session_columns_present():
+    sql = build_init_sql()
+    for col in ("SessionId", "BrowserToken", "VncPassword",
+                "Upstream", "SessionStartedAt"):
+        assert col in sql, f"missing column {col}"
 
-    m = mock_open()
-    with patch("builtins.open", m):
-        main()
 
-    handle = m()
-    written = "".join(
-        call.args[0] for call in handle.write.call_args_list
-    )
-    # Columns must be declared in lowercase-with-underscores so Postgres
-    # stores them as `last_seen_at` etc. — queries throughout database.py
-    # reference them that way. CamelCase names (e.g. `LastSeenAt`) would
-    # be folded to `lastseenat`, breaking every query.
-    for col in [
-        "last_seen_at",
-        "boot_id",
-        "crd_active",
-        "disk_free_pct",
-    ]:
-        assert col in written
+def test_partial_unique_indexes_present():
+    sql = build_init_sql()
+    assert "BrowserToken IS NOT NULL" in sql
+    assert "SessionId IS NOT NULL" in sql
+
+
+def test_settings_table_present():
+    sql = build_init_sql()
+    assert "CREATE TABLE IF NOT EXISTS settings" in sql
+    assert "key TEXT PRIMARY KEY" in sql
+
+
+def test_crd_columns_absent():
+    sql = build_init_sql()
+    for symbol in ("CrdCommand", "Pin VARCHAR", "crd_active"):
+        assert symbol not in sql, f"unexpected CRD residue: {symbol}"
+
+
+def test_crd_trigger_absent():
+    sql = build_init_sql()
+    assert "notify_crd_command_update" not in sql
+    assert "trigger_crd_command_insert_or_update" not in sql
