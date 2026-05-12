@@ -1094,7 +1094,9 @@ def main():
 
         logger.info("Auto-generated API token for machine-to-machine auth")
         logger.info("Starting Flask application...")
-        app.run(host="0.0.0.0", port=5000, threaded=True)
+        flask_host = os.environ.get("FLASK_HOST", "127.0.0.1")
+        flask_port = int(os.environ.get("FLASK_PORT", "8000"))
+        app.run(host=flask_host, port=flask_port, threaded=True)
 
     except Exception as e:
         logger.error(f"Failed to start allocator service: {e}", exc_info=True)

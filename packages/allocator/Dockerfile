@@ -23,6 +23,18 @@ RUN apt-get update && apt-get install -y curl unzip && \
     rm /tmp/terraform.zip && \
     rm -rf /var/lib/apt/lists/*
 
+# nginx is the only network-facing process in this container.
+# noVNC (Debian package) provides the viewer bundle at /usr/share/novnc/.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    novnc && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf
+
+# Disable nginx's default site so it doesn't compete with lablink-nginx.conf.
+RUN rm -f /etc/nginx/sites-enabled/default
+
 # Set working directory
 WORKDIR /app
 
