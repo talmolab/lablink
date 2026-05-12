@@ -55,8 +55,10 @@ from lablink_allocator_service.signed_cookie import (
     sign,
     get_or_create_cookie_secret,
 )
+from lablink_allocator_service.routes.desktop import bp as desktop_bp
 
 app = Flask(__name__)
+app.register_blueprint(desktop_bp)
 auth = HTTPBasicAuth()
 
 # Define the terraform directory relative to this file (now inside the package)
@@ -119,6 +121,10 @@ def init_database():
         table_name=cfg.db.table_name,
         message_channel=cfg.db.message_channel,
     )
+    # Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,
+    # /internal/proxy_auth) that need a raw connection for the signed-cookie
+    # helpers, without coupling them to the PostgresqlDatabase wrapper.
+    app.config["DB_POOL"] = database._pool
 
 
 # Set up logging

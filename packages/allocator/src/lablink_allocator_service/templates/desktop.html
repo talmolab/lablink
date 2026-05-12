@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LabLink — Desktop</title>
+  <link rel="stylesheet" href="/static/novnc/app/styles/base.css">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    #screen { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="screen"></div>
+  <script type="module">
+    import RFB from "/static/novnc/core/rfb.js";
+
+    const rfb = new RFB(
+      document.getElementById("screen"),
+      "{{ ws_url|safe }}",
+      { credentials: {} }
+    );
+    rfb.viewOnly = false;
+    rfb.scaleViewport = true;
+    rfb.resizeSession = true;
+  </script>
+</body>
+</html>
