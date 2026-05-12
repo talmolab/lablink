@@ -274,14 +274,14 @@ class PostgresqlDatabase:
             return None
 
     def get_unassigned_vms(self) -> list:
-        """Get the VMs that are not assigned to any command.
+        """Get the VMs that are running and have no student assigned.
 
         Returns:
-            list: A list of VMs that are not assigned to any command.
+            list: hostnames of available VMs.
         """
         query = (
             f"SELECT hostname FROM {self.table_name} WHERE "
-            f"crdcommand IS NULL AND status = 'running'"
+            f"useremail IS NULL AND status = 'running'"
         )
         try:
             with self._cursor as cursor:
