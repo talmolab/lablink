@@ -205,6 +205,55 @@ def test_get_instance_public_ip_client_error(mock_boto_client):
 
 
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_found(mock_boto_client):
+    """Test getting private IP of an EC2 instance."""
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.return_value = {
+        "Reservations": [
+            {
+                "Instances": [
+                    {"InstanceId": "i-abc", "PrivateIpAddress": "10.0.0.5"}
+                ]
+            }
+        ]
+    }
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-abc")
+    assert result == "10.0.0.5"
+    mock_ec2.describe_instances.assert_called_once_with(InstanceIds=["i-abc"])
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_not_found(mock_boto_client):
+    """Test getting private IP when instance has none."""
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.return_value = {
+        "Reservations": [{"Instances": [{}]}],
+    }
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-abc")
+    assert result is None
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_client_error(mock_boto_client):
+    """Test error handling in get_instance_private_ip."""
+    from botocore.exceptions import ClientError
+
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.side_effect = ClientError(
+        {"Error": {"Code": "InvalidInstanceID", "Message": "Not found"}},
+        "DescribeInstances",
+    )
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-bad")
+    assert result is None
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_stop_start_ec2_instance_success(mock_boto_client):
     """Test successful stop/start of an EC2 instance."""
     mock_ec2 = MagicMock()

@@ -173,6 +173,39 @@ def get_instance_public_ip(
     return None
 
 
+def get_instance_private_ip(
+    instance_id: str, region: str = "us-west-2"
+) -> Optional[str]:
+    """Get the private IP address of an EC2 instance.
+
+    Args:
+        instance_id: The EC2 instance ID.
+        region: The AWS region where the instance is located.
+
+    Returns:
+        The private IP address if available, None otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
+    try:
+        response = ec2.describe_instances(InstanceIds=[instance_id])
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                ip = instance.get("PrivateIpAddress")
+                if ip:
+                    return ip
+    except ClientError as e:
+        logger.error(f"Error getting private IP for instance {instance_id}: {e}")
+    return None
+
+
 def stop_start_ec2_instance(instance_id: str, region: str = "us-west-2") -> bool:
     """Stop and start an EC2 instance (last-resort fallback).
 
