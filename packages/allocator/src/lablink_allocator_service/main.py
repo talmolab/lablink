@@ -4,8 +4,6 @@ import secrets
 import subprocess
 import time
 from pathlib import Path
-import tempfile
-from zipfile import ZipFile
 from datetime import datetime
 import re
 import atexit
@@ -18,8 +16,6 @@ from flask import (
     jsonify,
     render_template,
     redirect,
-    send_file,
-    after_this_request,
 )
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -34,14 +30,7 @@ from lablink_allocator_service.utils.aws_utils import (
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
-from lablink_allocator_service.utils.scp import (
-    find_files_in_container,
-    extract_files_from_docker,
-    rsync_files_to_allocator,
-)
 from lablink_allocator_service.utils.terraform_utils import (
-    get_instance_ips,
-    get_ssh_private_key,
     get_instance_timings,
     has_runtime_tfvars,
 )
@@ -558,109 +547,6 @@ def vm_startup():
     return jsonify({"status": "ok"}), 200
 
 
-@app.route("/api/scp-client", methods=["GET"])
-@auth.login_required
-def download_all_data():
-    if database.get_row_count() == 0:
-        logger.warning("No VMs found in the database.")
-        return jsonify({"error": "No VMs found in the database."}), 404
-    try:
-        instance_ips = get_instance_ips(terraform_dir=TERRAFORM_DIR)
-        key_path = get_ssh_private_key(terraform_dir=TERRAFORM_DIR)
-        empty_data = True
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            for i, ip in enumerate(instance_ips):
-                # Make temporary directory for each VM
-                logger.debug(f"Downloading data from VM {i + 1} at {ip}...")
-                vm_dir = Path(temp_dir) / f"vm_{i + 1}"
-                vm_dir.mkdir(parents=True, exist_ok=True)
-
-                logger.info(
-                    f"Extracting {cfg.machine.extension} files "
-                    f"from container on {ip}..."
-                )
-
-                # Find files from the Docker container
-                files = find_files_in_container(
-                    ip=ip, key_path=key_path, extension=cfg.machine.extension
-                )
-
-                # If no files are found, log a warning and continue to the next VM
-                if len(files) == 0:
-                    logger.warning(
-                        f"No {cfg.machine.extension} files found in container on {ip}."
-                    )
-                    continue
-                else:
-                    logger.debug(
-                        f"Found {len(files)} {cfg.machine.extension} "
-                        f"files in container on {ip}."
-                    )
-                    # Extract files from the Docker container
-                    extract_files_from_docker(
-                        ip=ip,
-                        key_path=key_path,
-                        files=files,
-                    )
-                    empty_data = False
-                logger.info(
-                    f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}..."
-                )
-
-                # Copy the extracted files to the allocator container's local
-                rsync_files_to_allocator(
-                    ip=ip,
-                    key_path=key_path,
-                    local_dir=vm_dir.as_posix(),
-                    extension=cfg.machine.extension,
-                )
-
-            if empty_data:
-                logger.warning(f"No {cfg.machine.extension} files found in any VMs.")
-                return (
-                    jsonify(
-                        {"error": f"No {cfg.machine.extension} files found in any VMs."}
-                    ),
-                    404,
-                )
-
-            logger.info(f"All files copied to {temp_dir}.")
-
-            # Create a zip file of the downloaded data with a timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            zip_file = Path(tempfile.gettempdir()) / f"lablink_data{timestamp}.zip"
-
-            with ZipFile(zip_file, "w") as archive:
-                for vm_dir in Path(temp_dir).iterdir():
-                    if vm_dir.is_dir():
-                        logger.debug(f"Zipping data for VM: {vm_dir.name}")
-                        for file in vm_dir.rglob(f"*.{cfg.machine.extension}"):
-                            logger.debug(f"Adding {file.name} to zip archive.")
-                            # Add with relative path inside zip
-                            archive.write(file, arcname=file.relative_to(temp_dir))
-            logger.debug("All data downloaded and zipped successfully.")
-
-            # Send the zip file as a response and remove it after the request
-            @after_this_request
-            def remove_zip_file(response):
-                try:
-                    os.remove(zip_file)
-                    logger.debug(f"Removed zip file: {zip_file}")
-                except Exception as e:
-                    logger.error(f"Error removing zip file: {e}")
-                return response
-
-            return send_file(zip_file, as_attachment=True)
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error downloading data: {e}")
-        return (
-            jsonify({"error": "An error occurred while downloading data from VMs."}),
-            500,
-        )
-
-
 @app.route("/api/unassigned_vms_count", methods=["GET"])
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
@@ -719,14 +605,12 @@ def heartbeat():
         return jsonify({"error": "vm_id is required."}), 400
 
     boot_id = data.get("boot_id")
-    crd_active = data.get("crd_active")
     disk_free_pct = data.get("disk_free_pct")
 
     try:
         ok = database.record_heartbeat(
             hostname=hostname,
             boot_id=boot_id,
-            crd_active=crd_active,
             disk_free_pct=disk_free_pct,
         )
         if not ok:
