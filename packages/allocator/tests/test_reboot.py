@@ -226,12 +226,11 @@ def test_get_failed_vms_heartbeat_only_matches_running(db_instance):
 
 
 def test_record_heartbeat_updates_columns(db_instance):
-    """record_heartbeat persists all four columns and bumps last_seen_at."""
-    db_instance.cursor.fetchone.return_value = (None, None)
+    """record_heartbeat persists boot_id, disk_free_pct, and bumps last_seen_at."""
+    db_instance.cursor.fetchone.return_value = (None,)
     ok = db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="abc-123",
-        crd_active=True,
         disk_free_pct=87,
     )
     assert ok is True
@@ -242,9 +241,9 @@ def test_record_heartbeat_updates_columns(db_instance):
     params = update_call[0][1]
     assert "last_seen_at = NOW()" in query
     assert "boot_id = %s" in query
-    assert "crd_active = %s" in query
     assert "disk_free_pct = %s" in query
-    assert params == ("abc-123", True, 87, "vm-1")
+    assert "crd_active" not in query
+    assert params == ("abc-123", 87, "vm-1")
 
 
 def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
@@ -254,7 +253,6 @@ def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
     ok = db_instance.record_heartbeat(
         hostname="vm-missing",
         boot_id="bid",
-        crd_active=True,
         disk_free_pct=50,
     )
 
@@ -264,40 +262,24 @@ def test_record_heartbeat_unknown_hostname_returns_false(db_instance, caplog):
 
 def test_record_heartbeat_warns_on_boot_id_change(db_instance, caplog):
     """Heartbeat with a different boot_id than stored emits a warning."""
-    db_instance.cursor.fetchone.return_value = ("prev-bid", True)
+    db_instance.cursor.fetchone.return_value = ("prev-bid",)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="new-bid",
-        crd_active=True,
         disk_free_pct=50,
     )
 
     assert "boot_id changed" in caplog.text
 
 
-def test_record_heartbeat_warns_on_crd_flip(db_instance, caplog):
-    """Heartbeat where crd_active transitions True -> False warns."""
-    db_instance.cursor.fetchone.return_value = ("bid", True)
-
-    db_instance.record_heartbeat(
-        hostname="vm-1",
-        boot_id="bid",
-        crd_active=False,
-        disk_free_pct=50,
-    )
-
-    assert "crd_active flipped False" in caplog.text
-
-
 def test_record_heartbeat_warns_on_low_disk(db_instance, caplog):
     """disk_free_pct under 10 % emits a warning."""
-    db_instance.cursor.fetchone.return_value = ("bid", True)
+    db_instance.cursor.fetchone.return_value = ("bid",)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="bid",
-        crd_active=True,
         disk_free_pct=5,
     )
 
@@ -306,12 +288,11 @@ def test_record_heartbeat_warns_on_low_disk(db_instance, caplog):
 
 def test_record_heartbeat_no_warn_on_first_boot_id(db_instance, caplog):
     """First heartbeat (previous boot_id is NULL) must not warn."""
-    db_instance.cursor.fetchone.return_value = (None, None)
+    db_instance.cursor.fetchone.return_value = (None,)
 
     db_instance.record_heartbeat(
         hostname="vm-1",
         boot_id="new-bid",
-        crd_active=True,
         disk_free_pct=50,
     )
 
@@ -326,7 +307,6 @@ def test_touch_last_seen_only_updates_timestamp(db_instance):
     assert "last_seen_at = NOW()" in query
     # No other mutable columns touched.
     assert "boot_id" not in query
-    assert "crd_active" not in query
     assert "status" not in query
 
 
@@ -349,11 +329,10 @@ def test_record_reboot(db_instance):
     db_instance.record_reboot("vm-1")
     db_instance.cursor.execute.assert_called_with(ANY, ("vm-1",))
 
-    # Verify CRD-session fields are cleared but the student's assignment
-    # is preserved (so the student keeps their VM slot across reboots).
+    # Verify reboot bookkeeping fields are set but the student's
+    # assignment is preserved (so the student keeps their VM slot
+    # across reboots).
     query = db_instance.cursor.execute.call_args[0][0]
-    assert "crdcommand = NULL" in query
-    assert "pin = NULL" in query
     assert "useremail = NULL" not in query
     assert "status = 'rebooting'" in query
     assert "reboot_count" in query
@@ -373,8 +352,6 @@ def test_release_assignment(db_instance):
 
     query = db_instance.cursor.execute.call_args[0][0]
     assert "useremail = NULL" in query
-    assert "crdcommand = NULL" in query
-    assert "pin = NULL" in query
     assert "status = 'error'" in query
     # reboot_count is intentionally preserved for diagnostics
     assert "reboot_count" not in query

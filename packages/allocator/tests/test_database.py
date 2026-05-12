@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch, ANY
-import json
 
 # Mock psycopg2 before importing the database module
 # This allows us to avoid the real psycopg2 import raising an error if it's not installed
@@ -191,56 +190,6 @@ def test_get_vm_by_hostname_not_found(db_instance):
     assert vm is None
 
 
-@patch("select.select")
-def test_listen_for_notifications(mock_select, db_instance):
-    """Test the notification listener."""
-    target_hostname = "vm-to-connect"
-    channel = "test_channel"
-
-    # Mock a separate connection for the listener
-    mock_listen_conn = MagicMock()
-    mock_listen_cursor = MagicMock()
-    mock_listen_conn.cursor.return_value = mock_listen_cursor
-    # The listener creates its own connection, so we patch the return value again
-    mock_psycopg2.connect.return_value = mock_listen_conn
-
-    # Simulate receiving a notification
-    mock_select.return_value = ([mock_listen_conn], [], [])
-
-    payload = {
-        "HostName": target_hostname,
-        "Pin": "654321",
-        "CrdCommand": "remote-desktop-command",
-    }
-    mock_notification = MagicMock()
-    mock_notification.payload = json.dumps(payload)
-    mock_notification.channel = channel
-    mock_listen_conn.notifies = [mock_notification]
-
-    result = db_instance.listen_for_notifications(channel, target_hostname)
-
-    mock_listen_cursor.execute.assert_called_with(f"LISTEN {channel};")
-    assert result["status"] == "success"
-    assert result["pin"] == "654321"
-    mock_listen_cursor.close.assert_called_once()
-    mock_listen_conn.close.assert_called_once()
-
-
-def test_get_crd_command(db_instance):
-    """Test getting the CRD command for a specific VM."""
-    hostname = "test-vm-02"
-    command = "some-crd-command"
-    db_instance.vm_exists = MagicMock(return_value=True)
-    db_instance.cursor.fetchone.return_value = (command,)
-
-    result = db_instance.get_crd_command(hostname)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT crdcommand FROM vms WHERE hostname = %s", (hostname,)
-    )
-    assert result == command
-
-
 def test_get_unassigned_vms(db_instance):
     """Test getting a list of unassigned VMs."""
     unassigned_vms_data = [("vm-free-1",), ("vm-free-2",)]
@@ -314,16 +263,14 @@ def test_get_vm_details_not_found(db_instance):
 def test_assign_vm(db_instance):
     """Test assigning an available VM to a user."""
     email = "new-user@example.com"
-    crd_command = "new-command"
-    pin = "4321"
     hostname = "available-vm"
 
     db_instance.get_first_available_vm = MagicMock(return_value=hostname)
-    db_instance.assign_vm(email, crd_command, pin)
+    db_instance.assign_vm(email)
 
     # Using ANY to avoid matching the exact whitespace in the multi-line query string
     db_instance.cursor.execute.assert_called_with(
-        ANY, (email, crd_command, pin, hostname)
+        ANY, (email, hostname)
     )
 
 
@@ -331,7 +278,7 @@ def test_assign_vm_no_available(db_instance):
     """Test assigning a VM when no VMs are available."""
     db_instance.get_first_available_vm = MagicMock(return_value=None)
     with pytest.raises(ValueError, match="No available VMs to assign."):
-        db_instance.assign_vm("user@example.com", "cmd", "123")
+        db_instance.assign_vm("user@example.com")
 
 
 def test_get_first_available_vm(db_instance):
@@ -757,14 +704,6 @@ def test_del(db_instance):
     pool.closeall.assert_called_once()
 
 
-def test_get_crd_command_no_vm(db_instance):
-    """Test getting CRD command for a non-existent VM."""
-    hostname = "non-existent-vm"
-    db_instance.vm_exists = MagicMock(return_value=False)
-    result = db_instance.get_crd_command(hostname)
-    assert result is None
-
-
 def test_get_unassigned_vms_error(db_instance, caplog):
     """Test error handling in get_unassigned_vms."""
     db_instance.cursor.execute.side_effect = Exception("DB error")
@@ -787,7 +726,7 @@ def test_assign_vm_db_error(db_instance, caplog):
     db_instance.get_first_available_vm = MagicMock(return_value=hostname)
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
-        db_instance.assign_vm("user@example.com", "cmd", "123")
+        db_instance.assign_vm("user@example.com")
     assert "Failed to assign VM" in caplog.text
 
 
@@ -886,13 +825,11 @@ def test_get_all_vms(db_instance):
         assert vms == expected_vms
 
 
-def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
-    """Test that export excludes pin and crdcommand columns."""
+def test_get_all_vms_for_export_excludes_logs_by_default(db_instance):
+    """Test that export excludes log columns by default."""
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "inuse",
             "healthy",
@@ -911,7 +848,7 @@ def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
 
         vms = db_instance.get_all_vms_for_export(include_logs=False)
 
-        # pin, crdcommand, cloudinitlogs, dockerlogs should all be excluded
+        # cloudinitlogs and dockerlogs should be excluded
         expected_columns = [
             "hostname",
             "useremail",
@@ -925,8 +862,6 @@ def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
         db_instance.cursor.execute.assert_called_with(
             f"SELECT {query_columns} FROM vms;"
         )
-        assert "pin" not in vms[0]
-        assert "crdcommand" not in vms[0]
         assert "cloudinitlogs" not in vms[0]
         assert "dockerlogs" not in vms[0]
 
@@ -936,8 +871,6 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "inuse",
             "healthy",
@@ -955,7 +888,7 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
 
         vms = db_instance.get_all_vms_for_export(include_logs=True)
 
-        # pin and crdcommand excluded, but logs included
+        # Logs included
         expected_columns = [
             "hostname",
             "useremail",
@@ -970,8 +903,6 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
         db_instance.cursor.execute.assert_called_with(
             f"SELECT {query_columns} FROM vms;"
         )
-        assert "pin" not in vms[0]
-        assert "crdcommand" not in vms[0]
         assert vms[0]["cloudinitlogs"] == "cloud logs"
         assert vms[0]["dockerlogs"] == "docker logs"
 
@@ -981,8 +912,6 @@ def test_get_all_vms_for_export_default_excludes_logs(db_instance):
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "cloudinitlogs",
             "dockerlogs",
@@ -1368,67 +1297,6 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
     with pytest.raises(Exception, match="DB error"):
         db_instance.get_assigned_vm_for_email("student@test.edu")
     assert "Failed to look up assigned VM" in caplog.text
-
-
-def test_reassign_crd_succeeds_when_row_still_owned(db_instance):
-    """Test reassigning a new CRD command when the row is still owned."""
-    db_instance.cursor.rowcount = 1
-
-    result = db_instance.reassign_crd(
-        hostname="vm-7",
-        crd_command=(
-            "DISPLAY= /opt/google/chrome-remote-desktop/start-host "
-            "--code='4/abc' --redirect-url='...'"
-        ),
-        pin="987654",
-        expected_email="student@test.edu",
-    )
-
-    assert result is True
-    db_instance.cursor.execute.assert_called_once()
-    query = db_instance.cursor.execute.call_args[0][0]
-    args = db_instance.cursor.execute.call_args[0][1]
-
-    # Query targets the right columns and guards on useremail
-    assert "crdcommand" in query.lower()
-    assert "pin" in query.lower()
-    assert "WHERE hostname" in query
-    assert "useremail" in query.lower()
-    # Parameter order: (crd_command, pin, hostname, expected_email)
-    assert "4/abc" in args[0]
-    assert args[1] == "987654"
-    assert args[2] == "vm-7"
-    assert args[3] == "student@test.edu"
-
-
-
-def test_reassign_crd_returns_false_when_row_released(db_instance, caplog):
-    """Test that reassign_crd returns False when useremail no longer matches.
-
-    Simulates the race where the auto-reboot service's release_assignment
-    fires between the caller's get_assigned_vm_for_email and reassign_crd.
-    """
-    db_instance.cursor.rowcount = 0
-
-    result = db_instance.reassign_crd(
-        hostname="vm-7",
-        crd_command="cmd",
-        pin="987654",
-        expected_email="student@test.edu",
-    )
-
-    assert result is False
-    assert "row no longer owned by 'student@test.edu'" in caplog.text
-
-
-def test_reassign_crd_error(db_instance, caplog):
-    """Test error handling in reassign_crd."""
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-    with pytest.raises(Exception, match="DB error"):
-        db_instance.reassign_crd(
-            "vm-7", "cmd", "000000", "student@test.edu"
-        )
-    assert "Failed to reassign CRD" in caplog.text
 
 
 # ---------------------------------------------------------------------------

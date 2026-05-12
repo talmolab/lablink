@@ -1,6 +1,4 @@
 from datetime import datetime, timezone
-import select
-import json
 import logging
 from typing import List, Optional
 
@@ -150,8 +148,8 @@ class PostgresqlDatabase:
     def get_all_vms_for_export(self, include_logs: bool = False) -> list:
         """Get all VMs with metrics data for export.
 
-        Excludes sensitive columns (pin, crdcommand). Logs are excluded
-        by default since the export targets quantitative metrics.
+        Logs are excluded by default since the export targets
+        quantitative metrics.
 
         Args:
             include_logs: Whether to include cloudinitlogs and dockerlogs.
@@ -159,7 +157,7 @@ class PostgresqlDatabase:
         Returns:
             list: A list of VM dicts with metrics columns.
         """
-        exclude = {"pin", "crdcommand"}
+        exclude: set = set()
         if not include_logs:
             exclude |= {"cloudinitlogs", "dockerlogs"}
         column_names = [
@@ -274,99 +272,6 @@ class PostgresqlDatabase:
         else:
             logger.warning(f"VM not found: '{hostname}'")
             return None
-
-    def listen_for_notifications(self, channel, target_hostname) -> dict:
-        """Listen for notifications on a specific channel.
-
-        Args:
-            channel (str): The name of the notification channel.
-            target_hostname (str): The hostname of the VM to connect to.
-
-        Returns:
-            dict: A dictionary containing the status, pin, and command.
-
-        Raises:
-            psycopg2.Error: If there is an error in the database.
-            json.JSONDecodeError: If there is an error decoding the JSON payload.
-        """
-
-        # Create a new connection to listen for notifications
-        listen_conn = psycopg2.connect(
-            dbname=self.dbname,
-            user=self.user,
-            password=self.password,
-            host=self.host,
-            port=self.port,
-        )
-        listen_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        listen_cursor = listen_conn.cursor()
-
-        logger.info(f"Waiting for CRD assignment for VM '{target_hostname}'")
-
-        try:
-            listen_cursor.execute(f"LISTEN {channel};")
-
-            while True:
-                if select.select([listen_conn], [], [], 10) == ([], [], []):
-                    continue
-
-                listen_conn.poll()
-                while listen_conn.notifies:
-                    notify = listen_conn.notifies.pop(0)
-
-                    try:
-                        payload_data = json.loads(notify.payload)
-                        hostname = payload_data.get("HostName")
-                        pin = payload_data.get("Pin")
-                        command = payload_data.get("CrdCommand")
-
-                        if hostname is None or pin is None or command is None:
-                            logger.warning(
-                                f"Invalid notification payload - missing fields: "
-                                f"{list(payload_data.keys())}"
-                            )
-                            continue
-
-                        if hostname != target_hostname:
-                            # Notification for different VM, ignore
-                            continue
-
-                        logger.info(f"CRD command received for VM '{hostname}'")
-                        return {
-                            "status": "success",
-                            "pin": pin,
-                            "command": command,
-                        }
-
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Invalid JSON in notification payload: {e}")
-                        continue
-                    except Exception as e:
-                        logger.error(f"Failed to process notification: {e}")
-                        continue
-        finally:
-            listen_cursor.close()
-            listen_conn.close()
-
-    def get_crd_command(self, hostname) -> str:
-        """Get the command assigned to a VM.
-
-        Args:
-            hostname (str): The hostname of the VM.
-
-        Returns:
-            str: The command assigned to the VM.
-        """
-        if not self.vm_exists(hostname):
-            return None
-
-        query = (
-            f"SELECT crdcommand FROM {self.table_name} "
-            f"WHERE hostname = %s"
-        )
-        with self._cursor as cursor:
-            cursor.execute(query, (hostname,))
-            return cursor.fetchone()[0]
 
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are not assigned to any command.
@@ -499,13 +404,11 @@ class PostgresqlDatabase:
             )
             raise
 
-    def assign_vm(self, email, crd_command, pin) -> None:
+    def assign_vm(self, email) -> None:
         """Assign a VM to a user.
 
         Args:
             email (str): The email of the user.
-            crd_command (str): The CRD command to assign.
-            pin (str): The PIN for the VM.
         """
         hostname = self.get_first_available_vm()
 
@@ -515,15 +418,13 @@ class PostgresqlDatabase:
 
         query = f"""
         UPDATE {self.table_name}
-        SET useremail = %s, crdcommand = %s, pin = %s,
+        SET useremail = %s,
             inuse = FALSE
         WHERE hostname = %s;
         """
         with self._cursor as cursor:
             try:
-                cursor.execute(
-                    query, (email, crd_command, pin, hostname)
-                )
+                cursor.execute(query, (email, hostname))
                 logger.info(
                     f"Assigned VM '{hostname}' to user '{email}'"
                 )
@@ -549,70 +450,6 @@ class PostgresqlDatabase:
         )
         with self._cursor as cursor:
             cursor.execute(query, (hostname,))
-
-    def reassign_crd(
-        self,
-        hostname: str,
-        crd_command: str,
-        pin: str,
-        expected_email: str,
-    ) -> bool:
-        """Reassign a new CRD command and PIN to an already-assigned VM.
-
-        Used when a student whose VM failed and was rebooted resubmits
-        /api/request_vm with a newly-generated CRD enrollment code.
-        The existing Postgres trigger on UPDATE OF CrdCommand fires
-        pg_notify, which wakes the client's /vm_startup LISTEN loop
-        (or is picked up on the next /vm_startup call after reboot).
-
-        The UPDATE is conditional on `useremail = expected_email` to
-        close the race where the auto-reboot service's
-        `release_assignment` fires between the caller's
-        `get_assigned_vm_for_email` and this call. If the row's
-        useremail no longer matches (e.g., released and reassigned to
-        a different student), the UPDATE writes zero rows and the
-        method returns False so the caller can surface a retry-page
-        to the student.
-
-        Args:
-            hostname: The VM whose CRD is being reassigned.
-            crd_command: The newly-generated CRD enrollment command.
-            pin: The PIN to pair with the command.
-            expected_email: The email this row is expected to be
-                assigned to at the time of the UPDATE. Serves as an
-                optimistic-concurrency guard.
-
-        Returns:
-            True if the row was updated, False if the assignment has
-            changed (row no longer owned by expected_email).
-        """
-        query = f"""
-            UPDATE {self.table_name}
-            SET crdcommand = %s, pin = %s
-            WHERE hostname = %s AND useremail = %s;
-        """
-        with self._cursor as cursor:
-            try:
-                cursor.execute(
-                    query, (crd_command, pin, hostname, expected_email)
-                )
-                updated = cursor.rowcount > 0
-                if updated:
-                    logger.info(
-                        f"Reassigned CRD for VM '{hostname}'"
-                    )
-                else:
-                    logger.warning(
-                        f"Could not reassign CRD for VM '{hostname}': "
-                        f"row no longer owned by '{expected_email}' "
-                        f"(concurrent release or reassignment)"
-                    )
-                return updated
-            except Exception as e:
-                logger.error(
-                    f"Failed to reassign CRD for '{hostname}': {e}"
-                )
-                raise
 
     def get_first_available_vm(self) -> str:
         """Get the first available VM that is not assigned.
@@ -1274,30 +1111,27 @@ class PostgresqlDatabase:
         self,
         hostname: str,
         boot_id: Optional[str],
-        crd_active: Optional[bool],
         disk_free_pct: Optional[int],
     ) -> bool:
         """Record a client-VM heartbeat and emit warnings on anomalies.
 
-        Updates last_seen_at and the three reported health fields. Logs a
+        Updates last_seen_at and the reported health fields. Logs a
         warning (not an error) when:
 
         - boot_id changed vs the previous value (unexpected host reboot),
-        - crd_active transitioned from True to False,
         - disk_free_pct dropped below 10.
 
         Returns True if the row was updated, False if the hostname is
         unknown.
         """
         select_query = (
-            f"SELECT boot_id, crd_active "
+            f"SELECT boot_id "
             f"FROM {self.table_name} WHERE hostname = %s;"
         )
         update_query = f"""
             UPDATE {self.table_name}
             SET last_seen_at = NOW(),
                 boot_id = %s,
-                crd_active = %s,
                 disk_free_pct = %s
             WHERE hostname = %s;
         """
@@ -1310,7 +1144,7 @@ class PostgresqlDatabase:
                         f"Heartbeat for unknown hostname {hostname}"
                     )
                     return False
-                prev_boot_id, prev_crd = row
+                (prev_boot_id,) = row
 
                 if (
                     boot_id is not None
@@ -1320,10 +1154,6 @@ class PostgresqlDatabase:
                     logger.warning(
                         f"boot_id changed for {hostname}: "
                         f"{prev_boot_id} -> {boot_id}"
-                    )
-                if prev_crd is True and crd_active is False:
-                    logger.warning(
-                        f"crd_active flipped False for {hostname}"
                     )
                 if disk_free_pct is not None and disk_free_pct < 10:
                     logger.warning(
@@ -1335,7 +1165,6 @@ class PostgresqlDatabase:
                     update_query,
                     (
                         boot_id,
-                        crd_active,
                         disk_free_pct,
                         hostname,
                     ),
@@ -1442,26 +1271,12 @@ class PostgresqlDatabase:
     def record_reboot(self, hostname: str) -> None:
         """Record a reboot attempt for a VM.
 
-        Sets status to 'rebooting', increments reboot_count, updates
-        last_reboot_time, and clears the CRD session fields
-        (crdcommand, pin) — the Chrome Remote Desktop enrollment
-        token is one-shot and is invalidated by the reboot, so it must
-        be reissued when the student reconnects.
+        Sets status to 'rebooting', increments reboot_count, and updates
+        last_reboot_time.
 
         `useremail` is preserved so the student keeps their VM slot
         across reboots. If reboot attempts are exhausted, the
         assignment is explicitly released via `release_assignment`.
-
-        Note: setting `crdcommand = NULL` fires the Postgres trigger
-        `trigger_crd_command_insert_or_update`, which emits a NOTIFY
-        with a NULL-valued CrdCommand payload. The LISTEN loop in
-        `listen_for_notifications` discards such payloads (see the
-        `hostname is None or pin is None or command is None` guard),
-        but each reboot still produces a spurious "Invalid notification
-        payload" warning in any client currently listening. The proper
-        fix is to add a `WHEN (NEW.CrdCommand IS NOT NULL)` guard to
-        the trigger definition; tracked for PR 4 of the failed-VM
-        recovery roadmap.
 
         Args:
             hostname: The hostname of the VM being rebooted.
@@ -1470,9 +1285,7 @@ class PostgresqlDatabase:
             UPDATE {self.table_name}
             SET status = 'rebooting',
                 reboot_count = COALESCE(reboot_count, 0) + 1,
-                last_reboot_time = NOW(),
-                crdcommand = NULL,
-                pin = NULL
+                last_reboot_time = NOW()
             WHERE hostname = %s;
         """
         with self._cursor as cursor:
@@ -1492,16 +1305,9 @@ class PostgresqlDatabase:
         """Release a VM's student assignment when it is deemed unrecoverable.
 
         Called by the auto-reboot service when reboot_count exceeds
-        max_attempts. Clears useremail, crdcommand, pin and sets
-        status to 'error' so the pool reflects the VM as unassignable
-        until an admin intervenes. reboot_count is preserved for
-        diagnostics.
-
-        Note: like `record_reboot`, setting `crdcommand = NULL` fires
-        the Postgres NOTIFY trigger with a NULL payload, producing a
-        discarded notification and a spurious warning log in any
-        listening client. The trigger-level fix is tracked for PR 4 of
-        the failed-VM recovery roadmap.
+        max_attempts. Clears useremail and sets status to 'error' so
+        the pool reflects the VM as unassignable until an admin
+        intervenes. reboot_count is preserved for diagnostics.
 
         Args:
             hostname: The hostname of the VM whose assignment is being released.
@@ -1509,8 +1315,6 @@ class PostgresqlDatabase:
         query = f"""
             UPDATE {self.table_name}
             SET useremail = NULL,
-                crdcommand = NULL,
-                pin = NULL,
                 status = 'error'
             WHERE hostname = %s;
         """
