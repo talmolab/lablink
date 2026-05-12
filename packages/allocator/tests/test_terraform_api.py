@@ -7,6 +7,20 @@ DESTROY_ENDPOINT = "/destroy"
 
 JSON_ACCEPT = {"Accept": "application/json"}
 
+# Clean terraform-plan snippet the SG audit accepts: ingress on a
+# non-protected port (:22) with no violations on :6080 / :7070. The
+# /api/launch handler runs `terraform plan` before `apply`, so any
+# subprocess.run side_effect list that mocks apply must include this
+# (or another clean plan) as its first entry.
+CLEAN_PLAN_TEXT = """
+  + ingress {
+      + from_port   = 22
+      + to_port     = 22
+      + protocol    = "tcp"
+      + cidr_blocks = ["0.0.0.0/0"]
+    }
+"""
+
 
 @patch("lablink_allocator_service.main.upload_to_s3")
 @patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
@@ -51,6 +65,7 @@ def test_launch_vm_success(
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
+        R(CLEAN_PLAN_TEXT),  # terraform plan (pre-apply SG audit)
         R("\x1b[32mapply success\x1b[0m"),
         R(timing_json),
     ]
@@ -60,18 +75,26 @@ def test_launch_vm_success(
     assert resp.status_code == 200
     assert b"Output Dashboard" in resp.data
 
-    # Assert calls
-    assert mock_run.call_count == 2
+    # Assert calls (plan + apply + output = 3)
+    assert mock_run.call_count == 3
+
+    # Check plan call (must come first, before apply)
+    plan_args, plan_kwargs = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert "-no-color" in plan_cmd_list
+    assert "-var=instance_count=5" in plan_cmd_list
+    assert plan_kwargs["cwd"] == terraform_dir
 
     # Check apply call
-    apply_args, apply_kwargs = mock_run.call_args_list[0]
+    apply_args, apply_kwargs = mock_run.call_args_list[1]
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
     assert "-var=instance_count=5" in apply_cmd_list
     assert apply_kwargs["cwd"] == terraform_dir
 
     # Check output call
-    output_args, output_kwargs = mock_run.call_args_list[1]
+    output_args, output_kwargs = mock_run.call_args_list[2]
     output_cmd_list = output_args[0]
     assert "output" in output_cmd_list
     assert "-json" in output_cmd_list
@@ -146,14 +169,21 @@ def test_launch_vm_appends_allocator_sg_id_var(
         def __init__(self, out="OK"):
             self.stdout, self.stderr, self.returncode = out, "", 0
 
-    mock_run.side_effect = [R("apply ok"), R("{}")]
+    mock_run.side_effect = [R(CLEAN_PLAN_TEXT), R("apply ok"), R("{}")]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers,
                         data={"num_vms": "1"})
     assert resp.status_code == 200
 
-    apply_args, _ = mock_run.call_args_list[0]
+    # plan is the first call; apply is the second.
+    plan_args, _ = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert "-var=allocator_sg_id=sg-fake-allocator" in plan_cmd_list
+
+    apply_args, _ = mock_run.call_args_list[1]
     apply_cmd_list = apply_args[0]
+    assert "apply" in apply_cmd_list
     assert "-var=allocator_sg_id=sg-fake-allocator" in apply_cmd_list
     mock_current_sg.assert_called_once()
 
@@ -206,14 +236,24 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
         def __init__(self, out="OK"):
             self.stdout, self.stderr, self.returncode = out, "", 0
 
-    mock_run.side_effect = [R("apply ok"), R("{}")]
+    mock_run.side_effect = [R(CLEAN_PLAN_TEXT), R("apply ok"), R("{}")]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers,
                         data={"num_vms": "1"})
     assert resp.status_code == 200
 
-    apply_args, _ = mock_run.call_args_list[0]
+    # plan is the first call; apply is the second. Neither should
+    # include the allocator-SG var when IMDSv2 was unreachable.
+    plan_args, _ = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert not any(
+        a.startswith("-var=allocator_sg_id=") for a in plan_cmd_list
+    )
+
+    apply_args, _ = mock_run.call_args_list[1]
     apply_cmd_list = apply_args[0]
+    assert "apply" in apply_cmd_list
     assert not any(
         a.startswith("-var=allocator_sg_id=") for a in apply_cmd_list
     )
@@ -274,6 +314,9 @@ def test_launch_apply_failure(
     def side_effect(cmd, **kwargs):
         if cmd[1] == "init":
             return MagicMock(stdout="OK", stderr="")
+        if cmd[1] == "plan":
+            # SG audit must pass; otherwise apply never runs.
+            return MagicMock(stdout=CLEAN_PLAN_TEXT, stderr="", returncode=0)
         raise subprocess.CalledProcessError(1, cmd, stderr="\x1b[31mboom\x1b[0m")
 
     mock_run.side_effect = side_effect
@@ -486,7 +529,11 @@ def test_launch_json_success(
             self.returncode = 0
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
-    mock_run.side_effect = [R("apply success"), R(timing_json)]
+    mock_run.side_effect = [
+        R(CLEAN_PLAN_TEXT),  # terraform plan (pre-apply SG audit)
+        R("apply success"),
+        R(timing_json),
+    ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
     resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "2"})
@@ -621,7 +668,13 @@ def test_launch_json_unexpected_error(
             self.stdout, self.stderr = out, ""
             self.returncode = 0
 
-    mock_run.return_value = R("apply success")
+    # plan returns a clean (audit-passing) plan; apply succeeds; the
+    # S3 upload then blows up with AccessDenied (the path under test).
+    mock_run.side_effect = [
+        R(CLEAN_PLAN_TEXT),
+        R("apply success"),
+        R("{}"),  # terraform output -json (called before upload_to_s3? safety net)
+    ]
     mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
 
     headers = {**admin_headers, **JSON_ACCEPT}
@@ -631,3 +684,128 @@ def test_launch_json_unexpected_error(
     body = json.loads(resp.data)
     assert body["status"] == "error"
     assert "AccessDenied" in body["error"]
+
+
+# ------------------------------------------------------------------
+# Pre-apply SG audit gate
+# ------------------------------------------------------------------
+
+VIOLATING_PLAN_TEXT = """
+  + ingress {
+      + from_port   = 6080
+      + to_port     = 6080
+      + protocol    = "tcp"
+      + cidr_blocks = ["0.0.0.0/0"]
+    }
+"""
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_aborts_on_sg_audit_failure(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """If terraform plan shows a violating ingress on a protected
+    port, /api/launch aborts with 400 and never invokes terraform
+    apply. The gate is the whole point of Task 19."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    # Only the plan call runs; apply must not happen.
+    mock_run.side_effect = [R(VIOLATING_PLAN_TEXT)]
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(
+        POST_ENDPOINT, headers=headers, data={"num_vms": "1"}
+    )
+
+    assert resp.status_code == 400
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "6080" in body["error"]  # error mentions the offending port
+
+    # Confirm apply was not invoked
+    assert mock_run.call_count == 1
+    plan_args, _ = mock_run.call_args_list[0]
+    assert plan_args[0][1] == "plan"  # only the plan ran
+    # S3 upload also must not have been called when apply was skipped.
+    mock_upload_to_s3.assert_not_called()
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_aborts_on_sg_audit_failure_html(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Same gate, browser path: a violating plan returns 400 with an
+    HTML error message that names the offending port."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [R(VIOLATING_PLAN_TEXT)]
+
+    resp = client.post(
+        POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"}
+    )
+    assert resp.status_code == 400
+    assert b"6080" in resp.data
+    assert mock_run.call_count == 1
+    mock_upload_to_s3.assert_not_called()

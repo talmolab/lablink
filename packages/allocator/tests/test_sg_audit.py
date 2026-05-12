@@ -1,7 +1,7 @@
 """Tests for the SG audit module used pre-`terraform apply`."""
 import pytest
 
-from lablink_cli.commands.utils import (
+from lablink_allocator_service.utils.sg_audit import (
     SGAuditFailure,
     audit_terraform_plan,
 )

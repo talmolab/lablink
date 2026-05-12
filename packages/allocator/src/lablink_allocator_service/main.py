@@ -32,6 +32,10 @@ from lablink_allocator_service.utils.aws_utils import (
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
+from lablink_allocator_service.utils.sg_audit import (
+    audit_terraform_plan,
+    SGAuditFailure,
+)
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_timings,
     has_runtime_tfvars,
@@ -420,22 +424,19 @@ def launch():
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
             f.write(f'api_token = "{API_TOKEN}"\n')
 
-        # Apply with the new number of instances.
+        # Build the var args once; they apply to both `plan` and `apply`.
         # Look up the allocator's own SG via IMDSv2 so client EC2s can
         # restrict :6080 / :7070 ingress to allocator-only. Outside EC2
         # (dev / local test), skip the var; Terraform will fail with a
         # missing-variable error in that case, which is the correct
         # signal that this code path requires EC2.
-        apply_cmd = [
-            "terraform",
-            "apply",
-            "-auto-approve",
+        tf_vars = [
             "-var-file=terraform.runtime.tfvars",
             f"-var=instance_count={total_vms}",
         ]
         try:
             sg_id = current_instance_security_group()
-            apply_cmd.append(f"-var=allocator_sg_id={sg_id}")
+            tf_vars.append(f"-var=allocator_sg_id={sg_id}")
         except NotOnEC2Error:
             logger.warning(
                 "Not running on EC2 (IMDSv2 unreachable); "
@@ -443,6 +444,38 @@ def launch():
                 "fail unless the variable is supplied another way."
             )
 
+        # Pre-apply SG audit: terraform plan -no-color and parse the
+        # output. Refuse to apply if the client SG would expose :6080
+        # or :7070 to 0.0.0.0/0 or ::/0. This is the hard gate that
+        # prevents a misconfigured Terraform change from reaching AWS.
+        plan_cmd = ["terraform", "plan", "-no-color", *tf_vars]
+        logger.debug(f"Running command: {' '.join(plan_cmd)}")
+        try:
+            plan_result = subprocess.run(
+                plan_cmd,
+                cwd=TERRAFORM_DIR,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error("terraform plan failed: %s", e.stderr)
+            error_msg = f"Terraform plan failed: {(e.stderr or '').strip()}"
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 500
+            return render_template("dashboard.html", error=error_msg)
+
+        try:
+            audit_terraform_plan(plan_result.stdout)
+        except SGAuditFailure as exc:
+            logger.error("SG audit refused the plan: %s", exc)
+            error_msg = f"Security-group audit refused the plan: {exc}"
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 400
+            return render_template("dashboard.html", error=error_msg), 400
+
+        # Audit passed; proceed to apply.
+        apply_cmd = ["terraform", "apply", "-auto-approve", *tf_vars]
         logger.debug(f"Running command: {' '.join(apply_cmd)}")
 
         # Run the Terraform apply command
