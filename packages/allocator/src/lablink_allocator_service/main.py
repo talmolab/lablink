@@ -548,13 +548,25 @@ def destroy():
         return render_template("delete-dashboard.html", error=msg), 404
 
     try:
-        # Destroy Terraform resources
+        # Destroy Terraform resources. allocator_sg_id is a required var
+        # on the client module (added in PR A for :6080/:7070 lockdown);
+        # Terraform requires it on destroy too even though it doesn't
+        # affect what gets torn down.
         apply_cmd = [
             "terraform",
             "destroy",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
         ]
+        try:
+            sg_id = current_instance_security_group(region=cfg.app.region)
+            apply_cmd.append(f"-var=allocator_sg_id={sg_id}")
+        except NotOnEC2Error:
+            logger.warning(
+                "Not running on EC2 (IMDSv2 unreachable); "
+                "skipping -var=allocator_sg_id= on destroy. "
+                "Terraform may fail unless the variable is supplied another way."
+            )
         result = subprocess.run(
             apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
         )
