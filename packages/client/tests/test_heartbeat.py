@@ -1,6 +1,5 @@
 """Tests for the client-side heartbeat module."""
 
-import subprocess
 import threading
 from unittest.mock import patch, MagicMock, mock_open
 
@@ -28,30 +27,6 @@ def test_read_boot_id_returns_none_on_oserror(caplog):
     assert "boot_id" in caplog.text
 
 
-@patch("lablink_client_service.heartbeat.subprocess.run")
-def test_sample_crd_active_true_when_pgrep_succeeds(mock_run):
-    mock_run.return_value = MagicMock(returncode=0)
-    assert heartbeat.sample_crd_active() is True
-
-
-@patch("lablink_client_service.heartbeat.subprocess.run")
-def test_sample_crd_active_false_when_pgrep_fails(mock_run):
-    mock_run.return_value = MagicMock(returncode=1)
-    assert heartbeat.sample_crd_active() is False
-
-
-@patch("lablink_client_service.heartbeat.subprocess.run")
-def test_sample_crd_active_false_on_timeout(mock_run):
-    mock_run.side_effect = subprocess.TimeoutExpired("pgrep", 2)
-    assert heartbeat.sample_crd_active() is False
-
-
-@patch("lablink_client_service.heartbeat.subprocess.run")
-def test_sample_crd_active_false_on_missing_binary(mock_run):
-    mock_run.side_effect = FileNotFoundError
-    assert heartbeat.sample_crd_active() is False
-
-
 @patch("lablink_client_service.heartbeat.shutil.disk_usage")
 def test_sample_disk_free_pct(mock_usage):
     mock_usage.return_value = MagicMock(total=100, free=47, used=53)
@@ -71,12 +46,10 @@ def test_sample_disk_free_pct_handles_oserror(mock_usage):
 
 
 @patch("lablink_client_service.heartbeat.sample_disk_free_pct", return_value=80)
-@patch("lablink_client_service.heartbeat.sample_crd_active", return_value=True)
-def test_build_payload_well_formed(mock_crd, mock_disk):
+def test_build_payload_well_formed(mock_disk):
     payload = heartbeat.build_payload(vm_id="vm-1", boot_id="bid")
     assert payload["vm_id"] == "vm-1"
     assert payload["boot_id"] == "bid"
-    assert payload["crd_active"] is True
     assert payload["disk_free_pct"] == 80
     assert isinstance(payload["timestamp"], str)
     assert "docker_healthy" not in payload

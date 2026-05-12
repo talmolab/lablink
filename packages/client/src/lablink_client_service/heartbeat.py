@@ -2,14 +2,13 @@
 
 Sends a small POST to the allocator every HEARTBEAT_INTERVAL_SECONDS so
 the allocator can detect silent failures (dead container, broken network,
-hung host, expired CRD token, out-of-band EC2 termination). The body
-also carries a handful of cheap health signals for early warning.
+hung host, OOM, out-of-band EC2 termination). The body also carries a
+handful of cheap health signals for early warning.
 """
 
 import logging
 import os
 import shutil
-import subprocess
 import threading
 from datetime import datetime, timezone
 
@@ -42,20 +41,6 @@ def read_boot_id() -> str | None:
         return None
 
 
-def sample_crd_active() -> bool:
-    """Return True if the chrome-remote-desktop session is active."""
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "chrome-remote-desktop"],
-            capture_output=True,
-            timeout=2,
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        logger.debug(f"crd_active probe failed: {e}")
-        return False
-
-
 def sample_disk_free_pct(path: str = "/") -> int:
     """Return integer percent of free space on the filesystem at `path`."""
     try:
@@ -74,7 +59,6 @@ def build_payload(vm_id: str | None, boot_id: str | None) -> dict:
         "vm_id": vm_id,
         "boot_id": boot_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "crd_active": sample_crd_active(),
         "disk_free_pct": sample_disk_free_pct(),
     }
 

@@ -4,23 +4,8 @@ export PYTHONUNBUFFERED=1
 # Start
 CONTAINER_START_TIME=$(date +%s)
 
-# Ensure XDG_RUNTIME_DIR exists. Chrome Remote Desktop's start-host
-# stats this path early in init and aborts via base::ImmediateCrash()
-# (SIGTRAP, exit 133, no log line) when it is missing. Outside a
-# container, systemd-logind creates /run/user/$UID on login; Docker
-# does not run logind, so we create it ourselves before CRD runs.
-# /run is a fresh tmpfs owned by root, so mkdir requires sudo here —
-# the client user has passwordless sudo via /etc/sudoers.d/client.
-runtime_dir="/run/user/$(id -u)"
-sudo mkdir -p "$runtime_dir"
-sudo chown "$(id -u):$(id -g)" "$runtime_dir"
-sudo chmod 0700 "$runtime_dir"
-export XDG_RUNTIME_DIR="$runtime_dir"
-
 # Activate virtual environment
 source /home/client/.venv/bin/activate
-
-echo "Running subscribe script..."
 
 echo "ALLOCATOR_HOST: $ALLOCATOR_HOST"
 echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
@@ -69,16 +54,12 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   echo "Running custom startup script..."
   sudo chmod +x /docker_scripts/custom-startup.sh
 
-  # Run startup script, output goes to container stdout (captured by log shipper)
   bash /docker_scripts/custom-startup.sh 2>&1
   rc=$?
 
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script exited with code $rc"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
-      # Report the failure proactively so the allocator's reboot service
-      # reacts within its next tick (~60s) instead of waiting out the
-      # 25-min stale-initializing timeout.
       send_status "error"
       exit $rc
     fi
@@ -91,30 +72,38 @@ fi
 LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
 
-# Flip VM status from 'initializing' (reported by cloud-init) to
-# 'running' now that custom-startup has finished and client services
-# are about to launch. Previously user_data.sh reported 'running' too
-# early — right after `docker run` returned — before any of the
-# container's own startup work had completed.
+# Initialize KasmVNC password file with a random unguessable placeholder.
+# The allocator's POST /api/session/start (handled by the agent on :7070)
+# rotates this to a per-session password before any student connects.
+# Without a password file, kasmvncserver refuses to start.
+mkdir -p /home/client/.kasmvnc
+openssl rand -base64 32 > /home/client/.kasmvnc/kasmvncpasswd
+chmod 600 /home/client/.kasmvnc/kasmvncpasswd
+
+# Start KasmVNC server. -interface 0.0.0.0 binds all interfaces so the
+# allocator-proxied WebSocket (and on Local mode, the student's browser)
+# can reach it. The SG/host firewall limits access at the network layer.
+kasmvncserver -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
+              -listen 6080 \
+              -localhost no \
+              2>&1 | tee "$LOG_DIR/kasmvnc.log" &
+
+# Start the client agent (:7070) — receives per-session password rotations
+# from the allocator. Bearer-authenticated via REGISTER_TOKEN env var.
+agent 2>&1 | tee "$LOG_DIR/agent.log" &
+
+# Flip VM status to 'running' now that client services are launching.
 send_status "running"
 
-# Run subscribe in background, but preserve stdout + stderr to docker logs and file
-# Services read ALLOCATOR_URL from environment if set (HTTPS support), otherwise use allocator.host
-subscribe \
-  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
-  2>&1 | tee "$LOG_DIR/subscribe.log" &
-
-# Run update_inuse_status
+# Existing health/heartbeat/in-use workers
 update_inuse_status \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
   2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
-# Run GPU health check
 check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
-# Run heartbeat loop (silent-failure detection)
 heartbeat \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/heartbeat.log" &
@@ -126,7 +115,6 @@ CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 
 # Send container startup completion to allocator
-# The ALLOCATOR_URL variable includes the protocol (http/https), so it can be used directly.
 curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $API_TOKEN" \
@@ -137,4 +125,4 @@ curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   }" --max-time 5 || true
 
 # Keep container alive
-tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"
+tail -F "$LOG_DIR/kasmvnc.log" "$LOG_DIR/agent.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"

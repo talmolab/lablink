@@ -32,9 +32,9 @@ Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
 
 [project.scripts]
+agent = "lablink_client_service.agent.api:main"
 check_gpu = "lablink_client_service.check_gpu:main"
 heartbeat = "lablink_client_service.heartbeat:main"
-subscribe = "lablink_client_service.subscribe:main"
 update_inuse_status = "lablink_client_service.update_inuse_status:main"
 
 [tool.setuptools.package-data]
