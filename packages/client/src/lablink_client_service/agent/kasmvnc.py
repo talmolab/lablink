@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 
 
-DEFAULT_PASSWORD_FILE = "/home/lablink/.kasmvnc/kasmvncpasswd"
+DEFAULT_PASSWORD_FILE = "/home/client/.kasmvnc/kasmvncpasswd"
 
 
 def _password_file() -> str:
