@@ -1,8 +1,7 @@
 # Base image with GPU support
 FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
 
-# https://askubuntu.com/questions/1402167/must-specify-the-user-name-option-when-running-as-root-chrome-remote-desktop
-# Must be a non-root user to run Chrome Remote Desktop
+# Run as a non-root user; KasmVNC and the agent both run as this user.
 ARG USERNAME="client"
 
 # Set non-interactive mode
@@ -24,9 +23,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libgssapi-krb5-2 \
     libx11-xcb1 \
+    ca-certificates \
     curl \
+    wget \
     # For media playback
     vlc \
+    # Audio support for desktop apps (VLC, terminal bells, notifications)
+    libasound2 \
     # For productivity and general use
     zip \
     unzip \
@@ -40,7 +43,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4-goodies \
     elementary-xfce-icon-theme \
     fonts-dejavu \
+    fonts-liberation \
     fontconfig \
+    # Desktop file-to-application routing (xdg-open, xdg-mime)
+    xdg-utils \
     # Required for session and screen management
     dbus-x11 \
     xscreensaver \
@@ -51,15 +57,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Dummy X server for headless environments
     xserver-xorg-video-dummy \
     # Supports session management and terminal multiplexers
-    libutempter0 \  
+    libutempter0 \
     # Enables secure communication and package verification
     gnupg2 \
-    # For Chrome Browser
-    fonts-liberation \
-    libasound2 \
-    wget \
-    xdg-utils \
-    libvulkan1 \
     # Allows running commands as root
     sudo \
     # For cloning repositories and managing git
@@ -72,52 +72,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
-# Install Chrome Remote Desktop
-# CRD v147+ creates _crd_network system user; Ubuntu 22.04 adduser rejects the
-# leading underscore. Relax NAME_REGEX_SYSTEM so the postinst script succeeds.
-# Pin chrome-remote-desktop to the 148.x line. The v147 -> v148 transition on
-# 2026-04-11 introduced stricter XDG_RUNTIME_DIR / systemctl checks that
-# silently broke CRD host registration on every fresh client VM (#330).
-# Wildcard pinning blocks future major-version drift (the historical risk
-# class) while still resolving against whatever 148.x patch is currently in
-# Google's stable repo -- their purge cadence retires older patches within
-# weeks, so an exact-version pin is brittle. apt-mark hold prevents later
-# RUN steps from silently upgrading. Bump the major intentionally after
-# re-running the verification in #331.
-RUN  echo 'NAME_REGEX_SYSTEM="^[a-z_][-a-z0-9_]*$"' >> /etc/adduser.conf && \
-    curl https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/chrome-remote-desktop.gpg && \
-    echo "deb [arch=amd64] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" > /etc/apt/sources.list.d/chrome-remote-desktop.list && \
+# KasmVNC standalone VNC server. Pin to a current stable release;
+# bump alongside client image releases.
+ARG KASMVNC_VERSION=1.4.0
+RUN curl -L -o /tmp/kasmvncserver.deb \
+      "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_jammy_${KASMVNC_VERSION}_amd64.deb" && \
     apt-get update && \
-    apt-get install --assume-yes 'chrome-remote-desktop=148.*' && \
-    apt-mark hold chrome-remote-desktop && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb && \
+    rm /tmp/kasmvncserver.deb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Configure Chrome Remote Desktop to use Gnome by default
-RUN echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" > /etc/chrome-remote-desktop-session
+EXPOSE 6080 7070
 
-
-# Because there is no display connected to your instance, disable the display manager service on your instance
-RUN systemctl disable lightdm.service
-
-# Install Chrome browser
-RUN curl -L -o google-chrome-stable_current_amd64.deb \
-    https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb && \
-    rm google-chrome-stable_current_amd64.deb
-
-# Configure Google Chrome to run without sandboxing
-# This is necessary for Chrome Remote Desktop to work properly in a container environment.
-# Create a directory for wrapper scripts
-RUN rm -f /usr/bin/google-chrome && \
-    echo '#!/bin/bash' > /usr/bin/google-chrome && \
-    echo 'exec /opt/google/chrome/google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage "$@"' >> /usr/bin/google-chrome && \
-    chmod +x /usr/bin/google-chrome
-
-# Do the same for the stable version of Google Chrome
-RUN rm -f /usr/bin/google-chrome-stable && \
-    echo '#!/bin/bash' > /usr/bin/google-chrome-stable && \
-    echo 'exec /opt/google/chrome/google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage "$@"' >> /usr/bin/google-chrome-stable && \
-    chmod +x /usr/bin/google-chrome-stable
+# lightdm conflicts with headless VNC; disable it so KasmVNC can own the session.
+RUN systemctl disable lightdm.service || true
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
@@ -125,25 +94,13 @@ RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpassw
     chmod 0440 /etc/sudoers.d/${USERNAME} && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 
-# Add USERNAME to the chrome-remote-desktop group.
-# `groupadd -f` guarantees the group exists even when the CRD package
-# postinst skips creating it (observed with Google's current
-# chrome-remote-desktop deb), making the build robust to upstream
-# packaging changes.
-RUN groupadd -f chrome-remote-desktop && \
-    usermod -aG chrome-remote-desktop ${USERNAME}
-
-# Ensure Chrome directories are accessible to the client user
-RUN mkdir -p /home/${USERNAME}/.config/google-chrome && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
-
-# Switch to non-root user for Google Chrome Remote Desktop to work.
+# Switch to non-root user; KasmVNC and the agent both run as this user.
 # Align USER/LOGNAME/HOME with the runtime uid. Docker's USER directive
 # only changes the effective uid; $USER / $LOGNAME / $HOME are left
 # untouched and would otherwise inherit stale values from the build
-# stage. Keeping them wrong pollutes every tool that reads them (CRD
-# logs visible username-mismatch warnings; anything else that looks at
-# $HOME or $USER sees the wrong value) and makes debugging harder.
+# stage. Keeping them wrong pollutes every tool that reads them, and
+# anything that looks at $HOME or $USER sees the wrong value and makes
+# debugging harder.
 USER ${USERNAME}
 ENV USER=${USERNAME} \
     LOGNAME=${USERNAME} \
@@ -181,7 +138,7 @@ RUN uv init --python 3.11 --no-readme \
     && uv venv /home/${USERNAME}/.venv && \
     uv add lablink-client-service==${PACKAGE_VERSION} --no-cache
 
-# Ensure PATH is available in interactive sessions (CRD, SSH, etc.)
+# Ensure PATH is available in interactive sessions (KasmVNC, SSH, etc.)
 # Docker ENV only affects processes started by Docker, not new login shells
 RUN echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.bashrc && \
     echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.profile
