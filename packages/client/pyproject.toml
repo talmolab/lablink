@@ -15,6 +15,7 @@ dependencies = [
   "omegaconf>=2.3,<3.0",
   "psutil>=7.1,<7.3",
   "urllib3>=2.3.0,<3.0",
+  "flask>=3.0",
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
 keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
