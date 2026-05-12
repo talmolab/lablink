@@ -1563,3 +1563,43 @@ def test_concurrent_queries_do_not_serialize(real_db):
         f"Queries appear serialized: wall-clock total {total:.2f}s "
         f"(serial would be ~0.8s)"
     )
+
+
+def test_release_seat_clears_per_session_columns(real_db):
+    """release_seat() returns a seat to the pool by clearing useremail
+    and every per-session column on the row."""
+    # The real_db fixture creates a minimal vms (hostname text PRIMARY KEY)
+    # table. Extend it with the columns this test cares about.
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
+            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
+            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
+            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+        )
+        # Clear any leftover row from a prior test
+        cur.execute("DELETE FROM vms WHERE hostname = 'host-task2'")
+        cur.execute(
+            "INSERT INTO vms (hostname, status, useremail, sessionid, "
+            "                 browsertoken, vncpassword, upstream, "
+            "                 sessionstartedat) "
+            "VALUES ('host-task2', 'running', 'sam@x.com', "
+            "        '11111111-1111-1111-1111-111111111111', "
+            "        'tok-abc', 'pw-xyz', '10.0.0.5:6080', NOW())"
+        )
+
+    real_db.release_seat(hostname='host-task2')
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "SELECT useremail, sessionid, browsertoken, vncpassword, "
+            "       upstream, sessionstartedat "
+            "FROM vms WHERE hostname = 'host-task2'"
+        )
+        row = cur.fetchone()
+
+    assert row == (None, None, None, None, None, None)

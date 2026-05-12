@@ -533,6 +533,23 @@ class PostgresqlDatabase:
                 )
                 raise
 
+    def release_seat(self, *, hostname: str) -> None:
+        """Clear useremail and every per-session column on a VM row,
+        returning the seat to the available pool. Called when a session
+        ends (WS drop + 90s grace, dashboard kick, or destroy)."""
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET useremail = NULL, "
+            f"    sessionid = NULL, "
+            f"    browsertoken = NULL, "
+            f"    vncpassword = NULL, "
+            f"    upstream = NULL, "
+            f"    sessionstartedat = NULL "
+            f"WHERE hostname = %s"
+        )
+        with self._cursor as cursor:
+            cursor.execute(query, (hostname,))
+
     def reassign_crd(
         self,
         hostname: str,
