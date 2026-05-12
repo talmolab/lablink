@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
+
+import pytest
+
 import lablink_allocator_service.utils.aws_utils as aws_utils
 
 
@@ -236,4 +239,31 @@ def test_stop_start_ec2_instance_failure(mock_boto_client):
 
     assert result is False
 
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3")
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_happy_path(mock_requests, mock_boto):
+    mock_requests.put.return_value = MagicMock(status_code=200, text="TOKEN")
+    mock_requests.get.return_value = MagicMock(status_code=200, text="i-abc")
+    ec2 = mock_boto.client.return_value
+    ec2.describe_instances.return_value = {
+        "Reservations": [{"Instances": [{
+            "SecurityGroups": [{"GroupId": "sg-0123", "GroupName": "x"}]
+        }]}]
+    }
+    assert aws_utils.current_instance_security_group() == "sg-0123"
+
+
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_raises_outside_ec2(mock_requests):
+    mock_requests.put.side_effect = ConnectionError("no IMDS")
+    with pytest.raises(aws_utils.NotOnEC2Error):
+        aws_utils.current_instance_security_group()
+
+
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_raises_when_imds_returns_non_200(mock_requests):
+    mock_requests.put.return_value = MagicMock(status_code=403, text="forbidden")
+    with pytest.raises(aws_utils.NotOnEC2Error):
+        aws_utils.current_instance_security_group()
 

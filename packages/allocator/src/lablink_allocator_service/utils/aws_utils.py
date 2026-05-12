@@ -4,10 +4,42 @@ from pathlib import Path
 from typing import Optional
 
 import boto3
+import requests
 from botocore.exceptions import ClientError
+from requests.exceptions import RequestException as _RequestException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+IMDS_BASE = "http://169.254.169.254/latest"
+IMDS_TIMEOUT = 2.0
+
+
+class NotOnEC2Error(RuntimeError):
+    """IMDSv2 unreachable (running outside EC2)."""
+
+
+def _imds_token() -> str:
+    resp = requests.put(
+        f"{IMDS_BASE}/api/token",
+        headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+        timeout=IMDS_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise NotOnEC2Error(f"IMDSv2 token: {resp.status_code}")
+    return resp.text
+
+
+def _imds_get(path: str, token: str) -> str:
+    resp = requests.get(
+        f"{IMDS_BASE}/{path}",
+        headers={"X-aws-ec2-metadata-token": token},
+        timeout=IMDS_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise NotOnEC2Error(f"IMDSv2 {path}: {resp.status_code}")
+    return resp.text
 
 
 def get_all_instance_types(region="us-west-2"):
@@ -210,3 +242,21 @@ def upload_to_s3(
 
     # Upload the variable file
     s3.upload_file(local_path, bucket_name, key, ExtraArgs=extra)
+
+
+def current_instance_security_group() -> str:
+    """Return the primary SG ID of the EC2 this process runs on.
+
+    Raises NotOnEC2Error if IMDSv2 is unreachable.
+    """
+    try:
+        token = _imds_token()
+        instance_id = _imds_get("meta-data/instance-id", token)
+    except (ConnectionError, _RequestException) as exc:
+        raise NotOnEC2Error(str(exc)) from exc
+    ec2 = boto3.client("ec2")
+    resp = ec2.describe_instances(InstanceIds=[instance_id])
+    sgs = resp["Reservations"][0]["Instances"][0]["SecurityGroups"]
+    if not sgs:
+        raise NotOnEC2Error(f"instance {instance_id} has no SGs")
+    return sgs[0]["GroupId"]
