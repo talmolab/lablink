@@ -311,14 +311,14 @@ class PostgresqlDatabase:
         return result[0] if result else False
 
     def get_assigned_vms(self) -> list:
-        """Get the VMs that are assigned to a command.
+        """Get the VMs currently assigned to a student.
 
         Returns:
-            list: A list of VMs that are assigned to a command.
+            list: hostnames of assigned VMs.
         """
         query = (
             f"SELECT hostname FROM {self.table_name} "
-            f"WHERE crdcommand IS NOT NULL"
+            f"WHERE useremail IS NOT NULL"
         )
         try:
             with self._cursor as cursor:
