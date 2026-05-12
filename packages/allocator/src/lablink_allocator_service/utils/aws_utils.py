@@ -277,8 +277,14 @@ def upload_to_s3(
     s3.upload_file(local_path, bucket_name, key, ExtraArgs=extra)
 
 
-def current_instance_security_group() -> str:
+def current_instance_security_group(region: str = "us-west-2") -> str:
     """Return the primary SG ID of the EC2 this process runs on.
+
+    Args:
+        region: AWS region. Caller should pass cfg.app.region — boto3
+            won't auto-detect inside the allocator container even though
+            the instance metadata is reachable, because the container's
+            env doesn't have AWS_REGION set.
 
     Raises NotOnEC2Error if IMDSv2 is unreachable.
     """
@@ -287,7 +293,7 @@ def current_instance_security_group() -> str:
         instance_id = _imds_get("meta-data/instance-id", token)
     except (ConnectionError, _RequestException) as exc:
         raise NotOnEC2Error(str(exc)) from exc
-    ec2 = boto3.client("ec2")
+    ec2 = boto3.client("ec2", region_name=region)
     resp = ec2.describe_instances(InstanceIds=[instance_id])
     sgs = resp["Reservations"][0]["Instances"][0]["SecurityGroups"]
     if not sgs:

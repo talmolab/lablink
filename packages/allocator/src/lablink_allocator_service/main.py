@@ -435,7 +435,7 @@ def launch():
             f"-var=instance_count={total_vms}",
         ]
         try:
-            sg_id = current_instance_security_group()
+            sg_id = current_instance_security_group(region=cfg.app.region)
             tf_vars.append(f"-var=allocator_sg_id={sg_id}")
         except NotOnEC2Error:
             logger.warning(
