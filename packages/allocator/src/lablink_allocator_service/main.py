@@ -56,9 +56,13 @@ from lablink_allocator_service.signed_cookie import (
     get_or_create_cookie_secret,
 )
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
+from lablink_allocator_service.routes.internal_proxy_auth import (
+    bp as internal_proxy_auth_bp,
+)
 
 app = Flask(__name__)
 app.register_blueprint(desktop_bp)
+app.register_blueprint(internal_proxy_auth_bp)
 auth = HTTPBasicAuth()
 
 # Define the terraform directory relative to this file (now inside the package)
