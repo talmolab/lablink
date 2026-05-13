@@ -13,7 +13,6 @@ db:
   host: "localhost"
   port: 5432
   table_name: "vms"
-  message_channel: "vm_updates"
 
 machine:
   # Client VM instance type (must support your workload)
@@ -31,8 +30,6 @@ machine:
   # Software identifier for your application
   software: "sleap"
 
-  # File extension for your data files
-  extension: "slp"
 
 app:
   admin_user: "admin"

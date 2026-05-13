@@ -4,8 +4,6 @@ import secrets
 import subprocess
 import time
 from pathlib import Path
-import tempfile
-from zipfile import ZipFile
 from datetime import datetime
 import re
 import atexit
@@ -14,17 +12,20 @@ from functools import wraps
 from flask import (
     Flask,
     Response,
-    request,
     jsonify,
+    redirect,
     render_template,
-    send_file,
-    after_this_request,
+    request,
 )
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import psycopg2
 
+from lablink_allocator_service.client_session import (
+    RotationFailed,
+    prepare_browser_session,
+)
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
@@ -33,20 +34,16 @@ from lablink_allocator_service.utils.aws_utils import (
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
-from lablink_allocator_service.utils.crd_validation import check_crd_input
-from lablink_allocator_service.utils.scp import (
-    find_files_in_container,
-    extract_files_from_docker,
-    rsync_files_to_allocator,
-)
 from lablink_allocator_service.utils.terraform_utils import (
-    get_instance_ips,
-    get_ssh_private_key,
     get_instance_timings,
     has_runtime_tfvars,
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
+
+# KasmVNC's auth model is username-based: every VM serves the same
+# fixed username and the password rotates per session.
+KASMVNC_USERNAME = "kasm_user"
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -74,8 +71,6 @@ if _missing:
     )
 
 # Initialize variables
-PIN = "123456"
-MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
@@ -109,7 +104,6 @@ def init_database():
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
-        message_channel=cfg.db.message_channel,
     )
 
 
@@ -239,127 +233,145 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    return render_template("delete-instances.html", extension=cfg.machine.extension)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
+    """Claim a seat for a student and redirect them to its KasmVNC URL.
+
+    Direct-to-KasmVNC flow (v2): allocator picks an unassigned VM,
+    asks the client agent to rotate the KasmVNC password to a
+    freshly-minted value, then 303-redirects the browser to
+    https://<publichost>:6080/?username=kasm_user&password=<P>.
+
+    If the email already owns a VM in a usable state we re-rotate the
+    password on that VM rather than handing out a new one — refresh
+    or back-button should land on the same seat.
+    """
     try:
         data = request.form
-        email = data.get("email")
-        crd_command = data.get("crd_command")
+        email = (data.get("email") or "").strip()
+        if not email:
+            return render_template("index.html", error="Email is required.")
 
-        # If email or crd_command is not provided, return an error
-        if not email or not crd_command:
-            return render_template(
-                "index.html", error="Email and CRD command are required."
-            )
-
-        # Check if the CRD command is valid
-        if not check_crd_input(crd_command=crd_command):
-            logger.error("Invalid CRD command: --code not found.")
-            return render_template(
-                "index.html",
-                error="Invalid CRD command received. "
-                "Please ask your instructor for help.",
-            )
-
-        # If this email already owns a VM, reassign the new CRD to it
-        # in place instead of picking a new VM.
+        # If this email already owns a VM, decide what to do based on
+        # its current status. Re-rotate-and-redirect for healthy seats;
+        # show a wait/error page for transient or terminal states.
         existing = database.get_assigned_vm_for_email(email=email)
+        target_vm = None
         if existing is not None:
             hostname = existing["hostname"]
             status = existing["status"]
-
-            def _attempt_reassign():
-                """Try to reassign CRD; return True on success, or render
-                a retry-page response if the row was released under us."""
-                if database.reassign_crd(
-                    hostname=hostname,
-                    crd_command=crd_command,
-                    pin=PIN,
-                    expected_email=email,
-                ):
-                    return None  # success; caller continues
-                # Race: release_assignment fired between lookup and UPDATE.
-                logger.warning(
-                    f"Reassign race for '{email}' on '{hostname}' "
-                    f"(status={status}); asking student to retry"
-                )
-                return render_template(
-                    "index.html",
-                    error="Your VM assignment changed. Please try "
-                    "again — a fresh VM will be assigned.",
-                )
-
             if status == "running":
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
+                full = database.get_vm_by_hostname(hostname) or {}
+                target_vm = {
+                    "hostname": hostname,
+                    "publichost": full.get("publichost"),
+                    "privateip": full.get("privateip"),
+                }
                 logger.info(
-                    f"Reassigned CRD for '{email}' on existing VM "
+                    f"Re-rotating seat for '{email}' on existing VM "
                     f"'{hostname}'"
                 )
+            elif status in ("rebooting", "initializing"):
                 return render_template(
-                    "success.html", host=hostname, pin=PIN
+                    "index.html",
+                    error=(
+                        "Your VM is still coming up "
+                        f"(status: {status}). Please refresh in a few "
+                        "seconds."
+                    ),
                 )
-
-            if status in ("rebooting", "initializing"):
-                # Queue the CRD on the row. When the client's
-                # /vm_startup call lands after recovery, the existing
-                # race-condition path returns it immediately.
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
-                logger.info(
-                    f"Queued CRD for '{email}' on recovering VM "
-                    f"'{hostname}' (status={status})"
-                )
-                return render_template(
-                    "recovery.html", host=hostname, status=status
-                )
-
-            if status == "error":
-                # Reboot-service will release the assignment on its
-                # next tick. Ask the student to retry then.
+            elif status == "error":
                 logger.warning(
-                    f"VM '{hostname}' is in error state; asking "
-                    f"'{email}' to retry"
+                    f"VM '{hostname}' is in error state for '{email}'"
                 )
                 return render_template(
                     "index.html",
-                    error="Your previous VM could not be recovered. "
-                    "Please wait up to 60 seconds and try again — a "
-                    "fresh VM will be assigned.",
+                    error=(
+                        "Your previous VM could not be recovered. "
+                        "Please wait up to 60 seconds and try again — "
+                        "a fresh VM will be assigned."
+                    ),
+                )
+            else:
+                logger.warning(
+                    f"Unexpected status '{status}' for '{email}' on "
+                    f"'{hostname}'; falling through to fresh assignment"
                 )
 
-            # Any other status: log and fall through to fresh assignment
-            logger.warning(
-                f"Unexpected status '{status}' for '{email}' on "
-                f"'{hostname}'; falling through to fresh assignment"
-            )
+        if target_vm is None:
+            target_vm = database.claim_seat(email=email)
+            if target_vm is None:
+                logger.error(f"No available VMs to claim for '{email}'")
+                return render_template(
+                    "index.html",
+                    error=(
+                        "No VMs available right now. Please try again "
+                        "later — ask your instructor for help if this "
+                        "persists."
+                    ),
+                )
 
-        # No existing assignment: assign a fresh VM from the pool
-        if len(database.get_unassigned_vms()) == 0:
-            logger.error("No available VMs found.")
+        if not target_vm.get("publichost") or not target_vm.get("privateip"):
+            logger.error(
+                f"VM '{target_vm['hostname']}' is missing network info "
+                f"(publichost={target_vm.get('publichost')}, "
+                f"privateip={target_vm.get('privateip')}); cannot route"
+            )
+            database.release_seat(hostname=target_vm["hostname"])
             return render_template(
                 "index.html",
-                error="No available VMs. Please try again later. Please "
-                "ask your instructor for help",
+                error=(
+                    "Your VM is not yet reachable. Please try again "
+                    "in a few seconds."
+                ),
             )
 
-        database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
+        # Rotate the KasmVNC password on the client agent BEFORE
+        # redirecting the browser. If this fails, release the seat so
+        # the VM goes back into the pool — otherwise the row stays
+        # half-claimed with a useremail but no valid password.
+        vnc_password = secrets.token_urlsafe(24)
+        try:
+            prepare_browser_session(
+                hostname=target_vm["hostname"],
+                agent_url=f"http://{target_vm['privateip']}:7070",
+                password=vnc_password,
+                register_token=API_TOKEN,
+            )
+        except RotationFailed as e:
+            logger.error(
+                f"Releasing seat on '{target_vm['hostname']}' after "
+                f"rotation failure: {e}"
+            )
+            if existing is None:
+                database.release_seat(hostname=target_vm["hostname"])
+            return render_template(
+                "index.html",
+                error=(
+                    "Could not prepare your seat. Please try again — "
+                    "if this keeps happening, ask your instructor."
+                ),
+            )
 
-        assigned_vm = database.get_vm_details(email=email)
-        return render_template(
-            "success.html", host=assigned_vm[0], pin=assigned_vm[1]
+        # Final hop: send the browser at the client VM's KasmVNC over
+        # HTTPS with the just-rotated credentials in the URL. KasmVNC's
+        # bundled noVNC takes over from here.
+        redirect_url = (
+            f"https://{target_vm['publichost']}:6080/"
+            f"?username={KASMVNC_USERNAME}&password={vnc_password}"
         )
+        return redirect(redirect_url, code=303)
     except Exception as e:
         logger.error(f"Error in submit_vm_details: {e}")
         return render_template(
             "index.html",
-            error="An unexpected error occurred while processing your request. "
-            "Please ask your instructor for help.",
+            error=(
+                "An unexpected error occurred while processing your "
+                "request. Please ask your instructor for help."
+            ),
         )
 
 
@@ -564,140 +576,21 @@ def destroy():
 @app.route("/vm_startup", methods=["POST"])
 @require_api_token
 def vm_startup():
-    data = request.get_json()
-    hostname = data.get("hostname")
+    """Liveness check called by the client VM after it finishes booting.
 
+    v2 has no per-session state to negotiate at startup — KasmVNC's
+    password is rotated on demand at claim time via /api/session/start
+    on the agent. This endpoint just refreshes last_seen_at so the
+    allocator's staleness detector knows the VM is alive.
+    """
+    data = request.get_json() or {}
+    hostname = data.get("hostname")
     if not hostname:
         return jsonify({"error": "Hostname is required."}), 400
-
-    # Check if the VM exists in the database
-    vm = database.get_vm_by_hostname(hostname)
-    if not vm:
+    if not database.vm_exists(hostname):
         return jsonify({"error": "VM not found."}), 404
-
     database.touch_last_seen(hostname=hostname)
-
-    # Check if the VM already has a CRD command assigned (handles race condition
-    # where user submitted CRD before client called /vm_startup)
-    if vm.get("crdcommand") and vm.get("pin"):
-        logger.info(
-            f"VM '{hostname}' already has CRD command assigned, returning immediately"
-        )
-        return jsonify({
-            "status": "success",
-            "pin": vm["pin"],
-            "command": vm["crdcommand"],
-        }), 200
-
-    # Otherwise, wait for the CRD command via PostgreSQL LISTEN/NOTIFY
-    result = database.listen_for_notifications(
-        channel=MESSAGE_CHANNEL, target_hostname=hostname
-    )
-
-    return jsonify(result), 200
-
-
-@app.route("/api/scp-client", methods=["GET"])
-@auth.login_required
-def download_all_data():
-    if database.get_row_count() == 0:
-        logger.warning("No VMs found in the database.")
-        return jsonify({"error": "No VMs found in the database."}), 404
-    try:
-        instance_ips = get_instance_ips(terraform_dir=TERRAFORM_DIR)
-        key_path = get_ssh_private_key(terraform_dir=TERRAFORM_DIR)
-        empty_data = True
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            for i, ip in enumerate(instance_ips):
-                # Make temporary directory for each VM
-                logger.debug(f"Downloading data from VM {i + 1} at {ip}...")
-                vm_dir = Path(temp_dir) / f"vm_{i + 1}"
-                vm_dir.mkdir(parents=True, exist_ok=True)
-
-                logger.info(
-                    f"Extracting {cfg.machine.extension} files "
-                    f"from container on {ip}..."
-                )
-
-                # Find files from the Docker container
-                files = find_files_in_container(
-                    ip=ip, key_path=key_path, extension=cfg.machine.extension
-                )
-
-                # If no files are found, log a warning and continue to the next VM
-                if len(files) == 0:
-                    logger.warning(
-                        f"No {cfg.machine.extension} files found in container on {ip}."
-                    )
-                    continue
-                else:
-                    logger.debug(
-                        f"Found {len(files)} {cfg.machine.extension} "
-                        f"files in container on {ip}."
-                    )
-                    # Extract files from the Docker container
-                    extract_files_from_docker(
-                        ip=ip,
-                        key_path=key_path,
-                        files=files,
-                    )
-                    empty_data = False
-                logger.info(
-                    f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}..."
-                )
-
-                # Copy the extracted files to the allocator container's local
-                rsync_files_to_allocator(
-                    ip=ip,
-                    key_path=key_path,
-                    local_dir=vm_dir.as_posix(),
-                    extension=cfg.machine.extension,
-                )
-
-            if empty_data:
-                logger.warning(f"No {cfg.machine.extension} files found in any VMs.")
-                return (
-                    jsonify(
-                        {"error": f"No {cfg.machine.extension} files found in any VMs."}
-                    ),
-                    404,
-                )
-
-            logger.info(f"All files copied to {temp_dir}.")
-
-            # Create a zip file of the downloaded data with a timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            zip_file = Path(tempfile.gettempdir()) / f"lablink_data{timestamp}.zip"
-
-            with ZipFile(zip_file, "w") as archive:
-                for vm_dir in Path(temp_dir).iterdir():
-                    if vm_dir.is_dir():
-                        logger.debug(f"Zipping data for VM: {vm_dir.name}")
-                        for file in vm_dir.rglob(f"*.{cfg.machine.extension}"):
-                            logger.debug(f"Adding {file.name} to zip archive.")
-                            # Add with relative path inside zip
-                            archive.write(file, arcname=file.relative_to(temp_dir))
-            logger.debug("All data downloaded and zipped successfully.")
-
-            # Send the zip file as a response and remove it after the request
-            @after_this_request
-            def remove_zip_file(response):
-                try:
-                    os.remove(zip_file)
-                    logger.debug(f"Removed zip file: {zip_file}")
-                except Exception as e:
-                    logger.error(f"Error removing zip file: {e}")
-                return response
-
-            return send_file(zip_file, as_attachment=True)
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error downloading data: {e}")
-        return (
-            jsonify({"error": "An error occurred while downloading data from VMs."}),
-            500,
-        )
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
@@ -758,14 +651,12 @@ def heartbeat():
         return jsonify({"error": "vm_id is required."}), 400
 
     boot_id = data.get("boot_id")
-    crd_active = data.get("crd_active")
     disk_free_pct = data.get("disk_free_pct")
 
     try:
         ok = database.record_heartbeat(
             hostname=hostname,
             boot_id=boot_id,
-            crd_active=crd_active,
             disk_free_pct=disk_free_pct,
         )
         if not ok:

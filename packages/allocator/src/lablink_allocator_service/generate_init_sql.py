@@ -10,7 +10,6 @@ def main():
     DB_USER = config.db.user
     DB_PASSWORD = config.db.password
     VM_TABLE = config.db.table_name
-    MESSAGE_CHANNEL = config.db.message_channel
 
     template = f"""
 ALTER SYSTEM SET listen_addresses = '*';
@@ -60,8 +59,8 @@ CREATE TRIGGER scheduled_destructions_updated_at
 
 CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     HostName VARCHAR(1024) PRIMARY KEY,
-    Pin VARCHAR(1024),
-    CrdCommand VARCHAR(1024),
+    PublicHost VARCHAR(1024),
+    PrivateIp VARCHAR(64),
     UserEmail VARCHAR(1024),
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
     Healthy VARCHAR(1024),
@@ -81,30 +80,8 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     CreatedAt TIMESTAMP DEFAULT NOW(),
     last_seen_at TIMESTAMP,
     boot_id VARCHAR(64),
-    crd_active BOOLEAN,
     disk_free_pct SMALLINT
 );
-
-CREATE OR REPLACE FUNCTION notify_crd_command_update()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify(
-        '{MESSAGE_CHANNEL}',
-        json_build_object(
-            'HostName', NEW.HostName,
-            'CrdCommand', NEW.CrdCommand,
-            'Pin', NEW.Pin
-        )::text
-    );
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_crd_command_insert_or_update
-AFTER INSERT OR UPDATE OF CrdCommand ON {VM_TABLE}
-FOR EACH ROW
-WHEN (NEW.CrdCommand IS NOT NULL)
-EXECUTE FUNCTION notify_crd_command_update();
 
 """
 

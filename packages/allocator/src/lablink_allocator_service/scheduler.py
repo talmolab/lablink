@@ -48,7 +48,6 @@ def execute_scheduled_destruction_job(
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
-        message_channel=cfg.db.message_channel,
     )
 
     logger.info(f"Executing scheduled destruction ID: {schedule_id}")
