@@ -19,7 +19,6 @@ def omega_config():
                 "host": "localhost",
                 "port": 5432,
                 "table_name": "test_table",
-                "message_channel": "vm_updates",
             },
             "machine": {
                 "machine_type": "g4dn.xlarge",
@@ -27,7 +26,6 @@ def omega_config():
                 "ami_id": "ami-test",
                 "repository": "https://github.com/example/repo.git",
                 "software": "sleap",
-                "extension": "slp",
             },
             "app": {
                 "admin_user": "test_admin",
@@ -161,7 +159,6 @@ def valid_config_dict():
             "host": "localhost",
             "port": 5432,
             "table_name": "vms",
-            "message_channel": "vm_updates",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
@@ -169,7 +166,6 @@ def valid_config_dict():
             "ami_id": "ami-0601752c11b394251",
             "repository": "https://github.com/talmolab/sleap-tutorial-data.git",
             "software": "sleap",
-            "extension": "slp",
         },
         "app": {
             "admin_user": "admin",
@@ -231,14 +227,12 @@ def invalid_config_dict():
             "host": "localhost",
             "port": 5432,
             "table_name": "vms",
-            "message_channel": "vm_updates",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
             "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
             "ami_id": "ami-0601752c11b394251",
             "software": "sleap",
-            "extension": "slp",
         },
         "app": {
             "admin_user": "admin",
@@ -266,14 +260,12 @@ def config_with_unknown_top_level_key():
             "host": "localhost",
             "port": 5432,
             "table_name": "vms",
-            "message_channel": "vm_updates",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
             "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
             "ami_id": "ami-test",
             "software": "sleap",
-            "extension": "slp",
         },
         "app": {
             "admin_user": "admin",
@@ -302,7 +294,6 @@ def config_with_unknown_nested_key():
             "host": "localhost",
             "port": 5432,
             "table_name": "vms",
-            "message_channel": "vm_updates",
             # This nested key does NOT exist in DatabaseConfig schema
             "unknown_field": "this_should_fail",
         },
@@ -311,7 +302,6 @@ def config_with_unknown_nested_key():
             "image": "ghcr.io/talmolab/lablink-client-base-image:latest",
             "ami_id": "ami-test",
             "software": "sleap",
-            "extension": "slp",
         },
         "app": {
             "admin_user": "admin",
@@ -393,7 +383,6 @@ def real_db():
         host=host,
         port=port,
         table_name="vms",
-        message_channel="test_channel",
         pool_min_size=2,
         pool_max_size=8,
     )

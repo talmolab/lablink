@@ -307,7 +307,6 @@ def test_execute_scheduled_destruction_success(
             mock_config.db.host = "localhost"
             mock_config.db.port = 5432
             mock_config.db.table_name = "vms"
-            mock_config.db.message_channel = "vm_updates"
             mock_get_config.return_value = mock_config
 
             # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
@@ -371,7 +370,6 @@ def test_execute_scheduled_destruction_terraform_failure(
             mock_config.db.host = "localhost"
             mock_config.db.port = 5432
             mock_config.db.table_name = "vms"
-            mock_config.db.message_channel = "vm_updates"
             mock_get_config.return_value = mock_config
 
             # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
