@@ -72,7 +72,6 @@ class PostgresqlDatabase:
         host: str,
         port: int,
         table_name: str,
-        message_channel: str,
         pool_min_size: int = POOL_MIN_SIZE,
         pool_max_size: int = POOL_MAX_SIZE,
     ):
@@ -85,7 +84,6 @@ class PostgresqlDatabase:
             host (str): The host where the database is located.
             port (int): The port number for the database connection.
             table_name (str): The name of the table to interact with.
-            message_channel (str): The name of the message channel to listen to.
             pool_min_size (int): Minimum pooled connections. Defaults to
                 POOL_MIN_SIZE. Override in tests only.
             pool_max_size (int): Maximum pooled connections. Defaults to
@@ -105,7 +103,6 @@ class PostgresqlDatabase:
         self.host = host
         self.port = port
         self.table_name = table_name
-        self.message_channel = message_channel
 
         self._pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=pool_min_size,
@@ -761,7 +758,6 @@ class PostgresqlDatabase:
         host,
         port,
         table_name,
-        message_channel,
         pool_min_size: int = POOL_MIN_SIZE,
         pool_max_size: int = POOL_MAX_SIZE,
     ) -> "PostgresqlDatabase":
@@ -777,7 +773,6 @@ class PostgresqlDatabase:
             host,
             port,
             table_name,
-            message_channel,
             pool_min_size=pool_min_size,
             pool_max_size=pool_max_size,
         )

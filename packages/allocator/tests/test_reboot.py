@@ -47,7 +47,6 @@ def db_instance(mock_db_connection):
         host="localhost",
         port=5432,
         table_name="vms",
-        message_channel="test_channel",
     )
     db.conn = mock_conn
     db.cursor = mock_cursor

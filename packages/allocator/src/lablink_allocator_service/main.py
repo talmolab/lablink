@@ -83,8 +83,6 @@ if _missing:
     )
 
 # Initialize variables
-PIN = "123456"
-MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
@@ -118,7 +116,6 @@ def init_database():
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
-        message_channel=cfg.db.message_channel,
     )
     # Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,
     # /internal/proxy_auth) that need a raw connection for the signed-cookie
@@ -253,7 +250,7 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    return render_template("delete-instances.html", extension=cfg.machine.extension)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])

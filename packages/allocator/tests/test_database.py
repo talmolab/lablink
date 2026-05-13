@@ -67,7 +67,6 @@ def db_instance(mock_db_connection):
         host="localhost",
         port=5432,
         table_name="vms",
-        message_channel="test_channel",
     )
     # Convenience aliases so test bodies can keep using db_instance.cursor
     # and db_instance.conn without knowing about pool internals.
@@ -683,11 +682,11 @@ def test_load_database():
         return_value=None,
     ) as mock_init:
         inst = PostgresqlDatabase.load_database(
-            "db", "user", "pass", "host", 5432, "table", "channel"
+            "db", "user", "pass", "host", 5432, "table"
         )
 
     mock_init.assert_called_once_with(
-        "db", "user", "pass", "host", 5432, "table", "channel",
+        "db", "user", "pass", "host", 5432, "table",
         pool_min_size=2, pool_max_size=20,
     )
 
@@ -1314,7 +1313,6 @@ def test_pool_size_validation_rejects_min_zero():
             host="localhost",
             port=5432,
             table_name="vms",
-            message_channel="test_channel",
             pool_min_size=0,
             pool_max_size=5,
         )
@@ -1330,7 +1328,6 @@ def test_pool_size_validation_rejects_max_below_min():
             host="localhost",
             port=5432,
             table_name="vms",
-            message_channel="test_channel",
             pool_min_size=5,
             pool_max_size=2,
         )
@@ -1386,7 +1383,6 @@ def test_del_closes_pool(mock_db_connection):
         host="localhost",
         port=5432,
         table_name="vms",
-        message_channel="test_channel",
     )
     db.__del__()
     mock_pool.closeall.assert_called_once()

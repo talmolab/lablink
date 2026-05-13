@@ -5,9 +5,9 @@ import pytest
 import requests
 
 
-@pytest.fixture(autouse=True)
-def register_token_env(monkeypatch):
-    monkeypatch.setenv("REGISTER_TOKEN", "rt-secret")
+# Per-test API_TOKEN that matches what main.API_TOKEN would generate
+# in production; passed explicitly to prepare_browser_session.
+API_TOKEN = "test-api-token"
 
 
 def test_happy_path_rotates_and_persists(real_db):
@@ -54,18 +54,23 @@ def test_happy_path_rotates_and_persists(real_db):
             hostname="host-task10",
             session_id=session_id,
             browser_token="tok-abc",
+            api_token=API_TOKEN,
         )
 
-    # Agent POST: correct URL, Bearer header, body shape
+    # Agent POST: correct URL, Bearer header sourced from api_token kwarg,
+    # body carries only the rotated password (the agent doesn't need
+    # session_id or browser_token — those are allocator-side bookkeeping).
     mock_post.assert_called_once()
     url = mock_post.call_args[0][0]
     kwargs = mock_post.call_args[1]
     assert url == "http://10.0.0.5:7070/api/session/start"
-    assert kwargs["headers"]["Authorization"] == "Bearer rt-secret"
-    assert kwargs["json"]["browser_token"] == "tok-abc"
-    assert "vnc_password" in kwargs["json"]
+    assert kwargs["headers"]["Authorization"] == f"Bearer {API_TOKEN}"
+    assert "password" in kwargs["json"]
+    assert kwargs["json"].keys() == {"password"}
 
-    # Row updated with per-session columns
+    # Row updated with per-session columns. The password matches what we
+    # sent on the wire, so /internal/proxy_auth's later lookup will yield
+    # the same value the client agent installed.
     with real_db._cursor as cur:
         cur.execute(
             "SELECT sessionid, browsertoken, vncpassword, upstream "
@@ -74,7 +79,7 @@ def test_happy_path_rotates_and_persists(real_db):
         row = cur.fetchone()
     assert str(row[0]) == str(session_id)
     assert row[1] == "tok-abc"
-    assert row[2] == kwargs["json"]["vnc_password"]
+    assert row[2] == kwargs["json"]["password"]
     assert row[3] == "10.0.0.5:6080"
     assert target.upstream == "10.0.0.5:6080"
 
@@ -118,6 +123,7 @@ def test_one_retry_then_raises(real_db):
                 hostname="host-task10-fail",
                 session_id=uuid.uuid4(),
                 browser_token="t",
+                api_token=API_TOKEN,
             )
 
     assert mock_post.call_count == 2  # initial + one retry
@@ -151,4 +157,5 @@ def test_raises_when_instance_id_not_found(real_db):
                 hostname="ghost-host",
                 session_id=uuid.uuid4(),
                 browser_token="t",
+                api_token=API_TOKEN,
             )
