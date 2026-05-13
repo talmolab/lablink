@@ -8,6 +8,7 @@ If the cookie is missing, invalid, or the bound VM is no longer
 running, redirect to / so the student can submit their email again.
 """
 from flask import Blueprint, current_app, redirect, render_template, request
+from psycopg2 import sql
 
 from ..signed_cookie import (
     InvalidSignature,
@@ -34,10 +35,13 @@ def desktop():
         except InvalidSignature:
             return redirect("/", code=302)
 
+        table = sql.Identifier(current_app.config["VM_TABLE_NAME"])
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT browsertoken FROM vms "
-                "WHERE sessionid = %s AND status = 'running'",
+                sql.SQL(
+                    "SELECT browsertoken FROM {table} "
+                    "WHERE sessionid = %s AND status = 'running'"
+                ).format(table=table),
                 (session_id,),
             )
             row = cur.fetchone()

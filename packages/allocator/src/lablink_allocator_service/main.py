@@ -124,6 +124,7 @@ def init_database():
     # /internal/proxy_auth) that need a raw connection for the signed-cookie
     # helpers, without coupling them to the PostgresqlDatabase wrapper.
     app.config["DB_POOL"] = database._pool
+    app.config["VM_TABLE_NAME"] = cfg.db.table_name
 
 
 # Set up logging

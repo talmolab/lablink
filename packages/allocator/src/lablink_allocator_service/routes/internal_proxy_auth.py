@@ -9,6 +9,7 @@ password on the AWS path.
 import re
 
 from flask import Blueprint, current_app, make_response, request
+from psycopg2 import sql
 
 from ..signed_cookie import (
     InvalidSignature,
@@ -44,11 +45,14 @@ def proxy_auth():
             session_id = verify(raw_cookie, secret=secret)
         except InvalidSignature:
             return _unauth()
+        table = sql.Identifier(current_app.config["VM_TABLE_NAME"])
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT upstream, vncpassword FROM vms "
-                "WHERE sessionid = %s AND browsertoken = %s "
-                "      AND status = 'running'",
+                sql.SQL(
+                    "SELECT upstream, vncpassword FROM {table} "
+                    "WHERE sessionid = %s AND browsertoken = %s "
+                    "      AND status = 'running'"
+                ).format(table=table),
                 (session_id, token),
             )
             row = cur.fetchone()

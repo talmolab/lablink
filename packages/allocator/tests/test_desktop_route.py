@@ -47,6 +47,7 @@ def client_with_db(real_db, monkeypatch):
 
     monkeypatch.setattr(main_module, "database", real_db, raising=True)
     main_module.app.config["DB_POOL"] = real_db._pool
+    main_module.app.config["VM_TABLE_NAME"] = real_db.table_name
     return main_module.app.test_client()
 
 
