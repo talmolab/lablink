@@ -371,7 +371,7 @@ def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
     )
 
     assert resp.status_code == 503
-    assert b"Couldn't claim a seat" in resp.data
+    assert b"Couldn't prepare your seat" in resp.data
     fake_db.update_health.assert_called_once_with(
         hostname="host1", healthy="Unhealthy"
     )

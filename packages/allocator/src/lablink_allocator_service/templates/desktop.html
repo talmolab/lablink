@@ -14,9 +14,17 @@
   <script type="module">
     import RFB from "/static/novnc/core/rfb.js";
 
+    // Build the WS URL on the client so the scheme always matches the
+    // page's scheme. Deriving server-side from X-Forwarded-Proto is
+    // fragile: any front door (ALB, Caddy, CloudFlare) that doesn't
+    // set the header lands us with ws:// inside an https:// page,
+    // which modern browsers silently block as mixed content.
+    const wsScheme = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsScheme}//${location.host}/proxy/{{ browser_token }}`;
+
     const rfb = new RFB(
       document.getElementById("screen"),
-      "{{ ws_url|safe }}",
+      wsUrl,
       { credentials: {} }
     );
     rfb.viewOnly = false;

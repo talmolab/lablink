@@ -51,9 +51,9 @@ def desktop():
     if row is None or row[0] is None:
         return redirect("/", code=302)
 
-    browser_token = row[0]
-    scheme = (
-        "wss" if request.headers.get("X-Forwarded-Proto") == "https" else "ws"
-    )
-    ws_url = f"{scheme}://{request.host}/proxy/{browser_token}"
-    return render_template("desktop.html", ws_url=ws_url)
+    # Pass just the token; the template derives the full ws://host/proxy/<token>
+    # URL on the client so the WS scheme always matches the page's scheme.
+    # Building the URL server-side from X-Forwarded-Proto is fragile across
+    # front-door configurations (ALB/Caddy/CloudFlare), and getting the
+    # scheme wrong gives a silent mixed-content block in the browser.
+    return render_template("desktop.html", browser_token=row[0])

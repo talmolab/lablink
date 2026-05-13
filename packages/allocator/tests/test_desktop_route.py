@@ -78,10 +78,13 @@ def test_desktop_renders_with_valid_cookie(client_with_db, real_db):
     # nginx attaches it server-side via auth_request. The browser token
     # is fine to embed; the password is not.
     assert "VncPassword" not in body  # safety: the column literal name
-    # ws:// or wss:// scheme in the page
-    assert ("/proxy/tok-abc" in body) and (
-        ("ws://" in body) or ("wss://" in body)
-    )
+    # The WS scheme is derived on the client from location.protocol so
+    # the page always matches its own protocol (no mixed-content blocks
+    # when the page is https but X-Forwarded-Proto isn't propagated).
+    # The page source therefore contains the JS pattern rather than a
+    # literal ws:// or wss:// prefix.
+    assert 'location.protocol === "https:"' in body
+    assert "/proxy/{{" not in body  # template variable was substituted
 
 
 def test_desktop_redirects_when_status_not_running(client_with_db, real_db):
