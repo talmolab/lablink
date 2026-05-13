@@ -153,7 +153,7 @@ unset SEED_PW
 # allocator-proxied WebSocket can reach it. SG ingress (only from the
 # allocator SG) is the network-layer firewall.
 kasmvncserver :1 -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
-              -listen 6080 \
+              -websocketPort 6080 \
               -localhost no \
               2>&1 | tee "$LOG_DIR/kasmvnc.log" &
 

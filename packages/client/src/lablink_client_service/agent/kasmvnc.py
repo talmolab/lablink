@@ -37,7 +37,7 @@ def rotate_kasmvnc_password(*, password: str) -> None:
     pw_dir = os.path.dirname(pw_file) or "."
     os.makedirs(pw_dir, exist_ok=True)
     result = subprocess.run(
-        ["kasmvncpasswd", "-u", KASMVNC_USERNAME, pw_file],
+        ["kasmvncpasswd", "-u", KASMVNC_USERNAME, "-rwo", pw_file],
         input=f"{password}\n{password}\n",
         text=True,
         capture_output=True,
