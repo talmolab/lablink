@@ -78,15 +78,18 @@ touch /home/client/.Xauthority
 chmod 600 /home/client/.Xauthority
 
 # Seed an initial KasmVNC user. kasmvncserver refuses to start without
-# at least one user defined in the passwd file (it would otherwise prompt
-# interactively for one). The allocator's POST /api/session/start
-# (handled by the agent on :7070) rotates this password before any student
-# connects; the random seed here is just to satisfy the "has a user" check.
-mkdir -p /home/client/.kasmvnc
+# at least one user with write access (otherwise it prompts interactively
+# and hangs in our non-tty container). The path MUST be ~/.kasmpasswd —
+# this is the default of `server.advanced.kasm_password_file` in
+# kasmvncserver and is checked by the wrapper at startup.
+#
+# The allocator's POST /api/session/start (handled by the agent on
+# :7070) rotates this password before any student connects; the random
+# seed here just satisfies the "has a user with write access" check.
 SEED_PW=$(openssl rand -base64 24 | tr -d '\n')
 echo -e "${SEED_PW}\n${SEED_PW}" \
-  | kasmvncpasswd -u kasm_user -w /home/client/.kasmvnc/kasmvncpasswd
-chmod 600 /home/client/.kasmvnc/kasmvncpasswd
+  | kasmvncpasswd -u kasm_user -rwo /home/client/.kasmpasswd
+chmod 600 /home/client/.kasmpasswd
 unset SEED_PW
 
 # Start KasmVNC server. -interface 0.0.0.0 binds all interfaces so the

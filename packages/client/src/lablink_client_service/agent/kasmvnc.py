@@ -10,7 +10,7 @@ import os
 import subprocess
 
 
-DEFAULT_PASSWORD_FILE = "/home/client/.kasmvnc/kasmvncpasswd"
+DEFAULT_PASSWORD_FILE = "/home/client/.kasmpasswd"
 KASMVNC_USERNAME = "kasm_user"
 
 
@@ -37,7 +37,7 @@ def rotate_kasmvnc_password(*, password: str) -> None:
     pw_dir = os.path.dirname(pw_file) or "."
     os.makedirs(pw_dir, exist_ok=True)
     result = subprocess.run(
-        ["kasmvncpasswd", "-u", KASMVNC_USERNAME, "-w", pw_file],
+        ["kasmvncpasswd", "-u", KASMVNC_USERNAME, pw_file],
         input=f"{password}\n{password}\n",
         text=True,
         capture_output=True,

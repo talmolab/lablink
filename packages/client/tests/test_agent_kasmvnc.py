@@ -24,7 +24,7 @@ def test_rotate_invokes_kasmvncpasswd(tmp_path, monkeypatch):
     assert run.call_count == 1
     args, kwargs = run.call_args
     assert args[0] == [
-        "kasmvncpasswd", "-u", KASMVNC_USERNAME, "-w", str(pw_file),
+        "kasmvncpasswd", "-u", KASMVNC_USERNAME, str(pw_file),
     ]
     assert kwargs["input"] == "hunter2\nhunter2\n"
     assert kwargs["text"] is True
