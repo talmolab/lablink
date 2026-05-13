@@ -156,6 +156,7 @@ kasmvncserver :1 -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
               -websocketPort 6080 \
               -localhost no \
               -SecurityTypes None \
+              -noreset \
               2>&1 | tee "$LOG_DIR/kasmvnc.log" &
 
 # Start the client agent (:7070) — receives per-session password rotations
