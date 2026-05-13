@@ -1,11 +1,13 @@
 """POST /internal/proxy_auth — nginx auth_request callback.
 
 Validates the lablink_session cookie and the browser_token from the
-original URI; on success, returns X-Upstream and X-VNC-Password
-response headers so nginx can dial the upstream KasmVNC and attach
-the password to the upstream handshake. The browser never sees the
-password on the AWS path.
+original URI; on success, returns X-Upstream and X-Auth-Basic response
+headers so nginx can dial the upstream KasmVNC and attach the HTTP
+Basic Authorization header to the upstream WebSocket handshake.
+KasmVNC's auth is username-based; we use a fixed username and rotate
+only the password. The browser never sees either.
 """
+import base64
 import re
 
 from flask import Blueprint, current_app, make_response, request
@@ -20,6 +22,7 @@ from ..signed_cookie import (
 
 bp = Blueprint("internal_proxy_auth", __name__)
 _TOKEN_RE = re.compile(r"^/proxy/([A-Za-z0-9_-]+)$")
+KASMVNC_USERNAME = "kasm_user"
 
 
 def _unauth():
@@ -64,7 +67,10 @@ def proxy_auth():
     upstream, vnc_password = row
     if upstream is None or vnc_password is None:
         return _unauth()
+    encoded = base64.b64encode(
+        f"{KASMVNC_USERNAME}:{vnc_password}".encode()
+    ).decode()
     resp = make_response(("", 200))
     resp.headers["X-Upstream"] = upstream
-    resp.headers["X-VNC-Password"] = vnc_password
+    resp.headers["X-Auth-Basic"] = f"Basic {encoded}"
     return resp

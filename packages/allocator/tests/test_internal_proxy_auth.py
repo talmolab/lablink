@@ -70,7 +70,12 @@ def test_proxy_auth_happy_path(client_with_db, real_db):
     )
     assert resp.status_code == 200
     assert resp.headers["X-Upstream"] == "10.0.0.5:6080"
-    assert resp.headers["X-VNC-Password"] == "pw"
+    # KasmVNC expects HTTP Basic Auth with a username; nginx forwards
+    # this header as `Authorization:` on the upstream WebSocket upgrade.
+    import base64
+    expected = "Basic " + base64.b64encode(b"kasm_user:pw").decode()
+    assert resp.headers["X-Auth-Basic"] == expected
+    assert "X-VNC-Password" not in resp.headers
 
 
 def test_proxy_auth_rejects_bad_cookie(client_with_db, real_db):

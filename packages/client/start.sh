@@ -72,18 +72,27 @@ fi
 LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
 
-# Initialize KasmVNC password file with a random unguessable placeholder.
-# The allocator's POST /api/session/start (handled by the agent on :7070)
-# rotates this to a per-session password before any student connects.
-# Without a password file, kasmvncserver refuses to start.
+# kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing
+# file aborts the launch silently. Touch an empty one as the client user.
+touch /home/client/.Xauthority
+chmod 600 /home/client/.Xauthority
+
+# Seed an initial KasmVNC user. kasmvncserver refuses to start without
+# at least one user defined in the passwd file (it would otherwise prompt
+# interactively for one). The allocator's POST /api/session/start
+# (handled by the agent on :7070) rotates this password before any student
+# connects; the random seed here is just to satisfy the "has a user" check.
 mkdir -p /home/client/.kasmvnc
-openssl rand -base64 32 > /home/client/.kasmvnc/kasmvncpasswd
+SEED_PW=$(openssl rand -base64 24 | tr -d '\n')
+echo -e "${SEED_PW}\n${SEED_PW}" \
+  | kasmvncpasswd -u kasm_user -w /home/client/.kasmvnc/kasmvncpasswd
 chmod 600 /home/client/.kasmvnc/kasmvncpasswd
+unset SEED_PW
 
 # Start KasmVNC server. -interface 0.0.0.0 binds all interfaces so the
-# allocator-proxied WebSocket (and on Local mode, the student's browser)
-# can reach it. The SG/host firewall limits access at the network layer.
-kasmvncserver -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
+# allocator-proxied WebSocket can reach it. SG ingress (only from the
+# allocator SG) is the network-layer firewall.
+kasmvncserver :1 -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
               -listen 6080 \
               -localhost no \
               2>&1 | tee "$LOG_DIR/kasmvnc.log" &
