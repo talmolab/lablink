@@ -19,10 +19,14 @@ def _password_file() -> str:
 
 
 def _signal_kasmvnc() -> None:
-    """Send SIGHUP to the running kasmvncserver process so it re-reads
-    its password file. `check=False` so a missing process (in tests
-    or before first launch) doesn't crash the agent."""
-    subprocess.run(["pkill", "-HUP", "-x", "kasmvncserver"], check=False)
+    """Send SIGHUP to the running Xvnc process so it re-reads its
+    password file. The `kasmvncserver` wrapper is a Perl script that
+    exits after launching Xvnc, so signalling it does nothing on a
+    long-running session. We target Xvnc directly (the binary that
+    actually serves the WebSocket and reads .kasmpasswd). check=False
+    so a missing process (in tests or before first launch) is a no-op,
+    not a crash."""
+    subprocess.run(["pkill", "-HUP", "-x", "Xvnc"], check=False)
 
 
 def rotate_kasmvnc_password(*, password: str) -> None:
