@@ -331,17 +331,35 @@ jobs:
             echo "✓ nginx config parses cleanly"
           '
 
-      - name: Verify noVNC bundle is present
+      - name: Verify Kasm-bundled noVNC is present
         run: |
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
             set -eu
-            test -f /usr/share/novnc/vnc.html \
-              || { echo "FAIL: noVNC vnc.html missing"; exit 1; }
-            test -f /usr/share/novnc/core/rfb.js \
-              || { echo "FAIL: noVNC core/rfb.js missing"; exit 1; }
-            test -f /usr/share/novnc/app/styles/base.css \
-              || { echo "FAIL: noVNC app/styles/base.css missing"; exit 1; }
-            echo "✓ noVNC bundle present at /usr/share/novnc/"
+            # The allocator serves the noVNC viewer that ships INSIDE
+            # the kasmvncserver .deb (/usr/share/kasmvnc/www/), NOT
+            # Debian'"'"'s generic novnc package. Kasm'"'"'s viewer is the only
+            # one protocol-compatible with kasmvncserver — the Debian
+            # novnc sends RFB extension types KasmVNC rejects on the
+            # first mouse/keyboard event ("unknown message type 97"),
+            # so a regression here would silently break the desktop on
+            # every real session even though the WS upgrade succeeds.
+            test -f /usr/share/kasmvnc/www/vnc.html \
+              || { echo "FAIL: Kasm vnc.html missing — the /desktop redirect points here"; exit 1; }
+            test -f /usr/share/kasmvnc/www/index.html \
+              || { echo "FAIL: Kasm index.html missing"; exit 1; }
+            # The viewer'"'"'s entry JS bundle has a content-hashed name
+            # (e.g. ui-D357AMxM.js), so glob for it instead of pinning.
+            ls /usr/share/kasmvnc/www/assets/ui-*.js >/dev/null 2>&1 \
+              || { echo "FAIL: Kasm noVNC UI bundle missing in assets/"; exit 1; }
+            ls /usr/share/kasmvnc/www/assets/ui-*.css >/dev/null 2>&1 \
+              || { echo "FAIL: Kasm noVNC UI stylesheet missing in assets/"; exit 1; }
+            # kasmvncserver package pin — same 1.4.x line as the client
+            # image, so the bundled noVNC and the server stay protocol-
+            # compatible across version bumps.
+            dpkg-query -W -f="\${Version}" kasmvncserver | grep -qE "^1\.4\." \
+              || { echo "FAIL: KasmVNC pin drift on allocator — installed version not 1.4.x"; exit 1; }
+            echo "✓ Kasm-bundled noVNC present at /usr/share/kasmvnc/www/. Installed:"
+            dpkg -l kasmvncserver | tail -1
           '
 
   verify-client:
