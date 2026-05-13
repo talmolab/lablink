@@ -57,7 +57,9 @@ def test_desktop_redirects_without_cookie(client_with_db):
     assert resp.headers["Location"].endswith("/")
 
 
-def test_desktop_renders_with_valid_cookie(client_with_db, real_db):
+def test_desktop_redirects_to_kasmvnc_viewer_with_valid_cookie(
+    client_with_db, real_db
+):
     sid = str(uuid.uuid4())
     with real_db._cursor as cur:
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task12'")
@@ -70,21 +72,18 @@ def test_desktop_renders_with_valid_cookie(client_with_db, real_db):
         )
     client_with_db.set_cookie("lablink_session", sign(sid, secret=SEED_SECRET))
 
-    resp = client_with_db.get("/desktop")
-    assert resp.status_code == 200
-    body = resp.get_data(as_text=True)
-    assert "/proxy/tok-abc" in body
-    # The KasmVNC password should NOT be in the HTML on the AWS path —
-    # nginx attaches it server-side via auth_request. The browser token
-    # is fine to embed; the password is not.
-    assert "VncPassword" not in body  # safety: the column literal name
-    # The WS scheme is derived on the client from location.protocol so
-    # the page always matches its own protocol (no mixed-content blocks
-    # when the page is https but X-Forwarded-Proto isn't propagated).
-    # The page source therefore contains the JS pattern rather than a
-    # literal ws:// or wss:// prefix.
-    assert 'location.protocol === "https:"' in body
-    assert "/proxy/{{" not in body  # template variable was substituted
+    # /desktop now redirects into KasmVNC's bundled noVNC viewer (served
+    # at /static/novnc/vnc.html from /usr/share/kasmvnc/www/). Debian's
+    # generic novnc package would 404 in production now — we removed
+    # the custom desktop.html template and the apt install in favor of
+    # the Kasm-bundled viewer, which is the only one protocol-compatible
+    # with kasmvncserver.
+    resp = client_with_db.get("/desktop", follow_redirects=False)
+    assert resp.status_code == 302
+    location = resp.headers["Location"]
+    assert "/static/novnc/vnc.html" in location
+    assert "path=proxy/tok-abc" in location
+    assert "autoconnect=1" in location
 
 
 def test_desktop_redirects_when_status_not_running(client_with_db, real_db):

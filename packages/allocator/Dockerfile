@@ -24,10 +24,19 @@ RUN apt-get update && apt-get install -y curl unzip && \
     rm -rf /var/lib/apt/lists/*
 
 # nginx is the only network-facing process in this container.
-# noVNC (Debian package) provides the viewer bundle at /usr/share/novnc/.
+# noVNC is served from /usr/share/kasmvnc/www/ — the Kasm-bundled
+# viewer that ships in the kasmvncserver .deb. We MUST NOT use
+# Debian's generic `novnc` package: it sends RFB extension message
+# types (e.g. 97) that KasmVNC's stricter parser rejects, killing the
+# connection on the first mouse/keyboard event. Kasm's bundled noVNC
+# is the only viewer that's protocol-compatible with kasmvncserver.
+ARG KASMVNC_VERSION=1.4.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx \
-    novnc && \
+    nginx curl ca-certificates && \
+    curl -L -o /tmp/kasmvncserver.deb \
+      "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_jammy_${KASMVNC_VERSION}_amd64.deb" && \
+    apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb && \
+    rm /tmp/kasmvncserver.deb && \
     rm -rf /var/lib/apt/lists/*
 
 COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf

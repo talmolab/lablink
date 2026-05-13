@@ -7,7 +7,7 @@ configured with a WebSocket URL pointing at /proxy/<browser_token>.
 If the cookie is missing, invalid, or the bound VM is no longer
 running, redirect to / so the student can submit their email again.
 """
-from flask import Blueprint, current_app, redirect, render_template, request
+from flask import Blueprint, current_app, redirect, request
 from psycopg2 import sql
 
 from ..signed_cookie import (
@@ -51,9 +51,18 @@ def desktop():
     if row is None or row[0] is None:
         return redirect("/", code=302)
 
-    # Pass just the token; the template derives the full ws://host/proxy/<token>
-    # URL on the client so the WS scheme always matches the page's scheme.
-    # Building the URL server-side from X-Forwarded-Proto is fragile across
-    # front-door configurations (ALB/Caddy/CloudFlare), and getting the
-    # scheme wrong gives a silent mixed-content block in the browser.
-    return render_template("desktop.html", browser_token=row[0])
+    # Redirect into KasmVNC's bundled noVNC viewer (served via nginx at
+    # /static/novnc/ from /usr/share/kasmvnc/www/). Kasm's noVNC is the
+    # only viewer that's protocol-compatible with kasmvncserver — the
+    # Debian `novnc` package sends RFB extension messages KasmVNC rejects.
+    # autoconnect=1 + resize=remote tells the viewer to open the WS
+    # immediately on load and follow window resizes; `path` is relative
+    # to location.host, so the viewer connects to /proxy/<token> at the
+    # current origin, which nginx then upgrades and proxies to KasmVNC
+    # with the Basic Auth header attached server-side.
+    browser_token = row[0]
+    return redirect(
+        f"/static/novnc/vnc.html?path=proxy/{browser_token}"
+        f"&autoconnect=1&resize=remote",
+        code=302,
+    )
