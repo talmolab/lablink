@@ -166,11 +166,26 @@ def test_lablink_security_group(plan):
     v = resource["values"]
 
     assert v["name"] == "test-software-lablink-client-ci-test-sg"
-    # Ingress SSH
-    assert v["ingress"][0]["from_port"] == 22
-    assert v["ingress"][0]["to_port"] == 22
-    assert v["ingress"][0]["protocol"] == "tcp"
-    assert v["ingress"][0]["cidr_blocks"] == ["0.0.0.0/0"]
+
+    # Ingress is order-independent: index by from_port for clarity.
+    ingress = {rule["from_port"]: rule for rule in v["ingress"]}
+    # SSH — admin access
+    assert 22 in ingress
+    assert ingress[22]["to_port"] == 22
+    assert ingress[22]["protocol"] == "tcp"
+    assert ingress[22]["cidr_blocks"] == ["0.0.0.0/0"]
+    # KasmVNC — student browser, must be open to the public internet
+    # because the allocator 303s the browser directly to the client.
+    assert 6080 in ingress
+    assert ingress[6080]["to_port"] == 6080
+    assert ingress[6080]["protocol"] == "tcp"
+    assert ingress[6080]["cidr_blocks"] == ["0.0.0.0/0"]
+    # Client agent — gated by Bearer token at the application layer.
+    assert 7070 in ingress
+    assert ingress[7070]["to_port"] == 7070
+    assert ingress[7070]["protocol"] == "tcp"
+    assert ingress[7070]["cidr_blocks"] == ["0.0.0.0/0"]
+
     # Egress all
     assert v["egress"][0]["from_port"] == 0
     assert v["egress"][0]["to_port"] == 0
@@ -192,6 +207,7 @@ def test_output(plan):
     for k in [
         "vm_instance_ids",
         "vm_public_ips",
+        "vm_private_ips",
         "lablink_private_key_pem",
         "vm_instance_names",
         "terraform_apply_avg_seconds",

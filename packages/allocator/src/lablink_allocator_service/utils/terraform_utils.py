@@ -53,6 +53,41 @@ def get_instance_ips(terraform_dir: str) -> list:
     return output
 
 
+def get_instance_private_ips(terraform_dir: str) -> list:
+    """Get the private IP addresses of the instances created by Terraform.
+
+    Used by /api/launch to populate `privateip` on each VM row. The
+    allocator dials :7070 (client agent) over the private IP because
+    both VMs are in the same VPC and the hairpin through the public
+    IP would be slower and would also touch the public-internet egress.
+
+    Args:
+        terraform_dir: The directory where the Terraform configuration is located.
+
+    Returns:
+        List of private IP strings in declaration order (same order as
+        get_instance_ips and get_instance_names).
+    """
+    terraform_dir = Path(terraform_dir)
+    try:
+        result = subprocess.run(
+            ["terraform", "output", "-json", "vm_private_ips"],
+            cwd=terraform_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error running terraform output: {e.stderr}")
+    try:
+        output = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Error decoding JSON output: {e}")
+    if not isinstance(output, list):
+        raise ValueError("Expected output to be a list of private IPs")
+    return output
+
+
 def get_ssh_private_key(terraform_dir: str) -> str:
     """Get the SSH private key used for connecting to the instances.
     Args:

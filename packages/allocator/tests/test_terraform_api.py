@@ -50,9 +50,15 @@ def test_launch_vm_success(
             self.returncode = 0
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
+    names_json = '["vm-1"]'
+    public_ips_json = '["1.2.3.4"]'
+    private_ips_json = '["10.0.0.5"]'
     mock_run.side_effect = [
         R("\x1b[32mapply success\x1b[0m"),
         R(timing_json),
+        R(names_json),
+        R(public_ips_json),
+        R(private_ips_json),
     ]
 
     # Call route
@@ -60,8 +66,9 @@ def test_launch_vm_success(
     assert resp.status_code == 200
     assert b"Output Dashboard" in resp.data
 
-    # Assert calls
-    assert mock_run.call_count == 2
+    # Five terraform subprocess calls: apply + four `terraform output -json`
+    # calls (timings, names, public IPs, private IPs).
+    assert mock_run.call_count == 5
 
     # Check apply call
     apply_args, apply_kwargs = mock_run.call_args_list[0]

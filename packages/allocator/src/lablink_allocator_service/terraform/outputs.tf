@@ -4,8 +4,13 @@ output "vm_instance_ids" {
 }
 
 output "vm_public_ips" {
-  description = "List of public IPs assigned to the VMs"
+  description = "List of public IPs assigned to the VMs (browser-facing for KasmVNC redirect)"
   value       = aws_instance.lablink_vm[*].public_ip
+}
+
+output "vm_private_ips" {
+  description = "List of private IPs of the VMs (allocator -> agent :7070)"
+  value       = aws_instance.lablink_vm[*].private_ip
 }
 
 output "lablink_private_key_pem" {

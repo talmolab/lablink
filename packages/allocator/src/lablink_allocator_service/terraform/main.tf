@@ -9,13 +9,30 @@ resource "time_static" "start" {
 # Security Group for the Client VM
 resource "aws_security_group" "lablink_sg" {
   name        = "${var.resource_prefix}-sg"
-  description = "Allow SSH and Docker ports"
+  description = "SSH + KasmVNC + agent ingress for LabLink client VMs"
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "SSH for admin access"
+  }
+
+  ingress {
+    from_port   = 6080
+    to_port     = 6080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "KasmVNC web UI (TLS, per-session HTTP Basic Auth)"
+  }
+
+  ingress {
+    from_port   = 7070
+    to_port     = 7070
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Client agent /api/session/start (Bearer-token auth)"
   }
 
   egress {

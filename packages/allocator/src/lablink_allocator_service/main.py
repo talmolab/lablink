@@ -35,6 +35,9 @@ from lablink_allocator_service.utils.aws_utils import (
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
 from lablink_allocator_service.utils.terraform_utils import (
+    get_instance_ips,
+    get_instance_names,
+    get_instance_private_ips,
     get_instance_timings,
     has_runtime_tfvars,
 )
@@ -510,6 +513,30 @@ def launch():
                 per_instance_start_time=start_time,
                 per_instance_end_time=end_time,
             )
+
+        # Populate publichost + privateip for the v2 redirect flow.
+        # publichost is what /api/request_vm uses in the 303 Location;
+        # privateip is what client_session.prepare_browser_session uses
+        # to dial the client agent on :7070. Order across the three
+        # output lists matches by index (vm-1, vm-2, ...) because all
+        # three resolve from the same `aws_instance.lablink_vm` resource.
+        try:
+            names = get_instance_names(terraform_dir=TERRAFORM_DIR)
+            public_ips = get_instance_ips(terraform_dir=TERRAFORM_DIR)
+            private_ips = get_instance_private_ips(terraform_dir=TERRAFORM_DIR)
+            for hostname, public_ip, private_ip in zip(
+                names, public_ips, private_ips
+            ):
+                database.set_vm_network_info(
+                    hostname=hostname,
+                    publichost=public_ip,
+                    privateip=private_ip,
+                )
+        except Exception as e:
+            # Don't fail the whole launch if network plumbing has a hiccup
+            # — the VMs are up, the admin can re-run a small repair tool
+            # or just re-launch. Logged loudly so it's visible.
+            logger.error(f"Failed to populate VM network info: {e}")
 
         if _wants_json():
             return jsonify({"status": "success", "output": clean_output}), 200
