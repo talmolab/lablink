@@ -355,15 +355,17 @@ jobs:
       - name: Verify client console scripts exist
         run: |
           echo "Testing client console scripts..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /home/client/.venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"subscribe:\" && which subscribe && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c "source /home/client/.venv/bin/activate && echo \"check_gpu:\" && which check_gpu && echo \"agent:\" && which agent && echo \"update_inuse_status:\" && which update_inuse_status && echo \"Client console scripts verified\""
 
       - name: Verify client package imports
         run: |
           echo "Testing client package imports..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
           print(\"Importing client packages:\")
-          from lablink_client_service.subscribe import main
-          print(\"  - subscribe.main imported\")
+          from lablink_client_service.agent.api import main as agent_main
+          print(\"  - agent.api.main imported\")
+          from lablink_client_service.agent.kasmvnc import rotate_kasmvnc_password
+          print(\"  - agent.kasmvnc.rotate_kasmvnc_password imported\")
           from lablink_client_service.check_gpu import main as check_main
           print(\"  - check_gpu.main imported\")
           from lablink_client_service.update_inuse_status import main as update_main
@@ -404,10 +406,10 @@ jobs:
           echo "Testing client console script entry points can be imported..."
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && python -c "
           from lablink_client_service.check_gpu import main as check_gpu_main
-          from lablink_client_service.subscribe import main as subscribe_main
+          from lablink_client_service.agent.api import main as agent_main
           from lablink_client_service.update_inuse_status import main as update_main
           assert callable(check_gpu_main), \"check_gpu main() is not callable\"
-          assert callable(subscribe_main), \"subscribe main() is not callable\"
+          assert callable(agent_main), \"agent main() is not callable\"
           assert callable(update_main), \"update_inuse_status main() is not callable\"
           print(\"✓ All entry points are importable and callable\")
           "'
@@ -415,9 +417,13 @@ jobs:
       - name: Execute client console scripts
         run: |
           echo "Testing client console script execution..."
-          # Test that scripts execute (will fail without allocator, but should attempt to run)
+          # check_gpu and update_inuse_status return non-zero without an
+          # allocator but should at least start up and emit output. We
+          # don't smoke-test `agent` here: it starts a long-running
+          # Flask server on :7070, which we'd have to background and
+          # then health-check; the import test above already proves the
+          # module is wired up correctly.
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 check_gpu > /tmp/check_gpu_output.txt 2>&1 || true && test -s /tmp/check_gpu_output.txt && echo "check_gpu entry point executed"'
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 subscribe > /tmp/subscribe_output.txt 2>&1 || true && test -s /tmp/subscribe_output.txt && echo "subscribe entry point executed"'
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'source /home/client/.venv/bin/activate && timeout 2 update_inuse_status > /tmp/update_output.txt 2>&1 || true && test -s /tmp/update_output.txt && echo "update_inuse_status entry point executed"'
 
       - name: Verify custom-startup.sh execution
@@ -452,74 +458,20 @@ jobs:
           fi
           rm "$TEMP_SCRIPT_FILE"
 
-      # CRD smoke tests (issue #332). Three cumulative layers — each catches a
-      # distinct failure mode. Do not collapse into a single step; see issue
-      # for rationale.
-      - name: Verify runtime env matches runtime uid (CRD layer 1)
+      - name: Verify KasmVNC install integrity
         run: |
           docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
             set -eu
-            running_user=$(id -un)
-            if [ "${USER:-}" != "$running_user" ]; then
-              echo "FAIL: USER=${USER:-} != id -un=$running_user"
-              exit 1
-            fi
-            if [ "${LOGNAME:-}" != "$running_user" ]; then
-              echo "FAIL: LOGNAME=${LOGNAME:-} != id -un=$running_user"
-              exit 1
-            fi
-            if [ "${HOME:-}" != "/home/$running_user" ]; then
-              echo "FAIL: HOME=${HOME:-} (expected /home/$running_user)"
-              exit 1
-            fi
-            echo "✓ USER=$USER  LOGNAME=$LOGNAME  HOME=$HOME  uid=$(id -u)($running_user)"
-          '
-
-      - name: Verify CRD install integrity (CRD layer 2)
-        run: |
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
-            set -eu
-            test -x /opt/google/chrome-remote-desktop/start-host \
-              || { echo "FAIL: start-host missing"; exit 1; }
-            test -x /opt/google/chrome-remote-desktop/chrome-remote-desktop \
-              || { echo "FAIL: chrome-remote-desktop wrapper missing"; exit 1; }
-            getent group chrome-remote-desktop >/dev/null \
-              || { echo "FAIL: chrome-remote-desktop group missing"; exit 1; }
-            groups client | grep -qw chrome-remote-desktop \
-              || { echo "FAIL: client not in chrome-remote-desktop group"; exit 1; }
-            dpkg-query -W -f="\${Version}" chrome-remote-desktop | grep -qE "^148\." \
-              || { echo "FAIL: CRD pin drift — installed version not on 148.x line"; exit 1; }
-            echo "✓ CRD install integrity OK. Installed version:"
-            dpkg -l chrome-remote-desktop | tail -1
-          '
-
-      # Layer 3 runs actual CRD code — the only layer that catches an
-      # upstream regression (e.g. CRD v148 SIGTRAP in PR #330) rather than
-      # a known-shape defect. Demoted to continue-on-error until the flake
-      # rate of reaching Google's OAuth endpoint is understood; promote
-      # to required once stable.
-      - name: Smoke test start-host does not SIGTRAP (CRD layer 3)
-        continue-on-error: true
-        run: |
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c '
-            set +e
-            runtime_dir="/run/user/$(id -u)"
-            sudo mkdir -p "$runtime_dir" \
-              || { echo "FAIL: mkdir $runtime_dir"; exit 1; }
-            sudo chown "$(id -u):$(id -g)" "$runtime_dir" \
-              || { echo "FAIL: chown $runtime_dir"; exit 1; }
-            sudo chmod 0700 "$runtime_dir" \
-              || { echo "FAIL: chmod $runtime_dir"; exit 1; }
-            export XDG_RUNTIME_DIR="$runtime_dir"
-
-            timeout 30 bash -c "{ echo 123456; echo 123456; } | DISPLAY= /opt/google/chrome-remote-desktop/start-host --code=4/FAKE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=ci-smoke" >/tmp/out 2>&1
-            rc=$?
-            if [ "$rc" = "133" ]; then
-              echo "FAIL: start-host SIGTRAPed (exit 133 = 128 + SIGTRAP)."
-              echo "--- captured output ---"
-              cat /tmp/out
-              exit 1
-            fi
-            echo "✓ start-host exited with rc=$rc (not SIGTRAP)."
-            head -20 /tmp/out
+            test -x /usr/bin/kasmvncserver \
+              || { echo "FAIL: kasmvncserver missing"; exit 1; }
+            test -x /usr/bin/kasmvncpasswd \
+              || { echo "FAIL: kasmvncpasswd missing"; exit 1; }
+            test -x /usr/bin/xfce4-session \
+              || { echo "FAIL: xfce4-session missing (needed by ~/.vnc/xstartup)"; exit 1; }
+            test -x /usr/bin/dbus-launch \
+              || { echo "FAIL: dbus-launch missing (xfce4-session pre-requisite)"; exit 1; }
+            dpkg-query -W -f="\${Version}" kasmvncserver | grep -qE "^1\.4\." \
+              || { echo "FAIL: KasmVNC pin drift — installed version not on 1.4.x line"; exit 1; }
+            echo "✓ KasmVNC install integrity OK. Installed version:"
+            dpkg -l kasmvncserver | tail -1
           '
