@@ -7,7 +7,6 @@ rotation failure rolls back the assignment.
 PR A keeps the AWS-specific IP lookup inline. PR B's
 AllocatorProxiedClientConnectivity will extract this into a provider.
 """
-import os
 import secrets
 import time
 import uuid
@@ -78,23 +77,29 @@ def prepare_browser_session(
     hostname: str,
     session_id: uuid.UUID,
     browser_token: str,
+    api_token: str,
 ) -> BrowserSessionTarget:
     """Rotate the assigned client's VNC password and persist per-session
     columns on the VM row. Must be called inside the seat-assignment
-    transaction so failures roll back."""
+    transaction so failures roll back.
+
+    `api_token` is the allocator's per-startup random token (main.API_TOKEN);
+    the client agent receives the same value as its API_TOKEN env via the
+    Terraform user_data and validates it on every /api/session/start call.
+    Passed explicitly rather than read from env so this function has no
+    hidden global dependency for tests.
+    """
     private_ip = _lookup_private_ip(hostname)
     password = secrets.token_urlsafe(24)
     upstream = f"{private_ip}:6080"
-    register_token = os.environ.get("REGISTER_TOKEN", "")
 
+    # Body shape matches the agent's contract (packages/client/.../agent/api.py):
+    # a single `password` field. session_id and browser_token are bookkeeping
+    # the *allocator* persists in its own DB; the agent doesn't need either.
     _post_rotate(
         f"http://{private_ip}:7070/api/session/start",
-        {
-            "vnc_password": password,
-            "browser_token": browser_token,
-            "expires_in_seconds": 60,
-        },
-        bearer=register_token,
+        {"password": password},
+        bearer=api_token,
     )
 
     with database._cursor as cursor:

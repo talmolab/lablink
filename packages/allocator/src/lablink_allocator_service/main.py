@@ -299,6 +299,7 @@ def submit_vm_details():
                 hostname=hostname,
                 session_id=session_id,
                 browser_token=browser_token,
+                api_token=API_TOKEN,
             )
         except RotationFailed as exc:
             logger.warning(
