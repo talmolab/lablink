@@ -52,6 +52,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xscreensaver \
     xbase-clients \
     xvfb \
+    # xterm is pinned as a permanent X client by start.sh so that the
+    # "last X client exited" path never fires, which otherwise tears
+    # Xvnc down when xfce4 components race on dbus name ownership.
+    xterm \
     # Provides process management utilities
     psmisc \
     # Dummy X server for headless environments

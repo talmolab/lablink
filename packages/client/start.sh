@@ -149,15 +149,51 @@ echo -e "${SEED_PW}\n${SEED_PW}" \
 chmod 600 /home/client/.kasmpasswd
 unset SEED_PW
 
-# Start KasmVNC server. -interface 0.0.0.0 binds all interfaces so the
-# allocator-proxied WebSocket can reach it. SG ingress (only from the
-# allocator SG) is the network-layer firewall.
-kasmvncserver :1 -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
-              -websocketPort 6080 \
-              -localhost no \
-              -SecurityTypes None \
-              -noreset \
-              2>&1 | tee "$LOG_DIR/kasmvnc.log" &
+# Start KasmVNC by invoking Xvnc directly. We do NOT use the
+# kasmvncserver Perl wrapper because:
+#   1. It hardcodes -rfbauth ~/.vnc/passwd, dragging RFB-layer VncAuth(2)
+#      back in on top of our -SecurityTypes None.
+#   2. Even when -noreset is in argv, this Xvnc build still emits
+#      "VNC extension does not support -reset, terminating instead"
+#      when the desktop environment unwinds — the -noreset flag alone
+#      is insufficient. The only reliable way to keep the X server up
+#      is to ensure at least one X client is always connected (see the
+#      xterm pin below).
+# -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
+# is the network-layer firewall.
+Xvnc :1 \
+    -auth /home/client/.Xauthority \
+    -desktop kasmvnc \
+    -httpd /usr/share/kasmvnc/www \
+    -rfbport 5901 \
+    -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
+    -websocketPort 6080 \
+    -localhost 0 \
+    -SecurityTypes None \
+    -PasswordFile /home/client/.vnc/passwd \
+    -KasmPasswordFile /home/client/.kasmpasswd \
+    -AlwaysShared 1 \
+    -noreset \
+    > "$LOG_DIR/kasmvnc.log" 2>&1 &
+
+# Wait for the X socket so subsequent clients can connect.
+for i in $(seq 1 30); do
+  [ -e /tmp/.X11-unix/X1 ] && break
+  sleep 0.5
+done
+
+# Pin a permanent X client to the display BEFORE starting xfce4.
+# xterm -iconic holds an X connection without showing a window. When
+# xfce4 components fall apart (e.g. xfce4-panel losing its dbus name
+# because of the no-system-dbus container env), this client keeps the
+# "last client exited" path from firing — which is what was tearing
+# Xvnc down ~11 seconds after start despite -noreset being set.
+DISPLAY=:1 xterm -iconic -geometry 1x1+0+0 \
+    > "$LOG_DIR/xterm-pin.log" 2>&1 &
+
+# Launch xfce4 against the now-live display.
+DISPLAY=:1 /home/client/.vnc/xstartup \
+    > "$LOG_DIR/xstartup.log" 2>&1 &
 
 # Start the client agent (:7070) — receives per-session password rotations
 # from the allocator. Bearer-authenticated via REGISTER_TOKEN env var.
@@ -196,4 +232,4 @@ curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   }" --max-time 5 || true
 
 # Keep container alive
-tail -F "$LOG_DIR/kasmvnc.log" "$LOG_DIR/agent.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"
+tail -F "$LOG_DIR/kasmvnc.log" "$LOG_DIR/xstartup.log" "$LOG_DIR/agent.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"
