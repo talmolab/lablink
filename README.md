@@ -179,7 +179,7 @@ We welcome contributions! Please see:
 
 ## 📝 License
 
-[BSD-3-Clause License](LICENSE)
+[BSD-2-Clause License](LICENSE)
 
 ---
 
