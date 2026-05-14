@@ -3173,7 +3173,6 @@
 <li><strong>AWS region</strong> — e.g. <code>us-west-2</code>. Must be a region the CLI has an AMI mapping for (run <code>lablink doctor</code> to see the list).</li>
 <li><strong>Machine settings</strong> — client VM instance type and AMI. Defaults come from the bundled <code>lablink-template</code> config.</li>
 <li><strong>DNS / SSL</strong> — optional Route 53 domain and ACM certificate configuration.</li>
-<li><strong>Monitoring</strong> — optional CloudWatch alarms and CloudTrail.</li>
 </ul>
 <p>The wizard writes <code>~/.lablink/config.yaml</code> and then <strong>automatically runs <code>lablink setup</code></strong> to create the two AWS resources Terraform needs before it can run:</p>
 <ol>
