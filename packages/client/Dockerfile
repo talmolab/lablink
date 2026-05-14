@@ -97,7 +97,11 @@ RUN systemctl disable lightdm.service || true
 # Google Chrome browser. Installed inside the remote desktop so students can
 # open tutorial URLs, Jupyter, etc. from within their VNC session. (This is
 # the browser, distinct from Chrome Remote Desktop which this PR removed.)
-RUN curl -L -o /tmp/google-chrome-stable_current_amd64.deb \
+# apt-get update is required here because the previous layer wiped
+# /var/lib/apt/lists/*; without it the .deb's Depends (libnspr4, libnss3)
+# can't be resolved and apt reports "held broken packages".
+RUN apt-get update && \
+    curl -L -o /tmp/google-chrome-stable_current_amd64.deb \
         https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
     apt-get install --assume-yes --fix-broken /tmp/google-chrome-stable_current_amd64.deb && \
     rm /tmp/google-chrome-stable_current_amd64.deb && \
