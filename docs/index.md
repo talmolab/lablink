@@ -65,7 +65,7 @@ Prefer a local workflow over the template repository? The [LabLink CLI](cli/inde
 
     ---
 
-    Customize instance types, machine images, DNS, SSL, and monitoring settings.
+    Customize instance types, machine images, DNS, and SSL settings.
 
     [:octicons-arrow-right-24: Configuration](configuration.md)
 
