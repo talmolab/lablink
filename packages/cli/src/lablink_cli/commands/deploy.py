@@ -279,7 +279,7 @@ def _terraform_init(
 
 
 def _prompt_passwords() -> dict[str, str]:
-    """Prompt for admin and database passwords at deploy time."""
+    """Prompt for the admin credentials at deploy time."""
     import getpass
 
     console.print(
@@ -296,18 +296,10 @@ def _prompt_passwords() -> dict[str, str]:
         console.print("  [red]Admin password is required[/red]")
         raise SystemExit(1)
 
-    db_pw = getpass.getpass("  Database password: ")
-    if not db_pw:
-        console.print(
-            "  [red]Database password is required[/red]"
-        )
-        raise SystemExit(1)
-
     console.print()
     return {
         "admin_user": admin_user,
         "admin_password": admin_pw,
-        "db_password": db_pw,
     }
 
 
@@ -443,7 +435,6 @@ def run_deploy(
     cfg_dict["app"]["admin_password"] = passwords[
         "admin_password"
     ]
-    cfg_dict["db"]["password"] = passwords["db_password"]
 
     with open(config_path, "w") as f:
         yaml.dump(

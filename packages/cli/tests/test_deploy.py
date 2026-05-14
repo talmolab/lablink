@@ -365,7 +365,6 @@ def _patch_deploy_deps(deploy_dir):
             return_value={
                 "admin_user": "admin",
                 "admin_password": "pw",
-                "db_password": "dbpw",
             },
         ),
         patch("lablink_cli.commands.deploy._terraform_init"),
