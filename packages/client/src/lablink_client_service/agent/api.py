@@ -2,8 +2,10 @@
 
 Listens on :7070 inside the container. The allocator calls
 POST /api/session/start with a fresh KasmVNC password before
-handing the seat to a student; the agent rotates the password in
-the local `kasmvncpasswd` file and SIGHUPs Xvnc so it reloads.
+handing the seat to a student; the agent rewrites the local
+`kasmvncpasswd` file. KasmVNC re-reads that file on each HTTP
+Basic Auth check, so no signal-based reload is needed (and SIGHUP
+would in fact terminate Xvnc — its reset path is unsupported).
 
 Auth: Bearer = deployment-wide API_TOKEN (same value the allocator
 generates at startup and bakes into the client VM's docker env via

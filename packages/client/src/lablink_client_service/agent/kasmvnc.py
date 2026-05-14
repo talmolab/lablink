@@ -18,20 +18,14 @@ def _password_file() -> str:
     return os.environ.get("KASMVNC_PASSWORD_FILE", DEFAULT_PASSWORD_FILE)
 
 
-def _signal_kasmvnc() -> None:
-    """Send SIGHUP to the running Xvnc process so it re-reads its
-    password file. The `kasmvncserver` wrapper is a Perl script that
-    exits after launching Xvnc, so signalling it does nothing on a
-    long-running session. We target Xvnc directly (the binary that
-    actually serves the WebSocket and reads .kasmpasswd). check=False
-    so a missing process (in tests or before first launch) is a no-op,
-    not a crash."""
-    subprocess.run(["pkill", "-HUP", "-x", "Xvnc"], check=False)
-
-
 def rotate_kasmvnc_password(*, password: str) -> None:
-    """Rewrite the KasmVNC password file for the fixed username and
-    signal kasmvncserver to reload.
+    """Rewrite the KasmVNC password file for the fixed username.
+
+    KasmVNC re-reads `.kasmpasswd` on every HTTP Basic Auth check, so a
+    plain file rewrite is enough; no reload signal is needed. (Sending
+    SIGHUP to Xvnc would in fact terminate it — Xvnc treats SIGHUP as
+    "reset the X server", the VNC extension can't be reset, and the X
+    core falls back to terminating the process.)
 
     Delegates to the `kasmvncpasswd` CLI, which encodes the password
     using KasmVNC's expected format and (per its man page) replaces
@@ -52,4 +46,3 @@ def rotate_kasmvnc_password(*, password: str) -> None:
             f"kasmvncpasswd failed (exit {result.returncode}): "
             f"{result.stderr.strip() or result.stdout.strip()}"
         )
-    _signal_kasmvnc()
