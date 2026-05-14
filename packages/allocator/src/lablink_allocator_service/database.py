@@ -433,7 +433,7 @@ class PostgresqlDatabase:
 
     def release_seat(self, *, hostname: str) -> None:
         """Clear useremail and every per-session column on a VM row,
-        returning the seat to the available pool.
+        returning the seat to the available pool."""
         query = (
             f"UPDATE {self.table_name} "
             f"SET useremail = NULL, "
