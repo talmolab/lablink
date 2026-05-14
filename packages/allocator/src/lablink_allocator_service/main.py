@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import secrets
 import subprocess
@@ -449,14 +450,19 @@ def launch():
                 "fail unless the variable is supplied another way."
             )
 
-        # Pre-apply SG audit: terraform plan -no-color and parse the
-        # output. Refuse to apply if the client SG would expose :6080
-        # or :7070 to 0.0.0.0/0 or ::/0. This is the hard gate that
-        # prevents a misconfigured Terraform change from reaching AWS.
-        plan_cmd = ["terraform", "plan", "-no-color", *tf_vars]
+        # Pre-apply SG audit: save the plan to a file, read it back as
+        # JSON via `terraform show -json`, and audit the structured
+        # plan. Refuse to apply if the client SG would expose :6080 or
+        # :7070 to 0.0.0.0/0 or ::/0. Apply the saved plan file (not a
+        # fresh plan) so audit and apply see identical state — no
+        # TOCTOU window between the two terraform invocations.
+        plan_file = "tfplan.binary"
+        plan_cmd = [
+            "terraform", "plan", "-no-color", "-out", plan_file, *tf_vars,
+        ]
         logger.debug(f"Running command: {' '.join(plan_cmd)}")
         try:
-            plan_result = subprocess.run(
+            subprocess.run(
                 plan_cmd,
                 cwd=TERRAFORM_DIR,
                 check=True,
@@ -471,7 +477,23 @@ def launch():
             return render_template("dashboard.html", error=error_msg)
 
         try:
-            audit_terraform_plan(plan_result.stdout)
+            show_result = subprocess.run(
+                ["terraform", "show", "-json", plan_file],
+                cwd=TERRAFORM_DIR,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            plan_json = json.loads(show_result.stdout)
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            logger.error("terraform show -json failed: %s", e)
+            error_msg = f"Could not read plan JSON: {e}"
+            if _wants_json():
+                return jsonify({"status": "error", "error": error_msg}), 500
+            return render_template("dashboard.html", error=error_msg)
+
+        try:
+            audit_terraform_plan(plan_json)
         except SGAuditFailure as exc:
             logger.error("SG audit refused the plan: %s", exc)
             error_msg = f"Security-group audit refused the plan: {exc}"
@@ -479,8 +501,8 @@ def launch():
                 return jsonify({"status": "error", "error": error_msg}), 400
             return render_template("dashboard.html", error=error_msg), 400
 
-        # Audit passed; proceed to apply.
-        apply_cmd = ["terraform", "apply", "-auto-approve", *tf_vars]
+        # Audit passed; apply the saved plan (vars are baked in).
+        apply_cmd = ["terraform", "apply", "-auto-approve", plan_file]
         logger.debug(f"Running command: {' '.join(apply_cmd)}")
 
         # Run the Terraform apply command
