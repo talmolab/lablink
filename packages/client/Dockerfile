@@ -71,6 +71,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-keysyms1 libxcb-render-util0 libxrender1 libxrandr2 \
     libxfixes3 libxi6 libxtst6 libxcomposite1 libxdamage1 \
     libdbus-1-3 libfontconfig1 libfreetype6 libgl1 \
+    # Runtime dep for Google Chrome (rasterization backend)
+    libvulkan1 \
     git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -91,6 +93,29 @@ EXPOSE 6080 7070
 
 # lightdm conflicts with headless VNC; disable it so KasmVNC can own the session.
 RUN systemctl disable lightdm.service || true
+
+# Google Chrome browser. Installed inside the remote desktop so students can
+# open tutorial URLs, Jupyter, etc. from within their VNC session. (This is
+# the browser, distinct from Chrome Remote Desktop which this PR removed.)
+RUN curl -L -o /tmp/google-chrome-stable_current_amd64.deb \
+        https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+    apt-get install --assume-yes --fix-broken /tmp/google-chrome-stable_current_amd64.deb && \
+    rm /tmp/google-chrome-stable_current_amd64.deb && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Wrap google-chrome (and the google-chrome-stable alias the .deb installs)
+# with flags that make it work inside a container: no sandbox (containers
+# already isolate; the default sandbox needs user namespaces we don't grant),
+# no GPU (no graphics device on the EC2 host), and no /dev/shm reliance
+# (Docker's default 64 MiB tmpfs is too small for Chrome's IPC).
+RUN for bin in google-chrome google-chrome-stable; do \
+        rm -f /usr/bin/$bin && \
+        printf '%s\n' \
+            '#!/bin/bash' \
+            'exec /opt/google/chrome/google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage "$@"' \
+            > /usr/bin/$bin && \
+        chmod +x /usr/bin/$bin; \
+    done
 
 # Create the user USERNAME
 RUN useradd -m -s /bin/bash ${USERNAME} && echo "${USERNAME}:password" | chpasswd && \
