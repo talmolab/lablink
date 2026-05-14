@@ -311,6 +311,36 @@ def _prompt_passwords() -> dict[str, str]:
     }
 
 
+def _build_health_poll_target(cfg: Config, ec2_ip: str) -> dict:
+    """Choose the post-deploy health-check URL and timeout for this SSL config.
+
+    Caddy's `${DOMAIN} { ... }` site block matches the request Host header,
+    so for letsencrypt/cloudflare an IP-based GET to port 80 doesn't match
+    any site and never returns healthy — the spinner sits for the full
+    timeout. ACM has no listener on EC2:80 at all (ALB owns 80/443), but
+    Flask is reachable on :5000 directly. Returns the URL + max_wait that
+    actually responds for this provider.
+    """
+    provider = cfg.ssl.provider
+    domain = cfg.dns.domain if cfg.dns.enabled else ""
+
+    if provider == "none":
+        return {"url": f"http://{ec2_ip}", "max_wait": 300}
+    if provider == "acm":
+        # ALB owns 80/443; Flask is bound 0.0.0.0:5000 (SG allows 5000).
+        return {"url": f"http://{ec2_ip}:5000", "max_wait": 300}
+    # letsencrypt / cloudflare: Caddy is Host-bound to the domain. Poll the
+    # domain instead of the IP. Allow extra time for DNS propagation and
+    # (for LE) ACME cert issuance.
+    if not domain:
+        # Misconfiguration — SSL provider requires a domain — but fall back
+        # to IP polling rather than crashing. The deploy will likely fail
+        # downstream and the operator will see why.
+        return {"url": f"http://{ec2_ip}", "max_wait": 300}
+    scheme = "https" if provider == "letsencrypt" else "http"
+    return {"url": f"{scheme}://{domain}", "max_wait": 600}
+
+
 def _poll_allocator_health(
     poll_url: str,
     *,
@@ -501,16 +531,16 @@ def run_deploy(
         outputs = get_terraform_outputs(deploy_dir)
         ec2_ip = outputs.get("ec2_public_ip", "")
 
-        max_wait = 300
-
-        # Phase 1: Poll EC2 IP directly for allocator readiness.
-        # Uses port 80 (nginx) — the EC2 security group does not expose
-        # Flask's 5000 externally; nginx reverse-proxies to it internally.
+        # Phase 1: Poll the allocator for readiness. URL and timeout depend
+        # on the SSL provider — see _build_health_poll_target for the
+        # rationale per provider.
         if ec2_ip:
-            direct_url = f"http://{ec2_ip}"
+            target = _build_health_poll_target(cfg, ec2_ip)
+            direct_url = target["url"]
+            max_wait = target["max_wait"]
             console.print(
                 f"[bold]Waiting for allocator to become healthy"
-                f" (up to {max_wait // 60} min)...[/bold]"
+                f" at {direct_url} (up to {max_wait // 60} min)...[/bold]"
             )
             with phase_timer(
                 metrics,
