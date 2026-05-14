@@ -58,7 +58,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-keysyms1 libxcb-render-util0 libxrender1 libxrandr2 \
     libxfixes3 libxi6 libxtst6 libxcomposite1 libxdamage1 \
     libdbus-1-3 libfontconfig1 libfreetype6 libgl1 \
-    # Runtime dep for Google Chrome (rasterization backend)
+    # Runtime deps for Google Chrome. Pre-installed here (rather than left
+    # for the Chrome .deb's apt-get install to pull) because the next
+    # RUN wipes /var/lib/apt/lists/*, so Chrome's install layer has no
+    # index to resolve them. Previously (pre-this-branch) CRD's install
+    # pulled libnss3/libnspr4 transitively; with CRD removed we name
+    # them explicitly here.
+    libnspr4 \
+    libnss3 \
     libvulkan1 \
     git && \
     apt-get clean && \
@@ -83,11 +90,12 @@ RUN systemctl disable lightdm.service || true
 # Google Chrome browser. Installed inside the remote desktop so students can
 # open tutorial URLs, Jupyter, etc. from within their VNC session. (This is
 # the browser, distinct from Chrome Remote Desktop which this PR removed.)
-RUN curl -L -o /tmp/google-chrome-stable_current_amd64.deb \
+# Mirrors the previously-working pattern from main: libnss3/libnspr4 are
+# pre-installed in the apt block above, so this layer just unpacks the .deb.
+RUN curl -L -o google-chrome-stable_current_amd64.deb \
         https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt-get install --assume-yes --fix-broken /tmp/google-chrome-stable_current_amd64.deb && \
-    rm /tmp/google-chrome-stable_current_amd64.deb && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb && \
+    rm google-chrome-stable_current_amd64.deb
 
 # Wrap google-chrome (and the google-chrome-stable alias the .deb installs)
 # with flags that make it work inside a container: no sandbox (containers
