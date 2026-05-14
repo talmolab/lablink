@@ -281,13 +281,22 @@ def test_assign_vm_no_available(db_instance):
 
 
 def test_get_first_available_vm(db_instance):
-    """Test getting the first available VM."""
+    """Test getting the first available VM.
+
+    The query skips rows marked Unhealthy so that a wedged VM
+    (rotation failed, agent unreachable) isn't handed to the next
+    student until the reboot service rescues it."""
     hostname = "free-vm-01"
     db_instance.cursor.fetchone.return_value = (hostname,)
 
     result = db_instance.get_first_available_vm()
 
-    expected_query = "SELECT hostname FROM vms WHERE useremail IS NULL AND status = 'running' LIMIT 1"
+    expected_query = (
+        "SELECT hostname FROM vms WHERE useremail IS NULL "
+        "AND status = 'running' "
+        "AND (healthy IS NULL OR healthy <> 'Unhealthy') "
+        "LIMIT 1"
+    )
     db_instance.cursor.execute.assert_called_with(expected_query)
     assert result == hostname
 

@@ -433,8 +433,7 @@ class PostgresqlDatabase:
 
     def release_seat(self, *, hostname: str) -> None:
         """Clear useremail and every per-session column on a VM row,
-        returning the seat to the available pool. Called when a session
-        ends (WS drop + 90s grace, dashboard kick, or destroy)."""
+        returning the seat to the available pool.
         query = (
             f"UPDATE {self.table_name} "
             f"SET useremail = NULL, "
@@ -451,13 +450,19 @@ class PostgresqlDatabase:
     def get_first_available_vm(self) -> str:
         """Get the first available VM that is not assigned.
 
+        Skips rows marked Unhealthy so that a VM whose agent went dark
+        (rotation failed, etc.) isn't handed to the next student to
+        wedge in turn — it'll be picked back up by the reboot service.
+
         Returns:
             str: The hostname of the first available VM.
         """
         query = (
             f"SELECT hostname FROM {self.table_name} "
-            f"WHERE useremail IS NULL AND "
-            f"status = 'running' LIMIT 1"
+            f"WHERE useremail IS NULL "
+            f"AND status = 'running' "
+            f"AND (healthy IS NULL OR healthy <> 'Unhealthy') "
+            f"LIMIT 1"
         )
         with self._cursor as cursor:
             cursor.execute(query)

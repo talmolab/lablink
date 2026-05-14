@@ -34,15 +34,25 @@ def audit_terraform_plan(plan_text: str) -> None:
     rule on a protected port exposes 0.0.0.0/0 or ::/0.
 
     Raises:
-        SGAuditFailure: on a violating ingress rule OR when the plan
-            text contains no ingress blocks at all (fail closed).
+        SGAuditFailure: on a violating ingress rule, or when the plan
+            shows an aws_security_group diff with no parseable ingress
+            blocks (fail closed).
     """
-    if "ingress" not in plan_text and "aws_security_group" not in plan_text:
-        raise SGAuditFailure(
-            "Couldn't parse Terraform plan (no ingress blocks). "
-            "Refusing to apply (fail closed)."
-        )
-    for m in _INGRESS_RE.finditer(plan_text):
+    ingress_matches = list(_INGRESS_RE.finditer(plan_text))
+    # Two no-op shapes share "no parseable ingress blocks":
+    #   1. No SG diff at all — the SG was created (and audited) on a
+    #      prior apply, and the current plan only shows aws_instance
+    #      changes (subsequent /api/launch scaling calls). Safe pass.
+    #   2. aws_security_group is in the diff but no ingress block is
+    #      parseable. Suspicious — refuse the apply.
+    if not ingress_matches:
+        if "aws_security_group" in plan_text:
+            raise SGAuditFailure(
+                "aws_security_group in plan but no ingress blocks "
+                "found. Refusing to apply (fail closed)."
+            )
+        return
+    for m in ingress_matches:
         body = m.group("body")
         port_m = _FROM_PORT_RE.search(body)
         if not port_m:

@@ -303,8 +303,14 @@ def submit_vm_details():
                 "Password rotation failed for '%s' on '%s': %s",
                 email, hostname, exc,
             )
+            # Release the seat so the student isn't permanently wedged
+            # on the rotation_failed page: without this, the rejoin
+            # branch at the top of this handler keeps matching the
+            # same row (status is still 'running') and re-enters
+            # prepare_browser_session, which keeps failing.
             try:
                 database.update_health(hostname=hostname, healthy="Unhealthy")
+                database.release_seat(hostname=hostname)
             except Exception:
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return render_template("rotation_failed.html"), 503

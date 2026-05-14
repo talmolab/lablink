@@ -80,11 +80,36 @@ def test_audit_fails_when_public_cidr_is_one_of_many():
         audit_terraform_plan(VIOLATING_6080_MIXED_CIDR)
 
 
-def test_audit_fails_closed_on_unrecognized_output():
-    """If the plan text contains no ingress blocks, refuse to apply
-    rather than silently letting an unparseable plan through."""
-    with pytest.raises(SGAuditFailure, match="parse"):
-        audit_terraform_plan("garbage that does not look like a plan")
+def test_audit_passes_when_no_sg_diff_in_plan():
+    """The most common /api/launch path after the initial deploy:
+    the instructor scales the pool by raising num_vms, so the plan
+    only shows new aws_instance resources — the SG was already
+    created (and audited) on a prior apply. The audit must pass.
+
+    Before this fix, the audit fail-closed branch tripped on this
+    plan shape and refused every scale-up after the first."""
+    plan_only_aws_instance = """
+      + resource "aws_instance" "lablink_vm" {
+          + ami           = "ami-12345"
+          + instance_type = "t2.medium"
+        }
+
+    Plan: 1 to add, 0 to change, 0 to destroy.
+    """
+    audit_terraform_plan(plan_only_aws_instance)  # should not raise
+
+
+def test_audit_fails_when_sg_present_but_no_ingress():
+    """Defensive: if the plan mentions aws_security_group but we
+    can't find any ingress blocks to walk, refuse the apply rather
+    than silently approving an unparseable SG change."""
+    plan = """
+      + resource "aws_security_group" "lablink_sg" {
+          + name = "weird-no-ingress"
+        }
+    """
+    with pytest.raises(SGAuditFailure, match="no ingress"):
+        audit_terraform_plan(plan)
 
 
 def test_audit_ignores_unprotected_ports():

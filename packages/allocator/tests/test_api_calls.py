@@ -343,8 +343,15 @@ def test_request_vm_database_internal_failure(client, monkeypatch):
 
 
 def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
-    """When prepare_browser_session raises RotationFailed -> 503 and the
-    VM is marked Unhealthy."""
+    """When prepare_browser_session raises RotationFailed -> 503, the
+    VM is marked Unhealthy AND the seat is released.
+
+    The release_seat call is what prevents the rejoin branch from
+    matching the same wedged row on retry and looping the student
+    through rotation_failed forever — without it, the row keeps
+    status='running' and useremail=<student>, so the next POST to
+    /api/request_vm re-enters prepare_browser_session and fails the
+    same way."""
     from lablink_allocator_service.client_session import RotationFailed
 
     fake_db = MagicMock()
@@ -375,6 +382,7 @@ def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
     fake_db.update_health.assert_called_once_with(
         hostname="host1", healthy="Unhealthy"
     )
+    fake_db.release_seat.assert_called_once_with(hostname="host1")
 
 
 def test_update_vm_status_success(client, api_token_headers, monkeypatch):
