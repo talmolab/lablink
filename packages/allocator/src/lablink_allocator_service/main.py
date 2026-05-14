@@ -457,58 +457,66 @@ def launch():
         # fresh plan) so audit and apply see identical state — no
         # TOCTOU window between the two terraform invocations.
         plan_file = "tfplan.binary"
-        plan_cmd = [
-            "terraform", "plan", "-no-color", "-out", plan_file, *tf_vars,
-        ]
-        logger.debug(f"Running command: {' '.join(plan_cmd)}")
+        plan_file_path = TERRAFORM_DIR / plan_file
         try:
-            subprocess.run(
-                plan_cmd,
-                cwd=TERRAFORM_DIR,
-                check=True,
-                capture_output=True,
-                text=True,
+            plan_cmd = [
+                "terraform", "plan", "-no-color", "-out", plan_file, *tf_vars,
+            ]
+            logger.debug(f"Running command: {' '.join(plan_cmd)}")
+            try:
+                subprocess.run(
+                    plan_cmd,
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                logger.error("terraform plan failed: %s", e.stderr)
+                error_msg = f"Terraform plan failed: {(e.stderr or '').strip()}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 500
+                return render_template("dashboard.html", error=error_msg)
+
+            try:
+                show_result = subprocess.run(
+                    ["terraform", "show", "-json", plan_file],
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                plan_json = json.loads(show_result.stdout)
+            except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+                logger.error("terraform show -json failed: %s", e)
+                error_msg = f"Could not read plan JSON: {e}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 500
+                return render_template("dashboard.html", error=error_msg)
+
+            try:
+                audit_terraform_plan(plan_json)
+            except SGAuditFailure as exc:
+                logger.error("SG audit refused the plan: %s", exc)
+                error_msg = f"Security-group audit refused the plan: {exc}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 400
+                return render_template("dashboard.html", error=error_msg), 400
+
+            # Audit passed; apply the saved plan (vars are baked in).
+            apply_cmd = ["terraform", "apply", "-auto-approve", plan_file]
+            logger.debug(f"Running command: {' '.join(apply_cmd)}")
+
+            # Run the Terraform apply command
+            result = subprocess.run(
+                apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
             )
-        except subprocess.CalledProcessError as e:
-            logger.error("terraform plan failed: %s", e.stderr)
-            error_msg = f"Terraform plan failed: {(e.stderr or '').strip()}"
-            if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 500
-            return render_template("dashboard.html", error=error_msg)
-
-        try:
-            show_result = subprocess.run(
-                ["terraform", "show", "-json", plan_file],
-                cwd=TERRAFORM_DIR,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            plan_json = json.loads(show_result.stdout)
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-            logger.error("terraform show -json failed: %s", e)
-            error_msg = f"Could not read plan JSON: {e}"
-            if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 500
-            return render_template("dashboard.html", error=error_msg)
-
-        try:
-            audit_terraform_plan(plan_json)
-        except SGAuditFailure as exc:
-            logger.error("SG audit refused the plan: %s", exc)
-            error_msg = f"Security-group audit refused the plan: {exc}"
-            if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 400
-            return render_template("dashboard.html", error=error_msg), 400
-
-        # Audit passed; apply the saved plan (vars are baked in).
-        apply_cmd = ["terraform", "apply", "-auto-approve", plan_file]
-        logger.debug(f"Running command: {' '.join(apply_cmd)}")
-
-        # Run the Terraform apply command
-        result = subprocess.run(
-            apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
-        )
+        finally:
+            # Plan file has served its purpose (applied or rejected);
+            # drop it so it doesn't linger in TERRAFORM_DIR. Fires on
+            # every exit path — early returns, audit failure, and the
+            # CalledProcessError caught by the outer except below.
+            plan_file_path.unlink(missing_ok=True)
 
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
