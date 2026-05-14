@@ -304,15 +304,8 @@ def _prompt_passwords() -> dict[str, str]:
 
 
 def _build_health_poll_target(cfg: Config, ec2_ip: str) -> dict:
-    """Choose the post-deploy health-check URL and timeout for this SSL config.
-
-    Caddy's `${DOMAIN} { ... }` site block matches the request Host header,
-    so for letsencrypt/cloudflare an IP-based GET to port 80 doesn't match
-    any site and never returns healthy — the spinner sits for the full
-    timeout. ACM has no listener on EC2:80 at all (ALB owns 80/443), but
-    Flask is reachable on :5000 directly. Returns the URL + max_wait that
-    actually responds for this provider.
-    """
+    """Pick the post-deploy poll URL + timeout. Caddy is Host-bound under
+    letsencrypt/cloudflare, so those must poll the domain, not the IP."""
     provider = cfg.ssl.provider
     domain = cfg.dns.domain if cfg.dns.enabled else ""
 
@@ -321,13 +314,12 @@ def _build_health_poll_target(cfg: Config, ec2_ip: str) -> dict:
     if provider == "acm":
         # ALB owns 80/443; Flask is bound 0.0.0.0:5000 (SG allows 5000).
         return {"url": f"http://{ec2_ip}:5000", "max_wait": 300}
-    # letsencrypt / cloudflare: Caddy is Host-bound to the domain. Poll the
-    # domain instead of the IP. Allow extra time for DNS propagation and
-    # (for LE) ACME cert issuance.
     if not domain:
-        # Misconfiguration — SSL provider requires a domain — but fall back
-        # to IP polling rather than crashing. The deploy will likely fail
-        # downstream and the operator will see why.
+        console.print(
+            f"  [yellow]Warning:[/yellow] ssl.provider='{provider}' "
+            f"without dns.domain — falling back to IP poll. "
+            f"The deploy will likely fail to serve at the expected URL."
+        )
         return {"url": f"http://{ec2_ip}", "max_wait": 300}
     scheme = "https" if provider == "letsencrypt" else "http"
     return {"url": f"{scheme}://{domain}", "max_wait": 600}
