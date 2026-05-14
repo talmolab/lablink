@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch, ANY
-import json
 
 # Mock psycopg2 before importing the database module
 # This allows us to avoid the real psycopg2 import raising an error if it's not installed
@@ -68,7 +67,6 @@ def db_instance(mock_db_connection):
         host="localhost",
         port=5432,
         table_name="vms",
-        message_channel="test_channel",
     )
     # Convenience aliases so test bodies can keep using db_instance.cursor
     # and db_instance.conn without knowing about pool internals.
@@ -191,56 +189,6 @@ def test_get_vm_by_hostname_not_found(db_instance):
     assert vm is None
 
 
-@patch("select.select")
-def test_listen_for_notifications(mock_select, db_instance):
-    """Test the notification listener."""
-    target_hostname = "vm-to-connect"
-    channel = "test_channel"
-
-    # Mock a separate connection for the listener
-    mock_listen_conn = MagicMock()
-    mock_listen_cursor = MagicMock()
-    mock_listen_conn.cursor.return_value = mock_listen_cursor
-    # The listener creates its own connection, so we patch the return value again
-    mock_psycopg2.connect.return_value = mock_listen_conn
-
-    # Simulate receiving a notification
-    mock_select.return_value = ([mock_listen_conn], [], [])
-
-    payload = {
-        "HostName": target_hostname,
-        "Pin": "654321",
-        "CrdCommand": "remote-desktop-command",
-    }
-    mock_notification = MagicMock()
-    mock_notification.payload = json.dumps(payload)
-    mock_notification.channel = channel
-    mock_listen_conn.notifies = [mock_notification]
-
-    result = db_instance.listen_for_notifications(channel, target_hostname)
-
-    mock_listen_cursor.execute.assert_called_with(f"LISTEN {channel};")
-    assert result["status"] == "success"
-    assert result["pin"] == "654321"
-    mock_listen_cursor.close.assert_called_once()
-    mock_listen_conn.close.assert_called_once()
-
-
-def test_get_crd_command(db_instance):
-    """Test getting the CRD command for a specific VM."""
-    hostname = "test-vm-02"
-    command = "some-crd-command"
-    db_instance.vm_exists = MagicMock(return_value=True)
-    db_instance.cursor.fetchone.return_value = (command,)
-
-    result = db_instance.get_crd_command(hostname)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT crdcommand FROM vms WHERE hostname = %s", (hostname,)
-    )
-    assert result == command
-
-
 def test_get_unassigned_vms(db_instance):
     """Test getting a list of unassigned VMs."""
     unassigned_vms_data = [("vm-free-1",), ("vm-free-2",)]
@@ -249,7 +197,7 @@ def test_get_unassigned_vms(db_instance):
     result = db_instance.get_unassigned_vms()
 
     expected_query = (
-        "SELECT hostname FROM vms WHERE crdcommand IS NULL AND status = 'running'"
+        "SELECT hostname FROM vms WHERE useremail IS NULL AND status = 'running'"
     )
     db_instance.cursor.execute.assert_called_with(expected_query)
     assert result == ["vm-free-1", "vm-free-2"]
@@ -280,7 +228,7 @@ def test_get_assigned_vms(db_instance):
     result = db_instance.get_assigned_vms()
 
     db_instance.cursor.execute.assert_called_with(
-        "SELECT hostname FROM vms WHERE crdcommand IS NOT NULL"
+        "SELECT hostname FROM vms WHERE useremail IS NOT NULL"
     )
     assert result == ["vm-in-use-1", "vm-in-use-2"]
 
@@ -314,16 +262,14 @@ def test_get_vm_details_not_found(db_instance):
 def test_assign_vm(db_instance):
     """Test assigning an available VM to a user."""
     email = "new-user@example.com"
-    crd_command = "new-command"
-    pin = "4321"
     hostname = "available-vm"
 
     db_instance.get_first_available_vm = MagicMock(return_value=hostname)
-    db_instance.assign_vm(email, crd_command, pin)
+    db_instance.assign_vm(email)
 
     # Using ANY to avoid matching the exact whitespace in the multi-line query string
     db_instance.cursor.execute.assert_called_with(
-        ANY, (email, crd_command, pin, hostname)
+        ANY, (email, hostname)
     )
 
 
@@ -331,17 +277,26 @@ def test_assign_vm_no_available(db_instance):
     """Test assigning a VM when no VMs are available."""
     db_instance.get_first_available_vm = MagicMock(return_value=None)
     with pytest.raises(ValueError, match="No available VMs to assign."):
-        db_instance.assign_vm("user@example.com", "cmd", "123")
+        db_instance.assign_vm("user@example.com")
 
 
 def test_get_first_available_vm(db_instance):
-    """Test getting the first available VM."""
+    """Test getting the first available VM.
+
+    The query skips rows marked Unhealthy so that a wedged VM
+    (rotation failed, agent unreachable) isn't handed to the next
+    student until the reboot service rescues it."""
     hostname = "free-vm-01"
     db_instance.cursor.fetchone.return_value = (hostname,)
 
     result = db_instance.get_first_available_vm()
 
-    expected_query = "SELECT hostname FROM vms WHERE useremail IS NULL AND status = 'running' LIMIT 1"
+    expected_query = (
+        "SELECT hostname FROM vms WHERE useremail IS NULL "
+        "AND status = 'running' "
+        "AND (healthy IS NULL OR healthy <> 'Unhealthy') "
+        "LIMIT 1"
+    )
     db_instance.cursor.execute.assert_called_with(expected_query)
     assert result == hostname
 
@@ -736,11 +691,11 @@ def test_load_database():
         return_value=None,
     ) as mock_init:
         inst = PostgresqlDatabase.load_database(
-            "db", "user", "pass", "host", 5432, "table", "channel"
+            "db", "user", "pass", "host", 5432, "table"
         )
 
     mock_init.assert_called_once_with(
-        "db", "user", "pass", "host", 5432, "table", "channel",
+        "db", "user", "pass", "host", 5432, "table",
         pool_min_size=2, pool_max_size=20,
     )
 
@@ -755,14 +710,6 @@ def test_del(db_instance):
     db_instance.__del__()
 
     pool.closeall.assert_called_once()
-
-
-def test_get_crd_command_no_vm(db_instance):
-    """Test getting CRD command for a non-existent VM."""
-    hostname = "non-existent-vm"
-    db_instance.vm_exists = MagicMock(return_value=False)
-    result = db_instance.get_crd_command(hostname)
-    assert result is None
 
 
 def test_get_unassigned_vms_error(db_instance, caplog):
@@ -787,7 +734,7 @@ def test_assign_vm_db_error(db_instance, caplog):
     db_instance.get_first_available_vm = MagicMock(return_value=hostname)
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
-        db_instance.assign_vm("user@example.com", "cmd", "123")
+        db_instance.assign_vm("user@example.com")
     assert "Failed to assign VM" in caplog.text
 
 
@@ -886,13 +833,11 @@ def test_get_all_vms(db_instance):
         assert vms == expected_vms
 
 
-def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
-    """Test that export excludes pin and crdcommand columns."""
+def test_get_all_vms_for_export_excludes_logs_by_default(db_instance):
+    """Test that export excludes log columns by default."""
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "inuse",
             "healthy",
@@ -911,7 +856,7 @@ def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
 
         vms = db_instance.get_all_vms_for_export(include_logs=False)
 
-        # pin, crdcommand, cloudinitlogs, dockerlogs should all be excluded
+        # cloudinitlogs and dockerlogs should be excluded
         expected_columns = [
             "hostname",
             "useremail",
@@ -925,8 +870,6 @@ def test_get_all_vms_for_export_excludes_sensitive_columns(db_instance):
         db_instance.cursor.execute.assert_called_with(
             f"SELECT {query_columns} FROM vms;"
         )
-        assert "pin" not in vms[0]
-        assert "crdcommand" not in vms[0]
         assert "cloudinitlogs" not in vms[0]
         assert "dockerlogs" not in vms[0]
 
@@ -936,8 +879,6 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "inuse",
             "healthy",
@@ -955,7 +896,7 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
 
         vms = db_instance.get_all_vms_for_export(include_logs=True)
 
-        # pin and crdcommand excluded, but logs included
+        # Logs included
         expected_columns = [
             "hostname",
             "useremail",
@@ -970,8 +911,6 @@ def test_get_all_vms_for_export_includes_logs_when_requested(db_instance):
         db_instance.cursor.execute.assert_called_with(
             f"SELECT {query_columns} FROM vms;"
         )
-        assert "pin" not in vms[0]
-        assert "crdcommand" not in vms[0]
         assert vms[0]["cloudinitlogs"] == "cloud logs"
         assert vms[0]["dockerlogs"] == "docker logs"
 
@@ -981,8 +920,6 @@ def test_get_all_vms_for_export_default_excludes_logs(db_instance):
     with patch.object(db_instance, "get_column_names") as mock_get_columns:
         column_names = [
             "hostname",
-            "pin",
-            "crdcommand",
             "useremail",
             "cloudinitlogs",
             "dockerlogs",
@@ -1370,67 +1307,6 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
     assert "Failed to look up assigned VM" in caplog.text
 
 
-def test_reassign_crd_succeeds_when_row_still_owned(db_instance):
-    """Test reassigning a new CRD command when the row is still owned."""
-    db_instance.cursor.rowcount = 1
-
-    result = db_instance.reassign_crd(
-        hostname="vm-7",
-        crd_command=(
-            "DISPLAY= /opt/google/chrome-remote-desktop/start-host "
-            "--code='4/abc' --redirect-url='...'"
-        ),
-        pin="987654",
-        expected_email="student@test.edu",
-    )
-
-    assert result is True
-    db_instance.cursor.execute.assert_called_once()
-    query = db_instance.cursor.execute.call_args[0][0]
-    args = db_instance.cursor.execute.call_args[0][1]
-
-    # Query targets the right columns and guards on useremail
-    assert "crdcommand" in query.lower()
-    assert "pin" in query.lower()
-    assert "WHERE hostname" in query
-    assert "useremail" in query.lower()
-    # Parameter order: (crd_command, pin, hostname, expected_email)
-    assert "4/abc" in args[0]
-    assert args[1] == "987654"
-    assert args[2] == "vm-7"
-    assert args[3] == "student@test.edu"
-
-
-
-def test_reassign_crd_returns_false_when_row_released(db_instance, caplog):
-    """Test that reassign_crd returns False when useremail no longer matches.
-
-    Simulates the race where the auto-reboot service's release_assignment
-    fires between the caller's get_assigned_vm_for_email and reassign_crd.
-    """
-    db_instance.cursor.rowcount = 0
-
-    result = db_instance.reassign_crd(
-        hostname="vm-7",
-        crd_command="cmd",
-        pin="987654",
-        expected_email="student@test.edu",
-    )
-
-    assert result is False
-    assert "row no longer owned by 'student@test.edu'" in caplog.text
-
-
-def test_reassign_crd_error(db_instance, caplog):
-    """Test error handling in reassign_crd."""
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-    with pytest.raises(Exception, match="DB error"):
-        db_instance.reassign_crd(
-            "vm-7", "cmd", "000000", "student@test.edu"
-        )
-    assert "Failed to reassign CRD" in caplog.text
-
-
 # ---------------------------------------------------------------------------
 # Pool-behavior tests (PR 1: connection pool refactor)
 # ---------------------------------------------------------------------------
@@ -1446,7 +1322,6 @@ def test_pool_size_validation_rejects_min_zero():
             host="localhost",
             port=5432,
             table_name="vms",
-            message_channel="test_channel",
             pool_min_size=0,
             pool_max_size=5,
         )
@@ -1462,7 +1337,6 @@ def test_pool_size_validation_rejects_max_below_min():
             host="localhost",
             port=5432,
             table_name="vms",
-            message_channel="test_channel",
             pool_min_size=5,
             pool_max_size=2,
         )
@@ -1518,7 +1392,6 @@ def test_del_closes_pool(mock_db_connection):
         host="localhost",
         port=5432,
         table_name="vms",
-        message_channel="test_channel",
     )
     db.__del__()
     mock_pool.closeall.assert_called_once()
@@ -1563,3 +1436,43 @@ def test_concurrent_queries_do_not_serialize(real_db):
         f"Queries appear serialized: wall-clock total {total:.2f}s "
         f"(serial would be ~0.8s)"
     )
+
+
+def test_release_seat_clears_per_session_columns(real_db):
+    """release_seat() returns a seat to the pool by clearing useremail
+    and every per-session column on the row."""
+    # The real_db fixture creates a minimal vms (hostname text PRIMARY KEY)
+    # table. Extend it with the columns this test cares about.
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
+            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
+            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
+            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+        )
+        # Clear any leftover row from a prior test
+        cur.execute("DELETE FROM vms WHERE hostname = 'host-task2'")
+        cur.execute(
+            "INSERT INTO vms (hostname, status, useremail, sessionid, "
+            "                 browsertoken, vncpassword, upstream, "
+            "                 sessionstartedat) "
+            "VALUES ('host-task2', 'running', 'sam@x.com', "
+            "        '11111111-1111-1111-1111-111111111111', "
+            "        'tok-abc', 'pw-xyz', '10.0.0.5:6080', NOW())"
+        )
+
+    real_db.release_seat(hostname='host-task2')
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "SELECT useremail, sessionid, browsertoken, vncpassword, "
+            "       upstream, sessionstartedat "
+            "FROM vms WHERE hostname = 'host-task2'"
+        )
+        row = cur.fetchone()
+
+    assert row == (None, None, None, None, None, None)

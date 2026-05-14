@@ -20,7 +20,6 @@ def test_home_basic_structure(client):
     # Form basics
     assert '<form action="/api/request_vm" method="post">' in html
     assert 'name="email"' in html
-    assert 'name="crd_command"' in html
 
 
 def test_admin_instances_no_auth(client):
@@ -43,16 +42,12 @@ def test_view_instances_with_rows(mock_database, client, admin_headers):
     rows = [
         SimpleNamespace(
             hostname="vm-1",
-            pin="111111",
-            crdcommand="sample-crd-command-1",
             useremail="a@x.com",
             inuse=False,
             healthy="Unhealthy",
         ),
         SimpleNamespace(
             hostname="vm-2",
-            pin="222222",
-            crdcommand="sample-crd-command-2",
             useremail="b@y.com",
             inuse=True,
             healthy="Healthy",
@@ -71,7 +66,6 @@ def test_admin_delete_instance(client, admin_headers):
     response = client.get("/admin/instances/delete", headers=admin_headers)
     assert response.status_code == 200
     assert b"Run terraform destroy" in response.data
-    assert b"Extract and Download Files" in response.data
 
 
 def test_admin_delete_instance_no_auth(client):

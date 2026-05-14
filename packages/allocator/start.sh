@@ -60,6 +60,29 @@ fi
 
 echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 
-# Start the Flask application
-echo "Starting Flask app..."
-exec lablink-allocator
+# Start Flask in the background (binds 127.0.0.1:8000).
+echo "Starting Flask app on 127.0.0.1:8000..."
+lablink-allocator &
+FLASK_PID=$!
+
+# Wait for Flask's health endpoint to respond before starting nginx.
+# Cap at ~30s of waiting; if Flask isn't up by then something is wrong.
+echo "Waiting for Flask to be ready..."
+for i in $(seq 1 30); do
+  if curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+    echo "Flask is ready."
+    break
+  fi
+  if ! kill -0 "$FLASK_PID" 2>/dev/null; then
+    echo "Flask process exited before becoming ready." >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+# Validate nginx config; refuse to start if broken.
+nginx -t
+
+# Foreground nginx; this keeps the container alive.
+echo "Starting nginx on :5000..."
+exec nginx -g 'daemon off;'

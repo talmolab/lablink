@@ -1,8 +1,4 @@
 from unittest.mock import MagicMock
-from pathlib import Path
-import io
-import zipfile
-import subprocess
 
 import pytest
 
@@ -12,7 +8,6 @@ UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
 UPDATE_INUSE_STATUS_ENDPOINT = "/api/update_inuse_status"
 UPDATE_GPU_HEALTH_ENDPOINT = "/api/gpu_health"
 REQUEST_VM_ENDPOINT = "/api/request_vm"
-SCP_ENDPOINT = "/api/scp-client"
 VM_STATUS_UPDATE_ENDPOINT = "/api/vm-status"
 VM_LOGS_ENDPOINT = "/api/vm-logs"
 METRICS_ENDPOINT = "/api/vm-metrics"
@@ -25,17 +20,7 @@ def test_vm_startup_success(client, api_token_headers, monkeypatch):
     # Mock the database
     fake_db = MagicMock()
     fake_db.insert_vm.return_value = None
-    # Return a VM without CRD command assigned (crdcommand and pin are None)
-    fake_db.get_vm_by_hostname.return_value = {
-        "hostname": "test-vm-dev-1",
-        "crdcommand": None,
-        "pin": None,
-    }
-    fake_db.listen_for_notifications.return_value = {
-        "status": "success",
-        "pin": "123456",
-        "command": "sample_command_payload",
-    }
+    fake_db.get_vm_by_hostname.return_value = {"hostname": "test-vm-dev-1"}
 
     # Patch globals
     monkeypatch.setattr(
@@ -47,47 +32,9 @@ def test_vm_startup_success(client, api_token_headers, monkeypatch):
     resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=api_token_headers)
 
     # Assert the response
-    expected_response = {
-        "status": "success",
-        "pin": "123456",
-        "command": "sample_command_payload",
-    }
     assert resp.status_code == 200
-    assert resp.get_json() == expected_response
-    fake_db.listen_for_notifications.assert_called_once_with(
-        channel="vm_updates", target_hostname="test-vm-dev-1"
-    )
-
-
-def test_vm_startup_already_has_crd(client, api_token_headers, monkeypatch):
-    """Test VM startup when CRD is already assigned (race condition handling)."""
-    # Mock the database - VM already has CRD command assigned
-    fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {
-        "hostname": "test-vm-dev-1",
-        "crdcommand": "existing_command_payload",
-        "pin": "654321",
-    }
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": "test-vm-dev-1"}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=api_token_headers)
-
-    # Assert the response - should return immediately with existing CRD
-    expected_response = {
-        "status": "success",
-        "pin": "654321",
-        "command": "existing_command_payload",
-    }
-    assert resp.status_code == 200
-    assert resp.get_json() == expected_response
-    # Should NOT call listen_for_notifications since CRD is already assigned
-    fake_db.listen_for_notifications.assert_not_called()
+    assert resp.get_json() == {"status": "ok"}
+    fake_db.touch_last_seen.assert_called_once_with(hostname="test-vm-dev-1")
 
 
 def test_vm_startup_vm_not_found(client, api_token_headers, monkeypatch):
@@ -114,11 +61,6 @@ def test_vm_startup_failure(client, api_token_headers, monkeypatch):
     """Test VM startup failure due to missing hostname."""
     # Mock the database
     fake_db = MagicMock()
-    fake_db.insert_vm.return_value = None
-    fake_db.listen_for_notifications.return_value = {
-        "status": "failure",
-        "error": "VM startup failed",
-    }
 
     # Patch globals
     monkeypatch.setattr(
@@ -132,8 +74,7 @@ def test_vm_startup_failure(client, api_token_headers, monkeypatch):
     # Assert the response
     assert resp.status_code == 400
     assert resp.get_json() == {"error": "Hostname is required."}
-    fake_db.insert_vm.assert_not_called()
-    fake_db.listen_for_notifications.assert_not_called()
+    fake_db.touch_last_seen.assert_not_called()
 
 
 def test_unassigned_vms_count(client, monkeypatch):
@@ -143,16 +84,12 @@ def test_unassigned_vms_count(client, monkeypatch):
     fake_db.get_unassigned_vms.return_value = [
         {
             "hostname": "test-vm-dev-1",
-            "crdcommand": "",
-            "pin": "",
             "useremail": "",
             "inuse": False,
             "healthy": "Healthy",
         },
         {
             "hostname": "test-vm-dev-2",
-            "crdcommand": "",
-            "pin": "",
             "useremail": "",
             "inuse": False,
             "healthy": "Healthy",
@@ -314,477 +251,138 @@ def test_update_gpu_health_missing_hostname(client, api_token_headers, monkeypat
 
 
 def test_request_vm_success(client, monkeypatch):
-    """Test the /api/request_vm endpoint with valid data."""
-    # Mock the database
+    """POST /api/request_vm with valid email -> 303 to /desktop + signed cookie."""
     fake_db = MagicMock()
-
-    fake_db.get_unassigned_vms.return_value = [
-        {
-            "hostname": "test-vm-dev-1",
-            "crdcommand": "",
-            "pin": "",
-            "useremail": "",
-            "inuse": False,
-            "healthy": "Healthy",
-        },
-        {
-            "hostname": "test-vm-dev-2",
-            "crdcommand": "",
-            "pin": "",
-            "useremail": "",
-            "inuse": False,
-            "healthy": "Healthy",
-        },
-    ]
-    fake_db.get_vm_details.return_value = [
-        "test-vm-dev-1",
-        "DISPLAY=:0 --code=123",
-        "user@example.com",
-    ]
-
-    # Patch the database
+    fake_db.get_assigned_vm_for_email.return_value = {
+        "hostname": "host1",
+        "status": "running",
+        "reboot_count": 0,
+    }
+    # The handler also borrows a raw connection to read the cookie secret.
+    fake_conn = MagicMock()
+    fake_db._pool.getconn.return_value = fake_conn
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.database", fake_db, raising=True
     )
-    check_crd = lambda crd_command: True  # noqa: E731
     monkeypatch.setattr(
-        "lablink_allocator_service.main.check_crd_input", check_crd, raising=False
+        "lablink_allocator_service.main.prepare_browser_session",
+        lambda **kw: None,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        lambda conn: "test-secret",
     )
 
-    # Call the API
-    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
-
-    # Assert response
-    assert resp.status_code == 200
-    assert b"Success" in resp.data
-    assert b"test-vm-dev-1" in resp.data
-    fake_db.get_unassigned_vms.assert_called_once()
-    fake_db.get_vm_details.assert_called_once_with(email="user@example.com")
-    fake_db.assign_vm.assert_called_once_with(
-        email="user@example.com", crd_command="DISPLAY=:0 --code=123", pin="123456"
+    resp = client.post(
+        "/api/request_vm",
+        data={"email": "user@example.com"},
+        follow_redirects=False,
     )
+
+    assert resp.status_code == 303
+    assert resp.headers["Location"].endswith("/desktop")
+    set_cookie = resp.headers.get("Set-Cookie", "")
+    assert "lablink_session=" in set_cookie
+    assert "HttpOnly" in set_cookie
+    assert "SameSite=Strict" in set_cookie
 
 
 def test_request_vm_missing(client, monkeypatch):
-    """Test the /api/request_vm endpoint with missing data."""
-    # Mock the database
-    fake_db = MagicMock()
-
-    # Patch the database
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API with missing data
-    data = {}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
-
-    # Assert response
-    assert resp.status_code == 200
-    assert b"Email and CRD command are required." in resp.data
-
-
-def test_request_vm_invalid_crd(client, monkeypatch):
-    """Test the /api/request_vm endpoint with invalid CRD command."""
-    # Mock the database
-    fake_db = MagicMock()
-
-    # Patch the database
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.check_crd_input",
-        lambda crd_command: False,
-        raising=False,
-    )
-
-    # Call the API with invalid CRD command
-    data = {"email": "user@example.com", "crd_command": "<invalid_crd_command>"}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
-
-    # Assert response
-    assert resp.status_code == 200
-    assert b"Invalid" in resp.data
-    fake_db.get_unassigned_vms.assert_not_called()
-    fake_db.get_vm_details.assert_not_called()
-    fake_db.assign_vm.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "malicious_command",
-    [
-        "--code=x;id",
-        "--code=$(id)",
-        "--code=`whoami`",
-        "--code=x|sh",
-        "--code=x${IFS}y",
-    ],
-)
-def test_request_vm_rejects_injection_payloads(client, monkeypatch, malicious_command):
-    """The real check_crd_input must reject shell-metacharacter payloads
-    before they reach the database. Regression test for the command
-    injection vulnerability (CVE: crd_command → shell=True on client)."""
+    """POST /api/request_vm with missing email -> index.html with error."""
     fake_db = MagicMock()
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.database", fake_db, raising=True
     )
 
-    data = {"email": "user@example.com", "crd_command": malicious_command}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+    resp = client.post(
+        "/api/request_vm",
+        data={},  # no email
+        follow_redirects=False,
+    )
 
-    assert resp.status_code == 200
-    assert b"Invalid" in resp.data
-    fake_db.assign_vm.assert_not_called()
-    fake_db.reassign_crd.assert_not_called()
+    assert resp.status_code == 200  # renders the index.html error page
+    assert b"Email is required" in resp.data
 
 
 def test_request_vm_no_vm_available(client, monkeypatch):
-    """Test the /api/request_vm endpoint when no VMs are available."""
-    # Mock the database
+    """POST /api/request_vm when assign_vm raises ValueError -> 503."""
     fake_db = MagicMock()
-
-    fake_db.get_unassigned_vms.return_value = []
-
-    # Patch the database
+    fake_db.get_assigned_vm_for_email.return_value = None
+    fake_db.assign_vm.side_effect = ValueError("No available VMs to assign.")
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-    check_crd = lambda crd_command: True  # noqa: E731
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.check_crd_input", check_crd, raising=False
+        "lablink_allocator_service.main.database", fake_db, raising=True
     )
 
-    # Call the API
-    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+    resp = client.post(
+        "/api/request_vm",
+        data={"email": "user@example.com"},
+        follow_redirects=False,
+    )
 
-    # Assert response
-    assert resp.status_code == 200
-    assert b"No available VMs." in resp.data
-    fake_db.get_unassigned_vms.assert_called_once()
-    fake_db.get_vm_details.assert_not_called()
-    fake_db.assign_vm.assert_not_called()
+    assert resp.status_code == 503
+    assert b"No seats available" in resp.data
 
 
 def test_request_vm_database_internal_failure(client, monkeypatch):
-    """Test the /api/request_vm endpoint when the database fails."""
-    # Mock the database
+    """When the database lookup raises -> generic index.html error page."""
     fake_db = MagicMock()
-
-    fake_db.get_unassigned_vms.side_effect = Exception("Database error")
-
-    # Patch the database and functions
+    fake_db.get_assigned_vm_for_email.side_effect = Exception("Database error")
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-    check_crd = lambda crd_command: True  # noqa: E731
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.check_crd_input", check_crd, raising=False
+        "lablink_allocator_service.main.database", fake_db, raising=True
     )
 
-    # Call the API
-    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
-    resp = client.post(REQUEST_VM_ENDPOINT, data=data)
+    resp = client.post(
+        "/api/request_vm",
+        data={"email": "user@example.com"},
+        follow_redirects=False,
+    )
 
-    # Assert response
     assert resp.status_code == 200
     assert b"An unexpected error" in resp.data
-    fake_db.get_unassigned_vms.assert_called_once()
-    fake_db.get_vm_details.assert_not_called()
     fake_db.assign_vm.assert_not_called()
 
 
-def test_scp_client_404_when_no_rows(client, admin_headers, monkeypatch):
-    """Test the /api/scp-client endpoint when no VMs are found."""
-    # Mock the database
+def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
+    """When prepare_browser_session raises RotationFailed -> 503, the
+    VM is marked Unhealthy AND the seat is released.
+
+    The release_seat call is what prevents the rejoin branch from
+    matching the same wedged row on retry and looping the student
+    through rotation_failed forever — without it, the row keeps
+    status='running' and useremail=<student>, so the next POST to
+    /api/request_vm re-enters prepare_browser_session and fails the
+    same way."""
+    from lablink_allocator_service.client_session import RotationFailed
+
     fake_db = MagicMock()
-    fake_db.get_row_count.return_value = 0
+    fake_db.get_assigned_vm_for_email.return_value = {
+        "hostname": "host1",
+        "status": "running",
+        "reboot_count": 0,
+    }
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.database", fake_db, raising=True
     )
 
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json()["error"].startswith("No VMs found")
-
-
-def test_scp_success(client, admin_headers, monkeypatch):
-    """Test the /api/scp-client endpoint for successful SCP."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_row_count.return_value = 1
-
-    # Patch the database and util functions
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_instance_ips",
-        lambda terraform_dir: ["10.0.0.1"],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_ssh_private_key",
-        lambda terraform_dir: "/tmp/key.pem",
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.find_files_in_container",
-        lambda ip, key_path, extension: ["/remote/path/sample.slp"],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.extract_files_from_docker",
-        lambda **kwargs: None,
-    )
-
-    # Dummy function for rsync
-    def fake_rsync(ip, key_path, local_dir, extension="slp"):
-        Path(local_dir).mkdir(parents=True, exist_ok=True)
-        (Path(local_dir) / f"sample.{extension}").write_text("dummy")
+    def _raise(**kw):
+        raise RotationFailed("agent unreachable")
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.rsync_files_to_allocator", fake_rsync
+        "lablink_allocator_service.main.prepare_browser_session", _raise
     )
 
-    # Call the API
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 200
-    # Content-Disposition should look like a file download
-    disp = resp.headers.get("Content-Disposition", "")
-    assert "attachment" in disp and "lablink_data" in disp
-
-    # The body is the zip file bytes; inspect without touching disk
-    zf = zipfile.ZipFile(io.BytesIO(resp.data))
-    names = zf.namelist()
-    # The arcname is relative to temp_dir: e.g., vm_1/sample.slp
-    assert any(n.endswith("vm_1/sample.slp") for n in names), names
-    # Optional: verify file content
-    with zf.open([n for n in names if n.endswith("vm_1/sample.slp")][0]) as f:
-        assert f.read() == b"dummy"
-
-
-def test_scp_multiple_vms_success_calls_per_ip(client, admin_headers, monkeypatch):
-    # DB has rows
-    fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+    resp = client.post(
+        "/api/request_vm",
+        data={"email": "user@example.com"},
+        follow_redirects=False,
     )
 
-    # Two IPs
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_instance_ips",
-        lambda terraform_dir: ["10.0.0.1", "10.0.0.2"],
+    assert resp.status_code == 503
+    assert b"Couldn't prepare your seat" in resp.data
+    fake_db.update_health.assert_called_once_with(
+        hostname="host1", healthy="Unhealthy"
     )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_ssh_private_key",
-        lambda terraform_dir: "/tmp/key.pem",
-    )
-
-    # Create MagicMocks for each function
-    find_slp = MagicMock(return_value=["/remote/path/sample.slp"])
-    extract = MagicMock()
-    rsync = MagicMock(
-        side_effect=lambda ip, key_path, local_dir, extension: (
-            Path(local_dir).mkdir(parents=True, exist_ok=True),
-            (Path(local_dir) / f"sample.{extension}").write_text("dummy"),
-        )
-    )
-
-    # Use MagicMocks so we can assert call counts/args
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.find_files_in_container",
-        find_slp,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.extract_files_from_docker",
-        extract,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.rsync_files_to_allocator", rsync, raising=False
-    )
-
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 200
-
-    # Verify we zipped both vm_1 and vm_2 data
-    zf = zipfile.ZipFile(io.BytesIO(resp.data))
-    names = set(zf.namelist())
-    assert any(n.endswith("vm_1/sample.slp") for n in names)
-    assert any(n.endswith("vm_2/sample.slp") for n in names)
-
-    # Check call counts
-    assert find_slp.call_count == 2
-    assert extract.call_count == 2
-    assert rsync.call_count == 2
-
-    # Args contain both IPs
-    ips_seen = {call.kwargs.get("ip") or call.args[0] for call in find_slp.mock_calls}
-    assert ips_seen == {"10.0.0.1", "10.0.0.2"}
-
-    # rsync local_dir should end with vm_1 and vm_2 respectively
-    local_dirs = [(c.kwargs.get("local_dir") or c.args[2]) for c in rsync.mock_calls]
-    assert local_dirs[0].endswith("vm_1")
-    assert local_dirs[1].endswith("vm_2")
-
-
-def test_scp_multiple_vms_skips_when_no_slp(client, admin_headers, monkeypatch):
-    """Test the /api/scp-client endpoint when some VMs have no SLP files."""
-    # Mock the database
-    fake_db = MagicMock(get_row_count=MagicMock(return_value=2))
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Mock the utility functions
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_instance_ips",
-        lambda terraform_dir: ["10.0.0.1", "10.0.0.2"],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_ssh_private_key",
-        lambda terraform_dir: "/tmp/key.pem",
-    )
-
-    # First VM has .slp files; second has none
-    def find_side_effect(ip, key_path, extension):
-        return ["/remote/sample.slp"] if ip == "10.0.0.1" else []
-
-    # Mock the file operations
-    find_slp = MagicMock(side_effect=find_side_effect)
-    extract = MagicMock()
-    rsync = MagicMock(
-        side_effect=lambda ip, key_path, local_dir, extension: (
-            Path(local_dir).mkdir(parents=True, exist_ok=True),
-            (Path(local_dir) / "sample.slp").write_text("dummy"),
-        )
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.find_files_in_container",
-        find_slp,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.extract_files_from_docker",
-        extract,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.rsync_files_to_allocator", rsync, raising=False
-    )
-
-    # Call the API
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 200
-
-    # Only vm_1 present in zip
-    zf = zipfile.ZipFile(io.BytesIO(resp.data))
-    names = set(zf.namelist())
-    assert any(n.endswith("vm_1/sample.slp") for n in names)
-    assert not any(n.endswith("vm_2/sample.slp") for n in names)
-
-    # Find called for both; extract/rsync only for the one with files
-    assert find_slp.call_count == 2
-    assert extract.call_count == 1
-    assert rsync.call_count == 1
-
-    # Check we extracted/rsynced only the first IP
-    called_ips_extract = {c.kwargs.get("ip") or c.args[0] for c in extract.mock_calls}
-    called_ips_rsync = {c.kwargs.get("ip") or c.args[0] for c in rsync.mock_calls}
-    assert called_ips_extract == {"10.0.0.1"}
-    assert called_ips_rsync == {"10.0.0.1"}
-
-
-def test_scp_no_vms_failure(client, admin_headers, monkeypatch):
-    """Test the /api/scp-client endpoint when no VMs are found."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_row_count.return_value = 0
-
-    # Patch the database and util functions
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json() == {"error": "No VMs found in the database."}
-
-
-def test_scp_no_slp_files_failure(client, admin_headers, monkeypatch):
-    """Test the /api/scp-client endpoint when no SLP files are found."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_row_count.return_value = 1
-
-    # Patch the database and util functions
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_instance_ips",
-        lambda terraform_dir: ["10.0.0.1"],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_ssh_private_key",
-        lambda terraform_dir: "/tmp/key.pem",
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.find_files_in_container",
-        lambda ip, key_path, extension: [],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.extract_files_from_docker",
-        lambda **kwargs: None,
-    )
-
-    # Call the API
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json() == {"error": "No slp files found in any VMs."}
-
-
-def test_scp_internal_failure(client, admin_headers, monkeypatch, tmp_path):
-    # DB has rows
-    fake_db = MagicMock()
-    fake_db.get_row_count.return_value = 1
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    monkeypatch.chdir(tmp_path)
-    Path("terraform").mkdir(exist_ok=True)
-
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_instance_ips",
-        lambda terraform_dir: ["10.0.0.1"],
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.get_ssh_private_key",
-        lambda terraform_dir: "/tmp/key.pem",
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.find_files_in_container",
-        lambda ip, key_path, extension: ["/remote/sample.slp"],
-    )
-
-    # Make one of the steps raise a CalledProcessError to trigger 500 path
-    def explode(**kwargs):
-        raise subprocess.CalledProcessError(1, ["rsync"], "boom")
-
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.extract_files_from_docker", explode
-    )
-
-    resp = client.get(SCP_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 500
-    assert resp.is_json
-    assert "downloading data from VMs" in resp.get_json()["error"]
+    fake_db.release_seat.assert_called_once_with(hostname="host1")
 
 
 def test_update_vm_status_success(client, api_token_headers, monkeypatch):
@@ -2142,21 +1740,18 @@ def test_dual_auth_endpoints_accept_api_token(
 def test_request_vm_does_not_require_token(client, monkeypatch):
     """The student-facing /api/request_vm endpoint does NOT require a bearer token."""
     fake_db = MagicMock()
-    fake_db.get_unassigned_vms.return_value = []
+    # Empty pool -> ValueError -> 503 no_seats page (still NOT 401).
+    fake_db.get_assigned_vm_for_email.return_value = None
+    fake_db.assign_vm.side_effect = ValueError("No available VMs to assign.")
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.check_crd_input",
-        lambda crd_command: True,
-        raising=False,
-    )
 
     # Call without any auth header
-    data = {"email": "user@example.com", "crd_command": "DISPLAY=:0 --code=123"}
+    data = {"email": "user@example.com"}
     resp = client.post(REQUEST_VM_ENDPOINT, data=data)
 
-    # Should NOT return 401 - returns 200 with "no available VMs" message
+    # Should NOT return 401 - this endpoint is public.
     assert resp.status_code != 401
 
 
@@ -2167,7 +1762,6 @@ def _heartbeat_payload(**overrides):
         "vm_id": "test-vm-dev-1",
         "boot_id": "bid-abc",
         "timestamp": "2026-04-20T12:00:00+00:00",
-        "crd_active": True,
         "disk_free_pct": 80,
     }
     base.update(overrides)
@@ -2193,7 +1787,6 @@ def test_heartbeat_success(client, api_token_headers, monkeypatch):
     fake_db.record_heartbeat.assert_called_once_with(
         hostname="test-vm-dev-1",
         boot_id="bid-abc",
-        crd_active=True,
         disk_free_pct=80,
     )
 
@@ -2277,12 +1870,11 @@ def test_heartbeat_accepts_null_health_fields(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    payload = _heartbeat_payload(crd_active=None, disk_free_pct=None)
+    payload = _heartbeat_payload(disk_free_pct=None)
     resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
 
     assert resp.status_code == 200
     call = fake_db.record_heartbeat.call_args
-    assert call.kwargs["crd_active"] is None
     assert call.kwargs["disk_free_pct"] is None
 
 
@@ -2343,11 +1935,7 @@ def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
 def test_vm_startup_bumps_last_seen(client, api_token_headers, monkeypatch):
     """POST /vm_startup refreshes last_seen_at once the VM is found."""
     fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {
-        "hostname": "vm-1",
-        "crdcommand": "cmd",
-        "pin": "123456",
-    }
+    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1"}
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )

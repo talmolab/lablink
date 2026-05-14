@@ -1,11 +1,10 @@
 import os
+import json
 import logging
 import secrets
 import subprocess
 import time
 from pathlib import Path
-import tempfile
-from zipfile import ZipFile
 from datetime import datetime
 import re
 import atexit
@@ -17,8 +16,7 @@ from flask import (
     request,
     jsonify,
     render_template,
-    send_file,
-    after_this_request,
+    redirect,
 )
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,25 +28,37 @@ from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
+    current_instance_security_group,
+    NotOnEC2Error,
     upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import get_allocator_url
-from lablink_allocator_service.utils.crd_validation import check_crd_input
-from lablink_allocator_service.utils.scp import (
-    find_files_in_container,
-    extract_files_from_docker,
-    rsync_files_to_allocator,
+from lablink_allocator_service.utils.sg_audit import (
+    audit_terraform_plan,
+    SGAuditFailure,
 )
 from lablink_allocator_service.utils.terraform_utils import (
-    get_instance_ips,
-    get_ssh_private_key,
     get_instance_timings,
     has_runtime_tfvars,
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
+from lablink_allocator_service.client_session import (
+    prepare_browser_session,
+    RotationFailed,
+)
+from lablink_allocator_service.signed_cookie import (
+    sign,
+    get_or_create_cookie_secret,
+)
+from lablink_allocator_service.routes.desktop import bp as desktop_bp
+from lablink_allocator_service.routes.internal_proxy_auth import (
+    bp as internal_proxy_auth_bp,
+)
 
 app = Flask(__name__)
+app.register_blueprint(desktop_bp)
+app.register_blueprint(internal_proxy_auth_bp)
 auth = HTTPBasicAuth()
 
 # Define the terraform directory relative to this file (now inside the package)
@@ -74,8 +84,6 @@ if _missing:
     )
 
 # Initialize variables
-PIN = "123456"
-MESSAGE_CHANNEL = cfg.db.message_channel
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
@@ -109,8 +117,12 @@ def init_database():
         host=cfg.db.host,
         port=cfg.db.port,
         table_name=cfg.db.table_name,
-        message_channel=cfg.db.message_channel,
     )
+    # Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,
+    # /internal/proxy_auth) that need a raw connection for the signed-cookie
+    # helpers, without coupling them to the PostgresqlDatabase wrapper.
+    app.config["DB_POOL"] = database._pool
+    app.config["VM_TABLE_NAME"] = cfg.db.table_name
 
 
 # Set up logging
@@ -239,123 +251,92 @@ def view_instances():
 @app.route("/admin/instances/delete")
 @auth.login_required
 def delete_instances():
-    return render_template("delete-instances.html", extension=cfg.machine.extension)
+    return render_template("delete-instances.html")
 
 
 @app.route("/api/request_vm", methods=["POST"])
 def submit_vm_details():
+    import uuid
+
     try:
-        data = request.form
-        email = data.get("email")
-        crd_command = data.get("crd_command")
+        email = (request.form.get("email") or "").strip().lower()
+        if not email:
+            return render_template("index.html", error="Email is required.")
 
-        # If email or crd_command is not provided, return an error
-        if not email or not crd_command:
-            return render_template(
-                "index.html", error="Email and CRD command are required."
-            )
-
-        # Check if the CRD command is valid
-        if not check_crd_input(crd_command=crd_command):
-            logger.error("Invalid CRD command: --code not found.")
-            return render_template(
-                "index.html",
-                error="Invalid CRD command received. "
-                "Please ask your instructor for help.",
-            )
-
-        # If this email already owns a VM, reassign the new CRD to it
-        # in place instead of picking a new VM.
+        # Idempotent rejoin: if this email already owns a running seat,
+        # keep them on it and continue to prep a fresh browser session.
         existing = database.get_assigned_vm_for_email(email=email)
-        if existing is not None:
+        if existing is not None and existing["status"] == "running":
             hostname = existing["hostname"]
-            status = existing["status"]
+        else:
+            # Fresh assignment. assign_vm raises ValueError if no VM is
+            # available; we treat that as 503 (no seats).
+            try:
+                database.assign_vm(email=email)
+            except ValueError:
+                logger.warning("Pool empty when '%s' asked for a seat", email)
+                return render_template("no_seats.html"), 503
+            re_lookup = database.get_assigned_vm_for_email(email=email)
+            if re_lookup is None:
+                # Shouldn't happen: assign_vm succeeded but lookup missed.
+                logger.error(
+                    "Assigned VM not visible to follow-up lookup for '%s'",
+                    email,
+                )
+                return render_template("no_seats.html"), 503
+            hostname = re_lookup["hostname"]
 
-            def _attempt_reassign():
-                """Try to reassign CRD; return True on success, or render
-                a retry-page response if the row was released under us."""
-                if database.reassign_crd(
-                    hostname=hostname,
-                    crd_command=crd_command,
-                    pin=PIN,
-                    expected_email=email,
-                ):
-                    return None  # success; caller continues
-                # Race: release_assignment fired between lookup and UPDATE.
-                logger.warning(
-                    f"Reassign race for '{email}' on '{hostname}' "
-                    f"(status={status}); asking student to retry"
-                )
-                return render_template(
-                    "index.html",
-                    error="Your VM assignment changed. Please try "
-                    "again — a fresh VM will be assigned.",
-                )
-
-            if status == "running":
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
-                logger.info(
-                    f"Reassigned CRD for '{email}' on existing VM "
-                    f"'{hostname}'"
-                )
-                return render_template(
-                    "success.html", host=hostname, pin=PIN
-                )
-
-            if status in ("rebooting", "initializing"):
-                # Queue the CRD on the row. When the client's
-                # /vm_startup call lands after recovery, the existing
-                # race-condition path returns it immediately.
-                race_response = _attempt_reassign()
-                if race_response is not None:
-                    return race_response
-                logger.info(
-                    f"Queued CRD for '{email}' on recovering VM "
-                    f"'{hostname}' (status={status})"
-                )
-                return render_template(
-                    "recovery.html", host=hostname, status=status
-                )
-
-            if status == "error":
-                # Reboot-service will release the assignment on its
-                # next tick. Ask the student to retry then.
-                logger.warning(
-                    f"VM '{hostname}' is in error state; asking "
-                    f"'{email}' to retry"
-                )
-                return render_template(
-                    "index.html",
-                    error="Your previous VM could not be recovered. "
-                    "Please wait up to 60 seconds and try again — a "
-                    "fresh VM will be assigned.",
-                )
-
-            # Any other status: log and fall through to fresh assignment
+        # Mint per-session identifiers and rotate the VNC password on the
+        # assigned client. RotationFailed → mark unhealthy and ask the
+        # student to retry; the failed-VM recovery loop will pick it up.
+        session_id = uuid.uuid4()
+        browser_token = secrets.token_urlsafe(16)
+        try:
+            prepare_browser_session(
+                database=database,
+                hostname=hostname,
+                session_id=session_id,
+                browser_token=browser_token,
+                api_token=API_TOKEN,
+            )
+        except RotationFailed as exc:
             logger.warning(
-                f"Unexpected status '{status}' for '{email}' on "
-                f"'{hostname}'; falling through to fresh assignment"
+                "Password rotation failed for '%s' on '%s': %s",
+                email, hostname, exc,
             )
+            # Release the seat so the student isn't permanently wedged
+            # on the rotation_failed page: without this, the rejoin
+            # branch at the top of this handler keeps matching the
+            # same row (status is still 'running') and re-enters
+            # prepare_browser_session, which keeps failing.
+            try:
+                database.update_health(hostname=hostname, healthy="Unhealthy")
+                database.release_seat(hostname=hostname)
+            except Exception:
+                logger.exception("Could not mark '%s' unhealthy", hostname)
+            return render_template("rotation_failed.html"), 503
 
-        # No existing assignment: assign a fresh VM from the pool
-        if len(database.get_unassigned_vms()) == 0:
-            logger.error("No available VMs found.")
-            return render_template(
-                "index.html",
-                error="No available VMs. Please try again later. Please "
-                "ask your instructor for help",
-            )
+        # Sign the session_id and set the cookie. Secure flag is decided
+        # by whether the inbound request was https — front door
+        # (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.
+        conn = database._pool.getconn()
+        try:
+            secret = get_or_create_cookie_secret(conn)
+        finally:
+            database._pool.putconn(conn)
 
-        database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
-
-        assigned_vm = database.get_vm_details(email=email)
-        return render_template(
-            "success.html", host=assigned_vm[0], pin=assigned_vm[1]
+        signed = sign(str(session_id), secret=secret)
+        resp = redirect("/desktop", code=303)
+        is_https = request.headers.get("X-Forwarded-Proto") == "https"
+        resp.set_cookie(
+            "lablink_session", signed,
+            httponly=True, samesite="Strict",
+            secure=is_https, path="/",
         )
+        return resp
+
     except Exception as e:
-        logger.error(f"Error in submit_vm_details: {e}")
+        logger.error("Error in submit_vm_details: %s", e, exc_info=True)
         return render_template(
             "index.html",
             error="An unexpected error occurred while processing your request. "
@@ -449,21 +430,93 @@ def launch():
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
             f.write(f'api_token = "{API_TOKEN}"\n')
 
-        # Apply with the new number of instances
-        apply_cmd = [
-            "terraform",
-            "apply",
-            "-auto-approve",
+        # Build the var args once; they apply to both `plan` and `apply`.
+        # Look up the allocator's own SG via IMDSv2 so client EC2s can
+        # restrict :6080 / :7070 ingress to allocator-only. Outside EC2
+        # (dev / local test), skip the var; Terraform will fail with a
+        # missing-variable error in that case, which is the correct
+        # signal that this code path requires EC2.
+        tf_vars = [
             "-var-file=terraform.runtime.tfvars",
             f"-var=instance_count={total_vms}",
         ]
+        try:
+            sg_id = current_instance_security_group(region=cfg.app.region)
+            tf_vars.append(f"-var=allocator_sg_id={sg_id}")
+        except NotOnEC2Error:
+            logger.warning(
+                "Not running on EC2 (IMDSv2 unreachable); "
+                "skipping -var=allocator_sg_id=. Terraform apply will "
+                "fail unless the variable is supplied another way."
+            )
 
-        logger.debug(f"Running command: {' '.join(apply_cmd)}")
+        # Pre-apply SG audit: save the plan to a file, read it back as
+        # JSON via `terraform show -json`, and audit the structured
+        # plan. Refuse to apply if the client SG would expose :6080 or
+        # :7070 to 0.0.0.0/0 or ::/0. Apply the saved plan file (not a
+        # fresh plan) so audit and apply see identical state — no
+        # TOCTOU window between the two terraform invocations.
+        plan_file = "tfplan.binary"
+        plan_file_path = TERRAFORM_DIR / plan_file
+        try:
+            plan_cmd = [
+                "terraform", "plan", "-no-color", "-out", plan_file, *tf_vars,
+            ]
+            logger.debug(f"Running command: {' '.join(plan_cmd)}")
+            try:
+                subprocess.run(
+                    plan_cmd,
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                logger.error("terraform plan failed: %s", e.stderr)
+                error_msg = f"Terraform plan failed: {(e.stderr or '').strip()}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 500
+                return render_template("dashboard.html", error=error_msg)
 
-        # Run the Terraform apply command
-        result = subprocess.run(
-            apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
-        )
+            try:
+                show_result = subprocess.run(
+                    ["terraform", "show", "-json", plan_file],
+                    cwd=TERRAFORM_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                plan_json = json.loads(show_result.stdout)
+            except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+                logger.error("terraform show -json failed: %s", e)
+                error_msg = f"Could not read plan JSON: {e}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 500
+                return render_template("dashboard.html", error=error_msg)
+
+            try:
+                audit_terraform_plan(plan_json)
+            except SGAuditFailure as exc:
+                logger.error("SG audit refused the plan: %s", exc)
+                error_msg = f"Security-group audit refused the plan: {exc}"
+                if _wants_json():
+                    return jsonify({"status": "error", "error": error_msg}), 400
+                return render_template("dashboard.html", error=error_msg), 400
+
+            # Audit passed; apply the saved plan (vars are baked in).
+            apply_cmd = ["terraform", "apply", "-auto-approve", plan_file]
+            logger.debug(f"Running command: {' '.join(apply_cmd)}")
+
+            # Run the Terraform apply command
+            result = subprocess.run(
+                apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
+            )
+        finally:
+            # Plan file has served its purpose (applied or rejected);
+            # drop it so it doesn't linger in TERRAFORM_DIR. Fires on
+            # every exit path — early returns, audit failure, and the
+            # CalledProcessError caught by the outer except below.
+            plan_file_path.unlink(missing_ok=True)
 
         # Format the output to remove ANSI escape codes
         clean_output = ANSI_ESCAPE.sub("", result.stdout)
@@ -530,13 +583,25 @@ def destroy():
         return render_template("delete-dashboard.html", error=msg), 404
 
     try:
-        # Destroy Terraform resources
+        # Destroy Terraform resources. allocator_sg_id is a required var
+        # on the client module (added in PR A for :6080/:7070 lockdown);
+        # Terraform requires it on destroy too even though it doesn't
+        # affect what gets torn down.
         apply_cmd = [
             "terraform",
             "destroy",
             "-auto-approve",
             "-var-file=terraform.runtime.tfvars",
         ]
+        try:
+            sg_id = current_instance_security_group(region=cfg.app.region)
+            apply_cmd.append(f"-var=allocator_sg_id={sg_id}")
+        except NotOnEC2Error:
+            logger.warning(
+                "Not running on EC2 (IMDSv2 unreachable); "
+                "skipping -var=allocator_sg_id= on destroy. "
+                "Terraform may fail unless the variable is supplied another way."
+            )
         result = subprocess.run(
             apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
         )
@@ -570,134 +635,12 @@ def vm_startup():
     if not hostname:
         return jsonify({"error": "Hostname is required."}), 400
 
-    # Check if the VM exists in the database
     vm = database.get_vm_by_hostname(hostname)
     if not vm:
         return jsonify({"error": "VM not found."}), 404
 
     database.touch_last_seen(hostname=hostname)
-
-    # Check if the VM already has a CRD command assigned (handles race condition
-    # where user submitted CRD before client called /vm_startup)
-    if vm.get("crdcommand") and vm.get("pin"):
-        logger.info(
-            f"VM '{hostname}' already has CRD command assigned, returning immediately"
-        )
-        return jsonify({
-            "status": "success",
-            "pin": vm["pin"],
-            "command": vm["crdcommand"],
-        }), 200
-
-    # Otherwise, wait for the CRD command via PostgreSQL LISTEN/NOTIFY
-    result = database.listen_for_notifications(
-        channel=MESSAGE_CHANNEL, target_hostname=hostname
-    )
-
-    return jsonify(result), 200
-
-
-@app.route("/api/scp-client", methods=["GET"])
-@auth.login_required
-def download_all_data():
-    if database.get_row_count() == 0:
-        logger.warning("No VMs found in the database.")
-        return jsonify({"error": "No VMs found in the database."}), 404
-    try:
-        instance_ips = get_instance_ips(terraform_dir=TERRAFORM_DIR)
-        key_path = get_ssh_private_key(terraform_dir=TERRAFORM_DIR)
-        empty_data = True
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            for i, ip in enumerate(instance_ips):
-                # Make temporary directory for each VM
-                logger.debug(f"Downloading data from VM {i + 1} at {ip}...")
-                vm_dir = Path(temp_dir) / f"vm_{i + 1}"
-                vm_dir.mkdir(parents=True, exist_ok=True)
-
-                logger.info(
-                    f"Extracting {cfg.machine.extension} files "
-                    f"from container on {ip}..."
-                )
-
-                # Find files from the Docker container
-                files = find_files_in_container(
-                    ip=ip, key_path=key_path, extension=cfg.machine.extension
-                )
-
-                # If no files are found, log a warning and continue to the next VM
-                if len(files) == 0:
-                    logger.warning(
-                        f"No {cfg.machine.extension} files found in container on {ip}."
-                    )
-                    continue
-                else:
-                    logger.debug(
-                        f"Found {len(files)} {cfg.machine.extension} "
-                        f"files in container on {ip}."
-                    )
-                    # Extract files from the Docker container
-                    extract_files_from_docker(
-                        ip=ip,
-                        key_path=key_path,
-                        files=files,
-                    )
-                    empty_data = False
-                logger.info(
-                    f"Copying {cfg.machine.extension} files from {ip} to {vm_dir}..."
-                )
-
-                # Copy the extracted files to the allocator container's local
-                rsync_files_to_allocator(
-                    ip=ip,
-                    key_path=key_path,
-                    local_dir=vm_dir.as_posix(),
-                    extension=cfg.machine.extension,
-                )
-
-            if empty_data:
-                logger.warning(f"No {cfg.machine.extension} files found in any VMs.")
-                return (
-                    jsonify(
-                        {"error": f"No {cfg.machine.extension} files found in any VMs."}
-                    ),
-                    404,
-                )
-
-            logger.info(f"All files copied to {temp_dir}.")
-
-            # Create a zip file of the downloaded data with a timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            zip_file = Path(tempfile.gettempdir()) / f"lablink_data{timestamp}.zip"
-
-            with ZipFile(zip_file, "w") as archive:
-                for vm_dir in Path(temp_dir).iterdir():
-                    if vm_dir.is_dir():
-                        logger.debug(f"Zipping data for VM: {vm_dir.name}")
-                        for file in vm_dir.rglob(f"*.{cfg.machine.extension}"):
-                            logger.debug(f"Adding {file.name} to zip archive.")
-                            # Add with relative path inside zip
-                            archive.write(file, arcname=file.relative_to(temp_dir))
-            logger.debug("All data downloaded and zipped successfully.")
-
-            # Send the zip file as a response and remove it after the request
-            @after_this_request
-            def remove_zip_file(response):
-                try:
-                    os.remove(zip_file)
-                    logger.debug(f"Removed zip file: {zip_file}")
-                except Exception as e:
-                    logger.error(f"Error removing zip file: {e}")
-                return response
-
-            return send_file(zip_file, as_attachment=True)
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error downloading data: {e}")
-        return (
-            jsonify({"error": "An error occurred while downloading data from VMs."}),
-            500,
-        )
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
@@ -758,14 +701,12 @@ def heartbeat():
         return jsonify({"error": "vm_id is required."}), 400
 
     boot_id = data.get("boot_id")
-    crd_active = data.get("crd_active")
     disk_free_pct = data.get("disk_free_pct")
 
     try:
         ok = database.record_heartbeat(
             hostname=hostname,
             boot_id=boot_id,
-            crd_active=crd_active,
             disk_free_pct=disk_free_pct,
         )
         if not ok:
@@ -1249,7 +1190,9 @@ def main():
 
         logger.info("Auto-generated API token for machine-to-machine auth")
         logger.info("Starting Flask application...")
-        app.run(host="0.0.0.0", port=5000, threaded=True)
+        flask_host = os.environ.get("FLASK_HOST", "127.0.0.1")
+        flask_port = int(os.environ.get("FLASK_PORT", "8000"))
+        app.run(host=flask_host, port=flask_port, threaded=True)
 
     except Exception as e:
         logger.error(f"Failed to start allocator service: {e}", exc_info=True)

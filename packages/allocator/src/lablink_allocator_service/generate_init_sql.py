@@ -1,18 +1,16 @@
 from lablink_allocator_service.get_config import get_config
 
 
-def main():
-    """Generate PostgreSQL initialization SQL script."""
+def build_init_sql() -> str:
+    """Build the PostgreSQL initialization SQL script as a string."""
     config = get_config()
-
-    # Load database configuration from config.yaml
     DB_NAME = config.db.dbname
     DB_USER = config.db.user
     DB_PASSWORD = config.db.password
     VM_TABLE = config.db.table_name
-    MESSAGE_CHANNEL = config.db.message_channel
+    # MESSAGE_CHANNEL was the CRD notify channel; no longer needed.
 
-    template = f"""
+    return f"""
 ALTER SYSTEM SET listen_addresses = '*';
 
 SET client_min_messages TO WARNING;
@@ -60,8 +58,6 @@ CREATE TRIGGER scheduled_destructions_updated_at
 
 CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     HostName VARCHAR(1024) PRIMARY KEY,
-    Pin VARCHAR(1024),
-    CrdCommand VARCHAR(1024),
     UserEmail VARCHAR(1024),
     InUse BOOLEAN NOT NULL DEFAULT FALSE,
     Healthy VARCHAR(1024),
@@ -81,35 +77,30 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     CreatedAt TIMESTAMP DEFAULT NOW(),
     last_seen_at TIMESTAMP,
     boot_id VARCHAR(64),
-    crd_active BOOLEAN,
-    disk_free_pct SMALLINT
+    disk_free_pct SMALLINT,
+    SessionId UUID,
+    BrowserToken TEXT,
+    VncPassword TEXT,
+    Upstream TEXT,
+    SessionStartedAt TIMESTAMPTZ
 );
 
-CREATE OR REPLACE FUNCTION notify_crd_command_update()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify(
-        '{MESSAGE_CHANNEL}',
-        json_build_object(
-            'HostName', NEW.HostName,
-            'CrdCommand', NEW.CrdCommand,
-            'Pin', NEW.Pin
-        )::text
-    );
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE UNIQUE INDEX {VM_TABLE}_browser_token_idx
+    ON {VM_TABLE}(BrowserToken) WHERE BrowserToken IS NOT NULL;
+CREATE UNIQUE INDEX {VM_TABLE}_session_id_idx
+    ON {VM_TABLE}(SessionId) WHERE SessionId IS NOT NULL;
 
-CREATE TRIGGER trigger_crd_command_insert_or_update
-AFTER INSERT OR UPDATE OF CrdCommand ON {VM_TABLE}
-FOR EACH ROW
-WHEN (NEW.CrdCommand IS NOT NULL)
-EXECUTE FUNCTION notify_crd_command_update();
-
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
+
+def main():
+    """Write init.sql to the path Postgres' bootstrap step reads."""
     with open("/app/init.sql", "w") as f:
-        f.write(template)
+        f.write(build_init_sql())
 
 
 if __name__ == "__main__":

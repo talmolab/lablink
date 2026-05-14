@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import time
@@ -117,32 +118,112 @@ def _prepare_working_dir(
     return deploy_dir
 
 
+# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
+_APPLY_SUMMARY_RE = re.compile(
+    r"Apply complete!\s+Resources:\s+"
+    r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
+)
+_DESTROY_SUMMARY_RE = re.compile(
+    r"Destroy complete!\s+Resources:\s+(\d+)\s+destroyed",
+)
+
+
+def _summarize_terraform(output: str) -> str | None:
+    """Extract Terraform's apply/destroy summary line from raw output.
+
+    Returns None when neither summary matches — e.g., a no-op apply, an
+    interrupted run, or output captured before the trailing summary.
+    """
+    m = _APPLY_SUMMARY_RE.search(output)
+    if m:
+        added, changed, destroyed = m.groups()
+        return f"Resources: {added} added, {changed} changed, {destroyed} destroyed"
+    m = _DESTROY_SUMMARY_RE.search(output)
+    if m:
+        (destroyed,) = m.groups()
+        return f"Resources: {destroyed} destroyed"
+    return None
+
+
+def _format_duration(seconds: float) -> str:
+    """Render a duration as `1m 23s` or `45s`."""
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    mins, secs = divmod(seconds, 60)
+    return f"{mins}m {secs}s"
+
+
 def _run_terraform(
     args: list[str],
     cwd: Path,
     check: bool = True,
+    *,
+    verbose: bool = True,
 ) -> int:
-    """Run a terraform command with live-streamed output."""
+    """Run a terraform command.
+
+    verbose=True (default): live-stream output line-by-line. Existing
+    callers (deploy, init) rely on this for progress visibility.
+    verbose=False: hide output behind a spinner; print only a one-line
+    summary on success. On failure, dump the buffered output so the
+    operator can diagnose.
+    """
     cmd = ["terraform"] + args
-    console.print(
-        f"  [dim]$ {' '.join(cmd)}[/dim]"
-    )
 
-    proc = subprocess.Popen(
-        cmd,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    if verbose:
+        console.print(
+            f"  [dim]$ {' '.join(cmd)}[/dim]"
+        )
 
-    if proc.stdout:
-        for line in proc.stdout:
-            console.print(
-                f"  {line}", end="", highlight=False
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+        if proc.stdout:
+            for line in proc.stdout:
+                console.print(
+                    f"  {line}", end="", highlight=False
+                )
+
+        proc.wait()
+    else:
+        # Quiet mode: spinner + buffered output, summary on success.
+        action = args[0]
+        started = time.monotonic()
+        captured: list[str] = []
+        with console.status(
+            f"  [bold]terraform {action}[/bold]...", spinner="dots"
+        ):
+            proc = subprocess.Popen(
+                cmd,
+                cwd=cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
             )
+            if proc.stdout:
+                for line in proc.stdout:
+                    captured.append(line)
+            proc.wait()
+        elapsed = time.monotonic() - started
+        output = "".join(captured)
 
-    proc.wait()
+        if proc.returncode != 0:
+            # On failure, dump everything so the operator can diagnose.
+            console.print(output)
+        else:
+            console.print(
+                f"  [green]✓ terraform {action}[/green]  "
+                f"[dim]({_format_duration(elapsed)})[/dim]"
+            )
+            summary = _summarize_terraform(output)
+            if summary:
+                console.print(f"  {summary}")
 
     if check and proc.returncode != 0:
         console.print(
@@ -540,6 +621,8 @@ def _destroy_client_vms(
     cfg: Config,
     admin_user: str,
     admin_pw: str,
+    *,
+    verbose: bool = False,
 ) -> None:
     """Destroy client VMs via the allocator API."""
     allocator_url = get_allocator_url(cfg)
@@ -563,11 +646,29 @@ def _destroy_client_vms(
     api = AllocatorAPI(
         allocator_url, admin_user, admin_pw, cfg.ssl.provider
     )
+    started = time.monotonic()
     try:
-        api.destroy_vms()
+        with console.status(
+            "  [bold]waiting for allocator...[/bold]", spinner="dots"
+        ):
+            result = api.destroy_vms()
+        elapsed = time.monotonic() - started
         console.print(
-            "  [green]client VMs destroyed[/green]"
+            f"  [green]✓ client VMs destroyed[/green]  "
+            f"[dim]({_format_duration(elapsed)})[/dim]"
         )
+        output = (result or {}).get("output", "")
+        summary = _summarize_terraform(output)
+        if summary:
+            console.print(f"  {summary}")
+        if verbose and output:
+            console.print()
+            console.print("[bold]Allocator's terraform output:[/bold]")
+            console.print(output)
+        elif output:
+            console.print(
+                "  [dim]Pass --verbose to see full Terraform output.[/dim]"
+            )
     except AllocatorAuthError:
         console.print(
             "  [red]Authentication failed.[/red] "
@@ -607,6 +708,8 @@ def _terraform_destroy(
     cfg: Config,
     admin_user: str,
     admin_pw: str,
+    *,
+    verbose: bool = False,
 ) -> None:
     """Refresh config, re-init terraform, destroy, and clean up."""
     import yaml
@@ -641,6 +744,7 @@ def _terraform_destroy(
             f"-var=region={cfg.app.region}",
         ],
         cwd=deploy_dir,
+        verbose=verbose,
     )
     console.print()
 
@@ -652,7 +756,9 @@ def _terraform_destroy(
     console.print("[bold]Infrastructure destroyed.[/bold]")
 
 
-def run_destroy(cfg: Config, *, yes: bool = False) -> None:
+def run_destroy(
+    cfg: Config, *, yes: bool = False, verbose: bool = False
+) -> None:
     """Destroy LabLink infrastructure. ``yes=True`` skips confirmation prompts."""
     check_credentials(_get_session(cfg.app.region))
 
@@ -740,5 +846,7 @@ def run_destroy(cfg: Config, *, yes: bool = False) -> None:
             )
     console.print()
 
-    _destroy_client_vms(cfg, admin_user, admin_pw)
-    _terraform_destroy(deploy_dir, cfg, admin_user, admin_pw)
+    _destroy_client_vms(cfg, admin_user, admin_pw, verbose=verbose)
+    _terraform_destroy(
+        deploy_dir, cfg, admin_user, admin_pw, verbose=verbose
+    )

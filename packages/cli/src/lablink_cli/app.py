@@ -188,11 +188,17 @@ def destroy(
         help="Skip confirmation prompts. Does not bypass credential prompts "
         "(admin/db passwords still required interactively).",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show the full Terraform output instead of a summary.",
+    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config), yes=yes)
+    run_destroy(_load_cfg(config), yes=yes, verbose=verbose)
 
 
 @app.command("launch-client", rich_help_panel="Deployment")
@@ -209,11 +215,17 @@ def launch_client(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show the full Terraform output instead of a summary.",
+    ),
 ) -> None:
     """Launch client VMs via the allocator service."""
     from lablink_cli.commands.launch import run_launch
 
-    run_launch(_load_cfg(config), num_vms=num_vms)
+    run_launch(_load_cfg(config), num_vms=num_vms, verbose=verbose)
 
 
 @app.command(rich_help_panel="Operations")

@@ -14,7 +14,7 @@ MISSING_SECRET = "MISSING"
 class DatabaseConfig:
     """Configuration for the database used in the LabLink Allocator Service.
     This class defines the connection parameters for the database, including
-    the name, user, password, host, port, table name, and message channel.
+    the name, user, password, host, port, and table name.
 
     Attributes:
         dbname (str): The name of the database.
@@ -23,7 +23,6 @@ class DatabaseConfig:
         host (str): The host where the database is located.
         port (int): The port on which the database is running.
         table_name (str): The name of the table to store VM information.
-        message_channel (str): The name of the message channel for updates.
     """
 
     dbname: str = field(default="lablink_db")
@@ -32,7 +31,6 @@ class DatabaseConfig:
     host: str = field(default="localhost")
     port: int = field(default=5432)
     table_name: str = field(default="vm_table")
-    message_channel: str = field(default="vm_updates")
 
 
 @dataclass
@@ -62,7 +60,6 @@ class MachineConfig:
         image (str): The Docker image ID to be used for the machine.
         ami_id (str): The Amazon Machine Image (AMI) ID for the machine.
         software (str): The software to be installed on the machine.
-        extension (str): The file extension associated with the software.
     """
 
     machine_type: str = field(default="g4dn.xlarge")
@@ -70,7 +67,6 @@ class MachineConfig:
     image: str = field(default="ghcr.io/talmolab/lablink-client-base-image:latest")
     ami_id: str = field(default="ami-00c257e12d6828491")
     software: str = field(default="sleap")
-    extension: str = field(default="slp")
 
 
 @dataclass

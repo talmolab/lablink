@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import ssl
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -21,7 +23,33 @@ from lablink_cli.commands.utils import (
 console = Console()
 
 
-def run_launch(cfg: Config, num_vms: int) -> None:
+# Matches `Apply complete! Resources: N added, N changed, N destroyed.`
+_APPLY_SUMMARY_RE = re.compile(
+    r"Apply complete!\s+Resources:\s+"
+    r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
+)
+
+
+def _summarize_apply(output: str) -> str | None:
+    """Extract the resource-counts line from `terraform apply` output.
+    Returns None if the line is missing (older Terraform, partial run, etc.)."""
+    m = _APPLY_SUMMARY_RE.search(output)
+    if not m:
+        return None
+    added, changed, destroyed = m.groups()
+    return f"Resources: {added} added, {changed} changed, {destroyed} destroyed"
+
+
+def _format_duration(seconds: float) -> str:
+    """Render a duration as `1m 23s` or `45s`."""
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    mins, secs = divmod(seconds, 60)
+    return f"{mins}m {secs}s"
+
+
+def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
     """Launch client VMs by calling the allocator /api/launch endpoint."""
     console.print()
 
@@ -49,9 +77,6 @@ def run_launch(cfg: Config, num_vms: int) -> None:
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     req.add_header("Accept", "application/json")
 
-    console.print(
-        f"[bold]Launching {num_vms} client VM(s)...[/bold]"
-    )
     console.print(f"  [dim]POST {url}[/dim]")
     console.print()
 
@@ -61,17 +86,34 @@ def run_launch(cfg: Config, num_vms: int) -> None:
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
+    started = time.monotonic()
     try:
-        resp = urlopen(req, timeout=600, context=ctx)  # noqa: S310
-        body = json.loads(resp.read().decode())
+        with console.status(
+            f"[bold]Launching {num_vms} client VM(s)...[/bold]",
+            spinner="dots",
+        ):
+            resp = urlopen(req, timeout=600, context=ctx)  # noqa: S310
+            body = json.loads(resp.read().decode())
+        elapsed = time.monotonic() - started
 
         if body.get("status") == "success":
-            console.print("[green]Launch successful![/green]")
             output = body.get("output", "")
-            if output:
+            summary = _summarize_apply(output)
+            console.print(
+                f"[green]✓ Launch successful[/green]  "
+                f"[dim]({_format_duration(elapsed)})[/dim]"
+            )
+            if summary:
+                console.print(f"  {summary}")
+            if verbose and output:
                 console.print()
                 console.print("[bold]Terraform output:[/bold]")
                 console.print(output)
+            elif output:
+                console.print(
+                    "  [dim]Pass --verbose to see full Terraform "
+                    "output.[/dim]"
+                )
         else:
             console.print(
                 f"[yellow]Unexpected response:[/yellow] {body}"

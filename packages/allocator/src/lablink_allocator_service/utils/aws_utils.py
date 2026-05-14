@@ -4,10 +4,42 @@ from pathlib import Path
 from typing import Optional
 
 import boto3
+import requests
 from botocore.exceptions import ClientError
+from requests.exceptions import RequestException as _RequestException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+IMDS_BASE = "http://169.254.169.254/latest"
+IMDS_TIMEOUT = 2.0
+
+
+class NotOnEC2Error(RuntimeError):
+    """IMDSv2 unreachable (running outside EC2)."""
+
+
+def _imds_token() -> str:
+    resp = requests.put(
+        f"{IMDS_BASE}/api/token",
+        headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+        timeout=IMDS_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise NotOnEC2Error(f"IMDSv2 token: {resp.status_code}")
+    return resp.text
+
+
+def _imds_get(path: str, token: str) -> str:
+    resp = requests.get(
+        f"{IMDS_BASE}/{path}",
+        headers={"X-aws-ec2-metadata-token": token},
+        timeout=IMDS_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise NotOnEC2Error(f"IMDSv2 {path}: {resp.status_code}")
+    return resp.text
 
 
 def get_all_instance_types(region="us-west-2"):
@@ -141,6 +173,39 @@ def get_instance_public_ip(
     return None
 
 
+def get_instance_private_ip(
+    instance_id: str, region: str = "us-west-2"
+) -> Optional[str]:
+    """Get the private IP address of an EC2 instance.
+
+    Args:
+        instance_id: The EC2 instance ID.
+        region: The AWS region where the instance is located.
+
+    Returns:
+        The private IP address if available, None otherwise.
+    """
+    kwargs = {
+        "region_name": region,
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+    }
+    if os.getenv("AWS_SESSION_TOKEN"):
+        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
+
+    ec2 = boto3.client("ec2", **kwargs)
+    try:
+        response = ec2.describe_instances(InstanceIds=[instance_id])
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                ip = instance.get("PrivateIpAddress")
+                if ip:
+                    return ip
+    except ClientError as e:
+        logger.error(f"Error getting private IP for instance {instance_id}: {e}")
+    return None
+
+
 def stop_start_ec2_instance(instance_id: str, region: str = "us-west-2") -> bool:
     """Stop and start an EC2 instance (last-resort fallback).
 
@@ -210,3 +275,27 @@ def upload_to_s3(
 
     # Upload the variable file
     s3.upload_file(local_path, bucket_name, key, ExtraArgs=extra)
+
+
+def current_instance_security_group(region: str = "us-west-2") -> str:
+    """Return the primary SG ID of the EC2 this process runs on.
+
+    Args:
+        region: AWS region. Caller should pass cfg.app.region — boto3
+            won't auto-detect inside the allocator container even though
+            the instance metadata is reachable, because the container's
+            env doesn't have AWS_REGION set.
+
+    Raises NotOnEC2Error if IMDSv2 is unreachable.
+    """
+    try:
+        token = _imds_token()
+        instance_id = _imds_get("meta-data/instance-id", token)
+    except (ConnectionError, _RequestException) as exc:
+        raise NotOnEC2Error(str(exc)) from exc
+    ec2 = boto3.client("ec2", region_name=region)
+    resp = ec2.describe_instances(InstanceIds=[instance_id])
+    sgs = resp["Reservations"][0]["Instances"][0]["SecurityGroups"]
+    if not sgs:
+        raise NotOnEC2Error(f"instance {instance_id} has no SGs")
+    return sgs[0]["GroupId"]

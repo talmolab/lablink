@@ -48,8 +48,6 @@
         <tr>
           <th>No.</th>
           <th>Hostname</th>
-          <th>PIN</th>
-          <th>CRD Command</th>
           <th>User Email</th>
           <th>In Use</th>
           <th>VM Status</th>
@@ -66,8 +64,6 @@
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ vm.hostname }}</td>
-          <td>{{ vm.pin or "—" }}</td>
-          <td>{{ vm.crdcommand or "—" }}</td>
           <td>{{ vm.useremail or "—" }}</td>
           <td>{{ "Yes" if vm.inuse else "No" }}</td>
           <td>{{ vm.status or "Unknown" }}</td>

@@ -15,6 +15,7 @@ dependencies = [
   "omegaconf>=2.3,<3.0",
   "psutil>=7.1,<7.3",
   "urllib3>=2.3.0,<3.0",
+  "flask>=3.0",
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
 keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]
@@ -31,9 +32,9 @@ Homepage = "https://github.com/talmolab/lablink"
 Issues = "https://github.com/talmolab/lablink/issues"
 
 [project.scripts]
+agent = "lablink_client_service.agent.api:main"
 check_gpu = "lablink_client_service.check_gpu:main"
 heartbeat = "lablink_client_service.heartbeat:main"
-subscribe = "lablink_client_service.subscribe:main"
 update_inuse_status = "lablink_client_service.update_inuse_status:main"
 
 [tool.setuptools.package-data]

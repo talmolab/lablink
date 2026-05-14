@@ -7,6 +7,46 @@ DESTROY_ENDPOINT = "/destroy"
 
 JSON_ACCEPT = {"Accept": "application/json"}
 
+# JSON plan the SG audit accepts: protected ports :6080 / :7070 are
+# allocator-only, :22 is public. The /api/launch handler runs
+# `terraform plan -out=...` then `terraform show -json` then audit
+# then `terraform apply <planfile>` then `terraform output -json`,
+# so subprocess.run side_effect lists must produce four results in
+# that order — and the second result's .stdout must be a JSON string
+# the audit accepts.
+CLEAN_PLAN_JSON = json.dumps({
+    "resource_changes": [
+        {
+            "address": "aws_security_group.lablink_sg",
+            "type": "aws_security_group",
+            "name": "lablink_sg",
+            "change": {
+                "actions": ["create"],
+                "before": None,
+                "after": {
+                    "ingress": [
+                        {
+                            "from_port": 22, "to_port": 22, "protocol": "tcp",
+                            "cidr_blocks": ["0.0.0.0/0"],
+                            "ipv6_cidr_blocks": [], "security_groups": [],
+                        },
+                        {
+                            "from_port": 6080, "to_port": 6080, "protocol": "tcp",
+                            "cidr_blocks": [], "ipv6_cidr_blocks": [],
+                            "security_groups": ["sg-allocator"],
+                        },
+                        {
+                            "from_port": 7070, "to_port": 7070, "protocol": "tcp",
+                            "cidr_blocks": [], "ipv6_cidr_blocks": [],
+                            "security_groups": ["sg-allocator"],
+                        },
+                    ],
+                },
+            },
+        },
+    ],
+})
+
 
 @patch("lablink_allocator_service.main.upload_to_s3")
 @patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
@@ -51,8 +91,10 @@ def test_launch_vm_success(
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
-        R("\x1b[32mapply success\x1b[0m"),
-        R(timing_json),
+        R("OK"),                  # terraform plan -out (writes plan file)
+        R(CLEAN_PLAN_JSON),       # terraform show -json (feeds the SG audit)
+        R("\x1b[32mapply success\x1b[0m"),  # terraform apply <planfile>
+        R(timing_json),           # terraform output -json
     ]
 
     # Call route
@@ -60,18 +102,35 @@ def test_launch_vm_success(
     assert resp.status_code == 200
     assert b"Output Dashboard" in resp.data
 
-    # Assert calls
-    assert mock_run.call_count == 2
+    # Assert calls (plan + show -json + apply + output = 4)
+    assert mock_run.call_count == 4
 
-    # Check apply call
-    apply_args, apply_kwargs = mock_run.call_args_list[0]
+    # Check plan call (must come first; writes the plan file)
+    plan_args, plan_kwargs = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert "-no-color" in plan_cmd_list
+    assert "-out" in plan_cmd_list
+    assert "-var=instance_count=5" in plan_cmd_list
+    assert plan_kwargs["cwd"] == terraform_dir
+
+    # Check show -json call (reads the plan back for the audit)
+    show_args, show_kwargs = mock_run.call_args_list[1]
+    show_cmd_list = show_args[0]
+    assert show_cmd_list[1] == "show"
+    assert "-json" in show_cmd_list
+    assert show_kwargs["cwd"] == terraform_dir
+
+    # Check apply call (applies the saved plan file; vars are baked in)
+    apply_args, apply_kwargs = mock_run.call_args_list[2]
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
-    assert "-var=instance_count=5" in apply_cmd_list
+    # apply consumes a saved plan file rather than fresh -var flags
+    assert not any(a.startswith("-var=") for a in apply_cmd_list)
     assert apply_kwargs["cwd"] == terraform_dir
 
     # Check output call
-    output_args, output_kwargs = mock_run.call_args_list[1]
+    output_args, output_kwargs = mock_run.call_args_list[3]
     output_cmd_list = output_args[0]
     assert "output" in output_cmd_list
     assert "-json" in output_cmd_list
@@ -102,6 +161,148 @@ def test_launch_vm_success(
         env="test",
         deployment_name="test-lablink",
     )
+
+
+@patch("lablink_allocator_service.main.current_instance_security_group",
+       return_value="sg-fake-allocator")
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_vm_appends_allocator_sg_id_var(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    mock_current_sg,
+    client,
+    admin_headers,
+    monkeypatch,
+    omega_config,
+    tmp_path,
+):
+    """When running on EC2, the allocator's own SG id is appended as a
+    -var to terraform apply so client SG ingress can lock down to it."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
+                        terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [
+        R("OK"),               # terraform plan -out
+        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("apply ok"),         # terraform apply <planfile>
+        R("{}"),               # terraform output -json
+    ]
+
+    resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                        data={"num_vms": "1"})
+    assert resp.status_code == 200
+
+    # The allocator-SG var is supplied via terraform plan; apply runs
+    # off the saved plan file and never sees -var flags directly.
+    plan_args, _ = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert "-var=allocator_sg_id=sg-fake-allocator" in plan_cmd_list
+
+    apply_args, _ = mock_run.call_args_list[2]
+    apply_cmd_list = apply_args[0]
+    assert "apply" in apply_cmd_list
+    assert not any(a.startswith("-var=") for a in apply_cmd_list)
+    mock_current_sg.assert_called_once()
+
+
+@patch(
+    "lablink_allocator_service.main.current_instance_security_group",
+)
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_vm_skips_sg_var_when_not_on_ec2(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    mock_current_sg,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Outside EC2 (IMDSv2 unreachable), the allocator_sg_id var is
+    skipped — the apply command still goes through. Terraform itself
+    will fail with a missing-variable error in that case, which is the
+    correct signal that the deploy is mis-configured for dev."""
+    from lablink_allocator_service.utils.aws_utils import NotOnEC2Error
+
+    mock_current_sg.side_effect = NotOnEC2Error("no IMDS")
+
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
+                        terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [
+        R("OK"),               # terraform plan -out
+        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("apply ok"),         # terraform apply <planfile>
+        R("{}"),               # terraform output -json
+    ]
+
+    resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                        data={"num_vms": "1"})
+    assert resp.status_code == 200
+
+    # When IMDSv2 was unreachable, the plan must not include the
+    # allocator-SG var. apply runs off the saved plan file and has
+    # no -var flags at all.
+    plan_args, _ = mock_run.call_args_list[0]
+    plan_cmd_list = plan_args[0]
+    assert "plan" in plan_cmd_list
+    assert not any(
+        a.startswith("-var=allocator_sg_id=") for a in plan_cmd_list
+    )
+
+    apply_args, _ = mock_run.call_args_list[2]
+    apply_cmd_list = apply_args[0]
+    assert "apply" in apply_cmd_list
+    assert not any(a.startswith("-var=") for a in apply_cmd_list)
 
 
 @patch("lablink_allocator_service.main.subprocess.run")
@@ -159,6 +360,12 @@ def test_launch_apply_failure(
     def side_effect(cmd, **kwargs):
         if cmd[1] == "init":
             return MagicMock(stdout="OK", stderr="")
+        if cmd[1] == "plan":
+            # plan writes the plan file; stdout is ignored.
+            return MagicMock(stdout="OK", stderr="", returncode=0)
+        if cmd[1] == "show":
+            # SG audit must pass; otherwise apply never runs.
+            return MagicMock(stdout=CLEAN_PLAN_JSON, stderr="", returncode=0)
         raise subprocess.CalledProcessError(1, cmd, stderr="\x1b[31mboom\x1b[0m")
 
     mock_run.side_effect = side_effect
@@ -371,7 +578,12 @@ def test_launch_json_success(
             self.returncode = 0
 
     timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
-    mock_run.side_effect = [R("apply success"), R(timing_json)]
+    mock_run.side_effect = [
+        R("OK"),               # terraform plan -out
+        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("apply success"),    # terraform apply <planfile>
+        R(timing_json),        # terraform output -json
+    ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
     resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "2"})
@@ -459,9 +671,17 @@ def test_launch_json_apply_failure(
         "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
     )
 
-    mock_run.side_effect = subprocess.CalledProcessError(
-        1, ["terraform", "apply"], stderr="Error: resource already exists"
-    )
+    def side_effect(cmd, **kwargs):
+        if cmd[1] == "plan":
+            return MagicMock(stdout="OK", stderr="", returncode=0)
+        if cmd[1] == "show":
+            # SG audit must pass so the flow reaches apply.
+            return MagicMock(stdout=CLEAN_PLAN_JSON, stderr="", returncode=0)
+        raise subprocess.CalledProcessError(
+            1, cmd, stderr="Error: resource already exists"
+        )
+
+    mock_run.side_effect = side_effect
 
     headers = {**admin_headers, **JSON_ACCEPT}
     resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
@@ -506,7 +726,14 @@ def test_launch_json_unexpected_error(
             self.stdout, self.stderr = out, ""
             self.returncode = 0
 
-    mock_run.return_value = R("apply success")
+    # plan + show return a clean (audit-passing) plan; apply succeeds;
+    # the S3 upload then blows up with AccessDenied (the path under test).
+    mock_run.side_effect = [
+        R("OK"),               # terraform plan -out
+        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("apply success"),    # terraform apply <planfile>
+        R("{}"),               # terraform output -json (safety net)
+    ]
     mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
 
     headers = {**admin_headers, **JSON_ACCEPT}
@@ -516,3 +743,150 @@ def test_launch_json_unexpected_error(
     body = json.loads(resp.data)
     assert body["status"] == "error"
     assert "AccessDenied" in body["error"]
+
+
+# ------------------------------------------------------------------
+# Pre-apply SG audit gate
+# ------------------------------------------------------------------
+
+VIOLATING_PLAN_JSON = json.dumps({
+    "resource_changes": [
+        {
+            "address": "aws_security_group.lablink_sg",
+            "type": "aws_security_group",
+            "name": "lablink_sg",
+            "change": {
+                "actions": ["create"],
+                "before": None,
+                "after": {
+                    "ingress": [
+                        {
+                            "from_port": 6080, "to_port": 6080, "protocol": "tcp",
+                            "cidr_blocks": ["0.0.0.0/0"],
+                            "ipv6_cidr_blocks": [],
+                        },
+                    ],
+                },
+            },
+        },
+    ],
+})
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_aborts_on_sg_audit_failure(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """If terraform plan shows a violating ingress on a protected
+    port, /api/launch aborts with 400 and never invokes terraform
+    apply. The gate is the whole point of Task 19."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    # Plan succeeds (writes the file); show returns the violating JSON;
+    # the audit then aborts the flow before apply is ever invoked.
+    mock_run.side_effect = [
+        R("OK"),                  # terraform plan -out
+        R(VIOLATING_PLAN_JSON),   # terraform show -json (fed to audit)
+    ]
+
+    headers = {**admin_headers, **JSON_ACCEPT}
+    resp = client.post(
+        POST_ENDPOINT, headers=headers, data={"num_vms": "1"}
+    )
+
+    assert resp.status_code == 400
+    body = json.loads(resp.data)
+    assert body["status"] == "error"
+    assert "6080" in body["error"]  # error mentions the offending port
+
+    # Confirm apply was not invoked — only plan + show ran.
+    assert mock_run.call_count == 2
+    assert mock_run.call_args_list[0][0][0][1] == "plan"
+    assert mock_run.call_args_list[1][0][0][1] == "show"
+    # S3 upload also must not have been called when apply was skipped.
+    mock_upload_to_s3.assert_not_called()
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_aborts_on_sg_audit_failure_html(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Same gate, browser path: a violating plan returns 400 with an
+    HTML error message that names the offending port."""
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False,
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    mock_run.side_effect = [
+        R("OK"),                  # terraform plan -out
+        R(VIOLATING_PLAN_JSON),   # terraform show -json (fed to audit)
+    ]
+
+    resp = client.post(
+        POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"}
+    )
+    assert resp.status_code == 400
+    assert b"6080" in resp.data
+    # Plan + show ran; apply did not.
+    assert mock_run.call_count == 2
+    mock_upload_to_s3.assert_not_called()

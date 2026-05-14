@@ -4,23 +4,8 @@ export PYTHONUNBUFFERED=1
 # Start
 CONTAINER_START_TIME=$(date +%s)
 
-# Ensure XDG_RUNTIME_DIR exists. Chrome Remote Desktop's start-host
-# stats this path early in init and aborts via base::ImmediateCrash()
-# (SIGTRAP, exit 133, no log line) when it is missing. Outside a
-# container, systemd-logind creates /run/user/$UID on login; Docker
-# does not run logind, so we create it ourselves before CRD runs.
-# /run is a fresh tmpfs owned by root, so mkdir requires sudo here —
-# the client user has passwordless sudo via /etc/sudoers.d/client.
-runtime_dir="/run/user/$(id -u)"
-sudo mkdir -p "$runtime_dir"
-sudo chown "$(id -u):$(id -g)" "$runtime_dir"
-sudo chmod 0700 "$runtime_dir"
-export XDG_RUNTIME_DIR="$runtime_dir"
-
 # Activate virtual environment
 source /home/client/.venv/bin/activate
-
-echo "Running subscribe script..."
 
 echo "ALLOCATOR_HOST: $ALLOCATOR_HOST"
 echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
@@ -69,16 +54,12 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   echo "Running custom startup script..."
   sudo chmod +x /docker_scripts/custom-startup.sh
 
-  # Run startup script, output goes to container stdout (captured by log shipper)
   bash /docker_scripts/custom-startup.sh 2>&1
   rc=$?
 
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script exited with code $rc"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
-      # Report the failure proactively so the allocator's reboot service
-      # reacts within its next tick (~60s) instead of waiting out the
-      # 25-min stale-initializing timeout.
       send_status "error"
       exit $rc
     fi
@@ -91,30 +72,145 @@ fi
 LOG_DIR="/home/client/logs"
 mkdir -p "$LOG_DIR"
 
-# Flip VM status from 'initializing' (reported by cloud-init) to
-# 'running' now that custom-startup has finished and client services
-# are about to launch. Previously user_data.sh reported 'running' too
-# early — right after `docker run` returned — before any of the
-# container's own startup work had completed.
+# kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing
+# file aborts the launch silently. Touch an empty one as the client user.
+touch /home/client/.Xauthority
+chmod 600 /home/client/.Xauthority
+
+# Pre-seed the xstartup script kasmvncserver invokes after Xkasmvnc is up.
+# We use `xfce4-session` (not the `startxfce4` wrapper) because the wrapper
+# tries to spawn its own Xorg, which fails in a container with no GPU node
+# (Fatal: no screens found). xfce4-session attaches to the existing DISPLAY
+# instead. dbus-launch is required so the XFCE bits that need dbus work.
+mkdir -p /home/client/.vnc
+{
+  echo '#!/bin/sh'
+  echo 'unset SESSION_MANAGER'
+  echo 'unset DBUS_SESSION_BUS_ADDRESS'
+  echo 'exec dbus-launch --exit-with-session xfce4-session'
+} > /home/client/.vnc/xstartup
+chmod +x /home/client/.vnc/xstartup
+
+# Skip kasmvncserver's interactive desktop-environment picker. The wrapper
+# runs /usr/lib/kasmvncserver/select-de.sh unless this sentinel exists; in
+# a non-tty container, select-de.sh has no stdin and aborts the launch.
+touch /home/client/.vnc/.de-was-selected
+
+# kasmvncserver tries to open `network.ssl.pem_certificate` and `pem_key`
+# at startup regardless of `require_ssl`. The wrapper's defaults point at
+# /etc/ssl/private/ssl-cert-snakeoil.key, which the `client` user can't
+# read (root:ssl-cert 0640). Generate a fresh per-VM keypair under ~/.vnc/
+# and override the config to point at it. nginx terminates TLS at the
+# allocator, so we just need *some* valid keypair here; we never serve
+# it on the public path.
+if [ ! -s /home/client/.vnc/kasmvnc.pem ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes \
+    -keyout /home/client/.vnc/kasmvnc.key \
+    -out /home/client/.vnc/kasmvnc.pem \
+    -subj "/CN=lablink-client" -days 3650 \
+    > /dev/null 2>&1
+  chmod 600 /home/client/.vnc/kasmvnc.key
+fi
+
+# Write the per-user kasmvnc.yaml that overrides the system-default cert
+# paths and disables SSL enforcement on the listener. nginx upstream is
+# plain ws:// because TLS is terminated one layer up at the allocator.
+{
+  echo 'network:'
+  echo '  protocol: http'
+  echo '  ssl:'
+  echo '    require_ssl: false'
+  echo '    pem_certificate: /home/client/.vnc/kasmvnc.pem'
+  echo '    pem_key: /home/client/.vnc/kasmvnc.key'
+  echo 'logging:'
+  echo '  log_writer_name: all'
+  echo '  log_dest: logfile'
+  echo '  level: 100'
+} > /home/client/.vnc/kasmvnc.yaml
+
+# Seed an initial KasmVNC user. kasmvncserver refuses to start without
+# at least one user with write access (otherwise it prompts interactively
+# and hangs in our non-tty container). The path MUST be ~/.kasmpasswd —
+# this is the default of `server.advanced.kasm_password_file` in
+# kasmvncserver and is checked by the wrapper at startup.
+#
+# The allocator's POST /api/session/start (handled by the agent on
+# :7070) rotates this password before any student connects; the random
+# seed here just satisfies the "has a user with write access" check.
+#
+# Remove any pre-existing file first: `kasmvncpasswd -rwo` against an
+# existing same-username row only updates the password column on some
+# builds, leaving the permission column at whatever it was previously
+# (we observed empty perms persisting across boots otherwise).
+rm -f /home/client/.kasmpasswd
+SEED_PW=$(openssl rand -base64 24 | tr -d '\n')
+echo -e "${SEED_PW}\n${SEED_PW}" \
+  | kasmvncpasswd -u kasm_user -rwo /home/client/.kasmpasswd
+chmod 600 /home/client/.kasmpasswd
+unset SEED_PW
+
+# Start KasmVNC by invoking Xvnc directly. We do NOT use the
+# kasmvncserver Perl wrapper because:
+#   1. It hardcodes -rfbauth ~/.vnc/passwd, dragging RFB-layer VncAuth(2)
+#      back in on top of our -SecurityTypes None.
+#   2. Even when -noreset is in argv, this Xvnc build still emits
+#      "VNC extension does not support -reset, terminating instead"
+#      when the desktop environment unwinds — the -noreset flag alone
+#      is insufficient. The only reliable way to keep the X server up
+#      is to ensure at least one X client is always connected (see the
+#      xterm pin below).
+# -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
+# is the network-layer firewall.
+Xvnc :1 \
+    -auth /home/client/.Xauthority \
+    -desktop kasmvnc \
+    -httpd /usr/share/kasmvnc/www \
+    -rfbport 5901 \
+    -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
+    -websocketPort 6080 \
+    -localhost 0 \
+    -SecurityTypes None \
+    -PasswordFile /home/client/.vnc/passwd \
+    -KasmPasswordFile /home/client/.kasmpasswd \
+    -AlwaysShared 1 \
+    -noreset \
+    > "$LOG_DIR/kasmvnc.log" 2>&1 &
+
+# Wait for the X socket so subsequent clients can connect.
+for i in $(seq 1 30); do
+  [ -e /tmp/.X11-unix/X1 ] && break
+  sleep 0.5
+done
+
+# Pin a permanent X client to the display BEFORE starting xfce4.
+# xterm -iconic holds an X connection without showing a window. When
+# xfce4 components fall apart (e.g. xfce4-panel losing its dbus name
+# because of the no-system-dbus container env), this client keeps the
+# "last client exited" path from firing — which is what was tearing
+# Xvnc down ~11 seconds after start despite -noreset being set.
+DISPLAY=:1 xterm -iconic -geometry 1x1+0+0 \
+    > "$LOG_DIR/xterm-pin.log" 2>&1 &
+
+# Launch xfce4 against the now-live display.
+DISPLAY=:1 /home/client/.vnc/xstartup \
+    > "$LOG_DIR/xstartup.log" 2>&1 &
+
+# Start the client agent (:7070) — receives per-session password rotations
+# from the allocator. Bearer-authenticated via REGISTER_TOKEN env var.
+agent 2>&1 | tee "$LOG_DIR/agent.log" &
+
+# Flip VM status to 'running' now that client services are launching.
 send_status "running"
 
-# Run subscribe in background, but preserve stdout + stderr to docker logs and file
-# Services read ALLOCATOR_URL from environment if set (HTTPS support), otherwise use allocator.host
-subscribe \
-  allocator.host=$ALLOCATOR_HOST allocator.port=80 \
-  2>&1 | tee "$LOG_DIR/subscribe.log" &
-
-# Run update_inuse_status
+# Existing health/heartbeat/in-use workers
 update_inuse_status \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
   2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
 
-# Run GPU health check
 check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/check_gpu.log" &
 
-# Run heartbeat loop (silent-failure detection)
 heartbeat \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | tee "$LOG_DIR/heartbeat.log" &
@@ -126,7 +222,6 @@ CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 
 # Send container startup completion to allocator
-# The ALLOCATOR_URL variable includes the protocol (http/https), so it can be used directly.
 curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $API_TOKEN" \
@@ -137,4 +232,4 @@ curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   }" --max-time 5 || true
 
 # Keep container alive
-tail -F "$LOG_DIR/subscribe.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"
+tail -F "$LOG_DIR/kasmvnc.log" "$LOG_DIR/xstartup.log" "$LOG_DIR/agent.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"

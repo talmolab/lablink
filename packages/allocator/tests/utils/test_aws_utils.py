@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
+
+import pytest
+
 import lablink_allocator_service.utils.aws_utils as aws_utils
 
 
@@ -202,6 +205,55 @@ def test_get_instance_public_ip_client_error(mock_boto_client):
 
 
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_found(mock_boto_client):
+    """Test getting private IP of an EC2 instance."""
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.return_value = {
+        "Reservations": [
+            {
+                "Instances": [
+                    {"InstanceId": "i-abc", "PrivateIpAddress": "10.0.0.5"}
+                ]
+            }
+        ]
+    }
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-abc")
+    assert result == "10.0.0.5"
+    mock_ec2.describe_instances.assert_called_once_with(InstanceIds=["i-abc"])
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_not_found(mock_boto_client):
+    """Test getting private IP when instance has none."""
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.return_value = {
+        "Reservations": [{"Instances": [{}]}],
+    }
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-abc")
+    assert result is None
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
+def test_get_instance_private_ip_client_error(mock_boto_client):
+    """Test error handling in get_instance_private_ip."""
+    from botocore.exceptions import ClientError
+
+    mock_ec2 = MagicMock()
+    mock_ec2.describe_instances.side_effect = ClientError(
+        {"Error": {"Code": "InvalidInstanceID", "Message": "Not found"}},
+        "DescribeInstances",
+    )
+    mock_boto_client.return_value = mock_ec2
+
+    result = aws_utils.get_instance_private_ip("i-bad")
+    assert result is None
+
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_stop_start_ec2_instance_success(mock_boto_client):
     """Test successful stop/start of an EC2 instance."""
     mock_ec2 = MagicMock()
@@ -236,4 +288,31 @@ def test_stop_start_ec2_instance_failure(mock_boto_client):
 
     assert result is False
 
+
+@patch("lablink_allocator_service.utils.aws_utils.boto3")
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_happy_path(mock_requests, mock_boto):
+    mock_requests.put.return_value = MagicMock(status_code=200, text="TOKEN")
+    mock_requests.get.return_value = MagicMock(status_code=200, text="i-abc")
+    ec2 = mock_boto.client.return_value
+    ec2.describe_instances.return_value = {
+        "Reservations": [{"Instances": [{
+            "SecurityGroups": [{"GroupId": "sg-0123", "GroupName": "x"}]
+        }]}]
+    }
+    assert aws_utils.current_instance_security_group() == "sg-0123"
+
+
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_raises_outside_ec2(mock_requests):
+    mock_requests.put.side_effect = ConnectionError("no IMDS")
+    with pytest.raises(aws_utils.NotOnEC2Error):
+        aws_utils.current_instance_security_group()
+
+
+@patch("lablink_allocator_service.utils.aws_utils.requests")
+def test_current_instance_security_group_raises_when_imds_returns_non_200(mock_requests):
+    mock_requests.put.return_value = MagicMock(status_code=403, text="forbidden")
+    with pytest.raises(aws_utils.NotOnEC2Error):
+        aws_utils.current_instance_security_group()
 

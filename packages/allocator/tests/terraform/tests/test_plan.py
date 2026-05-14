@@ -166,11 +166,32 @@ def test_lablink_security_group(plan):
     v = resource["values"]
 
     assert v["name"] == "test-software-lablink-client-ci-test-sg"
-    # Ingress SSH
-    assert v["ingress"][0]["from_port"] == 22
-    assert v["ingress"][0]["to_port"] == 22
-    assert v["ingress"][0]["protocol"] == "tcp"
-    assert v["ingress"][0]["cidr_blocks"] == ["0.0.0.0/0"]
+
+    # Index ingress rules by from_port so the test isn't order-dependent.
+    ingress_by_port = {rule["from_port"]: rule for rule in v["ingress"]}
+
+    # SSH ingress: open to the world (intentional, out of PR A scope).
+    ssh = ingress_by_port[22]
+    assert ssh["to_port"] == 22
+    assert ssh["protocol"] == "tcp"
+    assert ssh["cidr_blocks"] == ["0.0.0.0/0"]
+
+    # KasmVNC :6080 — allocator SG only, no public CIDR.
+    kasm = ingress_by_port[6080]
+    assert kasm["to_port"] == 6080
+    assert kasm["protocol"] == "tcp"
+    assert kasm["security_groups"] == [plan["variables"]["allocator_sg_id"]["value"]]
+    assert kasm["cidr_blocks"] == []
+    assert kasm["ipv6_cidr_blocks"] == []
+
+    # Client agent :7070 — allocator SG only, no public CIDR.
+    agent = ingress_by_port[7070]
+    assert agent["to_port"] == 7070
+    assert agent["protocol"] == "tcp"
+    assert agent["security_groups"] == [plan["variables"]["allocator_sg_id"]["value"]]
+    assert agent["cidr_blocks"] == []
+    assert agent["ipv6_cidr_blocks"] == []
+
     # Egress all
     assert v["egress"][0]["from_port"] == 0
     assert v["egress"][0]["to_port"] == 0

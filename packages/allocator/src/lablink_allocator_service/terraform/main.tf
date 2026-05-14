@@ -18,6 +18,22 @@ resource "aws_security_group" "lablink_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port       = 6080
+    to_port         = 6080
+    protocol        = "tcp"
+    security_groups = [var.allocator_sg_id]
+    description     = "KasmVNC; allocator-only"
+  }
+
+  ingress {
+    from_port       = 7070
+    to_port         = 7070
+    protocol        = "tcp"
+    security_groups = [var.allocator_sg_id]
+    description     = "Client agent; allocator-only"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

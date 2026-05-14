@@ -265,16 +265,6 @@ class MachineScreen(Screen):
             )
 
             yield Label(
-                "Data File Extension (files students will upload)",
-                classes="field-label",
-            )
-            yield Input(
-                value=cfg.machine.extension or "",
-                placeholder="e.g. slp, h5, csv",
-                id="extension",
-            )
-
-            yield Label(
                 "Git Repository (course materials cloned into each VM)",
                 classes="field-label",
             )
@@ -309,13 +299,10 @@ class MachineScreen(Screen):
     @on(Button.Pressed, "#next")
     def _next(self) -> None:
         software = self.query_one("#software", Input).value
-        extension = self.query_one("#extension", Input).value
         repository = self.query_one("#repository", Input).value
 
         if software:
             self.app.config.machine.software = software
-        if extension:
-            self.app.config.machine.extension = extension
         self.app.config.machine.repository = (
             repository if repository else None
         )
