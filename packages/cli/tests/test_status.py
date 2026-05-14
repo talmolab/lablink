@@ -140,7 +140,6 @@ class TestEstimateCosts:
     def test_basic_costs(self, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
-        mock_cfg.monitoring.enabled = False
 
         with patch("lablink_cli.commands.status.boto3") as mock_boto:
             mock_boto.client.side_effect = Exception("no creds")
@@ -155,7 +154,6 @@ class TestEstimateCosts:
     def test_dns_adds_route53(self, mock_cfg):
         mock_cfg.dns.enabled = True
         mock_cfg.ssl.provider = "none"
-        mock_cfg.monitoring.enabled = False
 
         with patch("lablink_cli.commands.status.boto3") as mock_boto:
             mock_boto.client.side_effect = Exception("no creds")
@@ -167,7 +165,6 @@ class TestEstimateCosts:
     def test_acm_adds_alb(self, mock_cfg):
         mock_cfg.dns.enabled = True
         mock_cfg.ssl.provider = "acm"
-        mock_cfg.monitoring.enabled = False
 
         with patch("lablink_cli.commands.status.boto3") as mock_boto:
             mock_boto.client.side_effect = Exception("no creds")
@@ -176,23 +173,9 @@ class TestEstimateCosts:
         resource_names = [c["resource"] for c in costs]
         assert any("Load Balancer" in r for r in resource_names)
 
-    def test_monitoring_adds_cloudwatch(self, mock_cfg):
-        mock_cfg.dns.enabled = False
-        mock_cfg.ssl.provider = "none"
-        mock_cfg.monitoring.enabled = True
-
-        with patch("lablink_cli.commands.status.boto3") as mock_boto:
-            mock_boto.client.side_effect = Exception("no creds")
-            costs = estimate_costs(mock_cfg)
-
-        resource_names = [c["resource"] for c in costs]
-        assert any("CloudWatch" in r for r in resource_names)
-        assert any("CloudTrail" in r for r in resource_names)
-
     def test_client_vm_cost(self, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
-        mock_cfg.monitoring.enabled = False
         mock_cfg.machine.machine_type = "g4dn.xlarge"
 
         with patch("lablink_cli.commands.status.boto3") as mock_boto:
@@ -205,7 +188,6 @@ class TestEstimateCosts:
     def test_all_costs_positive(self, mock_cfg):
         mock_cfg.dns.enabled = True
         mock_cfg.ssl.provider = "acm"
-        mock_cfg.monitoring.enabled = True
 
         with patch("lablink_cli.commands.status.boto3") as mock_boto:
             mock_boto.client.side_effect = Exception("no creds")

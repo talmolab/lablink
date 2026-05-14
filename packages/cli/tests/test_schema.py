@@ -97,22 +97,6 @@ class TestLoadSaveConfig:
         assert cfg.dns.enabled is True
         assert cfg.dns.domain == "test.example.com"
 
-    def test_load_deeply_nested(self, tmp_path):
-        """Test 3-level nesting (e.g. monitoring.thresholds.*)."""
-        data = {
-            "monitoring": {
-                "enabled": True,
-                "thresholds": {"max_instances_per_5min": 25},
-            },
-        }
-        path = tmp_path / "config.yaml"
-        with open(path, "w") as f:
-            yaml.dump(data, f)
-
-        cfg = load_config(path)
-        assert cfg.monitoring.enabled is True
-        assert cfg.monitoring.thresholds.max_instances_per_5min == 25
-
 
 # ------------------------------------------------------------------
 # validate_config

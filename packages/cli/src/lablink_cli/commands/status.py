@@ -41,8 +41,6 @@ FALLBACK_COSTS: dict[str, dict[str, float]] = {
     "eip": 0.005 * 24,
     "route53_zone": 0.50 / 30,
     "alb": 0.0225 * 24,
-    "cloudwatch": 0.067,
-    "cloudtrail": 0.10,
 }
 
 
@@ -347,23 +345,6 @@ def estimate_costs(cfg: Config) -> list[dict]:
                 "resource": "Application Load Balancer",
                 "daily": FALLBACK_COSTS["alb"],
                 "note": "~$20/month",
-            }
-        )
-
-    # Monitoring
-    if cfg.monitoring.enabled:
-        costs.append(
-            {
-                "resource": "CloudWatch Alarms",
-                "daily": FALLBACK_COSTS["cloudwatch"],
-                "note": "",
-            }
-        )
-        costs.append(
-            {
-                "resource": "CloudTrail",
-                "daily": FALLBACK_COSTS["cloudtrail"],
-                "note": "",
             }
         )
 

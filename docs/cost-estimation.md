@@ -32,7 +32,6 @@ The script reads the following from your `lablink-infrastructure/config/config.y
 | `machine.machine_type` | Client VM instance type |
 | `ssl.provider` | Whether ALB cost is included |
 | `dns.enabled` | Whether Route 53 cost is included |
-| `monitoring.enabled` | Whether CloudTrail/SNS costs are included |
 
 **Example output:**
 

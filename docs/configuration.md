@@ -99,18 +99,6 @@ startup_script:
   path: ""
   on_error: "continue"
 
-monitoring:
-  enabled: false
-  email: ""
-  thresholds:
-    max_instances_per_5min: 10
-    max_terminations_per_5min: 20
-    max_unauthorized_calls_per_15min: 5
-  budget:
-    enabled: false
-    monthly_budget_usd: 500
-  cloudtrail:
-    retention_days: 90
 ```
 
 ### Client Configuration
@@ -423,59 +411,6 @@ When `enabled` is `true`, the content of the script specified by `path` will be 
 - If `on_error` is `continue`, any errors in the script will be logged, but the VM will continue to run.
 - If `on_error` is `fail`, the VM setup will be aborted if the script returns a non-zero exit code.
 
-### Monitoring Options (`monitoring`)
-
-Configuration for AWS monitoring, alerting, and cost management. When enabled, this deploys CloudWatch alarms, SNS notifications, AWS Budgets, and CloudTrail logging.
-
-| Option    | Type    | Default | Description                           |
-|-----------|---------|---------|---------------------------------------|
-| `enabled` | boolean | `false` | Enable monitoring infrastructure      |
-| `email`   | string  | `""`    | Email address for alert notifications |
-
-#### Thresholds (`monitoring.thresholds`)
-
-Resource usage thresholds that trigger CloudWatch alarms.
-
-| Option                               | Type | Default | Description                                                  |
-|--------------------------------------|------|---------|--------------------------------------------------------------|
-| `max_instances_per_5min`             | int  | `10`    | Maximum instance launches allowed in a 5-minute window       |
-| `max_terminations_per_5min`          | int  | `20`    | Maximum instance terminations allowed in a 5-minute window   |
-| `max_unauthorized_calls_per_15min`   | int  | `5`     | Maximum unauthorized API calls allowed in a 15-minute window |
-
-#### Budget (`monitoring.budget`)
-
-AWS Budget configuration for cost management.
-
-| Option               | Type    | Default | Description                 |
-|----------------------|---------|---------|-----------------------------|
-| `enabled`            | boolean | `false` | Enable budget monitoring    |
-| `monthly_budget_usd` | int     | `500`   | Monthly budget limit in USD |
-
-#### CloudTrail (`monitoring.cloudtrail`)
-
-AWS CloudTrail logging configuration for audit trails.
-
-| Option           | Type | Default | Description                              |
-|------------------|------|---------|------------------------------------------|
-| `retention_days` | int  | `90`    | Number of days to retain CloudTrail logs |
-
-**Example:**
-
-```yaml
-monitoring:
-  enabled: true
-  email: "alerts@example.com"
-  thresholds:
-    max_instances_per_5min: 10
-    max_terminations_per_5min: 20
-    max_unauthorized_calls_per_15min: 5
-  budget:
-    enabled: true
-    monthly_budget_usd: 1000
-  cloudtrail:
-    retention_days: 90
-```
-
 ## Validating Configuration
 
 After modifying configuration, validate it:
@@ -682,19 +617,6 @@ startup_script:
   path: "config/custom-startup.sh"
   on_error: "continue"
 
-monitoring:
-  enabled: false
-  email: ""
-  thresholds:
-    max_instances_per_5min: 10
-    max_terminations_per_5min: 20
-    max_unauthorized_calls_per_15min: 5
-  budget:
-    enabled: false
-    monthly_budget_usd: 500
-  cloudtrail:
-    retention_days: 90
-
 bucket_name: "tf-state-lablink-YOURORG"
 ```
 
@@ -764,19 +686,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       path: "config/custom-startup.sh"
       on_error: "continue"
 
-    monitoring:
-      enabled: false
-      email: ""
-      thresholds:
-        max_instances_per_5min: 10
-        max_terminations_per_5min: 20
-        max_unauthorized_calls_per_15min: 5
-      budget:
-        enabled: false
-        monthly_budget_usd: 500
-      cloudtrail:
-        retention_days: 90
-
     bucket_name: "tf-state-lablink-YOURORG"
     ```
 
@@ -841,19 +750,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       enabled: false
       path: "config/custom-startup.sh"
       on_error: "continue"
-
-    monitoring:
-      enabled: false
-      email: ""
-      thresholds:
-        max_instances_per_5min: 10
-        max_terminations_per_5min: 20
-        max_unauthorized_calls_per_15min: 5
-      budget:
-        enabled: false
-        monthly_budget_usd: 500
-      cloudtrail:
-        retention_days: 90
 
     bucket_name: "tf-state-lablink-YOURORG"
     ```
@@ -920,19 +816,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       path: "config/custom-startup.sh"
       on_error: "continue"
 
-    monitoring:
-      enabled: false
-      email: ""
-      thresholds:
-        max_instances_per_5min: 10
-        max_terminations_per_5min: 20
-        max_unauthorized_calls_per_15min: 5
-      budget:
-        enabled: false
-        monthly_budget_usd: 500
-      cloudtrail:
-        retention_days: 90
-
     bucket_name: "tf-state-lablink-YOURORG"
     ```
 
@@ -998,19 +881,6 @@ startup_script:
   enabled: false
   path: "config/custom-startup.sh"
   on_error: "continue"
-
-monitoring:
-  enabled: false
-  email: ""
-  thresholds:
-    max_instances_per_5min: 10
-    max_terminations_per_5min: 20
-    max_unauthorized_calls_per_15min: 5
-  budget:
-    enabled: false
-    monthly_budget_usd: 500
-  cloudtrail:
-    retention_days: 90
 
 bucket_name: "tf-state-lablink-YOURORG"
 ```

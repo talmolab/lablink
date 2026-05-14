@@ -25,7 +25,6 @@ def mock_cfg():
     cfg.ssl.provider = "none"
     cfg.ssl.email = ""
     cfg.ssl.certificate_arn = ""
-    cfg.monitoring.enabled = False
     cfg.startup_script.enabled = False
     cfg.startup_script.path = ""
     cfg.bucket_name = "lablink-tf-state-123456789012"

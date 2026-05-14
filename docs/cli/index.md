@@ -12,7 +12,7 @@ Both paths deploy the same allocator service and manage the same set of AWS reso
 | | Template repo | CLI |
 |---|---|---|
 | What you maintain | A full repo forked from `lablink-template` (Dockerfile, Terraform `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
-| Customization surface | Every file in the repo — tweak AMIs, Docker images, Terraform resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL, monitoring) |
+| Customization surface | Every file in the repo — tweak AMIs, Docker images, Terraform resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL) |
 | Where Terraform runs | GitHub Actions | Your machine |
 | Where state lives | Shared S3 (per-repo) | Local S3 bucket you own |
 | How you trigger a deploy | Push to `main` / run workflow | `lablink deploy` |

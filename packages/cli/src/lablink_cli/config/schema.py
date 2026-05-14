@@ -20,17 +20,13 @@ from lablink_allocator_service.validate_config import (
 from lablink_allocator_service.conf.structured_config import (  # noqa: F401
     AllocatorConfig,
     AppConfig,
-    BudgetConfig,
-    CloudTrailConfig,
     Config,
     DatabaseConfig,
     DNSConfig,
     EIPConfig,
     MachineConfig,
-    MonitoringConfig,
     SSLConfig,
     StartupConfig,
-    ThresholdsConfig,
 )
 
 
@@ -55,7 +51,7 @@ def load_config(path: Path) -> Config:
             sub = getattr(cfg, key)
             for k, v in value.items():
                 if isinstance(v, dict):
-                    # Nested sub-config (e.g., monitoring.thresholds)
+                    # Nested sub-config (3-level YAML structure)
                     nested = getattr(sub, k, None)
                     if nested and hasattr(nested, "__dataclass_fields__"):
                         for nk, nv in v.items():

@@ -1,7 +1,7 @@
 """LabLink CLI - Deploy and manage LabLink infrastructure."""
 
 TEMPLATE_REPO = "talmolab/lablink-template"
-TEMPLATE_VERSION = "v0.1.1"
+TEMPLATE_VERSION = "v0.2.0"
 # SHA-256 of the GitHub release tarball for TEMPLATE_VERSION.
 # Update this when bumping TEMPLATE_VERSION.
 # To compute: curl -sL <tarball_url> | sha256sum

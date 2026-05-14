@@ -18,7 +18,6 @@ This launches an interactive TUI wizard that walks you through:
 - **AWS region** — e.g. `us-west-2`. Must be a region the CLI has an AMI mapping for (run `lablink doctor` to see the list).
 - **Machine settings** — client VM instance type and AMI. Defaults come from the bundled `lablink-template` config.
 - **DNS / SSL** — optional Route 53 domain and ACM certificate configuration.
-- **Monitoring** — optional CloudWatch alarms and CloudTrail.
 
 The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablink setup`** to create the two AWS resources Terraform needs before it can run:
 
