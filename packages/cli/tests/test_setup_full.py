@@ -68,6 +68,8 @@ class TestRunSetup:
 
         run_setup(mock_cfg, config_path=tmp_path / "config.yaml")
         mock_route53.assert_called_once()
+        # zone_id should be auto-written back into the config
+        assert mock_cfg.dns.zone_id == "Z123"
 
     @patch("lablink_cli.config.schema.save_config")
     @patch("lablink_cli.commands.setup.create_dynamodb_table")

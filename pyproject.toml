@@ -7,7 +7,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "BSD-3-Clause"}
+license = {text = "BSD-2-Clause"}
 
 # This is a workspace root for documentation and tooling
 # The actual packages are in subdirectories with their own pyproject.toml

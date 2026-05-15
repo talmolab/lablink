@@ -15,6 +15,7 @@ from lablink_cli.api import (
     AllocatorUnavailableError,
 )
 from lablink_cli.commands.deploy import (
+    _build_health_poll_target,
     _destroy_client_vms,
     _poll_allocator_health,
     _prepare_working_dir,
@@ -233,6 +234,61 @@ class TestTerraformDestroy:
 
 
 # ------------------------------------------------------------------
+# _build_health_poll_target
+# ------------------------------------------------------------------
+class TestBuildHealthPollTarget:
+    """SSL-aware Phase 1 health URL selection.
+
+    Regression guard for the stuck-spinner bug: deploying with SSL+domain
+    polled http://{ec2_ip} (port 80), which Caddy's Host-bound site block
+    never matched, so the poll loop ran the full timeout before failing.
+    """
+
+    def test_ssl_none_uses_ip_port_80(self, mock_cfg):
+        mock_cfg.ssl.provider = "none"
+        target = _build_health_poll_target(mock_cfg, "1.2.3.4")
+        assert target["url"] == "http://1.2.3.4"
+        assert target["max_wait"] == 300
+
+    def test_ssl_acm_uses_ip_port_5000(self, mock_cfg):
+        """ACM: ALB owns 80/443 on EC2; Flask is bound 0.0.0.0:5000."""
+        mock_cfg.ssl.provider = "acm"
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "lab.example.com"
+        target = _build_health_poll_target(mock_cfg, "1.2.3.4")
+        assert target["url"] == "http://1.2.3.4:5000"
+        assert target["max_wait"] == 300
+
+    def test_ssl_letsencrypt_polls_domain_https(self, mock_cfg):
+        """LetsEncrypt: Caddy is Host-bound; must poll via domain over HTTPS."""
+        mock_cfg.ssl.provider = "letsencrypt"
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "lab.example.com"
+        target = _build_health_poll_target(mock_cfg, "1.2.3.4")
+        assert target["url"] == "https://lab.example.com"
+        # Longer wait: DNS propagation + ACME cert issuance.
+        assert target["max_wait"] == 600
+
+    def test_ssl_cloudflare_polls_domain_http(self, mock_cfg):
+        """CloudFlare: Caddy serves plain HTTP; CF terminates SSL externally."""
+        mock_cfg.ssl.provider = "cloudflare"
+        mock_cfg.dns.enabled = True
+        mock_cfg.dns.domain = "lab.example.com"
+        target = _build_health_poll_target(mock_cfg, "1.2.3.4")
+        assert target["url"] == "http://lab.example.com"
+        assert target["max_wait"] == 600
+
+    def test_ssl_letsencrypt_without_domain_falls_back_to_ip(self, mock_cfg):
+        """Misconfigured (LE + no domain) — fall back rather than crash here."""
+        mock_cfg.ssl.provider = "letsencrypt"
+        mock_cfg.dns.enabled = False
+        mock_cfg.dns.domain = ""
+        target = _build_health_poll_target(mock_cfg, "1.2.3.4")
+        assert target["url"] == "http://1.2.3.4"
+        assert target["max_wait"] == 300
+
+
+# ------------------------------------------------------------------
 # _poll_allocator_health
 # ------------------------------------------------------------------
 class TestPollAllocatorHealth:
@@ -309,7 +365,6 @@ def _patch_deploy_deps(deploy_dir):
             return_value={
                 "admin_user": "admin",
                 "admin_password": "pw",
-                "db_password": "dbpw",
             },
         ),
         patch("lablink_cli.commands.deploy._terraform_init"),

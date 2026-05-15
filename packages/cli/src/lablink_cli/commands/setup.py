@@ -313,9 +313,10 @@ def run_setup(cfg: Config, config_path: Path | None = None) -> None:
         )
         zone_id = create_route53_zone(session, cfg.dns.domain)
         if zone_id and not cfg.dns.zone_id:
+            cfg.dns.zone_id = zone_id
+            save_config(cfg, config_path)
             console.print(
-                f"  [dim]Tip: set dns.zone_id to "
-                f"'{zone_id}' in your config[/dim]"
+                f"  [green]saved[/green] dns.zone_id → {config_path}"
             )
         console.print()
 

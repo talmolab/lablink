@@ -813,7 +813,7 @@ Contributors are recognized in:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same [BSD-3-Clause License](https://github.com/talmolab/lablink/blob/main/LICENSE) that covers the project.
+By contributing, you agree that your contributions will be licensed under the same [BSD-2-Clause License](https://github.com/talmolab/lablink/blob/main/LICENSE) that covers the project.
 
 ## Thank You!
 

@@ -159,7 +159,7 @@ def deploy(
         "--yes",
         "-y",
         help="Skip confirmation prompts. Does not bypass credential prompts "
-        "(admin/db passwords still required interactively).",
+        "(admin password still required interactively).",
     ),
 ) -> None:
     """Deploy LabLink infrastructure with Terraform."""
@@ -186,7 +186,7 @@ def destroy(
         "--yes",
         "-y",
         help="Skip confirmation prompts. Does not bypass credential prompts "
-        "(admin/db passwords still required interactively).",
+        "(admin password still required interactively).",
     ),
     verbose: bool = typer.Option(
         False,

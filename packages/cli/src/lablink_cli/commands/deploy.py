@@ -279,7 +279,7 @@ def _terraform_init(
 
 
 def _prompt_passwords() -> dict[str, str]:
-    """Prompt for admin and database passwords at deploy time."""
+    """Prompt for the admin credentials at deploy time."""
     import getpass
 
     console.print(
@@ -296,19 +296,33 @@ def _prompt_passwords() -> dict[str, str]:
         console.print("  [red]Admin password is required[/red]")
         raise SystemExit(1)
 
-    db_pw = getpass.getpass("  Database password: ")
-    if not db_pw:
-        console.print(
-            "  [red]Database password is required[/red]"
-        )
-        raise SystemExit(1)
-
     console.print()
     return {
         "admin_user": admin_user,
         "admin_password": admin_pw,
-        "db_password": db_pw,
     }
+
+
+def _build_health_poll_target(cfg: Config, ec2_ip: str) -> dict:
+    """Pick the post-deploy poll URL + timeout. Caddy is Host-bound under
+    letsencrypt/cloudflare, so those must poll the domain, not the IP."""
+    provider = cfg.ssl.provider
+    domain = cfg.dns.domain if cfg.dns.enabled else ""
+
+    if provider == "none":
+        return {"url": f"http://{ec2_ip}", "max_wait": 300}
+    if provider == "acm":
+        # ALB owns 80/443; Flask is bound 0.0.0.0:5000 (SG allows 5000).
+        return {"url": f"http://{ec2_ip}:5000", "max_wait": 300}
+    if not domain:
+        console.print(
+            f"  [yellow]Warning:[/yellow] ssl.provider='{provider}' "
+            f"without dns.domain — falling back to IP poll. "
+            f"The deploy will likely fail to serve at the expected URL."
+        )
+        return {"url": f"http://{ec2_ip}", "max_wait": 300}
+    scheme = "https" if provider == "letsencrypt" else "http"
+    return {"url": f"{scheme}://{domain}", "max_wait": 600}
 
 
 def _poll_allocator_health(
@@ -413,7 +427,6 @@ def run_deploy(
     cfg_dict["app"]["admin_password"] = passwords[
         "admin_password"
     ]
-    cfg_dict["db"]["password"] = passwords["db_password"]
 
     with open(config_path, "w") as f:
         yaml.dump(
@@ -501,16 +514,16 @@ def run_deploy(
         outputs = get_terraform_outputs(deploy_dir)
         ec2_ip = outputs.get("ec2_public_ip", "")
 
-        max_wait = 300
-
-        # Phase 1: Poll EC2 IP directly for allocator readiness.
-        # Uses port 80 (nginx) — the EC2 security group does not expose
-        # Flask's 5000 externally; nginx reverse-proxies to it internally.
+        # Phase 1: Poll the allocator for readiness. URL and timeout depend
+        # on the SSL provider — see _build_health_poll_target for the
+        # rationale per provider.
         if ec2_ip:
-            direct_url = f"http://{ec2_ip}"
+            target = _build_health_poll_target(cfg, ec2_ip)
+            direct_url = target["url"]
+            max_wait = target["max_wait"]
             console.print(
                 f"[bold]Waiting for allocator to become healthy"
-                f" (up to {max_wait // 60} min)...[/bold]"
+                f" at {direct_url} (up to {max_wait // 60} min)...[/bold]"
             )
             with phase_timer(
                 metrics,
