@@ -267,7 +267,7 @@ See [Troubleshooting → VM Spawning Issues](troubleshooting.md#vm-spawning-issu
 ### I'm getting billed unexpectedly
 
 - Check for running EC2 instances you forgot to terminate
-- Set up billing alerts (see [AWS Setup → Billing Alerts](aws-setup.md#step-9-billing-alerts))
+- Set up billing alerts (see [AWS Setup → Billing Alerts](aws-setup.md#step-8-billing-alerts))
 - Review [Cost Estimation](cost-estimation.md) guide
 
 ## Costs

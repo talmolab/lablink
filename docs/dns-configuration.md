@@ -353,7 +353,6 @@ ssl:
 ### DNS Security
 - Route53 hosted zones are public by default
 - Use IAM policies to restrict who can modify DNS records
-- Enable CloudTrail logging for DNS changes
 - Consider DNSSEC for additional security (advanced)
 
 ### SSL/TLS Security

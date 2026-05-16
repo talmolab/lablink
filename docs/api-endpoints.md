@@ -267,7 +267,7 @@ Receives and stores logs pushed from a VM.
 
 **Endpoint:** `POST /api/vm-logs`
 
-**Description:** Called by the CloudWatch agent on the client VM (via a Lambda subscription) to push `cloud-init` logs to the allocator.
+**Description:** Receives batched log lines pushed from a VM by the `log_shipper.sh` script, which tails the VM's `cloud-init` output and the client container's Docker logs.
 
 **Authentication:** Bearer Token
 
@@ -297,7 +297,7 @@ Receives and stores logs pushed from a VM.
 - **Code:** `404 Not Found` if the VM does not exist.
 - **Code:** `500 Internal Server Error` on failure.
 
-**Client Usage:** This endpoint is not called directly from any code in `packages/client`. It is part of the AWS infrastructure that forwards logs from the client VM. Logs from the client VM are sent to AWS CloudWatch, which triggers a Lambda function that then forwards the log messages to this endpoint on the allocator.
+**Client Usage:** This endpoint is not called directly from any code in `packages/client`. The `log_shipper.sh` script, installed on each VM by the Terraform user-data script, tails the VM's `cloud-init` output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.
 
 ## Admin API Endpoints
 
@@ -513,5 +513,5 @@ Retrieves reboot tracking information for a specific VM.
 **Error Response:**
 
 - **Code:** `404 Not Found` if the VM is not found.
-- **Code:** `503 Service Unavailable` if the logs are not yet available because the CloudWatch agent is still being installed.
+- **Code:** `503 Service Unavailable` if the logs are not yet available because the VM's log shipper has not started reporting yet.
 - **Code:** `500 Internal Server Error` on failure.

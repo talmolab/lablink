@@ -558,42 +558,20 @@ aws iam attach-role-policy \
 aws iam attach-role-policy \
   --role-name GitHubActionsLabLinkRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
-
-# Monitoring and logging permissions
-aws iam attach-role-policy \
-  --role-name GitHubActionsLabLinkRole \
-  --policy-arn arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
-
-aws iam attach-role-policy \
-  --role-name GitHubActionsLabLinkRole \
-  --policy-arn arn:aws:iam::aws:policy/AWSCloudTrail_FullAccess
-
-# Lambda and notifications permissions
-aws iam attach-role-policy \
-  --role-name GitHubActionsLabLinkRole \
-  --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
-
-aws iam attach-role-policy \
-  --role-name GitHubActionsLabLinkRole \
-  --policy-arn arn:aws:iam::aws:policy/AmazonSNSFullAccess
 ```
 
-**Note:** This approach uses 8 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.
+**Note:** This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.
 
-| Policy                     | Purpose                                            |
-| -------------------------- | -------------------------------------------------- |
-| `AmazonEC2FullAccess`      | EC2 instances, security groups, key pairs, EIPs    |
-| `AmazonS3FullAccess`       | Terraform state, CloudTrail logs                   |
-| `IAMFullAccess`            | Roles, instance profiles for CloudWatch/CloudTrail |
-| `AmazonDynamoDBFullAccess` | Terraform state locking                            |
-| `CloudWatchLogsFullAccess` | Log groups, metric filters, alarms                 |
-| `AWSCloudTrail_FullAccess` | Audit logging                                      |
-| `AWSLambda_FullAccess`     | Log processing functions                           |
-| `AmazonSNSFullAccess`      | Alert notifications                                |
+| Policy                     | Purpose                                         |
+| -------------------------- | ----------------------------------------------- |
+| `AmazonEC2FullAccess`      | EC2 instances, security groups, key pairs, EIPs |
+| `AmazonS3FullAccess`       | Terraform state                                 |
+| `IAMFullAccess`            | Roles, instance profiles                        |
+| `AmazonDynamoDBFullAccess` | Terraform state locking                         |
 
 #### Option B: AWS CLI - Create Custom Policy
 
-For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2, ALB, CloudTrail, CloudWatch, Lambda, SNS, and Budgets.
+For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2 and ALB.
 
 Create `lablink-terraform-policy.json`:
 
@@ -716,139 +694,6 @@ Create `lablink-terraform-policy.json`:
         "acm:GetCertificate"
       ],
       "Resource": "*"
-    },
-    {
-      "Sid": "CloudWatchLogsAndAlarms",
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:DeleteLogGroup",
-        "logs:DescribeLogGroups",
-        "logs:PutRetentionPolicy",
-        "logs:DeleteRetentionPolicy",
-        "logs:CreateLogStream",
-        "logs:DeleteLogStream",
-        "logs:PutLogEvents",
-        "logs:PutMetricFilter",
-        "logs:DeleteMetricFilter",
-        "logs:DescribeMetricFilters",
-        "logs:PutSubscriptionFilter",
-        "logs:DeleteSubscriptionFilter",
-        "logs:DescribeSubscriptionFilters",
-        "logs:TagResource",
-        "logs:UntagResource",
-        "logs:ListTagsForResource",
-        "cloudwatch:PutMetricAlarm",
-        "cloudwatch:DeleteAlarms",
-        "cloudwatch:DescribeAlarms",
-        "cloudwatch:EnableAlarmActions",
-        "cloudwatch:DisableAlarmActions",
-        "cloudwatch:TagResource",
-        "cloudwatch:UntagResource",
-        "cloudwatch:ListTagsForResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CloudTrail",
-      "Effect": "Allow",
-      "Action": [
-        "cloudtrail:CreateTrail",
-        "cloudtrail:DeleteTrail",
-        "cloudtrail:DescribeTrails",
-        "cloudtrail:GetTrailStatus",
-        "cloudtrail:StartLogging",
-        "cloudtrail:StopLogging",
-        "cloudtrail:UpdateTrail",
-        "cloudtrail:PutEventSelectors",
-        "cloudtrail:GetEventSelectors",
-        "cloudtrail:AddTags",
-        "cloudtrail:RemoveTags",
-        "cloudtrail:ListTags"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CloudTrailS3Bucket",
-      "Effect": "Allow",
-      "Action": [
-        "s3:CreateBucket",
-        "s3:DeleteBucket",
-        "s3:PutBucketPolicy",
-        "s3:DeleteBucketPolicy",
-        "s3:GetBucketPolicy",
-        "s3:PutBucketAcl",
-        "s3:GetBucketAcl",
-        "s3:PutEncryptionConfiguration",
-        "s3:GetEncryptionConfiguration",
-        "s3:PutBucketVersioning",
-        "s3:GetBucketVersioning",
-        "s3:PutBucketPublicAccessBlock",
-        "s3:GetBucketPublicAccessBlock",
-        "s3:PutLifecycleConfiguration",
-        "s3:GetLifecycleConfiguration",
-        "s3:PutBucketTagging",
-        "s3:GetBucketTagging",
-        "s3:ListBucket",
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": [
-        "arn:aws:s3:::lablink-cloudtrail-*",
-        "arn:aws:s3:::lablink-cloudtrail-*/*"
-      ]
-    },
-    {
-      "Sid": "Lambda",
-      "Effect": "Allow",
-      "Action": [
-        "lambda:CreateFunction",
-        "lambda:DeleteFunction",
-        "lambda:GetFunction",
-        "lambda:GetFunctionConfiguration",
-        "lambda:UpdateFunctionCode",
-        "lambda:UpdateFunctionConfiguration",
-        "lambda:AddPermission",
-        "lambda:RemovePermission",
-        "lambda:GetPolicy",
-        "lambda:InvokeFunction",
-        "lambda:TagResource",
-        "lambda:UntagResource",
-        "lambda:ListTags"
-      ],
-      "Resource": "arn:aws:lambda:*:*:function:lablink*"
-    },
-    {
-      "Sid": "SNSNotifications",
-      "Effect": "Allow",
-      "Action": [
-        "sns:CreateTopic",
-        "sns:DeleteTopic",
-        "sns:GetTopicAttributes",
-        "sns:SetTopicAttributes",
-        "sns:Subscribe",
-        "sns:Unsubscribe",
-        "sns:ListSubscriptionsByTopic",
-        "sns:Publish",
-        "sns:TagResource",
-        "sns:UntagResource",
-        "sns:ListTagsForResource"
-      ],
-      "Resource": "arn:aws:sns:*:*:lablink*"
-    },
-    {
-      "Sid": "Budgets",
-      "Effect": "Allow",
-      "Action": [
-        "budgets:ViewBudget",
-        "budgets:CreateBudgetAction",
-        "budgets:DeleteBudgetAction",
-        "budgets:UpdateBudgetAction",
-        "budgets:ExecuteBudgetAction",
-        "budgets:ModifyBudget"
-      ],
-      "Resource": "*"
     }
   ]
 }
@@ -856,20 +701,15 @@ Create `lablink-terraform-policy.json`:
 
 **Note:** This policy covers all AWS services used by the LabLink Terraform configuration:
 
-| Service        | Purpose                                                             |
-| -------------- | ------------------------------------------------------------------- |
-| **S3**         | Terraform state storage, CloudTrail logs                            |
-| **DynamoDB**   | Terraform state locking                                             |
-| **EC2**        | Allocator and client VM instances, security groups, key pairs, EIPs |
-| **IAM**        | Instance profiles, CloudWatch agent roles, CloudTrail roles         |
-| **Route53**    | DNS records for allocator endpoints                                 |
-| **ELB**        | Application Load Balancer for HTTPS termination                     |
-| **ACM**        | SSL/TLS certificates                                                |
-| **CloudWatch** | Logs, metric filters, alarms for monitoring                         |
-| **CloudTrail** | Audit logging and compliance                                        |
-| **Lambda**     | Log processing functions                                            |
-| **SNS**        | Alert notifications                                                 |
-| **Budgets**    | Cost monitoring and alerts                                          |
+| Service      | Purpose                                                             |
+| ------------ | ------------------------------------------------------------------- |
+| **S3**       | Terraform state storage                                             |
+| **DynamoDB** | Terraform state locking                                             |
+| **EC2**      | Allocator and client VM instances, security groups, key pairs, EIPs |
+| **IAM**      | Instance profiles                                                   |
+| **Route53**  | DNS records for allocator endpoints                                 |
+| **ELB**      | Application Load Balancer for HTTPS termination                     |
+| **ACM**      | SSL/TLS certificates                                                |
 
 Attach the custom policy:
 
@@ -891,10 +731,6 @@ aws iam put-role-policy \
       - `AmazonS3FullAccess`
       - `IAMFullAccess`
       - `AmazonDynamoDBFullAccess`
-      - `CloudWatchLogsFullAccess`
-      - `AWSCloudTrail_FullAccess`
-      - `AWSLambda_FullAccess`
-      - `AmazonSNSFullAccess`
 
 5. Click **Add permissions** after selecting each policy
 
@@ -1312,92 +1148,7 @@ db_password = get_secret("lablink/db-password")
 admin_password = get_secret("lablink/admin-password")
 ```
 
-## Step 8: CloudWatch Monitoring (Optional)
-
-Set up monitoring and alerts for your infrastructure.
-
-### Terraform-Managed CloudWatch Resources
-
-When you deploy LabLink using Terraform, the following CloudWatch resources are automatically created:
-
-**CloudWatch Agent Role**: Terraform creates an IAM role (`lablink_cloud_watch_agent_role_<suffix>`) that allows client VMs to send logs and metrics to CloudWatch. This role includes permissions for:
-
-- `logs:CreateLogGroup` - Create new log groups
-- `logs:CreateLogStream` - Create log streams within groups
-- `logs:PutLogEvents` - Write log entries
-- `logs:DescribeLogStreams` - List available log streams
-- `cloudwatch:PutMetricData` - Send custom metrics
-
-**CloudTrail Logs**: CloudTrail events are automatically sent to CloudWatch Logs for security monitoring.
-
-**Metric Filters & Alarms**: Terraform creates CloudWatch metric filters to monitor:
-
-| Metric Filter        | Purpose                                        | Alarm Threshold  |
-| -------------------- | ---------------------------------------------- | ---------------- |
-| `RunInstances`       | Detect mass instance launches                  | >10 in 5 minutes |
-| `LargeInstances`     | Monitor expensive instance types (p4d, p3, g5) | Any launch       |
-| `UnauthorizedCalls`  | Track API permission failures                  | >5 in 5 minutes  |
-| `TerminateInstances` | High termination rate detection                | >10 in 5 minutes |
-
-**SNS Notifications**: Alarms send notifications to the `lablink-admin-alerts-<suffix>` SNS topic, which emails the configured admin.
-
-### Manual CloudWatch Configuration (Optional)
-
-For additional monitoring beyond what Terraform provides:
-
-### Enable CloudWatch Logs
-
-Update user data script to send logs to CloudWatch:
-
-```bash
-#!/bin/bash
-
-# Install CloudWatch agent
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-dpkg -i amazon-cloudwatch-agent.deb
-
-# Configure CloudWatch agent
-cat > /opt/aws/amazon-cloudwatch-agent/etc/config.json <<EOF
-{
-  "logs": {
-    "logs_collected": {
-      "files": {
-        "collect_list": [
-          {
-            "file_path": "/var/log/syslog",
-            "log_group_name": "/aws/ec2/lablink-allocator",
-            "log_stream_name": "{instance_id}/syslog"
-          }
-        ]
-      }
-    }
-  }
-}
-EOF
-
-# Start agent
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
-  -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/config.json
-```
-
-### Create CloudWatch Alarms
-
-```bash
-# CPU utilization alarm
-aws cloudwatch put-metric-alarm \
-  --alarm-name lablink-allocator-cpu-high \
-  --alarm-description "Alert when CPU exceeds 80%" \
-  --metric-name CPUUtilization \
-  --namespace AWS/EC2 \
-  --statistic Average \
-  --period 300 \
-  --threshold 80 \
-  --comparison-operator GreaterThanThreshold \
-  --evaluation-periods 2 \
-  --dimensions Name=InstanceId,Value=i-xxxxx
-```
-
-## Step 9: Billing Alerts
+## Step 8: Billing Alerts
 
 Set up cost monitoring to avoid unexpected charges.
 
@@ -1487,12 +1238,7 @@ After completing setup, verify:
 The following resources are created automatically by Terraform during deployment:
 
 - [ ] Application Load Balancer (ALB) with HTTPS listener
-- [ ] CloudTrail trail with S3 bucket for logs
-- [ ] CloudWatch log groups and metric filters
-- [ ] SNS topic for admin alerts
-- [ ] IAM roles for CloudWatch agent and CloudTrail
 - [ ] Security groups for allocator and ALB
-- [ ] Monthly budget with alert thresholds
 
 ## Testing Your Setup
 
