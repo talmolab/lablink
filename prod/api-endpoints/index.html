@@ -3661,7 +3661,7 @@
 <h3 id="receive-vm-logs">Receive VM Logs<a class="headerlink" href="#receive-vm-logs" title="Permanent link">&para;</a></h3>
 <p>Receives and stores logs pushed from a VM.</p>
 <p><strong>Endpoint:</strong> <code>POST /api/vm-logs</code></p>
-<p><strong>Description:</strong> Called by the CloudWatch agent on the client VM (via a Lambda subscription) to push <code>cloud-init</code> logs to the allocator.</p>
+<p><strong>Description:</strong> Receives batched log lines pushed from a VM by the <code>log_shipper.sh</code> script, which tails the VM's <code>cloud-init</code> output and the client container's Docker logs.</p>
 <p><strong>Authentication:</strong> Bearer Token</p>
 <p><strong>Request Body:</strong> <code>application/json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
@@ -3685,7 +3685,7 @@
 <li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<p><strong>Client Usage:</strong> This endpoint is not called directly from any code in <code>packages/client</code>. It is part of the AWS infrastructure that forwards logs from the client VM. Logs from the client VM are sent to AWS CloudWatch, which triggers a Lambda function that then forwards the log messages to this endpoint on the allocator.</p>
+<p><strong>Client Usage:</strong> This endpoint is not called directly from any code in <code>packages/client</code>. The <code>log_shipper.sh</code> script, installed on each VM by the Terraform user-data script, tails the VM's <code>cloud-init</code> output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.</p>
 <h2 id="admin-api-endpoints">Admin API Endpoints<a class="headerlink" href="#admin-api-endpoints" title="Permanent link">&para;</a></h2>
 <p>These endpoints require HTTP Basic Authentication and are intended for administrators to manage the VM pool.</p>
 <h3 id="launch-vms">Launch VMs<a class="headerlink" href="#launch-vms" title="Permanent link">&para;</a></h3>
@@ -3853,7 +3853,7 @@
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>404 Not Found</code> if the VM is not found.</li>
-<li><strong>Code:</strong> <code>503 Service Unavailable</code> if the logs are not yet available because the CloudWatch agent is still being installed.</li>
+<li><strong>Code:</strong> <code>503 Service Unavailable</code> if the logs are not yet available because the VM's log shipper has not started reporting yet.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
 

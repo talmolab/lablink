@@ -1644,76 +1644,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-8-cloudwatch-monitoring-optional" class="md-nav__link">
+  <a href="#step-8-billing-alerts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 8: CloudWatch Monitoring (Optional)
+        Step 8: Billing Alerts
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 8: CloudWatch Monitoring (Optional)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#terraform-managed-cloudwatch-resources" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Terraform-Managed CloudWatch Resources
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-cloudwatch-configuration-optional" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual CloudWatch Configuration (Optional)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#enable-cloudwatch-logs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enable CloudWatch Logs
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#create-cloudwatch-alarms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Create CloudWatch Alarms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-9-billing-alerts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 9: Billing Alerts
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 9: Billing Alerts">
+    <nav class="md-nav" aria-label="Step 8: Billing Alerts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5177,76 +5116,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-8-cloudwatch-monitoring-optional" class="md-nav__link">
+  <a href="#step-8-billing-alerts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 8: CloudWatch Monitoring (Optional)
+        Step 8: Billing Alerts
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 8: CloudWatch Monitoring (Optional)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#terraform-managed-cloudwatch-resources" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Terraform-Managed CloudWatch Resources
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-cloudwatch-configuration-optional" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual CloudWatch Configuration (Optional)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#enable-cloudwatch-logs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enable CloudWatch Logs
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#create-cloudwatch-alarms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Create CloudWatch Alarms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-9-billing-alerts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 9: Billing Alerts
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 9: Billing Alerts">
+    <nav class="md-nav" aria-label="Step 8: Billing Alerts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5970,26 +5848,8 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a>aws<span class="w"> </span>iam<span class="w"> </span>attach-role-policy<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
-<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a>
-<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a><span class="c1"># Monitoring and logging permissions</span>
-<a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a>aws<span class="w"> </span>iam<span class="w"> </span>attach-role-policy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
-<a id="__codelineno-25-22" name="__codelineno-25-22" href="#__codelineno-25-22"></a>
-<a id="__codelineno-25-23" name="__codelineno-25-23" href="#__codelineno-25-23"></a>aws<span class="w"> </span>iam<span class="w"> </span>attach-role-policy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-24" name="__codelineno-25-24" href="#__codelineno-25-24"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-25" name="__codelineno-25-25" href="#__codelineno-25-25"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/AWSCloudTrail_FullAccess
-<a id="__codelineno-25-26" name="__codelineno-25-26" href="#__codelineno-25-26"></a>
-<a id="__codelineno-25-27" name="__codelineno-25-27" href="#__codelineno-25-27"></a><span class="c1"># Lambda and notifications permissions</span>
-<a id="__codelineno-25-28" name="__codelineno-25-28" href="#__codelineno-25-28"></a>aws<span class="w"> </span>iam<span class="w"> </span>attach-role-policy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-29" name="__codelineno-25-29" href="#__codelineno-25-29"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-30" name="__codelineno-25-30" href="#__codelineno-25-30"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/AWSLambda_FullAccess
-<a id="__codelineno-25-31" name="__codelineno-25-31" href="#__codelineno-25-31"></a>
-<a id="__codelineno-25-32" name="__codelineno-25-32" href="#__codelineno-25-32"></a>aws<span class="w"> </span>iam<span class="w"> </span>attach-role-policy<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-33" name="__codelineno-25-33" href="#__codelineno-25-33"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-34" name="__codelineno-25-34" href="#__codelineno-25-34"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/AmazonSNSFullAccess
 </code></pre></div>
-<p><strong>Note:</strong> This approach uses 8 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.</p>
+<p><strong>Note:</strong> This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.</p>
 <table>
 <thead>
 <tr>
@@ -6004,36 +5864,20 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 </tr>
 <tr>
 <td><code>AmazonS3FullAccess</code></td>
-<td>Terraform state, CloudTrail logs</td>
+<td>Terraform state</td>
 </tr>
 <tr>
 <td><code>IAMFullAccess</code></td>
-<td>Roles, instance profiles for CloudWatch/CloudTrail</td>
+<td>Roles, instance profiles</td>
 </tr>
 <tr>
 <td><code>AmazonDynamoDBFullAccess</code></td>
 <td>Terraform state locking</td>
 </tr>
-<tr>
-<td><code>CloudWatchLogsFullAccess</code></td>
-<td>Log groups, metric filters, alarms</td>
-</tr>
-<tr>
-<td><code>AWSCloudTrail_FullAccess</code></td>
-<td>Audit logging</td>
-</tr>
-<tr>
-<td><code>AWSLambda_FullAccess</code></td>
-<td>Log processing functions</td>
-</tr>
-<tr>
-<td><code>AmazonSNSFullAccess</code></td>
-<td>Alert notifications</td>
-</tr>
 </tbody>
 </table>
 <h4 id="option-b-aws-cli-create-custom-policy">Option B: AWS CLI - Create Custom Policy<a class="headerlink" href="#option-b-aws-cli-create-custom-policy" title="Permanent link">&para;</a></h4>
-<p>For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2, ALB, CloudTrail, CloudWatch, Lambda, SNS, and Budgets.</p>
+<p>For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2 and ALB.</p>
 <p>Create <code>lablink-terraform-policy.json</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span>
 <a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
@@ -6153,142 +5997,9 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-26-116" name="__codelineno-26-116" href="#__codelineno-26-116"></a><span class="w">        </span><span class="s2">&quot;acm:GetCertificate&quot;</span>
 <a id="__codelineno-26-117" name="__codelineno-26-117" href="#__codelineno-26-117"></a><span class="w">      </span><span class="p">],</span>
 <a id="__codelineno-26-118" name="__codelineno-26-118" href="#__codelineno-26-118"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
-<a id="__codelineno-26-119" name="__codelineno-26-119" href="#__codelineno-26-119"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-120" name="__codelineno-26-120" href="#__codelineno-26-120"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-121" name="__codelineno-26-121" href="#__codelineno-26-121"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CloudWatchLogsAndAlarms&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-122" name="__codelineno-26-122" href="#__codelineno-26-122"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-123" name="__codelineno-26-123" href="#__codelineno-26-123"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-124" name="__codelineno-26-124" href="#__codelineno-26-124"></a><span class="w">        </span><span class="s2">&quot;logs:CreateLogGroup&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-125" name="__codelineno-26-125" href="#__codelineno-26-125"></a><span class="w">        </span><span class="s2">&quot;logs:DeleteLogGroup&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-126" name="__codelineno-26-126" href="#__codelineno-26-126"></a><span class="w">        </span><span class="s2">&quot;logs:DescribeLogGroups&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-127" name="__codelineno-26-127" href="#__codelineno-26-127"></a><span class="w">        </span><span class="s2">&quot;logs:PutRetentionPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-128" name="__codelineno-26-128" href="#__codelineno-26-128"></a><span class="w">        </span><span class="s2">&quot;logs:DeleteRetentionPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-129" name="__codelineno-26-129" href="#__codelineno-26-129"></a><span class="w">        </span><span class="s2">&quot;logs:CreateLogStream&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-130" name="__codelineno-26-130" href="#__codelineno-26-130"></a><span class="w">        </span><span class="s2">&quot;logs:DeleteLogStream&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-131" name="__codelineno-26-131" href="#__codelineno-26-131"></a><span class="w">        </span><span class="s2">&quot;logs:PutLogEvents&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-132" name="__codelineno-26-132" href="#__codelineno-26-132"></a><span class="w">        </span><span class="s2">&quot;logs:PutMetricFilter&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-133" name="__codelineno-26-133" href="#__codelineno-26-133"></a><span class="w">        </span><span class="s2">&quot;logs:DeleteMetricFilter&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-134" name="__codelineno-26-134" href="#__codelineno-26-134"></a><span class="w">        </span><span class="s2">&quot;logs:DescribeMetricFilters&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-135" name="__codelineno-26-135" href="#__codelineno-26-135"></a><span class="w">        </span><span class="s2">&quot;logs:PutSubscriptionFilter&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-136" name="__codelineno-26-136" href="#__codelineno-26-136"></a><span class="w">        </span><span class="s2">&quot;logs:DeleteSubscriptionFilter&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-137" name="__codelineno-26-137" href="#__codelineno-26-137"></a><span class="w">        </span><span class="s2">&quot;logs:DescribeSubscriptionFilters&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-138" name="__codelineno-26-138" href="#__codelineno-26-138"></a><span class="w">        </span><span class="s2">&quot;logs:TagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-139" name="__codelineno-26-139" href="#__codelineno-26-139"></a><span class="w">        </span><span class="s2">&quot;logs:UntagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-140" name="__codelineno-26-140" href="#__codelineno-26-140"></a><span class="w">        </span><span class="s2">&quot;logs:ListTagsForResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-141" name="__codelineno-26-141" href="#__codelineno-26-141"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:PutMetricAlarm&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-142" name="__codelineno-26-142" href="#__codelineno-26-142"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:DeleteAlarms&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-143" name="__codelineno-26-143" href="#__codelineno-26-143"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:DescribeAlarms&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-144" name="__codelineno-26-144" href="#__codelineno-26-144"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:EnableAlarmActions&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-145" name="__codelineno-26-145" href="#__codelineno-26-145"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:DisableAlarmActions&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-146" name="__codelineno-26-146" href="#__codelineno-26-146"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:TagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-147" name="__codelineno-26-147" href="#__codelineno-26-147"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:UntagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-148" name="__codelineno-26-148" href="#__codelineno-26-148"></a><span class="w">        </span><span class="s2">&quot;cloudwatch:ListTagsForResource&quot;</span>
-<a id="__codelineno-26-149" name="__codelineno-26-149" href="#__codelineno-26-149"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-150" name="__codelineno-26-150" href="#__codelineno-26-150"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
-<a id="__codelineno-26-151" name="__codelineno-26-151" href="#__codelineno-26-151"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-152" name="__codelineno-26-152" href="#__codelineno-26-152"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-153" name="__codelineno-26-153" href="#__codelineno-26-153"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CloudTrail&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-154" name="__codelineno-26-154" href="#__codelineno-26-154"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-155" name="__codelineno-26-155" href="#__codelineno-26-155"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-156" name="__codelineno-26-156" href="#__codelineno-26-156"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:CreateTrail&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-157" name="__codelineno-26-157" href="#__codelineno-26-157"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:DeleteTrail&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-158" name="__codelineno-26-158" href="#__codelineno-26-158"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:DescribeTrails&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-159" name="__codelineno-26-159" href="#__codelineno-26-159"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:GetTrailStatus&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-160" name="__codelineno-26-160" href="#__codelineno-26-160"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:StartLogging&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-161" name="__codelineno-26-161" href="#__codelineno-26-161"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:StopLogging&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-162" name="__codelineno-26-162" href="#__codelineno-26-162"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:UpdateTrail&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-163" name="__codelineno-26-163" href="#__codelineno-26-163"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:PutEventSelectors&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-164" name="__codelineno-26-164" href="#__codelineno-26-164"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:GetEventSelectors&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-165" name="__codelineno-26-165" href="#__codelineno-26-165"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:AddTags&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-166" name="__codelineno-26-166" href="#__codelineno-26-166"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:RemoveTags&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-167" name="__codelineno-26-167" href="#__codelineno-26-167"></a><span class="w">        </span><span class="s2">&quot;cloudtrail:ListTags&quot;</span>
-<a id="__codelineno-26-168" name="__codelineno-26-168" href="#__codelineno-26-168"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-169" name="__codelineno-26-169" href="#__codelineno-26-169"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
-<a id="__codelineno-26-170" name="__codelineno-26-170" href="#__codelineno-26-170"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-171" name="__codelineno-26-171" href="#__codelineno-26-171"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-172" name="__codelineno-26-172" href="#__codelineno-26-172"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CloudTrailS3Bucket&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-173" name="__codelineno-26-173" href="#__codelineno-26-173"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-174" name="__codelineno-26-174" href="#__codelineno-26-174"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-175" name="__codelineno-26-175" href="#__codelineno-26-175"></a><span class="w">        </span><span class="s2">&quot;s3:CreateBucket&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-176" name="__codelineno-26-176" href="#__codelineno-26-176"></a><span class="w">        </span><span class="s2">&quot;s3:DeleteBucket&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-177" name="__codelineno-26-177" href="#__codelineno-26-177"></a><span class="w">        </span><span class="s2">&quot;s3:PutBucketPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-178" name="__codelineno-26-178" href="#__codelineno-26-178"></a><span class="w">        </span><span class="s2">&quot;s3:DeleteBucketPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-179" name="__codelineno-26-179" href="#__codelineno-26-179"></a><span class="w">        </span><span class="s2">&quot;s3:GetBucketPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-180" name="__codelineno-26-180" href="#__codelineno-26-180"></a><span class="w">        </span><span class="s2">&quot;s3:PutBucketAcl&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-181" name="__codelineno-26-181" href="#__codelineno-26-181"></a><span class="w">        </span><span class="s2">&quot;s3:GetBucketAcl&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-182" name="__codelineno-26-182" href="#__codelineno-26-182"></a><span class="w">        </span><span class="s2">&quot;s3:PutEncryptionConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-183" name="__codelineno-26-183" href="#__codelineno-26-183"></a><span class="w">        </span><span class="s2">&quot;s3:GetEncryptionConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-184" name="__codelineno-26-184" href="#__codelineno-26-184"></a><span class="w">        </span><span class="s2">&quot;s3:PutBucketVersioning&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-185" name="__codelineno-26-185" href="#__codelineno-26-185"></a><span class="w">        </span><span class="s2">&quot;s3:GetBucketVersioning&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-186" name="__codelineno-26-186" href="#__codelineno-26-186"></a><span class="w">        </span><span class="s2">&quot;s3:PutBucketPublicAccessBlock&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-187" name="__codelineno-26-187" href="#__codelineno-26-187"></a><span class="w">        </span><span class="s2">&quot;s3:GetBucketPublicAccessBlock&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-188" name="__codelineno-26-188" href="#__codelineno-26-188"></a><span class="w">        </span><span class="s2">&quot;s3:PutLifecycleConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-189" name="__codelineno-26-189" href="#__codelineno-26-189"></a><span class="w">        </span><span class="s2">&quot;s3:GetLifecycleConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-190" name="__codelineno-26-190" href="#__codelineno-26-190"></a><span class="w">        </span><span class="s2">&quot;s3:PutBucketTagging&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-191" name="__codelineno-26-191" href="#__codelineno-26-191"></a><span class="w">        </span><span class="s2">&quot;s3:GetBucketTagging&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-192" name="__codelineno-26-192" href="#__codelineno-26-192"></a><span class="w">        </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-193" name="__codelineno-26-193" href="#__codelineno-26-193"></a><span class="w">        </span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-194" name="__codelineno-26-194" href="#__codelineno-26-194"></a><span class="w">        </span><span class="s2">&quot;s3:PutObject&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-195" name="__codelineno-26-195" href="#__codelineno-26-195"></a><span class="w">        </span><span class="s2">&quot;s3:DeleteObject&quot;</span>
-<a id="__codelineno-26-196" name="__codelineno-26-196" href="#__codelineno-26-196"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-197" name="__codelineno-26-197" href="#__codelineno-26-197"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-198" name="__codelineno-26-198" href="#__codelineno-26-198"></a><span class="w">        </span><span class="s2">&quot;arn:aws:s3:::lablink-cloudtrail-*&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-199" name="__codelineno-26-199" href="#__codelineno-26-199"></a><span class="w">        </span><span class="s2">&quot;arn:aws:s3:::lablink-cloudtrail-*/*&quot;</span>
-<a id="__codelineno-26-200" name="__codelineno-26-200" href="#__codelineno-26-200"></a><span class="w">      </span><span class="p">]</span>
-<a id="__codelineno-26-201" name="__codelineno-26-201" href="#__codelineno-26-201"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-202" name="__codelineno-26-202" href="#__codelineno-26-202"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-203" name="__codelineno-26-203" href="#__codelineno-26-203"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Lambda&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-204" name="__codelineno-26-204" href="#__codelineno-26-204"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-205" name="__codelineno-26-205" href="#__codelineno-26-205"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-206" name="__codelineno-26-206" href="#__codelineno-26-206"></a><span class="w">        </span><span class="s2">&quot;lambda:CreateFunction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-207" name="__codelineno-26-207" href="#__codelineno-26-207"></a><span class="w">        </span><span class="s2">&quot;lambda:DeleteFunction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-208" name="__codelineno-26-208" href="#__codelineno-26-208"></a><span class="w">        </span><span class="s2">&quot;lambda:GetFunction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-209" name="__codelineno-26-209" href="#__codelineno-26-209"></a><span class="w">        </span><span class="s2">&quot;lambda:GetFunctionConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-210" name="__codelineno-26-210" href="#__codelineno-26-210"></a><span class="w">        </span><span class="s2">&quot;lambda:UpdateFunctionCode&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-211" name="__codelineno-26-211" href="#__codelineno-26-211"></a><span class="w">        </span><span class="s2">&quot;lambda:UpdateFunctionConfiguration&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-212" name="__codelineno-26-212" href="#__codelineno-26-212"></a><span class="w">        </span><span class="s2">&quot;lambda:AddPermission&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-213" name="__codelineno-26-213" href="#__codelineno-26-213"></a><span class="w">        </span><span class="s2">&quot;lambda:RemovePermission&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-214" name="__codelineno-26-214" href="#__codelineno-26-214"></a><span class="w">        </span><span class="s2">&quot;lambda:GetPolicy&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-215" name="__codelineno-26-215" href="#__codelineno-26-215"></a><span class="w">        </span><span class="s2">&quot;lambda:InvokeFunction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-216" name="__codelineno-26-216" href="#__codelineno-26-216"></a><span class="w">        </span><span class="s2">&quot;lambda:TagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-217" name="__codelineno-26-217" href="#__codelineno-26-217"></a><span class="w">        </span><span class="s2">&quot;lambda:UntagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-218" name="__codelineno-26-218" href="#__codelineno-26-218"></a><span class="w">        </span><span class="s2">&quot;lambda:ListTags&quot;</span>
-<a id="__codelineno-26-219" name="__codelineno-26-219" href="#__codelineno-26-219"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-220" name="__codelineno-26-220" href="#__codelineno-26-220"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;arn:aws:lambda:*:*:function:lablink*&quot;</span>
-<a id="__codelineno-26-221" name="__codelineno-26-221" href="#__codelineno-26-221"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-222" name="__codelineno-26-222" href="#__codelineno-26-222"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-223" name="__codelineno-26-223" href="#__codelineno-26-223"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SNSNotifications&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-224" name="__codelineno-26-224" href="#__codelineno-26-224"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-225" name="__codelineno-26-225" href="#__codelineno-26-225"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-226" name="__codelineno-26-226" href="#__codelineno-26-226"></a><span class="w">        </span><span class="s2">&quot;sns:CreateTopic&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-227" name="__codelineno-26-227" href="#__codelineno-26-227"></a><span class="w">        </span><span class="s2">&quot;sns:DeleteTopic&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-228" name="__codelineno-26-228" href="#__codelineno-26-228"></a><span class="w">        </span><span class="s2">&quot;sns:GetTopicAttributes&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-229" name="__codelineno-26-229" href="#__codelineno-26-229"></a><span class="w">        </span><span class="s2">&quot;sns:SetTopicAttributes&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-230" name="__codelineno-26-230" href="#__codelineno-26-230"></a><span class="w">        </span><span class="s2">&quot;sns:Subscribe&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-231" name="__codelineno-26-231" href="#__codelineno-26-231"></a><span class="w">        </span><span class="s2">&quot;sns:Unsubscribe&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-232" name="__codelineno-26-232" href="#__codelineno-26-232"></a><span class="w">        </span><span class="s2">&quot;sns:ListSubscriptionsByTopic&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-233" name="__codelineno-26-233" href="#__codelineno-26-233"></a><span class="w">        </span><span class="s2">&quot;sns:Publish&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-234" name="__codelineno-26-234" href="#__codelineno-26-234"></a><span class="w">        </span><span class="s2">&quot;sns:TagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-235" name="__codelineno-26-235" href="#__codelineno-26-235"></a><span class="w">        </span><span class="s2">&quot;sns:UntagResource&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-236" name="__codelineno-26-236" href="#__codelineno-26-236"></a><span class="w">        </span><span class="s2">&quot;sns:ListTagsForResource&quot;</span>
-<a id="__codelineno-26-237" name="__codelineno-26-237" href="#__codelineno-26-237"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-238" name="__codelineno-26-238" href="#__codelineno-26-238"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;arn:aws:sns:*:*:lablink*&quot;</span>
-<a id="__codelineno-26-239" name="__codelineno-26-239" href="#__codelineno-26-239"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-26-240" name="__codelineno-26-240" href="#__codelineno-26-240"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-26-241" name="__codelineno-26-241" href="#__codelineno-26-241"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Budgets&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-242" name="__codelineno-26-242" href="#__codelineno-26-242"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-243" name="__codelineno-26-243" href="#__codelineno-26-243"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-26-244" name="__codelineno-26-244" href="#__codelineno-26-244"></a><span class="w">        </span><span class="s2">&quot;budgets:ViewBudget&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-245" name="__codelineno-26-245" href="#__codelineno-26-245"></a><span class="w">        </span><span class="s2">&quot;budgets:CreateBudgetAction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-246" name="__codelineno-26-246" href="#__codelineno-26-246"></a><span class="w">        </span><span class="s2">&quot;budgets:DeleteBudgetAction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-247" name="__codelineno-26-247" href="#__codelineno-26-247"></a><span class="w">        </span><span class="s2">&quot;budgets:UpdateBudgetAction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-248" name="__codelineno-26-248" href="#__codelineno-26-248"></a><span class="w">        </span><span class="s2">&quot;budgets:ExecuteBudgetAction&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-249" name="__codelineno-26-249" href="#__codelineno-26-249"></a><span class="w">        </span><span class="s2">&quot;budgets:ModifyBudget&quot;</span>
-<a id="__codelineno-26-250" name="__codelineno-26-250" href="#__codelineno-26-250"></a><span class="w">      </span><span class="p">],</span>
-<a id="__codelineno-26-251" name="__codelineno-26-251" href="#__codelineno-26-251"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
-<a id="__codelineno-26-252" name="__codelineno-26-252" href="#__codelineno-26-252"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-26-253" name="__codelineno-26-253" href="#__codelineno-26-253"></a><span class="w">  </span><span class="p">]</span>
-<a id="__codelineno-26-254" name="__codelineno-26-254" href="#__codelineno-26-254"></a><span class="p">}</span>
+<a id="__codelineno-26-119" name="__codelineno-26-119" href="#__codelineno-26-119"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-26-120" name="__codelineno-26-120" href="#__codelineno-26-120"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-26-121" name="__codelineno-26-121" href="#__codelineno-26-121"></a><span class="p">}</span>
 </code></pre></div>
 <p><strong>Note:</strong> This policy covers all AWS services used by the LabLink Terraform configuration:</p>
 <table>
@@ -6301,7 +6012,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <tbody>
 <tr>
 <td><strong>S3</strong></td>
-<td>Terraform state storage, CloudTrail logs</td>
+<td>Terraform state storage</td>
 </tr>
 <tr>
 <td><strong>DynamoDB</strong></td>
@@ -6313,7 +6024,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 </tr>
 <tr>
 <td><strong>IAM</strong></td>
-<td>Instance profiles, CloudWatch agent roles, CloudTrail roles</td>
+<td>Instance profiles</td>
 </tr>
 <tr>
 <td><strong>Route53</strong></td>
@@ -6326,26 +6037,6 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <tr>
 <td><strong>ACM</strong></td>
 <td>SSL/TLS certificates</td>
-</tr>
-<tr>
-<td><strong>CloudWatch</strong></td>
-<td>Logs, metric filters, alarms for monitoring</td>
-</tr>
-<tr>
-<td><strong>CloudTrail</strong></td>
-<td>Audit logging and compliance</td>
-</tr>
-<tr>
-<td><strong>Lambda</strong></td>
-<td>Log processing functions</td>
-</tr>
-<tr>
-<td><strong>SNS</strong></td>
-<td>Alert notifications</td>
-</tr>
-<tr>
-<td><strong>Budgets</strong></td>
-<td>Cost monitoring and alerts</td>
 </tr>
 </tbody>
 </table>
@@ -6367,10 +6058,6 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <li><code>AmazonS3FullAccess</code></li>
 <li><code>IAMFullAccess</code></li>
 <li><code>AmazonDynamoDBFullAccess</code></li>
-<li><code>CloudWatchLogsFullAccess</code></li>
-<li><code>AWSCloudTrail_FullAccess</code></li>
-<li><code>AWSLambda_FullAccess</code></li>
-<li><code>AmazonSNSFullAccess</code></li>
 </ul>
 </li>
 <li>
@@ -6709,145 +6396,52 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-42-19" name="__codelineno-42-19" href="#__codelineno-42-19"></a><span class="n">db_password</span> <span class="o">=</span> <span class="n">get_secret</span><span class="p">(</span><span class="s2">&quot;lablink/db-password&quot;</span><span class="p">)</span>
 <a id="__codelineno-42-20" name="__codelineno-42-20" href="#__codelineno-42-20"></a><span class="n">admin_password</span> <span class="o">=</span> <span class="n">get_secret</span><span class="p">(</span><span class="s2">&quot;lablink/admin-password&quot;</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="step-8-cloudwatch-monitoring-optional">Step 8: CloudWatch Monitoring (Optional)<a class="headerlink" href="#step-8-cloudwatch-monitoring-optional" title="Permanent link">&para;</a></h2>
-<p>Set up monitoring and alerts for your infrastructure.</p>
-<h3 id="terraform-managed-cloudwatch-resources">Terraform-Managed CloudWatch Resources<a class="headerlink" href="#terraform-managed-cloudwatch-resources" title="Permanent link">&para;</a></h3>
-<p>When you deploy LabLink using Terraform, the following CloudWatch resources are automatically created:</p>
-<p><strong>CloudWatch Agent Role</strong>: Terraform creates an IAM role (<code>lablink_cloud_watch_agent_role_&lt;suffix&gt;</code>) that allows client VMs to send logs and metrics to CloudWatch. This role includes permissions for:</p>
-<ul>
-<li><code>logs:CreateLogGroup</code> - Create new log groups</li>
-<li><code>logs:CreateLogStream</code> - Create log streams within groups</li>
-<li><code>logs:PutLogEvents</code> - Write log entries</li>
-<li><code>logs:DescribeLogStreams</code> - List available log streams</li>
-<li><code>cloudwatch:PutMetricData</code> - Send custom metrics</li>
-</ul>
-<p><strong>CloudTrail Logs</strong>: CloudTrail events are automatically sent to CloudWatch Logs for security monitoring.</p>
-<p><strong>Metric Filters &amp; Alarms</strong>: Terraform creates CloudWatch metric filters to monitor:</p>
-<table>
-<thead>
-<tr>
-<th>Metric Filter</th>
-<th>Purpose</th>
-<th>Alarm Threshold</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>RunInstances</code></td>
-<td>Detect mass instance launches</td>
-<td>&gt;10 in 5 minutes</td>
-</tr>
-<tr>
-<td><code>LargeInstances</code></td>
-<td>Monitor expensive instance types (p4d, p3, g5)</td>
-<td>Any launch</td>
-</tr>
-<tr>
-<td><code>UnauthorizedCalls</code></td>
-<td>Track API permission failures</td>
-<td>&gt;5 in 5 minutes</td>
-</tr>
-<tr>
-<td><code>TerminateInstances</code></td>
-<td>High termination rate detection</td>
-<td>&gt;10 in 5 minutes</td>
-</tr>
-</tbody>
-</table>
-<p><strong>SNS Notifications</strong>: Alarms send notifications to the <code>lablink-admin-alerts-&lt;suffix&gt;</code> SNS topic, which emails the configured admin.</p>
-<h3 id="manual-cloudwatch-configuration-optional">Manual CloudWatch Configuration (Optional)<a class="headerlink" href="#manual-cloudwatch-configuration-optional" title="Permanent link">&para;</a></h3>
-<p>For additional monitoring beyond what Terraform provides:</p>
-<h3 id="enable-cloudwatch-logs">Enable CloudWatch Logs<a class="headerlink" href="#enable-cloudwatch-logs" title="Permanent link">&para;</a></h3>
-<p>Update user data script to send logs to CloudWatch:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="ch">#!/bin/bash</span>
-<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>
-<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="c1"># Install CloudWatch agent</span>
-<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a>wget<span class="w"> </span>https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a>dpkg<span class="w"> </span>-i<span class="w"> </span>amazon-cloudwatch-agent.deb
-<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a>
-<a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="c1"># Configure CloudWatch agent</span>
-<a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>/opt/aws/amazon-cloudwatch-agent/etc/config.json<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
-<a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="s">{</span>
-<a id="__codelineno-43-10" name="__codelineno-43-10" href="#__codelineno-43-10"></a><span class="s">  &quot;logs&quot;: {</span>
-<a id="__codelineno-43-11" name="__codelineno-43-11" href="#__codelineno-43-11"></a><span class="s">    &quot;logs_collected&quot;: {</span>
-<a id="__codelineno-43-12" name="__codelineno-43-12" href="#__codelineno-43-12"></a><span class="s">      &quot;files&quot;: {</span>
-<a id="__codelineno-43-13" name="__codelineno-43-13" href="#__codelineno-43-13"></a><span class="s">        &quot;collect_list&quot;: [</span>
-<a id="__codelineno-43-14" name="__codelineno-43-14" href="#__codelineno-43-14"></a><span class="s">          {</span>
-<a id="__codelineno-43-15" name="__codelineno-43-15" href="#__codelineno-43-15"></a><span class="s">            &quot;file_path&quot;: &quot;/var/log/syslog&quot;,</span>
-<a id="__codelineno-43-16" name="__codelineno-43-16" href="#__codelineno-43-16"></a><span class="s">            &quot;log_group_name&quot;: &quot;/aws/ec2/lablink-allocator&quot;,</span>
-<a id="__codelineno-43-17" name="__codelineno-43-17" href="#__codelineno-43-17"></a><span class="s">            &quot;log_stream_name&quot;: &quot;{instance_id}/syslog&quot;</span>
-<a id="__codelineno-43-18" name="__codelineno-43-18" href="#__codelineno-43-18"></a><span class="s">          }</span>
-<a id="__codelineno-43-19" name="__codelineno-43-19" href="#__codelineno-43-19"></a><span class="s">        ]</span>
-<a id="__codelineno-43-20" name="__codelineno-43-20" href="#__codelineno-43-20"></a><span class="s">      }</span>
-<a id="__codelineno-43-21" name="__codelineno-43-21" href="#__codelineno-43-21"></a><span class="s">    }</span>
-<a id="__codelineno-43-22" name="__codelineno-43-22" href="#__codelineno-43-22"></a><span class="s">  }</span>
-<a id="__codelineno-43-23" name="__codelineno-43-23" href="#__codelineno-43-23"></a><span class="s">}</span>
-<a id="__codelineno-43-24" name="__codelineno-43-24" href="#__codelineno-43-24"></a><span class="s">EOF</span>
-<a id="__codelineno-43-25" name="__codelineno-43-25" href="#__codelineno-43-25"></a>
-<a id="__codelineno-43-26" name="__codelineno-43-26" href="#__codelineno-43-26"></a><span class="c1"># Start agent</span>
-<a id="__codelineno-43-27" name="__codelineno-43-27" href="#__codelineno-43-27"></a>/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-43-28" name="__codelineno-43-28" href="#__codelineno-43-28"></a><span class="w">  </span>-a<span class="w"> </span>fetch-config<span class="w"> </span>-m<span class="w"> </span>ec2<span class="w"> </span>-s<span class="w"> </span>-c<span class="w"> </span>file:/opt/aws/amazon-cloudwatch-agent/etc/config.json
-</code></pre></div>
-<h3 id="create-cloudwatch-alarms">Create CloudWatch Alarms<a class="headerlink" href="#create-cloudwatch-alarms" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="c1"># CPU utilization alarm</span>
-<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>aws<span class="w"> </span>cloudwatch<span class="w"> </span>put-metric-alarm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="w">  </span>--alarm-name<span class="w"> </span>lablink-allocator-cpu-high<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="w">  </span>--alarm-description<span class="w"> </span><span class="s2">&quot;Alert when CPU exceeds 80%&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="w">  </span>--metric-name<span class="w"> </span>CPUUtilization<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a><span class="w">  </span>--namespace<span class="w"> </span>AWS/EC2<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="w">  </span>--statistic<span class="w"> </span>Average<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="w">  </span>--period<span class="w"> </span><span class="m">300</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a><span class="w">  </span>--threshold<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="w">  </span>--comparison-operator<span class="w"> </span>GreaterThanThreshold<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a><span class="w">  </span>--evaluation-periods<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-44-12" name="__codelineno-44-12" href="#__codelineno-44-12"></a><span class="w">  </span>--dimensions<span class="w"> </span><span class="nv">Name</span><span class="o">=</span>InstanceId,Value<span class="o">=</span>i-xxxxx
-</code></pre></div>
-<h2 id="step-9-billing-alerts">Step 9: Billing Alerts<a class="headerlink" href="#step-9-billing-alerts" title="Permanent link">&para;</a></h2>
+<h2 id="step-8-billing-alerts">Step 8: Billing Alerts<a class="headerlink" href="#step-8-billing-alerts" title="Permanent link">&para;</a></h2>
 <p>Set up cost monitoring to avoid unexpected charges.</p>
 <h3 id="enable-billing-alerts">Enable Billing Alerts<a class="headerlink" href="#enable-billing-alerts" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>put-cost-anomaly-monitor<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="w">  </span>--anomaly-monitor<span class="w"> </span>file://billing-monitor.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>aws<span class="w"> </span>ce<span class="w"> </span>put-cost-anomaly-monitor<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a><span class="w">  </span>--anomaly-monitor<span class="w"> </span>file://billing-monitor.json
 </code></pre></div>
 <p><strong><code>billing-monitor.json</code></strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="p">{</span>
-<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="w">  </span><span class="nt">&quot;MonitorName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Cost Monitor&quot;</span><span class="p">,</span>
-<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="w">  </span><span class="nt">&quot;MonitorType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DIMENSIONAL&quot;</span><span class="p">,</span>
-<a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="w">  </span><span class="nt">&quot;MonitorDimension&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SERVICE&quot;</span>
-<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="p">{</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="w">  </span><span class="nt">&quot;MonitorName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Cost Monitor&quot;</span><span class="p">,</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="w">  </span><span class="nt">&quot;MonitorType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DIMENSIONAL&quot;</span><span class="p">,</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="w">  </span><span class="nt">&quot;MonitorDimension&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SERVICE&quot;</span>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="create-budget">Create Budget<a class="headerlink" href="#create-budget" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>aws<span class="w"> </span>budgets<span class="w"> </span>create-budget<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="w">  </span>--account-id<span class="w"> </span>YOUR_ACCOUNT_ID<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="w">  </span>--budget<span class="w"> </span>file://budget.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a><span class="w">  </span>--notifications-with-subscribers<span class="w"> </span>file://subscribers.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>aws<span class="w"> </span>budgets<span class="w"> </span>create-budget<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="w">  </span>--account-id<span class="w"> </span>YOUR_ACCOUNT_ID<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="w">  </span>--budget<span class="w"> </span>file://budget.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="w">  </span>--notifications-with-subscribers<span class="w"> </span>file://subscribers.json
 </code></pre></div>
 <p><strong><code>budget.json</code></strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="p">{</span>
-<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="w">  </span><span class="nt">&quot;BudgetName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Monthly Budget&quot;</span><span class="p">,</span>
-<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="w">  </span><span class="nt">&quot;BudgetLimit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="w">    </span><span class="nt">&quot;Amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
-<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="w">    </span><span class="nt">&quot;Unit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
-<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a><span class="w">  </span><span class="nt">&quot;TimeUnit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
-<a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a><span class="w">  </span><span class="nt">&quot;BudgetType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COST&quot;</span>
-<a id="__codelineno-48-9" name="__codelineno-48-9" href="#__codelineno-48-9"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="p">{</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="w">  </span><span class="nt">&quot;BudgetName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;LabLink Monthly Budget&quot;</span><span class="p">,</span>
+<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="w">  </span><span class="nt">&quot;BudgetLimit&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="w">    </span><span class="nt">&quot;Amount&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
+<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="w">    </span><span class="nt">&quot;Unit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;USD&quot;</span>
+<a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a><span class="w">  </span><span class="nt">&quot;TimeUnit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
+<a id="__codelineno-46-8" name="__codelineno-46-8" href="#__codelineno-46-8"></a><span class="w">  </span><span class="nt">&quot;BudgetType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COST&quot;</span>
+<a id="__codelineno-46-9" name="__codelineno-46-9" href="#__codelineno-46-9"></a><span class="p">}</span>
 </code></pre></div>
 <p><strong><code>subscribers.json</code></strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="p">[</span>
-<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a><span class="w">  </span><span class="p">{</span>
-<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a><span class="w">    </span><span class="nt">&quot;Notification&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a><span class="w">      </span><span class="nt">&quot;NotificationType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ACTUAL&quot;</span><span class="p">,</span>
-<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a><span class="w">      </span><span class="nt">&quot;ComparisonOperator&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;GREATER_THAN&quot;</span><span class="p">,</span>
-<a id="__codelineno-49-6" name="__codelineno-49-6" href="#__codelineno-49-6"></a><span class="w">      </span><span class="nt">&quot;Threshold&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">80</span>
-<a id="__codelineno-49-7" name="__codelineno-49-7" href="#__codelineno-49-7"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-49-8" name="__codelineno-49-8" href="#__codelineno-49-8"></a><span class="w">    </span><span class="nt">&quot;Subscribers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-49-9" name="__codelineno-49-9" href="#__codelineno-49-9"></a><span class="w">      </span><span class="p">{</span>
-<a id="__codelineno-49-10" name="__codelineno-49-10" href="#__codelineno-49-10"></a><span class="w">        </span><span class="nt">&quot;SubscriptionType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EMAIL&quot;</span><span class="p">,</span>
-<a id="__codelineno-49-11" name="__codelineno-49-11" href="#__codelineno-49-11"></a><span class="w">        </span><span class="nt">&quot;Address&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;your-email@example.com&quot;</span>
-<a id="__codelineno-49-12" name="__codelineno-49-12" href="#__codelineno-49-12"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-49-13" name="__codelineno-49-13" href="#__codelineno-49-13"></a><span class="w">    </span><span class="p">]</span>
-<a id="__codelineno-49-14" name="__codelineno-49-14" href="#__codelineno-49-14"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-49-15" name="__codelineno-49-15" href="#__codelineno-49-15"></a><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="p">[</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="w">  </span><span class="p">{</span>
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="w">    </span><span class="nt">&quot;Notification&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a><span class="w">      </span><span class="nt">&quot;NotificationType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ACTUAL&quot;</span><span class="p">,</span>
+<a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="w">      </span><span class="nt">&quot;ComparisonOperator&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;GREATER_THAN&quot;</span><span class="p">,</span>
+<a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="w">      </span><span class="nt">&quot;Threshold&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">80</span>
+<a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-47-8" name="__codelineno-47-8" href="#__codelineno-47-8"></a><span class="w">    </span><span class="nt">&quot;Subscribers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-47-9" name="__codelineno-47-9" href="#__codelineno-47-9"></a><span class="w">      </span><span class="p">{</span>
+<a id="__codelineno-47-10" name="__codelineno-47-10" href="#__codelineno-47-10"></a><span class="w">        </span><span class="nt">&quot;SubscriptionType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EMAIL&quot;</span><span class="p">,</span>
+<a id="__codelineno-47-11" name="__codelineno-47-11" href="#__codelineno-47-11"></a><span class="w">        </span><span class="nt">&quot;Address&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;your-email@example.com&quot;</span>
+<a id="__codelineno-47-12" name="__codelineno-47-12" href="#__codelineno-47-12"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-47-13" name="__codelineno-47-13" href="#__codelineno-47-13"></a><span class="w">    </span><span class="p">]</span>
+<a id="__codelineno-47-14" name="__codelineno-47-14" href="#__codelineno-47-14"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-47-15" name="__codelineno-47-15" href="#__codelineno-47-15"></a><span class="p">]</span>
 </code></pre></div>
 <h2 id="verification-checklist">Verification Checklist<a class="headerlink" href="#verification-checklist" title="Permanent link">&para;</a></h2>
 <p>After completing setup, verify:</p>
@@ -6872,28 +6466,23 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <p>The following resources are created automatically by Terraform during deployment:</p>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Application Load Balancer (ALB) with HTTPS listener</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> CloudTrail trail with S3 bucket for logs</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> CloudWatch log groups and metric filters</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> SNS topic for admin alerts</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> IAM roles for CloudWatch agent and CloudTrail</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Security groups for allocator and ALB</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Monthly budget with alert thresholds</li>
 </ul>
 <h2 id="testing-your-setup">Testing Your Setup<a class="headerlink" href="#testing-your-setup" title="Permanent link">&para;</a></h2>
 <h3 id="test-aws-cli-access">Test AWS CLI Access<a class="headerlink" href="#test-aws-cli-access" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
-<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>ls
-<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-regions
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>ls
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-regions
 </code></pre></div>
 <h3 id="test-terraform">Test Terraform<a class="headerlink" href="#test-terraform" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator
-<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>terraform<span class="w"> </span>init
-<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a>terraform<span class="w"> </span>validate
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>terraform<span class="w"> </span>init
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>terraform<span class="w"> </span>validate
 </code></pre></div>
 <h3 id="test-github-actions">Test GitHub Actions<a class="headerlink" href="#test-github-actions" title="Permanent link">&para;</a></h3>
 <p>Push a commit to trigger workflows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>git<span class="w"> </span>commit<span class="w"> </span>--allow-empty<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Test GitHub Actions&quot;</span>
-<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>git<span class="w"> </span>commit<span class="w"> </span>--allow-empty<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Test GitHub Actions&quot;</span>
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
 </code></pre></div>
 <p>Check Actions tab in GitHub.</p>
 <h2 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h2>
@@ -6952,25 +6541,25 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <div class="admonition tip">
 <p class="admonition-title">Automated Cleanup</p>
 <p>The template repository includes <code>scripts/cleanup-orphaned-resources.sh</code> to clean up orphaned AWS resources (e.g., leftover security groups, key pairs) for a given environment:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
 </code></pre></div></p>
 </div>
 <p>To remove all AWS resources:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a><span class="c1"># Delete S3 bucket (remove objects first)</span>
-<a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>rm<span class="w"> </span>s3://<span class="nv">$BUCKET_NAME</span><span class="w"> </span>--recursive
-<a id="__codelineno-54-3" name="__codelineno-54-3" href="#__codelineno-54-3"></a>aws<span class="w"> </span>s3api<span class="w"> </span>delete-bucket<span class="w"> </span>--bucket<span class="w"> </span><span class="nv">$BUCKET_NAME</span>
-<a id="__codelineno-54-4" name="__codelineno-54-4" href="#__codelineno-54-4"></a>
-<a id="__codelineno-54-5" name="__codelineno-54-5" href="#__codelineno-54-5"></a><span class="c1"># Release Elastic IPs</span>
-<a id="__codelineno-54-6" name="__codelineno-54-6" href="#__codelineno-54-6"></a>aws<span class="w"> </span>ec2<span class="w"> </span>release-address<span class="w"> </span>--allocation-id<span class="w"> </span>eipalloc-test-xxxxx
-<a id="__codelineno-54-7" name="__codelineno-54-7" href="#__codelineno-54-7"></a>aws<span class="w"> </span>ec2<span class="w"> </span>release-address<span class="w"> </span>--allocation-id<span class="w"> </span>eipalloc-prod-xxxxx
-<a id="__codelineno-54-8" name="__codelineno-54-8" href="#__codelineno-54-8"></a>
-<a id="__codelineno-54-9" name="__codelineno-54-9" href="#__codelineno-54-9"></a><span class="c1"># Delete IAM role</span>
-<a id="__codelineno-54-10" name="__codelineno-54-10" href="#__codelineno-54-10"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-role-policy<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy<span class="w"> </span>--policy-name<span class="w"> </span>lablink-deploy-permissions
-<a id="__codelineno-54-11" name="__codelineno-54-11" href="#__codelineno-54-11"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-role<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy
-<a id="__codelineno-54-12" name="__codelineno-54-12" href="#__codelineno-54-12"></a>
-<a id="__codelineno-54-13" name="__codelineno-54-13" href="#__codelineno-54-13"></a><span class="c1"># Delete OIDC provider</span>
-<a id="__codelineno-54-14" name="__codelineno-54-14" href="#__codelineno-54-14"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-open-id-connect-provider<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-15" name="__codelineno-54-15" href="#__codelineno-54-15"></a><span class="w">  </span>--open-id-connect-provider-arn<span class="w"> </span>arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a><span class="c1"># Delete S3 bucket (remove objects first)</span>
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>rm<span class="w"> </span>s3://<span class="nv">$BUCKET_NAME</span><span class="w"> </span>--recursive
+<a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a>aws<span class="w"> </span>s3api<span class="w"> </span>delete-bucket<span class="w"> </span>--bucket<span class="w"> </span><span class="nv">$BUCKET_NAME</span>
+<a id="__codelineno-52-4" name="__codelineno-52-4" href="#__codelineno-52-4"></a>
+<a id="__codelineno-52-5" name="__codelineno-52-5" href="#__codelineno-52-5"></a><span class="c1"># Release Elastic IPs</span>
+<a id="__codelineno-52-6" name="__codelineno-52-6" href="#__codelineno-52-6"></a>aws<span class="w"> </span>ec2<span class="w"> </span>release-address<span class="w"> </span>--allocation-id<span class="w"> </span>eipalloc-test-xxxxx
+<a id="__codelineno-52-7" name="__codelineno-52-7" href="#__codelineno-52-7"></a>aws<span class="w"> </span>ec2<span class="w"> </span>release-address<span class="w"> </span>--allocation-id<span class="w"> </span>eipalloc-prod-xxxxx
+<a id="__codelineno-52-8" name="__codelineno-52-8" href="#__codelineno-52-8"></a>
+<a id="__codelineno-52-9" name="__codelineno-52-9" href="#__codelineno-52-9"></a><span class="c1"># Delete IAM role</span>
+<a id="__codelineno-52-10" name="__codelineno-52-10" href="#__codelineno-52-10"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-role-policy<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy<span class="w"> </span>--policy-name<span class="w"> </span>lablink-deploy-permissions
+<a id="__codelineno-52-11" name="__codelineno-52-11" href="#__codelineno-52-11"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-role<span class="w"> </span>--role-name<span class="w"> </span>github-lablink-deploy
+<a id="__codelineno-52-12" name="__codelineno-52-12" href="#__codelineno-52-12"></a>
+<a id="__codelineno-52-13" name="__codelineno-52-13" href="#__codelineno-52-13"></a><span class="c1"># Delete OIDC provider</span>
+<a id="__codelineno-52-14" name="__codelineno-52-14" href="#__codelineno-52-14"></a>aws<span class="w"> </span>iam<span class="w"> </span>delete-open-id-connect-provider<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-52-15" name="__codelineno-52-15" href="#__codelineno-52-15"></a><span class="w">  </span>--open-id-connect-provider-arn<span class="w"> </span>arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com
 </code></pre></div>
 
 
