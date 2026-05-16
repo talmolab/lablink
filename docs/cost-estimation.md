@@ -48,9 +48,8 @@ Prices: AWS Pricing API
   Client VM EC2 (g4dn.xlarge)                 $383.98  *
   EBS root volume (gp3, 20 GB)                  $1.60
   Elastic IP                                    $3.65
-  CloudWatch Logs                               $2.00
   -------------------------------------  ------------
-  Base infrastructure total                   $67.99/month
+  Base infrastructure total                   $65.99/month
   Per client VM (when running)               $383.98/month *
 
   * Client VM costs scale with usage. VMs are billed only while running.
@@ -320,39 +319,6 @@ If using resources across regions:
 **Total**: **~$20/month**
 
 ## Cost Monitoring
-
-### Set Up Billing Alerts
-
-**Step 1: Create SNS Topic**
-```bash
-aws sns create-topic --name lablink-billing-alerts
-```
-
-**Step 2: Subscribe Email**
-```bash
-aws sns subscribe \
-  --topic-arn arn:aws:sns:us-west-2:ACCOUNT_ID:lablink-billing-alerts \
-  --protocol email \
-  --notification-endpoint your-email@example.com
-```
-
-**Step 3: Create Budget**
-```bash
-aws budgets create-budget --account-id ACCOUNT_ID --budget file://budget.json
-```
-
-**`budget.json`**:
-```json
-{
-  "BudgetName": "LabLink Monthly Budget",
-  "BudgetLimit": {
-    "Amount": "100",
-    "Unit": "USD"
-  },
-  "TimeUnit": "MONTHLY",
-  "BudgetType": "COST"
-}
-```
 
 ### View Current Costs
 

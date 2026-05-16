@@ -169,7 +169,6 @@ OpenID Connect (OIDC) allows GitHub Actions to authenticate to AWS **without sto
 - **No stored credentials**: Nothing to leak or rotate
 - **Short-lived**: Credentials expire quickly
 - **Scoped**: Permissions limited to specific role
-- **Auditable**: CloudTrail logs all API calls
 
 #### Trust Policy
 
@@ -424,7 +423,7 @@ If you must use staging mode with potentially sensitive data:
 
 4. **Time-limited** - Switch to production mode as soon as testing is complete
 
-5. **Monitor access** - Check CloudWatch logs for unexpected connections
+5. **Monitor access** - Review allocator logs for unexpected connections
 
 ### Switching to Production Mode
 
@@ -505,7 +504,7 @@ admin_password = secrets['admin_password']
 **Pros**:
 - Encrypted at rest and in transit
 - Automatic rotation
-- Audit logs (CloudTrail)
+- Audit logging
 - Versioning
 
 **Cons**:
@@ -711,24 +710,6 @@ conn = psycopg2.connect(
 
 ## Monitoring & Auditing
 
-### CloudTrail
-
-Enable CloudTrail for AWS API auditing:
-
-```bash
-aws cloudtrail create-trail \
-  --name lablink-trail \
-  --s3-bucket-name lablink-cloudtrail-logs
-
-aws cloudtrail start-logging --name lablink-trail
-```
-
-**Logs include**:
-- EC2 instance launches/terminations
-- Security group changes
-- IAM role assumptions
-- S3 access
-
 ### VPC Flow Logs
 
 Monitor network traffic:
@@ -776,7 +757,6 @@ def request_vm():
 - [ ] Restricted SSH access to known IPs
 - [ ] Enabled S3 bucket encryption
 - [ ] Enabled EBS volume encryption
-- [ ] Set up CloudTrail logging
 - [ ] Set up billing alerts
 - [ ] Rotated SSH keys (if older than 90 days)
 - [ ] Reviewed IAM role permissions
@@ -788,7 +768,6 @@ def request_vm():
 
 | Task | Frequency |
 |------|-----------|
-| Review CloudTrail logs | Weekly |
 | Rotate SSH keys | Every 90 days |
 | Update dependencies | Monthly |
 | Review security group rules | Quarterly |
@@ -800,7 +779,7 @@ def request_vm():
 If security incident occurs:
 
 1. **Isolate**: Modify security groups to block traffic
-2. **Investigate**: Review CloudTrail, VPC Flow Logs, application logs
+2. **Investigate**: Review VPC Flow Logs and application logs
 3. **Contain**: Terminate compromised instances
 4. **Recover**: Deploy from known-good state
 5. **Learn**: Document incident, improve security

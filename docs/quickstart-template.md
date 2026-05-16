@@ -72,7 +72,6 @@ The configure script prompts for:
 
 - Instance type and AMI settings
 - DNS and SSL configuration
-- Monitoring options
 
 It generates `lablink-infrastructure/config/config.yaml` with your settings.
 
