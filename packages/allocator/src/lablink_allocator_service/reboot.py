@@ -47,6 +47,7 @@ class AutoRebootService:
         max_attempts: int = 3,
         cooldown_seconds: int = 300,
         check_interval_seconds: int = 60,
+        provider=None,
     ):
         self.database = database
         self.region = region
@@ -54,6 +55,7 @@ class AutoRebootService:
         self.max_attempts = max_attempts
         self.cooldown_seconds = cooldown_seconds
         self.check_interval_seconds = check_interval_seconds
+        self.provider = provider
         self._stop_event = Event()
         self._thread = None
 
@@ -257,9 +259,26 @@ class AutoRebootService:
             f"SSH unavailable for VM '{hostname}', falling back "
             f"to stop/start (cold reboot)"
         )
-        success = stop_start_ec2_instance(
-            instance_id, region=self.region
-        )
+        if self.provider is not None and self.provider.can_recover_hosts:
+            from lablink_allocator_service.providers.protocol import ClientHandle
+
+            success = self.provider.recover_hosts([
+                ClientHandle(
+                    id=instance_id,
+                    hostname=hostname,
+                    provider_metadata={"region": self.region},
+                )
+            ])
+        elif self.provider is not None and not self.provider.can_recover_hosts:
+            logger.info(
+                "provider %s cannot recover hosts; leaving %s failed",
+                getattr(self.provider, "name", "?"), hostname,
+            )
+            success = False
+        else:
+            success = stop_start_ec2_instance(
+                instance_id, region=self.region
+            )
         if success:
             self.database.record_reboot(hostname)
             logger.info(

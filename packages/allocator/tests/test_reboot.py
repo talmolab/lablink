@@ -1032,3 +1032,58 @@ def test_reboot_vm_all_methods_fail_assigned(monkeypatch):
     assert result is False
     mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
     mock_db.record_reboot.assert_not_called()
+
+
+# --- Provider seam tests ---
+
+
+def test_reboot_vm_uses_provider_recover_when_capable(monkeypatch):
+    """When provider.can_recover_hosts is True, recover_hosts is called instead of stop_start."""
+    prov = MagicMock(can_recover_hosts=True)
+    prov.recover_hosts.return_value = True
+    svc = reboot_mod.AutoRebootService(
+        database=MagicMock(),
+        region="us-west-2",
+        terraform_dir="/tf",
+        provider=prov,
+    )
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **k: "i-42")
+    # Return None for IP so SSH is skipped and we reach the EC2-fallback branch
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **k: None)
+    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **k: None)
+
+    assert svc._reboot_vm("vm-1", assigned=False) is True
+    prov.recover_hosts.assert_called_once()
+    (handles,), _ = prov.recover_hosts.call_args
+    assert handles[0].id == "i-42"
+    assert handles[0].provider_metadata["region"] == "us-west-2"
+    svc.database.record_reboot.assert_called_once_with("vm-1")
+
+    prov.recover_hosts.return_value = False
+    svc.database.record_reboot.reset_mock()
+    assert svc._reboot_vm("vm-1", assigned=False) is False
+    svc.database.record_reboot.assert_not_called()
+
+
+def test_reboot_vm_skips_ec2_when_provider_cannot_recover(monkeypatch):
+    """When provider.can_recover_hosts is False, stop_start_ec2_instance is NOT called."""
+    called = {"stop_start": False}
+    monkeypatch.setattr(
+        reboot_mod, "stop_start_ec2_instance",
+        lambda *a, **k: called.__setitem__("stop_start", True) or True,
+    )
+    svc = reboot_mod.AutoRebootService(
+        database=MagicMock(),
+        region="us-west-2",
+        terraform_dir="/tf",
+        provider=MagicMock(can_recover_hosts=False),
+    )
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **k: "i-7")
+    # Return None for IP so SSH is skipped and we reach the EC2-fallback branch
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **k: None)
+    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **k: None)
+
+    result = svc._reboot_vm("vm-9", assigned=False)
+    assert called["stop_start"] is False
+    assert result is False
+    svc.database.record_reboot.assert_not_called()
