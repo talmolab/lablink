@@ -43,11 +43,13 @@ lablink/
 │   ├── client/             # Client service (GPU health, subscription)
 │   └── cli/                # CLI tool (Typer, deploys infrastructure)
 │       └── src/lablink_cli/
-│           ├── app.py              # CLI entry point and commands
-│           ├── terraform_source.py # Downloads Terraform files from lablink-template releases
-│           ├── commands/           # Command implementations (deploy, destroy, status, logs, etc.)
-│           ├── config/             # Config schema and validation
-│           └── tui/                # Interactive TUI (wizard, logs viewer)
+│           ├── app.py                  # CLI entry point + Typer command definitions
+│           ├── api.py                  # HTTP client for the allocator service
+│           ├── terraform_source.py     # Downloads Terraform files from lablink-template releases
+│           ├── deployment_metrics.py   # CLI-local cache of deploy metrics (~/.lablink/deployments/)
+│           ├── commands/               # Command implementations (deploy, cleanup, status, logs, doctor, setup, launch, export_metrics)
+│           ├── config/                 # Config schema and validation
+│           └── tui/                    # Interactive TUI (wizard, logs viewer)
 ├── openspec/
 │   ├── project.md          # Project conventions
 │   ├── specs/              # Capability specifications
