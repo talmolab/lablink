@@ -364,32 +364,6 @@ def test_release_assignment_error(db_instance, caplog):
     assert "Failed to release assignment for" in caplog.text
 
 
-def test_get_reboot_info(db_instance):
-    """Test getting reboot info for a VM."""
-    last_reboot = datetime(2025, 1, 1, 12, 0, 0)
-    db_instance.cursor.fetchone.return_value = (2, last_reboot)
-
-    result = db_instance.get_reboot_info("vm-1")
-
-    assert result["reboot_count"] == 2
-    assert result["last_reboot_time"] == last_reboot
-
-
-def test_get_reboot_info_not_found(db_instance):
-    """Test getting reboot info for non-existent VM."""
-    db_instance.cursor.fetchone.return_value = None
-    result = db_instance.get_reboot_info("vm-nonexistent")
-    assert result is None
-
-
-def test_get_reboot_info_error(db_instance, caplog):
-    """Test error handling in get_reboot_info."""
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-    result = db_instance.get_reboot_info("vm-1")
-    assert result is None
-    assert "Failed to get reboot info" in caplog.text
-
-
 def test_ensure_reboot_columns(db_instance):
     """Test that ensure_reboot_columns adds columns."""
     db_instance.ensure_reboot_columns()

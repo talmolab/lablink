@@ -1426,38 +1426,6 @@ class PostgresqlDatabase:
                 )
                 raise
 
-    def get_reboot_info(self, hostname: str) -> Optional[dict]:
-        """Get reboot tracking info for a VM.
-
-        Args:
-            hostname: The hostname of the VM.
-
-        Returns:
-            dict with reboot_count and last_reboot_time,
-                or None if not found.
-        """
-        query = f"""
-            SELECT COALESCE(reboot_count, 0), last_reboot_time
-            FROM {self.table_name}
-            WHERE hostname = %s;
-        """
-        try:
-            with self._cursor as cursor:
-                cursor.execute(query, (hostname,))
-                row = cursor.fetchone()
-            if row:
-                return {
-                    "reboot_count": row[0],
-                    "last_reboot_time": row[1],
-                }
-            return None
-        except Exception as e:
-            logger.error(
-                f"Failed to get reboot info "
-                f"for VM '{hostname}': {e}"
-            )
-            return None
-
     def __del__(self):
         """Close all pooled connections when the object is deleted."""
         if hasattr(self, "_pool") and self._pool is not None:
