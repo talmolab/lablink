@@ -1559,3 +1559,20 @@ def test_register_client_returns_none_on_no_hijack_conflict(
         gpu_model=None, client_secret_hash="$h",
     )
     assert cid is None
+
+
+def test_register_client_none_provider_metadata_serializes_empty_json(
+    db_instance, mock_db_connection
+):
+    # provider_metadata=None must serialize to "{}" (json.dumps(... or {})).
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    db_instance.register_client(
+        hostname="vm-1", machine_identity="i-1", provider="aws",
+        endpoint_url=None, provider_metadata=None, gpu_present=None,
+        gpu_model=None, client_secret_hash="$h",
+    )
+    # params tuple: (hostname, machine_identity, provider, endpoint_url,
+    #                 meta, client_secret_hash, gpu_present, gpu_model)
+    params = mock_cursor.execute.call_args[0][1]
+    assert params[4] == "{}"

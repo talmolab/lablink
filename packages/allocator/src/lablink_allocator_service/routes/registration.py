@@ -6,6 +6,7 @@ routes/desktop.py using current_app instead of importing main.
 """
 from __future__ import annotations
 
+import psycopg2
 import secrets
 
 from flask import Blueprint, current_app, jsonify, request
@@ -37,16 +38,21 @@ def register_client():
     provider = body.get("provider", "aws")
     client_secret = secrets.token_urlsafe(32)
 
-    client_id = main.database.register_client(
-        hostname=hostname,
-        machine_identity=machine_identity,
-        provider=provider,
-        endpoint_url=body.get("endpoint_url"),
-        provider_metadata=body.get("provider_metadata") or {},
-        gpu_present=body.get("gpu_present"),
-        gpu_model=body.get("gpu_model"),
-        client_secret_hash=hash_secret(client_secret),
-    )
+    try:
+        client_id = main.database.register_client(
+            hostname=hostname,
+            machine_identity=machine_identity,
+            provider=provider,
+            endpoint_url=body.get("endpoint_url"),
+            provider_metadata=body.get("provider_metadata") or {},
+            gpu_present=body.get("gpu_present"),
+            gpu_model=body.get("gpu_model"),
+            client_secret_hash=hash_secret(client_secret),
+        )
+    except psycopg2.IntegrityError:
+        return jsonify({"error": "registration conflict"}), 409
+    if client_id is None:
+        return jsonify({"error": "registration conflict"}), 409
 
     prov = current_app.config.get("LABLINK_PROVIDER") or main.get_provider(
         main.cfg.get("provider", None),

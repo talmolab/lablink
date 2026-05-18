@@ -304,67 +304,49 @@ class PostgresqlDatabase:
         gpu_present,
         gpu_model,
         client_secret_hash: str,
-    ) -> str:
-        """Idempotent client registration. Returns the row's hostname.
+    ) -> Optional[str]:
+        """Atomically register (or idempotently re-register) a client.
 
-        Precedence: (1) existing machine_identity -> rotate in place;
-        (2) pre-created hostname row with NULL machine_identity -> adopt;
-        (3) otherwise insert a new row.
+        Single upsert keyed on the ``hostname`` primary key:
+        - hostname row absent              -> INSERT (fresh client)
+        - row exists, machine_identity NULL -> adopt (stamp identity+secret)
+        - row exists, same machine_identity -> rotate secret (re-register)
+        - row exists, *different* machine_identity -> no-hijack: the
+          conditional DO UPDATE matches 0 rows, RETURNING is empty, this
+          returns ``None`` (the route maps that to 409).
 
-        Note: the machine_identity re-register branch (1) returns the STORED
-        hostname, which may differ from the ``hostname`` argument if the
-        machine was pre-provisioned or registered under a different name.
+        Returns the row's hostname on success, or ``None`` on the no-hijack
+        conflict. May raise ``psycopg2.IntegrityError`` if this
+        ``machine_identity`` is already bound to a *different* hostname
+        (the partial-unique index on machine_identity) — the route maps
+        that to 409 as well. The single statement is atomic under the
+        pool's autocommit isolation, so concurrent/overlapping registers
+        converge instead of silently corrupting or 500-ing.
         """
         meta = json.dumps(provider_metadata or {})
         t = self.table_name
         with self._cursor as cursor:
             cursor.execute(
-                f"SELECT hostname FROM {t} WHERE machine_identity = %s;",
-                (machine_identity,),
-            )
-            row = cursor.fetchone()
-            if row is not None:
-                target = row[0]
-                cursor.execute(
-                    f"UPDATE {t} SET client_secret_hash = %s, "
-                    f"endpoint_url = %s, provider = %s, "
-                    f"provider_metadata = %s, gpu_present = %s, "
-                    f"gpu_model = %s WHERE machine_identity = %s;",
-                    (client_secret_hash, endpoint_url, provider, meta,
-                     gpu_present, gpu_model, machine_identity),
-                )
-                return target
-
-            cursor.execute(
-                f"SELECT hostname FROM {t} "
-                f"WHERE hostname = %s AND machine_identity IS NULL;",
-                (hostname,),
-            )
-            row = cursor.fetchone()
-            if row is not None:
-                cursor.execute(
-                    f"UPDATE {t} SET machine_identity = %s, "
-                    f"client_secret_hash = %s, endpoint_url = %s, "
-                    f"provider = %s, provider_metadata = %s, "
-                    f"gpu_present = %s, gpu_model = %s "
-                    f"WHERE hostname = %s AND machine_identity IS NULL;",
-                    (machine_identity, client_secret_hash, endpoint_url,
-                     provider, meta, gpu_present, gpu_model, hostname),
-                )
-                return hostname
-
-            # Concurrent-register race backstop: a duplicate machine_identity
-            # here hits the partial-unique index and raises; the endpoint
-            # maps that to a retry-safe 409 (per spec). No fall-through here.
-            cursor.execute(
                 f"INSERT INTO {t} (hostname, inuse, machine_identity, "
                 f"provider, endpoint_url, provider_metadata, "
                 f"client_secret_hash, gpu_present, gpu_model) "
-                f"VALUES (%s, FALSE, %s, %s, %s, %s, %s, %s, %s);",
+                f"VALUES (%s, FALSE, %s, %s, %s, %s, %s, %s, %s) "
+                f"ON CONFLICT (hostname) DO UPDATE SET "
+                f"machine_identity = EXCLUDED.machine_identity, "
+                f"client_secret_hash = EXCLUDED.client_secret_hash, "
+                f"endpoint_url = EXCLUDED.endpoint_url, "
+                f"provider = EXCLUDED.provider, "
+                f"provider_metadata = EXCLUDED.provider_metadata, "
+                f"gpu_present = EXCLUDED.gpu_present, "
+                f"gpu_model = EXCLUDED.gpu_model "
+                f"WHERE {t}.machine_identity IS NULL "
+                f"OR {t}.machine_identity = EXCLUDED.machine_identity "
+                f"RETURNING hostname;",
                 (hostname, machine_identity, provider, endpoint_url, meta,
                  client_secret_hash, gpu_present, gpu_model),
             )
-            return hostname
+            row = cursor.fetchone()
+        return row[0] if row else None
 
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are running and have no student assigned.

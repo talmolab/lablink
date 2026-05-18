@@ -155,3 +155,26 @@ def test_status_returns_status(reg_client, monkeypatch):
                     headers={"Authorization": "Bearer sek"})
     assert r.status_code == 200
     assert r.get_json() == {"client_id": "vm-1", "status": "running"}
+
+
+def test_register_returns_409_on_none(reg_client):
+    client, fake_db = reg_client
+    fake_db.register_client.return_value = None
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 409
+
+
+def test_register_returns_409_on_integrity_error(reg_client):
+    import psycopg2
+    client, fake_db = reg_client
+    fake_db.register_client.side_effect = psycopg2.IntegrityError("dup")
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 409
