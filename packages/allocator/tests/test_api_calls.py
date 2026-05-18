@@ -265,7 +265,7 @@ def test_request_vm_success(client, monkeypatch):
         "lablink_allocator_service.main.database", fake_db, raising=True
     )
     monkeypatch.setattr(
-        "lablink_allocator_service.main.prepare_browser_session",
+        "lablink_allocator_service.providers.connectivity.allocator_proxied.prepare_browser_session",
         lambda **kw: None,
     )
     monkeypatch.setattr(
@@ -368,7 +368,8 @@ def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
         raise RotationFailed("agent unreachable")
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.prepare_browser_session", _raise
+        "lablink_allocator_service.providers.connectivity.allocator_proxied.prepare_browser_session",
+        _raise,
     )
 
     resp = client.post(

@@ -43,14 +43,12 @@ from lablink_allocator_service.utils.terraform_utils import (
 )
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
-from lablink_allocator_service.client_session import (
-    prepare_browser_session,
-    RotationFailed,
-)
+from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.signed_cookie import (
     sign,
     get_or_create_cookie_secret,
 )
+from lablink_allocator_service.providers.registry import DEFAULT_PROVIDER, get_provider
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
@@ -66,6 +64,15 @@ TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
 
 # Load the configuration
 cfg = get_config()
+
+# Provider selection is not user-configurable yet: only the "aws" provider
+# exists and provisioning is not wired, so this is fixed to the registry
+# default. A later PR adds the structured-config field once it is meaningful.
+app.config["LABLINK_PROVIDER"] = get_provider(
+    DEFAULT_PROVIDER,
+    region=cfg.app.region,
+    terraform_dir=str(TERRAFORM_DIR),
+)
 
 os.environ["DATABASE_URL"] = (
     f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
@@ -292,7 +299,10 @@ def submit_vm_details():
         session_id = uuid.uuid4()
         browser_token = secrets.token_urlsafe(16)
         try:
-            prepare_browser_session(
+            provider = app.config.get("LABLINK_PROVIDER") or get_provider(
+                None, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+            )
+            provider.client_connectivity.prepare_browser_session(
                 database=database,
                 hostname=hostname,
                 session_id=session_id,
@@ -1143,6 +1153,7 @@ def main():
             database=database,
             region=cfg.app.region,
             terraform_dir=str(TERRAFORM_DIR),
+            provider=app.config.get("LABLINK_PROVIDER"),
         )
         reboot_service.start()
         atexit.register(reboot_service.stop)
