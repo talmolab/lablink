@@ -15,7 +15,6 @@ def _stub_client_secret(fake_db):
     return fake_db
 
 
-VM_STARTUP_ENDPOINT = "/vm_startup"
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
 UPDATE_INUSE_STATUS_ENDPOINT = "/api/update_inuse_status"
 UPDATE_GPU_HEALTH_ENDPOINT = "/api/gpu_health"
@@ -25,70 +24,6 @@ VM_LOGS_ENDPOINT = "/api/vm-logs"
 METRICS_ENDPOINT = "/api/vm-metrics"
 SCHEDULE_DESTRUCTION_ENDPOINT = "/api/schedule-destruction"
 HEARTBEAT_ENDPOINT = "/api/heartbeat"
-
-
-def test_vm_startup_success(client, monkeypatch):
-    """Test VM startup success with valid hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.insert_vm.return_value = None
-    fake_db.get_vm_by_hostname.return_value = {"hostname": "test-vm-dev-1"}
-    _stub_client_secret(fake_db)
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": "test-vm-dev-1"}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS)
-
-    # Assert the response
-    assert resp.status_code == 200
-    assert resp.get_json() == {"status": "ok"}
-    fake_db.touch_last_seen.assert_called_once_with(hostname="test-vm-dev-1")
-
-
-def test_vm_startup_vm_not_found(client, monkeypatch):
-    """Test VM startup when VM doesn't exist in database."""
-    # Mock the database - VM not found
-    fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = None
-    _stub_client_secret(fake_db)
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": "nonexistent-vm"}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS)
-
-    # Assert the response
-    assert resp.status_code == 404
-    assert resp.get_json() == {"error": "VM not found."}
-
-
-def test_vm_startup_failure(client, monkeypatch):
-    """Test VM startup failure due to missing hostname (decorator rejects first)."""
-    # Mock the database
-    fake_db = MagicMock()
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API with empty hostname — require_client_secret returns 401
-    data = {"hostname": ""}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS)
-
-    # Assert the response
-    assert resp.status_code == 401
-    assert resp.get_json()["error"] == "client identity required."
-    fake_db.touch_last_seen.assert_not_called()
 
 
 def test_unassigned_vms_count(client, monkeypatch):
@@ -1568,7 +1503,6 @@ TOKEN_PROTECTED_ENDPOINTS = [
 
 # Endpoints that require a per-client secret (require_client_secret decorator)
 CLIENT_SECRET_PROTECTED_ENDPOINTS = [
-    ("POST", VM_STARTUP_ENDPOINT, {"hostname": "test-vm"}),
     ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
     ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
     ("POST", HEARTBEAT_ENDPOINT, {"vm_id": "vm-1"}),
@@ -1959,25 +1893,6 @@ def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
         f"{METRICS_ENDPOINT}/vm-1",
         json={"container_start": 0, "container_end": 1},
         headers=api_token_headers,
-    )
-
-    assert resp.status_code == 200
-    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
-
-
-def test_vm_startup_bumps_last_seen(client, monkeypatch):
-    """POST /vm_startup refreshes last_seen_at once the VM is found."""
-    fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1"}
-    _stub_client_secret(fake_db)
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    resp = client.post(
-        VM_STARTUP_ENDPOINT,
-        json={"hostname": "vm-1"},
-        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200

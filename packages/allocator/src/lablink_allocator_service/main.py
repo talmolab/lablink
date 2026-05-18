@@ -677,23 +677,6 @@ def destroy():
         return render_template("delete-dashboard.html", error=clean_output)
 
 
-@app.route("/vm_startup", methods=["POST"])
-@require_client_secret
-def vm_startup():
-    data = request.get_json()
-    hostname = data.get("hostname")
-
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-
-    vm = database.get_vm_by_hostname(hostname)
-    if not vm:
-        return jsonify({"error": "VM not found."}), 404
-
-    database.touch_last_seen(hostname=hostname)
-    return jsonify({"status": "ok"}), 200
-
-
 @app.route("/api/unassigned_vms_count", methods=["GET"])
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
