@@ -479,69 +479,6 @@ def test_update_vm_status_internal_failure(client, monkeypatch):
     assert resp.get_json() == {"error": "Failed to update VM status."}
 
 
-def test_get_vm_status_by_hostname_success(client, api_token_headers, monkeypatch):
-    """Test getting VM status by hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.return_value = "running"
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get("/api/vm-status/lablink-vm-test-1", headers=api_token_headers)
-
-    assert resp.status_code == 200
-    assert resp.is_json
-    assert resp.get_json() == {
-        "hostname": "lablink-vm-test-1",
-        "status": "running",
-    }
-    fake_db.get_status_by_hostname.assert_called_once_with(hostname="lablink-vm-test-1")
-
-
-def test_get_vm_status_by_hostname_not_found(client, api_token_headers, monkeypatch):
-    """Test getting VM status by hostname when not found."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.return_value = None
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get(
-        "/api/vm-status/lablink-vm-nonexistent", headers=api_token_headers
-    )
-
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json() == {"error": "VM not found."}
-    fake_db.get_status_by_hostname.assert_called_once_with(
-        hostname="lablink-vm-nonexistent"
-    )
-
-
-def test_get_vm_status_by_hostname_internal_error(
-    client, api_token_headers, monkeypatch
-):
-    """Test getting VM status by hostname with internal error."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.side_effect = Exception("Internal error")
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get("/api/vm-status/lablink-vm-test-1", headers=api_token_headers)
-
-    assert resp.status_code == 500
-    assert resp.is_json
-    assert resp.get_json() == {"error": "Failed to get VM status."}
-    fake_db.get_status_by_hostname.assert_called_once_with(hostname="lablink-vm-test-1")
-
-
 def test_get_all_vm_status_success(client, api_token_headers, monkeypatch):
     """Test getting all VM statuses."""
     # Mock the database
@@ -1625,7 +1562,6 @@ def test_create_scheduled_destruction_duplicate_name(
 
 # Endpoints that require ONLY API token auth (machine-to-machine)
 TOKEN_PROTECTED_ENDPOINTS = [
-    ("GET", f"{VM_STATUS_UPDATE_ENDPOINT}/vm-1", None),
     ("POST", VM_LOGS_ENDPOINT, {"log_group": "g", "log_stream": "s", "messages": ["m"]}),
     ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
 ]

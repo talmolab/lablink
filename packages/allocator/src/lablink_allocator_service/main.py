@@ -788,20 +788,6 @@ def update_vm_status():
         return jsonify({"error": "Failed to update VM status."}), 500
 
 
-@app.route("/api/vm-status/<hostname>", methods=["GET"])
-@require_api_token
-def get_vm_status(hostname):
-    try:
-        status = database.get_status_by_hostname(hostname=hostname)
-        if status is None:
-            return jsonify({"error": "VM not found."}), 404
-
-        return jsonify({"hostname": hostname, "status": status}), 200
-    except Exception as e:
-        logger.error(f"Error getting VM status: {e}")
-        return jsonify({"error": "Failed to get VM status."}), 500
-
-
 @app.route("/api/vm-status", methods=["GET"])
 @require_auth
 def get_all_vm_status():
