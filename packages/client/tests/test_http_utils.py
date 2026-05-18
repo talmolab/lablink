@@ -1,5 +1,6 @@
 """Tests for shared HTTP utilities."""
 
+import importlib
 from unittest.mock import MagicMock
 
 from lablink_client_service.http_utils import (
@@ -68,3 +69,40 @@ class TestGetClientEnv:
         assert base_url == "http://localhost:5000"
         assert api_token == ""
         assert vm_name is None
+
+
+def test_get_client_env_prefers_client_secret(monkeypatch):
+    from lablink_client_service import http_utils
+    importlib.reload(http_utils)
+
+    class _Cfg:
+        class allocator:
+            host = "h"
+            port = 5000
+
+    monkeypatch.setenv("ALLOCATOR_URL", "http://a:5000")
+    monkeypatch.setenv("API_TOKEN", "old-api-token")
+    monkeypatch.setenv("CLIENT_SECRET", "new-client-secret")
+    monkeypatch.setenv("VM_NAME", "vm-1")
+
+    base_url, token, vm = http_utils.get_client_env(_Cfg)
+    assert token == "new-client-secret"
+    assert vm == "vm-1"
+
+
+def test_get_client_env_falls_back_to_api_token(monkeypatch):
+    from lablink_client_service import http_utils
+    importlib.reload(http_utils)
+
+    class _Cfg:
+        class allocator:
+            host = "h"
+            port = 5000
+
+    monkeypatch.setenv("ALLOCATOR_URL", "http://a:5000")
+    monkeypatch.setenv("API_TOKEN", "old-api-token")
+    monkeypatch.delenv("CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("VM_NAME", "vm-1")
+
+    _, token, _ = http_utils.get_client_env(_Cfg)
+    assert token == "old-api-token"

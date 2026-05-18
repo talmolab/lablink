@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import logging
 from typing import List, Optional
 
@@ -269,6 +270,101 @@ class PostgresqlDatabase:
         else:
             logger.warning(f"VM not found: '{hostname}'")
             return None
+
+    def get_vm_by_machine_identity(self, machine_identity: str):
+        """Return the hostname of the row with this machine_identity, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname FROM {self.table_name} "
+                f"WHERE machine_identity = %s;",
+                (machine_identity,),
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
+
+    def get_client_secret_hash(self, hostname: str):
+        """Return the argon2 client_secret_hash for a hostname, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT client_secret_hash FROM {self.table_name} "
+                f"WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
+
+    def register_client(
+        self,
+        *,
+        hostname: str,
+        machine_identity: str,
+        provider: str,
+        endpoint_url,
+        provider_metadata: dict,
+        gpu_present,
+        gpu_model,
+        client_secret_hash: str,
+    ) -> str:
+        """Idempotent client registration. Returns the row's hostname.
+
+        Precedence: (1) existing machine_identity -> rotate in place;
+        (2) pre-created hostname row with NULL machine_identity -> adopt;
+        (3) otherwise insert a new row.
+
+        Note: the machine_identity re-register branch (1) returns the STORED
+        hostname, which may differ from the ``hostname`` argument if the
+        machine was pre-provisioned or registered under a different name.
+        """
+        meta = json.dumps(provider_metadata or {})
+        t = self.table_name
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname FROM {t} WHERE machine_identity = %s;",
+                (machine_identity,),
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                target = row[0]
+                cursor.execute(
+                    f"UPDATE {t} SET client_secret_hash = %s, "
+                    f"endpoint_url = %s, provider = %s, "
+                    f"provider_metadata = %s, gpu_present = %s, "
+                    f"gpu_model = %s WHERE machine_identity = %s;",
+                    (client_secret_hash, endpoint_url, provider, meta,
+                     gpu_present, gpu_model, machine_identity),
+                )
+                return target
+
+            cursor.execute(
+                f"SELECT hostname FROM {t} "
+                f"WHERE hostname = %s AND machine_identity IS NULL;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                cursor.execute(
+                    f"UPDATE {t} SET machine_identity = %s, "
+                    f"client_secret_hash = %s, endpoint_url = %s, "
+                    f"provider = %s, provider_metadata = %s, "
+                    f"gpu_present = %s, gpu_model = %s "
+                    f"WHERE hostname = %s AND machine_identity IS NULL;",
+                    (machine_identity, client_secret_hash, endpoint_url,
+                     provider, meta, gpu_present, gpu_model, hostname),
+                )
+                return hostname
+
+            # Concurrent-register race backstop: a duplicate machine_identity
+            # here hits the partial-unique index and raises; the endpoint
+            # maps that to a retry-safe 409 (per spec). No fall-through here.
+            cursor.execute(
+                f"INSERT INTO {t} (hostname, inuse, machine_identity, "
+                f"provider, endpoint_url, provider_metadata, "
+                f"client_secret_hash, gpu_present, gpu_model) "
+                f"VALUES (%s, FALSE, %s, %s, %s, %s, %s, %s, %s);",
+                (hostname, machine_identity, provider, endpoint_url, meta,
+                 client_secret_hash, gpu_present, gpu_model),
+            )
+            return hostname
 
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are running and have no student assigned.
@@ -1106,6 +1202,24 @@ class PostgresqlDatabase:
                     logger.error(
                         f"Failed to add column {col_name}: {e}"
                     )
+
+    def set_setting(self, key: str, value: str) -> None:
+        """UPSERT a row in the settings (key, value) table."""
+        with self._cursor as cursor:
+            cursor.execute(
+                "INSERT INTO settings (key, value) VALUES (%s, %s) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;",
+                (key, value),
+            )
+
+    def get_setting(self, key: str) -> Optional[str]:
+        """Return the settings value for `key`, or None if absent."""
+        with self._cursor as cursor:
+            cursor.execute(
+                "SELECT value FROM settings WHERE key = %s;", (key,)
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
 
     def record_heartbeat(
         self,

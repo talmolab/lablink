@@ -31,6 +31,8 @@ def test_protocols_are_runtime_checkable():
         def prepare_browser_session(self, **kwargs):
             return BrowserSessionTarget(upstream="10.0.0.5:6080")
 
+        def make_join_material(self, **kwargs): ...
+
     class GoodProvider:
         name = "aws"
         client_connectivity = GoodConn()
@@ -50,3 +52,40 @@ def test_protocols_are_runtime_checkable():
 
 def test_provider_action_not_wired_is_exception():
     assert issubclass(ProviderActionNotWired, Exception)
+
+
+def test_client_join_material_fields():
+    from lablink_allocator_service.providers.protocol import ClientJoinMaterial
+
+    m = ClientJoinMaterial(
+        register_token="tk_x",
+        allocator_url="http://a:5000",
+        connectivity="allocator_proxied",
+        client_image="ghcr.io/x/client:latest",
+    )
+    assert m.register_token == "tk_x"
+    assert m.allocator_url == "http://a:5000"
+    assert m.connectivity == "allocator_proxied"
+    assert m.client_image == "ghcr.io/x/client:latest"
+
+
+def test_client_connectivity_protocol_requires_make_join_material():
+    from lablink_allocator_service.providers.protocol import ClientConnectivity
+
+    class Missing:
+        name = "x"
+
+        def prepare_browser_session(self, **kwargs):
+            ...
+
+    class Complete:
+        name = "x"
+
+        def prepare_browser_session(self, **kwargs):
+            ...
+
+        def make_join_material(self, **kwargs):
+            ...
+
+    assert not isinstance(Missing(), ClientConnectivity)
+    assert isinstance(Complete(), ClientConnectivity)

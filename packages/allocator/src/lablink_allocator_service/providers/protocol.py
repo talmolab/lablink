@@ -25,6 +25,17 @@ class ClientHandle:
     provider_metadata: dict = field(default_factory=dict)
 
 
+@dataclass
+class ClientJoinMaterial:
+    """Everything a fresh client needs to bootstrap (SR-F13). Note:
+    client_secret is minted by the registration endpoint, NOT carried here."""
+
+    register_token: str
+    allocator_url: str
+    connectivity: str
+    client_image: str
+
+
 @runtime_checkable
 class ClientConnectivity(Protocol):
     """Provider-owned strategy for browser -> client KasmVNC reachability."""
@@ -32,6 +43,8 @@ class ClientConnectivity(Protocol):
     name: str
 
     def prepare_browser_session(self, **kwargs) -> BrowserSessionTarget: ...
+
+    def make_join_material(self, **kwargs) -> ClientJoinMaterial: ...
 
 
 @runtime_checkable

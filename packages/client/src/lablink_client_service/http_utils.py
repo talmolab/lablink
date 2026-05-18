@@ -39,7 +39,7 @@ def get_client_env(cfg) -> tuple:
     else:
         base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
 
-    api_token = os.getenv("API_TOKEN", "")
+    api_token = os.getenv("CLIENT_SECRET") or os.getenv("API_TOKEN", "")
     vm_name = os.getenv("VM_NAME")
 
     return base_url, api_token, vm_name

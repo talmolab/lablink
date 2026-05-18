@@ -1476,3 +1476,107 @@ def test_release_seat_clears_per_session_columns(real_db):
         row = cur.fetchone()
 
     assert row == (None, None, None, None, None, None)
+
+
+def test_set_setting_upserts(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    db_instance.set_setting("register_token_hash", "$argon2id$abc")
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "INSERT INTO settings" in sql
+    assert "ON CONFLICT (key) DO UPDATE" in sql
+    assert mock_cursor.execute.call_args[0][1] == (
+        "register_token_hash", "$argon2id$abc",
+    )
+
+
+def test_get_setting_returns_value(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$abc",)
+    assert db_instance.get_setting("register_token_hash") == "$argon2id$abc"
+
+
+def test_get_setting_missing_returns_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_setting("nope") is None
+
+
+def test_get_vm_by_machine_identity_found(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    assert db_instance.get_vm_by_machine_identity("i-abc") == "vm-1"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "WHERE machine_identity = %s" in sql
+    assert mock_cursor.execute.call_args[0][1] == ("i-abc",)
+
+
+def test_get_vm_by_machine_identity_missing(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_vm_by_machine_identity("i-none") is None
+
+
+def test_get_client_secret_hash(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "client_secret_hash" in sql
+    assert "WHERE hostname = %s" in sql
+
+
+def test_get_client_secret_hash_missing(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("nope") is None
+
+
+def _exec_calls(mock_cursor):
+    return [c[0][0] for c in mock_cursor.execute.call_args_list]
+
+
+def test_register_client_reregister_by_machine_identity(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    # First SELECT (machine_identity lookup) finds an existing host.
+    mock_cursor.fetchone.side_effect = [("vm-9",)]
+    cid = db_instance.register_client(
+        hostname="vm-9", machine_identity="i-9", provider="aws",
+        endpoint_url="ws://x:6080", provider_metadata={"az": "a"},
+        gpu_present=True, gpu_model="T4", client_secret_hash="$h",
+    )
+    assert cid == "vm-9"
+    joined = " ".join(_exec_calls(mock_cursor))
+    assert "UPDATE" in joined
+    assert "machine_identity = %s" in joined  # lookup
+    assert "client_secret_hash" in joined     # rotated
+
+
+def test_register_client_adopts_precreated_row(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    # machine_identity lookup misses; hostname row exists with NULL identity.
+    mock_cursor.fetchone.side_effect = [None, ("vm-2",)]
+    cid = db_instance.register_client(
+        hostname="vm-2", machine_identity="i-2", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$h2",
+    )
+    assert cid == "vm-2"
+    joined = " ".join(_exec_calls(mock_cursor))
+    assert "UPDATE" in joined and "machine_identity IS NULL" in joined
+    assert "SET machine_identity" in joined
+
+
+def test_register_client_inserts_when_no_match(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    # both lookups miss -> insert.
+    mock_cursor.fetchone.side_effect = [None, None]
+    cid = db_instance.register_client(
+        hostname="vm-new", machine_identity="i-new", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$h3",
+    )
+    assert cid == "vm-new"
+    joined = " ".join(_exec_calls(mock_cursor))
+    assert "INSERT INTO" in joined
