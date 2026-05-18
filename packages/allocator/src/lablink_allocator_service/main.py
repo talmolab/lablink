@@ -802,46 +802,6 @@ def get_all_vm_status():
         return jsonify({"error": "Failed to get VM status."}), 500
 
 
-@app.route("/api/reboot-vm", methods=["POST"])
-@auth.login_required
-def reboot_vm():
-    """Manually trigger a reboot for a specific VM."""
-    data = request.get_json()
-    hostname = data.get("hostname")
-
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-
-    if not database.vm_exists(hostname):
-        return jsonify({"error": "VM not found."}), 404
-
-    try:
-        success = reboot_service._reboot_vm(hostname)
-        if success:
-            return jsonify({
-                "message": f"Reboot initiated for VM '{hostname}'.",
-            }), 200
-        else:
-            return jsonify({"error": "Failed to initiate reboot."}), 500
-    except Exception as e:
-        logger.error(f"Error rebooting VM '{hostname}': {e}")
-        return jsonify({"error": "Failed to reboot VM."}), 500
-
-
-@app.route("/api/reboot-vm/<hostname>", methods=["GET"])
-@auth.login_required
-def get_reboot_info(hostname):
-    """Get reboot tracking info for a specific VM."""
-    if not database.vm_exists(hostname):
-        return jsonify({"error": "VM not found."}), 404
-
-    info = database.get_reboot_info(hostname)
-    if info is None:
-        return jsonify({"error": "Could not retrieve reboot info."}), 500
-
-    return jsonify({"hostname": hostname, **info}), 200
-
-
 @app.route("/api/vm-logs", methods=["POST"])
 @require_api_token
 def receive_vm_logs():
