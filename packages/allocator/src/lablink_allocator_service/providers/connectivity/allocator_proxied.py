@@ -1,8 +1,4 @@
-"""AWS connectivity: browser -> allocator nginx proxy -> client KasmVNC.
-
-PR B is behavior-preserving: prepare_browser_session delegates verbatim to
-the existing client_session.prepare_browser_session. PR C adds
-make_join_material (the registration-time bootstrap descriptor)."""
+"""AWS connectivity: browser -> allocator nginx proxy -> client KasmVNC."""
 from __future__ import annotations
 
 from lablink_allocator_service.client_session import (

@@ -102,10 +102,7 @@ EXPOSE 6080 7070
 RUN systemctl disable lightdm.service || true
 
 # Google Chrome browser. Installed inside the remote desktop so students can
-# open tutorial URLs, Jupyter, etc. from within their VNC session. (This is
-# the browser, distinct from Chrome Remote Desktop which this PR removed.)
-# Mirrors the previously-working pattern from main: libnss3/libnspr4 are
-# pre-installed in the apt block above, so this layer just unpacks the .deb.
+# open tutorial URLs, Jupyter, etc. from within their VNC session.
 RUN curl -L -o google-chrome-stable_current_amd64.deb \
         https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
     apt install --assume-yes --fix-broken ./google-chrome-stable_current_amd64.deb && \

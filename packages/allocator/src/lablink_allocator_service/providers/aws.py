@@ -1,8 +1,4 @@
-"""AWSProvider — behavior-preserving wrapper over existing AWS utilities.
-
-PR B scope: `recover_hosts` and `client_connectivity` are wired into the
-core; `list_hosts` reads Terraform state; `provision_hosts`/`destroy_hosts`
-remain inline in main.py for now (raise ProviderActionNotWired)."""
+"""AWSProvider — behavior-preserving wrapper over existing AWS utilities."""
 from __future__ import annotations
 
 from lablink_allocator_service.providers.connectivity.allocator_proxied import (

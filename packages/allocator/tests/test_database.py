@@ -1307,11 +1307,6 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
     assert "Failed to look up assigned VM" in caplog.text
 
 
-# ---------------------------------------------------------------------------
-# Pool-behavior tests (PR 1: connection pool refactor)
-# ---------------------------------------------------------------------------
-
-
 def test_pool_size_validation_rejects_min_zero():
     """pool_min_size must be >= 1."""
     with pytest.raises(ValueError, match="Invalid pool sizes"):
@@ -1531,52 +1526,36 @@ def test_get_client_secret_hash_missing(db_instance, mock_db_connection):
     assert db_instance.get_client_secret_hash("nope") is None
 
 
-def _exec_calls(mock_cursor):
-    return [c[0][0] for c in mock_cursor.execute.call_args_list]
-
-
-def test_register_client_reregister_by_machine_identity(
-    db_instance, mock_db_connection
-):
+def test_register_client_upsert_returns_hostname(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
-    # First SELECT (machine_identity lookup) finds an existing host.
-    mock_cursor.fetchone.side_effect = [("vm-9",)]
+    mock_cursor.fetchone.return_value = ("vm-1",)
     cid = db_instance.register_client(
-        hostname="vm-9", machine_identity="i-9", provider="aws",
+        hostname="vm-1", machine_identity="i-1", provider="aws",
         endpoint_url="ws://x:6080", provider_metadata={"az": "a"},
         gpu_present=True, gpu_model="T4", client_secret_hash="$h",
     )
-    assert cid == "vm-9"
-    joined = " ".join(_exec_calls(mock_cursor))
-    assert "UPDATE" in joined
-    assert "machine_identity = %s" in joined  # lookup
-    assert "client_secret_hash" in joined     # rotated
+    assert cid == "vm-1"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "INSERT INTO" in sql
+    assert "ON CONFLICT (hostname) DO UPDATE" in sql
+    assert "RETURNING hostname" in sql
+    # no-hijack guard present
+    assert "machine_identity IS NULL" in sql
+    assert "machine_identity = EXCLUDED.machine_identity" in sql
+    # single atomic statement (not a multi-step check-then-act)
+    assert mock_cursor.execute.call_count == 1
 
 
-def test_register_client_adopts_precreated_row(db_instance, mock_db_connection):
+def test_register_client_returns_none_on_no_hijack_conflict(
+    db_instance, mock_db_connection
+):
+    # DO UPDATE WHERE excludes a row owned by a different machine_identity:
+    # RETURNING yields nothing -> fetchone() is None -> register_client None.
     _, mock_cursor, _ = mock_db_connection
-    # machine_identity lookup misses; hostname row exists with NULL identity.
-    mock_cursor.fetchone.side_effect = [None, ("vm-2",)]
+    mock_cursor.fetchone.return_value = None
     cid = db_instance.register_client(
-        hostname="vm-2", machine_identity="i-2", provider="aws",
+        hostname="vm-9", machine_identity="i-other", provider="aws",
         endpoint_url=None, provider_metadata={}, gpu_present=None,
-        gpu_model=None, client_secret_hash="$h2",
+        gpu_model=None, client_secret_hash="$h",
     )
-    assert cid == "vm-2"
-    joined = " ".join(_exec_calls(mock_cursor))
-    assert "UPDATE" in joined and "machine_identity IS NULL" in joined
-    assert "SET machine_identity" in joined
-
-
-def test_register_client_inserts_when_no_match(db_instance, mock_db_connection):
-    _, mock_cursor, _ = mock_db_connection
-    # both lookups miss -> insert.
-    mock_cursor.fetchone.side_effect = [None, None]
-    cid = db_instance.register_client(
-        hostname="vm-new", machine_identity="i-new", provider="aws",
-        endpoint_url=None, provider_metadata={}, gpu_present=None,
-        gpu_model=None, client_secret_hash="$h3",
-    )
-    assert cid == "vm-new"
-    joined = " ".join(_exec_calls(mock_cursor))
-    assert "INSERT INTO" in joined
+    assert cid is None
