@@ -95,6 +95,13 @@ variable "api_token" {
   default     = ""
 }
 
+variable "agent_token" {
+  type        = string
+  description = "Deployment agent-control token the allocator presents to the client agent's session-start endpoint"
+  sensitive   = true
+  default     = ""
+}
+
 variable "register_token" {
   type        = string
   description = "Deployment register-token; authenticates POST /api/v1/clients/register"

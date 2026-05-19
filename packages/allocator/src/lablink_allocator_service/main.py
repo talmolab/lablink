@@ -108,6 +108,12 @@ API_TOKEN = secrets.token_urlsafe(32)
 # semantics: one per allocator process, re-injected via terraform on launch.
 REGISTER_TOKEN = secrets.token_urlsafe(32)
 
+# Deployment agent-control token: allocator→client-agent (:7070) control
+# channel. Distinct from API_TOKEN (M2M, → D4) and REGISTER_TOKEN
+# (client→allocator join). Symmetric plaintext (allocator presents, agent
+# verifies); per-process like API_TOKEN/REGISTER_TOKEN.
+AGENT_TOKEN = secrets.token_urlsafe(32)
+
 # Initialize the database connection
 database = None
 
@@ -347,7 +353,7 @@ def submit_vm_details():
                 hostname=hostname,
                 session_id=session_id,
                 browser_token=browser_token,
-                api_token=API_TOKEN,
+                agent_token=AGENT_TOKEN,
             )
         except RotationFailed as exc:
             logger.warning(
@@ -479,6 +485,7 @@ def launch():
             f.write(f'region = "{cfg.app.region}"\n')
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
             f.write(f'api_token = "{API_TOKEN}"\n')
+            f.write(f'agent_token = "{AGENT_TOKEN}"\n')
             f.write(f'register_token = "{REGISTER_TOKEN}"\n')
 
         # Build the var args once; they apply to both `plan` and `apply`.
