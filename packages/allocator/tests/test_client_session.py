@@ -23,6 +23,8 @@ def test_happy_path_rotates_and_persists(real_db):
             "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
             "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
             "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10'")
