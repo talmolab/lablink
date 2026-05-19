@@ -1576,3 +1576,39 @@ def test_register_client_none_provider_metadata_serializes_empty_json(
     #                 meta, client_secret_hash, gpu_present, gpu_model)
     params = mock_cursor.execute.call_args[0][1]
     assert params[4] == "{}"
+
+
+def test_get_lan_ip_prefers_provider_metadata(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("10.0.0.9", "ws://x:6080")
+    assert db_instance.get_lan_ip("vm-1") == "10.0.0.9"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'lan_ip'" in sql
+    assert "WHERE hostname = %s" in sql
+
+
+def test_get_lan_ip_falls_back_to_endpoint_url_host(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None, "ws://10.0.0.7:6080")
+    assert db_instance.get_lan_ip("vm-1") == "10.0.0.7"
+
+
+def test_get_lan_ip_none_when_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None, None)
+    assert db_instance.get_lan_ip("vm-1") is None
+
+
+def test_get_lan_ip_none_when_row_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_lan_ip("nope") is None
+
+
+def test_list_hosts_by_provider(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [("vm-1",), ("vm-2",)]
+    assert db_instance.list_hosts_by_provider("manual") == ["vm-1", "vm-2"]
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "WHERE provider = %s" in sql
+    assert mock_cursor.execute.call_args[0][1] == ("manual",)

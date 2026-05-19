@@ -9,9 +9,9 @@ from lablink_client_service.agent.api import create_app
 
 @pytest.fixture
 def client(monkeypatch):
-    """Flask test client with API_TOKEN set and password rotation
+    """Flask test client with AGENT_TOKEN set and password rotation
     patched out so tests don't shell out to `kasmvncpasswd`."""
-    monkeypatch.setenv("API_TOKEN", "test-token-123")
+    monkeypatch.setenv("AGENT_TOKEN", "test-token-123")
     app = create_app()
     app.config["TESTING"] = True
     return app.test_client()
@@ -42,6 +42,23 @@ def test_session_start_rotates_password_on_valid_request(client, authed_headers)
     assert resp.status_code == 200
     assert resp.get_json() == {"ok": True}
     rotate.assert_called_once_with(password="hunter22")
+
+
+def test_agent_validates_agent_token(monkeypatch):
+    """AGENT_TOKEN accepted, wrong token rejected, API_TOKEN not consulted."""
+    monkeypatch.setenv("AGENT_TOKEN", "good-agent")
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    from lablink_client_service.agent.api import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    c = app.test_client()
+    with patch("lablink_client_service.agent.api.rotate_kasmvnc_password"):
+        ok = c.post("/api/session/start", json={"password": "p"},
+                    headers={"Authorization": "Bearer good-agent"})
+        bad = c.post("/api/session/start", json={"password": "p"},
+                     headers={"Authorization": "Bearer wrong"})
+    assert ok.status_code == 200
+    assert bad.status_code == 401
 
 
 def test_session_start_rejects_missing_auth_header(client):
@@ -84,10 +101,10 @@ def test_session_start_rejects_non_bearer_scheme(client):
     rotate.assert_not_called()
 
 
-def test_session_start_returns_500_when_api_token_unset(monkeypatch):
-    """Misconfigured server (no API_TOKEN env) returns 500 rather than
+def test_session_start_returns_500_when_agent_token_unset(monkeypatch):
+    """Misconfigured server (no AGENT_TOKEN env) returns 500 rather than
     silently accepting empty-Bearer rotations — failing closed."""
-    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.delenv("AGENT_TOKEN", raising=False)
     app = create_app()
     app.config["TESTING"] = True
     test_client = app.test_client()

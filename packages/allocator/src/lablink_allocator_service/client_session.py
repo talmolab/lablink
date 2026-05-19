@@ -28,7 +28,8 @@ class RotationFailed(RuntimeError):
 
 @dataclass
 class BrowserSessionTarget:
-    upstream: str  # e.g. "10.0.0.5:6080"
+    ws_url: str                       # opaque URL the page opens
+    browser_credential: str | None    # non-None ⇒ page sends HTTP Basic
 
 
 def _region() -> str:
@@ -74,14 +75,14 @@ def prepare_browser_session(
     hostname: str,
     session_id: uuid.UUID,
     browser_token: str,
-    api_token: str,
+    agent_token: str,
 ) -> BrowserSessionTarget:
     """Rotate the assigned client's VNC password and persist per-session
     columns on the VM row. Must be called inside the seat-assignment
     transaction so failures roll back.
 
-    `api_token` is the allocator's per-startup random token (main.API_TOKEN);
-    the client agent receives the same value as its API_TOKEN env via the
+    `agent_token` is the deployment agent-control token (`main.AGENT_TOKEN`);
+    the client agent receives the same value as its AGENT_TOKEN env via the
     Terraform user_data and validates it on every /api/session/start call.
     Passed explicitly rather than read from env so this function has no
     hidden global dependency for tests.
@@ -96,9 +97,10 @@ def prepare_browser_session(
     _post_rotate(
         f"http://{private_ip}:7070/api/session/start",
         {"password": password},
-        bearer=api_token,
+        bearer=agent_token,
     )
 
+    ws_url = f"proxy/{browser_token}"
     with database._cursor as cursor:
         cursor.execute(
             f"UPDATE {database.table_name} "
@@ -106,9 +108,12 @@ def prepare_browser_session(
             f"    browsertoken = %s, "
             f"    vncpassword = %s, "
             f"    upstream = %s, "
+            f"    browser_ws_url = %s, "
+            f"    browser_credential = NULL, "
             f"    sessionstartedat = NOW() "
             f"WHERE hostname = %s",
-            (str(session_id), browser_token, password, upstream, hostname),
+            (str(session_id), browser_token, password, upstream,
+             ws_url, hostname),
         )
 
-    return BrowserSessionTarget(upstream=upstream)
+    return BrowserSessionTarget(ws_url=ws_url, browser_credential=None)

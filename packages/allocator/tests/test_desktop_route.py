@@ -1,5 +1,6 @@
 """Tests for the GET /desktop route."""
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +19,9 @@ def _ensure_session_columns(real_db):
             "ADD COLUMN IF NOT EXISTS status TEXT, "
             "ADD COLUMN IF NOT EXISTS useremail TEXT, "
             "ADD COLUMN IF NOT EXISTS sessionid UUID, "
-            "ADD COLUMN IF NOT EXISTS browsertoken TEXT"
+            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_credential TEXT"
         )
         cur.execute(
             "CREATE TABLE IF NOT EXISTS settings ("
@@ -65,9 +68,10 @@ def test_desktop_redirects_to_kasmvnc_viewer_with_valid_cookie(
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task12'")
         cur.execute(
             "INSERT INTO vms (hostname, status, useremail, "
-            "                 sessionid, browsertoken) "
+            "                 sessionid, browsertoken, "
+            "                 browser_ws_url, browser_credential) "
             "VALUES ('host-task12', 'running', 'sam@x.com', "
-            "        %s, 'tok-abc')",
+            "        %s, 'tok-abc', 'proxy/tok-abc', NULL)",
             (sid,),
         )
     client_with_db.set_cookie("lablink_session", sign(sid, secret=SEED_SECRET))
@@ -100,3 +104,71 @@ def test_desktop_redirects_when_status_not_running(client_with_db, real_db):
     client_with_db.set_cookie("lablink_session", sign(sid, secret=SEED_SECRET))
     resp = client_with_db.get("/desktop", follow_redirects=False)
     assert resp.status_code == 302
+
+
+# ---------------------------------------------------------------------------
+# Mock-based fixture: controls (browser_ws_url, browser_credential) directly
+# without requiring a real Postgres connection.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def desktop_client_with_row(monkeypatch):
+    """Factory fixture: yields a callable that returns a Flask test client
+    whose /desktop row lookup returns ``(ws_url, cred)`` for a valid running
+    session + signed cookie.  No real Postgres required."""
+
+    def _make(*, ws_url, cred):
+        import lablink_allocator_service.main as main_module
+
+        # Stable session id — sign it with SEED_SECRET.
+        sid = str(uuid.uuid4())
+        signed = sign(sid, secret=SEED_SECRET)
+
+        # Mock cursor: fetchone returns the two new columns.
+        mock_cur = MagicMock()
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_cur.fetchone.return_value = (ws_url, cred)
+
+        # Mock connection: cursor() returns mock_cur.
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        # Mock pool: getconn returns the mock connection, putconn is a no-op.
+        mock_pool = MagicMock()
+        mock_pool.getconn.return_value = mock_conn
+
+        main_module.app.config["DB_POOL"] = mock_pool
+        main_module.app.config["VM_TABLE_NAME"] = "vms"
+
+        # Stub get_or_create_cookie_secret so the route verifies with SEED_SECRET.
+        monkeypatch.setattr(
+            "lablink_allocator_service.routes.desktop.get_or_create_cookie_secret",
+            lambda _: SEED_SECRET,
+            raising=True,
+        )
+
+        flask_client = main_module.app.test_client()
+        flask_client.set_cookie("lablink_session", signed)
+        return flask_client
+
+    return _make
+
+
+def test_desktop_aws_byte_identical(desktop_client_with_row):
+    client = desktop_client_with_row(ws_url="proxy/btok123", cred=None)
+    r = client.get("/desktop")
+    assert r.status_code == 302
+    assert r.headers["Location"] == (
+        "/static/novnc/vnc.html?path=proxy/btok123&autoconnect=1&resize=remote"
+    )
+
+
+def test_desktop_lan_direct_renders_direct_with_credential(desktop_client_with_row):
+    client = desktop_client_with_row(ws_url="ws://10.0.0.9:6080", cred="seshpw")
+    r = client.get("/desktop")
+    assert r.status_code == 200          # rendered page, not a redirect
+    body = r.get_data(as_text=True)
+    assert "10.0.0.9" in body and "6080" in body
+    assert "seshpw" in body              # credential in-page, not in a logged URL
+    assert "?path=proxy/" not in body

@@ -17,7 +17,7 @@ def test_satisfies_protocol_and_name():
 
 
 def test_delegates_to_client_session_unchanged():
-    sentinel = BrowserSessionTarget(upstream="10.0.0.9:6080")
+    sentinel = BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
     sid = uuid.uuid4()
     with patch(
         "lablink_allocator_service.providers.connectivity.allocator_proxied."
@@ -30,7 +30,7 @@ def test_delegates_to_client_session_unchanged():
             hostname="vm-1",
             session_id=sid,
             browser_token="tok",
-            api_token="api",
+            agent_token="api",
         )
     assert out is sentinel
     m.assert_called_once_with(
@@ -38,7 +38,7 @@ def test_delegates_to_client_session_unchanged():
         hostname="vm-1",
         session_id=sid,
         browser_token="tok",
-        api_token="api",
+        agent_token="api",
     )
 
 

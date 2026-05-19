@@ -21,7 +21,7 @@ class AWSProvider:
     can_destroy_hosts = True
     can_recover_hosts = True
 
-    def __init__(self, *, region: str, terraform_dir: str):
+    def __init__(self, *, region=None, terraform_dir=None, **_):
         self._region = region
         self._terraform_dir = terraform_dir
         self.client_connectivity = AllocatorProxiedClientConnectivity()

@@ -59,3 +59,9 @@ def test_phase2_indexes_present():
     assert "_provider_idx" in sql
     assert "_assignable_idx" in sql
     assert "useremail IS NULL AND status = 'running'" in sql
+
+
+def test_d1_render_columns_present():
+    sql = build_init_sql()
+    assert "browser_ws_url     TEXT" in sql
+    assert "browser_credential TEXT" in sql

@@ -54,10 +54,10 @@ def test_happy_path_rotates_and_persists(real_db):
             hostname="host-task10",
             session_id=session_id,
             browser_token="tok-abc",
-            api_token=API_TOKEN,
+            agent_token=API_TOKEN,
         )
 
-    # Agent POST: correct URL, Bearer header sourced from api_token kwarg,
+    # Agent POST: correct URL, Bearer header sourced from agent_token kwarg,
     # body carries only the rotated password (the agent doesn't need
     # session_id or browser_token — those are allocator-side bookkeeping).
     mock_post.assert_called_once()
@@ -81,7 +81,8 @@ def test_happy_path_rotates_and_persists(real_db):
     assert row[1] == "tok-abc"
     assert row[2] == kwargs["json"]["password"]
     assert row[3] == "10.0.0.5:6080"
-    assert target.upstream == "10.0.0.5:6080"
+    assert target.ws_url == "proxy/tok-abc"
+    assert target.browser_credential is None
 
 
 def test_one_retry_then_raises(real_db):
@@ -123,10 +124,52 @@ def test_one_retry_then_raises(real_db):
                 hostname="host-task10-fail",
                 session_id=uuid.uuid4(),
                 browser_token="t",
-                api_token=API_TOKEN,
+                agent_token=API_TOKEN,
             )
 
     assert mock_post.call_count == 2  # initial + one retry
+
+
+def test_prepare_browser_session_persists_render_columns(monkeypatch):
+    import lablink_allocator_service.client_session as cs
+    import uuid
+
+    monkeypatch.setattr(cs, "_lookup_private_ip", lambda h: "10.0.0.5")
+    posted = {}
+    monkeypatch.setattr(cs, "_post_rotate",
+                        lambda url, body, *, bearer: posted.update(
+                            url=url, body=body, bearer=bearer))
+
+    executed = {}
+    class _Cur:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, sql, params):
+            executed["sql"] = sql
+            executed["params"] = params
+    class _DB:
+        table_name = "vms"
+        _cursor = _Cur()
+
+    t = cs.prepare_browser_session(
+        database=_DB(), hostname="vm-1", session_id=uuid.uuid4(),
+        browser_token="btok", agent_token="agenttok",
+    )
+    assert posted["bearer"] == "agenttok"
+    assert posted["body"] == {"password": executed["params"][2]}  # vncpassword param
+    assert t.ws_url == "proxy/btok"
+    assert t.browser_credential is None
+    assert "browser_ws_url" in executed["sql"]
+    assert "browser_credential = NULL" in executed["sql"]
+
+
+def test_browser_session_target_new_shape():
+    from lablink_allocator_service.client_session import BrowserSessionTarget
+    t = BrowserSessionTarget(ws_url="ws://x:6080", browser_credential="pw")
+    assert t.ws_url == "ws://x:6080"
+    assert t.browser_credential == "pw"
+    t2 = BrowserSessionTarget(ws_url="proxy/abc", browser_credential=None)
+    assert t2.browser_credential is None
 
 
 def test_raises_when_instance_id_not_found(real_db):
@@ -157,5 +200,5 @@ def test_raises_when_instance_id_not_found(real_db):
                 hostname="ghost-host",
                 session_id=uuid.uuid4(),
                 browser_token="t",
-                api_token=API_TOKEN,
+                agent_token=API_TOKEN,
             )

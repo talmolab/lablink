@@ -36,7 +36,7 @@ def test_aws_entry_point_is_registered():
 def test_provider_connectivity_round_trips_kwargs():
     p = get_provider("aws", region="us-west-2", terraform_dir="/tf")
     sid = uuid.uuid4()
-    sentinel = BrowserSessionTarget(upstream="10.0.0.5:6080")
+    sentinel = BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
     with patch(
         "lablink_allocator_service.providers.connectivity.allocator_proxied."
         "prepare_browser_session",
@@ -44,7 +44,13 @@ def test_provider_connectivity_round_trips_kwargs():
     ) as m:
         out = p.client_connectivity.prepare_browser_session(
             database="DB", hostname="vm-1", session_id=sid,
-            browser_token="t", api_token="a",
+            browser_token="t", agent_token="a",
         )
     assert out is sentinel
     assert m.call_args.kwargs["hostname"] == "vm-1"
+
+
+def test_get_provider_manual_returns_constructed_instance():
+    from lablink_allocator_service.providers.manual import ManualProvider
+    p = get_provider("manual", region=None, terraform_dir=None)
+    assert isinstance(p, ManualProvider)

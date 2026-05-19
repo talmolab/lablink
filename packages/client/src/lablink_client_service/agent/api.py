@@ -7,9 +7,9 @@ handing the seat to a student; the agent rewrites the local
 Basic Auth check, so no signal-based reload is needed (and SIGHUP
 would in fact terminate Xvnc — its reset path is unsupported).
 
-Auth: Bearer = deployment-wide API_TOKEN (same value the allocator
-generates at startup and bakes into the client VM's docker env via
-the Terraform `api_token` variable). Any caller who knows the token
+Auth: Bearer = deployment-wide agent-control token AGENT_TOKEN (same
+value the allocator generates at startup and bakes into the client
+VM's docker env via Terraform). Any caller who knows the token
 can rotate the password; that's adequate because the token is only
 ever set on the client VM by Terraform and only ever sent by the
 allocator. /healthz is unauthenticated for ALB / Docker healthchecks.
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    expected = os.environ.get("API_TOKEN", "")
+    expected = os.environ.get("AGENT_TOKEN", "")
 
     @app.post("/api/session/start")
     def session_start():
@@ -38,7 +38,7 @@ def create_app() -> Flask:
         # per-seat — timing-channel risk is negligible.
         auth = request.headers.get("Authorization", "")
         if not expected:
-            logger.error("API_TOKEN env var is not set; rejecting all calls")
+            logger.error("AGENT_TOKEN env var is not set; rejecting all calls")
             return jsonify(error="server misconfigured"), 500
         if not auth.startswith("Bearer ") or auth[7:] != expected:
             return jsonify(error="unauthorized"), 401

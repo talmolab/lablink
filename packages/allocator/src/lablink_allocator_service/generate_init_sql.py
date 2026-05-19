@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     endpoint_url       TEXT,
     provider_metadata  JSONB NOT NULL DEFAULT '{{}}',
     client_secret_hash TEXT,
+    browser_ws_url     TEXT,
+    browser_credential TEXT,
     gpu_present        BOOLEAN,
     gpu_model          TEXT,
     last_release_time  TIMESTAMP

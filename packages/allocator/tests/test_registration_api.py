@@ -178,3 +178,20 @@ def test_register_returns_409_on_integrity_error(reg_client):
         headers={"Authorization": "Bearer tk_test_register"},
     )
     assert r.status_code == 409
+
+
+def test_agent_token_global_exists():
+    from lablink_allocator_service import main
+    assert isinstance(main.AGENT_TOKEN, str) and len(main.AGENT_TOKEN) >= 32
+    assert main.AGENT_TOKEN != main.API_TOKEN
+    assert main.AGENT_TOKEN != main.REGISTER_TOKEN
+
+
+def test_register_response_includes_agent_token(reg_client):
+    client, fake_db = reg_client
+    r = client.post("/api/v1/clients/register",
+                     json={"hostname": "vm-1", "machine_identity": "i-1"},
+                     headers={"Authorization": "Bearer tk_test_register"})
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    assert r.get_json()["agent_token"] == main.AGENT_TOKEN

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import json
 import logging
 from typing import List, Optional
+from urllib.parse import urlsplit
 
 import psycopg2
 import psycopg2.pool
@@ -292,6 +293,33 @@ class PostgresqlDatabase:
             )
             row = cursor.fetchone()
         return row[0] if row else None
+
+    def get_lan_ip(self, hostname: str):
+        """LAN IP for a manual client: provider_metadata->>'lan_ip',
+        falling back to the host part of endpoint_url. None if absent."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'lan_ip', endpoint_url "
+                f"FROM {self.table_name} WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        if not row:
+            return None
+        lan_ip, endpoint_url = row
+        if lan_ip:
+            return lan_ip
+        if endpoint_url:
+            return urlsplit(endpoint_url).hostname
+        return None
+
+    def list_hosts_by_provider(self, provider: str) -> list:
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname FROM {self.table_name} WHERE provider = %s;",
+                (provider,),
+            )
+            return [r[0] for r in cursor.fetchall()]
 
     def register_client(
         self,

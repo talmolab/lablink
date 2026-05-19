@@ -7,6 +7,7 @@ import logging
 from importlib.metadata import entry_points
 
 from lablink_allocator_service.providers.aws import AWSProvider
+from lablink_allocator_service.providers.manual import ManualProvider
 from lablink_allocator_service.providers.protocol import ComputeProvider
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ DEFAULT_PROVIDER = "aws"
 
 # Built-in fallback so the allocator works in editable/test installs where
 # entry-point metadata may not be regenerated.
-_BUILTIN: dict[str, type] = {"aws": AWSProvider}
+_BUILTIN: dict[str, type] = {"aws": AWSProvider, "manual": ManualProvider}
 
 
 def _discover() -> dict[str, type]:

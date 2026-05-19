@@ -29,7 +29,7 @@ def test_protocols_are_runtime_checkable():
         name = "allocator_proxied"
 
         def prepare_browser_session(self, **kwargs):
-            return BrowserSessionTarget(upstream="10.0.0.5:6080")
+            return BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
 
         def make_join_material(self, **kwargs): ...
 

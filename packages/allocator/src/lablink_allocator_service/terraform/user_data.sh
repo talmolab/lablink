@@ -181,6 +181,7 @@ if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
     -e API_TOKEN="${api_token}" \
+    -e AGENT_TOKEN="${agent_token}" \
     -e CLIENT_SECRET="$CLIENT_SECRET" \
     --network host \
     "${image_name}"; then

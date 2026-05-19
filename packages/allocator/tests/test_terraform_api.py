@@ -925,6 +925,9 @@ def test_launch_writes_register_token_to_tfvars(
     monkeypatch.setattr(
         "lablink_allocator_service.main.REGISTER_TOKEN", "test-register-token-value", raising=False
     )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.AGENT_TOKEN", "test-agent-token-value", raising=False
+    )
 
     class R:
         def __init__(self, out="OK"):
@@ -943,3 +946,72 @@ def test_launch_writes_register_token_to_tfvars(
 
     tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
     assert 'register_token = "test-register-token-value"' in tfvars
+    assert 'agent_token = "test-agent-token-value"' in tfvars
+
+
+@patch("lablink_allocator_service.main.upload_to_s3")
+@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.main.subprocess.run")
+def test_launch_writes_agent_token_to_tfvars_additively(
+    mock_run,
+    mock_check_support_nvidia,
+    mock_upload_to_s3,
+    client,
+    admin_headers,
+    monkeypatch,
+    tmp_path,
+):
+    """Regression: launch() must write agent_token = "<main.AGENT_TOKEN>" into
+    terraform.runtime.tfvars so the client agent receives AGENT_TOKEN env via
+    the bundled user_data — WITHOUT dropping the existing api_token line
+    (additive, not a rename). Guards the D1 shipping-blocker wiring: if the
+    AGENT_TOKEN tfvars thread is ever removed, every /api/session/start 500s.
+    """
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.allocator_ip", "1.2.3.4", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.key_name", "my-key", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.API_TOKEN", "test-api-token-value", raising=False
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.AGENT_TOKEN", "test-agent-token-value", raising=False
+    )
+
+    class R:
+        def __init__(self, out="OK"):
+            self.stdout, self.stderr, self.returncode = out, "", 0
+
+    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
+    mock_run.side_effect = [
+        R("OK"),
+        R(CLEAN_PLAN_JSON),
+        R("\x1b[32mapply success\x1b[0m"),
+        R(timing_json),
+    ]
+
+    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
+    assert resp.status_code == 200
+
+    from lablink_allocator_service import main
+
+    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    # agent_token carries main.AGENT_TOKEN ...
+    assert f'agent_token = "{main.AGENT_TOKEN}"' in tfvars
+    assert 'agent_token = "test-agent-token-value"' in tfvars
+    # ... and api_token is still written (additive, not replaced).
+    assert f'api_token = "{main.API_TOKEN}"' in tfvars
+    assert 'api_token = "test-api-token-value"' in tfvars

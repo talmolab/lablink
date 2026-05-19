@@ -2,11 +2,14 @@
 
 Reads the signed lablink_session cookie minted by /api/request_vm,
 looks up the assigned VM by session_id, and renders the noVNC viewer
-configured with a WebSocket URL pointing at /proxy/<browser_token>.
+configured from the persisted browser_ws_url and browser_credential.
 
 If the cookie is missing, invalid, or the bound VM is no longer
 running, redirect to / so the student can submit their email again.
 """
+import json
+from urllib.parse import urlsplit
+
 from flask import Blueprint, current_app, redirect, request
 from psycopg2 import sql
 
@@ -39,7 +42,7 @@ def desktop():
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
-                    "SELECT browsertoken FROM {table} "
+                    "SELECT browser_ws_url, browser_credential FROM {table} "
                     "WHERE sessionid = %s AND status = 'running'"
                 ).format(table=table),
                 (session_id,),
@@ -51,18 +54,32 @@ def desktop():
     if row is None or row[0] is None:
         return redirect("/", code=302)
 
-    # Redirect into KasmVNC's bundled noVNC viewer (served via nginx at
-    # /static/novnc/ from /usr/share/kasmvnc/www/). Kasm's noVNC is the
-    # only viewer that's protocol-compatible with kasmvncserver — the
-    # Debian `novnc` package sends RFB extension messages KasmVNC rejects.
-    # autoconnect=1 + resize=remote tells the viewer to open the WS
-    # immediately on load and follow window resizes; `path` is relative
-    # to location.host, so the viewer connects to /proxy/<token> at the
-    # current origin, which nginx then upgrades and proxies to KasmVNC
-    # with the Basic Auth header attached server-side.
-    browser_token = row[0]
-    return redirect(
-        f"/static/novnc/vnc.html?path=proxy/{browser_token}"
-        f"&autoconnect=1&resize=remote",
-        code=302,
+    ws_url, credential = row[0], row[1]
+
+    # Proxied path (relative, server-side credential): byte-identical to
+    # the historical viewer URL — AWS regression-locked.
+    if ws_url.startswith("proxy/"):
+        return redirect(
+            f"/static/novnc/vnc.html?path={ws_url}"
+            f"&autoconnect=1&resize=remote",
+            code=302,
+        )
+
+    # Direct ws(s):// target: render an in-page bootstrap so the
+    # per-session credential is NEVER placed in a logged query string.
+    parts = urlsplit(ws_url)
+    host = parts.hostname or ""
+    port = parts.port or 6080
+    encrypt = "1" if parts.scheme == "wss" else "0"
+    cred_js = "" if credential is None else (
+        f"localStorage.setItem('lablink_cred', {json.dumps(credential)});"
+    )
+    return (
+        "<!doctype html><meta charset=utf-8>"
+        '<body style="margin:0">'
+        f"<script>{cred_js}"
+        f'location.replace("/static/novnc/vnc.html"'
+        f'+"?host={host}&port={port}&encrypt={encrypt}"'
+        f'+"&autoconnect=1&resize=remote");</script>',
+        200,
     )

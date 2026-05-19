@@ -39,6 +39,7 @@ lablink-validate-config = "lablink_allocator_service.validate_config:main"
 
 [project.entry-points."lablink.providers"]
 aws = "lablink_allocator_service.providers.aws:AWSProvider"
+manual = "lablink_allocator_service.providers.manual:ManualProvider"
 
 [tool.setuptools.package-data]
 lablink_allocator_service = ["terraform/**/*", "conf/*.yaml"]

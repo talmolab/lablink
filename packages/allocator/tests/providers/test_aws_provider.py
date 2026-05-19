@@ -74,3 +74,11 @@ def test_provision_and_destroy_not_wired_in_pr_b():
         p.provision_hosts(1, {})
     with pytest.raises(ProviderActionNotWired):
         p.destroy_hosts([])
+
+
+def test_aws_provider_tolerant_constructor():
+    from lablink_allocator_service.providers.aws import AWSProvider
+    # extra/None kwargs must not raise (uniform registry call shape)
+    p = AWSProvider(region="us-west-2", terraform_dir="/tmp", client_connectivity=None)
+    assert p.name == "aws"
+    assert p.client_connectivity is not None
