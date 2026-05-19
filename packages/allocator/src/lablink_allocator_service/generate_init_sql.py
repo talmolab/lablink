@@ -82,13 +82,27 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     BrowserToken TEXT,
     VncPassword TEXT,
     Upstream TEXT,
-    SessionStartedAt TIMESTAMPTZ
+    SessionStartedAt TIMESTAMPTZ,
+    machine_identity   TEXT,
+    provider           TEXT NOT NULL DEFAULT 'aws',
+    endpoint_url       TEXT,
+    provider_metadata  JSONB NOT NULL DEFAULT '{{}}',
+    client_secret_hash TEXT,
+    gpu_present        BOOLEAN,
+    gpu_model          TEXT,
+    last_release_time  TIMESTAMP
 );
 
 CREATE UNIQUE INDEX {VM_TABLE}_browser_token_idx
     ON {VM_TABLE}(BrowserToken) WHERE BrowserToken IS NOT NULL;
 CREATE UNIQUE INDEX {VM_TABLE}_session_id_idx
     ON {VM_TABLE}(SessionId) WHERE SessionId IS NOT NULL;
+CREATE UNIQUE INDEX {VM_TABLE}_machine_identity_idx
+    ON {VM_TABLE}(machine_identity) WHERE machine_identity IS NOT NULL;
+CREATE INDEX {VM_TABLE}_provider_idx ON {VM_TABLE}(provider);
+CREATE INDEX {VM_TABLE}_assignable_idx
+    ON {VM_TABLE}(status, useremail, last_release_time)
+    WHERE useremail IS NULL AND status = 'running';
 
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

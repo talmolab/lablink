@@ -49,14 +49,17 @@ from lablink_allocator_service.signed_cookie import (
     get_or_create_cookie_secret,
 )
 from lablink_allocator_service.providers.registry import DEFAULT_PROVIDER, get_provider
+from lablink_allocator_service.secret_hash import hash_secret, verify_secret
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
 )
+from lablink_allocator_service.routes.registration import bp as registration_bp
 
 app = Flask(__name__)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(internal_proxy_auth_bp)
+app.register_blueprint(registration_bp)
 auth = HTTPBasicAuth()
 
 # Define the terraform directory relative to this file (now inside the package)
@@ -101,6 +104,10 @@ cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 # API token for machine-to-machine authentication (auto-generated each startup)
 API_TOKEN = secrets.token_urlsafe(32)
 
+# Deployment register-token (machine registration). Mirrors API_TOKEN
+# semantics: one per allocator process, re-injected via terraform on launch.
+REGISTER_TOKEN = secrets.token_urlsafe(32)
+
 # Initialize the database connection
 database = None
 
@@ -130,6 +137,9 @@ def init_database():
     # helpers, without coupling them to the PostgresqlDatabase wrapper.
     app.config["DB_POOL"] = database._pool
     app.config["VM_TABLE_NAME"] = cfg.db.table_name
+    # Persist the deployment register-token as an argon2 hash at rest
+    # (SR-F14). Validation reads this back via settings (Option A).
+    database.set_setting("register_token_hash", hash_secret(REGISTER_TOKEN))
 
 
 # Set up logging
@@ -195,6 +205,36 @@ def require_auth(f):
 
         # No valid auth provided — trigger Basic auth challenge
         return auth.login_required(f)(*args, **kwargs)
+
+    return decorated
+
+
+def require_client_secret(f):
+    """Require a valid per-client secret Bearer token. The client row is
+    resolved from the request's hostname field (`vm_id` for heartbeat,
+    else `hostname`; falls back to a `hostname` route kwarg)."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing or invalid Authorization header."}), 401
+        token = auth_header[7:]
+
+        body = request.get_json(silent=True) or {}
+        hostname = (
+            body.get("vm_id")
+            or body.get("hostname")
+            or kwargs.get("hostname")
+            or kwargs.get("client_id")
+        )
+        if not hostname:
+            return jsonify({"error": "client identity required."}), 401
+
+        stored = database.get_client_secret_hash(hostname)
+        if not stored or not verify_secret(token, stored):
+            return jsonify({"error": "Invalid client secret."}), 401
+        return f(*args, **kwargs)
 
     return decorated
 
@@ -439,6 +479,7 @@ def launch():
             f.write(f'region = "{cfg.app.region}"\n')
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
             f.write(f'api_token = "{API_TOKEN}"\n')
+            f.write(f'register_token = "{REGISTER_TOKEN}"\n')
 
         # Build the var args once; they apply to both `plan` and `apply`.
         # Look up the allocator's own SG via IMDSv2 so client EC2s can
@@ -636,23 +677,6 @@ def destroy():
         return render_template("delete-dashboard.html", error=clean_output)
 
 
-@app.route("/vm_startup", methods=["POST"])
-@require_api_token
-def vm_startup():
-    data = request.get_json()
-    hostname = data.get("hostname")
-
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-
-    vm = database.get_vm_by_hostname(hostname)
-    if not vm:
-        return jsonify({"error": "VM not found."}), 404
-
-    database.touch_last_seen(hostname=hostname)
-    return jsonify({"status": "ok"}), 200
-
-
 @app.route("/api/unassigned_vms_count", methods=["GET"])
 def get_unassigned_instance_counts():
     """Get the counts of all instance types."""
@@ -661,7 +685,7 @@ def get_unassigned_instance_counts():
 
 
 @app.route("/api/update_inuse_status", methods=["POST"])
-@require_api_token
+@require_client_secret
 def update_inuse_status():
     """Update the in-use status of a VM."""
     data = request.get_json()
@@ -682,7 +706,7 @@ def update_inuse_status():
 
 
 @app.route("/api/gpu_health", methods=["POST"])
-@require_api_token
+@require_client_secret
 def update_gpu_health():
     """Check the health of the GPU."""
     data = request.get_json()
@@ -702,7 +726,7 @@ def update_gpu_health():
 
 
 @app.route("/api/heartbeat", methods=["POST"])
-@require_api_token
+@require_client_secret
 def heartbeat():
     """Record a client-VM liveness heartbeat."""
     data = request.get_json() or {}
@@ -728,7 +752,7 @@ def heartbeat():
 
 
 @app.route("/api/vm-status", methods=["POST"])
-@require_api_token
+@require_client_secret
 def update_vm_status():
     try:
         data = request.get_json()
@@ -747,20 +771,6 @@ def update_vm_status():
         return jsonify({"error": "Failed to update VM status."}), 500
 
 
-@app.route("/api/vm-status/<hostname>", methods=["GET"])
-@require_api_token
-def get_vm_status(hostname):
-    try:
-        status = database.get_status_by_hostname(hostname=hostname)
-        if status is None:
-            return jsonify({"error": "VM not found."}), 404
-
-        return jsonify({"hostname": hostname, "status": status}), 200
-    except Exception as e:
-        logger.error(f"Error getting VM status: {e}")
-        return jsonify({"error": "Failed to get VM status."}), 500
-
-
 @app.route("/api/vm-status", methods=["GET"])
 @require_auth
 def get_all_vm_status():
@@ -773,46 +783,6 @@ def get_all_vm_status():
     except Exception as e:
         logger.error(f"Error getting all VM status: {e}")
         return jsonify({"error": "Failed to get VM status."}), 500
-
-
-@app.route("/api/reboot-vm", methods=["POST"])
-@auth.login_required
-def reboot_vm():
-    """Manually trigger a reboot for a specific VM."""
-    data = request.get_json()
-    hostname = data.get("hostname")
-
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-
-    if not database.vm_exists(hostname):
-        return jsonify({"error": "VM not found."}), 404
-
-    try:
-        success = reboot_service._reboot_vm(hostname)
-        if success:
-            return jsonify({
-                "message": f"Reboot initiated for VM '{hostname}'.",
-            }), 200
-        else:
-            return jsonify({"error": "Failed to initiate reboot."}), 500
-    except Exception as e:
-        logger.error(f"Error rebooting VM '{hostname}': {e}")
-        return jsonify({"error": "Failed to reboot VM."}), 500
-
-
-@app.route("/api/reboot-vm/<hostname>", methods=["GET"])
-@auth.login_required
-def get_reboot_info(hostname):
-    """Get reboot tracking info for a specific VM."""
-    if not database.vm_exists(hostname):
-        return jsonify({"error": "VM not found."}), 404
-
-    info = database.get_reboot_info(hostname)
-    if info is None:
-        return jsonify({"error": "Could not retrieve reboot info."}), 500
-
-    return jsonify({"hostname": hostname, **info}), 200
 
 
 @app.route("/api/vm-logs", methods=["POST"])

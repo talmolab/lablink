@@ -3,9 +3,6 @@ client and persist per-session state on the clients row.
 
 Called from /api/request_vm inside the seat-assignment transaction so
 rotation failure rolls back the assignment.
-
-PR A keeps the AWS-specific IP lookup inline. PR B's
-AllocatorProxiedClientConnectivity will extract this into a provider.
 """
 import secrets
 import time

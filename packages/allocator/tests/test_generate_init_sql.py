@@ -38,3 +38,24 @@ def test_crd_trigger_absent():
     sql = build_init_sql()
     assert "notify_crd_command_update" not in sql
     assert "trigger_crd_command_insert_or_update" not in sql
+
+
+def test_phase2_columns_present():
+    sql = build_init_sql()
+    for col in (
+        "machine_identity", "provider", "endpoint_url",
+        "provider_metadata", "client_secret_hash",
+        "gpu_present", "gpu_model", "last_release_time",
+    ):
+        assert col in sql, f"missing column {col}"
+    assert "provider_metadata  JSONB NOT NULL DEFAULT '{}'" in sql
+    assert "provider           TEXT NOT NULL DEFAULT 'aws'" in sql
+
+
+def test_phase2_indexes_present():
+    sql = build_init_sql()
+    assert "_machine_identity_idx" in sql
+    assert "machine_identity IS NOT NULL" in sql
+    assert "_provider_idx" in sql
+    assert "_assignable_idx" in sql
+    assert "useremail IS NULL AND status = 'running'" in sql

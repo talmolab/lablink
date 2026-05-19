@@ -95,6 +95,13 @@ variable "api_token" {
   default     = ""
 }
 
+variable "register_token" {
+  type        = string
+  description = "Deployment register-token; authenticates POST /api/v1/clients/register"
+  sensitive   = true
+  default     = ""
+}
+
 variable "allocator_sg_id" {
   type        = string
   description = "Security group ID of the allocator EC2; used to lock down :6080 (KasmVNC) and :7070 (client agent) ingress on client VMs to allocator-only access."

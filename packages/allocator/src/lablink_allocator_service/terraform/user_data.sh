@@ -18,16 +18,29 @@ VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 ALLOCATOR_URL="${allocator_url}"
 API_TOKEN="${api_token}"
+REGISTER_TOKEN="${register_token}"
 STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
 LOG_GROUP="${cloud_init_output_log_group}"
 CLOUD_INIT_LOG="/var/log/cloud-init-output.log"
+
+IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/instance-id)
+PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/local-ipv4)
+REGISTER_RESPONSE=$(curl -s -X POST "$ALLOCATOR_URL/api/v1/clients/register" \
+  -H "Authorization: Bearer $REGISTER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"hostname\":\"$VM_NAME\",\"machine_identity\":\"$INSTANCE_ID\",\"provider\":\"aws\",\"endpoint_url\":\"ws://$PRIVATE_IP:6080\",\"provider_metadata\":{\"private_ip\":\"$PRIVATE_IP\",\"instance_id\":\"$INSTANCE_ID\"}}")
+CLIENT_SECRET=$(echo "$REGISTER_RESPONSE" | python3 -c 'import sys,json;print(json.load(sys.stdin)["client_secret"])') || { echo ">> Registration failed: $REGISTER_RESPONSE" >&2; exit 1; }
 
 # Function to send status updates
 send_status() {
     local status="$1"
     curl -s -X POST "$STATUS_ENDPOINT" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Authorization: Bearer $${CLIENT_SECRET}" \
         -d "{\"hostname\": \"$VM_NAME\", \"status\": \"$status\"}" --max-time 5 || true
 }
 
@@ -168,6 +181,7 @@ if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
     -e API_TOKEN="${api_token}" \
+    -e CLIENT_SECRET="$CLIENT_SECRET" \
     --network host \
     "${image_name}"; then
     echo ">> Container launched; start.sh inside the container will POST status='running' after custom-startup completes and client services launch."
@@ -176,6 +190,15 @@ else
     send_status "error"
     exit 1
 fi
+
+# Best-effort readiness poll — wait up to 60 s for client to report running
+for _ in $(seq 1 30); do
+  ST=$(curl -s -H "Authorization: Bearer $CLIENT_SECRET" \
+    "$ALLOCATOR_URL/api/v1/clients/$VM_NAME/status" \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
+  [ "$ST" = "running" ] && break
+  sleep 2
+done
 
 # Start log shipper for Docker container logs
 CONTAINER_ID=$(docker ps -q --latest 2>/dev/null || true)

@@ -40,3 +40,22 @@ def test_delegates_to_client_session_unchanged():
         browser_token="tok",
         api_token="api",
     )
+
+
+def test_make_join_material_returns_allocator_proxied():
+    from lablink_allocator_service.providers.connectivity.allocator_proxied import (
+        AllocatorProxiedClientConnectivity,
+    )
+    from lablink_allocator_service.providers.protocol import ClientJoinMaterial
+
+    c = AllocatorProxiedClientConnectivity()
+    m = c.make_join_material(
+        allocator_url="http://a:5000",
+        client_image="img:1",
+        register_token="tk_1",
+    )
+    assert isinstance(m, ClientJoinMaterial)
+    assert m.connectivity == "allocator_proxied"
+    assert m.allocator_url == "http://a:5000"
+    assert m.client_image == "img:1"
+    assert m.register_token == "tk_1"

@@ -1307,11 +1307,6 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
     assert "Failed to look up assigned VM" in caplog.text
 
 
-# ---------------------------------------------------------------------------
-# Pool-behavior tests (PR 1: connection pool refactor)
-# ---------------------------------------------------------------------------
-
-
 def test_pool_size_validation_rejects_min_zero():
     """pool_min_size must be >= 1."""
     with pytest.raises(ValueError, match="Invalid pool sizes"):
@@ -1476,3 +1471,108 @@ def test_release_seat_clears_per_session_columns(real_db):
         row = cur.fetchone()
 
     assert row == (None, None, None, None, None, None)
+
+
+def test_set_setting_upserts(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    db_instance.set_setting("register_token_hash", "$argon2id$abc")
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "INSERT INTO settings" in sql
+    assert "ON CONFLICT (key) DO UPDATE" in sql
+    assert mock_cursor.execute.call_args[0][1] == (
+        "register_token_hash", "$argon2id$abc",
+    )
+
+
+def test_get_setting_returns_value(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$abc",)
+    assert db_instance.get_setting("register_token_hash") == "$argon2id$abc"
+
+
+def test_get_setting_missing_returns_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_setting("nope") is None
+
+
+def test_get_vm_by_machine_identity_found(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    assert db_instance.get_vm_by_machine_identity("i-abc") == "vm-1"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "WHERE machine_identity = %s" in sql
+    assert mock_cursor.execute.call_args[0][1] == ("i-abc",)
+
+
+def test_get_vm_by_machine_identity_missing(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_vm_by_machine_identity("i-none") is None
+
+
+def test_get_client_secret_hash(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "client_secret_hash" in sql
+    assert "WHERE hostname = %s" in sql
+
+
+def test_get_client_secret_hash_missing(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("nope") is None
+
+
+def test_register_client_upsert_returns_hostname(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    cid = db_instance.register_client(
+        hostname="vm-1", machine_identity="i-1", provider="aws",
+        endpoint_url="ws://x:6080", provider_metadata={"az": "a"},
+        gpu_present=True, gpu_model="T4", client_secret_hash="$h",
+    )
+    assert cid == "vm-1"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "INSERT INTO" in sql
+    assert "ON CONFLICT (hostname) DO UPDATE" in sql
+    assert "RETURNING hostname" in sql
+    # no-hijack guard present
+    assert "machine_identity IS NULL" in sql
+    assert "machine_identity = EXCLUDED.machine_identity" in sql
+    # single atomic statement (not a multi-step check-then-act)
+    assert mock_cursor.execute.call_count == 1
+
+
+def test_register_client_returns_none_on_no_hijack_conflict(
+    db_instance, mock_db_connection
+):
+    # DO UPDATE WHERE excludes a row owned by a different machine_identity:
+    # RETURNING yields nothing -> fetchone() is None -> register_client None.
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    cid = db_instance.register_client(
+        hostname="vm-9", machine_identity="i-other", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$h",
+    )
+    assert cid is None
+
+
+def test_register_client_none_provider_metadata_serializes_empty_json(
+    db_instance, mock_db_connection
+):
+    # provider_metadata=None must serialize to "{}" (json.dumps(... or {})).
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    db_instance.register_client(
+        hostname="vm-1", machine_identity="i-1", provider="aws",
+        endpoint_url=None, provider_metadata=None, gpu_present=None,
+        gpu_model=None, client_secret_hash="$h",
+    )
+    # params tuple: (hostname, machine_identity, provider, endpoint_url,
+    #                 meta, client_secret_hash, gpu_present, gpu_model)
+    params = mock_cursor.execute.call_args[0][1]
+    assert params[4] == "{}"

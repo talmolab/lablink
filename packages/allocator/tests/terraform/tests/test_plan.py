@@ -170,7 +170,6 @@ def test_lablink_security_group(plan):
     # Index ingress rules by from_port so the test isn't order-dependent.
     ingress_by_port = {rule["from_port"]: rule for rule in v["ingress"]}
 
-    # SSH ingress: open to the world (intentional, out of PR A scope).
     ssh = ingress_by_port[22]
     assert ssh["to_port"] == 22
     assert ssh["protocol"] == "tcp"

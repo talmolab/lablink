@@ -3,7 +3,18 @@ from unittest.mock import MagicMock
 import pytest
 
 
-VM_STARTUP_ENDPOINT = "/vm_startup"
+_TEST_CLIENT_SECRET = "test-client-secret"
+_CLIENT_SECRET_HEADERS = {"Authorization": f"Bearer {_TEST_CLIENT_SECRET}"}
+
+
+def _stub_client_secret(fake_db):
+    """Configure fake_db so require_client_secret accepts _CLIENT_SECRET_HEADERS."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    fake_db.get_client_secret_hash.return_value = hash_secret(_TEST_CLIENT_SECRET)
+    return fake_db
+
+
 UNASSIGNED_VMS_COUNT_ENDPOINT = "/api/unassigned_vms_count"
 UPDATE_INUSE_STATUS_ENDPOINT = "/api/update_inuse_status"
 UPDATE_GPU_HEALTH_ENDPOINT = "/api/gpu_health"
@@ -13,68 +24,6 @@ VM_LOGS_ENDPOINT = "/api/vm-logs"
 METRICS_ENDPOINT = "/api/vm-metrics"
 SCHEDULE_DESTRUCTION_ENDPOINT = "/api/schedule-destruction"
 HEARTBEAT_ENDPOINT = "/api/heartbeat"
-
-
-def test_vm_startup_success(client, api_token_headers, monkeypatch):
-    """Test VM startup success with valid hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.insert_vm.return_value = None
-    fake_db.get_vm_by_hostname.return_value = {"hostname": "test-vm-dev-1"}
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": "test-vm-dev-1"}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=api_token_headers)
-
-    # Assert the response
-    assert resp.status_code == 200
-    assert resp.get_json() == {"status": "ok"}
-    fake_db.touch_last_seen.assert_called_once_with(hostname="test-vm-dev-1")
-
-
-def test_vm_startup_vm_not_found(client, api_token_headers, monkeypatch):
-    """Test VM startup when VM doesn't exist in database."""
-    # Mock the database - VM not found
-    fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = None
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": "nonexistent-vm"}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=api_token_headers)
-
-    # Assert the response
-    assert resp.status_code == 404
-    assert resp.get_json() == {"error": "VM not found."}
-
-
-def test_vm_startup_failure(client, api_token_headers, monkeypatch):
-    """Test VM startup failure due to missing hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-
-    # Patch globals
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    data = {"hostname": ""}
-    resp = client.post(VM_STARTUP_ENDPOINT, json=data, headers=api_token_headers)
-
-    # Assert the response
-    assert resp.status_code == 400
-    assert resp.get_json() == {"error": "Hostname is required."}
-    fake_db.touch_last_seen.assert_not_called()
 
 
 def test_unassigned_vms_count(client, monkeypatch):
@@ -110,10 +59,11 @@ def test_unassigned_vms_count(client, monkeypatch):
     fake_db.get_unassigned_vms.assert_called_once()
 
 
-def test_update_inuse_status_success(client, api_token_headers, monkeypatch):
+def test_update_inuse_status_success(client, monkeypatch):
     """Test the /api/update_inuse_status endpoint."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -123,7 +73,7 @@ def test_update_inuse_status_success(client, api_token_headers, monkeypatch):
     # Call the API
     data = {"hostname": "test-vm-dev-1", "status": True}
     resp = client.post(
-        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=api_token_headers
+        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
@@ -134,8 +84,8 @@ def test_update_inuse_status_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_update_inuse_status_missing_hostname(client, api_token_headers, monkeypatch):
-    """Test the /api/update_inuse_status endpoint with missing hostname."""
+def test_update_inuse_status_missing_hostname(client, monkeypatch):
+    """Test the /api/update_inuse_status endpoint with missing hostname (decorator rejects)."""
     # Mock the database
     fake_db = MagicMock()
 
@@ -144,22 +94,23 @@ def test_update_inuse_status_missing_hostname(client, api_token_headers, monkeyp
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API
+    # Call the API — no hostname means require_client_secret returns 401
     data = {"status": True}
     resp = client.post(
-        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=api_token_headers
+        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
-    assert resp.status_code == 400
-    assert resp.get_json() == {"error": "Hostname is required."}
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "client identity required."
     fake_db.update_vm_in_use.assert_not_called()
 
 
-def test_update_inuse_status_failure(client, api_token_headers, monkeypatch):
+def test_update_inuse_status_failure(client, monkeypatch):
     """Test the /api/update_inuse_status endpoint with database internal failure."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
 
     # Failure while update inuse status
     fake_db.update_vm_in_use.side_effect = Exception("Database internal error")
@@ -172,7 +123,7 @@ def test_update_inuse_status_failure(client, api_token_headers, monkeypatch):
     # Call the API
     data = {"hostname": "test-vm-dev-1", "status": True}
     resp = client.post(
-        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=api_token_headers
+        UPDATE_INUSE_STATUS_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
@@ -183,10 +134,11 @@ def test_update_inuse_status_failure(client, api_token_headers, monkeypatch):
     )
 
 
-def test_update_gpu_health_success(client, api_token_headers, monkeypatch):
+def test_update_gpu_health_success(client, monkeypatch):
     """Test the /api/gpu_health endpoint."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -195,7 +147,9 @@ def test_update_gpu_health_success(client, api_token_headers, monkeypatch):
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "gpu_status": "Healthy"}
-    resp = client.post(UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
+    )
 
     # Assert the response
     assert resp.status_code == 200
@@ -205,10 +159,11 @@ def test_update_gpu_health_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_update_gpu_health_failure(client, api_token_headers, monkeypatch):
+def test_update_gpu_health_failure(client, monkeypatch):
     """Test the /api/gpu_health endpoint with database internal failure."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
 
     # Failure while update gpu health
     fake_db.update_health.side_effect = Exception("Database internal error")
@@ -220,7 +175,9 @@ def test_update_gpu_health_failure(client, api_token_headers, monkeypatch):
 
     # Call the API
     data = {"hostname": "test-vm-dev-1", "gpu_status": "Healthy"}
-    resp = client.post(UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
+    )
 
     # Assert the response
     assert resp.status_code == 500
@@ -230,8 +187,8 @@ def test_update_gpu_health_failure(client, api_token_headers, monkeypatch):
     )
 
 
-def test_update_gpu_health_missing_hostname(client, api_token_headers, monkeypatch):
-    """Test the /api/gpu_health endpoint with missing hostname."""
+def test_update_gpu_health_missing_hostname(client, monkeypatch):
+    """Test the /api/gpu_health endpoint with missing hostname (decorator rejects)."""
     # Mock the database
     fake_db = MagicMock()
 
@@ -240,13 +197,15 @@ def test_update_gpu_health_missing_hostname(client, api_token_headers, monkeypat
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API
+    # Call the API — no hostname means require_client_secret returns 401
     data = {"gpu_status": "Healthy"}
-    resp = client.post(UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        UPDATE_GPU_HEALTH_ENDPOINT, json=data, headers=_CLIENT_SECRET_HEADERS
+    )
 
     # Assert the response
-    assert resp.status_code == 400
-    assert resp.get_json() == {"error": "GPU status and hostname are required."}
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "client identity required."
     fake_db.update_health.assert_not_called()
 
 
@@ -386,10 +345,11 @@ def test_request_vm_rotation_failure_marks_unhealthy(client, monkeypatch):
     fake_db.release_seat.assert_called_once_with(hostname="host1")
 
 
-def test_update_vm_status_success(client, api_token_headers, monkeypatch):
+def test_update_vm_status_success(client, monkeypatch):
     """Test successful VM status update."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -398,7 +358,7 @@ def test_update_vm_status_success(client, api_token_headers, monkeypatch):
     resp = client.post(
         VM_STATUS_UPDATE_ENDPOINT,
         json={"hostname": "lablink-vm-test-1", "status": "running"},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200
@@ -409,31 +369,32 @@ def test_update_vm_status_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_update_vm_status_missing_fields(client, api_token_headers, monkeypatch):
-    """Test VM status update with missing fields."""
+def test_update_vm_status_missing_fields(client, monkeypatch):
+    """Test VM status update with missing fields (decorator rejects — no identity)."""
     # Mock the database
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API without the hostname
+    # Call the API without the hostname — require_client_secret returns 401
     resp = client.post(
         VM_STATUS_UPDATE_ENDPOINT,
         json={"status": "running"},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
-    assert resp.status_code == 400
+    assert resp.status_code == 401
     assert resp.is_json
-    assert resp.get_json() == {"error": "Hostname and status are required."}
+    assert resp.get_json()["error"] == "client identity required."
     fake_db.update_vm_status.assert_not_called()
 
 
-def test_update_vm_status_internal_failure(client, api_token_headers, monkeypatch):
+def test_update_vm_status_internal_failure(client, monkeypatch):
     """Test VM status update with internal failure."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -445,75 +406,12 @@ def test_update_vm_status_internal_failure(client, api_token_headers, monkeypatc
     resp = client.post(
         VM_STATUS_UPDATE_ENDPOINT,
         json={"hostname": "lablink-vm-test-1", "status": "running"},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 500
     assert resp.is_json
     assert resp.get_json() == {"error": "Failed to update VM status."}
-
-
-def test_get_vm_status_by_hostname_success(client, api_token_headers, monkeypatch):
-    """Test getting VM status by hostname."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.return_value = "running"
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get("/api/vm-status/lablink-vm-test-1", headers=api_token_headers)
-
-    assert resp.status_code == 200
-    assert resp.is_json
-    assert resp.get_json() == {
-        "hostname": "lablink-vm-test-1",
-        "status": "running",
-    }
-    fake_db.get_status_by_hostname.assert_called_once_with(hostname="lablink-vm-test-1")
-
-
-def test_get_vm_status_by_hostname_not_found(client, api_token_headers, monkeypatch):
-    """Test getting VM status by hostname when not found."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.return_value = None
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get(
-        "/api/vm-status/lablink-vm-nonexistent", headers=api_token_headers
-    )
-
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json() == {"error": "VM not found."}
-    fake_db.get_status_by_hostname.assert_called_once_with(
-        hostname="lablink-vm-nonexistent"
-    )
-
-
-def test_get_vm_status_by_hostname_internal_error(
-    client, api_token_headers, monkeypatch
-):
-    """Test getting VM status by hostname with internal error."""
-    # Mock the database
-    fake_db = MagicMock()
-    fake_db.get_status_by_hostname.side_effect = Exception("Internal error")
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    # Call the API
-    resp = client.get("/api/vm-status/lablink-vm-test-1", headers=api_token_headers)
-
-    assert resp.status_code == 500
-    assert resp.is_json
-    assert resp.get_json() == {"error": "Failed to get VM status."}
-    fake_db.get_status_by_hostname.assert_called_once_with(hostname="lablink-vm-test-1")
 
 
 def test_get_all_vm_status_success(client, api_token_headers, monkeypatch):
@@ -1597,16 +1495,18 @@ def test_create_scheduled_destruction_duplicate_name(
 # ──────────────────────────────────────────────────────────────────────
 
 
-# All machine-to-machine endpoints that require bearer token auth
 # Endpoints that require ONLY API token auth (machine-to-machine)
 TOKEN_PROTECTED_ENDPOINTS = [
-    ("POST", VM_STARTUP_ENDPOINT, {"hostname": "test-vm"}),
-    ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
-    ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
-    ("POST", VM_STATUS_UPDATE_ENDPOINT, {"hostname": "vm-1", "status": "running"}),
-    ("GET", f"{VM_STATUS_UPDATE_ENDPOINT}/vm-1", None),
     ("POST", VM_LOGS_ENDPOINT, {"log_group": "g", "log_stream": "s", "messages": ["m"]}),
     ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
+]
+
+# Endpoints that require a per-client secret (require_client_secret decorator)
+CLIENT_SECRET_PROTECTED_ENDPOINTS = [
+    ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
+    ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
+    ("POST", HEARTBEAT_ENDPOINT, {"vm_id": "vm-1"}),
+    ("POST", VM_STATUS_UPDATE_ENDPOINT, {"hostname": "vm-1", "status": "running"}),
 ]
 
 # Endpoints that accept either session auth or API token (admin UI + VMs)
@@ -1660,6 +1560,66 @@ def test_token_protected_endpoints_reject_non_bearer_auth(
     client, monkeypatch, method, endpoint, json_data
 ):
     """All token-protected endpoints reject non-Bearer auth schemes."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    bad_headers = {"Authorization": "Basic dXNlcjpwYXNz"}
+    if method == "GET":
+        resp = client.get(endpoint, headers=bad_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=bad_headers)
+
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Missing or invalid Authorization header."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", CLIENT_SECRET_PROTECTED_ENDPOINTS)
+def test_client_secret_endpoints_reject_no_token(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """All client-secret-protected endpoints return 401 without a bearer token."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    if method == "GET":
+        resp = client.get(endpoint)
+    else:
+        resp = client.post(endpoint, json=json_data)
+
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Missing or invalid Authorization header."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", CLIENT_SECRET_PROTECTED_ENDPOINTS)
+def test_client_secret_endpoints_reject_wrong_secret(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """All client-secret-protected endpoints return 401 with an invalid secret."""
+    fake_db = MagicMock()
+    _stub_client_secret(fake_db)
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=False
+    )
+
+    bad_headers = {"Authorization": "Bearer wrong-secret-value"}
+    if method == "GET":
+        resp = client.get(endpoint, headers=bad_headers)
+    else:
+        resp = client.post(endpoint, json=json_data, headers=bad_headers)
+
+    assert resp.status_code == 401
+    assert resp.get_json()["error"] == "Invalid client secret."
+
+
+@pytest.mark.parametrize("method,endpoint,json_data", CLIENT_SECRET_PROTECTED_ENDPOINTS)
+def test_client_secret_endpoints_reject_non_bearer_auth(
+    client, monkeypatch, method, endpoint, json_data
+):
+    """All client-secret-protected endpoints reject non-Bearer auth schemes."""
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
@@ -1769,10 +1729,11 @@ def _heartbeat_payload(**overrides):
     return base
 
 
-def test_heartbeat_success(client, api_token_headers, monkeypatch):
+def test_heartbeat_success(client, monkeypatch):
     """Valid heartbeat payload returns 200 and calls record_heartbeat."""
     fake_db = MagicMock()
     fake_db.record_heartbeat.return_value = True
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1780,7 +1741,7 @@ def test_heartbeat_success(client, api_token_headers, monkeypatch):
     resp = client.post(
         HEARTBEAT_ENDPOINT,
         json=_heartbeat_payload(),
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200
@@ -1805,8 +1766,8 @@ def test_heartbeat_rejects_missing_token(client, monkeypatch):
     fake_db.record_heartbeat.assert_not_called()
 
 
-def test_heartbeat_rejects_missing_vm_id(client, api_token_headers, monkeypatch):
-    """Missing vm_id returns 400."""
+def test_heartbeat_rejects_missing_vm_id(client, monkeypatch):
+    """Missing vm_id — decorator rejects with 401 (no identity)."""
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
@@ -1814,18 +1775,19 @@ def test_heartbeat_rejects_missing_vm_id(client, api_token_headers, monkeypatch)
 
     payload = _heartbeat_payload()
     payload.pop("vm_id")
-    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
+    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=_CLIENT_SECRET_HEADERS)
 
-    assert resp.status_code == 400
+    assert resp.status_code == 401
     fake_db.record_heartbeat.assert_not_called()
 
 
 def test_heartbeat_unknown_hostname_returns_404(
-    client, api_token_headers, monkeypatch
+    client, monkeypatch
 ):
     """record_heartbeat returning False surfaces as 404."""
     fake_db = MagicMock()
     fake_db.record_heartbeat.return_value = False
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1833,16 +1795,17 @@ def test_heartbeat_unknown_hostname_returns_404(
     resp = client.post(
         HEARTBEAT_ENDPOINT,
         json=_heartbeat_payload(vm_id="ghost"),
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 404
 
 
-def test_heartbeat_db_error_returns_500(client, api_token_headers, monkeypatch):
+def test_heartbeat_db_error_returns_500(client, monkeypatch):
     """Unexpected exceptions surface as 500."""
     fake_db = MagicMock()
     fake_db.record_heartbeat.side_effect = Exception("boom")
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1850,14 +1813,14 @@ def test_heartbeat_db_error_returns_500(client, api_token_headers, monkeypatch):
     resp = client.post(
         HEARTBEAT_ENDPOINT,
         json=_heartbeat_payload(),
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 500
 
 
 def test_heartbeat_accepts_null_health_fields(
-    client, api_token_headers, monkeypatch
+    client, monkeypatch
 ):
     """Partial sampler failure (null booleans) must still be accepted.
 
@@ -1867,12 +1830,13 @@ def test_heartbeat_accepts_null_health_fields(
     """
     fake_db = MagicMock()
     fake_db.record_heartbeat.return_value = True
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
     payload = _heartbeat_payload(disk_free_pct=None)
-    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=api_token_headers)
+    resp = client.post(HEARTBEAT_ENDPOINT, json=payload, headers=_CLIENT_SECRET_HEADERS)
 
     assert resp.status_code == 200
     call = fake_db.record_heartbeat.call_args
@@ -1881,9 +1845,10 @@ def test_heartbeat_accepts_null_health_fields(
 
 # -- Cross-endpoint last_seen_at refresh --------------------------------
 
-def test_gpu_health_bumps_last_seen(client, api_token_headers, monkeypatch):
+def test_gpu_health_bumps_last_seen(client, monkeypatch):
     """POST /api/gpu_health refreshes last_seen_at for the VM."""
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1891,16 +1856,17 @@ def test_gpu_health_bumps_last_seen(client, api_token_headers, monkeypatch):
     resp = client.post(
         UPDATE_GPU_HEALTH_ENDPOINT,
         json={"hostname": "vm-1", "gpu_status": "Healthy"},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200
     fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
 
 
-def test_vm_status_bumps_last_seen(client, api_token_headers, monkeypatch):
+def test_vm_status_bumps_last_seen(client, monkeypatch):
     """POST /api/vm-status refreshes last_seen_at for the VM."""
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1908,7 +1874,7 @@ def test_vm_status_bumps_last_seen(client, api_token_headers, monkeypatch):
     resp = client.post(
         VM_STATUS_UPDATE_ENDPOINT,
         json={"hostname": "vm-1", "status": "running"},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200
@@ -1926,24 +1892,6 @@ def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
     resp = client.post(
         f"{METRICS_ENDPOINT}/vm-1",
         json={"container_start": 0, "container_end": 1},
-        headers=api_token_headers,
-    )
-
-    assert resp.status_code == 200
-    fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
-
-
-def test_vm_startup_bumps_last_seen(client, api_token_headers, monkeypatch):
-    """POST /vm_startup refreshes last_seen_at once the VM is found."""
-    fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1"}
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    resp = client.post(
-        VM_STARTUP_ENDPOINT,
-        json={"hostname": "vm-1"},
         headers=api_token_headers,
     )
 

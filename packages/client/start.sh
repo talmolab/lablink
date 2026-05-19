@@ -20,7 +20,7 @@ send_status() {
   local status="$1"
   echo ">> Reporting status='$status' to allocator..."
   curl -sS -X POST "$ALLOCATOR_URL/api/vm-status" \
-    -H "Authorization: Bearer $API_TOKEN" \
+    -H "Authorization: Bearer ${CLIENT_SECRET:-$API_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
     --max-time 5 \

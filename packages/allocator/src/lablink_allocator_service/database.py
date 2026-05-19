@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import logging
 from typing import List, Optional
 
@@ -269,6 +270,83 @@ class PostgresqlDatabase:
         else:
             logger.warning(f"VM not found: '{hostname}'")
             return None
+
+    def get_vm_by_machine_identity(self, machine_identity: str):
+        """Return the hostname of the row with this machine_identity, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname FROM {self.table_name} "
+                f"WHERE machine_identity = %s;",
+                (machine_identity,),
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
+
+    def get_client_secret_hash(self, hostname: str):
+        """Return the argon2 client_secret_hash for a hostname, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT client_secret_hash FROM {self.table_name} "
+                f"WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
+
+    def register_client(
+        self,
+        *,
+        hostname: str,
+        machine_identity: str,
+        provider: str,
+        endpoint_url,
+        provider_metadata: dict,
+        gpu_present,
+        gpu_model,
+        client_secret_hash: str,
+    ) -> Optional[str]:
+        """Atomically register (or idempotently re-register) a client.
+
+        Single upsert keyed on the ``hostname`` primary key:
+        - hostname row absent              -> INSERT (fresh client)
+        - row exists, machine_identity NULL -> adopt (stamp identity+secret)
+        - row exists, same machine_identity -> rotate secret (re-register)
+        - row exists, *different* machine_identity -> no-hijack: the
+          conditional DO UPDATE matches 0 rows, RETURNING is empty, this
+          returns ``None`` (the route maps that to 409).
+
+        Returns the row's hostname on success, or ``None`` on the no-hijack
+        conflict. May raise ``psycopg2.IntegrityError`` if this
+        ``machine_identity`` is already bound to a *different* hostname
+        (the partial-unique index on machine_identity) — the route maps
+        that to 409 as well. The single statement is atomic under the
+        pool's autocommit isolation, so concurrent/overlapping registers
+        converge instead of silently corrupting or 500-ing.
+        """
+        meta = json.dumps(provider_metadata or {})
+        t = self.table_name
+        with self._cursor as cursor:
+            cursor.execute(
+                f"INSERT INTO {t} (hostname, inuse, machine_identity, "
+                f"provider, endpoint_url, provider_metadata, "
+                f"client_secret_hash, gpu_present, gpu_model) "
+                f"VALUES (%s, FALSE, %s, %s, %s, %s, %s, %s, %s) "
+                f"ON CONFLICT (hostname) DO UPDATE SET "
+                f"machine_identity = EXCLUDED.machine_identity, "
+                f"client_secret_hash = EXCLUDED.client_secret_hash, "
+                f"endpoint_url = EXCLUDED.endpoint_url, "
+                f"provider = EXCLUDED.provider, "
+                f"provider_metadata = EXCLUDED.provider_metadata, "
+                f"gpu_present = EXCLUDED.gpu_present, "
+                f"gpu_model = EXCLUDED.gpu_model "
+                f"WHERE {t}.machine_identity IS NULL "
+                f"OR {t}.machine_identity = EXCLUDED.machine_identity "
+                f"RETURNING hostname;",
+                (hostname, machine_identity, provider, endpoint_url, meta,
+                 client_secret_hash, gpu_present, gpu_model),
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
 
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are running and have no student assigned.
@@ -1107,6 +1185,24 @@ class PostgresqlDatabase:
                         f"Failed to add column {col_name}: {e}"
                     )
 
+    def set_setting(self, key: str, value: str) -> None:
+        """UPSERT a row in the settings (key, value) table."""
+        with self._cursor as cursor:
+            cursor.execute(
+                "INSERT INTO settings (key, value) VALUES (%s, %s) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;",
+                (key, value),
+            )
+
+    def get_setting(self, key: str) -> Optional[str]:
+        """Return the settings value for `key`, or None if absent."""
+        with self._cursor as cursor:
+            cursor.execute(
+                "SELECT value FROM settings WHERE key = %s;", (key,)
+            )
+            row = cursor.fetchone()
+        return row[0] if row else None
+
     def record_heartbeat(
         self,
         hostname: str,
@@ -1329,38 +1425,6 @@ class PostgresqlDatabase:
                     f"Failed to release assignment for '{hostname}': {e}"
                 )
                 raise
-
-    def get_reboot_info(self, hostname: str) -> Optional[dict]:
-        """Get reboot tracking info for a VM.
-
-        Args:
-            hostname: The hostname of the VM.
-
-        Returns:
-            dict with reboot_count and last_reboot_time,
-                or None if not found.
-        """
-        query = f"""
-            SELECT COALESCE(reboot_count, 0), last_reboot_time
-            FROM {self.table_name}
-            WHERE hostname = %s;
-        """
-        try:
-            with self._cursor as cursor:
-                cursor.execute(query, (hostname,))
-                row = cursor.fetchone()
-            if row:
-                return {
-                    "reboot_count": row[0],
-                    "last_reboot_time": row[1],
-                }
-            return None
-        except Exception as e:
-            logger.error(
-                f"Failed to get reboot info "
-                f"for VM '{hostname}': {e}"
-            )
-            return None
 
     def __del__(self):
         """Close all pooled connections when the object is deleted."""
