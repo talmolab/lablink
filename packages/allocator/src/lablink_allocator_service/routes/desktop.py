@@ -67,6 +67,10 @@ def desktop():
 
     # Direct ws(s):// target: render an in-page bootstrap so the
     # per-session credential is NEVER placed in a logged query string.
+    # The credential is set in same-origin localStorage for noVNC to
+    # read; short-lived (rotated each session) but readable by any
+    # same-origin JS — relies on the allocator origin's CSP/XSS
+    # hygiene. Revisit CSP before the LAN-direct path goes live.
     parts = urlsplit(ws_url)
     host = parts.hostname or ""
     port = parts.port or 6080

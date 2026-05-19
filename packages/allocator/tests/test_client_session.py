@@ -5,9 +5,9 @@ import pytest
 import requests
 
 
-# Per-test API_TOKEN that matches what main.API_TOKEN would generate
+# Per-test AGENT_TOKEN that matches what main.AGENT_TOKEN would generate
 # in production; passed explicitly to prepare_browser_session.
-API_TOKEN = "test-api-token"
+AGENT_TOKEN = "test-agent-token"
 
 
 def test_happy_path_rotates_and_persists(real_db):
@@ -56,7 +56,7 @@ def test_happy_path_rotates_and_persists(real_db):
             hostname="host-task10",
             session_id=session_id,
             browser_token="tok-abc",
-            agent_token=API_TOKEN,
+            agent_token=AGENT_TOKEN,
         )
 
     # Agent POST: correct URL, Bearer header sourced from agent_token kwarg,
@@ -66,7 +66,7 @@ def test_happy_path_rotates_and_persists(real_db):
     url = mock_post.call_args[0][0]
     kwargs = mock_post.call_args[1]
     assert url == "http://10.0.0.5:7070/api/session/start"
-    assert kwargs["headers"]["Authorization"] == f"Bearer {API_TOKEN}"
+    assert kwargs["headers"]["Authorization"] == f"Bearer {AGENT_TOKEN}"
     assert "password" in kwargs["json"]
     assert kwargs["json"].keys() == {"password"}
 
@@ -126,7 +126,7 @@ def test_one_retry_then_raises(real_db):
                 hostname="host-task10-fail",
                 session_id=uuid.uuid4(),
                 browser_token="t",
-                agent_token=API_TOKEN,
+                agent_token=AGENT_TOKEN,
             )
 
     assert mock_post.call_count == 2  # initial + one retry
@@ -202,5 +202,5 @@ def test_raises_when_instance_id_not_found(real_db):
                 hostname="ghost-host",
                 session_id=uuid.uuid4(),
                 browser_token="t",
-                agent_token=API_TOKEN,
+                agent_token=AGENT_TOKEN,
             )

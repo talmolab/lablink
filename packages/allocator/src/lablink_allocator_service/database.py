@@ -547,6 +547,8 @@ class PostgresqlDatabase:
             f"    browsertoken = NULL, "
             f"    vncpassword = NULL, "
             f"    upstream = NULL, "
+            f"    browser_ws_url = NULL, "
+            f"    browser_credential = NULL, "
             f"    sessionstartedat = NULL "
             f"WHERE hostname = %s"
         )

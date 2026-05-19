@@ -1015,3 +1015,33 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     # ... and api_token is still written (additive, not replaced).
     assert f'api_token = "{main.API_TOKEN}"' in tfvars
     assert 'api_token = "test-api-token-value"' in tfvars
+
+
+def test_terraform_threads_agent_token_through_user_data():
+    """Static-content guard for the AGENT_TOKEN Terraform wiring.
+
+    Catches typos/renames in the templatefile var name, variables.tf,
+    or user_data.sh's docker-run `-e` line that would slip past both
+    `terraform validate` (HCL only) and the runtime tfvars-write test
+    above (which only pins the .tfvars line). Pins the end-to-end
+    AGENT_TOKEN wiring as additive next to the surviving API_TOKEN.
+    """
+    import re
+    from pathlib import Path
+
+    tf_dir = (
+        Path(__file__).resolve().parents[1]
+        / "src" / "lablink_allocator_service" / "terraform"
+    )
+    variables = (tf_dir / "variables.tf").read_text()
+    main_tf = (tf_dir / "main.tf").read_text()
+    user_data = (tf_dir / "user_data.sh").read_text()
+
+    # variable declared
+    assert 'variable "agent_token"' in variables
+    # passed into the user_data templatefile vars map (HCL aligns the =;
+    # match whitespace-tolerantly so an alignment touch-up does not fail).
+    assert re.search(r"agent_token\s*=\s*var\.agent_token", main_tf)
+    # injected on the client docker run; additive (API_TOKEN still present)
+    assert '-e AGENT_TOKEN="${agent_token}"' in user_data
+    assert '-e API_TOKEN="${api_token}"' in user_data

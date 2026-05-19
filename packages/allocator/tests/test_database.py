@@ -1447,6 +1447,8 @@ def test_release_seat_clears_per_session_columns(real_db):
             "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
             "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
             "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
         )
         # Clear any leftover row from a prior test
@@ -1454,10 +1456,12 @@ def test_release_seat_clears_per_session_columns(real_db):
         cur.execute(
             "INSERT INTO vms (hostname, status, useremail, sessionid, "
             "                 browsertoken, vncpassword, upstream, "
+            "                 browser_ws_url, browser_credential, "
             "                 sessionstartedat) "
             "VALUES ('host-task2', 'running', 'sam@x.com', "
             "        '11111111-1111-1111-1111-111111111111', "
-            "        'tok-abc', 'pw-xyz', '10.0.0.5:6080', NOW())"
+            "        'tok-abc', 'pw-xyz', '10.0.0.5:6080', "
+            "        'ws://10.0.0.5:6080', 'pw-xyz-cred', NOW())"
         )
 
     real_db.release_seat(hostname='host-task2')
@@ -1465,12 +1469,13 @@ def test_release_seat_clears_per_session_columns(real_db):
     with real_db._cursor as cur:
         cur.execute(
             "SELECT useremail, sessionid, browsertoken, vncpassword, "
-            "       upstream, sessionstartedat "
+            "       upstream, browser_ws_url, browser_credential, "
+            "       sessionstartedat "
             "FROM vms WHERE hostname = 'host-task2'"
         )
         row = cur.fetchone()
 
-    assert row == (None, None, None, None, None, None)
+    assert row == (None, None, None, None, None, None, None, None)
 
 
 def test_set_setting_upserts(db_instance, mock_db_connection):
