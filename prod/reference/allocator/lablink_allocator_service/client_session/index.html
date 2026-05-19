@@ -2531,6 +2531,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routes/registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2554,6 +2582,34 @@
     
   
     scheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../secret_hash/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    secret_hash
   
 
     
@@ -2617,7 +2673,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_12" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_13" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2639,14 +2695,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7_2_1_12" id="__nav_7_2_1_12_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_7_2_1_13" id="__nav_7_2_1_13_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_12_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2_1_12">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_1_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3573,8 +3629,6 @@
 client and persist per-session state on the clients row.</p>
 <p>Called from /api/request_vm inside the seat-assignment transaction so
 rotation failure rolls back the assignment.</p>
-<p>PR A keeps the AWS-specific IP lookup inline. PR B's
-AllocatorProxiedClientConnectivity will extract this into a provider.</p>
 
 
 
@@ -3757,7 +3811,10 @@ hidden global dependency for tests.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/client_session.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-74"> 74</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-71"> 71</a></span>
+<span class="normal"><a href="#__codelineno-0-72"> 72</a></span>
+<span class="normal"><a href="#__codelineno-0-73"> 73</a></span>
+<span class="normal"><a href="#__codelineno-0-74"> 74</a></span>
 <span class="normal"><a href="#__codelineno-0-75"> 75</a></span>
 <span class="normal"><a href="#__codelineno-0-76"> 76</a></span>
 <span class="normal"><a href="#__codelineno-0-77"> 77</a></span>
@@ -3797,53 +3854,50 @@ hidden global dependency for tests.</p>
 <span class="normal"><a href="#__codelineno-0-111">111</a></span>
 <span class="normal"><a href="#__codelineno-0-112">112</a></span>
 <span class="normal"><a href="#__codelineno-0-113">113</a></span>
-<span class="normal"><a href="#__codelineno-0-114">114</a></span>
-<span class="normal"><a href="#__codelineno-0-115">115</a></span>
-<span class="normal"><a href="#__codelineno-0-116">116</a></span>
-<span class="normal"><a href="#__codelineno-0-117">117</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">database</span><span class="p">,</span>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="n">session_id</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">,</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="n">browser_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="n">api_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Rotate the assigned client&#39;s VNC password and persist per-session</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="sd">    columns on the VM row. Must be called inside the seat-assignment</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="sd">    transaction so failures roll back.</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="sd">    `api_token` is the allocator&#39;s per-startup random token (main.API_TOKEN);</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">    the client agent receives the same value as its API_TOKEN env via the</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="sd">    Terraform user_data and validates it on every /api/session/start call.</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="sd">    Passed explicitly rather than read from env so this function has no</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">    hidden global dependency for tests.</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-92" name="__codelineno-0-92"></a>    <span class="n">private_ip</span> <span class="o">=</span> <span class="n">_lookup_private_ip</span><span class="p">(</span><span class="n">hostname</span><span class="p">)</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="n">password</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_urlsafe</span><span class="p">(</span><span class="mi">24</span><span class="p">)</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="n">upstream</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">private_ip</span><span class="si">}</span><span class="s2">:6080&quot;</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="c1"># Body shape matches the agent&#39;s contract (packages/client/.../agent/api.py):</span>
-<a id="__codelineno-0-97" name="__codelineno-0-97"></a>    <span class="c1"># a single `password` field. session_id and browser_token are bookkeeping</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="c1"># the *allocator* persists in its own DB; the agent doesn&#39;t need either.</span>
-<a id="__codelineno-0-99" name="__codelineno-0-99"></a>    <span class="n">_post_rotate</span><span class="p">(</span>
-<a id="__codelineno-0-100" name="__codelineno-0-100"></a>        <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">private_ip</span><span class="si">}</span><span class="s2">:7070/api/session/start&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-101" name="__codelineno-0-101"></a>        <span class="p">{</span><span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">password</span><span class="p">},</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a>        <span class="n">bearer</span><span class="o">=</span><span class="n">api_token</span><span class="p">,</span>
-<a id="__codelineno-0-103" name="__codelineno-0-103"></a>    <span class="p">)</span>
-<a id="__codelineno-0-104" name="__codelineno-0-104"></a>
-<a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="k">with</span> <span class="n">database</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="sa">f</span><span class="s2">&quot;UPDATE </span><span class="si">{</span><span class="n">database</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> &quot;</span>
-<a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="sa">f</span><span class="s2">&quot;SET sessionid = %s, &quot;</span>
-<a id="__codelineno-0-109" name="__codelineno-0-109"></a>            <span class="sa">f</span><span class="s2">&quot;    browsertoken = %s, &quot;</span>
-<a id="__codelineno-0-110" name="__codelineno-0-110"></a>            <span class="sa">f</span><span class="s2">&quot;    vncpassword = %s, &quot;</span>
-<a id="__codelineno-0-111" name="__codelineno-0-111"></a>            <span class="sa">f</span><span class="s2">&quot;    upstream = %s, &quot;</span>
-<a id="__codelineno-0-112" name="__codelineno-0-112"></a>            <span class="sa">f</span><span class="s2">&quot;    sessionstartedat = NOW() &quot;</span>
-<a id="__codelineno-0-113" name="__codelineno-0-113"></a>            <span class="sa">f</span><span class="s2">&quot;WHERE hostname = %s&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">session_id</span><span class="p">),</span> <span class="n">browser_token</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">upstream</span><span class="p">,</span> <span class="n">hostname</span><span class="p">),</span>
-<a id="__codelineno-0-115" name="__codelineno-0-115"></a>        <span class="p">)</span>
-<a id="__codelineno-0-116" name="__codelineno-0-116"></a>
-<a id="__codelineno-0-117" name="__codelineno-0-117"></a>    <span class="k">return</span> <span class="n">BrowserSessionTarget</span><span class="p">(</span><span class="n">upstream</span><span class="o">=</span><span class="n">upstream</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="n">database</span><span class="p">,</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="n">session_id</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">,</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">browser_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">api_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Rotate the assigned client&#39;s VNC password and persist per-session</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">    columns on the VM row. Must be called inside the seat-assignment</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">    transaction so failures roll back.</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="sd">    `api_token` is the allocator&#39;s per-startup random token (main.API_TOKEN);</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="sd">    the client agent receives the same value as its API_TOKEN env via the</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="sd">    Terraform user_data and validates it on every /api/session/start call.</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="sd">    Passed explicitly rather than read from env so this function has no</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">    hidden global dependency for tests.</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="n">private_ip</span> <span class="o">=</span> <span class="n">_lookup_private_ip</span><span class="p">(</span><span class="n">hostname</span><span class="p">)</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="n">password</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_urlsafe</span><span class="p">(</span><span class="mi">24</span><span class="p">)</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="n">upstream</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">private_ip</span><span class="si">}</span><span class="s2">:6080&quot;</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="c1"># Body shape matches the agent&#39;s contract (packages/client/.../agent/api.py):</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="c1"># a single `password` field. session_id and browser_token are bookkeeping</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>    <span class="c1"># the *allocator* persists in its own DB; the agent doesn&#39;t need either.</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="n">_post_rotate</span><span class="p">(</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>        <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">private_ip</span><span class="si">}</span><span class="s2">:7070/api/session/start&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>        <span class="p">{</span><span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">password</span><span class="p">},</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>        <span class="n">bearer</span><span class="o">=</span><span class="n">api_token</span><span class="p">,</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="p">)</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="k">with</span> <span class="n">database</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a>        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a>            <span class="sa">f</span><span class="s2">&quot;UPDATE </span><span class="si">{</span><span class="n">database</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> &quot;</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>            <span class="sa">f</span><span class="s2">&quot;SET sessionid = %s, &quot;</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>            <span class="sa">f</span><span class="s2">&quot;    browsertoken = %s, &quot;</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>            <span class="sa">f</span><span class="s2">&quot;    vncpassword = %s, &quot;</span>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a>            <span class="sa">f</span><span class="s2">&quot;    upstream = %s, &quot;</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>            <span class="sa">f</span><span class="s2">&quot;    sessionstartedat = NOW() &quot;</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>            <span class="sa">f</span><span class="s2">&quot;WHERE hostname = %s&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>            <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">session_id</span><span class="p">),</span> <span class="n">browser_token</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">upstream</span><span class="p">,</span> <span class="n">hostname</span><span class="p">),</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>        <span class="p">)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a>    <span class="k">return</span> <span class="n">BrowserSessionTarget</span><span class="p">(</span><span class="n">upstream</span><span class="o">=</span><span class="n">upstream</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

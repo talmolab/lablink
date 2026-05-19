@@ -2225,6 +2225,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.make_join_material" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;make_join_material
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.prepare_browser_session" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2492,6 +2503,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../routes/registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2515,6 +2554,34 @@
     
   
     scheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../secret_hash/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    secret_hash
   
 
     
@@ -2578,7 +2645,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_12" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_13" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2600,14 +2667,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7_2_1_12" id="__nav_7_2_1_12_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_7_2_1_13" id="__nav_7_2_1_13_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_12_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2_1_12">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_1_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3415,6 +3482,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.make_join_material" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;make_join_material
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.prepare_browser_session" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3492,8 +3570,6 @@
     <div class="doc doc-contents first">
 
         <p>AWS connectivity: browser -&gt; allocator nginx proxy -&gt; client KasmVNC.</p>
-<p>PR B is behavior-preserving: this delegates verbatim to the existing
-client_session.prepare_browser_session (kwargs-only signature preserved).</p>
 
 
 
@@ -3574,6 +3650,53 @@ client_session.prepare_browser_session (kwargs-only signature preserved).</p>
 <div class="doc doc-object doc-function">
 
 
+<h6 id="lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.make_join_material" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">make_join_material</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">allocator_url</span><span class="p">,</span> <span class="n">client_image</span><span class="p">,</span> <span class="n">register_token</span><span class="p">,</span> <span class="n">hostname_hint</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.make_join_material" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/providers/connectivity/allocator_proxied.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="k">def</span><span class="w"> </span><span class="nf">make_join_material</span><span class="p">(</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="n">client_image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a>    <span class="n">register_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a>    <span class="n">hostname_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientJoinMaterial</span><span class="p">:</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="k">return</span> <span class="n">ClientJoinMaterial</span><span class="p">(</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a>        <span class="n">register_token</span><span class="o">=</span><span class="n">register_token</span><span class="p">,</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a>        <span class="n">allocator_url</span><span class="o">=</span><span class="n">allocator_url</span><span class="p">,</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>        <span class="n">client_image</span><span class="o">=</span><span class="n">client_image</span><span class="p">,</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h6 id="lablink_allocator_service.providers.connectivity.allocator_proxied.AllocatorProxiedClientConnectivity.prepare_browser_session" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
@@ -3585,9 +3708,9 @@ client_session.prepare_browser_session (kwargs-only signature preserved).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/providers/connectivity/allocator_proxied.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a>    <span class="k">return</span> <span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#__codelineno-0-15">15</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="k">return</span> <span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
