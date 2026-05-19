@@ -2110,9 +2110,65 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../providers/connectivity/lan_direct/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lan_direct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../providers/manual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3538,8 +3594,7 @@ routes/desktop.py using current_app instead of importing main.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/routes/registration.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-85">85</a></span>
-<span class="normal"><a href="#__codelineno-0-86">86</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-86">86</a></span>
 <span class="normal"><a href="#__codelineno-0-87">87</a></span>
 <span class="normal"><a href="#__codelineno-0-88">88</a></span>
 <span class="normal"><a href="#__codelineno-0-89">89</a></span>
@@ -3551,20 +3606,21 @@ routes/desktop.py using current_app instead of importing main.</p>
 <span class="normal"><a href="#__codelineno-0-95">95</a></span>
 <span class="normal"><a href="#__codelineno-0-96">96</a></span>
 <span class="normal"><a href="#__codelineno-0-97">97</a></span>
-<span class="normal"><a href="#__codelineno-0-98">98</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/api/v1/clients/&lt;client_id&gt;/status&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;GET&quot;</span><span class="p">])</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="k">def</span><span class="w"> </span><span class="nf">client_status</span><span class="p">(</span><span class="n">client_id</span><span class="p">):</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="n">auth_header</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">auth_header</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Bearer &quot;</span><span class="p">):</span>
-<a id="__codelineno-0-91" name="__codelineno-0-91"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid client secret.&quot;</span><span class="p">}),</span> <span class="mi">401</span>
-<a id="__codelineno-0-92" name="__codelineno-0-92"></a>    <span class="n">token</span> <span class="o">=</span> <span class="n">auth_header</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="n">stored</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">get_client_secret_hash</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">stored</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">verify_secret</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">stored</span><span class="p">):</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid client secret.&quot;</span><span class="p">}),</span> <span class="mi">401</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a>
-<a id="__codelineno-0-97" name="__codelineno-0-97"></a>    <span class="n">status</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">get_status_by_hostname</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>
-<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">),</span> <span class="mi">200</span>
+<span class="normal"><a href="#__codelineno-0-98">98</a></span>
+<span class="normal"><a href="#__codelineno-0-99">99</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/api/v1/clients/&lt;client_id&gt;/status&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;GET&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="k">def</span><span class="w"> </span><span class="nf">client_status</span><span class="p">(</span><span class="n">client_id</span><span class="p">):</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="n">auth_header</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">auth_header</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Bearer &quot;</span><span class="p">):</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid client secret.&quot;</span><span class="p">}),</span> <span class="mi">401</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="n">token</span> <span class="o">=</span> <span class="n">auth_header</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="n">stored</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">get_client_secret_hash</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">stored</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">verify_secret</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">stored</span><span class="p">):</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid client secret.&quot;</span><span class="p">}),</span> <span class="mi">401</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="n">status</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">get_status_by_hostname</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">),</span> <span class="mi">200</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3648,7 +3704,8 @@ routes/desktop.py using current_app instead of importing main.</p>
 <span class="normal"><a href="#__codelineno-0-79">79</a></span>
 <span class="normal"><a href="#__codelineno-0-80">80</a></span>
 <span class="normal"><a href="#__codelineno-0-81">81</a></span>
-<span class="normal"><a href="#__codelineno-0-82">82</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/api/v1/clients/register&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/api/v1/clients/register&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="k">def</span><span class="w"> </span><span class="nf">register_client</span><span class="p">():</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-0-22" name="__codelineno-0-22"></a>
@@ -3707,11 +3764,12 @@ routes/desktop.py using current_app instead of importing main.</p>
 <a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span>
 <a id="__codelineno-0-76" name="__codelineno-0-76"></a>        <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span>
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a>        <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span><span class="p">,</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="n">register_token</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">register_token</span><span class="p">,</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>        <span class="n">allocator_url</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">allocator_url</span><span class="p">,</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">connectivity</span><span class="p">,</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a>        <span class="n">client_image</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">client_image</span><span class="p">,</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="p">),</span> <span class="mi">200</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="n">agent_token</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">AGENT_TOKEN</span><span class="p">,</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>        <span class="n">register_token</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">register_token</span><span class="p">,</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>        <span class="n">allocator_url</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">allocator_url</span><span class="p">,</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">connectivity</span><span class="p">,</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>        <span class="n">client_image</span><span class="o">=</span><span class="n">jm</span><span class="o">.</span><span class="n">client_image</span><span class="p">,</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="p">),</span> <span class="mi">200</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

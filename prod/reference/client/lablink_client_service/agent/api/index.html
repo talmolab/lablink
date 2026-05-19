@@ -2110,9 +2110,65 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../allocator/lablink_allocator_service/providers/connectivity/lan_direct/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lan_direct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../allocator/lablink_allocator_service/providers/manual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3486,9 +3542,9 @@ handing the seat to a student; the agent rewrites the local
 <code>kasmvncpasswd</code> file. KasmVNC re-reads that file on each HTTP
 Basic Auth check, so no signal-based reload is needed (and SIGHUP
 would in fact terminate Xvnc — its reset path is unsupported).</p>
-<p>Auth: Bearer = deployment-wide API_TOKEN (same value the allocator
-generates at startup and bakes into the client VM's docker env via
-the Terraform <code>api_token</code> variable). Any caller who knows the token
+<p>Auth: Bearer = deployment-wide agent-control token AGENT_TOKEN (same
+value the allocator generates at startup and bakes into the client
+VM's docker env via Terraform). Any caller who knows the token
 can rotate the password; that's adequate because the token is only
 ever set on the client VM by Terraform and only ever sent by the
 allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
@@ -3583,7 +3639,7 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
 <span class="normal"><a href="#__codelineno-0-61">61</a></span>
 <span class="normal"><a href="#__codelineno-0-62">62</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Flask</span><span class="p">:</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;API_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/session/start&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">session_start</span><span class="p">():</span>
@@ -3594,7 +3650,7 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
 <a id="__codelineno-0-38" name="__codelineno-0-38"></a>        <span class="c1"># per-seat — timing-channel risk is negligible.</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="n">auth</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">expected</span><span class="p">:</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;API_TOKEN env var is not set; rejecting all calls&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN env var is not set; rejecting all calls&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;server misconfigured&quot;</span><span class="p">),</span> <span class="mi">500</span>
 <a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">auth</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Bearer &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">auth</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
 <a id="__codelineno-0-44" name="__codelineno-0-44"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;unauthorized&quot;</span><span class="p">),</span> <span class="mi">401</span>
