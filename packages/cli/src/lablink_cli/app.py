@@ -289,6 +289,80 @@ def doctor() -> None:
     run_doctor()
 
 
+@app.command(rich_help_panel="Setup")
+def register(
+    allocator_url: str = typer.Option(
+        ...,
+        "--allocator-url",
+        help="Base URL of the LabLink allocator "
+        "(e.g., https://lablink.example.com).",
+    ),
+    register_token: str = typer.Option(
+        ...,
+        "--register-token",
+        prompt="Register token",
+        hide_input=True,
+        envvar="LABLINK_REGISTER_TOKEN",
+        help="The bootstrap register_token from the allocator operator "
+        "(prompted if omitted; also reads $LABLINK_REGISTER_TOKEN).",
+    ),
+    hostname: str = typer.Option(
+        None, "--hostname",
+        help="Override auto-detected hostname.",
+    ),
+    lan_ip: str = typer.Option(
+        None, "--lan-ip",
+        help="Override auto-detected LAN IP.",
+    ),
+    machine_identity: str = typer.Option(
+        None, "--machine-identity",
+        help="Override auto-detected machine identifier.",
+    ),
+    gpu_present: bool = typer.Option(
+        None, "--gpu-present/--no-gpu-present",
+        help="Override auto-detected GPU presence.",
+    ),
+    gpu_model: str = typer.Option(
+        None, "--gpu-model",
+        help="Override auto-detected GPU model string.",
+    ),
+    force: bool = typer.Option(
+        False, "--force",
+        help="Overwrite an existing ~/.lablink/client.env. Mints a new "
+        "client_secret (orphans any running container).",
+    ),
+    env_file: Path = typer.Option(
+        None, "--env-file",
+        help="Path to write secrets (default ~/.lablink/client.env).",
+    ),
+    insecure: bool = typer.Option(
+        False, "--insecure",
+        help="Skip TLS verification (use when the allocator's "
+        "ssl.provider is self_signed).",
+    ),
+) -> None:
+    """Register this BYO box as a manual client and run the client container.
+
+    Always docker-runs the client container after registering. If docker
+    is missing, the env file is preserved so the user can install docker
+    and re-run with --force.
+    """
+    from lablink_cli.commands.register import run_register
+
+    run_register(
+        allocator_url=allocator_url,
+        register_token=register_token,
+        hostname=hostname,
+        lan_ip=lan_ip,
+        machine_identity=machine_identity,
+        gpu_present=gpu_present,
+        gpu_model=gpu_model,
+        force=force,
+        env_file=env_file,
+        insecure=insecure,
+    )
+
+
 @app.command("show-config", rich_help_panel="Maintenance")
 def show_config(
     config: str = typer.Option(

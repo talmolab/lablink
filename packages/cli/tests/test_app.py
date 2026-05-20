@@ -385,6 +385,36 @@ class TestCacheClear:
         assert not tf_dir.exists()
 
 
+class TestRegisterCommand:
+    def test_register_help_lists_command(self):
+        from typer.testing import CliRunner
+        from lablink_cli.app import app
+        runner = CliRunner()
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "register" in result.output
+
+    @patch("lablink_cli.commands.register.run_register")
+    def test_register_invokes_run_register(self, mock_run):
+        from typer.testing import CliRunner
+        from lablink_cli.app import app
+        runner = CliRunner()
+        runner.invoke(
+            app,
+            [
+                "register",
+                "--allocator-url", "https://x.example.com",
+                "--register-token", "t",
+            ],
+        )
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["allocator_url"] == "https://x.example.com"
+        assert kwargs["register_token"] == "t"
+        assert kwargs["force"] is False
+        assert kwargs["insecure"] is False
+
+
 class TestShowConfig:
     def test_show_config_missing_file(self, tmp_path):
         result = runner.invoke(
