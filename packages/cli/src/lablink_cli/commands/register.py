@@ -124,7 +124,11 @@ def run_register(
         f"[green]Secrets saved to {env_file} (mode 0600)[/green]"
     )
 
-    # Step 6 + 7: docker run (always)
+    # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
+    if resolved_gpu_present:
+        _verify_gpu_runtime(console)
+
+    # Step 7 + 8: docker run (always)
     cmd = _build_docker_run(env_file, response, resolved_gpu_present)
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
@@ -172,6 +176,69 @@ def _build_docker_run(
         resp["client_image"],
     ]
     return cmd
+
+
+def _verify_gpu_runtime(console: Console) -> None:
+    """Refuse to launch a GPU container on a host whose docker daemon
+    uses the systemd cgroup driver.
+
+    systemd reorganizes cgroups asynchronously (unit reloads, idle reaping,
+    OOM events) and revokes GPU device permissions from running containers
+    — nvidia-smi inside the client works at first, then fails after minutes,
+    and check_gpu reports Unhealthy, which makes assignment skip the row
+    (get_first_available_vm filters healthy='Unhealthy'). The AWS path's
+    user_data.sh writes ``exec-opts: native.cgroupdriver=cgroupfs`` to
+    avoid this; BYO operators have to set it themselves.
+
+    Inspecting the daemon config (via ``docker info``) is the only reliable
+    signal — a synchronous nvidia-smi smoke test would pass and then fail
+    later, after the env file + container already exist.
+    """
+    if shutil.which("docker") is None:
+        # _exec_docker will report this with the right error; skip here.
+        return
+    try:
+        result = subprocess.run(
+            ["docker", "info", "--format", "{{.CgroupDriver}}"],
+            capture_output=True, text=True, check=True, timeout=10,
+        )
+        driver = result.stdout.strip()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        console.print(
+            f"[red]Could not query docker daemon: {e}[/red]\n"
+            "Verify docker is running and re-run "
+            "`lablink register --force`."
+        )
+        raise SystemExit(1) from e
+
+    if driver == "cgroupfs":
+        return
+
+    console.print(
+        f"[red]Docker cgroup driver is '{driver}', not 'cgroupfs'.[/red]\n"
+        "GPU access from the client container will fail after a few "
+        "minutes (systemd reorganizes cgroups and revokes device "
+        "permissions on running containers), check_gpu will report "
+        "Unhealthy, and assignment will skip this client.\n\n"
+        "[bold]Fix on the host:[/bold]\n"
+        "  sudo tee /etc/docker/daemon.json <<'JSON'\n"
+        "  {\n"
+        '      "default-runtime": "nvidia",\n'
+        '      "runtimes": {\n'
+        '          "nvidia": {\n'
+        '              "path": "nvidia-container-runtime",\n'
+        '              "runtimeArgs": []\n'
+        "          }\n"
+        "      },\n"
+        '      "exec-opts": ["native.cgroupdriver=cgroupfs"]\n'
+        "  }\n"
+        "  JSON\n"
+        "  sudo systemctl restart docker\n\n"
+        "Then re-run [bold]lablink register --force[/bold]. "
+        "(Your secrets file has been written; re-running with --force "
+        "rotates the client secret and restarts the container.)"
+    )
+    raise SystemExit(1)
 
 
 def _exec_docker(cmd: list[str], console: Console) -> None:

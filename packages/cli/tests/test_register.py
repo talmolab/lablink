@@ -74,7 +74,7 @@ class TestSuccessFlow:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(tmp_env_file))
 
@@ -137,7 +137,7 @@ class TestSuccessFlow:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(
             tmp_env_file,
@@ -190,7 +190,7 @@ class TestSuccessFlow:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(
             tmp_env_file,
@@ -222,7 +222,7 @@ class TestSuccessFlow:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(
             tmp_env_file,
@@ -237,6 +237,113 @@ class TestSuccessFlow:
             gpu_present=True,
             gpu_model="USER_PROVIDED",
         )
+
+
+class TestGpuRuntimePreflight:
+    """systemd cgroup driver revokes GPU device permissions from running
+    containers asynchronously. The pre-flight refuses to launch a GPU
+    container on a host whose docker daemon isn't configured for cgroupfs.
+    """
+
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_aborts_when_cgroup_driver_systemd_and_gpu_present(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        tmp_env_file, successful_response,
+    ):
+        from lablink_cli.commands.register import run_register
+        mock_detect.detect_hostname.return_value = "h"
+        mock_detect.detect_lan_ip.return_value = "1.2.3.4"
+        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.detect_gpu.return_value = (True, "Tesla T4")
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        # docker info returns "systemd" — the unstable default.
+        mock_subproc_run.return_value = MagicMock(
+            returncode=0, stdout="systemd\n"
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            run_register(**_kwargs(tmp_env_file))
+        assert exc.value.code != 0
+
+        # Env file is preserved so admin can fix daemon.json + re-run --force
+        # without re-minting secrets.
+        assert tmp_env_file.exists()
+
+        # docker info was called; docker run was NOT.
+        all_cmds = [c.args[0] for c in mock_subproc_run.call_args_list]
+        assert any("info" in c for c in all_cmds), (
+            f"Expected docker info call; got {all_cmds}"
+        )
+        assert not any("run" in c and "--env-file" in c for c in all_cmds), (
+            f"docker run must not fire when cgroup driver check fails; "
+            f"got {all_cmds}"
+        )
+
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_skips_cgroup_check_when_gpu_absent(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        tmp_env_file, successful_response,
+    ):
+        """CPU-only BYO clients don't need GPU runtime — never query
+        docker info, never block on cgroup driver. Even if the host is
+        in the unstable systemd config, a CPU client still works."""
+        from lablink_cli.commands.register import run_register
+        mock_detect.detect_hostname.return_value = "h"
+        mock_detect.detect_lan_ip.return_value = "1.2.3.4"
+        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.detect_gpu.return_value = (False, None)
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(
+            returncode=0, stdout="systemd\n"
+        )
+
+        run_register(**_kwargs(tmp_env_file))
+
+        all_cmds = [c.args[0] for c in mock_subproc_run.call_args_list]
+        assert not any("info" in c for c in all_cmds), (
+            f"docker info should not be called for CPU clients; got {all_cmds}"
+        )
+
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_aborts_when_docker_info_fails(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        tmp_env_file, successful_response,
+    ):
+        """If docker is on PATH but the daemon isn't running, docker info
+        errors. Abort with a clear message rather than launching a
+        container that will fail to start."""
+        import subprocess as _sp
+        from lablink_cli.commands.register import run_register
+        mock_detect.detect_hostname.return_value = "h"
+        mock_detect.detect_lan_ip.return_value = "1.2.3.4"
+        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.detect_gpu.return_value = (True, "Tesla T4")
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.side_effect = _sp.CalledProcessError(
+            1, ["docker", "info"], stderr="daemon not running"
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            run_register(**_kwargs(tmp_env_file))
+        assert exc.value.code != 0
 
 
 class TestDockerMissing:
@@ -285,7 +392,7 @@ class TestForceFlag:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(tmp_env_file, force=True))
 
@@ -312,7 +419,7 @@ class TestForceFlag:
         mock_client.register.return_value = successful_response
         mock_client_cls.return_value = mock_client
         mock_which.return_value = "/usr/bin/docker"
-        mock_subproc_run.return_value = MagicMock(returncode=0)
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
 
         run_register(**_kwargs(tmp_env_file, force=True))
 
