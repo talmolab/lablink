@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LabLink — BYO Client Onboarding</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #eef2f5;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+      .panel {
+        background-color: #fff;
+        border-radius: 12px;
+        padding: 32px 28px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 760px;
+      }
+      h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      p {
+        color: #555;
+        line-height: 1.5;
+      }
+      pre {
+        background-color: #1e1e1e;
+        color: #f8f8f2;
+        padding: 18px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        overflow-x: auto;
+        margin: 0;
+      }
+      .cmd-wrap {
+        position: relative;
+        margin: 18px 0;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background-color: #0056b3;
+      }
+      .copy-btn.copied {
+        background-color: #198754;
+      }
+      .note {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 10px 14px;
+        margin: 16px 0;
+        font-size: 14px;
+        color: #664d03;
+      }
+      .back-link {
+        display: inline-block;
+        margin-top: 20px;
+        color: #007bff;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h2>BYO Client Onboarding</h2>
+      <p>
+        Run this command on a Linux GPU box to register it as a manual client
+        with this allocator. The command is pre-populated with this
+        deployment's URL and current bootstrap token.
+      </p>
+
+      <div class="cmd-wrap">
+        <button class="copy-btn" id="copyBtn" onclick="copyCmd()">Copy</button>
+        <pre id="cmd">lablink register \
+  --allocator-url {{ allocator_url }} \
+  --register-token {{ register_token }}{% if show_insecure %} \
+  --insecure{% endif %}</pre>
+      </div>
+
+      <div class="note">
+        <strong>Note:</strong> the register token rotates on every allocator
+        restart. If a BYO operator's <code>lablink register</code> fails with
+        an auth error, refresh this page to copy the current token.
+      </div>
+
+      <p style="font-size: 14px; color: #666;">
+        Prerequisites on the BYO box: Docker + nvidia-container-toolkit (for
+        GPU), and the <code>lablink-cli</code> Python package installed.
+      </p>
+
+      <a class="back-link" href="/admin">&larr; Back to admin panel</a>
+    </div>
+
+    <script>
+      function copyCmd() {
+        const txt = document.getElementById("cmd").innerText;
+        const btn = document.getElementById("copyBtn");
+        navigator.clipboard.writeText(txt).then(() => {
+          btn.textContent = "Copied!";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            btn.textContent = "Copy";
+            btn.classList.remove("copied");
+          }, 1500);
+        });
+      }
+    </script>
+  </body>
+</html>

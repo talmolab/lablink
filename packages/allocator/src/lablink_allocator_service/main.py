@@ -33,7 +33,10 @@ from lablink_allocator_service.utils.aws_utils import (
     NotOnEC2Error,
     upload_to_s3,
 )
-from lablink_allocator_service.utils.config_helpers import get_allocator_url
+from lablink_allocator_service.utils.config_helpers import (
+    get_allocator_url,
+    is_self_signed_ssl,
+)
 from lablink_allocator_service.utils.sg_audit import (
     audit_terraform_plan,
     SGAuditFailure,
@@ -298,6 +301,23 @@ def create_instances():
 @auth.login_required
 def admin():
     return render_template("admin.html")
+
+
+@app.route("/admin/byo-onboarding")
+@auth.login_required
+def byo_onboarding():
+    """Render the ready-to-copy `lablink register` command for BYO clients.
+
+    The register token rotates on each allocator restart, so this page is
+    dynamic — re-render to get the current token. Behind admin Basic auth
+    (same gate as the rest of /admin); no new privilege boundary.
+    """
+    return render_template(
+        "byo-onboarding.html",
+        allocator_url=request.host_url.rstrip("/"),
+        register_token=REGISTER_TOKEN,
+        show_insecure=is_self_signed_ssl(cfg),
+    )
 
 
 @app.route("/admin/instances")
