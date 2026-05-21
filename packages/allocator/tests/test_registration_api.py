@@ -195,3 +195,16 @@ def test_register_response_includes_agent_token(reg_client):
     assert r.status_code == 200
     from lablink_allocator_service import main
     assert r.get_json()["agent_token"] == main.AGENT_TOKEN
+
+
+def test_register_response_includes_api_token(reg_client):
+    """BYO clients need API_TOKEN so start.sh can POST /api/vm-metrics
+    (which is @require_api_token-gated, not per-client). Without this,
+    container-startup timing never lands for manual clients."""
+    client, fake_db = reg_client
+    r = client.post("/api/v1/clients/register",
+                     json={"hostname": "vm-1", "machine_identity": "i-1"},
+                     headers={"Authorization": "Bearer tk_test_register"})
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    assert r.get_json()["api_token"] == main.API_TOKEN
