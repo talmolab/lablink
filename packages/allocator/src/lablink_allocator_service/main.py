@@ -19,6 +19,7 @@ from flask import (
     redirect,
 )
 from flask_httpauth import HTTPBasicAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import psycopg2
@@ -57,6 +58,11 @@ from lablink_allocator_service.routes.internal_proxy_auth import (
 from lablink_allocator_service.routes.registration import bp as registration_bp
 
 app = Flask(__name__)
+# nginx terminates TLS one hop in front. Honor its X-Forwarded-Proto/Host
+# so request.host_url returns the public https:// URL the admin actually
+# typed — not the internal http:// nginx proxies over. The registration
+# response echoes this URL back to BYO clients via client.env.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(internal_proxy_auth_bp)
 app.register_blueprint(registration_bp)
