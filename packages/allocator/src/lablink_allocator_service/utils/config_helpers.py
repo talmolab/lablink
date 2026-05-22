@@ -87,3 +87,12 @@ def should_use_dns(cfg) -> bool:
 def should_use_https(cfg) -> bool:
     """Check if HTTPS is enabled in config."""
     return hasattr(cfg, "ssl") and cfg.ssl.provider != "none"
+
+
+def is_self_signed_ssl(cfg) -> bool:
+    """Check if the deployment uses a self-signed TLS cert.
+
+    Used by BYO onboarding to decide whether the rendered
+    ``lablink register`` command should include ``--insecure``.
+    """
+    return hasattr(cfg, "ssl") and cfg.ssl.provider == "self_signed"

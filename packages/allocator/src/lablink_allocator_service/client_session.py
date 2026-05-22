@@ -37,7 +37,17 @@ def _region() -> str:
     return get_config().app.region
 
 
-def _lookup_private_ip(hostname: str) -> str:
+def _lookup_private_ip(hostname: str, database=None) -> str:
+    # BYO/manual rows record their LAN IP at registration time
+    # (provider_metadata.lan_ip, or endpoint_url's host as a fallback).
+    # Those rows have no EC2 Name tag equal to their Linux hostname, so
+    # the EC2 lookup below would raise RotationFailed even though the
+    # IP is already known. Prefer the stored value when present; fall
+    # back to the EC2 lookup for older AWS rows that recorded neither.
+    if database is not None:
+        stored = database.get_lan_ip(hostname)
+        if stored:
+            return stored
     region = _region()
     instance_id = get_instance_id_by_name(hostname, region)
     if instance_id is None:
@@ -87,7 +97,7 @@ def prepare_browser_session(
     Passed explicitly rather than read from env so this function has no
     hidden global dependency for tests.
     """
-    private_ip = _lookup_private_ip(hostname)
+    private_ip = _lookup_private_ip(hostname, database)
     password = secrets.token_urlsafe(24)
     upstream = f"{private_ip}:6080"
 
