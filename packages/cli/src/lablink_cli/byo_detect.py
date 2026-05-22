@@ -42,15 +42,18 @@ def detect_lan_ip() -> str | None:
         return None
 
 
-def detect_machine_identity(
+def resolve_machine_identity(
     *, fallback_path: Path | None = None
 ) -> str:
-    """Return a stable identifier for this box.
+    """Return a stable identifier for this box, creating one if needed.
 
-    Tries /etc/machine-id, then /var/lib/dbus/machine-id. Falls back to a
-    UUID persisted at fallback_path (default ~/.lablink/machine_identity)
-    so the value is stable across reboots even on systems without
-    machine-id (e.g., older distributions, custom containers).
+    Get-or-create, not pure detection: tries /etc/machine-id, then
+    /var/lib/dbus/machine-id, and as a last resort **writes** a UUID to
+    fallback_path (default ~/.lablink/machine_identity) so the value is
+    stable across reboots even on systems without machine-id (e.g.,
+    older distributions, custom containers). Callers that only want to
+    inspect — without persisting anything — should read the candidate
+    paths directly.
     """
     for path in _MACHINE_ID_PATHS:
         try:

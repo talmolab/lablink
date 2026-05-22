@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import ssl
+from typing import NoReturn
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -62,6 +63,8 @@ class AllocatorAPI:
         req.add_header("Accept", "application/json")
 
         try:
+            # S310: URL scheme is operator-supplied by design (allocator base
+            # URL from the CLI config); skipping the scheme allowlist check.
             with urlopen(req, timeout=1800, context=self._ssl_ctx) as resp:  # noqa: S310
                 raw = resp.read().decode()
         except HTTPError as e:
@@ -81,7 +84,7 @@ class AllocatorAPI:
 
         return body
 
-    def _handle_http_error(self, e: HTTPError) -> None:
+    def _handle_http_error(self, e: HTTPError) -> NoReturn:
         """Translate HTTPError to typed exception."""
         if e.code == 401:
             raise AllocatorAuthError("Authentication failed") from e
@@ -167,6 +170,8 @@ class RegistrationClient:
         req.add_header("Accept", "application/json")
 
         try:
+            # S310: URL scheme is operator-supplied by design (allocator base
+            # URL from `--allocator-url`); skipping the scheme allowlist check.
             with urlopen(req, timeout=60, context=self._ssl_ctx) as resp:  # noqa: S310
                 raw = resp.read().decode()
         except HTTPError as e:
@@ -179,7 +184,7 @@ class RegistrationClient:
         except (json.JSONDecodeError, ValueError) as e:
             raise AllocatorError("Allocator returned non-JSON response") from e
 
-    def _handle_http_error(self, e: HTTPError) -> None:
+    def _handle_http_error(self, e: HTTPError) -> NoReturn:
         try:
             err_body = json.loads(e.read().decode())
             msg = err_body.get("error", str(e))

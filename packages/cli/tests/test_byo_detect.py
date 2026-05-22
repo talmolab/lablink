@@ -41,7 +41,7 @@ class TestDetectMachineIdentity:
         machine_id = tmp_path / "machine-id"
         machine_id.write_text("e3b0c44298fc1c149afbf4c8996fb924\n")
         with patch.object(byo_detect, "_MACHINE_ID_PATHS", [machine_id]):
-            assert byo_detect.detect_machine_identity(
+            assert byo_detect.resolve_machine_identity(
                 fallback_path=tmp_path / "fallback"
             ) == "e3b0c44298fc1c149afbf4c8996fb924"
 
@@ -51,7 +51,7 @@ class TestDetectMachineIdentity:
         dbus = tmp_path / "dbus-machine-id"
         dbus.write_text("abc123\n")
         with patch.object(byo_detect, "_MACHINE_ID_PATHS", [primary, dbus]):
-            assert byo_detect.detect_machine_identity(
+            assert byo_detect.resolve_machine_identity(
                 fallback_path=tmp_path / "fallback"
             ) == "abc123"
 
@@ -61,7 +61,7 @@ class TestDetectMachineIdentity:
         dbus = tmp_path / "dbus-machine-id"
         fallback = tmp_path / "fallback"
         with patch.object(byo_detect, "_MACHINE_ID_PATHS", [primary, dbus]):
-            value = byo_detect.detect_machine_identity(fallback_path=fallback)
+            value = byo_detect.resolve_machine_identity(fallback_path=fallback)
         assert fallback.exists()
         assert fallback.read_text().strip() == value
         assert len(value) >= 32  # UUID without dashes is 32 chars
@@ -73,7 +73,7 @@ class TestDetectMachineIdentity:
         fallback = tmp_path / "fallback"
         fallback.write_text("persistent-uuid-value")
         with patch.object(byo_detect, "_MACHINE_ID_PATHS", [primary, dbus]):
-            assert byo_detect.detect_machine_identity(
+            assert byo_detect.resolve_machine_identity(
                 fallback_path=fallback
             ) == "persistent-uuid-value"
 

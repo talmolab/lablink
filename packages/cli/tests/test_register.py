@@ -67,7 +67,7 @@ class TestSuccessFlow:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "byo-01"
         mock_detect.detect_lan_ip.return_value = "192.168.1.42"
-        mock_detect.detect_machine_identity.return_value = "mid-abc"
+        mock_detect.resolve_machine_identity.return_value = "mid-abc"
         mock_detect.detect_gpu.return_value = (True, "NVIDIA T4")
 
         mock_client = MagicMock()
@@ -128,7 +128,7 @@ class TestSuccessFlow:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "auto-host"
         mock_detect.detect_lan_ip.return_value = "10.0.0.1"
-        mock_detect.detect_machine_identity.return_value = "auto-mid"
+        mock_detect.resolve_machine_identity.return_value = "auto-mid"
         # Detection returns no GPU — user's overrides for non-GPU fields are
         # what's under test here; GPU fallback behavior is covered separately.
         mock_detect.detect_gpu.return_value = (False, None)
@@ -184,7 +184,7 @@ class TestSuccessFlow:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (True, "NVIDIA A100")  # detected
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -216,7 +216,7 @@ class TestSuccessFlow:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (True, "DETECTED")
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -256,7 +256,7 @@ class TestGpuRuntimePreflight:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (True, "Tesla T4")
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -299,7 +299,7 @@ class TestGpuRuntimePreflight:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (False, None)
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -331,7 +331,7 @@ class TestGpuRuntimePreflight:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (True, "Tesla T4")
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -359,7 +359,7 @@ class TestDockerMissing:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (False, None)
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -386,7 +386,7 @@ class TestForceFlag:
         tmp_env_file.write_text("CLIENT_ID=99\n")  # stale
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (False, None)
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -413,7 +413,7 @@ class TestForceFlag:
         tmp_env_file.write_text("CLIENT_ID=99\n")  # existing env file
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (False, None)
         mock_client = MagicMock()
         mock_client.register.return_value = successful_response
@@ -447,7 +447,7 @@ class TestErrorMapping:
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
         mock_detect.detect_lan_ip.return_value = "1.2.3.4"
-        mock_detect.detect_machine_identity.return_value = "m"
+        mock_detect.resolve_machine_identity.return_value = "m"
         mock_detect.detect_gpu.return_value = (False, None)
         mock_client = MagicMock()
         mock_client.register.side_effect = AllocatorAuthError("nope")

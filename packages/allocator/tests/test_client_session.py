@@ -10,10 +10,15 @@ import requests
 AGENT_TOKEN = "test-agent-token"
 
 
-def test_happy_path_rotates_and_persists(real_db):
-    """prepare_browser_session: rotates VNC password on the agent and
-    updates the per-session columns on the clients row."""
-    # Set up the table with the per-session columns the production schema has
+@pytest.fixture
+def vms_full_schema(real_db):
+    """real_db with every per-session column the production schema has.
+
+    Tests in this file used to each duplicate the same ALTER TABLE block;
+    one fixture means the next column addition is a one-line edit instead
+    of N. ADD COLUMN IF NOT EXISTS makes the union safe across tests that
+    only consult a subset of the columns.
+    """
     with real_db._cursor as cur:
         cur.execute(
             "ALTER TABLE vms "
@@ -30,6 +35,13 @@ def test_happy_path_rotates_and_persists(real_db):
             "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
             "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
+    return real_db
+
+
+def test_happy_path_rotates_and_persists(vms_full_schema):
+    """prepare_browser_session: rotates VNC password on the agent and
+    updates the per-session columns on the clients row."""
+    with vms_full_schema._cursor as cur:
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10'")
         cur.execute(
             "INSERT INTO vms (hostname, status, useremail) "
@@ -55,7 +67,7 @@ def test_happy_path_rotates_and_persists(real_db):
             status_code=200, raise_for_status=lambda: None
         )
         target = prepare_browser_session(
-            database=real_db,
+            database=vms_full_schema,
             hostname="host-task10",
             session_id=session_id,
             browser_token="tok-abc",
@@ -76,7 +88,7 @@ def test_happy_path_rotates_and_persists(real_db):
     # Row updated with per-session columns. The password matches what we
     # sent on the wire, so /internal/proxy_auth's later lookup will yield
     # the same value the client agent installed.
-    with real_db._cursor as cur:
+    with vms_full_schema._cursor as cur:
         cur.execute(
             "SELECT sessionid, browsertoken, vncpassword, upstream "
             "FROM vms WHERE hostname = 'host-task10'"
@@ -90,21 +102,8 @@ def test_happy_path_rotates_and_persists(real_db):
     assert target.browser_credential is None
 
 
-def test_one_retry_then_raises(real_db):
-    with real_db._cursor as cur:
-        cur.execute(
-            "ALTER TABLE vms "
-            "ADD COLUMN IF NOT EXISTS status TEXT, "
-            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
-            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
-            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
-            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
-            "ADD COLUMN IF NOT EXISTS provider TEXT, "
-            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
-            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
-        )
+def test_one_retry_then_raises(vms_full_schema):
+    with vms_full_schema._cursor as cur:
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10-fail'")
         cur.execute(
             "INSERT INTO vms (hostname, status, useremail) "
@@ -128,7 +127,7 @@ def test_one_retry_then_raises(real_db):
     ) as mock_post:
         with pytest.raises(RotationFailed):
             prepare_browser_session(
-                database=real_db,
+                database=vms_full_schema,
                 hostname="host-task10-fail",
                 session_id=uuid.uuid4(),
                 browser_token="t",
@@ -171,27 +170,12 @@ def test_prepare_browser_session_persists_render_columns(monkeypatch):
     assert "browser_credential = NULL" in executed["sql"]
 
 
-def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(real_db):
+def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(vms_full_schema):
     """BYO rows record provider_metadata.lan_ip at registration time.
     Rotation must use it instead of looking up by EC2 Name tag, which
     has no entry for a BYO box's Linux hostname and would 503 the
     student's /api/request_vm with 'no EC2 instance found'."""
-    with real_db._cursor as cur:
-        cur.execute(
-            "ALTER TABLE vms "
-            "ADD COLUMN IF NOT EXISTS status TEXT, "
-            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
-            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
-            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
-            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
-            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
-            "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
-            "ADD COLUMN IF NOT EXISTS provider TEXT, "
-            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
-            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
-        )
+    with vms_full_schema._cursor as cur:
         cur.execute("DELETE FROM vms WHERE hostname = 'ip-172-31-37-226'")
         cur.execute(
             "INSERT INTO vms "
@@ -215,7 +199,7 @@ def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(real_db):
             status_code=200, raise_for_status=lambda: None
         )
         prepare_browser_session(
-            database=real_db,
+            database=vms_full_schema,
             hostname="ip-172-31-37-226",
             session_id=uuid.uuid4(),
             browser_token="byo-tok",
@@ -228,7 +212,7 @@ def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(real_db):
         "http://172.31.37.226:7070/api/session/start"
     )
 
-    with real_db._cursor as cur:
+    with vms_full_schema._cursor as cur:
         cur.execute(
             "SELECT upstream, browser_ws_url FROM vms "
             "WHERE hostname = 'ip-172-31-37-226'"
@@ -249,16 +233,8 @@ def test_browser_session_target_new_shape():
     assert t2.browser_credential is None
 
 
-def test_raises_when_instance_id_not_found(real_db):
-    with real_db._cursor as cur:
-        cur.execute(
-            "ALTER TABLE vms "
-            "ADD COLUMN IF NOT EXISTS status TEXT, "
-            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
-            "ADD COLUMN IF NOT EXISTS provider TEXT, "
-            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
-            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
-        )
+def test_raises_when_instance_id_not_found(vms_full_schema):
+    with vms_full_schema._cursor as cur:
         cur.execute("DELETE FROM vms WHERE hostname = 'ghost-host'")
         cur.execute(
             "INSERT INTO vms (hostname, status) "
@@ -276,7 +252,7 @@ def test_raises_when_instance_id_not_found(real_db):
     ):
         with pytest.raises(RotationFailed):
             prepare_browser_session(
-                database=real_db,
+                database=vms_full_schema,
                 hostname="ghost-host",
                 session_id=uuid.uuid4(),
                 browser_token="t",

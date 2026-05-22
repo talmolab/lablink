@@ -73,7 +73,7 @@ def run_register(
     console.print(f"Detected LAN IP: {resolved_lan_ip}")
 
     resolved_machine_identity = (
-        machine_identity or byo_detect.detect_machine_identity()
+        machine_identity or byo_detect.resolve_machine_identity()
     )
     console.print(
         f"Detected machine identity: {resolved_machine_identity}"
@@ -235,9 +235,12 @@ def _verify_gpu_runtime(console: Console) -> None:
     )
     console.print(
         f"[red]Docker cgroup driver is '{driver}', not 'cgroupfs'.[/red]\n"
-        "GPU access from the client container will fail after a few "
-        "minutes (systemd reorganizes cgroups and revokes device "
-        "permissions on running containers), check_gpu will report "
+        "[bold]Your secrets file is saved.[/bold] After fixing daemon.json "
+        "below, re-run [bold]lablink register --force[/bold] to rotate the "
+        "client secret and start the container.\n\n"
+        "Why this matters: GPU access from the client container will fail "
+        "after a few minutes (systemd reorganizes cgroups and revokes "
+        "device permissions on running containers), check_gpu will report "
         "Unhealthy, and assignment will skip this client.\n\n"
         "[bold]Fix on the host (copy-paste exactly, the closing 'JSON' "
         "must be flush-left):[/bold]"
@@ -245,11 +248,6 @@ def _verify_gpu_runtime(console: Console) -> None:
     # Print snippet without Rich markup so indentation is preserved
     # verbatim — no leading whitespace inserted around the JSON terminator.
     print(snippet)
-    console.print(
-        "\nThen re-run [bold]lablink register --force[/bold]. "
-        "(Your secrets file has been written; re-running with --force "
-        "rotates the client secret and restarts the container.)"
-    )
     raise SystemExit(1)
 
 
