@@ -2722,6 +2722,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.utils.config_helpers.is_self_signed_ssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_self_signed_ssl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.utils.config_helpers.should_use_dns" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3491,6 +3502,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.utils.config_helpers.is_self_signed_ssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_self_signed_ssl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.utils.config_helpers.should_use_dns" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3833,6 +3855,43 @@
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-78" name="__codelineno-0-78"></a>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="k">return</span> <span class="n">base_url</span><span class="p">,</span> <span class="n">protocol</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.utils.config_helpers.is_self_signed_ssl" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">is_self_signed_ssl</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span></code>
+
+<a href="#lablink_allocator_service.utils.config_helpers.is_self_signed_ssl" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Check if the deployment uses a self-signed TLS cert.</p>
+<p>Used by BYO onboarding to decide whether the rendered
+<code>lablink register</code> command should include <code>--insecure</code>.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/utils/config_helpers.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-92">92</a></span>
+<span class="normal"><a href="#__codelineno-0-93">93</a></span>
+<span class="normal"><a href="#__codelineno-0-94">94</a></span>
+<span class="normal"><a href="#__codelineno-0-95">95</a></span>
+<span class="normal"><a href="#__codelineno-0-96">96</a></span>
+<span class="normal"><a href="#__codelineno-0-97">97</a></span>
+<span class="normal"><a href="#__codelineno-0-98">98</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_self_signed_ssl</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the deployment uses a self-signed TLS cert.</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    Used by BYO onboarding to decide whether the rendered</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="sd">    ``lablink register`` command should include ``--insecure``.</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;ssl&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">ssl</span><span class="o">.</span><span class="n">provider</span> <span class="o">==</span> <span class="s2">&quot;self_signed&quot;</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
