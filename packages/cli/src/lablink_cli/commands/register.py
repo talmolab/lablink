@@ -214,27 +214,39 @@ def _verify_gpu_runtime(console: Console) -> None:
     if driver == "cgroupfs":
         return
 
+    # Heredoc terminator MUST be flush-left for bash to recognize it.
+    # Rich indents block content; we render the shell snippet as a
+    # plain code-fence-style block to keep the closing `JSON` at column 0
+    # when the admin copy-pastes.
+    snippet = (
+        "sudo tee /etc/docker/daemon.json > /dev/null <<'JSON'\n"
+        "{\n"
+        '    "default-runtime": "nvidia",\n'
+        '    "runtimes": {\n'
+        '        "nvidia": {\n'
+        '            "path": "nvidia-container-runtime",\n'
+        '            "runtimeArgs": []\n'
+        "        }\n"
+        "    },\n"
+        '    "exec-opts": ["native.cgroupdriver=cgroupfs"]\n'
+        "}\n"
+        "JSON\n"
+        "sudo systemctl restart docker"
+    )
     console.print(
         f"[red]Docker cgroup driver is '{driver}', not 'cgroupfs'.[/red]\n"
         "GPU access from the client container will fail after a few "
         "minutes (systemd reorganizes cgroups and revokes device "
         "permissions on running containers), check_gpu will report "
         "Unhealthy, and assignment will skip this client.\n\n"
-        "[bold]Fix on the host:[/bold]\n"
-        "  sudo tee /etc/docker/daemon.json <<'JSON'\n"
-        "  {\n"
-        '      "default-runtime": "nvidia",\n'
-        '      "runtimes": {\n'
-        '          "nvidia": {\n'
-        '              "path": "nvidia-container-runtime",\n'
-        '              "runtimeArgs": []\n'
-        "          }\n"
-        "      },\n"
-        '      "exec-opts": ["native.cgroupdriver=cgroupfs"]\n'
-        "  }\n"
-        "  JSON\n"
-        "  sudo systemctl restart docker\n\n"
-        "Then re-run [bold]lablink register --force[/bold]. "
+        "[bold]Fix on the host (copy-paste exactly, the closing 'JSON' "
+        "must be flush-left):[/bold]"
+    )
+    # Print snippet without Rich markup so indentation is preserved
+    # verbatim — no leading whitespace inserted around the JSON terminator.
+    print(snippet)
+    console.print(
+        "\nThen re-run [bold]lablink register --force[/bold]. "
         "(Your secrets file has been written; re-running with --force "
         "rotates the client secret and restarts the container.)"
     )
