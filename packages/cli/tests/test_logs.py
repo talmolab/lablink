@@ -114,3 +114,71 @@ class TestSshViaPrivateKey:
             "1.2.3.4", "echo hello", tmp_path
         )
         assert result is None
+
+
+# ------------------------------------------------------------------
+# Manual-provider logs
+# ------------------------------------------------------------------
+class TestManualLogs:
+    @patch("lablink_cli.commands.logs.subprocess.Popen")
+    def test_manual_tails_docker_logs(self, mock_popen, mock_cfg):
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        proc = MagicMock()
+        proc.stdout = iter([])
+        mock_popen.return_value.__enter__.return_value = proc
+
+        run_logs(mock_cfg)
+
+        assert mock_popen.called
+        cmd = mock_popen.call_args[0][0]
+        assert "docker" in cmd[0]
+        assert "logs" in cmd
+        assert "-f" in cmd
+        assert "lablink-allocator" in cmd
+
+    @patch("lablink_cli.commands.logs.subprocess.Popen")
+    def test_manual_does_not_use_ssh_or_deploy_dir(
+        self, mock_popen, mock_cfg,
+    ):
+        """Manual provider must not touch Terraform deploy dir or SSH."""
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        proc = MagicMock()
+        proc.stdout = iter([])
+        mock_popen.return_value.__enter__.return_value = proc
+
+        with patch(
+            "lablink_cli.commands.logs.get_deploy_dir"
+        ) as mock_deploy_dir, patch(
+            "lablink_cli.commands.logs.list_all_vms"
+        ) as mock_list_vms:
+            run_logs(mock_cfg)
+
+        mock_deploy_dir.assert_not_called()
+        mock_list_vms.assert_not_called()
+
+    @patch("lablink_cli.commands.logs.subprocess.Popen")
+    def test_manual_handles_keyboard_interrupt(self, mock_popen, mock_cfg):
+        """KeyboardInterrupt during tail should terminate the subprocess."""
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        proc = MagicMock()
+
+        def _raise_kbi():
+            raise KeyboardInterrupt()
+            yield  # pragma: no cover
+
+        proc.stdout = _raise_kbi()
+        mock_popen.return_value.__enter__.return_value = proc
+
+        # Should not propagate KeyboardInterrupt.
+        run_logs(mock_cfg)
+        proc.terminate.assert_called_once()

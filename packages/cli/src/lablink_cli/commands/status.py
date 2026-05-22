@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import socket
 import ssl
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -576,8 +577,63 @@ def _render_cost_estimate(cfg: Config) -> None:
 # ------------------------------------------------------------------
 # Main entry point
 # ------------------------------------------------------------------
+def _run_status_manual(cfg: Config) -> None:
+    """Report compose stack health + allocator HTTP health.
+
+    Registered-client counts are NOT shown: the allocator currently
+    exposes `POST /api/v1/clients/register` and
+    `GET /api/v1/clients/<id>/status` but no list endpoint. Adding one
+    is a follow-up; until then, point operators at the admin web UI.
+    """
+    workdir = Path.home() / ".lablink" / "compose" / (
+        cfg.deployment_name or "lablink"
+    )
+
+    console.print(
+        f"[bold]Manual deployment:[/bold] {cfg.deployment_name}"
+    )
+
+    if not workdir.exists():
+        console.print(
+            f"[yellow]No compose stack at {workdir} — run "
+            "`lablink deploy` first.[/yellow]"
+        )
+        return
+
+    ps = subprocess.run(
+        ["docker", "compose", "ps"],
+        cwd=workdir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ps.returncode == 0:
+        console.print(ps.stdout)
+
+    scheme = "https" if cfg.ssl.provider == "self_signed" else "http"
+    base_url = f"{scheme}://localhost"
+    health = check_health_endpoint(base_url)
+    if health.get("healthy"):
+        console.print(
+            f"[green]Allocator healthy at {base_url}/api/health[/green]"
+        )
+    else:
+        console.print(
+            f"[yellow]Allocator not healthy at {base_url}/api/health[/yellow]"
+        )
+
+    console.print(
+        "[dim]For registered-client counts, open the admin dashboard "
+        f"at {scheme}://localhost (Basic auth: admin/<password>).[/dim]"
+    )
+
+
 def run_status(cfg: Config) -> None:
     """Run health checks and show cost estimate."""
+    if getattr(cfg, "provider", "aws") == "manual":
+        _run_status_manual(cfg)
+        return
+
     deploy_dir = _get_deploy_dir(cfg)
 
     console.print()

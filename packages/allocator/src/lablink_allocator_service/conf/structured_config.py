@@ -171,6 +171,10 @@ class Config:
             Used as prefix for all AWS resource names. Must be 3-32 characters,
             lowercase kebab-case.
         environment (str): Deployment environment (dev, test, ci-test, prod).
+        provider (str): VM provisioning provider. One of:
+            - "aws": EC2 via Terraform (the existing behavior).
+            - "manual": no automated provisioning — BYO clients
+              register themselves via `lablink register`.
         db (DatabaseConfig): The database configuration.
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.
@@ -183,6 +187,7 @@ class Config:
 
     deployment_name: str = field(default="")
     environment: str = field(default="prod")
+    provider: str = field(default="aws")
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     machine: MachineConfig = field(default_factory=MachineConfig)
     app: AppConfig = field(default_factory=AppConfig)

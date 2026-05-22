@@ -107,3 +107,27 @@ class TestRunLaunch:
 
         with pytest.raises(SystemExit):
             run_launch(mock_cfg, num_vms=1)
+
+
+class TestManualLaunchNoOp:
+    def test_manual_provider_prints_explanation_and_exits_zero(
+        self, capsys, mock_cfg,
+    ):
+        mock_cfg.provider = "manual"
+        # Should NOT raise and NOT touch AWS
+        run_launch(mock_cfg, num_vms=5, verbose=False)
+        out = capsys.readouterr().out
+        assert "Manual provider" in out
+        assert "lablink register" in out
+
+    @patch("lablink_cli.commands.launch.urlopen")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_manual_provider_does_not_touch_allocator(
+        self, mock_url, mock_creds, mock_urlopen, mock_cfg,
+    ):
+        mock_cfg.provider = "manual"
+        run_launch(mock_cfg, num_vms=3, verbose=False)
+        mock_url.assert_not_called()
+        mock_creds.assert_not_called()
+        mock_urlopen.assert_not_called()

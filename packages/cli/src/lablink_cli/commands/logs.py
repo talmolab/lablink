@@ -255,10 +255,42 @@ def fetch_allocator_logs(
 
 
 # ------------------------------------------------------------------
+# Manual-provider logs
+# ------------------------------------------------------------------
+def _run_logs_manual(cfg: Config) -> None:
+    """Tail `docker logs` of the local allocator container.
+
+    Per-VM client logs are not centralized for the manual provider;
+    operators run `docker logs lablink-client` on each BYO box.
+    """
+    console.print(
+        "[bold]Tailing allocator logs (Ctrl+C to stop)[/bold]\n"
+        "[dim]Per-VM client logs are not centralized for the manual "
+        "provider — run `docker logs lablink-client` on each BYO box.[/dim]\n"
+    )
+    with subprocess.Popen(
+        ["docker", "logs", "-f", "lablink-allocator"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    ) as proc:
+        try:
+            if proc.stdout is not None:
+                for line in proc.stdout:
+                    print(line, end="")
+        except KeyboardInterrupt:
+            proc.terminate()
+
+
+# ------------------------------------------------------------------
 # Entry point
 # ------------------------------------------------------------------
 def run_logs(cfg: Config) -> None:
     """Launch the log viewer TUI."""
+    if getattr(cfg, "provider", "aws") == "manual":
+        _run_logs_manual(cfg)
+        return
+
     deploy_dir = get_deploy_dir(cfg)
 
     if not deploy_dir.exists():

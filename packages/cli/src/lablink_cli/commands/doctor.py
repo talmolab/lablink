@@ -22,6 +22,18 @@ STATUS_STYLES = {
 }
 
 
+def _load_config_safe():
+    """Load config from default path; return None if missing/invalid."""
+    if not DEFAULT_CONFIG.exists():
+        return None
+    try:
+        from lablink_cli.config.schema import load_config
+
+        return load_config(DEFAULT_CONFIG)
+    except Exception:
+        return None
+
+
 def _check_terraform() -> dict:
     """Check that terraform is installed and return version."""
     result = {"check": "Terraform installed", "status": "fail"}
@@ -198,18 +210,8 @@ def _check_ami(cfg) -> dict:
     return result
 
 
-def run_doctor() -> None:
-    """Run all pre-flight checks."""
-    console.print()
-    console.print(
-        Panel(
-            "[bold]LabLink Doctor[/bold]\n"
-            "Checking prerequisites and configuration.",
-            border_style="cyan",
-        )
-    )
-    console.print()
-
+def _check_aws_prereqs() -> None:
+    """Run the AWS-specific pre-flight checks and print a results table."""
     checks: list[dict] = []
 
     # 1. Terraform
@@ -262,3 +264,57 @@ def run_doctor() -> None:
             "[yellow]Some checks failed.[/yellow] "
             "Resolve the issues above before deploying."
         )
+
+
+def _check_manual_prereqs() -> None:
+    """Check that docker + docker compose are available (manual provider)."""
+    for tool in ("docker",):
+        path = shutil.which(tool)
+        if path:
+            console.print(f"[green]✓[/green] {tool}: {path}")
+        else:
+            console.print(f"[red]✗[/red] {tool}: not found")
+
+    # docker-compose v2 is a subcommand, not a separate binary
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            console.print(
+                "[green]✓[/green] docker compose: available"
+            )
+        else:
+            console.print(
+                "[red]✗[/red] docker compose: missing "
+                "(install the Compose plugin)"
+            )
+    except FileNotFoundError:
+        console.print(
+            "[red]✗[/red] docker compose: missing "
+            "(install the Compose plugin)"
+        )
+
+
+def run_doctor() -> None:
+    """Run all pre-flight checks."""
+    console.print()
+    console.print(
+        Panel(
+            "[bold]LabLink Doctor[/bold]\n"
+            "Checking prerequisites and configuration.",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
+    cfg = _load_config_safe()
+    provider = getattr(cfg, "provider", None) if cfg else None
+
+    if provider == "manual":
+        _check_manual_prereqs()
+    else:
+        _check_aws_prereqs()

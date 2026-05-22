@@ -221,3 +221,20 @@ class TestCreateRoute53Zone:
         result = create_route53_zone(session, "test.example.com")
         assert result == "ZNEW"
         route53.create_hosted_zone.assert_called_once()
+
+
+# ------------------------------------------------------------------
+# Manual provider skip
+# ------------------------------------------------------------------
+class TestManualSkip:
+    def test_manual_provider_skips_setup(self, capsys):
+        from lablink_cli.commands.setup import run_setup
+        from lablink_cli.config.schema import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        # Should return without touching boto3
+        run_setup(cfg, config_path=None)
+
+        out = capsys.readouterr().out
+        assert "Manual provider" in out or "manual" in out.lower()

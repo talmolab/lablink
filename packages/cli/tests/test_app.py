@@ -434,3 +434,77 @@ class TestShowConfig:
             app, ["show-config", "--config", str(config_path)]
         )
         assert result.exit_code == 0
+
+
+# ------------------------------------------------------------------
+# configure auto-setup skip for manual provider
+# ------------------------------------------------------------------
+class TestConfigureManualSkip:
+    @patch("lablink_cli.commands.setup.run_setup")
+    @patch("lablink_cli.tui.wizard.ConfigWizard")
+    @patch("lablink_cli.app.load_config")
+    def test_manual_skips_auto_setup(
+        self, mock_load, mock_wizard_cls, mock_run_setup,
+        tmp_path,
+    ):
+        """When configure saves a manual-provider config, auto-setup is skipped."""
+        from lablink_cli.config.schema import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        mock_load.return_value = cfg
+
+        # Wizard mocked to "succeed" by creating the file on disk
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("provider: manual\n")
+
+        mock_wizard = MagicMock()
+        mock_wizard.run = MagicMock()
+        mock_wizard_cls.return_value = mock_wizard
+
+        result = runner.invoke(
+            app, ["configure", "--config", str(config_path)]
+        )
+
+        assert result.exit_code == 0
+        # Auto-setup should NOT have been called
+        mock_run_setup.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# deploy/destroy provider dispatch (PR D3 Task 5)
+# ------------------------------------------------------------------
+class TestDeployDispatch:
+    @patch("lablink_cli.commands.deploy_compose.run_deploy_compose")
+    @patch("lablink_cli.commands.deploy.run_deploy")
+    @patch("lablink_cli.app._load_cfg")
+    def test_manual_dispatches_to_compose(
+        self, mock_load, mock_aws_run, mock_compose_run,
+    ):
+        from typer.testing import CliRunner
+        from lablink_cli.app import app
+        from lablink_cli.config.schema import Config
+        cfg = Config()
+        cfg.provider = "manual"
+        mock_load.return_value = cfg
+        runner = CliRunner()
+        runner.invoke(app, ["deploy", "-y"])
+        mock_compose_run.assert_called_once()
+        mock_aws_run.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy_compose.run_deploy_compose")
+    @patch("lablink_cli.commands.deploy.run_deploy")
+    @patch("lablink_cli.app._load_cfg")
+    def test_aws_dispatches_to_terraform(
+        self, mock_load, mock_aws_run, mock_compose_run,
+    ):
+        from typer.testing import CliRunner
+        from lablink_cli.app import app
+        from lablink_cli.config.schema import Config
+        cfg = Config()
+        cfg.provider = "aws"
+        mock_load.return_value = cfg
+        runner = CliRunner()
+        runner.invoke(app, ["deploy", "-y"])
+        mock_aws_run.assert_called_once()
+        mock_compose_run.assert_not_called()

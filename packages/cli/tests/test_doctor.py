@@ -74,3 +74,30 @@ class TestCheckAmi:
         result = _check_ami(cfg)
         assert result["status"] == "fail"
         assert "No AMI" in result["detail"]
+
+
+# ------------------------------------------------------------------
+# run_doctor — manual provider dispatch
+# ------------------------------------------------------------------
+class TestDoctorManual:
+    @patch("lablink_cli.commands.doctor.subprocess.run")
+    @patch("lablink_cli.commands.doctor.shutil.which")
+    @patch("lablink_cli.commands.doctor._load_config_safe")
+    def test_manual_provider_checks_docker(
+        self, mock_load, mock_which, mock_subproc, capsys,
+    ):
+        from lablink_cli.commands.doctor import run_doctor
+        from lablink_cli.config.schema import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        mock_load.return_value = cfg
+        mock_which.side_effect = lambda name: f"/usr/bin/{name}"
+        mock_subproc.return_value = MagicMock(
+            returncode=0,
+            stdout="docker compose version 2.x",
+            stderr="",
+        )
+        run_doctor()
+        out = capsys.readouterr().out
+        assert "docker" in out.lower()

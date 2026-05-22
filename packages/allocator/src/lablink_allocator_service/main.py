@@ -53,7 +53,7 @@ from lablink_allocator_service.signed_cookie import (
     sign,
     get_or_create_cookie_secret,
 )
-from lablink_allocator_service.providers.registry import DEFAULT_PROVIDER, get_provider
+from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import hash_secret, verify_secret
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
@@ -105,11 +105,10 @@ TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
 # Load the configuration
 cfg = get_config()
 
-# Provider selection is not user-configurable yet: only the "aws" provider
-# exists and provisioning is not wired, so this is fixed to the registry
-# default. A later PR adds the structured-config field once it is meaningful.
+# Provider is now driven by structured config (see PR D3). Defaults to "aws"
+# for behavior parity with pre-D3 deployments.
 app.config["LABLINK_PROVIDER"] = get_provider(
-    DEFAULT_PROVIDER,
+    cfg.provider,
     region=cfg.app.region,
     terraform_dir=str(TERRAFORM_DIR),
 )
@@ -198,6 +197,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(_log_level)
+
+# For deployments where the allocator can't provision hosts (BYO / manual
+# provider), surface the register-token in the container logs so
+# `lablink deploy` (compose mode) can extract it. AWS deployments get the
+# token via the Terraform output file instead.
+#
+# Gate is the capability flag `can_provision_hosts`, not the provider
+# *type* — keeps Spec §7 clean (no provider-type equality branches in core).
+#
+# IMPORTANT: the `key=value` format MUST be used so the CLI's
+# `_extract_register_token` regex (`REGISTER_TOKEN\s*=\s*...`) matches.
+# Don't change the format without updating the extractor.
+if not app.config["LABLINK_PROVIDER"].can_provision_hosts:
+    logger.info("REGISTER_TOKEN=%s", REGISTER_TOKEN)
 
 
 @auth.verify_password
@@ -400,7 +413,7 @@ def submit_vm_details():
         browser_token = secrets.token_urlsafe(16)
         try:
             provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-                None, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
             )
             provider.client_connectivity.prepare_browser_session(
                 database=database,

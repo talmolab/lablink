@@ -4,6 +4,8 @@ from pathlib import Path
 
 import typer
 
+from lablink_cli.config.schema import load_config
+
 app = typer.Typer(
     name="lablink",
 )
@@ -90,8 +92,8 @@ def configure(
     Launches a TUI wizard to generate or modify config.yaml,
     then automatically creates the AWS resources needed for
     Terraform remote state (S3 bucket + DynamoDB lock table).
+    Manual-provider configs skip the AWS setup step.
     """
-    from lablink_cli.config.schema import load_config
     from lablink_cli.tui.wizard import ConfigWizard
 
     config_path = Path(config) if config else DEFAULT_CONFIG
@@ -110,9 +112,19 @@ def configure(
         # User quit the wizard without saving
         return
 
+    cfg_after = load_config(config_path)
+    if cfg_after.provider == "manual":
+        from rich.console import Console
+
+        Console().print(
+            "[dim]Manual provider doesn't need AWS state resources — "
+            "skipping setup. Run `lablink deploy` next.[/dim]"
+        )
+        return
+
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(load_config(config_path), config_path=config_path)
+    run_setup(cfg_after, config_path=config_path)
 
 
 @app.command(rich_help_panel="Setup")
@@ -147,12 +159,13 @@ def deploy(
         None,
         "--template-version",
         help="Override the pinned template version (e.g. v0.2.0). "
-        "Skips checksum verification.",
+        "Skips checksum verification. AWS provider only.",
     ),
     terraform_bundle: str = typer.Option(
         None,
         "--terraform-bundle",
-        help="Path to a local template tarball for offline deploys.",
+        help="Path to a local template tarball for offline deploys. "
+        "AWS provider only.",
     ),
     yes: bool = typer.Option(
         False,
@@ -162,11 +175,18 @@ def deploy(
         "(admin password still required interactively).",
     ),
 ) -> None:
-    """Deploy LabLink infrastructure with Terraform."""
+    """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
+    cfg = _load_cfg(config)
+    if cfg.provider == "manual":
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        run_deploy_compose(cfg, yes=yes)
+        return
+
     from lablink_cli.commands.deploy import run_deploy
 
     run_deploy(
-        _load_cfg(config),
+        cfg,
         template_version=template_version,
         terraform_bundle=terraform_bundle,
         yes=yes,
@@ -194,11 +214,24 @@ def destroy(
         "-v",
         help="Show the full Terraform output instead of a summary.",
     ),
+    purge: bool = typer.Option(
+        False,
+        "--purge",
+        help="Manual provider only: also delete the Postgres data volume. "
+        "Ignored for AWS.",
+    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
+    cfg = _load_cfg(config)
+    if cfg.provider == "manual":
+        from lablink_cli.commands.deploy_compose import run_destroy_compose
+
+        run_destroy_compose(cfg, yes=yes, purge=purge)
+        return
+
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config), yes=yes, verbose=verbose)
+    run_destroy(cfg, yes=yes, verbose=verbose)
 
 
 @app.command("launch-client", rich_help_panel="Deployment")

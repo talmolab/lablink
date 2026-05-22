@@ -1,0 +1,24 @@
+# Rendered by `lablink deploy` (manual provider) — DO NOT edit by hand.
+# Re-run `lablink deploy` to regenerate after config changes.
+#
+# The allocator image is monolithic: it bundles Flask + nginx + an
+# internal Postgres. The single named volume below preserves DB state
+# across container restarts. Mount `./config.yaml` at /config (the path
+# the container's start.sh already reads from); everything else
+# (admin creds, DB creds) lives inside that file.
+services:
+  allocator:
+    image: ${ALLOCATOR_IMAGE}
+    # Pin the container name so the CLI's logs/status/_extract_register_token
+    # helpers can address it without knowing the compose project name.
+    container_name: lablink-allocator
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - allocator_pgdata:/var/lib/postgresql
+    ports:
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
+    restart: unless-stopped
+
+volumes:
+  allocator_pgdata:

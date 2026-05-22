@@ -31,6 +31,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+lablink_cli = ["templates/*.yml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: real network tests (deselect with '-m not integration')"]
