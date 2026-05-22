@@ -25,7 +25,10 @@ def test_happy_path_rotates_and_persists(real_db):
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10'")
         cur.execute(
@@ -97,7 +100,10 @@ def test_one_retry_then_raises(real_db):
             "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
             "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10-fail'")
         cur.execute(
@@ -248,7 +254,10 @@ def test_raises_when_instance_id_not_found(real_db):
         cur.execute(
             "ALTER TABLE vms "
             "ADD COLUMN IF NOT EXISTS status TEXT, "
-            "ADD COLUMN IF NOT EXISTS useremail TEXT"
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'ghost-host'")
         cur.execute(
