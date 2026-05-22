@@ -210,13 +210,16 @@ def test_register_response_includes_api_token(reg_client):
     assert r.get_json()["api_token"] == main.API_TOKEN
 
 
-def test_register_response_honors_x_forwarded_proto(reg_client):
-    """nginx terminates TLS and proxies plain HTTP to Flask. Without
-    ProxyFix, request.host_url returns http:// even when the admin used
-    https:// — so BYO containers end up posting to http://, which nginx
-    301-redirects, which curl in start.sh does not follow → vm-status
-    POSTs silently fail. ProxyFix makes request.host_url reflect the
-    public scheme via X-Forwarded-Proto."""
+def test_register_response_honors_x_forwarded_proto(reg_client, monkeypatch):
+    """nginx terminates TLS and proxies plain HTTP to Flask. With HTTPS
+    enabled, the ProxyFix gate opens and request.host_url reflects the
+    public scheme via X-Forwarded-Proto — so the registration response
+    echoes back https://, which is what BYO clients write into
+    client.env. Without that, BYO containers post over http://, nginx
+    301s to https://, curl in start.sh drops the redirect, and
+    vm-status never lands."""
+    from lablink_allocator_service import main
+    monkeypatch.setattr(main.cfg.ssl, "provider", "letsencrypt", raising=False)
     client, fake_db = reg_client
     r = client.post(
         "/api/v1/clients/register",
@@ -231,3 +234,28 @@ def test_register_response_honors_x_forwarded_proto(reg_client):
     body = r.get_json()
     assert body["allocator_url"].startswith("https://"), body["allocator_url"]
     assert "lablink.example.com" in body["allocator_url"], body["allocator_url"]
+
+
+def test_register_response_ignores_spoofed_proto_when_https_off(reg_client):
+    """With ssl.provider='none' the allocator runs without nginx in
+    front, so X-Forwarded-* headers come from an untrusted upstream —
+    typically the client itself. ProxyFix must be off in that topology
+    or a client could spoof X-Forwarded-Proto: https and have the
+    registration response echo back an https URL the allocator can't
+    actually serve. This test enforces the gate."""
+    client, fake_db = reg_client
+    # The default omega_config has ssl.provider='none' — no monkeypatch
+    # needed; just confirm the spoof is ignored.
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={
+            "Authorization": "Bearer tk_test_register",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "evil.example.com",
+        },
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert not body["allocator_url"].startswith("https://"), body["allocator_url"]
+    assert "evil.example.com" not in body["allocator_url"], body["allocator_url"]

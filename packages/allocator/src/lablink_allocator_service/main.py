@@ -36,6 +36,7 @@ from lablink_allocator_service.utils.aws_utils import (
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
     is_self_signed_ssl,
+    should_use_https,
 )
 from lablink_allocator_service.utils.sg_audit import (
     audit_terraform_plan,
@@ -61,11 +62,38 @@ from lablink_allocator_service.routes.internal_proxy_auth import (
 from lablink_allocator_service.routes.registration import bp as registration_bp
 
 app = Flask(__name__)
-# nginx terminates TLS one hop in front. Honor its X-Forwarded-Proto/Host
-# so request.host_url returns the public https:// URL the admin actually
-# typed — not the internal http:// nginx proxies over. The registration
-# response echoes this URL back to BYO clients via client.env.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+
+class _ProxyFixWhenTrusted:
+    """ProxyFix gated by a runtime predicate.
+
+    Trusts X-Forwarded-Proto/Host only when the predicate returns True.
+    The HTTPS-on deployment is the only topology where nginx terminates
+    TLS in front of Flask; without nginx (ssl.provider="none"), there is
+    no trusted upstream and any client could spoof X-Forwarded-Proto
+    https into the registration response's allocator_url. Gating makes
+    that trust boundary explicit — and cheap to verify.
+
+    The predicate is evaluated per request so tests can flip cfg.ssl
+    without re-wrapping the WSGI stack.
+    """
+
+    def __init__(self, wsgi_app, *, trust_headers):
+        self._raw = wsgi_app
+        self._wrapped = ProxyFix(wsgi_app, x_proto=1, x_host=1)
+        self._trust_headers = trust_headers
+
+    def __call__(self, environ, start_response):
+        if self._trust_headers():
+            return self._wrapped(environ, start_response)
+        return self._raw(environ, start_response)
+
+
+# `cfg` is bound further down; the lambda resolves it at request time so
+# monkeypatching main.cfg in tests takes effect without re-wrapping.
+app.wsgi_app = _ProxyFixWhenTrusted(
+    app.wsgi_app, trust_headers=lambda: should_use_https(cfg)
+)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(internal_proxy_auth_bp)
 app.register_blueprint(registration_bp)
