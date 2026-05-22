@@ -25,7 +25,10 @@ def test_happy_path_rotates_and_persists(real_db):
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10'")
         cur.execute(
@@ -97,7 +100,10 @@ def test_one_retry_then_raises(real_db):
             "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
             "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task10-fail'")
         cur.execute(
@@ -136,7 +142,7 @@ def test_prepare_browser_session_persists_render_columns(monkeypatch):
     import lablink_allocator_service.client_session as cs
     import uuid
 
-    monkeypatch.setattr(cs, "_lookup_private_ip", lambda h: "10.0.0.5")
+    monkeypatch.setattr(cs, "_lookup_private_ip", lambda h, db: "10.0.0.5")
     posted = {}
     monkeypatch.setattr(cs, "_post_rotate",
                         lambda url, body, *, bearer: posted.update(
@@ -165,6 +171,75 @@ def test_prepare_browser_session_persists_render_columns(monkeypatch):
     assert "browser_credential = NULL" in executed["sql"]
 
 
+def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(real_db):
+    """BYO rows record provider_metadata.lan_ip at registration time.
+    Rotation must use it instead of looking up by EC2 Name tag, which
+    has no entry for a BYO box's Linux hostname and would 503 the
+    student's /api/request_vm with 'no EC2 instance found'."""
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
+            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
+            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
+            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
+        )
+        cur.execute("DELETE FROM vms WHERE hostname = 'ip-172-31-37-226'")
+        cur.execute(
+            "INSERT INTO vms "
+            "(hostname, status, useremail, provider, endpoint_url, "
+            " provider_metadata) "
+            "VALUES ('ip-172-31-37-226', 'running', 'hep003@ucsd.edu', "
+            "        'manual', 'http://172.31.37.226:7070', "
+            "        '{\"lan_ip\": \"172.31.37.226\"}'::jsonb)"
+        )
+
+    from lablink_allocator_service.client_session import (
+        prepare_browser_session,
+    )
+
+    with patch(
+        "lablink_allocator_service.client_session.get_instance_id_by_name"
+    ) as mock_ec2, patch(
+        "lablink_allocator_service.client_session.requests.post"
+    ) as mock_post:
+        mock_post.return_value = MagicMock(
+            status_code=200, raise_for_status=lambda: None
+        )
+        prepare_browser_session(
+            database=real_db,
+            hostname="ip-172-31-37-226",
+            session_id=uuid.uuid4(),
+            browser_token="byo-tok",
+            agent_token=AGENT_TOKEN,
+        )
+
+    # Stored LAN IP wins: rotation targets it and EC2 is never queried.
+    mock_ec2.assert_not_called()
+    assert mock_post.call_args[0][0] == (
+        "http://172.31.37.226:7070/api/session/start"
+    )
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "SELECT upstream, browser_ws_url FROM vms "
+            "WHERE hostname = 'ip-172-31-37-226'"
+        )
+        row = cur.fetchone()
+    # Same allocator-proxied shape as AWS-managed rows so /desktop and
+    # /internal/proxy_auth handle BYO and AWS uniformly.
+    assert row[0] == "172.31.37.226:6080"
+    assert row[1] == "proxy/byo-tok"
+
+
 def test_browser_session_target_new_shape():
     from lablink_allocator_service.client_session import BrowserSessionTarget
     t = BrowserSessionTarget(ws_url="ws://x:6080", browser_credential="pw")
@@ -179,7 +254,10 @@ def test_raises_when_instance_id_not_found(real_db):
         cur.execute(
             "ALTER TABLE vms "
             "ADD COLUMN IF NOT EXISTS status TEXT, "
-            "ADD COLUMN IF NOT EXISTS useremail TEXT"
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider TEXT, "
+            "ADD COLUMN IF NOT EXISTS endpoint_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS provider_metadata JSONB"
         )
         cur.execute("DELETE FROM vms WHERE hostname = 'ghost-host'")
         cur.execute(

@@ -195,3 +195,39 @@ def test_register_response_includes_agent_token(reg_client):
     assert r.status_code == 200
     from lablink_allocator_service import main
     assert r.get_json()["agent_token"] == main.AGENT_TOKEN
+
+
+def test_register_response_includes_api_token(reg_client):
+    """BYO clients need API_TOKEN so start.sh can POST /api/vm-metrics
+    (which is @require_api_token-gated, not per-client). Without this,
+    container-startup timing never lands for manual clients."""
+    client, fake_db = reg_client
+    r = client.post("/api/v1/clients/register",
+                     json={"hostname": "vm-1", "machine_identity": "i-1"},
+                     headers={"Authorization": "Bearer tk_test_register"})
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    assert r.get_json()["api_token"] == main.API_TOKEN
+
+
+def test_register_response_honors_x_forwarded_proto(reg_client):
+    """nginx terminates TLS and proxies plain HTTP to Flask. Without
+    ProxyFix, request.host_url returns http:// even when the admin used
+    https:// — so BYO containers end up posting to http://, which nginx
+    301-redirects, which curl in start.sh does not follow → vm-status
+    POSTs silently fail. ProxyFix makes request.host_url reflect the
+    public scheme via X-Forwarded-Proto."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={
+            "Authorization": "Bearer tk_test_register",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "lablink.example.com",
+        },
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["allocator_url"].startswith("https://"), body["allocator_url"]
+    assert "lablink.example.com" in body["allocator_url"], body["allocator_url"]

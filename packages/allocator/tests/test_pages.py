@@ -28,6 +28,46 @@ def test_admin_instances_no_auth(client):
     assert response.status_code == 401
 
 
+def test_byo_onboarding_no_auth(client):
+    """BYO onboarding page leaks the live register_token, so it must be
+    behind admin auth like the rest of /admin."""
+    response = client.get("/admin/byo-onboarding")
+    assert response.status_code == 401
+
+
+def test_byo_onboarding_renders_register_command(client, admin_headers):
+    """Page renders a ready-to-copy `lablink register` command with the
+    current allocator URL and live REGISTER_TOKEN. The admin should be
+    able to copy it verbatim and hand it to a BYO operator."""
+    from lablink_allocator_service import main
+    response = client.get("/admin/byo-onboarding", headers=admin_headers)
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "lablink register" in html
+    assert "--allocator-url" in html
+    assert "--register-token" in html
+    # Live token (not its hash) is rendered for copy-paste.
+    assert main.REGISTER_TOKEN in html
+
+
+def test_byo_onboarding_hides_insecure_for_letsencrypt(client, admin_headers, monkeypatch):
+    """`--insecure` only renders when ssl.provider is self_signed; for
+    letsencrypt or no-SSL deployments, the flag would be a footgun."""
+    from lablink_allocator_service import main
+    monkeypatch.setattr(main.cfg.ssl, "provider", "letsencrypt", raising=False)
+    response = client.get("/admin/byo-onboarding", headers=admin_headers)
+    html = response.data.decode()
+    assert "--insecure" not in html
+
+
+def test_byo_onboarding_shows_insecure_for_self_signed(client, admin_headers, monkeypatch):
+    from lablink_allocator_service import main
+    monkeypatch.setattr(main.cfg.ssl, "provider", "self_signed", raising=False)
+    response = client.get("/admin/byo-onboarding", headers=admin_headers)
+    html = response.data.decode()
+    assert "--insecure" in html
+
+
 @patch("lablink_allocator_service.main.database")
 def test_admin_instances(mock_database, client, admin_headers):
     """Test the admin instances endpoint without any instances."""

@@ -19,6 +19,7 @@ from flask import (
     redirect,
 )
 from flask_httpauth import HTTPBasicAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import psycopg2
@@ -32,7 +33,10 @@ from lablink_allocator_service.utils.aws_utils import (
     NotOnEC2Error,
     upload_to_s3,
 )
-from lablink_allocator_service.utils.config_helpers import get_allocator_url
+from lablink_allocator_service.utils.config_helpers import (
+    get_allocator_url,
+    is_self_signed_ssl,
+)
 from lablink_allocator_service.utils.sg_audit import (
     audit_terraform_plan,
     SGAuditFailure,
@@ -57,6 +61,11 @@ from lablink_allocator_service.routes.internal_proxy_auth import (
 from lablink_allocator_service.routes.registration import bp as registration_bp
 
 app = Flask(__name__)
+# nginx terminates TLS one hop in front. Honor its X-Forwarded-Proto/Host
+# so request.host_url returns the public https:// URL the admin actually
+# typed — not the internal http:// nginx proxies over. The registration
+# response echoes this URL back to BYO clients via client.env.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(internal_proxy_auth_bp)
 app.register_blueprint(registration_bp)
@@ -292,6 +301,23 @@ def create_instances():
 @auth.login_required
 def admin():
     return render_template("admin.html")
+
+
+@app.route("/admin/byo-onboarding")
+@auth.login_required
+def byo_onboarding():
+    """Render the ready-to-copy `lablink register` command for BYO clients.
+
+    The register token rotates on each allocator restart, so this page is
+    dynamic — re-render to get the current token. Behind admin Basic auth
+    (same gate as the rest of /admin); no new privilege boundary.
+    """
+    return render_template(
+        "byo-onboarding.html",
+        allocator_url=request.host_url.rstrip("/"),
+        register_token=REGISTER_TOKEN,
+        show_insecure=is_self_signed_ssl(cfg),
+    )
 
 
 @app.route("/admin/instances")

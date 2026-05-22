@@ -76,6 +76,7 @@ def register_client():
         client_id=client_id,
         client_secret=client_secret,
         agent_token=main.AGENT_TOKEN,
+        api_token=main.API_TOKEN,
         register_token=jm.register_token,
         allocator_url=jm.allocator_url,
         connectivity=jm.connectivity,
