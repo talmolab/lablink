@@ -1203,8 +1203,17 @@ def main():
         atexit.register(reboot_service.stop)
         logger.info("Auto-reboot service started successfully")
 
-        # Terraform initialization
-        if not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
+        # Terraform initialization — gated on the provider's capability flag
+        # (mirrors the policy at module top: branch on capability, not type).
+        # Manual/BYO providers don't provision hosts, so `terraform init` is
+        # irrelevant and the binary may not even be present in the image.
+        provider = app.config["LABLINK_PROVIDER"]
+        if not provider.can_provision_hosts:
+            logger.info(
+                "Skipping terraform init: provider %s does not provision hosts.",
+                getattr(provider, "name", type(provider).__name__),
+            )
+        elif not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
             logger.info("Initializing Terraform...")
             if ENVIRONMENT not in ["prod", "test", "ci-test"]:
                 (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
