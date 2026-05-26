@@ -1,4 +1,8 @@
-"""Clean up orphaned AWS resources and local state."""
+"""Clean up deployment resources and local state.
+
+AWS provider: orphaned EC2/IAM/EIP/SG/state resources via boto3.
+Manual provider: the local docker-compose stack and working directory.
+"""
 
 from __future__ import annotations
 
@@ -466,7 +470,11 @@ def run_cleanup(
     cfg: Config,
     dry_run: bool = False,
 ) -> None:
-    """Clean up orphaned AWS resources."""
+    """Clean up deployment resources.
+
+    Dispatches on cfg.provider: AWS orphaned resources via boto3,
+    or the local docker-compose stack for manual.
+    """
     if getattr(cfg, "provider", "aws") == "manual":
         _run_cleanup_manual(cfg, dry_run=dry_run)
         return

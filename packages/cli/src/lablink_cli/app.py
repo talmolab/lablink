@@ -48,9 +48,9 @@ def _root(
             Panel(
                 "Welcome to LabLink. First-time setup:\n\n"
                 "  1. [bold]lablink configure[/bold]   "
-                "create config + AWS state resources\n"
+                "create config (AWS or manual/BYO provider)\n"
                 "  2. [bold]lablink doctor[/bold]      "
-                "verify prerequisites\n"
+                "verify prerequisites for your provider\n"
                 "  3. [bold]lablink deploy[/bold]      "
                 "deploy the allocator\n\n"
                 "For the full command list, run 'lablink --help'.",
@@ -136,10 +136,15 @@ def setup(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Create S3 + DynamoDB for remote Terraform state.
+    """Provision provider-specific bootstrap resources.
 
-    Automatically run during 'lablink configure'. Use this
-    command to recreate resources if they were deleted.
+    AWS provider: creates the S3 bucket and DynamoDB lock table used
+    for Terraform remote state. Automatically run during 'lablink
+    configure'; use this command to recreate the resources if they
+    were deleted.
+
+    Manual provider: no bootstrap resources are needed; this command
+    is a no-op (a friendly message is printed).
     """
     from lablink_cli.commands.setup import run_setup
 
@@ -255,7 +260,12 @@ def launch_client(
         help="Show the full Terraform output instead of a summary.",
     ),
 ) -> None:
-    """Launch client VMs via the allocator service."""
+    """Launch client VMs via the allocator service.
+
+    AWS provider only: provisions client VMs through Terraform. For
+    the manual provider, BYO operators run 'lablink register' on each
+    box instead; this command no-ops with a friendly message.
+    """
     from lablink_cli.commands.launch import run_launch
 
     run_launch(_load_cfg(config), num_vms=num_vms, verbose=verbose)
@@ -270,7 +280,12 @@ def status(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Health checks, Terraform state, and cost estimate."""
+    """Show deployment health and inventory.
+
+    AWS provider: HTTP/DNS/SSL health checks, Terraform state, client
+    VM inventory, and a cost estimate. Manual provider: docker-compose
+    container status and the allocator's HTTP health endpoint.
+    """
     from lablink_cli.commands.status import run_status
 
     run_status(_load_cfg(config))
@@ -285,7 +300,14 @@ def logs(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """View VM logs in an interactive TUI."""
+    """View allocator and client logs.
+
+    AWS provider: launches the interactive TUI that streams allocator
+    and per-VM client logs. Manual provider: tails the local
+    'lablink-allocator' docker container's logs (per-VM client logs
+    are not centralized; run 'docker logs lablink-client' on each
+    BYO box).
+    """
     from lablink_cli.commands.logs import run_logs
 
     run_logs(_load_cfg(config))
@@ -302,10 +324,18 @@ def cleanup(
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show what would be deleted without making changes",
+        help="Show what would be deleted without making changes "
+        "(AWS provider only; manual provider's cleanup is non-destructive "
+        "until you confirm).",
     ),
 ) -> None:
-    """Clean up orphaned AWS resources and local state."""
+    """Remove deployment resources and local state.
+
+    AWS provider: deletes orphaned EC2/IAM/EIP/SG resources and the
+    environment-specific Terraform state files. Manual provider: runs
+    'docker compose down --volumes' on the local stack and removes
+    the compose working directory.
+    """
     from lablink_cli.commands.cleanup import run_cleanup
 
     run_cleanup(
