@@ -9,6 +9,12 @@
 services:
   allocator:
     image: ${ALLOCATOR_IMAGE}
+    # The allocator image is published amd64-only; pin the platform so
+    # Apple Silicon (and other arm64 hosts) emulate via Rosetta instead
+    # of failing with "no matching manifest for linux/arm64/v8". This is
+    # a no-op on native amd64 hosts. Drop this once multi-arch images
+    # are published from lablink-template's CI.
+    platform: linux/amd64
     # Pin the container name so the CLI's logs/status/_extract_register_token
     # helpers can address it without knowing the compose project name.
     container_name: lablink-allocator

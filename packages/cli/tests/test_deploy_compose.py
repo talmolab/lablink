@@ -81,6 +81,9 @@ class TestRenderComposeDir:
         assert "/var/lib/postgresql" in compose_yaml
         # Container name pinned so other CLI commands can address it.
         assert "container_name: lablink-allocator" in compose_yaml
+        # Platform pinned to amd64 so Apple Silicon hosts emulate the
+        # amd64-only image instead of failing on a missing arm64 manifest.
+        assert "platform: linux/amd64" in compose_yaml
 
     def test_env_has_no_credentials(self, tmp_path):
         """.env must not leak admin/DB/postgres credentials."""
