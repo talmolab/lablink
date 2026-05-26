@@ -44,7 +44,7 @@ class TestRenderComposeDir:
         # monolithic allocator reads admin/DB creds from config.yaml, not
         # from env vars.
         assert (
-            "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator:linux-amd64-latest"
+            "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest"
             in env_content
         )
         assert "HTTP_PORT=80" in env_content
@@ -119,7 +119,7 @@ class TestRenderComposeDir:
         render_compose_dir(cfg, target)
         env_content = (target / ".env").read_text()
         assert (
-            "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator:v1.2.3"
+            "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator-image:v1.2.3"
             in env_content
         )
 

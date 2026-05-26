@@ -32,7 +32,7 @@ DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
 DEFAULT_HTTPS_PORT = "443"
 HEALTH_POLL_TIMEOUT_SECONDS = 300
-ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator"
+ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
 SUPPORTED_SSL_FOR_MANUAL = ("none", "self_signed")
 ALLOCATOR_CONTAINER_NAME = "lablink-allocator"
 

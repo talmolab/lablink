@@ -213,11 +213,7 @@ class ProviderScreen(Screen):
             # was previously set to a public-TLS option.
             if cfg.ssl.provider in ("letsencrypt", "acm", "cloudflare"):
                 cfg.ssl.provider = "none"
-            # Reset the image to the manual default if the user is still on the
-            # AWS schema default. Manual BYO uses lablink-client; AWS path uses
-            # lablink-client-base-image baked into the GPU AMI.
-            aws_image_default = "ghcr.io/talmolab/lablink-client-base-image:latest"
-            if not cfg.machine.image or cfg.machine.image == aws_image_default:
+            if not cfg.machine.image:
                 cfg.machine.image = ManualMachineScreen.DEFAULT_IMAGE
             self.app.push_screen(ManualMachineScreen())
         else:
@@ -232,7 +228,7 @@ class ManualMachineScreen(Screen):
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
-    DEFAULT_IMAGE = "ghcr.io/talmolab/lablink-client:0.4.0"
+    DEFAULT_IMAGE = "ghcr.io/talmolab/lablink-client-base-image:latest"
 
     def action_back(self) -> None:
         self.app.pop_screen()
