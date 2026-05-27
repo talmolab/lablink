@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import socket
 import subprocess
 import time
 from importlib import resources
@@ -30,10 +31,13 @@ from lablink_cli.config.schema import Config, save_config
 
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
-DEFAULT_HTTPS_PORT = "443"
 HEALTH_POLL_TIMEOUT_SECONDS = 300
 ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
-SUPPORTED_SSL_FOR_MANUAL = ("none", "self_signed")
+# Only ssl=none is supported by the manual-provider compose stack today:
+# the allocator image has no TLS terminator (Caddy is part of the AWS
+# infrastructure, not the container). For public TLS, operators front the
+# stack with their own reverse proxy.
+SUPPORTED_SSL_FOR_MANUAL = ("none",)
 ALLOCATOR_CONTAINER_NAME = "lablink-allocator"
 
 console = Console()
@@ -69,7 +73,6 @@ def render_compose_dir(cfg: Config, target: Path) -> None:
     env_lines = [
         f"ALLOCATOR_IMAGE={allocator_image}",
         f"HTTP_PORT={DEFAULT_HTTP_PORT}",
-        f"HTTPS_PORT={DEFAULT_HTTPS_PORT}",
     ]
     env_path = target / ".env"
     env_path.write_text("\n".join(env_lines) + "\n")
@@ -108,13 +111,16 @@ def run_deploy_compose(
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
     """
     # Preflight: SSL provider must be one the compose template supports.
+    # The allocator image has no TLS terminator, so only ssl=none works
+    # out of the box. Operators who need TLS run their own reverse proxy
+    # in front of the compose stack.
     if cfg.ssl.provider not in SUPPORTED_SSL_FOR_MANUAL:
         console.print(
             f"[red]Manual provider deploy supports only "
-            f"ssl.provider={SUPPORTED_SSL_FOR_MANUAL}, "
-            f"got '{cfg.ssl.provider}'.[/red]\n"
-            "For public TLS, front the compose stack with your own "
-            "reverse proxy (Caddy, nginx, Cloudflare Tunnel)."
+            f"ssl.provider='none' (got '{cfg.ssl.provider}').[/red]\n"
+            "The allocator image has no TLS terminator; for public TLS, "
+            "front the compose stack with your own reverse proxy "
+            "(Caddy, nginx, Cloudflare Tunnel)."
         )
         raise SystemExit(1)
 
@@ -155,7 +161,7 @@ def run_deploy_compose(
     console.print(f"[green]Rendered {target}[/green]")
 
     _compose_up(target)
-    _health_poll(cfg)
+    _health_poll()
     _print_summary(cfg)
 
 
@@ -171,11 +177,11 @@ def _compose_up(target: Path) -> None:
         raise SystemExit(result.returncode or 1)
 
 
-def _health_poll(cfg: Config) -> None:
+def _health_poll() -> None:
     """Poll the allocator's /api/health on localhost until healthy."""
-    scheme = "https" if cfg.ssl.provider == "self_signed" else "http"
-    port = 443 if cfg.ssl.provider == "self_signed" else 80
-    base_url = f"{scheme}://localhost:{port}"
+    # Manual provider is HTTP-only; the host port comes from the rendered
+    # .env, which defaults to DEFAULT_HTTP_PORT.
+    base_url = f"http://localhost:{DEFAULT_HTTP_PORT}"
 
     console.print(
         f"[bold]Polling allocator health at {base_url}/api/health "
@@ -215,25 +221,100 @@ def _print_last_log_lines(lines: int = 30) -> None:
 
 def _print_summary(cfg: Config) -> None:
     register_token = _extract_register_token()
-    scheme = "https" if cfg.ssl.provider == "self_signed" else "http"
-    allocator_url = f"{scheme}://localhost"
+    # Manual provider is HTTP-only; preflight rejects anything else.
+    local_url = "http://localhost"
+    lan_ip = _detect_lan_ip()
+    lan_url = f"http://{lan_ip}" if lan_ip else None
+    # BYO clients run on different boxes, so the register command needs
+    # an address those boxes can route to — localhost is only useful for
+    # self-registration on the operator's host. Prefer the LAN URL when
+    # we could detect one.
+    register_url = lan_url or local_url
 
     console.print("\n[bold green]Deployment complete.[/bold green]")
-    console.print(f"  Allocator URL: {allocator_url}")
-    console.print(f"  Admin user:    {cfg.app.admin_user}")
-    if register_token:
-        console.print(f"  Register token: {register_token}")
+    console.print(f"  Allocator URL (local): {local_url}")
+    if lan_url:
+        console.print(f"  Allocator URL (LAN):   {lan_url}")
     else:
+        # Be loud about *why* we couldn't pin a LAN address — operators
+        # who are routing through Tailscale/VPN/etc. need to know they
+        # have to substitute the right hostname themselves.
         console.print(
-            "  Register token: (could not parse from container logs; "
-            "fetch with `docker logs lablink-allocator | grep "
-            "REGISTER_TOKEN`)"
+            "  Allocator URL (LAN):   (no LAN IP detected — pass the "
+            "operator host's reachable address manually)"
         )
+    console.print(f"  Admin user:            {cfg.app.admin_user}")
+    if register_token:
+        console.print(f"  Register token:        {register_token}")
+    else:
+        # The allocator logs to stderr (Python `logging` default), so
+        # the recovery command MUST redirect stderr (`2>&1`) before the
+        # pipe — otherwise grep sees only the container's stdout and
+        # the user gets an empty result, same root cause as the bug this
+        # path is recovering from.
+        # soft_wrap=True keeps the docker-logs hint on a single line so
+        # the suggested command is not split mid-pipe in narrow terminals.
+        console.print(
+            "  Register token:        (could not parse from container "
+            "logs; fetch with `docker logs lablink-allocator 2>&1 | "
+            "grep REGISTER_TOKEN`)",
+            soft_wrap=True,
+            highlight=False,
+        )
+
+    # Print a copy-paste-ready command using the LAN URL when available
+    # (BYO boxes can't reach localhost). The token-bearing line uses
+    # soft_wrap=True so narrow terminals don't insert a hard newline
+    # mid-command — that would break the operator's copy-paste.
     console.print(
-        "\n[bold]Next step:[/bold] on each BYO box, run\n"
-        f"  lablink register --allocator-url {allocator_url} "
-        "--register-token <token>"
+        "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
     )
+    register_cmd = (
+        f"  lablink register --allocator-url {register_url} "
+        f"--register-token {register_token or '<token>'}"
+    )
+    console.print(register_cmd, soft_wrap=True, highlight=False)
+    if not lan_url:
+        # If we fell back to localhost, the printed command only works
+        # for a BYO client *on the operator host*. Call that out so the
+        # operator doesn't blindly hand it to a remote teammate.
+        console.print(
+            "  [yellow]Note:[/yellow] the URL above is localhost — only "
+            "valid for a BYO client running on this same machine. For "
+            "clients on another box, substitute this host's LAN IP / "
+            "hostname.",
+            soft_wrap=True,
+            highlight=False,
+        )
+
+
+def _detect_lan_ip() -> str | None:
+    """Best-effort: the IPv4 address another host on the operator's LAN
+    would use to reach this machine. Returns ``None`` if we can't pick
+    one (no default route, only loopback configured, …).
+
+    Uses the kernel routing-table trick: open a UDP socket and call
+    ``connect()`` to a public IP. No packets are sent (UDP is
+    connectionless), but the kernel resolves the route and binds the
+    socket's local address — which we then read back via
+    ``getsockname()``. Works offline as long as a default route exists.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # 8.8.8.8 is a well-known recipe target — we only need the
+        # kernel to pick *an* outbound interface, nothing is transmitted.
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+    # A loopback or unspecified address means the operator's box doesn't
+    # have a usable LAN interface; treat that as "no LAN IP".
+    if not ip or ip.startswith("127.") or ip == "0.0.0.0":
+        return None
+    return ip
 
 
 def _extract_register_token() -> str | None:
@@ -242,10 +323,17 @@ def _extract_register_token() -> str | None:
     The allocator logs `REGISTER_TOKEN=<token>` at startup (see
     `packages/allocator/src/lablink_allocator_service/main.py` ~line 213).
     Also tolerate the `register_token = "..."` form just in case.
+
+    Python's `logging.basicConfig` writes to stderr, and `docker logs`
+    preserves the container's stdout/stderr split — so we MUST merge
+    both streams here (via `stderr=subprocess.STDOUT`), otherwise the
+    token line is captured into `.stderr` and the search of `.stdout`
+    silently misses it.
     """
     result = subprocess.run(
         ["docker", "logs", ALLOCATOR_CONTAINER_NAME],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         check=False,
     )
