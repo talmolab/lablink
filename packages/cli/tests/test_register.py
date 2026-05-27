@@ -114,7 +114,8 @@ class TestSuccessFlow:
         assert "run" in cmd
         assert "--env-file" in cmd
         assert "--gpus" in cmd  # gpu_present=True
-        assert "--network" in cmd
+        # 7070/6080 published; see ports-not-network-host test below.
+        assert "--publish" in cmd
         assert "ghcr.io/talmolab/lablink-client:0.4.0" in cmd
 
     @patch("lablink_cli.commands.register.subprocess.run")
@@ -236,6 +237,66 @@ class TestSuccessFlow:
             lan_ip="1.2.3.4",
             gpu_present=True,
             gpu_model="USER_PROVIDED",
+        )
+
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_publishes_agent_and_kasmvnc_ports_not_network_host(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        tmp_env_file, successful_response,
+    ):
+        """The allocator reaches the BYO client over the LAN at
+        ``<lan_ip>:7070`` (agent) and proxies KasmVNC over ``:6080``.
+
+        ``--network host`` shares the host's network namespace on Linux,
+        so those ports land on the LAN IP directly. On Docker Desktop
+        (Windows/macOS) ``--network host`` instead drops the container
+        into the Docker VM's network — the host never binds the ports
+        and the allocator's password-rotation call times out at the
+        container's :7070. Explicit ``--publish`` works the same on
+        every platform, so we always publish 7070 and 6080 and never
+        ask for ``--network host``.
+        """
+        from lablink_cli.commands.register import run_register
+        mock_detect.detect_hostname.return_value = "byo-01"
+        mock_detect.detect_lan_ip.return_value = "192.168.1.42"
+        mock_detect.resolve_machine_identity.return_value = "mid-abc"
+        mock_detect.detect_gpu.return_value = (False, None)
+
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
+
+        run_register(**_kwargs(tmp_env_file))
+
+        all_cmds = [call.args[0] for call in mock_subproc_run.call_args_list]
+        run_cmds = [c for c in all_cmds if "run" in c and "--env-file" in c]
+        assert run_cmds, f"Expected a `docker run` call; got {all_cmds}"
+        cmd = run_cmds[0]
+
+        # Both ports published with host:container mapping.
+        assert "--publish" in cmd or "-p" in cmd, (
+            f"expected port publishing in docker run, got {cmd}"
+        )
+        # Look at every value following a publish flag.
+        published = [
+            cmd[i + 1] for i, v in enumerate(cmd)
+            if v in ("--publish", "-p") and i + 1 < len(cmd)
+        ]
+        assert "7070:7070" in published, (
+            f"agent port 7070 not published; published={published}"
+        )
+        assert "6080:6080" in published, (
+            f"kasmvnc port 6080 not published; published={published}"
+        )
+        # Must not request host networking — defeats the purpose on
+        # Windows/macOS Docker Desktop and is unnecessary on Linux.
+        assert "--network" not in cmd, (
+            f"--network must not be passed (was: {cmd})"
         )
 
 

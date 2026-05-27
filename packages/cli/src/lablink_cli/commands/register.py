@@ -170,8 +170,16 @@ def _build_docker_run(
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
+    # Publish 7070 (agent's /api/session/start) and 6080 (KasmVNC) on
+    # the LAN IP so the allocator can reach them. `--network host` would
+    # also do this on Linux, but on Docker Desktop (Windows/macOS) it
+    # drops the container into the Docker VM's network instead of the
+    # host's, leaving the ports unreachable from the LAN — the
+    # allocator's password rotation just times out at the container's
+    # :7070. Explicit `--publish` behaves the same on every platform.
     cmd += [
-        "--network", "host",
+        "--publish", "7070:7070",
+        "--publish", "6080:6080",
         "--env-file", str(env_file),
         resp["client_image"],
     ]
