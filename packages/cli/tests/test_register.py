@@ -116,6 +116,11 @@ class TestSuccessFlow:
         assert "--gpus" in cmd  # gpu_present=True
         # 7070/6080 published; see ports-not-network-host test below.
         assert "--publish" in cmd
+        # `--pull always` so a republished tag (same name, new layers)
+        # is fetched on re-register — `--pull missing` (Docker default)
+        # would silently reuse the local cache and ship stale bits.
+        pull_idx = cmd.index("--pull")
+        assert cmd[pull_idx + 1] == "always"
         assert "ghcr.io/talmolab/lablink-client:0.4.0" in cmd
 
     @patch("lablink_cli.commands.register.subprocess.run")

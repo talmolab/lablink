@@ -167,6 +167,13 @@ def _build_docker_run(
         "docker", "run", "-d",
         "--name", "lablink-client",
         "--restart", "unless-stopped",
+        # Force a manifest check on every register so a republished image
+        # tag (e.g. fixes pushed to ghcr.io for the same :0.0.8a0 stream)
+        # actually lands on the BYO box; default `--pull missing` would
+        # silently reuse the locally cached layers and ship the broken
+        # bits forever. Costs one HEAD per register; layers that haven't
+        # changed are not re-downloaded.
+        "--pull", "always",
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
