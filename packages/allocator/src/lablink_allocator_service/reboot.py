@@ -214,6 +214,19 @@ class AutoRebootService:
         Returns:
             True if reboot was initiated, False otherwise.
         """
+        # Providers that can't recover hosts (manual/BYO) have no upstream
+        # to call — and in deployments without AWS credentials, the EC2
+        # lookups below would crash with NoCredentialsError every check
+        # interval. Mirror the capability-gate pattern used for terraform
+        # init in main.py (branch on capability, not type).
+        if self.provider is not None and not self.provider.can_recover_hosts:
+            logger.info(
+                "provider %s cannot recover hosts; leaving %s failed",
+                getattr(self.provider, "name", type(self.provider).__name__),
+                hostname,
+            )
+            return False
+
         reboot_type = "warm" if assigned else "cold"
         logger.info(
             f"Attempting {reboot_type} reboot for VM '{hostname}' "
@@ -269,12 +282,6 @@ class AutoRebootService:
                     provider_metadata={"region": self.region},
                 )
             ])
-        elif self.provider is not None and not self.provider.can_recover_hosts:
-            logger.info(
-                "provider %s cannot recover hosts; leaving %s failed",
-                getattr(self.provider, "name", "?"), hostname,
-            )
-            success = False
         else:
             success = stop_start_ec2_instance(
                 instance_id, region=self.region

@@ -1061,3 +1061,48 @@ def test_reboot_vm_skips_ec2_when_provider_cannot_recover(monkeypatch):
     assert called["stop_start"] is False
     assert result is False
     svc.database.record_reboot.assert_not_called()
+
+
+def test_reboot_vm_skips_all_aws_calls_when_provider_cannot_recover(monkeypatch):
+    """Manual/BYO providers must not invoke ANY AWS EC2 calls in _reboot_vm.
+
+    Reproduces the manual-deployment NoCredentialsError loop where the
+    upstream lookup (`get_instance_id_by_name`) fires before the
+    capability check on the stop/start fallback. With no credentials in
+    the container, botocore raises NoCredentialsError and the reboot
+    thread spams the log every check interval.
+    """
+    from botocore.exceptions import NoCredentialsError
+
+    calls = {"id": 0, "ip": 0, "stop_start": 0}
+
+    def fail_id(*a, **k):
+        calls["id"] += 1
+        raise NoCredentialsError()
+
+    def fail_ip(*a, **k):
+        calls["ip"] += 1
+        raise NoCredentialsError()
+
+    def fail_stop_start(*a, **k):
+        calls["stop_start"] += 1
+        raise NoCredentialsError()
+
+    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", fail_id)
+    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", fail_ip)
+    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", fail_stop_start)
+
+    svc = reboot_mod.AutoRebootService(
+        database=MagicMock(),
+        region="us-west-2",
+        terraform_dir="/tf",
+        provider=MagicMock(can_recover_hosts=False, name="manual"),
+    )
+
+    result = svc._reboot_vm("LAPTOP-M8NLMMGL", assigned=False)
+
+    assert result is False
+    assert calls == {"id": 0, "ip": 0, "stop_start": 0}, (
+        f"manual provider must not call any AWS function, got {calls}"
+    )
+    svc.database.record_reboot.assert_not_called()
