@@ -7,7 +7,7 @@ Every command on this page reads `~/.lablink/config.yaml` by default. Pass `--co
 ## Launch client VMs
 
 ```bash
-lablink launch-client --num-vms 5
+lablink client launch --num-vms 5
 ```
 
 This asks the allocator to provision client VMs on your behalf. The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.

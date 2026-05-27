@@ -376,6 +376,20 @@ class PostgresqlDatabase:
             row = cursor.fetchone()
         return row[0] if row else None
 
+    def unregister_client(self, client_id: str) -> bool:
+        """Delete the client row keyed on hostname.
+
+        Returns True if a row was deleted, False if no such row existed.
+        Single statement under autocommit isolation — no migration.
+        """
+        t = self.table_name
+        with self._cursor as cursor:
+            cursor.execute(
+                f"DELETE FROM {t} WHERE hostname = %s;",
+                (client_id,),
+            )
+            return cursor.rowcount > 0
+
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are running and have no student assigned.
 

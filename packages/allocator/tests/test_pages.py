@@ -36,14 +36,14 @@ def test_byo_onboarding_no_auth(client):
 
 
 def test_byo_onboarding_renders_register_command(client, admin_headers):
-    """Page renders a ready-to-copy `lablink register` command with the
+    """Page renders a ready-to-copy `lablink client register` command with the
     current allocator URL and live REGISTER_TOKEN. The admin should be
     able to copy it verbatim and hand it to a BYO operator."""
     from lablink_allocator_service import main
     response = client.get("/admin/byo-onboarding", headers=admin_headers)
     assert response.status_code == 200
     html = response.data.decode()
-    assert "lablink register" in html
+    assert "lablink client register" in html
     assert "--allocator-url" in html
     assert "--register-token" in html
     # Live token (not its hash) is rendered for copy-paste.

@@ -172,7 +172,7 @@ class ProviderScreen(Screen):
                 "Choose how client VMs are provisioned.\n"
                 "AWS provisions EC2 instances via Terraform.\n"
                 "Manual (BYO) skips provisioning — you supply Linux GPU\n"
-                "boxes that register themselves with `lablink register`.",
+                "boxes that register themselves with `lablink client register`.",
                 classes="step-description",
             )
 

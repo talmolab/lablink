@@ -54,7 +54,7 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
     if getattr(cfg, "provider", "aws") == "manual":
         console.print(
             "Manual provider has no VMs to launch — each BYO box "
-            "runs `lablink register` to join the pool. See "
+            "runs `lablink client register` to join the pool. See "
             "`lablink status` for currently registered clients."
         )
         return

@@ -118,7 +118,7 @@ class TestManualLaunchNoOp:
         run_launch(mock_cfg, num_vms=5, verbose=False)
         out = capsys.readouterr().out
         assert "Manual provider" in out
-        assert "lablink register" in out
+        assert "lablink client register" in " ".join(out.split())
 
     @patch("lablink_cli.commands.launch.urlopen")
     @patch("lablink_cli.commands.launch.resolve_admin_credentials")

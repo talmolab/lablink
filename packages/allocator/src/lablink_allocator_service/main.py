@@ -347,7 +347,7 @@ def admin():
 @app.route("/admin/byo-onboarding")
 @auth.login_required
 def byo_onboarding():
-    """Render the ready-to-copy `lablink register` command for BYO clients.
+    """Render the ready-to-copy `lablink client register` command for BYO clients.
 
     The register token rotates on each allocator restart, so this page is
     dynamic — re-render to get the current token. Behind admin Basic auth

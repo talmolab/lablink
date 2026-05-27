@@ -270,7 +270,7 @@ def _print_summary(cfg: Config) -> None:
         "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
     )
     register_cmd = (
-        f"  lablink register --allocator-url {register_url} "
+        f"  lablink client register --allocator-url {register_url} "
         f"--register-token {register_token or '<token>'}"
     )
     console.print(register_cmd, soft_wrap=True, highlight=False)
@@ -409,3 +409,9 @@ def run_destroy_compose(
         console.print(
             f"[green]Stack torn down (data preserved in {target}).[/green]"
         )
+
+    console.print(
+        "\n[bold]Reminder:[/bold] each BYO client box still has "
+        "`lablink-client` running.\n"
+        "Run [bold]lablink client unregister[/bold] on each box to clean up."
+    )

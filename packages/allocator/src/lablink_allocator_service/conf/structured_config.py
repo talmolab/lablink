@@ -174,7 +174,7 @@ class Config:
         provider (str): VM provisioning provider. One of:
             - "aws": EC2 via Terraform (the existing behavior).
             - "manual": no automated provisioning — BYO clients
-              register themselves via `lablink register`.
+              register themselves via `lablink client register`.
         db (DatabaseConfig): The database configuration.
         machine (MachineConfig): The machine configuration.
         app (AppConfig): The application configuration.

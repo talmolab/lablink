@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Top-level provider field — must stay in sync with the providers registry
 # (DEFAULT_PROVIDER / get_provider). "manual" is the BYO-clients mode added
 # in PR D1/D2/D3 — no automated provisioning, clients self-register via the
-# `lablink register` CLI.
+# `lablink client register` CLI.
 VALID_PROVIDERS = ("aws", "manual")
 
 

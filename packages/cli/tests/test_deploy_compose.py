@@ -233,6 +233,68 @@ class TestDestroyCompose:
             cfg, yes=True, purge=False, workdir_root=tmp_path / "compose"
         )
 
+    def test_destroy_compose_prints_unregister_reminder_on_success(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        """After a successful manual destroy, remind the operator about BYO clients."""
+        from lablink_cli.commands import deploy_compose
+
+        workdir_root = tmp_path
+        target = workdir_root / "testlab"
+        target.mkdir(parents=True)
+
+        cfg = _manual_cfg()
+
+        fake_run = MagicMock(return_value=MagicMock(returncode=0))
+        monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
+
+        deploy_compose.run_destroy_compose(
+            cfg, yes=True, purge=False, workdir_root=workdir_root,
+        )
+
+        out = capsys.readouterr().out
+        assert "lablink client unregister" in out
+
+    def test_destroy_compose_skips_reminder_when_already_destroyed(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        """Early-return path (no compose dir) → no reminder."""
+        from lablink_cli.commands import deploy_compose
+
+        workdir_root = tmp_path  # 'testlab' subdir intentionally not created
+
+        cfg = _manual_cfg()
+
+        deploy_compose.run_destroy_compose(
+            cfg, yes=True, purge=False, workdir_root=workdir_root,
+        )
+
+        out = capsys.readouterr().out
+        assert "lablink client unregister" not in out
+
+    def test_destroy_compose_skips_reminder_on_failure(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        """`docker compose down` failure → SystemExit, no reminder printed."""
+        from lablink_cli.commands import deploy_compose
+
+        workdir_root = tmp_path
+        target = workdir_root / "testlab"
+        target.mkdir(parents=True)
+
+        cfg = _manual_cfg()
+
+        fake_run = MagicMock(return_value=MagicMock(returncode=1))
+        monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
+
+        with pytest.raises(SystemExit):
+            deploy_compose.run_destroy_compose(
+                cfg, yes=True, purge=False, workdir_root=workdir_root,
+            )
+
+        out = capsys.readouterr().out
+        assert "lablink client unregister" not in out
+
 
 class TestPrintSummary:
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
@@ -255,7 +317,7 @@ class TestPrintSummary:
         out = capsys.readouterr().out
         # The LAN URL must drive the copy-paste command.
         assert (
-            f"lablink register --allocator-url http://192.168.1.42 "
+            f"lablink client register --allocator-url http://192.168.1.42 "
             f"--register-token {token}"
         ) in out
         # And the summary should surface both URLs so the operator can

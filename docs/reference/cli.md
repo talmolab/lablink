@@ -105,12 +105,12 @@ The S3 state bucket and DynamoDB lock table are **not** removed — reuse them o
 
 ---
 
-### `launch-client`
+### `client launch`
 
 Launch client VMs via the allocator service.
 
 ```bash
-lablink launch-client --num-vms N [--config PATH]
+lablink client launch --num-vms N [--config PATH]
 ```
 
 Calls the allocator's create-VM endpoint. The allocator provisions the VMs in its own Terraform workspace — the CLI only speaks to its HTTP API here. Terraform is not required locally for this command.

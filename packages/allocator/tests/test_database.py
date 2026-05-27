@@ -1617,3 +1617,27 @@ def test_list_hosts_by_provider(db_instance, mock_db_connection):
     sql = mock_cursor.execute.call_args[0][0]
     assert "WHERE provider = %s" in sql
     assert mock_cursor.execute.call_args[0][1] == ("manual",)
+
+
+def test_unregister_client_deletes_existing_row(db_instance, mock_db_connection):
+    """unregister_client deletes a row keyed on hostname and returns True."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.rowcount = 1
+    result = db_instance.unregister_client("vm-1")
+
+    mock_cursor.execute.assert_called_with(
+        "DELETE FROM vms WHERE hostname = %s;", ("vm-1",)
+    )
+    assert result is True
+
+
+def test_unregister_client_returns_false_when_no_row(db_instance, mock_db_connection):
+    """unregister_client returns False if no row matched."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.rowcount = 0
+    result = db_instance.unregister_client("vm-missing")
+
+    mock_cursor.execute.assert_called_with(
+        "DELETE FROM vms WHERE hostname = %s;", ("vm-missing",)
+    )
+    assert result is False

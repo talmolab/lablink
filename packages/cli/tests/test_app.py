@@ -112,7 +112,7 @@ class TestCLICommands:
         assert result.exit_code == 0
 
     def test_launch_client_command_exists(self):
-        result = runner.invoke(app, ["launch-client", "--help"])
+        result = runner.invoke(app, ["client", "launch", "--help"])
         assert result.exit_code == 0
         assert "num-vms" in _plain(result.output)
 
@@ -402,7 +402,7 @@ class TestRegisterCommand:
         runner.invoke(
             app,
             [
-                "register",
+                "client", "register",
                 "--allocator-url", "https://x.example.com",
                 "--register-token", "t",
             ],

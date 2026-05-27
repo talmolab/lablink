@@ -259,3 +259,65 @@ def test_register_response_ignores_spoofed_proto_when_https_off(reg_client):
     body = r.get_json()
     assert not body["allocator_url"].startswith("https://"), body["allocator_url"]
     assert "evil.example.com" not in body["allocator_url"], body["allocator_url"]
+
+
+def test_unregister_rejects_missing_header(reg_client):
+    """No Authorization header → 401."""
+    client, _ = reg_client
+    r = client.delete("/api/v1/clients/vm-1")
+    assert r.status_code == 401
+
+
+def test_unregister_rejects_bad_token(reg_client):
+    """Bearer token that does not verify against client_secret_hash → 401."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("real-secret")
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer wrong-secret"},
+    )
+    assert r.status_code == 401
+
+
+def test_unregister_rejects_unknown_client_id(reg_client):
+    """No secret hash on file (unknown client_id) → 401, not 404 —
+    don't let callers enumerate registered client_ids."""
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = None
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer anything"},
+    )
+    assert r.status_code == 401
+
+
+def test_unregister_returns_404_when_no_row(reg_client):
+    """Auth passes but the row is gone (already deleted / race) → 404."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = False
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 404
+
+
+def test_unregister_success(reg_client):
+    """Valid bearer + row exists → 200, JSON body, db.unregister_client called."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 200
+    assert r.get_json() == {"client_id": "vm-1", "status": "unregistered"}
+    fake_db.unregister_client.assert_called_once_with("vm-1")

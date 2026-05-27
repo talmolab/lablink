@@ -10,6 +10,12 @@ app = typer.Typer(
     name="lablink",
 )
 
+client_app = typer.Typer(
+    name="client",
+    help="Manage the client fleet (register/launch/unregister).",
+)
+app.add_typer(client_app, name="client")
+
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
 
 
@@ -239,7 +245,7 @@ def destroy(
     run_destroy(cfg, yes=yes, verbose=verbose)
 
 
-@app.command("launch-client", rich_help_panel="Deployment")
+@client_app.command("launch")
 def launch_client(
     num_vms: int = typer.Option(
         ...,
@@ -263,7 +269,7 @@ def launch_client(
     """Launch client VMs via the allocator service.
 
     AWS provider only: provisions client VMs through Terraform. For
-    the manual provider, BYO operators run 'lablink register' on each
+    the manual provider, BYO operators run 'lablink client register' on each
     box instead; this command no-ops with a friendly message.
     """
     from lablink_cli.commands.launch import run_launch
@@ -352,7 +358,7 @@ def doctor() -> None:
     run_doctor()
 
 
-@app.command(rich_help_panel="Setup")
+@client_app.command("register")
 def register(
     allocator_url: str = typer.Option(
         ...,
@@ -424,6 +430,35 @@ def register(
         env_file=env_file,
         insecure=insecure,
     )
+
+
+@client_app.command("unregister")
+def unregister(
+    env_file: Path = typer.Option(
+        None, "--env-file",
+        help="Path to client.env (default ~/.lablink/client.env).",
+    ),
+    insecure: bool = typer.Option(
+        False, "--insecure",
+        help="Skip TLS verification for the allocator notify call "
+        "(use when the allocator's ssl.provider is self_signed).",
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y",
+        help="Skip the confirmation prompt.",
+    ),
+) -> None:
+    """Tear down a registered BYO box.
+
+    Best-effort notifies the allocator, then removes the
+    `lablink-client` container and deletes the env file. Idempotent
+    — does nothing and exits 0 if there is no env file. Safe to run
+    after `lablink destroy` (the allocator will be unreachable, which
+    is the expected case).
+    """
+    from lablink_cli.commands.unregister import run_unregister
+
+    run_unregister(env_file=env_file, insecure=insecure, yes=yes)
 
 
 @app.command("show-config", rich_help_panel="Maintenance")

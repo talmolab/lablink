@@ -311,7 +311,7 @@ def run_logs(cfg: Config) -> None:
         console.print(
             f"[red]No running VMs found for deployment "
             f"'{cfg.deployment_name}'.[/red]\n"
-            "Run 'lablink deploy' and 'lablink launch-client' first."
+            "Run 'lablink deploy' and 'lablink client launch' first."
         )
         raise SystemExit(1)
 

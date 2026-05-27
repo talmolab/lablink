@@ -98,3 +98,30 @@ def client_status(client_id):
 
     status = main.database.get_status_by_hostname(client_id)
     return jsonify(client_id=client_id, status=status), 200
+
+
+@bp.route("/api/v1/clients/<client_id>", methods=["DELETE"])
+def unregister_client(client_id):
+    """Best-effort caller-driven deregistration.
+
+    Auth: Bearer client_secret (the secret minted at register time).
+    Hard-deletes the row, even when ``useremail`` is set — the BYO
+    operator is voluntarily withdrawing the box, and the student's
+    session is already broken because the local container is going
+    away.
+    """
+    from lablink_allocator_service import main
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Invalid client secret."}), 401
+    token = auth_header[7:]
+    stored = main.database.get_client_secret_hash(client_id)
+    if not stored or not verify_secret(token, stored):
+        return jsonify({"error": "Invalid client secret."}), 401
+
+    deleted = main.database.unregister_client(client_id)
+    if not deleted:
+        return jsonify({"error": "Client not found."}), 404
+
+    return jsonify(client_id=client_id, status="unregistered"), 200
