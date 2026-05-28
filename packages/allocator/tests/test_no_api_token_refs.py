@@ -5,6 +5,8 @@ API_TOKEN. The CHANGELOG entry announcing the removal is excluded.
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PACKAGES = REPO_ROOT / "packages"
@@ -12,6 +14,11 @@ PACKAGES = REPO_ROOT / "packages"
 
 def test_no_api_token_references_in_source():
     """grep -rn API_TOKEN under packages/ in source files — must return zero hits."""
+    if not PACKAGES.is_dir():
+        # Test ships inside the allocator docker image / installed wheel where the
+        # monorepo layout doesn't exist. The guard's purpose is to catch a
+        # regression at PR-review time on a full checkout; skip elsewhere.
+        pytest.skip(f"packages/ not found at {PACKAGES} (not running from repo tree)")
     result = subprocess.run(
         [
             "grep",
@@ -48,7 +55,7 @@ def test_no_api_token_references_in_changelog_except_retirement_context():
     """The CLI CHANGELOG may mention API_TOKEN only in retired/removed context."""
     changelog = REPO_ROOT / "packages" / "cli" / "CHANGELOG.md"
     if not changelog.exists():
-        return  # CHANGELOG optional
+        pytest.skip(f"CHANGELOG not found at {changelog} (not running from repo tree)")
     content = changelog.read_text()
     suspicious_lines = [
         line
