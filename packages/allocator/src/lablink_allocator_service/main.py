@@ -914,17 +914,13 @@ def receive_vm_logs():
 @require_auth
 def get_vm_logs_by_hostname(hostname):
     try:
-        vm = database.get_vm_by_hostname(hostname=hostname)
-        logger.debug(f"Fetching logs for VM: {hostname}: {vm}")
-
-        # Check if the VM exists
-        if vm is None:
+        if not database.vm_exists(hostname):
             logger.error(f"VM with hostname {hostname} not found.")
             return jsonify({"error": "VM not found."}), 404
 
         # If the logs are empty but the vm is initializing, return a 503 status
         logs_data = database.get_vm_logs(hostname=hostname)
-        status = vm.get("status")
+        status = database.get_status_by_hostname(hostname)
         if logs_data is None and status == "initializing":
             return jsonify({"error": "VM is initializing."}), 503
 

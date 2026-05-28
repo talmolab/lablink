@@ -131,64 +131,6 @@ def test_insert_vm(db_instance):
     db_instance.cursor.execute.assert_called_with(expected_sql, expected_values)
 
 
-def test_get_vm_by_hostname_found(db_instance):
-    """Test retrieving a VM by its hostname when it exists."""
-    from datetime import datetime
-
-    hostname = "test-vm-01"
-    start_time = datetime(2023, 1, 1, 12, 0, 0)
-    end_time = datetime(2023, 1, 1, 12, 2, 3)
-    # Simulate a row returned from the database
-    vm_data = (
-        hostname,
-        "123456",
-        "crd-command",
-        "user@example.com",
-        False,
-        True,
-        "running",
-        "log data",
-        start_time,  # terraform_apply_start_time
-        end_time,  # terraform_apply_end_time
-        123.0,  # terraform_apply_duration_seconds
-        start_time,  # cloud_init_start_time
-        end_time,  # cloud_init_end_time
-        123.0,  # cloud_init_duration_seconds
-        start_time,  # container_start_time
-        end_time,  # container_end_time
-        123.0,  # container_startup_duration_seconds
-        369.0,  # total_startup_duration_seconds
-        start_time,  # created_at
-    )
-    db_instance.cursor.fetchone.return_value = vm_data
-    vm = db_instance.get_vm_by_hostname(hostname)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM vms WHERE hostname = %s;", (hostname,)
-    )
-    assert vm["hostname"] == hostname
-    assert vm["pin"] == "123456"
-    assert vm["terraform_apply_start_time"] == start_time
-    assert vm["terraform_apply_end_time"] == end_time
-    assert vm["terraform_apply_duration_seconds"] == 123.0
-    assert vm["cloud_init_start_time"] == start_time
-    assert vm["cloud_init_end_time"] == end_time
-    assert vm["cloud_init_duration_seconds"] == 123.0
-    assert vm["container_start_time"] == start_time
-    assert vm["container_end_time"] == end_time
-    assert vm["container_startup_duration_seconds"] == 123.0
-    assert vm["total_startup_duration_seconds"] == 369.0
-    assert vm["created_at"] == start_time
-
-
-def test_get_vm_by_hostname_not_found(db_instance):
-    """Test retrieving a VM by its hostname when it does not exist."""
-    hostname = "non-existent-vm"
-    db_instance.cursor.fetchone.return_value = None
-    vm = db_instance.get_vm_by_hostname(hostname)
-    assert vm is None
-
-
 def test_get_unassigned_vms(db_instance):
     """Test getting a list of unassigned VMs."""
     unassigned_vms_data = [("vm-free-1",), ("vm-free-2",)]
@@ -218,45 +160,6 @@ def test_vm_exists_returns_none(db_instance):
     hostname = "test-vm"
     db_instance.cursor.fetchone.return_value = None
     assert db_instance.vm_exists(hostname) is False
-
-
-def test_get_assigned_vms(db_instance):
-    """Test getting a list of assigned VMs."""
-    assigned_vms_data = [("vm-in-use-1",), ("vm-in-use-2",)]
-    db_instance.cursor.fetchall.return_value = assigned_vms_data
-
-    result = db_instance.get_assigned_vms()
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT hostname FROM vms WHERE useremail IS NOT NULL"
-    )
-    assert result == ["vm-in-use-1", "vm-in-use-2"]
-
-
-def test_get_vm_details_found(db_instance):
-    """Test getting VM details for a user when a VM is assigned."""
-    email = "user@example.com"
-    vm_details_data = (
-        "vm-assigned-1",
-        "123456",
-        "command",
-    )
-    db_instance.cursor.fetchone.return_value = vm_details_data
-
-    result = db_instance.get_vm_details(email)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT hostname, pin, crdcommand FROM vms WHERE useremail = %s", (email,)
-    )
-    assert result == ["vm-assigned-1", "123456", "command"]
-
-
-def test_get_vm_details_not_found(db_instance):
-    """Test getting VM details when no VM is assigned to the user."""
-    email = "no-user@example.com"
-    db_instance.cursor.fetchone.return_value = None
-    with pytest.raises(ValueError):
-        db_instance.get_vm_details(email)
 
 
 def test_assign_vm(db_instance):
@@ -718,14 +621,6 @@ def test_get_unassigned_vms_error(db_instance, caplog):
     result = db_instance.get_unassigned_vms()
     assert result == []
     assert "Failed to retrieve unassigned VMs: DB error" in caplog.text
-
-
-def test_get_assigned_vms_error(db_instance, caplog):
-    """Test error handling in get_assigned_vms."""
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-    result = db_instance.get_assigned_vms()
-    assert result == []
-    assert "Failed to retrieve assigned VMs: DB error" in caplog.text
 
 
 def test_assign_vm_db_error(db_instance, caplog):

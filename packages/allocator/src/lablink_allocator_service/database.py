@@ -234,44 +234,6 @@ class PostgresqlDatabase:
                 logger.error(f"Failed to insert VM '{hostname}': {e}")
                 raise
 
-    def get_vm_by_hostname(self, hostname: str) -> dict:
-        """Get a VM by its hostname.
-
-        Args:
-            hostname (str): The hostname of the VM.
-
-        Returns:
-            dict: A dictionary containing the VM details without logs.
-        """
-        query = f"SELECT * FROM {self.table_name} WHERE hostname = %s;"
-        with self._cursor as cursor:
-            cursor.execute(query, (hostname,))
-            row = cursor.fetchone()
-        if row:
-            return {
-                "hostname": row[0],
-                "pin": row[1],
-                "crdcommand": row[2],
-                "useremail": row[3],
-                "inuse": row[4],
-                "healthy": row[5],
-                "status": row[6],
-                "terraform_apply_start_time": row[8],
-                "terraform_apply_end_time": row[9],
-                "terraform_apply_duration_seconds": row[10],
-                "cloud_init_start_time": row[11],
-                "cloud_init_end_time": row[12],
-                "cloud_init_duration_seconds": row[13],
-                "container_start_time": row[14],
-                "container_end_time": row[15],
-                "container_startup_duration_seconds": row[16],
-                "total_startup_duration_seconds": row[17],
-                "created_at": row[18],
-            }
-        else:
-            logger.warning(f"VM not found: '{hostname}'")
-            return None
-
     def get_vm_by_machine_identity(self, machine_identity: str):
         """Return the hostname of the row with this machine_identity, or None."""
         with self._cursor as cursor:
@@ -457,53 +419,6 @@ class PostgresqlDatabase:
             cursor.execute(query, (hostname,))
             result = cursor.fetchone()
         return result[0] if result else False
-
-    def get_assigned_vms(self) -> list:
-        """Get the VMs currently assigned to a student.
-
-        Returns:
-            list: hostnames of assigned VMs.
-        """
-        query = (
-            f"SELECT hostname FROM {self.table_name} "
-            f"WHERE useremail IS NOT NULL"
-        )
-        try:
-            with self._cursor as cursor:
-                cursor.execute(query)
-                return [row[0] for row in cursor.fetchall()]
-        except Exception as e:
-            logger.error(f"Failed to retrieve assigned VMs: {e}")
-            return []
-
-    def get_vm_details(self, email: str) -> list:
-        """Get VM details based on the email provided.
-
-        Args:
-            email (str): The email of the user.
-
-        Returns:
-            list: A list containing the hostname, pin, and CRD command of the VM
-            assigned to the given user.
-        """
-        query = (
-            f"SELECT hostname, pin, crdcommand FROM {self.table_name}"
-            " WHERE useremail = %s"
-        )
-        with self._cursor as cursor:
-            cursor.execute(query, (email,))
-            row = cursor.fetchone()
-        if row:
-            hostname, pin, crdcommand = row
-            return [
-                hostname,
-                pin,
-                crdcommand,
-            ]
-        else:
-            raise ValueError(
-                f"No VM found for email in the database: {email}"
-            )
 
     def get_assigned_vm_for_email(self, email: str) -> Optional[dict]:
         """Look up whether an email already has a VM assigned.

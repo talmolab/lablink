@@ -601,9 +601,8 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
     """Test getting VM logs by hostname successfully."""
     # Mock the database
     fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {
-        "hostname": "lablink-vm-test-1",
-    }
+    fake_db.vm_exists.return_value = True
+    fake_db.get_status_by_hostname.return_value = "running"
     fake_db.get_vm_logs.return_value = {
         "cloud_init_logs": "Cloud init log data.",
         "docker_logs": "Docker log data.",
@@ -631,7 +630,7 @@ def test_vm_logs_by_hostname_not_found(client, api_token_headers, monkeypatch):
     """Test getting VM logs by hostname when not found."""
     # Mock the database
     fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = None
+    fake_db.vm_exists.return_value = False
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -653,10 +652,8 @@ def test_vm_logs_by_hostname_installing_cloud_watch(
     """Test getting VM logs by hostname when VM is initializing."""
     # Mock the database
     fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.return_value = {
-        "hostname": "lablink-vm-test-1",
-        "status": "initializing",
-    }
+    fake_db.vm_exists.return_value = True
+    fake_db.get_status_by_hostname.return_value = "initializing"
     fake_db.get_vm_logs.return_value = None
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
@@ -676,7 +673,7 @@ def test_vm_logs_by_hostname_internal_error(client, api_token_headers, monkeypat
     """Test getting VM logs by hostname with internal error."""
     # Mock the database
     fake_db = MagicMock()
-    fake_db.get_vm_by_hostname.side_effect = Exception("Internal error")
+    fake_db.vm_exists.side_effect = Exception("Internal error")
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1681,7 +1678,8 @@ def test_dual_auth_endpoints_accept_api_token(
     fake_db = MagicMock()
     fake_db.get_unassigned_vms.return_value = []
     fake_db.get_all_vm_status.return_value = {"vm-1": "running"}
-    fake_db.get_vm_by_hostname.return_value = {"hostname": "vm-1", "status": "running"}
+    fake_db.vm_exists.return_value = True
+    fake_db.get_status_by_hostname.return_value = "running"
     fake_db.get_vm_logs.return_value = {
         "cloud_init_logs": "log",
         "docker_logs": None,
