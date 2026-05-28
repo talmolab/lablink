@@ -183,7 +183,6 @@ def test_register_returns_409_on_integrity_error(reg_client):
 def test_agent_token_global_exists():
     from lablink_allocator_service import main
     assert isinstance(main.AGENT_TOKEN, str) and len(main.AGENT_TOKEN) >= 32
-    assert main.AGENT_TOKEN != main.API_TOKEN
     assert main.AGENT_TOKEN != main.REGISTER_TOKEN
 
 
@@ -197,17 +196,18 @@ def test_register_response_includes_agent_token(reg_client):
     assert r.get_json()["agent_token"] == main.AGENT_TOKEN
 
 
-def test_register_response_includes_api_token(reg_client):
-    """BYO clients need API_TOKEN so start.sh can POST /api/vm-metrics
-    (which is @require_api_token-gated, not per-client). Without this,
-    container-startup timing never lands for manual clients."""
+def test_register_response_omits_api_token(reg_client):
+    """API_TOKEN is retired — registration response no longer includes it.
+    Clients must use per-client client_secret for all authenticated endpoints."""
     client, fake_db = reg_client
     r = client.post("/api/v1/clients/register",
                      json={"hostname": "vm-1", "machine_identity": "i-1"},
                      headers={"Authorization": "Bearer tk_test_register"})
     assert r.status_code == 200
-    from lablink_allocator_service import main
-    assert r.get_json()["api_token"] == main.API_TOKEN
+    body = r.get_json()
+    assert "api_token" not in body
+    assert body.get("client_secret") is not None
+    assert body.get("agent_token") is not None
 
 
 def test_register_response_honors_x_forwarded_proto(reg_client, monkeypatch):
@@ -340,14 +340,6 @@ def test_list_clients_rejects_bad_bearer(reg_client):
     assert r.status_code == 401
 
 
-def test_list_clients_accepts_api_token(reg_client, api_token_headers):
-    client, fake_db = reg_client
-    fake_db.list_registered_clients.return_value = []
-    r = client.get("/api/v1/clients", headers=api_token_headers)
-    assert r.status_code == 200
-    assert r.get_json() == {"clients": []}
-
-
 def test_list_clients_accepts_admin_basic(reg_client, admin_headers):
     client, fake_db = reg_client
     fake_db.list_registered_clients.return_value = []
@@ -356,7 +348,7 @@ def test_list_clients_accepts_admin_basic(reg_client, admin_headers):
     assert r.get_json() == {"clients": []}
 
 
-def test_list_clients_returns_safe_fields(reg_client, api_token_headers):
+def test_list_clients_returns_safe_fields(reg_client, admin_headers):
     from datetime import datetime
 
     client, fake_db = reg_client
@@ -384,7 +376,7 @@ def test_list_clients_returns_safe_fields(reg_client, api_token_headers):
             "last_seen_at": None,
         },
     ]
-    r = client.get("/api/v1/clients", headers=api_token_headers)
+    r = client.get("/api/v1/clients", headers=admin_headers)
     assert r.status_code == 200
     body = r.get_json()
     assert len(body["clients"]) == 2

@@ -137,17 +137,14 @@ key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
-# API token for machine-to-machine authentication (auto-generated each startup)
-API_TOKEN = secrets.token_urlsafe(32)
-
-# Deployment register-token (machine registration). Mirrors API_TOKEN
-# semantics: one per allocator process, re-injected via terraform on launch.
+# Deployment register-token (machine registration): one per allocator process,
+# re-injected via terraform on launch.
 REGISTER_TOKEN = secrets.token_urlsafe(32)
 
 # Deployment agent-control token: allocator→client-agent (:7070) control
-# channel. Distinct from API_TOKEN (M2M, → D4) and REGISTER_TOKEN
-# (client→allocator join). Symmetric plaintext (allocator presents, agent
-# verifies); per-process like API_TOKEN/REGISTER_TOKEN.
+# channel. Distinct from REGISTER_TOKEN (client→allocator join). Symmetric
+# plaintext (allocator presents, agent verifies); per-process like
+# REGISTER_TOKEN.
 AGENT_TOKEN = secrets.token_urlsafe(32)
 
 # Initialize the database connection
@@ -225,44 +222,6 @@ def verify_password(username, password):
     if username in users and check_password_hash(users.get(username), password):
         return username
 
-
-def require_api_token(f):
-    """Require a valid API bearer token for machine-to-machine endpoints."""
-
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Missing or invalid Authorization header."}), 401
-        token = auth_header[7:]  # Strip "Bearer " prefix
-        if not secrets.compare_digest(token, API_TOKEN):
-            return jsonify({"error": "Invalid API token."}), 401
-        return f(*args, **kwargs)
-
-    return decorated
-
-
-def require_auth(f):
-    """Accept either session auth (admin UI) or API bearer token (VMs)."""
-
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        # Try API token first
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            if secrets.compare_digest(token, API_TOKEN):
-                return f(*args, **kwargs)
-            return jsonify({"error": "Invalid API token."}), 401
-
-        # Fall back to session auth (HTTP Basic)
-        if auth.current_user():
-            return f(*args, **kwargs)
-
-        # No valid auth provided — trigger Basic auth challenge
-        return auth.login_required(f)(*args, **kwargs)
-
-    return decorated
 
 
 def require_client_secret(f):
@@ -551,7 +510,6 @@ def launch():
             f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
             f.write(f'region = "{cfg.app.region}"\n')
             f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
-            f.write(f'api_token = "{API_TOKEN}"\n')
             f.write(f'agent_token = "{AGENT_TOKEN}"\n')
             f.write(f'register_token = "{REGISTER_TOKEN}"\n')
 
@@ -846,7 +804,7 @@ def update_vm_status():
 
 
 @app.route("/api/vm-status", methods=["GET"])
-@require_auth
+@auth.login_required
 def get_all_vm_status():
     try:
         vm_status = database.get_all_vm_status()
@@ -859,29 +817,27 @@ def get_all_vm_status():
         return jsonify({"error": "Failed to get VM status."}), 500
 
 
-@app.route("/api/vm-logs", methods=["POST"])
-@require_api_token
-def receive_vm_logs():
+@app.route("/api/vm-logs/<hostname>", methods=["POST"])
+@require_client_secret
+def receive_vm_logs(hostname):
     try:
         data = request.get_json()
         log_group = data.get("log_group")
-        log_stream = data.get("log_stream")
         messages = data.get("messages", [])
 
-        if not log_group or not log_stream or not messages:
+        if not log_group or not messages:
             return (
-                jsonify({"error": "Log group, stream, and messages are required."}),
+                jsonify({"error": "Log group and messages are required."}),
                 400,
             )
 
         # Check if the VM exists in the database
-        if not database.vm_exists(log_stream):
-            logger.error(f"VM with log stream {log_stream} does not exist.")
+        if not database.vm_exists(hostname):
+            logger.error(f"VM with hostname {hostname} does not exist.")
             return jsonify({"error": "VM not found."}), 404
 
-        # Process the logs (e.g., save to a file, database, etc.)
         logger.debug(
-            f"Received logs for {log_group}/{log_stream}: {len(messages)} messages"
+            f"Received logs for {log_group}/{hostname}: {len(messages)} messages"
         )
 
         # Strip ANSI escape codes and drop empty lines
@@ -898,7 +854,7 @@ def receive_vm_logs():
         MAX_LOG_SIZE = 1 * 1024 * 1024  # 1MB
         new_logs = "\n".join(messages)
         database.append_logs_by_hostname(
-            hostname=log_stream,
+            hostname=hostname,
             new_logs=new_logs,
             log_type=log_type,
             max_size=MAX_LOG_SIZE,
@@ -911,7 +867,7 @@ def receive_vm_logs():
 
 
 @app.route("/api/vm-logs/<hostname>", methods=["GET"])
-@require_auth
+@auth.login_required
 def get_vm_logs_by_hostname(hostname):
     try:
         if not database.vm_exists(hostname):
@@ -950,7 +906,7 @@ def get_vm_logs(hostname):
 
 
 @app.route("/api/vm-metrics/<hostname>", methods=["POST"])
-@require_api_token
+@require_client_secret
 def receive_vm_metrics(hostname):
     """Receive and store VM Cloud init metrics."""
     try:
@@ -974,7 +930,7 @@ def receive_vm_metrics(hostname):
 
 
 @app.route("/api/export-metrics", methods=["GET"])
-@require_auth
+@auth.login_required
 def export_metrics():
     """Export VM metrics data as JSON."""
     try:

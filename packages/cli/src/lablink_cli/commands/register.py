@@ -149,7 +149,6 @@ def _write_env_file(
         f"VM_NAME={resp['client_id']}",
         f"CLIENT_SECRET={resp['client_secret']}",
         f"AGENT_TOKEN={resp['agent_token']}",
-        f"API_TOKEN={resp.get('api_token', '')}",
         f"REGISTER_TOKEN={resp['register_token']}",
         f"ALLOCATOR_URL={resolved_url}",
         f"ALLOCATOR_HOST={allocator_host}",

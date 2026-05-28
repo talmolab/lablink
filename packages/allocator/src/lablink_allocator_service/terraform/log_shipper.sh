@@ -2,7 +2,7 @@
 # log_shipper.sh — Ships log lines to the allocator /api/vm-logs endpoint.
 #
 # Usage:
-#   log_shipper.sh <source> <allocator_url> <vm_name> <log_group> <api_token>
+#   log_shipper.sh <source> <allocator_url> <vm_name> <log_group> <client_secret>
 #
 # <source> is either:
 #   - A file path (e.g., /var/log/cloud-init-output.log) — tailed with tail -F
@@ -13,12 +13,12 @@ SOURCE="$1"
 ALLOCATOR_URL="$2"
 VM_NAME="$3"
 LOG_GROUP="$4"
-API_TOKEN="$5"
+CLIENT_SECRET="$5"
 
 BATCH_SIZE=50
 FLUSH_INTERVAL=15
 MAX_RETRIES=3
-ENDPOINT="$ALLOCATOR_URL/api/vm-logs"
+ENDPOINT="$ALLOCATOR_URL/api/vm-logs/$VM_NAME"
 SELF_LOG="/var/log/log_shipper.log"
 
 # Derive a short label for log messages
@@ -37,7 +37,7 @@ send_batch() {
         HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null \
             -X POST "$ENDPOINT" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Authorization: Bearer $CLIENT_SECRET" \
             -d "$payload" --max-time 10 2>/dev/null || echo "000")
         if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             return 0
@@ -65,8 +65,8 @@ flush_buffer() {
     done
     JSON_MESSAGES+="]"
 
-    PAYLOAD=$(printf '{"log_group":"%s","log_stream":"%s","messages":%s}' \
-        "$LOG_GROUP" "$VM_NAME" "$JSON_MESSAGES")
+    PAYLOAD=$(printf '{"log_group":"%s","messages":%s}' \
+        "$LOG_GROUP" "$JSON_MESSAGES")
 
     send_batch "$PAYLOAD"
     log "Flushed ${#BUFFER[@]} lines"

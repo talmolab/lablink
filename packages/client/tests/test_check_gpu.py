@@ -330,10 +330,11 @@ def test_check_gpu_main_with_env_var(
 ):
     """Test main function with ALLOCATOR_URL environment variable."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     monkeypatch.delenv("API_TOKEN", raising=False)
     main(cfg)
     mock_check_gpu_health.assert_called_once_with(
-        allocator_url="https://test.com", api_token=""
+        allocator_url="https://test.com", api_token="test-secret"
     )
 
 
@@ -344,9 +345,10 @@ def test_check_gpu_main_without_env_var(
 ):
     """Test main function without ALLOCATOR_URL environment variable."""
     monkeypatch.delenv("ALLOCATOR_URL", raising=False)
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     monkeypatch.delenv("API_TOKEN", raising=False)
     main(cfg)
     mock_check_gpu_health.assert_called_once_with(
-        allocator_url="http://localhost:80", api_token=""
+        allocator_url="http://localhost:80", api_token="test-secret"
     )
 

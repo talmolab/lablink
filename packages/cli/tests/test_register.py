@@ -19,7 +19,6 @@ def successful_response():
         "client_id": 42,
         "client_secret": "s",
         "agent_token": "a",
-        "api_token": "apitok",
         "register_token": "r",
         "allocator_url": "https://lablink.example.com",
         "connectivity": "lan_direct",
@@ -87,7 +86,7 @@ class TestSuccessFlow:
         assert "VM_NAME=42" in content
         assert "CLIENT_SECRET=s" in content
         assert "AGENT_TOKEN=a" in content
-        assert "API_TOKEN=apitok" in content
+        assert "API_TOKEN" not in content
         assert "REGISTER_TOKEN=r" in content
         assert "ALLOCATOR_URL=https://lablink.example.com" in content
         assert "ALLOCATOR_HOST=lablink.example.com" in content

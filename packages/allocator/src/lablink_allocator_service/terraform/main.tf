@@ -121,7 +121,6 @@ resource "aws_instance" "lablink_vm" {
       region                      = var.region
       startup_content_b64         = local.startup_content_b64
       startup_on_error            = var.startup_on_error
-      api_token                   = var.api_token
       agent_token                 = var.agent_token
       register_token              = var.register_token
       log_shipper_sh              = file("${path.module}/log_shipper.sh")

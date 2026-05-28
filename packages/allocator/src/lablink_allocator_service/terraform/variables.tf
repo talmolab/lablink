@@ -88,13 +88,6 @@ variable "custom_startup_script_path" {
   default     = "/config/custom-startup.sh"
 }
 
-variable "api_token" {
-  type        = string
-  description = "Shared bearer token for authenticating client-to-allocator API requests"
-  sensitive   = true
-  default     = ""
-}
-
 variable "agent_token" {
   type        = string
   description = "Deployment agent-control token the allocator presents to the client agent's session-start endpoint"

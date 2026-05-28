@@ -138,6 +138,7 @@ def test_api_callback(mock_call_api):
 def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
     """Test the main function of the update_inuse_status module."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     monkeypatch.delenv("API_TOKEN", raising=False)
     cfg = OmegaConf.create(
         {
@@ -158,6 +159,6 @@ def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
         ) as mock_api_callback:
         callback()
         mock_api_callback.assert_called_once_with(
-            "sleap", "https://test.com/api/update_inuse_status", ""
+            "sleap", "https://test.com/api/update_inuse_status", "test-secret"
         )
 

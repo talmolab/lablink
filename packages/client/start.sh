@@ -20,7 +20,7 @@ send_status() {
   local status="$1"
   echo ">> Reporting status='$status' to allocator..."
   curl -sS -X POST "$ALLOCATOR_URL/api/vm-status" \
-    -H "Authorization: Bearer ${CLIENT_SECRET:-$API_TOKEN}" \
+    -H "Authorization: Bearer $CLIENT_SECRET" \
     -H "Content-Type: application/json" \
     -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
     --max-time 5 \
@@ -258,7 +258,7 @@ CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 # Send container startup completion to allocator
 curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Authorization: Bearer $CLIENT_SECRET" \
   -d "{
     \"container_start\": $CONTAINER_START_TIME,
     \"container_end\": $CONTAINER_END_TIME,

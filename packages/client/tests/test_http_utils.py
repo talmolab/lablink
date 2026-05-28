@@ -3,6 +3,8 @@
 import importlib
 from unittest.mock import MagicMock
 
+import pytest
+
 from lablink_client_service.http_utils import (
     get_auth_headers,
     get_client_env,
@@ -45,7 +47,7 @@ class TestGetAuthHeaders:
 class TestGetClientEnv:
     def test_from_env_vars(self, monkeypatch):
         monkeypatch.setenv("ALLOCATOR_URL", "https://.example.com/")
-        monkeypatch.setenv("API_TOKEN", "tok123")
+        monkeypatch.setenv("CLIENT_SECRET", "tok123")
         monkeypatch.setenv("VM_NAME", "vm-1")
 
         cfg = MagicMock()
@@ -55,9 +57,9 @@ class TestGetClientEnv:
         assert api_token == "tok123"
         assert vm_name == "vm-1"
 
-    def test_fallback_to_config(self, monkeypatch):
+    def test_fallback_to_config_url(self, monkeypatch):
         monkeypatch.delenv("ALLOCATOR_URL", raising=False)
-        monkeypatch.delenv("API_TOKEN", raising=False)
+        monkeypatch.setenv("CLIENT_SECRET", "tok123")
         monkeypatch.delenv("VM_NAME", raising=False)
 
         cfg = MagicMock()
@@ -67,11 +69,11 @@ class TestGetClientEnv:
         base_url, api_token, vm_name = get_client_env(cfg)
 
         assert base_url == "http://localhost:5000"
-        assert api_token == ""
+        assert api_token == "tok123"
         assert vm_name is None
 
 
-def test_get_client_env_prefers_client_secret(monkeypatch):
+def test_get_client_env_uses_client_secret(monkeypatch):
     from lablink_client_service import http_utils
     importlib.reload(http_utils)
 
@@ -81,7 +83,6 @@ def test_get_client_env_prefers_client_secret(monkeypatch):
             port = 5000
 
     monkeypatch.setenv("ALLOCATOR_URL", "http://a:5000")
-    monkeypatch.setenv("API_TOKEN", "old-api-token")
     monkeypatch.setenv("CLIENT_SECRET", "new-client-secret")
     monkeypatch.setenv("VM_NAME", "vm-1")
 
@@ -90,19 +91,15 @@ def test_get_client_env_prefers_client_secret(monkeypatch):
     assert vm == "vm-1"
 
 
-def test_get_client_env_falls_back_to_api_token(monkeypatch):
-    from lablink_client_service import http_utils
-    importlib.reload(http_utils)
-
-    class _Cfg:
-        class allocator:
-            host = "h"
-            port = 5000
-
-    monkeypatch.setenv("ALLOCATOR_URL", "http://a:5000")
-    monkeypatch.setenv("API_TOKEN", "old-api-token")
+def test_get_client_env_raises_when_client_secret_missing(monkeypatch):
+    """After PR D4, CLIENT_SECRET is mandatory — no API_TOKEN fallback."""
     monkeypatch.delenv("CLIENT_SECRET", raising=False)
-    monkeypatch.setenv("VM_NAME", "vm-1")
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    from lablink_client_service.http_utils import get_client_env
 
-    _, token, _ = http_utils.get_client_env(_Cfg)
-    assert token == "old-api-token"
+    cfg = MagicMock()
+    cfg.allocator.host = "localhost"
+    cfg.allocator.port = 5000
+
+    with pytest.raises(RuntimeError, match="CLIENT_SECRET"):
+        get_client_env(cfg)

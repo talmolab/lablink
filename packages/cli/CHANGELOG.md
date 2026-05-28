@@ -21,6 +21,15 @@ this project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking — `API_TOKEN` retired.** Machine-to-machine auth from client to
+  allocator (status, heartbeat, metrics, log-shipping) now uses per-client
+  `client_secret` exclusively; the deployment-wide `API_TOKEN` is no longer
+  generated, written to `client.env`, or returned by
+  `POST /api/v1/clients/register`. The `/api/vm-logs` endpoint moved to
+  `/api/vm-logs/<hostname>` for symmetric identity resolution with
+  `/api/vm-metrics/<hostname>`. No backwards-compatibility path: a D4
+  allocator paired with a pre-D4 client is unsupported.
+
 - **Breaking:** the following top-level commands have moved under the new
   `client` subgroup. Existing scripts must be updated:
 

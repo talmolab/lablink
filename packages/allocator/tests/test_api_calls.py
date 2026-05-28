@@ -414,7 +414,7 @@ def test_update_vm_status_internal_failure(client, monkeypatch):
     assert resp.get_json() == {"error": "Failed to update VM status."}
 
 
-def test_get_all_vm_status_success(client, api_token_headers, monkeypatch):
+def test_get_all_vm_status_success(client, admin_headers, monkeypatch):
     """Test getting all VM statuses."""
     # Mock the database
     fake_db = MagicMock()
@@ -427,7 +427,7 @@ def test_get_all_vm_status_success(client, api_token_headers, monkeypatch):
     )
 
     # Call the API
-    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=api_token_headers)
+    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=admin_headers)
 
     assert resp.status_code == 200
     assert resp.is_json
@@ -438,7 +438,7 @@ def test_get_all_vm_status_success(client, api_token_headers, monkeypatch):
     fake_db.get_all_vm_status.assert_called_once()
 
 
-def test_get_all_vm_status_empty(client, api_token_headers, monkeypatch):
+def test_get_all_vm_status_empty(client, admin_headers, monkeypatch):
     """Test getting all VM statuses when empty."""
     # Mock the database
     fake_db = MagicMock()
@@ -448,7 +448,7 @@ def test_get_all_vm_status_empty(client, api_token_headers, monkeypatch):
     )
 
     # Call the API
-    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=api_token_headers)
+    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=admin_headers)
 
     assert resp.status_code == 404
     assert resp.is_json
@@ -456,7 +456,7 @@ def test_get_all_vm_status_empty(client, api_token_headers, monkeypatch):
     fake_db.get_all_vm_status.assert_called_once()
 
 
-def test_get_all_vm_status_internal_error(client, api_token_headers, monkeypatch):
+def test_get_all_vm_status_internal_error(client, admin_headers, monkeypatch):
     """Test getting all VM statuses with internal error."""
     # Mock the database
     fake_db = MagicMock()
@@ -466,7 +466,7 @@ def test_get_all_vm_status_internal_error(client, api_token_headers, monkeypatch
     )
 
     # Call the API
-    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=api_token_headers)
+    resp = client.get(VM_STATUS_UPDATE_ENDPOINT, headers=admin_headers)
 
     assert resp.status_code == 500
     assert resp.is_json
@@ -474,11 +474,12 @@ def test_get_all_vm_status_internal_error(client, api_token_headers, monkeypatch
     fake_db.get_all_vm_status.assert_called_once()
 
 
-def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
+def test_posting_vm_logs_success(client, monkeypatch):
     """Test posting VM logs successfully (cloud-init)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -486,10 +487,13 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     # Call the API
     data = {
         "log_group": "cloud-init-output-logs",
-        "log_stream": "lablink-vm-test-1",
         "messages": ["Message 1", "Message 2"],
     }
-    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1",
+        json=data,
+        headers=_CLIENT_SECRET_HEADERS,
+    )
 
     assert resp.status_code == 200
     assert resp.is_json
@@ -503,11 +507,12 @@ def test_posting_vm_logs_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
+def test_posting_docker_logs_success(client, monkeypatch):
     """Test posting VM logs successfully (docker)."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -515,10 +520,13 @@ def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
     # Call the API with log_group ending in -docker
     data = {
         "log_group": "cloud-init-output-logs-docker",
-        "log_stream": "lablink-vm-test-1",
         "messages": ["Docker msg 1"],
     }
-    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1",
+        json=data,
+        headers=_CLIENT_SECRET_HEADERS,
+    )
 
     assert resp.status_code == 200
     assert resp.is_json
@@ -531,53 +539,60 @@ def test_posting_docker_logs_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_posting_vm_logs_missing_data(client, api_token_headers, monkeypatch):
+def test_posting_vm_logs_missing_data(client, monkeypatch):
     """Test posting VM logs with missing data."""
     # Mock the database
     fake_db = MagicMock()
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
     # Call the API with missing data
-    resp = client.post(VM_LOGS_ENDPOINT, json={}, headers=api_token_headers)
+    resp = client.post(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1",
+        json={},
+        headers=_CLIENT_SECRET_HEADERS,
+    )
 
     assert resp.status_code == 400
     assert resp.is_json
-    assert resp.get_json() == {"error": "Log group, stream, and messages are required."}
+    assert resp.get_json() == {"error": "Log group and messages are required."}
     fake_db.vm_exists.assert_not_called()
     fake_db.append_logs_by_hostname.assert_not_called()
 
 
-def test_posting_vm_logs_vm_not_exists(client, api_token_headers, monkeypatch):
-    """Test posting VM logs when VM does not exist."""
-    # Mock the database
+def test_posting_vm_logs_rejects_unregistered_hostname(client, monkeypatch):
+    """Posting logs for a hostname with no registered client_secret returns 401
+    (no identity leak — the handler is never reached)."""
+    # Mock the database — unknown hostname: get_client_secret_hash returns None
     fake_db = MagicMock()
-    fake_db.vm_exists.return_value = False
+    fake_db.get_client_secret_hash.return_value = None
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the API
+    # Call the API with a hostname that has no registered secret
     data = {
         "log_group": "cloud-init-output-logs",
-        "log_stream": "lablink-vm-test-1",
         "messages": ["Message 1", "Message 2"],
     }
-    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-missing",
+        json=data,
+        headers=_CLIENT_SECRET_HEADERS,
+    )
 
-    assert resp.status_code == 404
-    assert resp.is_json
-    assert resp.get_json() == {"error": "VM not found."}
-    fake_db.vm_exists.assert_called_once_with("lablink-vm-test-1")
+    assert resp.status_code == 401
     fake_db.append_logs_by_hostname.assert_not_called()
 
 
-def test_posting_vm_logs_internal_error(client, api_token_headers, monkeypatch):
+def test_posting_vm_logs_internal_error(client, monkeypatch):
     """Test posting VM logs with internal error."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.side_effect = Exception("Internal error")
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -585,10 +600,13 @@ def test_posting_vm_logs_internal_error(client, api_token_headers, monkeypatch):
     # Call the API
     data = {
         "log_group": "cloud-init-output-logs",
-        "log_stream": "lablink-vm-test-1",
         "messages": ["Message 1", "Message 2"],
     }
-    resp = client.post(VM_LOGS_ENDPOINT, json=data, headers=api_token_headers)
+    resp = client.post(
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1",
+        json=data,
+        headers=_CLIENT_SECRET_HEADERS,
+    )
 
     assert resp.status_code == 500
     assert resp.is_json
@@ -597,7 +615,7 @@ def test_posting_vm_logs_internal_error(client, api_token_headers, monkeypatch):
     fake_db.append_logs_by_hostname.assert_not_called()
 
 
-def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch):
+def test_get_vm_logs_by_hostname_success(client, admin_headers, monkeypatch):
     """Test getting VM logs by hostname successfully."""
     # Mock the database
     fake_db = MagicMock()
@@ -613,7 +631,7 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
 
     # Call the API
     resp = client.get(
-        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=api_token_headers
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=admin_headers
     )
 
     assert resp.status_code == 200
@@ -626,7 +644,7 @@ def test_get_vm_logs_by_hostname_success(client, api_token_headers, monkeypatch)
     fake_db.get_vm_logs.assert_called_once_with(hostname="lablink-vm-test-1")
 
 
-def test_vm_logs_by_hostname_not_found(client, api_token_headers, monkeypatch):
+def test_vm_logs_by_hostname_not_found(client, admin_headers, monkeypatch):
     """Test getting VM logs by hostname when not found."""
     # Mock the database
     fake_db = MagicMock()
@@ -637,7 +655,7 @@ def test_vm_logs_by_hostname_not_found(client, api_token_headers, monkeypatch):
 
     # Call the API
     resp = client.get(
-        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=api_token_headers
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=admin_headers
     )
 
     assert resp.status_code == 404
@@ -647,7 +665,7 @@ def test_vm_logs_by_hostname_not_found(client, api_token_headers, monkeypatch):
 
 
 def test_vm_logs_by_hostname_installing_cloud_watch(
-    client, api_token_headers, monkeypatch
+    client, admin_headers, monkeypatch
 ):
     """Test getting VM logs by hostname when VM is initializing."""
     # Mock the database
@@ -661,7 +679,7 @@ def test_vm_logs_by_hostname_installing_cloud_watch(
 
     # Call the API
     resp = client.get(
-        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=api_token_headers
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=admin_headers
     )
 
     assert resp.status_code == 503
@@ -669,7 +687,7 @@ def test_vm_logs_by_hostname_installing_cloud_watch(
     assert resp.get_json() == {"error": "VM is initializing."}
 
 
-def test_vm_logs_by_hostname_internal_error(client, api_token_headers, monkeypatch):
+def test_vm_logs_by_hostname_internal_error(client, admin_headers, monkeypatch):
     """Test getting VM logs by hostname with internal error."""
     # Mock the database
     fake_db = MagicMock()
@@ -680,7 +698,7 @@ def test_vm_logs_by_hostname_internal_error(client, api_token_headers, monkeypat
 
     # Call the API
     resp = client.get(
-        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=api_token_headers
+        f"{VM_LOGS_ENDPOINT}/lablink-vm-test-1", headers=admin_headers
     )
 
     assert resp.status_code == 500
@@ -689,11 +707,12 @@ def test_vm_logs_by_hostname_internal_error(client, api_token_headers, monkeypat
     fake_db.get_vm_logs.assert_not_called()
 
 
-def test_receive_vm_metrics_success(client, api_token_headers, monkeypatch):
+def test_receive_vm_metrics_success(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint with valid data."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -708,7 +727,7 @@ def test_receive_vm_metrics_success(client, api_token_headers, monkeypatch):
         "cloud_init_duration_seconds": 120,
     }
     resp = client.post(
-        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=api_token_headers
+        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
@@ -721,11 +740,12 @@ def test_receive_vm_metrics_success(client, api_token_headers, monkeypatch):
     )
 
 
-def test_receive_vm_metrics_vm_not_found(client, api_token_headers, monkeypatch):
+def test_receive_vm_metrics_vm_not_found(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint when the VM is not found."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = False
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -736,7 +756,7 @@ def test_receive_vm_metrics_vm_not_found(client, api_token_headers, monkeypatch)
     hostname = "non-existent-vm"
     metrics_data = {"cloud_init_duration_seconds": 120}
     resp = client.post(
-        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=api_token_headers
+        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
@@ -746,12 +766,13 @@ def test_receive_vm_metrics_vm_not_found(client, api_token_headers, monkeypatch)
     fake_db.update_vm_metrics_atomic.assert_not_called()
 
 
-def test_receive_vm_metrics_internal_error(client, api_token_headers, monkeypatch):
+def test_receive_vm_metrics_internal_error(client, monkeypatch):
     """Test the /api/vm-metrics/<hostname> endpoint with an internal error."""
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
     fake_db.update_vm_metrics_atomic.side_effect = Exception("Database error")
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -762,7 +783,7 @@ def test_receive_vm_metrics_internal_error(client, api_token_headers, monkeypatc
     hostname = "test-vm-01"
     metrics_data = {"cloud_init_duration_seconds": 120}
     resp = client.post(
-        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=api_token_headers
+        f"{METRICS_ENDPOINT}/{hostname}", json=metrics_data, headers=_CLIENT_SECRET_HEADERS
     )
 
     # Assert the response
@@ -774,13 +795,14 @@ def test_receive_vm_metrics_internal_error(client, api_token_headers, monkeypatc
     )
 
 
-def test_receive_vm_metrics_concurrent(client, api_token_headers, monkeypatch):
+def test_receive_vm_metrics_concurrent(client, monkeypatch):
     """Test that concurrent metrics requests are handled correctly."""
     import concurrent.futures
 
     # Mock the database
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
+    _stub_client_secret(fake_db)
 
     # Patch globals
     monkeypatch.setattr(
@@ -798,7 +820,7 @@ def test_receive_vm_metrics_concurrent(client, api_token_headers, monkeypatch):
         return client.post(
             f"{METRICS_ENDPOINT}/{hostname}",
             json=metrics_data,
-            headers=api_token_headers,
+            headers=_CLIENT_SECRET_HEADERS,
         )
 
     # Send all requests concurrently
@@ -1492,84 +1514,21 @@ def test_create_scheduled_destruction_duplicate_name(
 # ──────────────────────────────────────────────────────────────────────
 
 
-# Endpoints that require ONLY API token auth (machine-to-machine)
-TOKEN_PROTECTED_ENDPOINTS = [
-    ("POST", VM_LOGS_ENDPOINT, {"log_group": "g", "log_stream": "s", "messages": ["m"]}),
-    ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
-]
-
 # Endpoints that require a per-client secret (require_client_secret decorator)
 CLIENT_SECRET_PROTECTED_ENDPOINTS = [
     ("POST", UPDATE_INUSE_STATUS_ENDPOINT, {"hostname": "vm-1", "status": True}),
     ("POST", UPDATE_GPU_HEALTH_ENDPOINT, {"hostname": "vm-1", "gpu_status": "Healthy"}),
     ("POST", HEARTBEAT_ENDPOINT, {"vm_id": "vm-1"}),
     ("POST", VM_STATUS_UPDATE_ENDPOINT, {"hostname": "vm-1", "status": "running"}),
+    ("POST", f"{METRICS_ENDPOINT}/vm-1", {"cloud_init_duration_seconds": 120}),
+    ("POST", f"{VM_LOGS_ENDPOINT}/vm-1", {"log_group": "g", "messages": ["m"]}),
 ]
 
-# Endpoints that accept either session auth or API token (admin UI + VMs)
-DUAL_AUTH_ENDPOINTS = [
+# Endpoints that require admin Basic auth (auth.login_required)
+ADMIN_AUTH_ENDPOINTS = [
     ("GET", VM_STATUS_UPDATE_ENDPOINT, None),
     ("GET", f"{VM_LOGS_ENDPOINT}/vm-1", None),
 ]
-
-
-@pytest.mark.parametrize("method,endpoint,json_data", TOKEN_PROTECTED_ENDPOINTS)
-def test_token_protected_endpoints_reject_no_token(
-    client, monkeypatch, method, endpoint, json_data
-):
-    """All token-protected endpoints return 401 without a bearer token."""
-    fake_db = MagicMock()
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    if method == "GET":
-        resp = client.get(endpoint)
-    else:
-        resp = client.post(endpoint, json=json_data)
-
-    assert resp.status_code == 401
-    assert resp.get_json()["error"] == "Missing or invalid Authorization header."
-
-
-@pytest.mark.parametrize("method,endpoint,json_data", TOKEN_PROTECTED_ENDPOINTS)
-def test_token_protected_endpoints_reject_wrong_token(
-    client, monkeypatch, method, endpoint, json_data
-):
-    """All token-protected endpoints return 401 with an invalid bearer token."""
-    fake_db = MagicMock()
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    bad_headers = {"Authorization": "Bearer wrong-token-value"}
-    if method == "GET":
-        resp = client.get(endpoint, headers=bad_headers)
-    else:
-        resp = client.post(endpoint, json=json_data, headers=bad_headers)
-
-    assert resp.status_code == 401
-    assert resp.get_json()["error"] == "Invalid API token."
-
-
-@pytest.mark.parametrize("method,endpoint,json_data", TOKEN_PROTECTED_ENDPOINTS)
-def test_token_protected_endpoints_reject_non_bearer_auth(
-    client, monkeypatch, method, endpoint, json_data
-):
-    """All token-protected endpoints reject non-Bearer auth schemes."""
-    fake_db = MagicMock()
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
-    )
-
-    bad_headers = {"Authorization": "Basic dXNlcjpwYXNz"}
-    if method == "GET":
-        resp = client.get(endpoint, headers=bad_headers)
-    else:
-        resp = client.post(endpoint, json=json_data, headers=bad_headers)
-
-    assert resp.status_code == 401
-    assert resp.get_json()["error"] == "Missing or invalid Authorization header."
 
 
 @pytest.mark.parametrize("method,endpoint,json_data", CLIENT_SECRET_PROTECTED_ENDPOINTS)
@@ -1632,11 +1591,11 @@ def test_client_secret_endpoints_reject_non_bearer_auth(
     assert resp.get_json()["error"] == "Missing or invalid Authorization header."
 
 
-@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
-def test_dual_auth_endpoints_reject_no_auth(
+@pytest.mark.parametrize("method,endpoint,json_data", ADMIN_AUTH_ENDPOINTS)
+def test_admin_auth_endpoints_reject_no_auth(
     client, monkeypatch, method, endpoint, json_data
 ):
-    """Dual-auth endpoints return 401 without any authentication."""
+    """Admin endpoints return 401 without any authentication."""
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
@@ -1650,31 +1609,33 @@ def test_dual_auth_endpoints_reject_no_auth(
     assert resp.status_code == 401
 
 
-@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
-def test_dual_auth_endpoints_reject_wrong_token(
+@pytest.mark.parametrize("method,endpoint,json_data", ADMIN_AUTH_ENDPOINTS)
+def test_admin_auth_endpoints_reject_wrong_credentials(
     client, monkeypatch, method, endpoint, json_data
 ):
-    """Dual-auth endpoints return 401 with an invalid bearer token."""
+    """Admin endpoints return 401 with wrong Basic auth credentials."""
+    import base64
+
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    bad_headers = {"Authorization": "Bearer wrong-token-value"}
+    bad_creds = base64.b64encode(b"wrong:credentials").decode()
+    bad_headers = {"Authorization": f"Basic {bad_creds}"}
     if method == "GET":
         resp = client.get(endpoint, headers=bad_headers)
     else:
         resp = client.post(endpoint, json=json_data, headers=bad_headers)
 
     assert resp.status_code == 401
-    assert resp.get_json()["error"] == "Invalid API token."
 
 
-@pytest.mark.parametrize("method,endpoint,json_data", DUAL_AUTH_ENDPOINTS)
-def test_dual_auth_endpoints_accept_api_token(
-    client, api_token_headers, monkeypatch, method, endpoint, json_data
+@pytest.mark.parametrize("method,endpoint,json_data", ADMIN_AUTH_ENDPOINTS)
+def test_admin_auth_endpoints_accept_basic_auth(
+    client, admin_headers, monkeypatch, method, endpoint, json_data
 ):
-    """Dual-auth endpoints accept a valid API bearer token."""
+    """Admin endpoints accept valid admin Basic auth credentials."""
     fake_db = MagicMock()
     fake_db.get_unassigned_vms.return_value = []
     fake_db.get_all_vm_status.return_value = {"vm-1": "running"}
@@ -1689,9 +1650,9 @@ def test_dual_auth_endpoints_accept_api_token(
     )
 
     if method == "GET":
-        resp = client.get(endpoint, headers=api_token_headers)
+        resp = client.get(endpoint, headers=admin_headers)
     else:
-        resp = client.post(endpoint, json=json_data, headers=api_token_headers)
+        resp = client.post(endpoint, json=json_data, headers=admin_headers)
 
     assert resp.status_code == 200
 
@@ -1879,10 +1840,11 @@ def test_vm_status_bumps_last_seen(client, monkeypatch):
     fake_db.touch_last_seen.assert_called_once_with(hostname="vm-1")
 
 
-def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
+def test_vm_metrics_bumps_last_seen(client, monkeypatch):
     """POST /api/vm-metrics/<hostname> refreshes last_seen_at."""
     fake_db = MagicMock()
     fake_db.vm_exists.return_value = True
+    _stub_client_secret(fake_db)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
@@ -1890,7 +1852,7 @@ def test_vm_metrics_bumps_last_seen(client, api_token_headers, monkeypatch):
     resp = client.post(
         f"{METRICS_ENDPOINT}/vm-1",
         json={"container_start": 0, "container_end": 1},
-        headers=api_token_headers,
+        headers=_CLIENT_SECRET_HEADERS,
     )
 
     assert resp.status_code == 200

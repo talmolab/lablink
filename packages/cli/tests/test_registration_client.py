@@ -44,7 +44,6 @@ class TestRegister:
             "client_id": 42,
             "client_secret": "s",
             "agent_token": "a",
-            "api_token": "apitok",
             "register_token": "r",
             "allocator_url": "https://lablink.example.com",
             "connectivity": "lan_direct",

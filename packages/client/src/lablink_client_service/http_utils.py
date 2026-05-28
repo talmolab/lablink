@@ -19,11 +19,11 @@ def sanitize_url(url: str) -> str:
     return url
 
 
-def get_auth_headers(api_token: str = "") -> dict:
+def get_auth_headers(token: str = "") -> dict:
     """Build HTTP headers with optional Bearer token auth."""
     headers = {}
-    if api_token:
-        headers["Authorization"] = f"Bearer {api_token}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
@@ -31,7 +31,10 @@ def get_client_env(cfg) -> tuple:
     """Read common client environment variables with config fallback.
 
     Returns:
-        (base_url, api_token, vm_name) tuple.
+        (base_url, client_secret, vm_name) tuple.
+
+    Raises:
+        RuntimeError: If CLIENT_SECRET is not set.
     """
     allocator_url = os.getenv("ALLOCATOR_URL")
     if allocator_url:
@@ -39,7 +42,14 @@ def get_client_env(cfg) -> tuple:
     else:
         base_url = f"http://{cfg.allocator.host}:{cfg.allocator.port}"
 
-    api_token = os.getenv("CLIENT_SECRET") or os.getenv("API_TOKEN", "")
+    client_secret = os.environ.get("CLIENT_SECRET")
+    if not client_secret:
+        raise RuntimeError(
+            "CLIENT_SECRET environment variable is required. "
+            "Each client must be registered via /api/v1/clients/register "
+            "(handled automatically by user_data.sh on AWS and "
+            "`lablink register` on manual deployments)."
+        )
     vm_name = os.getenv("VM_NAME")
 
-    return base_url, api_token, vm_name
+    return base_url, client_secret, vm_name

@@ -13,7 +13,6 @@ _ENV_BODY = (
     "VM_NAME=vm-1\n"
     "CLIENT_SECRET=sek\n"
     "AGENT_TOKEN=agent\n"
-    "API_TOKEN=api\n"
     "REGISTER_TOKEN=reg\n"
     "ALLOCATOR_URL=http://allocator.example.com\n"
     "ALLOCATOR_HOST=allocator.example.com\n"
