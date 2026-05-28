@@ -17,27 +17,6 @@ from lablink_allocator_service.secret_hash import hash_secret, verify_secret
 bp = Blueprint("registration", __name__)
 
 
-def _require_admin_or_api_token():
-    """Accept Bearer API_TOKEN or admin HTTP Basic.
-
-    Returns None when authorized, or a Flask response to return as-is.
-    Lazy-imports ``main`` to keep this blueprint clear of the
-    module-load cycle, mirroring the other views above.
-    """
-    from lablink_allocator_service import main
-
-    header = request.headers.get("Authorization", "")
-    if header.startswith("Bearer "):
-        token = header[7:]
-        if secrets.compare_digest(token, main.API_TOKEN):
-            return None
-        return jsonify({"error": "Invalid API token."}), 401
-
-    if main.auth.current_user():
-        return None
-    return main.auth.login_required(lambda: None)()
-
-
 @bp.route("/api/v1/clients/register", methods=["POST"])
 def register_client():
     from lablink_allocator_service import main
@@ -98,7 +77,6 @@ def register_client():
         client_id=client_id,
         client_secret=client_secret,
         agent_token=main.AGENT_TOKEN,
-        api_token=main.API_TOKEN,
         register_token=jm.register_token,
         allocator_url=jm.allocator_url,
         connectivity=jm.connectivity,
@@ -153,31 +131,32 @@ def unregister_client(client_id):
 def list_clients():
     """List registered clients for operator status views.
 
-    Auth: Bearer API_TOKEN or admin HTTP Basic — same gate as
-    ``/admin/instances``. Returns only operator-safe columns
-    (no secrets, no log blobs).
+    Auth: admin HTTP Basic — same gate as ``/admin/instances``.
+    Returns only operator-safe columns (no secrets, no log blobs).
     """
+    # Lazy import + manual decorator application: `main.auth` is only
+    # created when main.py imports this blueprint, so we can't decorate
+    # at module load time.
     from lablink_allocator_service import main
 
-    rejection = _require_admin_or_api_token()
-    if rejection is not None:
-        return rejection
+    def _handler():
+        rows = main.database.list_registered_clients()
+        clients = []
+        for row in rows:
+            last_seen = row.get("last_seen_at")
+            if isinstance(last_seen, datetime):
+                last_seen = last_seen.isoformat()
+            clients.append({
+                "hostname": row.get("hostname"),
+                "provider": row.get("provider"),
+                "endpoint_url": row.get("endpoint_url"),
+                "inuse": row.get("inuse"),
+                "status": row.get("status"),
+                "healthy": row.get("healthy"),
+                "gpu_present": row.get("gpu_present"),
+                "gpu_model": row.get("gpu_model"),
+                "last_seen_at": last_seen,
+            })
+        return jsonify(clients=clients), 200
 
-    rows = main.database.list_registered_clients()
-    clients = []
-    for row in rows:
-        last_seen = row.get("last_seen_at")
-        if isinstance(last_seen, datetime):
-            last_seen = last_seen.isoformat()
-        clients.append({
-            "hostname": row.get("hostname"),
-            "provider": row.get("provider"),
-            "endpoint_url": row.get("endpoint_url"),
-            "inuse": row.get("inuse"),
-            "status": row.get("status"),
-            "healthy": row.get("healthy"),
-            "gpu_present": row.get("gpu_present"),
-            "gpu_model": row.get("gpu_model"),
-            "last_seen_at": last_seen,
-        })
-    return jsonify(clients=clients), 200
+    return main.auth.login_required(_handler)()

@@ -30,13 +30,13 @@ def test_check_gpu_health_machine_with_no_gpu(mock_run, mock_post, mock_environm
     ]
     mock_post.return_value = MagicMock(status_code=200)
 
-    check_gpu_health("http://localhost:5000")
+    check_gpu_health("http://localhost:5000", client_secret="tok")
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "N/A"},
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Authorization": "Bearer tok"},
         timeout=(10, 20),
     )
 
@@ -64,13 +64,13 @@ def test_check_gpu_health_machine_with_gpu(
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(StopIteration):
-        check_gpu_health("http://localhost:5000")
+        check_gpu_health("http://localhost:5000", client_secret="tok")
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "Healthy"},
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Authorization": "Bearer tok"},
         timeout=(10, 20),
     )
 
@@ -108,13 +108,15 @@ def test_check_gpu_health_machine_with_gpu_multiple(
     mock_post.return_value = MagicMock(status_code=200)
 
     with pytest.raises(StopIteration):
-        check_gpu_health(allocator_url="http://localhost:5000", interval=10)
+        check_gpu_health(
+            allocator_url="http://localhost:5000", interval=10, client_secret="tok"
+        )
 
     assert mock_post.call_count == 1
     mock_post.assert_called_with(
         "http://localhost:5000/api/gpu_health",
         json={"hostname": "vm-1", "gpu_status": "Healthy"},
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Authorization": "Bearer tok"},
         timeout=(10, 20),
     )
 
@@ -330,10 +332,10 @@ def test_check_gpu_main_with_env_var(
 ):
     """Test main function with ALLOCATOR_URL environment variable."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
-    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     main(cfg)
     mock_check_gpu_health.assert_called_once_with(
-        allocator_url="https://test.com", api_token=""
+        allocator_url="https://test.com", client_secret="test-secret"
     )
 
 
@@ -344,9 +346,9 @@ def test_check_gpu_main_without_env_var(
 ):
     """Test main function without ALLOCATOR_URL environment variable."""
     monkeypatch.delenv("ALLOCATOR_URL", raising=False)
-    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     main(cfg)
     mock_check_gpu_health.assert_called_once_with(
-        allocator_url="http://localhost:80", api_token=""
+        allocator_url="http://localhost:80", client_secret="test-secret"
     )
 

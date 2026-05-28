@@ -21,20 +21,20 @@ MAX_REPORT_RETRIES = 5
 REPORT_RETRY_DELAY = 10  # seconds
 
 
-def check_gpu_health(allocator_url: str, interval: int = 20, api_token: str = ""):
+def check_gpu_health(allocator_url: str, interval: int = 20, client_secret: str = ""):
     """Check the health of the GPU.
 
     Args:
         allocator_url (str): The base URL of the allocator service.
         interval (int, optional): The interval in seconds to check the GPU health.
-        api_token (str, optional): Bearer token for API authentication.
+        client_secret (str, optional): Per-client secret for Bearer auth.
     """
     logger.info("Starting GPU health monitoring")
     last_status = None
     base_url = sanitize_url(allocator_url)
 
     headers = {"Content-Type": "application/json"}
-    headers.update(get_auth_headers(api_token))
+    headers.update(get_auth_headers(client_secret))
 
     while True:
         curr_status = None
@@ -128,8 +128,8 @@ def main(cfg: Config) -> None:
         module_name="check_gpu",
     )
     # Check GPU health
-    base_url, api_token, _ = get_client_env(cfg)
-    check_gpu_health(allocator_url=base_url, api_token=api_token)
+    base_url, client_secret, _ = get_client_env(cfg)
+    check_gpu_health(allocator_url=base_url, client_secret=client_secret)
 
 
 if __name__ == "__main__":

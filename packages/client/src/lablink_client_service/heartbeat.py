@@ -91,7 +91,7 @@ def send_heartbeat(
 
 def run_heartbeat_loop(
     allocator_url: str,
-    api_token: str = "",
+    client_secret: str = "",
     interval: int = HEARTBEAT_INTERVAL_SECONDS,
     stop_event: threading.Event | None = None,
 ) -> None:
@@ -105,7 +105,7 @@ def run_heartbeat_loop(
     logger.info("Starting heartbeat loop")
     base_url = sanitize_url(allocator_url)
     headers = {"Content-Type": "application/json"}
-    headers.update(get_auth_headers(api_token))
+    headers.update(get_auth_headers(client_secret))
 
     vm_id = os.getenv("VM_NAME")
     boot_id = read_boot_id()
@@ -126,8 +126,8 @@ def run_heartbeat_loop(
 def main(cfg: Config) -> None:
     global logger
     logger = CloudAndConsoleLogger(module_name="heartbeat")
-    base_url, api_token, _ = get_client_env(cfg)
-    run_heartbeat_loop(allocator_url=base_url, api_token=api_token)
+    base_url, client_secret, _ = get_client_env(cfg)
+    run_heartbeat_loop(allocator_url=base_url, client_secret=client_secret)
 
 
 if __name__ == "__main__":

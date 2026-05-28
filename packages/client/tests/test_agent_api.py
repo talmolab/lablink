@@ -45,9 +45,8 @@ def test_session_start_rotates_password_on_valid_request(client, authed_headers)
 
 
 def test_agent_validates_agent_token(monkeypatch):
-    """AGENT_TOKEN accepted, wrong token rejected, API_TOKEN not consulted."""
+    """AGENT_TOKEN accepted, wrong token rejected."""
     monkeypatch.setenv("AGENT_TOKEN", "good-agent")
-    monkeypatch.delenv("API_TOKEN", raising=False)
     from lablink_client_service.agent.api import create_app
     app = create_app()
     app.config["TESTING"] = True

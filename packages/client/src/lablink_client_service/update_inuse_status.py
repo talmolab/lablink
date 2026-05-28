@@ -76,11 +76,11 @@ def listen_for_process(
         time.sleep(interval + jitter)
 
 
-def call_api(process_name, url, api_token=""):
+def call_api(process_name, url, client_secret=""):
     hostname = os.getenv("VM_NAME")
     status = is_process_running(process_name=process_name)
 
-    headers = get_auth_headers(api_token)
+    headers = get_auth_headers(client_secret)
 
     retry_count = 0
 
@@ -116,9 +116,9 @@ def call_api(process_name, url, api_token=""):
         )
 
 
-def api_callback(process_name: str, url: str, api_token: str = ""):
+def api_callback(process_name: str, url: str, client_secret: str = ""):
     """Callback to call the API when process state changes."""
-    call_api(process_name, url, api_token=api_token)
+    call_api(process_name, url, client_secret=client_secret)
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -128,14 +128,14 @@ def main(cfg: Config) -> None:
     logger = CloudAndConsoleLogger(module_name="update_inuse_status")
     logger.info("Starting in-use status monitoring service")
 
-    base_url, api_token, _ = get_client_env(cfg)
+    base_url, client_secret, _ = get_client_env(cfg)
     url = f"{base_url}/api/update_inuse_status"
 
     # Start listening for the process
     listen_for_process(
         process_name=cfg.client.software,
         interval=20,
-        callback_func=lambda: api_callback(cfg.client.software, url, api_token),
+        callback_func=lambda: api_callback(cfg.client.software, url, client_secret),
     )
 
 

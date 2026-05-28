@@ -17,7 +17,6 @@ echo "  - Log Group: ${cloud_init_output_log_group}"
 VM_NAME="${resource_prefix}-vm-${count_index}"
 ALLOCATOR_IP="${allocator_ip}"
 ALLOCATOR_URL="${allocator_url}"
-API_TOKEN="${api_token}"
 REGISTER_TOKEN="${register_token}"
 STATUS_ENDPOINT="$ALLOCATOR_URL/api/vm-status"
 LOG_GROUP="${cloud_init_output_log_group}"
@@ -57,7 +56,7 @@ SHIPPER_EOF
 chmod +x /usr/local/bin/log_shipper.sh
 
 echo ">> Starting log shipper for cloud-init log..."
-nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" "$API_TOKEN" \
+nohup /usr/local/bin/log_shipper.sh "$CLOUD_INIT_LOG" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP" "$CLIENT_SECRET" \
     >> /var/log/log_shipper.log 2>&1 &
 LOG_SHIPPER_CLOUD_INIT_PID=$!
 echo ">> Log shipper started (PID: $LOG_SHIPPER_CLOUD_INIT_PID)"
@@ -76,7 +75,7 @@ EXISTING_CONTAINER=$(docker ps -a --filter "ancestor=${image_name}" -q 2>/dev/nu
 if [ -n "$EXISTING_CONTAINER" ]; then
     echo ">> Existing container detected: $EXISTING_CONTAINER"
     echo ">> Warm reboot — restarting docker log shipper and skipping provisioning."
-    nohup /usr/local/bin/log_shipper.sh "docker:$EXISTING_CONTAINER" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$API_TOKEN" \
+    nohup /usr/local/bin/log_shipper.sh "docker:$EXISTING_CONTAINER" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$CLIENT_SECRET" \
         >> /var/log/log_shipper.log 2>&1 &
     echo ">> Docker log shipper started (PID: $!)"
     exit 0
@@ -180,7 +179,6 @@ if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     -e VM_NAME="${resource_prefix}-vm-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
-    -e API_TOKEN="${api_token}" \
     -e AGENT_TOKEN="${agent_token}" \
     -e CLIENT_SECRET="$CLIENT_SECRET" \
     --network host \
@@ -205,7 +203,7 @@ done
 CONTAINER_ID=$(docker ps -q --latest 2>/dev/null || true)
 if [ -n "$CONTAINER_ID" ]; then
     echo ">> Starting log shipper for Docker container (docker logs --follow)..."
-    nohup /usr/local/bin/log_shipper.sh "docker:$CONTAINER_ID" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$API_TOKEN" \
+    nohup /usr/local/bin/log_shipper.sh "docker:$CONTAINER_ID" "$ALLOCATOR_URL" "$VM_NAME" "$LOG_GROUP-docker" "$CLIENT_SECRET" \
         >> /var/log/log_shipper.log 2>&1 &
     echo ">> Docker log shipper started (PID: $!)"
 else
@@ -228,7 +226,7 @@ for i in {1..5}; do
     HTTP_CODE=$(curl -s -w "%%{http_code}" -o /tmp/metrics_response.txt \
         -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Authorization: Bearer $CLIENT_SECRET" \
         -d "{
             \"cloud_init_start\": $CLOUD_INIT_START_TIME,
             \"cloud_init_end\": $CLOUD_INIT_END,

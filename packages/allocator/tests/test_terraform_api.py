@@ -963,8 +963,7 @@ def test_launch_writes_agent_token_to_tfvars_additively(
 ):
     """Regression: launch() must write agent_token = "<main.AGENT_TOKEN>" into
     terraform.runtime.tfvars so the client agent receives AGENT_TOKEN env via
-    the bundled user_data — WITHOUT dropping the existing api_token line
-    (additive, not a rename). Guards the D1 shipping-blocker wiring: if the
+    the bundled user_data. Guards the D1 shipping-blocker wiring: if the
     AGENT_TOKEN tfvars thread is ever removed, every /api/session/start 500s.
     """
     terraform_dir = tmp_path / "terraform"
@@ -983,9 +982,6 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
-    )
-    monkeypatch.setattr(
-        "lablink_allocator_service.main.API_TOKEN", "test-api-token-value", raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.AGENT_TOKEN", "test-agent-token-value", raising=False
@@ -1012,9 +1008,8 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     # agent_token carries main.AGENT_TOKEN ...
     assert f'agent_token = "{main.AGENT_TOKEN}"' in tfvars
     assert 'agent_token = "test-agent-token-value"' in tfvars
-    # ... and api_token is still written (additive, not replaced).
-    assert f'api_token = "{main.API_TOKEN}"' in tfvars
-    assert 'api_token = "test-api-token-value"' in tfvars
+    # api_token is retired (PR D4) — must NOT appear in tfvars.
+    assert "api_token" not in tfvars
 
 
 def test_terraform_threads_agent_token_through_user_data():
@@ -1023,8 +1018,8 @@ def test_terraform_threads_agent_token_through_user_data():
     Catches typos/renames in the templatefile var name, variables.tf,
     or user_data.sh's docker-run `-e` line that would slip past both
     `terraform validate` (HCL only) and the runtime tfvars-write test
-    above (which only pins the .tfvars line). Pins the end-to-end
-    AGENT_TOKEN wiring as additive next to the surviving API_TOKEN.
+    above (which only pins the .tfvars line). After PR D4, api_token is
+    retired from the terraform template — only agent_token remains.
     """
     import re
     from pathlib import Path
@@ -1042,6 +1037,7 @@ def test_terraform_threads_agent_token_through_user_data():
     # passed into the user_data templatefile vars map (HCL aligns the =;
     # match whitespace-tolerantly so an alignment touch-up does not fail).
     assert re.search(r"agent_token\s*=\s*var\.agent_token", main_tf)
-    # injected on the client docker run; additive (API_TOKEN still present)
+    # injected on the client docker run
     assert '-e AGENT_TOKEN="${agent_token}"' in user_data
-    assert '-e API_TOKEN="${api_token}"' in user_data
+    # After PR D4, api_token is retired from the bundled terraform template.
+    assert '-e API_TOKEN="${api_token}"' not in user_data
