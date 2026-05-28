@@ -39,14 +39,37 @@ DEFAULT_PASSWORD_FILE = "/home/client/.kasmpasswd"
 DEFAULT_VNCAUTH_FILE = "/home/client/.vnc/passwd"
 KASMVNC_USERNAME = "kasm_user"
 
-# The fixed DES key TigerVNC / KasmVNC use to obfuscate the stored
+# The fixed key TigerVNC / KasmVNC use to obfuscate the stored
 # password. Lifted verbatim from TigerVNC's `Password.cxx`
-# (`ObfuscatedPasswd`): the password file's 8 bytes are
-# ``DES_encrypt(key=this, plaintext=padded_password)`` and KasmVNC
-# decrypts with this same key to recover the plaintext at auth time.
+# (`ObfuscatedPasswd`).
+#
+# Subtlety: VNC's d3des routine reads key bytes LSB-first internally,
+# while standard MSB-first DES libraries (cryptography, openssl, pyDes)
+# read them MSB-first. To get an .vnc/passwd file byte-for-byte
+# identical to what ``vncpasswd`` writes, we therefore bit-reverse
+# each byte of the fixed key before handing it to the standard DES
+# primitive. The plaintext (the user's password) is NOT bit-reversed;
+# that's the asymmetry that makes the round-trip work.
+#
+# Verified empirically against ``tigervncpasswd`` on Ubuntu 22.04:
+# password "abcd1234" → 237bbe0803430cc2 with this construction;
+# the previous attempt (no bit-reversal anywhere) produced
+# 43252e8205851e4e, which KasmVNC silently decrypted to a different
+# 8-byte plaintext and rejected every login.
 _VNCAUTH_FIXED_KEY = bytes(
     [0x17, 0x52, 0x6B, 0x06, 0x23, 0x4E, 0x58, 0x07]
 )
+
+
+def _bitrev(b: int) -> int:
+    """Reverse the bits in one byte. See ``_VNCAUTH_FIXED_KEY`` for why."""
+    b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4)
+    b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2)
+    b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1)
+    return b
+
+
+_VNCAUTH_DES_KEY = bytes(_bitrev(b) for b in _VNCAUTH_FIXED_KEY)
 
 
 def _password_file() -> str:
@@ -65,16 +88,17 @@ def _vncauth_blob(password: str) -> bytes:
     plaintext within 8 characters; passing a longer string here silently
     drops the tail — the upstream protocol simply can't carry more.
 
-    The standard DES library in ``cryptography`` is bit-compatible with
-    the d3des routine TigerVNC uses, so we can drive it directly with
-    the fixed key and the padded password as plaintext.
+    Drives standard DES with the **bit-reversed** fixed key (see
+    ``_VNCAUTH_DES_KEY``) so the output is byte-identical to what
+    TigerVNC's ``vncpasswd`` writes. The padded password is the DES
+    plaintext (no bit-reversal there).
 
     ``cryptography`` removed plain DES; we get a single-DES block by
     passing a 24-byte 3DES key built from three copies of the 8-byte
     key (3DES-EDE with K1=K2=K3 collapses algebraically to single DES).
     """
     pw_bytes = (password.encode("utf-8") + b"\x00" * 8)[:8]
-    cipher = Cipher(TripleDES(_VNCAUTH_FIXED_KEY * 3), modes.ECB())
+    cipher = Cipher(TripleDES(_VNCAUTH_DES_KEY * 3), modes.ECB())
     enc = cipher.encryptor()
     return enc.update(pw_bytes) + enc.finalize()
 

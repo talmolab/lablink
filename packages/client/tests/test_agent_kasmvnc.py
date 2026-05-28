@@ -48,21 +48,24 @@ def test_rotate_raises_on_nonzero_exit(tmp_path, monkeypatch):
 
 
 def test_vncauth_blob_matches_tigervnc_vncpasswd():
-    """The RFB-format ``.vnc/passwd`` file is exactly 8 bytes:
-    ``DES_encrypt(key=fixedkey, plaintext=padded_password)``. The
-    KasmVNC server (and TigerVNC's ``vncpasswd`` reference) decrypt
-    this back to the plaintext password at auth time. Locks the
-    encoding so a future algorithm tweak can't silently break the
+    """The RFB-format ``.vnc/passwd`` file is exactly 8 bytes. Locks
+    the encoding so a future algorithm tweak can't silently break the
     KasmVNC handshake — that's the failure mode that costs hours
-    because KasmVNC just rejects auth with no useful log line.
+    because KasmVNC just rejects auth with ``AuthFailureException`` /
+    no diagnostic log line beyond that.
 
-    Vector chosen so it's grep-friendly if anyone needs to compare
-    against ``vncpasswd password`` output in a TigerVNC environment.
+    Vector cross-verified against ``tigervncpasswd`` from the
+    ``tigervnc-tools`` package on Ubuntu 22.04: for the password
+    ``"abcd1234"``, vncpasswd writes ``237bbe0803430cc2``. The
+    subtlety this catches: VNC's d3des reads key bytes LSB-first
+    internally, so to produce the same output via a standard
+    MSB-first DES library we bit-reverse the fixed key (only —
+    the password as plaintext is not bit-reversed).
     """
     from lablink_client_service.agent.kasmvnc import _vncauth_blob
-    assert _vncauth_blob("password").hex() == "33483fd570cf869b"
+    assert _vncauth_blob("abcd1234").hex() == "237bbe0803430cc2"
     # Determinism: same input → same 8-byte output across calls.
-    assert _vncauth_blob("password") == _vncauth_blob("password")
+    assert _vncauth_blob("abcd1234") == _vncauth_blob("abcd1234")
 
 
 def test_vncauth_blob_truncates_to_8_chars():
