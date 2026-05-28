@@ -39,6 +39,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm /tmp/kasmvncserver.deb && \
     rm -rf /var/lib/apt/lists/*
 
+# Fix the bundled noVNC viewer's RFB VncAuth handshake. nginx (above)
+# serves /static/novnc/ from /usr/share/kasmvnc/www/ on THIS container,
+# so the browser-loaded bundle is the allocator's, not the client's.
+# The Kasm fork hardcodes `this._rfbCredentials.password=""` immediately
+# before `genDES` in `_negotiateStdVNCAuth`, which kills the page's
+# `?password=<cred>` and makes the browser send a zero-key challenge
+# response — KasmVNC then rejects every login with
+# `AuthFailureException`. Targeted, idempotent sed.
+RUN sed -i 's/this\._rfbCredentials\.password="";//g' \
+    /usr/share/kasmvnc/www/assets/ui-*.js
+
 COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf
 
 # Disable nginx's default site so it doesn't compete with lablink-nginx.conf.
