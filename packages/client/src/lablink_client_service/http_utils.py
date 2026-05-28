@@ -19,12 +19,9 @@ def sanitize_url(url: str) -> str:
     return url
 
 
-def get_auth_headers(token: str = "") -> dict:
-    """Build HTTP headers with optional Bearer token auth."""
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
+def get_auth_headers(token: str) -> dict:
+    """Build Bearer-auth headers for the given client_secret token."""
+    return {"Authorization": f"Bearer {token}"}
 
 
 def get_client_env(cfg) -> tuple:

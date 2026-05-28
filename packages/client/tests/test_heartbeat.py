@@ -129,7 +129,7 @@ def test_run_heartbeat_loop_reads_boot_id_once_and_respects_stop_event(
     ):
         heartbeat.run_heartbeat_loop(
             allocator_url="http://alloc",
-            api_token="tok",
+            client_secret="tok",
             interval=0,
             stop_event=stop,
         )

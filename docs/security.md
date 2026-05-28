@@ -37,23 +37,24 @@ LabLink implements multiple security layers:
 
 ## Authentication & Authorization
 
-### API Bearer Token (Machine-to-Machine)
+### Machine-to-Machine Authentication
 
-All machine-to-machine API endpoints (client VM → allocator) are protected by a shared bearer token. This prevents unauthorized access to endpoints that could otherwise be used for VM hijacking, status spoofing, log injection, or infrastructure enumeration.
+Machine-to-machine endpoints use two distinct bearer tokens depending on direction:
 
-**How it works:**
+**Client → Allocator (per-client `client_secret`):**
 
-1. The allocator auto-generates a random token (`secrets.token_urlsafe(32)`) at startup
-2. When VMs are launched via `/api/launch`, the token is written to `terraform.runtime.tfvars`
-3. Terraform passes the token to client VMs via cloud-init as the `API_TOKEN` environment variable
-4. Client services include `Authorization: Bearer <token>` in all API requests
-5. The allocator validates the token using constant-time comparison (`secrets.compare_digest`)
+1. Each client mints its credential at registration via `POST /api/v1/clients/register` (gated by a deployment-wide `register_token`). The allocator generates a random `client_secret` (`secrets.token_urlsafe(32)`), stores only `argon2(client_secret)` in `vms.client_secret_hash`, and returns the plaintext secret once.
+2. On AWS, `user_data.sh` captures the secret into `CLIENT_SECRET` before any client code runs. On manual BYO deployments, `lablink client register` writes it to `~/.lablink/client.env` (mode 0600).
+3. Every client → allocator request includes `Authorization: Bearer <client_secret>`. The allocator resolves the client by URL path or body field (`hostname`/`vm_id`), looks up the stored hash, and verifies with argon2.
+4. **Protected endpoints (client_secret required):** `/api/update_inuse_status`, `/api/gpu_health`, `/api/heartbeat`, `/api/vm-status`, `/api/vm-logs/<hostname>`, `/api/vm-metrics/<hostname>`, `/api/v1/clients/<id>` (unregister).
 
-**Protected endpoints:** `/vm_startup`, `/api/unassigned_vms_count`, `/api/update_inuse_status`, `/api/gpu_health`, `/api/vm-status`, `/api/vm-logs`, `/api/vm-metrics/<hostname>`
+**Allocator → Agent (deployment-wide `agent_token`):**
 
-**Not protected:** `/api/request_vm` (student-facing, accessed from the web UI)
+The allocator's password-rotation call to each client's agent on port 7070 (`POST /api/session/start`) uses a deployment-wide `agent_token` (`secrets.token_urlsafe(32)`, in-memory only). The agent compares the Bearer header with constant-time comparison and rewrites the per-session KasmVNC password.
 
-**Token lifecycle:** The token is regenerated each time the allocator starts. Since client VMs are always destroyed before the allocator restarts (via `terraform destroy`), token persistence is not needed. New VMs receive the fresh token at launch.
+**Not protected (Basic auth or public):** `/api/request_vm` (student-facing); admin browser views (`/admin/*`, `/api/export-metrics`, `/api/v1/clients` GET) use HTTP Basic auth against the operator's admin credentials.
+
+**Token lifecycle:** `client_secret` is per-client and per-registration — a client that re-registers gets a fresh secret, and unregistering hard-deletes the row including the hash. `agent_token` is regenerated on every allocator restart. Since client containers are torn down before the allocator restarts, token persistence is not required.
 
 ### Change Default Passwords
 

@@ -37,12 +37,6 @@ class TestGetAuthHeaders:
         headers = get_auth_headers("my-token")
         assert headers == {"Authorization": "Bearer my-token"}
 
-    def test_empty_token(self):
-        assert get_auth_headers("") == {}
-
-    def test_no_token(self):
-        assert get_auth_headers() == {}
-
 
 class TestGetClientEnv:
     def test_from_env_vars(self, monkeypatch):
@@ -51,10 +45,10 @@ class TestGetClientEnv:
         monkeypatch.setenv("VM_NAME", "vm-1")
 
         cfg = MagicMock()
-        base_url, api_token, vm_name = get_client_env(cfg)
+        base_url, client_secret, vm_name = get_client_env(cfg)
 
         assert base_url == "https://example.com"
-        assert api_token == "tok123"
+        assert client_secret == "tok123"
         assert vm_name == "vm-1"
 
     def test_fallback_to_config_url(self, monkeypatch):
@@ -66,10 +60,10 @@ class TestGetClientEnv:
         cfg.allocator.host = "localhost"
         cfg.allocator.port = 5000
 
-        base_url, api_token, vm_name = get_client_env(cfg)
+        base_url, client_secret, vm_name = get_client_env(cfg)
 
         assert base_url == "http://localhost:5000"
-        assert api_token == "tok123"
+        assert client_secret == "tok123"
         assert vm_name is None
 
 
@@ -92,9 +86,8 @@ def test_get_client_env_uses_client_secret(monkeypatch):
 
 
 def test_get_client_env_raises_when_client_secret_missing(monkeypatch):
-    """After PR D4, CLIENT_SECRET is mandatory — no API_TOKEN fallback."""
+    """After PR D4, CLIENT_SECRET is mandatory — no fallback."""
     monkeypatch.delenv("CLIENT_SECRET", raising=False)
-    monkeypatch.delenv("API_TOKEN", raising=False)
     from lablink_client_service.http_utils import get_client_env
 
     cfg = MagicMock()
