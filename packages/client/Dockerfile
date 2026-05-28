@@ -105,8 +105,18 @@ RUN curl -L -o /tmp/kasmvncserver.deb \
 # Kasm's normal flow (which uses HTTP BasicAuth, not RFB-level auth)
 # but breaks our lan_direct path. Remove the assignment so the
 # URL-supplied credential survives to genDES.
-RUN sed -i 's/this\._rfbCredentials\.password="";//g' \
-    /usr/share/kasmvnc/www/assets/ui-*.js
+#
+# NOTE: the actual browser-loaded bundle in both AWS and lan_direct
+# paths is served by the *allocator's* nginx, not the client. This
+# patch is defense-in-depth in case a future flow exposes the client's
+# bundled httpd. Verify-patch-verify same as the allocator Dockerfile.
+RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
+        grep -q 'this._rfbCredentials.password=""' "$f" \
+            || { echo "ERROR: noVNC clobber pattern not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
+        sed -i 's/this\._rfbCredentials\.password="";//g' "$f"; \
+        ! grep -q 'this._rfbCredentials.password=""' "$f" \
+            || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
+    done
 
 EXPOSE 6080 7070
 
