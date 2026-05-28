@@ -1269,10 +1269,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#api-bearer-token-machine-to-machine" class="md-nav__link">
+  <a href="#machine-to-machine-authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API Bearer Token (Machine-to-Machine)
+        Machine-to-Machine Authentication
       
     </span>
   </a>
@@ -4145,10 +4145,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#api-bearer-token-machine-to-machine" class="md-nav__link">
+  <a href="#machine-to-machine-authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API Bearer Token (Machine-to-Machine)
+        Machine-to-Machine Authentication
       
     </span>
   </a>
@@ -4927,19 +4927,19 @@
 </tbody>
 </table>
 <h2 id="authentication-authorization">Authentication &amp; Authorization<a class="headerlink" href="#authentication-authorization" title="Permanent link">&para;</a></h2>
-<h3 id="api-bearer-token-machine-to-machine">API Bearer Token (Machine-to-Machine)<a class="headerlink" href="#api-bearer-token-machine-to-machine" title="Permanent link">&para;</a></h3>
-<p>All machine-to-machine API endpoints (client VM → allocator) are protected by a shared bearer token. This prevents unauthorized access to endpoints that could otherwise be used for VM hijacking, status spoofing, log injection, or infrastructure enumeration.</p>
-<p><strong>How it works:</strong></p>
+<h3 id="machine-to-machine-authentication">Machine-to-Machine Authentication<a class="headerlink" href="#machine-to-machine-authentication" title="Permanent link">&para;</a></h3>
+<p>Machine-to-machine endpoints use two distinct bearer tokens depending on direction:</p>
+<p><strong>Client → Allocator (per-client <code>client_secret</code>):</strong></p>
 <ol>
-<li>The allocator auto-generates a random token (<code>secrets.token_urlsafe(32)</code>) at startup</li>
-<li>When VMs are launched via <code>/api/launch</code>, the token is written to <code>terraform.runtime.tfvars</code></li>
-<li>Terraform passes the token to client VMs via cloud-init as the <code>API_TOKEN</code> environment variable</li>
-<li>Client services include <code>Authorization: Bearer &lt;token&gt;</code> in all API requests</li>
-<li>The allocator validates the token using constant-time comparison (<code>secrets.compare_digest</code>)</li>
+<li>Each client mints its credential at registration via <code>POST /api/v1/clients/register</code> (gated by a deployment-wide <code>register_token</code>). The allocator generates a random <code>client_secret</code> (<code>secrets.token_urlsafe(32)</code>), stores only <code>argon2(client_secret)</code> in <code>vms.client_secret_hash</code>, and returns the plaintext secret once.</li>
+<li>On AWS, <code>user_data.sh</code> captures the secret into <code>CLIENT_SECRET</code> before any client code runs. On manual BYO deployments, <code>lablink client register</code> writes it to <code>~/.lablink/client.env</code> (mode 0600).</li>
+<li>Every client → allocator request includes <code>Authorization: Bearer &lt;client_secret&gt;</code>. The allocator resolves the client by URL path or body field (<code>hostname</code>/<code>vm_id</code>), looks up the stored hash, and verifies with argon2.</li>
+<li><strong>Protected endpoints (client_secret required):</strong> <code>/api/update_inuse_status</code>, <code>/api/gpu_health</code>, <code>/api/heartbeat</code>, <code>/api/vm-status</code>, <code>/api/vm-logs/&lt;hostname&gt;</code>, <code>/api/vm-metrics/&lt;hostname&gt;</code>, <code>/api/v1/clients/&lt;id&gt;</code> (unregister).</li>
 </ol>
-<p><strong>Protected endpoints:</strong> <code>/vm_startup</code>, <code>/api/unassigned_vms_count</code>, <code>/api/update_inuse_status</code>, <code>/api/gpu_health</code>, <code>/api/vm-status</code>, <code>/api/vm-logs</code>, <code>/api/vm-metrics/&lt;hostname&gt;</code></p>
-<p><strong>Not protected:</strong> <code>/api/request_vm</code> (student-facing, accessed from the web UI)</p>
-<p><strong>Token lifecycle:</strong> The token is regenerated each time the allocator starts. Since client VMs are always destroyed before the allocator restarts (via <code>terraform destroy</code>), token persistence is not needed. New VMs receive the fresh token at launch.</p>
+<p><strong>Allocator → Agent (deployment-wide <code>agent_token</code>):</strong></p>
+<p>The allocator's password-rotation call to each client's agent on port 7070 (<code>POST /api/session/start</code>) uses a deployment-wide <code>agent_token</code> (<code>secrets.token_urlsafe(32)</code>, in-memory only). The agent compares the Bearer header with constant-time comparison and rewrites the per-session KasmVNC password.</p>
+<p><strong>Not protected (Basic auth or public):</strong> <code>/api/request_vm</code> (student-facing); admin browser views (<code>/admin/*</code>, <code>/api/export-metrics</code>, <code>/api/v1/clients</code> GET) use HTTP Basic auth against the operator's admin credentials.</p>
+<p><strong>Token lifecycle:</strong> <code>client_secret</code> is per-client and per-registration — a client that re-registers gets a fresh secret, and unregistering hard-deletes the row including the hash. <code>agent_token</code> is regenerated on every allocator restart. Since client containers are torn down before the allocator restarts, token persistence is not required.</p>
 <h3 id="change-default-passwords">Change Default Passwords<a class="headerlink" href="#change-default-passwords" title="Permanent link">&para;</a></h3>
 <p><strong>Critical</strong>: Change default passwords before deployment!</p>
 <h4 id="allocator-admin-password">Allocator Admin Password<a class="headerlink" href="#allocator-admin-password" title="Permanent link">&para;</a></h4>

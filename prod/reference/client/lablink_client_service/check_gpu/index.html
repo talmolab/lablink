@@ -3685,7 +3685,7 @@
 
 
 <h4 id="lablink_client_service.check_gpu.check_gpu_health" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
 
 <a href="#lablink_client_service.check_gpu.check_gpu_health" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -3740,14 +3740,14 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>api_token</code>
+                <code>client_secret</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Bearer token for API authentication.</p>
+                <p>Per-client secret for Bearer auth.</p>
               </div>
             </td>
             <td>
@@ -3857,20 +3857,20 @@
 <span class="normal"><a href="#__codelineno-0-118">118</a></span>
 <span class="normal"><a href="#__codelineno-0-119">119</a></span>
 <span class="normal"><a href="#__codelineno-0-120">120</a></span>
-<span class="normal"><a href="#__codelineno-0-121">121</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">api_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Check the health of the GPU.</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">        allocator_url (str): The base URL of the allocator service.</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        interval (int, optional): The interval in seconds to check the GPU health.</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">        api_token (str, optional): Bearer token for API authentication.</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">        client_secret (str, optional): Per-client secret for Bearer auth.</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting GPU health monitoring&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">last_status</span> <span class="o">=</span> <span class="kc">None</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="n">base_url</span> <span class="o">=</span> <span class="n">sanitize_url</span><span class="p">(</span><span class="n">allocator_url</span><span class="p">)</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">get_auth_headers</span><span class="p">(</span><span class="n">api_token</span><span class="p">))</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">get_auth_headers</span><span class="p">(</span><span class="n">client_secret</span><span class="p">))</span>
 <a id="__codelineno-0-38" name="__codelineno-0-38"></a>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="n">curr_status</span> <span class="o">=</span> <span class="kc">None</span>
@@ -3990,8 +3990,8 @@
 <a id="__codelineno-0-128" name="__codelineno-0-128"></a>        <span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;check_gpu&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="p">)</span>
 <a id="__codelineno-0-130" name="__codelineno-0-130"></a>    <span class="c1"># Check GPU health</span>
-<a id="__codelineno-0-131" name="__codelineno-0-131"></a>    <span class="n">base_url</span><span class="p">,</span> <span class="n">api_token</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_client_env</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-<a id="__codelineno-0-132" name="__codelineno-0-132"></a>    <span class="n">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span> <span class="n">api_token</span><span class="o">=</span><span class="n">api_token</span><span class="p">)</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>    <span class="n">base_url</span><span class="p">,</span> <span class="n">client_secret</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_client_env</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<a id="__codelineno-0-132" name="__codelineno-0-132"></a>    <span class="n">check_gpu_health</span><span class="p">(</span><span class="n">allocator_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
