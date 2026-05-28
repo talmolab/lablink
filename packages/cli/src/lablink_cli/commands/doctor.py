@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -23,14 +24,24 @@ STATUS_STYLES = {
 
 
 def _load_config_safe():
-    """Load config from default path; return None if missing/invalid."""
+    """Load config from default path; return None if missing/invalid.
+
+    On load failure (malformed YAML, permission error, broken structure)
+    surfaces a yellow warning so the operator can tell why doctor fell
+    through to the AWS prereq path instead of silently doing so.
+    """
     if not DEFAULT_CONFIG.exists():
         return None
     try:
         from lablink_cli.config.schema import load_config
 
         return load_config(DEFAULT_CONFIG)
-    except Exception:
+    except (OSError, yaml.YAMLError, AttributeError, TypeError, ValueError) as e:
+        console.print(
+            f"[yellow]Could not load {DEFAULT_CONFIG}: {e}.[/yellow]\n"
+            "[yellow]Falling back to AWS prereq checks. "
+            "Fix the config or run `lablink configure` to regenerate it.[/yellow]"
+        )
         return None
 
 
