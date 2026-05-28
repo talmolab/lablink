@@ -390,6 +390,37 @@ class PostgresqlDatabase:
             )
             return cursor.rowcount > 0
 
+    def list_registered_clients(self) -> list[dict]:
+        """Return registered clients as a list of dicts.
+
+        Surfaces only operator-safe columns (no secrets, no log blobs).
+        Includes both AWS-provisioned and BYO/manual hosts — they live
+        in the same table; provider distinguishes them.
+        """
+        cols = [
+            "hostname",
+            "provider",
+            "endpoint_url",
+            "inuse",
+            "status",
+            "healthy",
+            "gpu_present",
+            "gpu_model",
+            "last_seen_at",
+        ]
+        select = ", ".join(cols)
+        try:
+            with self._cursor as cursor:
+                cursor.execute(
+                    f"SELECT {select} FROM {self.table_name} "
+                    f"ORDER BY hostname;"
+                )
+                rows = cursor.fetchall()
+            return [dict(zip(cols, row)) for row in rows]
+        except Exception as e:
+            logger.error(f"Failed to list registered clients: {e}")
+            return []
+
     def get_unassigned_vms(self) -> list:
         """Get the VMs that are running and have no student assigned.
 
