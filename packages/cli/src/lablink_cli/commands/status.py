@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import socket
 import ssl
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -576,8 +578,185 @@ def _render_cost_estimate(cfg: Config) -> None:
 # ------------------------------------------------------------------
 # Main entry point
 # ------------------------------------------------------------------
+def _resolve_manual_admin_credentials(
+    cfg: Config, workdir: Path
+) -> tuple[str, str] | None:
+    """Find admin user/password for the manual compose stack.
+
+    Tries cfg first, then the workdir's rendered config.yaml (which
+    deploy_compose.render_compose_dir always writes with the resolved
+    credentials).
+    """
+    user = getattr(cfg.app, "admin_user", "") or ""
+    pw = getattr(cfg.app, "admin_password", "") or ""
+    if user and pw and user != "MISSING" and pw != "MISSING":
+        return user, pw
+
+    compose_cfg_path = workdir / "config.yaml"
+    if not compose_cfg_path.exists():
+        return None
+
+    import yaml
+
+    with open(compose_cfg_path) as f:
+        data = yaml.safe_load(f) or {}
+    app_cfg = data.get("app", {}) or {}
+    user = app_cfg.get("admin_user", "") or ""
+    pw = app_cfg.get("admin_password", "") or ""
+    if user and pw and user != "MISSING" and pw != "MISSING":
+        return user, pw
+    return None
+
+
+def _fetch_registered_clients(
+    base_url: str, admin_user: str, admin_password: str
+) -> tuple[list[dict] | None, str]:
+    """GET /api/v1/clients with admin Basic auth.
+
+    Returns (clients, error_message). On success, error_message is "".
+    On failure, clients is None.
+    """
+    url = f"{base_url.rstrip('/')}/api/v1/clients"
+    creds = f"{admin_user}:{admin_password}".encode()
+    header = "Basic " + base64.b64encode(creds).decode()
+    req = Request(url, method="GET", headers={"Authorization": header})
+    try:
+        resp = urlopen(req, timeout=10)  # noqa: S310
+        body = json.loads(resp.read().decode())
+        return body.get("clients", []) or [], ""
+    except HTTPError as e:
+        return None, f"HTTP {e.code} from {url}"
+    except URLError as e:
+        return None, f"{url} → {e.reason}"
+    except Exception as e:
+        return None, f"{url} → {e}"
+
+
+def _render_manual_clients_table(clients: list[dict]) -> None:
+    """Print a Rich table of registered BYO clients."""
+    table = Table(show_header=True)
+    table.add_column("Hostname")
+    table.add_column("Provider")
+    table.add_column("Status")
+    table.add_column("Healthy")
+    table.add_column("In use")
+    table.add_column("GPU")
+    table.add_column("Endpoint")
+
+    for c in clients:
+        status_val = c.get("status") or "-"
+        if status_val == "running":
+            status_str = "[green]running[/green]"
+        elif status_val in ("stopped", "failed"):
+            status_str = f"[red]{status_val}[/red]"
+        else:
+            status_str = f"[yellow]{status_val}[/yellow]"
+
+        healthy_val = c.get("healthy")
+        if healthy_val in (None, ""):
+            healthy_str = "-"
+        elif str(healthy_val).lower() in ("true", "yes", "ok", "healthy"):
+            healthy_str = "[green]yes[/green]"
+        else:
+            healthy_str = f"[yellow]{healthy_val}[/yellow]"
+
+        gpu_present = c.get("gpu_present")
+        gpu_model = c.get("gpu_model") or ""
+        if gpu_present is True:
+            gpu_str = gpu_model or "yes"
+        elif gpu_present is False:
+            gpu_str = "no"
+        else:
+            gpu_str = "-"
+
+        table.add_row(
+            c.get("hostname") or "-",
+            c.get("provider") or "-",
+            status_str,
+            healthy_str,
+            "yes" if c.get("inuse") else "no",
+            gpu_str,
+            c.get("endpoint_url") or "-",
+        )
+
+    console.print(table)
+
+
+def _run_status_manual(cfg: Config) -> None:
+    """Report compose stack health, allocator HTTP health, and BYO clients."""
+    workdir = Path.home() / ".lablink" / "compose" / (
+        cfg.deployment_name or "lablink"
+    )
+
+    console.print(
+        f"[bold]Manual deployment:[/bold] {cfg.deployment_name}"
+    )
+
+    if not workdir.exists():
+        console.print(
+            f"[yellow]No compose stack at {workdir} — run "
+            "`lablink deploy` first.[/yellow]"
+        )
+        return
+
+    ps = subprocess.run(
+        ["docker", "compose", "ps"],
+        cwd=workdir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ps.returncode == 0:
+        console.print(ps.stdout)
+
+    scheme = "https" if cfg.ssl.provider == "self_signed" else "http"
+    base_url = f"{scheme}://localhost"
+    health = check_health_endpoint(base_url)
+    if health.get("healthy"):
+        console.print(
+            f"[green]Allocator healthy at {base_url}/api/health[/green]"
+        )
+    else:
+        console.print(
+            f"[yellow]Allocator not healthy at {base_url}/api/health[/yellow]"
+        )
+
+    console.print()
+    console.print("[bold]Registered Clients[/bold]")
+    creds = _resolve_manual_admin_credentials(cfg, workdir)
+    if creds is None:
+        console.print(
+            "[yellow]Admin credentials not found in config — "
+            "cannot list clients. Open the admin dashboard at "
+            f"{scheme}://localhost instead.[/yellow]"
+        )
+        return
+
+    admin_user, admin_pw = creds
+    clients, err = _fetch_registered_clients(base_url, admin_user, admin_pw)
+    if clients is None:
+        console.print(f"[red]Failed to list clients: {err}[/red]")
+        return
+    if not clients:
+        console.print(
+            "  [dim]No clients registered yet. On each BYO box, run "
+            "`lablink client register …` (token shown by `lablink deploy`).[/dim]"
+        )
+        return
+
+    _render_manual_clients_table(clients)
+    running = sum(1 for c in clients if c.get("status") == "running")
+    console.print(
+        f"  [dim]{len(clients)} registered, {running} running.[/dim]"
+    )
+
+
 def run_status(cfg: Config) -> None:
     """Run health checks and show cost estimate."""
+    if getattr(cfg, "provider", "aws") == "manual":
+        _run_status_manual(cfg)
+        return
+
     deploy_dir = _get_deploy_dir(cfg)
 
     console.print()

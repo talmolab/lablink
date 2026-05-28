@@ -96,7 +96,7 @@
 
       <div class="cmd-wrap">
         <button class="copy-btn" id="copyBtn" onclick="copyCmd()">Copy</button>
-        <pre id="cmd">lablink register \
+        <pre id="cmd">lablink client register \
   --allocator-url {{ allocator_url }} \
   --register-token {{ register_token }}{% if show_insecure %} \
   --insecure{% endif %}</pre>
@@ -104,7 +104,7 @@
 
       <div class="note">
         <strong>Note:</strong> the register token rotates on every allocator
-        restart. If a BYO operator's <code>lablink register</code> fails with
+        restart. If a BYO operator's <code>lablink client register</code> fails with
         an auth error, refresh this page to copy the current token.
       </div>
 

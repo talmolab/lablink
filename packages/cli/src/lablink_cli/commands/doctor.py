@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -20,6 +21,28 @@ STATUS_STYLES = {
     "fail": "[red]FAIL[/red]",
     "warn": "[yellow]WARN[/yellow]",
 }
+
+
+def _load_config_safe():
+    """Load config from default path; return None if missing/invalid.
+
+    On load failure (malformed YAML, permission error, broken structure)
+    surfaces a yellow warning so the operator can tell why doctor fell
+    through to the AWS prereq path instead of silently doing so.
+    """
+    if not DEFAULT_CONFIG.exists():
+        return None
+    try:
+        from lablink_cli.config.schema import load_config
+
+        return load_config(DEFAULT_CONFIG)
+    except (OSError, yaml.YAMLError, AttributeError, TypeError, ValueError) as e:
+        console.print(
+            f"[yellow]Could not load {DEFAULT_CONFIG}: {e}.[/yellow]\n"
+            "[yellow]Falling back to AWS prereq checks. "
+            "Fix the config or run `lablink configure` to regenerate it.[/yellow]"
+        )
+        return None
 
 
 def _check_terraform() -> dict:
@@ -198,18 +221,8 @@ def _check_ami(cfg) -> dict:
     return result
 
 
-def run_doctor() -> None:
-    """Run all pre-flight checks."""
-    console.print()
-    console.print(
-        Panel(
-            "[bold]LabLink Doctor[/bold]\n"
-            "Checking prerequisites and configuration.",
-            border_style="cyan",
-        )
-    )
-    console.print()
-
+def _check_aws_prereqs() -> None:
+    """Run the AWS-specific pre-flight checks and print a results table."""
     checks: list[dict] = []
 
     # 1. Terraform
@@ -262,3 +275,57 @@ def run_doctor() -> None:
             "[yellow]Some checks failed.[/yellow] "
             "Resolve the issues above before deploying."
         )
+
+
+def _check_manual_prereqs() -> None:
+    """Check that docker + docker compose are available (manual provider)."""
+    for tool in ("docker",):
+        path = shutil.which(tool)
+        if path:
+            console.print(f"[green]✓[/green] {tool}: {path}")
+        else:
+            console.print(f"[red]✗[/red] {tool}: not found")
+
+    # docker-compose v2 is a subcommand, not a separate binary
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            console.print(
+                "[green]✓[/green] docker compose: available"
+            )
+        else:
+            console.print(
+                "[red]✗[/red] docker compose: missing "
+                "(install the Compose plugin)"
+            )
+    except FileNotFoundError:
+        console.print(
+            "[red]✗[/red] docker compose: missing "
+            "(install the Compose plugin)"
+        )
+
+
+def run_doctor() -> None:
+    """Run all pre-flight checks."""
+    console.print()
+    console.print(
+        Panel(
+            "[bold]LabLink Doctor[/bold]\n"
+            "Checking prerequisites and configuration.",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
+    cfg = _load_config_safe()
+    provider = getattr(cfg, "provider", None) if cfg else None
+
+    if provider == "manual":
+        _check_manual_prereqs()
+    else:
+        _check_aws_prereqs()

@@ -40,6 +40,7 @@ def omega_config():
             },
             "deployment_name": "test-lablink",
             "environment": "prod",
+            "provider": "aws",
             "eip": {
                 "strategy": "dynamic",
             },
@@ -136,6 +137,7 @@ def valid_config_dict():
     return {
         "deployment_name": "test-lablink",
         "environment": "prod",
+        "provider": "aws",
         "db": {
             "dbname": "lablink_db",
             "user": "lablink",

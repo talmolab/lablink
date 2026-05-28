@@ -36,7 +36,12 @@ class LANDirectClientConnectivity:
             raise RotationFailed(
                 f"no LAN IP recorded for manual client {hostname}"
             )
-        password = secrets.token_urlsafe(24)
+        # RFB VncAuth keys are exactly 8 bytes — KasmVNC truncates
+        # anything longer to the first 8 chars. token_urlsafe(6) yields
+        # an 8-char base64 string ⇒ ~48 bits of entropy, rotated per
+        # session, with KasmVNC's brute_force_protection (5 fails →
+        # blacklist) gating online guessing.
+        password = secrets.token_urlsafe(6)
         ws_url = f"ws://{lan_ip}:6080"
 
         client_session._post_rotate(

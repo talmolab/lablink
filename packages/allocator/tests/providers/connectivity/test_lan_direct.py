@@ -41,6 +41,9 @@ def test_prepare_browser_session_lan_direct(monkeypatch):
     )
     assert t.ws_url == "ws://10.0.0.9:6080"
     assert t.browser_credential and t.browser_credential == posted["body"]["password"]
+    # RFB VncAuth caps at 8 chars; longer passwords would be silently
+    # truncated by KasmVNC, leaving the page's credential the wrong size.
+    assert len(t.browser_credential) == 8
     assert posted["url"] == "http://10.0.0.9:7070/api/session/start"
     assert posted["bearer"] == "agenttok"
     assert "browser_ws_url" in executed["sql"]

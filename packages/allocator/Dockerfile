@@ -39,6 +39,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm /tmp/kasmvncserver.deb && \
     rm -rf /var/lib/apt/lists/*
 
+# Fix the bundled noVNC viewer's RFB VncAuth handshake. nginx (above)
+# serves /static/novnc/ from /usr/share/kasmvnc/www/ on THIS container,
+# so the browser-loaded bundle is the allocator's, not the client's.
+# The Kasm fork hardcodes `this._rfbCredentials.password=""` immediately
+# before `genDES` in `_negotiateStdVNCAuth`, which kills the page's
+# `?password=<cred>` and makes the browser send a zero-key challenge
+# response — KasmVNC then rejects every login with
+# `AuthFailureException`.
+#
+# Verify-patch-verify: assert the clobber is present pre-sed and gone
+# post-sed. A future KasmVNC bundle that refactors the offending line
+# (or fixes the upstream bug entirely) will fail this step at build
+# time — far better than the silent no-op that the bare sed would
+# produce, which only surfaces at smoke-test as another opaque
+# `AuthFailureException`.
+RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
+        grep -q 'this._rfbCredentials.password=""' "$f" \
+            || { echo "ERROR: noVNC clobber pattern not present in $f — KasmVNC bundle may have changed; review the sed"; exit 1; }; \
+        sed -i 's/this\._rfbCredentials\.password="";//g' "$f"; \
+        ! grep -q 'this._rfbCredentials.password=""' "$f" \
+            || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
+    done
+
 COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf
 
 # Disable nginx's default site so it doesn't compete with lablink-nginx.conf.

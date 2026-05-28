@@ -4,9 +4,17 @@ from pathlib import Path
 
 import typer
 
+from lablink_cli.config.schema import load_config
+
 app = typer.Typer(
     name="lablink",
 )
+
+client_app = typer.Typer(
+    name="client",
+    help="Manage the client fleet (register/launch/unregister).",
+)
+app.add_typer(client_app, name="client")
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
 
@@ -46,9 +54,9 @@ def _root(
             Panel(
                 "Welcome to LabLink. First-time setup:\n\n"
                 "  1. [bold]lablink configure[/bold]   "
-                "create config + AWS state resources\n"
+                "create config (AWS or manual/BYO provider)\n"
                 "  2. [bold]lablink doctor[/bold]      "
-                "verify prerequisites\n"
+                "verify prerequisites for your provider\n"
                 "  3. [bold]lablink deploy[/bold]      "
                 "deploy the allocator\n\n"
                 "For the full command list, run 'lablink --help'.",
@@ -90,8 +98,8 @@ def configure(
     Launches a TUI wizard to generate or modify config.yaml,
     then automatically creates the AWS resources needed for
     Terraform remote state (S3 bucket + DynamoDB lock table).
+    Manual-provider configs skip the AWS setup step.
     """
-    from lablink_cli.config.schema import load_config
     from lablink_cli.tui.wizard import ConfigWizard
 
     config_path = Path(config) if config else DEFAULT_CONFIG
@@ -110,9 +118,19 @@ def configure(
         # User quit the wizard without saving
         return
 
+    cfg_after = load_config(config_path)
+    if cfg_after.provider == "manual":
+        from rich.console import Console
+
+        Console().print(
+            "[dim]Manual provider doesn't need AWS state resources — "
+            "skipping setup. Run `lablink deploy` next.[/dim]"
+        )
+        return
+
     from lablink_cli.commands.setup import run_setup
 
-    run_setup(load_config(config_path), config_path=config_path)
+    run_setup(cfg_after, config_path=config_path)
 
 
 @app.command(rich_help_panel="Setup")
@@ -124,10 +142,15 @@ def setup(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Create S3 + DynamoDB for remote Terraform state.
+    """Provision provider-specific bootstrap resources.
 
-    Automatically run during 'lablink configure'. Use this
-    command to recreate resources if they were deleted.
+    AWS provider: creates the S3 bucket and DynamoDB lock table used
+    for Terraform remote state. Automatically run during 'lablink
+    configure'; use this command to recreate the resources if they
+    were deleted.
+
+    Manual provider: no bootstrap resources are needed; this command
+    is a no-op (a friendly message is printed).
     """
     from lablink_cli.commands.setup import run_setup
 
@@ -147,12 +170,13 @@ def deploy(
         None,
         "--template-version",
         help="Override the pinned template version (e.g. v0.2.0). "
-        "Skips checksum verification.",
+        "Skips checksum verification. AWS provider only.",
     ),
     terraform_bundle: str = typer.Option(
         None,
         "--terraform-bundle",
-        help="Path to a local template tarball for offline deploys.",
+        help="Path to a local template tarball for offline deploys. "
+        "AWS provider only.",
     ),
     yes: bool = typer.Option(
         False,
@@ -162,11 +186,18 @@ def deploy(
         "(admin password still required interactively).",
     ),
 ) -> None:
-    """Deploy LabLink infrastructure with Terraform."""
+    """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
+    cfg = _load_cfg(config)
+    if cfg.provider == "manual":
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        run_deploy_compose(cfg, yes=yes)
+        return
+
     from lablink_cli.commands.deploy import run_deploy
 
     run_deploy(
-        _load_cfg(config),
+        cfg,
         template_version=template_version,
         terraform_bundle=terraform_bundle,
         yes=yes,
@@ -194,14 +225,27 @@ def destroy(
         "-v",
         help="Show the full Terraform output instead of a summary.",
     ),
+    purge: bool = typer.Option(
+        False,
+        "--purge",
+        help="Manual provider only: also delete the Postgres data volume. "
+        "Ignored for AWS.",
+    ),
 ) -> None:
     """Tear down LabLink infrastructure."""
+    cfg = _load_cfg(config)
+    if cfg.provider == "manual":
+        from lablink_cli.commands.deploy_compose import run_destroy_compose
+
+        run_destroy_compose(cfg, yes=yes, purge=purge)
+        return
+
     from lablink_cli.commands.deploy import run_destroy
 
-    run_destroy(_load_cfg(config), yes=yes, verbose=verbose)
+    run_destroy(cfg, yes=yes, verbose=verbose)
 
 
-@app.command("launch-client", rich_help_panel="Deployment")
+@client_app.command("launch")
 def launch_client(
     num_vms: int = typer.Option(
         ...,
@@ -222,7 +266,12 @@ def launch_client(
         help="Show the full Terraform output instead of a summary.",
     ),
 ) -> None:
-    """Launch client VMs via the allocator service."""
+    """Launch client VMs via the allocator service.
+
+    AWS provider only: provisions client VMs through Terraform. For
+    the manual provider, BYO operators run 'lablink client register' on each
+    box instead; this command no-ops with a friendly message.
+    """
     from lablink_cli.commands.launch import run_launch
 
     run_launch(_load_cfg(config), num_vms=num_vms, verbose=verbose)
@@ -237,7 +286,12 @@ def status(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """Health checks, Terraform state, and cost estimate."""
+    """Show deployment health and inventory.
+
+    AWS provider: HTTP/DNS/SSL health checks, Terraform state, client
+    VM inventory, and a cost estimate. Manual provider: docker-compose
+    container status and the allocator's HTTP health endpoint.
+    """
     from lablink_cli.commands.status import run_status
 
     run_status(_load_cfg(config))
@@ -252,7 +306,14 @@ def logs(
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
 ) -> None:
-    """View VM logs in an interactive TUI."""
+    """View allocator and client logs.
+
+    AWS provider: launches the interactive TUI that streams allocator
+    and per-VM client logs. Manual provider: tails the local
+    'lablink-allocator' docker container's logs (per-VM client logs
+    are not centralized; run 'docker logs lablink-client' on each
+    BYO box).
+    """
     from lablink_cli.commands.logs import run_logs
 
     run_logs(_load_cfg(config))
@@ -269,10 +330,18 @@ def cleanup(
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Show what would be deleted without making changes",
+        help="Show what would be deleted without making changes "
+        "(AWS provider only; manual provider's cleanup is non-destructive "
+        "until you confirm).",
     ),
 ) -> None:
-    """Clean up orphaned AWS resources and local state."""
+    """Remove deployment resources and local state.
+
+    AWS provider: deletes orphaned EC2/IAM/EIP/SG resources and the
+    environment-specific Terraform state files. Manual provider: runs
+    'docker compose down --volumes' on the local stack and removes
+    the compose working directory.
+    """
     from lablink_cli.commands.cleanup import run_cleanup
 
     run_cleanup(
@@ -289,7 +358,7 @@ def doctor() -> None:
     run_doctor()
 
 
-@app.command(rich_help_panel="Setup")
+@client_app.command("register")
 def register(
     allocator_url: str = typer.Option(
         ...,
@@ -361,6 +430,35 @@ def register(
         env_file=env_file,
         insecure=insecure,
     )
+
+
+@client_app.command("unregister")
+def unregister(
+    env_file: Path = typer.Option(
+        None, "--env-file",
+        help="Path to client.env (default ~/.lablink/client.env).",
+    ),
+    insecure: bool = typer.Option(
+        False, "--insecure",
+        help="Skip TLS verification for the allocator notify call "
+        "(use when the allocator's ssl.provider is self_signed).",
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y",
+        help="Skip the confirmation prompt.",
+    ),
+) -> None:
+    """Tear down a registered BYO box.
+
+    Best-effort notifies the allocator, then removes the
+    `lablink-client` container and deletes the env file. Idempotent
+    — does nothing and exits 0 if there is no env file. Safe to run
+    after `lablink destroy` (the allocator will be unreachable, which
+    is the expected case).
+    """
+    from lablink_cli.commands.unregister import run_unregister
+
+    run_unregister(env_file=env_file, insecure=insecure, yes=yes)
 
 
 @app.command("show-config", rich_help_panel="Maintenance")

@@ -251,7 +251,18 @@ def resolve_bucket_name(account_id: str) -> str:
 
 
 def run_setup(cfg: Config, config_path: Path | None = None) -> None:
-    """Run the full setup sequence."""
+    """Run the full setup sequence.
+
+    No-ops for manual provider (no AWS remote-state resources needed).
+    """
+    if getattr(cfg, "provider", "aws") == "manual":
+        console.print(
+            "[yellow]Manual provider doesn't use S3/DynamoDB remote "
+            "state — skipping setup (no AWS resources will be "
+            "created).[/yellow]"
+        )
+        return
+
     region = cfg.app.region
 
     console.print()

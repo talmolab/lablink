@@ -24,6 +24,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Top-level provider field — must stay in sync with the providers registry
+# (DEFAULT_PROVIDER / get_provider). "manual" is the BYO-clients mode added
+# in PR D1/D2/D3 — no automated provisioning, clients self-register via the
+# `lablink client register` CLI.
+VALID_PROVIDERS = ("aws", "manual")
+
 
 def validate_domain_format(domain: str) -> Tuple[bool, str]:
     """Validate domain format to prevent malformed domains.
@@ -61,6 +67,16 @@ def get_config_errors(cfg) -> list:
         List of error message strings.
     """
     errors = []
+
+    # Top-level provider must be one of the registered providers.
+    # `getattr` keeps the validator robust if a legacy DictConfig without
+    # the `provider` field is passed in (defaults to the registry default).
+    provider = getattr(cfg, "provider", "aws")
+    if provider not in VALID_PROVIDERS:
+        errors.append(
+            f"provider must be one of: {', '.join(VALID_PROVIDERS)} "
+            f"(got '{provider}')"
+        )
 
     # DNS enabled requires non-empty domain
     if cfg.dns.enabled and not cfg.dns.domain:

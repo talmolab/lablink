@@ -1,0 +1,40 @@
+# Rendered by `lablink deploy` (manual provider) — DO NOT edit by hand.
+# Re-run `lablink deploy` to regenerate after config changes.
+#
+# The allocator image is monolithic: it bundles Flask + nginx + an
+# internal Postgres. The single named volume below preserves DB state
+# across container restarts. Mount `./config.yaml` at /config (the path
+# the container's start.sh already reads from); everything else
+# (admin creds, DB creds) lives inside that file.
+services:
+  allocator:
+    image: ${ALLOCATOR_IMAGE}
+    # Mutable tags like `linux-amd64-latest[-test]` are republished by CI
+    # without changing the tag string, so the local cache would otherwise
+    # mask updates. `always` makes `docker compose up -d` re-pull every
+    # time and is what makes "push a new image, re-run lablink deploy"
+    # actually deploy the new image.
+    pull_policy: always
+    # The allocator image is published amd64-only; pin the platform so
+    # Apple Silicon (and other arm64 hosts) emulate via Rosetta instead
+    # of failing with "no matching manifest for linux/arm64/v8". This is
+    # a no-op on native amd64 hosts. Drop this once multi-arch images
+    # are published from lablink-template's CI.
+    platform: linux/amd64
+    # Pin the container name so the CLI's logs/status/_extract_register_token
+    # helpers can address it without knowing the compose project name.
+    container_name: lablink-allocator
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - allocator_pgdata:/var/lib/postgresql
+    ports:
+      # The container's nginx listens on :5000 (see lablink-nginx.conf in
+      # the allocator package). It is the only listener — there is no TLS
+      # terminator inside this image, so HTTPS is not exposed by the
+      # manual provider; front the stack with your own reverse proxy
+      # (Caddy, nginx, Cloudflare Tunnel) for public TLS.
+      - "${HTTP_PORT}:5000"
+    restart: unless-stopped
+
+volumes:
+  allocator_pgdata:

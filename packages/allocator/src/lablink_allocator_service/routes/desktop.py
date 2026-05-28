@@ -8,7 +8,7 @@ If the cookie is missing, invalid, or the bound VM is no longer
 running, redirect to / so the student can submit their email again.
 """
 import json
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from flask import Blueprint, current_app, redirect, request
 from psycopg2 import sql
@@ -65,25 +65,31 @@ def desktop():
             code=302,
         )
 
-    # Direct ws(s):// target: render an in-page bootstrap so the
-    # per-session credential is NEVER placed in a logged query string.
-    # The credential is set in same-origin localStorage for noVNC to
-    # read; short-lived (rotated each session) but readable by any
-    # same-origin JS — relies on the allocator origin's CSP/XSS
-    # hygiene. Revisit CSP before the LAN-direct path goes live.
+    # Direct ws(s):// target (manual / lan_direct connectivity):
+    # the browser opens the WS straight at the client KasmVNC, with no
+    # allocator proxy in the byte path. Modern Chromium/Firefox refuse
+    # to attach an `Authorization: Basic` header to a WebSocket upgrade
+    # (URL userinfo is stripped at the URL-parser level), so we drive
+    # KasmVNC in RFB `VncAuth` mode on this connectivity and pass the
+    # per-session 8-char credential through the bundled noVNC's
+    # `?password=` URL param — it consumes it in-band during the VNC
+    # auth handshake. The credential sits in the WS-viewer URL, but
+    # `/static/novnc/*` has `access_log off` in lablink-nginx.conf and
+    # we use `location.replace` to keep the URL out of session history.
+    # DevTools visibility is unavoidable for any browser-direct auth
+    # scheme; per-session rotation bounds the exposure window.
     parts = urlsplit(ws_url)
     host = parts.hostname or ""
     port = parts.port or 6080
     encrypt = "1" if parts.scheme == "wss" else "0"
-    cred_js = "" if credential is None else (
-        f"localStorage.setItem('lablink_cred', {json.dumps(credential)});"
+    pw_qs = "" if credential is None else f"&password={quote(credential, safe='')}"
+    target = (
+        f"/static/novnc/vnc.html?host={host}&port={port}&encrypt={encrypt}"
+        f"&autoconnect=1&resize=remote{pw_qs}"
     )
     return (
         "<!doctype html><meta charset=utf-8>"
         '<body style="margin:0">'
-        f"<script>{cred_js}"
-        f'location.replace("/static/novnc/vnc.html"'
-        f'+"?host={host}&port={port}&encrypt={encrypt}"'
-        f'+"&autoconnect=1&resize=remote");</script>',
+        f"<script>location.replace({json.dumps(target)});</script>",
         200,
     )

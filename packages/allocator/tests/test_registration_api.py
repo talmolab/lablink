@@ -259,3 +259,146 @@ def test_register_response_ignores_spoofed_proto_when_https_off(reg_client):
     body = r.get_json()
     assert not body["allocator_url"].startswith("https://"), body["allocator_url"]
     assert "evil.example.com" not in body["allocator_url"], body["allocator_url"]
+
+
+def test_unregister_rejects_missing_header(reg_client):
+    """No Authorization header → 401."""
+    client, _ = reg_client
+    r = client.delete("/api/v1/clients/vm-1")
+    assert r.status_code == 401
+
+
+def test_unregister_rejects_bad_token(reg_client):
+    """Bearer token that does not verify against client_secret_hash → 401."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("real-secret")
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer wrong-secret"},
+    )
+    assert r.status_code == 401
+
+
+def test_unregister_rejects_unknown_client_id(reg_client):
+    """No secret hash on file (unknown client_id) → 401, not 404 —
+    don't let callers enumerate registered client_ids."""
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = None
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer anything"},
+    )
+    assert r.status_code == 401
+
+
+def test_unregister_returns_404_when_no_row(reg_client):
+    """Auth passes but the row is gone (already deleted / race) → 404."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = False
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 404
+
+
+def test_unregister_success(reg_client):
+    """Valid bearer + row exists → 200, JSON body, db.unregister_client called."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 200
+    assert r.get_json() == {"client_id": "vm-1", "status": "unregistered"}
+    fake_db.unregister_client.assert_called_once_with("vm-1")
+
+
+# ---- GET /api/v1/clients (list endpoint) ---------------------------------
+
+def test_list_clients_rejects_missing_auth(reg_client):
+    client, _ = reg_client
+    r = client.get("/api/v1/clients")
+    assert r.status_code == 401
+
+
+def test_list_clients_rejects_bad_bearer(reg_client):
+    client, _ = reg_client
+    r = client.get(
+        "/api/v1/clients",
+        headers={"Authorization": "Bearer wrong-api-token"},
+    )
+    assert r.status_code == 401
+
+
+def test_list_clients_accepts_api_token(reg_client, api_token_headers):
+    client, fake_db = reg_client
+    fake_db.list_registered_clients.return_value = []
+    r = client.get("/api/v1/clients", headers=api_token_headers)
+    assert r.status_code == 200
+    assert r.get_json() == {"clients": []}
+
+
+def test_list_clients_accepts_admin_basic(reg_client, admin_headers):
+    client, fake_db = reg_client
+    fake_db.list_registered_clients.return_value = []
+    r = client.get("/api/v1/clients", headers=admin_headers)
+    assert r.status_code == 200
+    assert r.get_json() == {"clients": []}
+
+
+def test_list_clients_returns_safe_fields(reg_client, api_token_headers):
+    from datetime import datetime
+
+    client, fake_db = reg_client
+    fake_db.list_registered_clients.return_value = [
+        {
+            "hostname": "byo-1",
+            "provider": "manual",
+            "endpoint_url": "ws://byo-1.local:6080",
+            "inuse": False,
+            "status": "running",
+            "healthy": "true",
+            "gpu_present": True,
+            "gpu_model": "RTX 4090",
+            "last_seen_at": datetime(2026, 5, 27, 12, 0, 0),
+        },
+        {
+            "hostname": "vm-2",
+            "provider": "aws",
+            "endpoint_url": None,
+            "inuse": True,
+            "status": "running",
+            "healthy": None,
+            "gpu_present": None,
+            "gpu_model": None,
+            "last_seen_at": None,
+        },
+    ]
+    r = client.get("/api/v1/clients", headers=api_token_headers)
+    assert r.status_code == 200
+    body = r.get_json()
+    assert len(body["clients"]) == 2
+    byo, vm = body["clients"]
+    assert byo["hostname"] == "byo-1"
+    assert byo["provider"] == "manual"
+    assert byo["gpu_present"] is True
+    assert byo["gpu_model"] == "RTX 4090"
+    assert byo["last_seen_at"] == "2026-05-27T12:00:00"
+    assert vm["hostname"] == "vm-2"
+    assert vm["inuse"] is True
+    # No secret fields leaked into the response.
+    for c in body["clients"]:
+        assert "client_secret_hash" not in c
+        assert "machine_identity" not in c
+        assert "cloudinitlogs" not in c
+        assert "dockerlogs" not in c

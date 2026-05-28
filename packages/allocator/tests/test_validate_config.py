@@ -302,3 +302,70 @@ def test_ip_only_mode_valid(valid_config_dict, write_config_file):
 
     assert is_valid is True
     assert "[PASS]" in message
+
+
+class TestProviderField:
+    """Tests for the top-level `provider` field on Config (PR D3 Task 1)."""
+
+    # NOTE: matching the specific provider-validation error message rather
+    # than any occurrence of "provider" — the SSL validator's default-config
+    # errors mention `provider="none"` and would otherwise create false hits.
+    _PROVIDER_ERROR_PREFIX = "provider must be one of"
+
+    def _make_cfg(self, provider_value):
+        """Build a Config whose SSL/DNS section won't produce unrelated
+        errors, so we can isolate the top-level provider validator."""
+        from lablink_allocator_service.conf.structured_config import Config
+        cfg = Config()
+        cfg.provider = provider_value
+        # Default SSL provider is "letsencrypt" which fires its own errors;
+        # neutralize it so this test class only exercises top-level provider.
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        return cfg
+
+    def test_default_is_aws(self):
+        from lablink_allocator_service.conf.structured_config import Config
+        cfg = Config()
+        assert cfg.provider == "aws"
+
+    def test_validator_rejects_unknown_provider(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg("k8s")
+        errors = get_config_errors(cfg)
+        assert any(self._PROVIDER_ERROR_PREFIX in e for e in errors)
+
+    def test_validator_accepts_aws(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg("aws")
+        errors = get_config_errors(cfg)
+        assert not any(self._PROVIDER_ERROR_PREFIX in e for e in errors)
+
+    def test_validator_accepts_manual(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg("manual")
+        errors = get_config_errors(cfg)
+        assert not any(self._PROVIDER_ERROR_PREFIX in e for e in errors)
+
+
+class TestRegisterTokenLogging:
+    """Regression test: gated log line format must match the CLI's
+    `_extract_register_token` regex contract (PR D3 Task 1).
+    """
+
+    def test_register_token_log_format_matches_extractor_regex(self, caplog):
+        """Verify the gated log line uses the exact format that the
+        CLI's _extract_register_token regex expects (`REGISTER_TOKEN=...`).
+        """
+        import logging
+        import re
+        from lablink_allocator_service import main
+        with caplog.at_level(logging.INFO, logger=main.logger.name):
+            main.logger.info("REGISTER_TOKEN=%s", main.REGISTER_TOKEN)
+        joined = " ".join(rec.message for rec in caplog.records)
+        m = re.search(
+            r'REGISTER_TOKEN\s*=\s*"?([A-Za-z0-9_\-]{20,})"?', joined
+        )
+        assert m is not None
+        assert m.group(1) == main.REGISTER_TOKEN

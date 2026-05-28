@@ -170,5 +170,23 @@ def test_desktop_lan_direct_renders_direct_with_credential(desktop_client_with_r
     assert r.status_code == 200          # rendered page, not a redirect
     body = r.get_data(as_text=True)
     assert "10.0.0.9" in body and "6080" in body
-    assert "seshpw" in body              # credential in-page, not in a logged URL
+    # The credential MUST land in vnc.html's ?password=, which the bundled
+    # KasmVNC noVNC consumes through the RFB VncAuth handshake — that is
+    # the only browser-side route to authenticate without an HTTP proxy
+    # injecting BasicAuth (which browsers won't do for WS upgrades).
+    assert "&password=seshpw" in body
     assert "?path=proxy/" not in body
+    # location.replace keeps the password URL out of session history;
+    # access_log off in lablink-nginx.conf keeps it out of server logs.
+    assert "location.replace" in body
+
+
+def test_desktop_lan_direct_urlencodes_credential(desktop_client_with_row):
+    """A credential containing URL-unsafe bytes must be percent-encoded
+    in the query string — otherwise noVNC parses garbage and the VNC
+    auth handshake fails with a non-obvious error."""
+    client = desktop_client_with_row(ws_url="ws://10.0.0.9:6080", cred="a/b+c=d")
+    body = client.get("/desktop").get_data(as_text=True)
+    # `/`, `+`, `=` all need percent-encoding inside a value position.
+    assert "&password=a%2Fb%2Bc%3Dd" in body
+    assert "a/b+c=d" not in body

@@ -128,26 +128,62 @@ fi
   echo '  level: 100'
 } > /home/client/.vnc/kasmvnc.yaml
 
-# Seed an initial KasmVNC user. kasmvncserver refuses to start without
-# at least one user with write access (otherwise it prompts interactively
-# and hangs in our non-tty container). The path MUST be ~/.kasmpasswd —
-# this is the default of `server.advanced.kasm_password_file` in
-# kasmvncserver and is checked by the wrapper at startup.
-#
-# The allocator's POST /api/session/start (handled by the agent on
-# :7070) rotates this password before any student connects; the random
-# seed here just satisfies the "has a user with write access" check.
-#
-# Remove any pre-existing file first: `kasmvncpasswd -rwo` against an
-# existing same-username row only updates the password column on some
-# builds, leaving the permission column at whatever it was previously
-# (we observed empty perms persisting across boots otherwise).
-rm -f /home/client/.kasmpasswd
-SEED_PW=$(openssl rand -base64 24 | tr -d '\n')
-echo -e "${SEED_PW}\n${SEED_PW}" \
-  | kasmvncpasswd -u kasm_user -rwo /home/client/.kasmpasswd
-chmod 600 /home/client/.kasmpasswd
-unset SEED_PW
+# Pick the KasmVNC auth scheme based on how the browser will reach us:
+#   * allocator_proxied (AWS / default): allocator nginx attaches HTTP
+#     Basic Auth server-side. We use KasmVNC's username-based file
+#     (.kasmpasswd), -SecurityTypes None at the RFB layer, and the
+#     bundled HTTP BasicAuth as the only auth gate.
+#   * lan_direct (manual/BYO): the student browser opens the WS
+#     straight to ws://<lan_ip>:6080. Modern browsers refuse to attach
+#     Basic Auth headers to WebSocket upgrades (URL userinfo is dropped
+#     at the URL-parser level), so HTTP BasicAuth here is unreachable.
+#     We instead disable BasicAuth and run RFB-level VncAuth; the
+#     bundled noVNC sends ?password=<pw> through its in-band VNC auth
+#     handshake. VncAuth uses single DES — adequate for a per-session
+#     rotated credential, and the only browser-compatible scheme
+#     KasmVNC v1.4 supports without TLS plumbing on the client.
+CONNECTIVITY="${CONNECTIVITY:-allocator_proxied}"
+
+if [ "$CONNECTIVITY" = "lan_direct" ]; then
+  # Xvnc refuses to start without a usable -PasswordFile under
+  # -SecurityTypes VncAuth. Seed an 8-byte RFB-format blob; the agent's
+  # POST /api/session/start rotates it before any student connects.
+  mkdir -p /home/client/.vnc
+  SEED_PW=$(openssl rand -base64 6 | head -c 8)
+  SEED_PW="$SEED_PW" python3 - <<'PY' > /home/client/.vnc/passwd
+import os, sys
+from lablink_client_service.agent.kasmvnc import _vncauth_blob
+sys.stdout.buffer.write(_vncauth_blob(os.environ["SEED_PW"]))
+PY
+  chmod 600 /home/client/.vnc/passwd
+  unset SEED_PW
+  AUTH_ARGS=(-DisableBasicAuth -SecurityTypes VncAuth
+             -PasswordFile /home/client/.vnc/passwd)
+else
+  # Seed an initial KasmVNC user. kasmvncserver refuses to start without
+  # at least one user with write access (otherwise it prompts interactively
+  # and hangs in our non-tty container). The path MUST be ~/.kasmpasswd —
+  # this is the default of `server.advanced.kasm_password_file` in
+  # kasmvncserver and is checked by the wrapper at startup.
+  #
+  # The allocator's POST /api/session/start (handled by the agent on
+  # :7070) rotates this password before any student connects; the random
+  # seed here just satisfies the "has a user with write access" check.
+  #
+  # Remove any pre-existing file first: `kasmvncpasswd -rwo` against an
+  # existing same-username row only updates the password column on some
+  # builds, leaving the permission column at whatever it was previously
+  # (we observed empty perms persisting across boots otherwise).
+  rm -f /home/client/.kasmpasswd
+  SEED_PW=$(openssl rand -base64 24 | tr -d '\n')
+  echo -e "${SEED_PW}\n${SEED_PW}" \
+    | kasmvncpasswd -u kasm_user -rwo /home/client/.kasmpasswd
+  chmod 600 /home/client/.kasmpasswd
+  unset SEED_PW
+  AUTH_ARGS=(-SecurityTypes None
+             -PasswordFile /home/client/.vnc/passwd
+             -KasmPasswordFile /home/client/.kasmpasswd)
+fi
 
 # Start KasmVNC by invoking Xvnc directly. We do NOT use the
 # kasmvncserver Perl wrapper because:
@@ -169,9 +205,7 @@ Xvnc :1 \
     -interface "${KASMVNC_LISTEN:-0.0.0.0}" \
     -websocketPort 6080 \
     -localhost 0 \
-    -SecurityTypes None \
-    -PasswordFile /home/client/.vnc/passwd \
-    -KasmPasswordFile /home/client/.kasmpasswd \
+    "${AUTH_ARGS[@]}" \
     -AlwaysShared 1 \
     -noreset \
     > "$LOG_DIR/kasmvnc.log" 2>&1 &

@@ -328,3 +328,69 @@ class TestCleanupLocal:
 
         cleanup_local(mock_cfg, dry_run=True)
         assert deploy_dir.exists()
+
+
+# ------------------------------------------------------------------
+# Manual-provider cleanup
+# ------------------------------------------------------------------
+class TestManualCleanup:
+    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    def test_manual_compose_down_and_remove_workdir(
+        self, mock_run, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.cleanup import run_cleanup
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        workdir = tmp_path / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / "docker-compose.yml").write_text("")
+
+        with patch(
+            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            tmp_path / "compose",
+        ):
+            run_cleanup(mock_cfg, dry_run=False)
+
+        mock_run.assert_called()
+        cmd = mock_run.call_args[0][0]
+        assert "down" in cmd
+        assert "--volumes" in cmd
+        assert not workdir.exists()
+
+    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    def test_manual_no_workdir_is_noop(
+        self, mock_run, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.cleanup import run_cleanup
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "missing-lab"
+
+        with patch(
+            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            tmp_path / "compose",
+        ):
+            run_cleanup(mock_cfg, dry_run=False)
+
+        mock_run.assert_not_called()
+
+    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    def test_manual_dry_run_preserves_workdir(
+        self, mock_run, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.cleanup import run_cleanup
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        workdir = tmp_path / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+
+        with patch(
+            "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
+            tmp_path / "compose",
+        ):
+            run_cleanup(mock_cfg, dry_run=True)
+
+        mock_run.assert_not_called()
+        assert workdir.exists()

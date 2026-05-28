@@ -6,6 +6,7 @@ routes/desktop.py using current_app instead of importing main.
 """
 from __future__ import annotations
 
+from datetime import datetime
 import psycopg2
 import secrets
 
@@ -14,6 +15,27 @@ from flask import Blueprint, current_app, jsonify, request
 from lablink_allocator_service.secret_hash import hash_secret, verify_secret
 
 bp = Blueprint("registration", __name__)
+
+
+def _require_admin_or_api_token():
+    """Accept Bearer API_TOKEN or admin HTTP Basic.
+
+    Returns None when authorized, or a Flask response to return as-is.
+    Lazy-imports ``main`` to keep this blueprint clear of the
+    module-load cycle, mirroring the other views above.
+    """
+    from lablink_allocator_service import main
+
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        token = header[7:]
+        if secrets.compare_digest(token, main.API_TOKEN):
+            return None
+        return jsonify({"error": "Invalid API token."}), 401
+
+    if main.auth.current_user():
+        return None
+    return main.auth.login_required(lambda: None)()
 
 
 @bp.route("/api/v1/clients/register", methods=["POST"])
@@ -98,3 +120,64 @@ def client_status(client_id):
 
     status = main.database.get_status_by_hostname(client_id)
     return jsonify(client_id=client_id, status=status), 200
+
+
+@bp.route("/api/v1/clients/<client_id>", methods=["DELETE"])
+def unregister_client(client_id):
+    """Best-effort caller-driven deregistration.
+
+    Auth: Bearer client_secret (the secret minted at register time).
+    Hard-deletes the row, even when ``useremail`` is set — the BYO
+    operator is voluntarily withdrawing the box, and the student's
+    session is already broken because the local container is going
+    away.
+    """
+    from lablink_allocator_service import main
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Invalid client secret."}), 401
+    token = auth_header[7:]
+    stored = main.database.get_client_secret_hash(client_id)
+    if not stored or not verify_secret(token, stored):
+        return jsonify({"error": "Invalid client secret."}), 401
+
+    deleted = main.database.unregister_client(client_id)
+    if not deleted:
+        return jsonify({"error": "Client not found."}), 404
+
+    return jsonify(client_id=client_id, status="unregistered"), 200
+
+
+@bp.route("/api/v1/clients", methods=["GET"])
+def list_clients():
+    """List registered clients for operator status views.
+
+    Auth: Bearer API_TOKEN or admin HTTP Basic — same gate as
+    ``/admin/instances``. Returns only operator-safe columns
+    (no secrets, no log blobs).
+    """
+    from lablink_allocator_service import main
+
+    rejection = _require_admin_or_api_token()
+    if rejection is not None:
+        return rejection
+
+    rows = main.database.list_registered_clients()
+    clients = []
+    for row in rows:
+        last_seen = row.get("last_seen_at")
+        if isinstance(last_seen, datetime):
+            last_seen = last_seen.isoformat()
+        clients.append({
+            "hostname": row.get("hostname"),
+            "provider": row.get("provider"),
+            "endpoint_url": row.get("endpoint_url"),
+            "inuse": row.get("inuse"),
+            "status": row.get("status"),
+            "healthy": row.get("healthy"),
+            "gpu_present": row.get("gpu_present"),
+            "gpu_model": row.get("gpu_model"),
+            "last_seen_at": last_seen,
+        })
+    return jsonify(clients=clients), 200

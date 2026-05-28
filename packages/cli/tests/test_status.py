@@ -355,3 +355,95 @@ class TestRenderCostEstimate:
             {"resource": "Client VM", "daily": 12.6, "note": "per VM"},
         ]
         _render_cost_estimate(mock_cfg)
+
+
+# ------------------------------------------------------------------
+# Manual-provider status
+# ------------------------------------------------------------------
+class TestManualStatus:
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_manual_reports_compose_health(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        # Create the compose workdir so the function proceeds past the
+        # "no compose stack" branch.
+        workdir = tmp_path / ".lablink" / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        mock_subproc.return_value = MagicMock(
+            returncode=0,
+            stdout="NAME              STATUS\nlablink-allocator running",
+        )
+        mock_health.return_value = {"healthy": True, "detail": ""}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "allocator" in out.lower()
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_manual_no_compose_stack(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "missing-lab"
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "No compose stack" in out
+        mock_subproc.assert_not_called()
+        mock_health.assert_not_called()
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_manual_allocator_unhealthy(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        workdir = tmp_path / ".lablink" / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        mock_subproc.return_value = MagicMock(
+            returncode=0, stdout="",
+        )
+        mock_health.return_value = {"healthy": False, "detail": "starting"}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "not healthy" in out.lower()
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_manual_self_signed_uses_https(
+        self, mock_health, mock_subproc, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        mock_cfg.ssl.provider = "self_signed"
+        workdir = tmp_path / ".lablink" / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_health.return_value = {"healthy": True, "detail": ""}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        # Health URL should use https scheme for self_signed.
+        called_url = mock_health.call_args[0][0]
+        assert called_url.startswith("https://")

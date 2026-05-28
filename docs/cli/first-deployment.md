@@ -87,7 +87,7 @@ This shows four sections:
 
 - **Terraform State** — outputs like `ec2_public_ip`, `ec2_public_dns`, and any DNS/ALB records.
 - **Health Checks** — DNS resolution (if you configured a domain), `/api/health` response, and SSL certificate expiry (if HTTPS is enabled).
-- **Client VMs** — per-VM state reported by the allocator (empty until you run `lablink launch-client`).
+- **Client VMs** — per-VM state reported by the allocator (empty until you run `lablink client launch`).
 - **Cost Estimate** — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.
 
 Open the allocator in a browser using `http://<ec2_public_ip>` (or your configured domain) and log in with username `admin` and the admin password you entered during deploy.
@@ -95,7 +95,7 @@ Open the allocator in a browser using `http://<ec2_public_ip>` (or your configur
 ## Step 5: Launch a client VM
 
 ```bash
-lablink launch-client --num-vms 1
+lablink client launch --num-vms 1
 ```
 
 The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own Terraform workspace (not the CLI's). Run `lablink status` again to see the new VM appear.

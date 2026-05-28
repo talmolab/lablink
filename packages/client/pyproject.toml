@@ -16,6 +16,11 @@ dependencies = [
   "psutil>=7.1,<7.3",
   "urllib3>=2.3.0,<3.0",
   "flask>=3.0",
+  # DES for the RFB-format password file the agent writes in LAN-direct
+  # mode (-SecurityTypes VncAuth). Single DES is "weak crypto" by modern
+  # standards, but VncAuth is what KasmVNC accepts here and the password
+  # is rotated per-session, so the threat window is one session.
+  "cryptography>=42,<46",
 ]
 description = "Lablink Client Service that will be installed in the lablink-client-base-image"
 keywords = ["vm", "docker", "postgres", "tutorial", "AWS"]

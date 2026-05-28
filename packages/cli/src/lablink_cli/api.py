@@ -115,7 +115,7 @@ class AllocatorConflictError(AllocatorError):
 class RegistrationClient:
     """HTTP client for the registration endpoint (Bearer auth, no admin creds).
 
-    Used by `lablink register` on the BYO box. Unlike AllocatorAPI which
+    Used by `lablink client register` on the BYO box. Unlike AllocatorAPI which
     requires admin Basic auth, RegistrationClient authenticates with the
     bootstrap register_token only — which is what a BYO box has at
     onboarding time.

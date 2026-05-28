@@ -1,4 +1,4 @@
-"""Auto-detection helpers for `lablink register` (BYO-box facts).
+"""Auto-detection helpers for `lablink client register` (BYO-box facts).
 
 Each helper has a single, narrow responsibility and returns a value or
 None / a benign default — never raises on detection failure. The

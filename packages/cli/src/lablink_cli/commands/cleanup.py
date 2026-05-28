@@ -1,8 +1,14 @@
-"""Clean up orphaned AWS resources and local state."""
+"""Clean up deployment resources and local state.
+
+AWS provider: orphaned EC2/IAM/EIP/SG/state resources via boto3.
+Manual provider: the local docker-compose stack and working directory.
+"""
 
 from __future__ import annotations
 
 import shutil
+import subprocess
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -21,6 +27,8 @@ from lablink_cli.commands.utils import (
 )
 
 console = Console()
+
+DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 
 
 def _delete_if_exists(
@@ -462,7 +470,15 @@ def run_cleanup(
     cfg: Config,
     dry_run: bool = False,
 ) -> None:
-    """Clean up orphaned AWS resources."""
+    """Clean up deployment resources.
+
+    Dispatches on cfg.provider: AWS orphaned resources via boto3,
+    or the local docker-compose stack for manual.
+    """
+    if getattr(cfg, "provider", "aws") == "manual":
+        _run_cleanup_manual(cfg, dry_run=dry_run)
+        return
+
     region = cfg.app.region
     deployment_name = cfg.deployment_name
     environment = cfg.environment
@@ -522,3 +538,41 @@ def run_cleanup(
         )
     else:
         console.print("[bold]Cleanup complete.[/bold]")
+
+
+# ------------------------------------------------------------------
+# Manual-provider cleanup
+# ------------------------------------------------------------------
+def _run_cleanup_manual(cfg: Config, *, dry_run: bool) -> None:
+    """Tear down a local docker-compose allocator stack.
+
+    Runs `docker compose down --volumes` in the deployment workdir and
+    then removes the workdir itself. No AWS API calls are made.
+    """
+    workdir = DEFAULT_COMPOSE_DIR / (cfg.deployment_name or "lablink")
+
+    console.print(
+        f"[bold]Manual cleanup:[/bold] {cfg.deployment_name or 'lablink'}"
+    )
+
+    if not workdir.exists():
+        console.print(
+            f"[dim]Nothing to clean — no compose stack at {workdir}.[/dim]"
+        )
+        return
+
+    if dry_run:
+        console.print(
+            f"[yellow]Would run:[/yellow] docker compose down --volumes "
+            f"(in {workdir})"
+        )
+        console.print(f"[yellow]Would remove:[/yellow] {workdir}")
+        return
+
+    subprocess.run(
+        ["docker", "compose", "down", "--volumes"],
+        cwd=workdir,
+        check=False,
+    )
+    shutil.rmtree(workdir)
+    console.print(f"[green]Cleaned {workdir}.[/green]")

@@ -63,7 +63,7 @@ class DeploymentScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 1 of 6: Deployment Identity",
+                "Step 1: Deployment Identity",
                 classes="step-title",
             )
             yield Label(
@@ -144,11 +144,137 @@ class DeploymentScreen(Screen):
             env_radio.pressed_index
         ]
 
-        self.app.push_screen(RegionScreen())
+        self.app.push_screen(ProviderScreen())
 
 
 # ---------------------------------------------------------------------------
-# Screen 2: AWS Region
+# Screen 2: Provider (AWS vs Manual BYO)
+# ---------------------------------------------------------------------------
+class ProviderScreen(Screen):
+    """Choose the VM provisioning provider."""
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    def compose(self) -> ComposeResult:
+        cfg = self.app.config
+        current = getattr(cfg, "provider", "aws") or "aws"
+
+        yield Header()
+        with VerticalScroll():
+            yield Label(
+                "Step 2: Provider",
+                classes="step-title",
+            )
+            yield Label(
+                "Choose how client VMs are provisioned.\n"
+                "AWS provisions EC2 instances via Terraform.\n"
+                "Manual (BYO) skips provisioning — you supply Linux GPU\n"
+                "boxes that register themselves with `lablink client register`.",
+                classes="step-description",
+            )
+
+            yield Label("Provider", classes="field-label")
+            with RadioSet(id="provider-select"):
+                yield RadioButton(
+                    "aws — AWS EC2 (default)",
+                    value=(current == "aws"),
+                    id="provider-aws",
+                )
+                yield RadioButton(
+                    "manual — Bring-Your-Own boxes",
+                    value=(current == "manual"),
+                    id="provider-manual",
+                )
+
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
+                yield Button("Next", variant="primary", id="next")
+        yield Footer()
+
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        cfg = self.app.config
+        rb = self.query_one("#provider-select", RadioSet)
+        chosen = "aws"
+        if rb.pressed_button and rb.pressed_button.id == "provider-manual":
+            chosen = "manual"
+        cfg.provider = chosen
+
+        if chosen == "manual":
+            # For manual, force ssl.provider to a supported value if it
+            # was previously set to a public-TLS option.
+            if cfg.ssl.provider in ("letsencrypt", "acm", "cloudflare"):
+                cfg.ssl.provider = "none"
+            if not cfg.machine.image:
+                cfg.machine.image = ManualMachineScreen.DEFAULT_IMAGE
+            self.app.push_screen(ManualMachineScreen())
+        else:
+            self.app.push_screen(RegionScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 3 (Manual path only): Client image
+# ---------------------------------------------------------------------------
+class ManualMachineScreen(Screen):
+    """Configure the client Docker image for manual (BYO) deployments."""
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    DEFAULT_IMAGE = "ghcr.io/talmolab/lablink-client-base-image:latest"
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    def compose(self) -> ComposeResult:
+        cfg = self.app.config
+        current_image = cfg.machine.image or self.DEFAULT_IMAGE
+
+        yield Header()
+        with VerticalScroll():
+            yield Label(
+                "Step 3: Client image",
+                classes="step-title",
+            )
+            yield Label(
+                "Docker image that BYO boxes will pull and run after "
+                "they register. Defaults to the latest published image.",
+                classes="step-description",
+            )
+            yield Label("Client image", classes="field-label")
+            yield Input(
+                value=current_image,
+                placeholder=self.DEFAULT_IMAGE,
+                id="client-image",
+            )
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
+                yield Button("Next", variant="primary", id="next")
+        yield Footer()
+
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        cfg = self.app.config
+        image = self.query_one("#client-image", Input).value.strip()
+        cfg.machine.image = image or self.DEFAULT_IMAGE
+        # Skip Region + Machine instance-type + EIP — go straight to DNS/SSL
+        self.app.push_screen(DnsScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 2 (AWS path): AWS Region
 # ---------------------------------------------------------------------------
 class RegionScreen(Screen):
     """Select AWS region."""
@@ -162,7 +288,7 @@ class RegionScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 2 of 6: AWS Region", classes="step-title"
+                "Step 2: AWS Region", classes="step-title"
             )
             yield Label(
                 "Select the AWS region closest to your students.\n"
@@ -214,7 +340,7 @@ class MachineScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 3 of 6: Machine Configuration",
+                "Step 3: Machine Configuration",
                 classes="step-title",
             )
             yield Label(
@@ -318,11 +444,24 @@ class DnsScreen(Screen):
 
     BINDINGS = [Binding("escape", "back", "Back")]
 
+    PROVIDER_BY_BUTTON_ID = {
+        "dns-none": "none",
+        "dns-letsencrypt": "letsencrypt",
+        "dns-cloudflare": "cloudflare",
+        "dns-acm": "acm",
+        "dns-self_signed": "self_signed",
+    }
+
     def compose(self) -> ComposeResult:
         cfg = self.app.config
 
-        # Determine which radio button to pre-select
-        if not cfg.dns.enabled:
+        # Determine which radio button to pre-select.
+        # Indices follow AWS-style ordering (0..4); when manual provider is
+        # selected we hide indices 1..3 but the same numbering is used
+        # for the value-checking logic below.
+        if not cfg.dns.enabled and cfg.ssl.provider == "self_signed":
+            default_idx = 4
+        elif not cfg.dns.enabled:
             default_idx = 0
         elif cfg.ssl.provider == "letsencrypt":
             default_idx = 1
@@ -333,12 +472,31 @@ class DnsScreen(Screen):
         else:
             default_idx = 0
 
-        has_domain = default_idx > 0
+        is_manual = getattr(cfg, "provider", "aws") == "manual"
+
+        # Initial disabled state for the three text inputs, computed from
+        # the pre-selected provider (after manual filtering).
+        if default_idx == 1 and not is_manual:
+            domain_disabled = False
+            email_disabled = False
+            acm_disabled = True
+        elif default_idx == 2 and not is_manual:
+            domain_disabled = False
+            email_disabled = True
+            acm_disabled = True
+        elif default_idx == 3 and not is_manual:
+            domain_disabled = False
+            email_disabled = True
+            acm_disabled = False
+        else:
+            domain_disabled = True
+            email_disabled = True
+            acm_disabled = True
 
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 4 of 6: DNS & SSL", classes="step-title"
+                "Step 4: DNS & SSL", classes="step-title"
             )
 
             yield Label("Access Method", classes="field-label")
@@ -346,21 +504,32 @@ class DnsScreen(Screen):
                 yield RadioButton(
                     "IP Only — simplest setup, access via IP, no SSL",
                     value=(default_idx == 0),
+                    id="dns-none",
                 )
+                if not is_manual:
+                    yield RadioButton(
+                        "Let's Encrypt — free automatic SSL, requires a "
+                        "domain (https://letsencrypt.org/)",
+                        value=(default_idx == 1),
+                        id="dns-letsencrypt",
+                    )
+                    yield RadioButton(
+                        "CloudFlare — use if your domain is already on "
+                        "CloudFlare (https://www.cloudflare.com/application-services/products/ssl/)",
+                        value=(default_idx == 2),
+                        id="dns-cloudflare",
+                    )
+                    yield RadioButton(
+                        "AWS ACM — AWS-managed SSL with load balancer, "
+                        "requires certificate "
+                        "(https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)",
+                        value=(default_idx == 3),
+                        id="dns-acm",
+                    )
                 yield RadioButton(
-                    "Let's Encrypt — free automatic SSL, requires a domain"
-                    " (https://letsencrypt.org/)",
-                    value=(default_idx == 1),
-                )
-                yield RadioButton(
-                    "CloudFlare — use if your domain is already on CloudFlare"
-                    " (https://www.cloudflare.com/application-services/products/ssl/)",
-                    value=(default_idx == 2),
-                )
-                yield RadioButton(
-                    "AWS ACM — AWS-managed SSL with load balancer, requires certificate"
-                    " (https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)",
-                    value=(default_idx == 3),
+                    "Self-signed — browser warns once; fine for closed-LAN labs",
+                    value=(default_idx == 4),
+                    id="dns-self_signed",
                 )
 
             yield Label(
@@ -372,7 +541,7 @@ class DnsScreen(Screen):
                 value=cfg.dns.domain or "",
                 placeholder="lablink.example.com",
                 id="domain",
-                disabled=not has_domain,
+                disabled=domain_disabled,
             )
 
             yield Label(
@@ -384,7 +553,7 @@ class DnsScreen(Screen):
                 value=cfg.ssl.email or "",
                 placeholder="admin@example.com",
                 id="ssl-email",
-                disabled=(default_idx != 1),
+                disabled=email_disabled,
             )
 
             yield Label(
@@ -398,7 +567,7 @@ class DnsScreen(Screen):
                     "arn:aws:acm:region:account:certificate/id"
                 ),
                 id="acm-arn",
-                disabled=(default_idx != 3),
+                disabled=acm_disabled,
             )
 
         with Center():
@@ -411,31 +580,19 @@ class DnsScreen(Screen):
 
     @on(RadioSet.Changed, "#dns-mode")
     def _dns_changed(self, event: RadioSet.Changed) -> None:
-        idx = event.index
+        provider = self.PROVIDER_BY_BUTTON_ID.get(event.pressed.id, "none")
+
         domain_input = self.query_one("#domain", Input)
         email_input = self.query_one("#ssl-email", Input)
         acm_input = self.query_one("#acm-arn", Input)
 
-        # IP only
-        if idx == 0:
-            domain_input.disabled = True
-            email_input.disabled = True
-            acm_input.disabled = True
-        # Let's Encrypt
-        elif idx == 1:
-            domain_input.disabled = False
-            email_input.disabled = False
-            acm_input.disabled = True
-        # CloudFlare
-        elif idx == 2:
-            domain_input.disabled = False
-            email_input.disabled = True
-            acm_input.disabled = True
-        # ACM
-        elif idx == 3:
-            domain_input.disabled = False
-            email_input.disabled = True
-            acm_input.disabled = False
+        domain_needed = provider in ("letsencrypt", "cloudflare", "acm")
+        email_needed = provider == "letsencrypt"
+        acm_needed = provider == "acm"
+
+        domain_input.disabled = not domain_needed
+        email_input.disabled = not email_needed
+        acm_input.disabled = not acm_needed
 
     @on(Button.Pressed, "#back")
     def _back(self) -> None:
@@ -444,43 +601,57 @@ class DnsScreen(Screen):
     @on(Button.Pressed, "#next")
     def _next(self) -> None:
         radio = self.query_one("#dns-mode", RadioSet)
-        idx = radio.pressed_index
+        pressed_button = getattr(radio, "pressed_button", None)
+        if pressed_button is not None:
+            pressed_id = pressed_button.id
+        else:
+            # Fallback for older Textual: find the button with value=True
+            pressed_id = "dns-none"
+            for btn in radio.query(RadioButton):
+                if btn.value:
+                    pressed_id = btn.id
+                    break
+        provider = self.PROVIDER_BY_BUTTON_ID.get(pressed_id, "none")
         cfg = self.app.config
 
         domain = self.query_one("#domain", Input).value
         email = self.query_one("#ssl-email", Input).value
         acm_arn = self.query_one("#acm-arn", Input).value
 
-        if idx == 0:
-            # IP only
+        if provider == "none":
             cfg.dns.enabled = False
             cfg.ssl.provider = "none"
             cfg.eip.strategy = "dynamic"
-        elif idx == 1:
-            # Let's Encrypt
+        elif provider == "letsencrypt":
             cfg.dns.enabled = True
             cfg.dns.terraform_managed = True
             cfg.dns.domain = domain
             cfg.ssl.provider = "letsencrypt"
             cfg.ssl.email = email
             cfg.eip.strategy = "dynamic"
-        elif idx == 2:
-            # CloudFlare
+        elif provider == "cloudflare":
             cfg.dns.enabled = True
             cfg.dns.terraform_managed = False
             cfg.dns.domain = domain
             cfg.ssl.provider = "cloudflare"
             cfg.eip.strategy = "dynamic"
-        elif idx == 3:
-            # ACM
+        elif provider == "acm":
             cfg.dns.enabled = True
             cfg.dns.terraform_managed = True
             cfg.dns.domain = domain
             cfg.ssl.provider = "acm"
             cfg.ssl.certificate_arn = acm_arn
             cfg.eip.strategy = "dynamic"
+        elif provider == "self_signed":
+            cfg.dns.enabled = False
+            cfg.ssl.provider = "self_signed"
+            cfg.eip.strategy = "dynamic"
 
-        self.app.push_screen(StartupScreen())
+        is_manual = getattr(cfg, "provider", "aws") == "manual"
+        if is_manual:
+            self.app.push_screen(ReviewScreen())
+        else:
+            self.app.push_screen(StartupScreen())
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +676,7 @@ class StartupScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 5 of 6: Client Startup Script",
+                "Step 5: Client Startup Script",
                 classes="step-title",
             )
             yield Label(
@@ -727,7 +898,7 @@ class ReviewScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 6 of 6: Review & Save",
+                "Step 6: Review & Save",
                 classes="step-title",
             )
             yield TextArea(

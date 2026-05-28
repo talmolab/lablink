@@ -74,3 +74,54 @@ class TestCheckAmi:
         result = _check_ami(cfg)
         assert result["status"] == "fail"
         assert "No AMI" in result["detail"]
+
+
+# ------------------------------------------------------------------
+# _load_config_safe — warn on broken config instead of silent fallback
+# ------------------------------------------------------------------
+class TestLoadConfigSafe:
+    def test_warns_when_config_yaml_is_malformed(
+        self, tmp_path, capsys, monkeypatch,
+    ):
+        """Malformed YAML must surface a yellow warning so the operator
+        sees that doctor fell through to AWS prereqs because of a load
+        failure — silent fallback would mask config typos."""
+        from lablink_cli.commands import doctor
+
+        bad = tmp_path / "config.yaml"
+        bad.write_text("provider: manual\n  bad indent: 1\n")  # malformed YAML
+        monkeypatch.setattr(doctor, "DEFAULT_CONFIG", bad)
+
+        cfg = doctor._load_config_safe()
+
+        assert cfg is None
+        out = capsys.readouterr().out
+        assert "Could not load" in out
+        assert "AWS prereq checks" in out
+
+
+# ------------------------------------------------------------------
+# run_doctor — manual provider dispatch
+# ------------------------------------------------------------------
+class TestDoctorManual:
+    @patch("lablink_cli.commands.doctor.subprocess.run")
+    @patch("lablink_cli.commands.doctor.shutil.which")
+    @patch("lablink_cli.commands.doctor._load_config_safe")
+    def test_manual_provider_checks_docker(
+        self, mock_load, mock_which, mock_subproc, capsys,
+    ):
+        from lablink_cli.commands.doctor import run_doctor
+        from lablink_cli.config.schema import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        mock_load.return_value = cfg
+        mock_which.side_effect = lambda name: f"/usr/bin/{name}"
+        mock_subproc.return_value = MagicMock(
+            returncode=0,
+            stdout="docker compose version 2.x",
+            stderr="",
+        )
+        run_doctor()
+        out = capsys.readouterr().out
+        assert "docker" in out.lower()

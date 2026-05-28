@@ -93,6 +93,6 @@ def is_self_signed_ssl(cfg) -> bool:
     """Check if the deployment uses a self-signed TLS cert.
 
     Used by BYO onboarding to decide whether the rendered
-    ``lablink register`` command should include ``--insecure``.
+    ``lablink client register`` command should include ``--insecure``.
     """
     return hasattr(cfg, "ssl") and cfg.ssl.provider == "self_signed"
