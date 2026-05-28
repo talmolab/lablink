@@ -3588,12 +3588,12 @@
 <ul>
 <li><strong>Terraform State</strong> — outputs like <code>ec2_public_ip</code>, <code>ec2_public_dns</code>, and any DNS/ALB records.</li>
 <li><strong>Health Checks</strong> — DNS resolution (if you configured a domain), <code>/api/health</code> response, and SSL certificate expiry (if HTTPS is enabled).</li>
-<li><strong>Client VMs</strong> — per-VM state reported by the allocator (empty until you run <code>lablink launch-client</code>).</li>
+<li><strong>Client VMs</strong> — per-VM state reported by the allocator (empty until you run <code>lablink client launch</code>).</li>
 <li><strong>Cost Estimate</strong> — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.</li>
 </ul>
 <p>Open the allocator in a browser using <code>http://&lt;ec2_public_ip&gt;</code> (or your configured domain) and log in with username <code>admin</code> and the admin password you entered during deploy.</p>
 <h2 id="step-5-launch-a-client-vm">Step 5: Launch a client VM<a class="headerlink" href="#step-5-launch-a-client-vm" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>launch-client<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
 <p>The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own Terraform workspace (not the CLI's). Run <code>lablink status</code> again to see the new VM appear.</p>
 <h2 id="step-6-tear-down">Step 6: Tear down<a class="headerlink" href="#step-6-tear-down" title="Permanent link">&para;</a></h2>

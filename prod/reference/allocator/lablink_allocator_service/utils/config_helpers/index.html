@@ -3874,7 +3874,7 @@
 
         <p>Check if the deployment uses a self-signed TLS cert.</p>
 <p>Used by BYO onboarding to decide whether the rendered
-<code>lablink register</code> command should include <code>--insecure</code>.</p>
+<code>lablink client register</code> command should include <code>--insecure</code>.</p>
 
 
             <details class="mkdocstrings-source">
@@ -3889,7 +3889,7 @@
 <a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the deployment uses a self-signed TLS cert.</span>
 <a id="__codelineno-0-94" name="__codelineno-0-94"></a>
 <a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    Used by BYO onboarding to decide whether the rendered</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="sd">    ``lablink register`` command should include ``--insecure``.</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="sd">    ``lablink client register`` command should include ``--insecure``.</span>
 <a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;ssl&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">ssl</span><span class="o">.</span><span class="n">provider</span> <span class="o">==</span> <span class="s2">&quot;self_signed&quot;</span>
 </code></pre></div></td></tr></table></div>

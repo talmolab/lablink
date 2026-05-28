@@ -3659,7 +3659,13 @@ running, redirect to / so the student can submit their email again.</p>
 <span class="normal"><a href="#__codelineno-0-86">86</a></span>
 <span class="normal"><a href="#__codelineno-0-87">87</a></span>
 <span class="normal"><a href="#__codelineno-0-88">88</a></span>
-<span class="normal"><a href="#__codelineno-0-89">89</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/desktop&quot;</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-89">89</a></span>
+<span class="normal"><a href="#__codelineno-0-90">90</a></span>
+<span class="normal"><a href="#__codelineno-0-91">91</a></span>
+<span class="normal"><a href="#__codelineno-0-92">92</a></span>
+<span class="normal"><a href="#__codelineno-0-93">93</a></span>
+<span class="normal"><a href="#__codelineno-0-94">94</a></span>
+<span class="normal"><a href="#__codelineno-0-95">95</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/desktop&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">desktop</span><span class="p">():</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="n">raw_cookie</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lablink_session&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">raw_cookie</span><span class="p">:</span>
@@ -3701,28 +3707,34 @@ running, redirect to / so the student can submit their email again.</p>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>            <span class="n">code</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="p">)</span>
 <a id="__codelineno-0-67" name="__codelineno-0-67"></a>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="c1"># Direct ws(s):// target: render an in-page bootstrap so the</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="c1"># per-session credential is NEVER placed in a logged query string.</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="c1"># The credential is set in same-origin localStorage for noVNC to</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>    <span class="c1"># read; short-lived (rotated each session) but readable by any</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="c1"># same-origin JS — relies on the allocator origin&#39;s CSP/XSS</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="c1"># hygiene. Revisit CSP before the LAN-direct path goes live.</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">ws_url</span><span class="p">)</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="n">host</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">port</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="mi">6080</span>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">encrypt</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span> <span class="k">if</span> <span class="n">parts</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;wss&quot;</span> <span class="k">else</span> <span class="s2">&quot;0&quot;</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="n">cred_js</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">credential</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>        <span class="sa">f</span><span class="s2">&quot;localStorage.setItem(&#39;lablink_cred&#39;, </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">credential</span><span class="p">)</span><span class="si">}</span><span class="s2">);&quot;</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="p">)</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a>    <span class="k">return</span> <span class="p">(</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>        <span class="s2">&quot;&lt;!doctype html&gt;&lt;meta charset=utf-8&gt;&quot;</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a>        <span class="s1">&#39;&lt;body style=&quot;margin:0&quot;&gt;&#39;</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>        <span class="sa">f</span><span class="s2">&quot;&lt;script&gt;</span><span class="si">{</span><span class="n">cred_js</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>        <span class="sa">f</span><span class="s1">&#39;location.replace(&quot;/static/novnc/vnc.html&quot;&#39;</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>        <span class="sa">f</span><span class="s1">&#39;+&quot;?host=</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s1">&amp;port=</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s1">&amp;encrypt=</span><span class="si">{</span><span class="n">encrypt</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a>        <span class="sa">f</span><span class="s1">&#39;+&quot;&amp;autoconnect=1&amp;resize=remote&quot;);&lt;/script&gt;&#39;</span><span class="p">,</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="mi">200</span><span class="p">,</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="c1"># Direct ws(s):// target (manual / lan_direct connectivity):</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="c1"># the browser opens the WS straight at the client KasmVNC, with no</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="c1"># allocator proxy in the byte path. Modern Chromium/Firefox refuse</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>    <span class="c1"># to attach an `Authorization: Basic` header to a WebSocket upgrade</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="c1"># (URL userinfo is stripped at the URL-parser level), so we drive</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="c1"># KasmVNC in RFB `VncAuth` mode on this connectivity and pass the</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="c1"># per-session 8-char credential through the bundled noVNC&#39;s</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="c1"># `?password=` URL param — it consumes it in-band during the VNC</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="c1"># auth handshake. The credential sits in the WS-viewer URL, but</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="c1"># `/static/novnc/*` has `access_log off` in lablink-nginx.conf and</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="c1"># we use `location.replace` to keep the URL out of session history.</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="c1"># DevTools visibility is unavoidable for any browser-direct auth</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="c1"># scheme; per-session rotation bounds the exposure window.</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">ws_url</span><span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="n">host</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="n">port</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="mi">6080</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>    <span class="n">encrypt</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span> <span class="k">if</span> <span class="n">parts</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;wss&quot;</span> <span class="k">else</span> <span class="s2">&quot;0&quot;</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>    <span class="n">pw_qs</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">credential</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;&amp;password=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">credential</span><span class="p">,</span><span class="w"> </span><span class="n">safe</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="n">target</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>        <span class="sa">f</span><span class="s2">&quot;/static/novnc/vnc.html?host=</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">&amp;port=</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">&amp;encrypt=</span><span class="si">{</span><span class="n">encrypt</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="sa">f</span><span class="s2">&quot;&amp;autoconnect=1&amp;resize=remote</span><span class="si">{</span><span class="n">pw_qs</span><span class="si">}</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="p">)</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="k">return</span> <span class="p">(</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>        <span class="s2">&quot;&lt;!doctype html&gt;&lt;meta charset=utf-8&gt;&quot;</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>        <span class="s1">&#39;&lt;body style=&quot;margin:0&quot;&gt;&#39;</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>        <span class="sa">f</span><span class="s2">&quot;&lt;script&gt;location.replace(</span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="si">}</span><span class="s2">);&lt;/script&gt;&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>        <span class="mi">200</span><span class="p">,</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

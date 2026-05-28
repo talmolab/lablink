@@ -3570,7 +3570,7 @@
 <p>Day-to-day operations once an allocator is running: launch client VMs, follow logs, export metrics, and clean up.</p>
 <p>Every command on this page reads <code>~/.lablink/config.yaml</code> by default. Pass <code>--config /path/to/other.yaml</code> to target a different deployment.</p>
 <h2 id="launch-client-vms">Launch client VMs<a class="headerlink" href="#launch-client-vms" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>launch-client<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
 <p>This asks the allocator to provision client VMs on your behalf. The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.</p>
 <table>
