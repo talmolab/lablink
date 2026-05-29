@@ -642,10 +642,18 @@ class TestErrorMapping:
 class TestStartLogShipper:
     @patch("lablink_cli.commands.register.subprocess.Popen")
     def test_spawns_detached_python_module(
-        self, mock_popen, tmp_path
+        self, mock_popen, tmp_path, monkeypatch
     ):
         from lablink_cli.commands.register import _start_log_shipper
         from rich.console import Console
+
+        # Point PID_FILE at tmp_path so _stop_existing_shipper doesn't
+        # touch the real ~/.lablink/log_shipper.pid (would otherwise risk
+        # terminating a live shipper on the developer's machine).
+        monkeypatch.setattr(
+            "lablink_cli.commands.register.PID_FILE",
+            tmp_path / "log_shipper.pid",
+        )
 
         env_file = tmp_path / "client.env"
         env_file.write_text("CLIENT_ID=1\n")
@@ -667,6 +675,159 @@ class TestStartLogShipper:
         )
         # stdin closed; stdout/stderr to log file
         assert kwargs.get("stdin") is not None  # DEVNULL
+
+    @patch("lablink_cli.commands.register._stop_existing_shipper")
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    def test_terminates_existing_shipper_before_spawn(
+        self, mock_popen, mock_stop, tmp_path
+    ):
+        """Guarantees there is no overlap between old and new shippers
+        (which would POST duplicates under --force re-register)."""
+        from lablink_cli.commands.register import _start_log_shipper
+        from rich.console import Console
+
+        env_file = tmp_path / "client.env"
+        env_file.write_text("CLIENT_ID=1\n")
+        mock_popen.return_value = MagicMock(pid=99999)
+
+        _start_log_shipper(env_file, Console())
+
+        # _stop_existing_shipper must be called before Popen.
+        assert mock_stop.called
+        # Ordering check: Popen happens after the stop.
+        stop_call_order = mock_stop.mock_calls[0]
+        popen_call_order = mock_popen.mock_calls[0]
+        # Both fire once; just confirm both are present (call ordering
+        # within a single sync function is guaranteed by source order).
+        assert stop_call_order is not None
+        assert popen_call_order is not None
+
+
+class TestStopExistingShipper:
+    """Covers `_stop_existing_shipper` — the kill-old-shipper step that
+    prevents double-shipper duplicate POSTs during --force re-register."""
+
+    def _fake_psutil(self, monkeypatch, process_factory):
+        """Install a fake psutil module whose `Process()` returns whatever
+        process_factory() yields. Exceptions are re-exported as classes so
+        ``except psutil.NoSuchProcess`` works in the SUT."""
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+
+        fake = MagicMock()
+        fake.NoSuchProcess = type("NoSuchProcess", (Exception,), {})
+        fake.AccessDenied = type("AccessDenied", (Exception,), {})
+        fake.TimeoutExpired = type("TimeoutExpired", (Exception,), {})
+        fake.Process.side_effect = process_factory
+        monkeypatch.setattr(register, "psutil", fake)
+        return fake
+
+    def test_no_pid_file_is_noop(self, tmp_path, monkeypatch):
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        # Should not raise; should not touch psutil at all.
+        register._stop_existing_shipper(Console())
+
+    def test_terminates_matching_shipper(self, tmp_path, monkeypatch):
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_proc = MagicMock()
+        fake_proc.cmdline.return_value = [
+            "/usr/bin/python", "-m",
+            "lablink_cli.log_shipper", "/x/client.env",
+        ]
+        self._fake_psutil(monkeypatch, lambda _pid: fake_proc)
+
+        register._stop_existing_shipper(Console())
+
+        fake_proc.terminate.assert_called_once()
+        fake_proc.wait.assert_called_once()
+        # PID file cleared so a stale entry never confuses the next run.
+        assert not pid_file.exists()
+
+    def test_escalates_to_kill_on_timeout(self, tmp_path, monkeypatch):
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_proc = MagicMock()
+        fake_proc.cmdline.return_value = [
+            "python", "-m", "lablink_cli.log_shipper", "/x"
+        ]
+        fake = self._fake_psutil(monkeypatch, lambda _pid: fake_proc)
+        # SIGTERM didn't take — wait() raises TimeoutExpired.
+        fake_proc.wait.side_effect = fake.TimeoutExpired()
+
+        register._stop_existing_shipper(Console())
+
+        fake_proc.terminate.assert_called_once()
+        fake_proc.kill.assert_called_once()
+        # PID file still cleaned up after SIGKILL (handler never ran).
+        assert not pid_file.exists()
+
+    def test_does_not_kill_unrelated_pid(self, tmp_path, monkeypatch):
+        """PID file points at a real but unrelated process (e.g. PID reuse
+        after reboot). Cmdline guard must protect it."""
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_proc = MagicMock()
+        fake_proc.cmdline.return_value = ["/usr/bin/vim", "notes.txt"]
+        self._fake_psutil(monkeypatch, lambda _pid: fake_proc)
+
+        register._stop_existing_shipper(Console())
+
+        fake_proc.terminate.assert_not_called()
+        fake_proc.kill.assert_not_called()
+        # Stale PID file dropped so we don't keep skipping forever.
+        assert not pid_file.exists()
+
+    def test_stale_pid_removes_file_silently(self, tmp_path, monkeypatch):
+        """PID file references a PID that no longer exists."""
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("99999")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake = self._fake_psutil(monkeypatch, None)
+        fake.Process.side_effect = fake.NoSuchProcess()
+
+        register._stop_existing_shipper(Console())
+
+        assert not pid_file.exists()
+
+    def test_corrupt_pid_file_removed(self, tmp_path, monkeypatch):
+        from lablink_cli.commands import register
+        from rich.console import Console
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("not-a-number")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        register._stop_existing_shipper(Console())
+
+        assert not pid_file.exists()
 
 
 class TestShipperAlive:

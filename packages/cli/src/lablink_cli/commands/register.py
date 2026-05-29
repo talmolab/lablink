@@ -367,6 +367,48 @@ def _exec_docker(cmd: list[str], console: Console) -> None:
     )
 
 
+def _stop_existing_shipper(console: Console) -> None:
+    """Terminate any running shipper recorded in the PID file.
+
+    Called before spawning a new shipper so ``--force`` re-register doesn't
+    leave the old shipper briefly tailing the replaced container and
+    POSTing duplicates against the same hostname. The cmdline guard
+    matches ``_shipper_alive`` so an unrelated PID-reused process is left
+    alone.
+    """
+    if not PID_FILE.exists():
+        return
+    try:
+        pid = int(PID_FILE.read_text().strip())
+    except (OSError, ValueError):
+        PID_FILE.unlink(missing_ok=True)
+        return
+    try:
+        proc = psutil.Process(pid)
+        cmdline = proc.cmdline()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        PID_FILE.unlink(missing_ok=True)
+        return
+    if not any("lablink_cli.log_shipper" in arg for arg in cmdline):
+        PID_FILE.unlink(missing_ok=True)
+        return
+
+    console.print(f"[dim]Stopping existing log shipper (PID {pid})...[/dim]")
+    try:
+        proc.terminate()
+        proc.wait(timeout=5)
+    except psutil.TimeoutExpired:
+        try:
+            proc.kill()
+        except psutil.NoSuchProcess:
+            pass
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    # The shipper's SIGTERM handler removes the PID file; if we escalated
+    # to SIGKILL the handler never ran, so clean up here.
+    PID_FILE.unlink(missing_ok=True)
+
+
 def _start_log_shipper(env_file: Path, console: Console) -> None:
     """Spawn the log shipper as a detached background process.
 
@@ -374,6 +416,8 @@ def _start_log_shipper(env_file: Path, console: Console) -> None:
     the user does ``docker stop lablink-client`` (shipper's docker-logs
     subprocess exits and inspect reports missing) or the host reboots.
     """
+    _stop_existing_shipper(console)
+
     log_dir = Path.home() / ".lablink"
     log_dir.mkdir(parents=True, exist_ok=True)
     shipper_log = log_dir / "log_shipper.log"
