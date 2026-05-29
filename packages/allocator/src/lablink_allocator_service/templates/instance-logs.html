@@ -236,7 +236,9 @@
             </div>
 
             <!-- Log type tabs -->
+            {% set has_cloud_init = (provider or 'aws') == 'aws' %}
             <ul class="nav nav-tabs mb-0" id="logTabs" role="tablist">
+                {% if has_cloud_init %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="cloudInitTab" data-bs-toggle="tab"
                             data-bs-target="#cloudInitPane" type="button" role="tab"
@@ -244,15 +246,17 @@
                         Cloud Init <span class="badge bg-secondary ms-1" id="cloudInitLineCount">0</span>
                     </button>
                 </li>
+                {% endif %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="dockerTab" data-bs-toggle="tab"
+                    <button class="nav-link {% if not has_cloud_init %}active{% endif %}" id="dockerTab" data-bs-toggle="tab"
                             data-bs-target="#dockerPane" type="button" role="tab"
-                            aria-controls="dockerPane" aria-selected="false">
+                            aria-controls="dockerPane" aria-selected="{% if has_cloud_init %}false{% else %}true{% endif %}">
                         Docker <span class="badge bg-secondary ms-1" id="dockerLineCount">0</span>
                     </button>
                 </li>
             </ul>
             <div class="tab-content">
+                {% if has_cloud_init %}
                 <div class="tab-pane fade show active" id="cloudInitPane" role="tabpanel" aria-labelledby="cloudInitTab">
                     <div class="log-container" id="cloudInitLogBox" style="border-top-left-radius: 0; border-top-right-radius: 0;">
                         <div style="text-align: center; color: #888; padding: 2rem;">
@@ -260,7 +264,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="tab-pane fade" id="dockerPane" role="tabpanel" aria-labelledby="dockerTab">
+                {% endif %}
+                <div class="tab-pane fade {% if not has_cloud_init %}show active{% endif %}" id="dockerPane" role="tabpanel" aria-labelledby="dockerTab">
                     <div class="log-container" id="dockerLogBox" style="border-top-left-radius: 0; border-top-right-radius: 0;">
                         <div style="text-align: center; color: #888; padding: 2rem;">
                             Loading logs...
@@ -281,6 +286,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const hostname = "{{ hostname }}";
+        const hasCloudInit = {{ 'true' if has_cloud_init else 'false' }};
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
 
@@ -290,10 +296,14 @@
             updateTimestamp();
         });
 
+        function setBoxText(id, text) {
+            // Tolerate the cloud-init pane being absent (non-AWS providers).
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
         async function refreshLogs() {
             try {
-                const cloudInitLogBox = document.getElementById("cloudInitLogBox");
-                const dockerLogBox = document.getElementById("dockerLogBox");
                 const shouldFollowTail = document.getElementById("followTail").checked;
 
                 const res = await fetch(`/api/vm-logs/${hostname}`, { credentials : 'include' });
@@ -302,8 +312,8 @@
                     const cloudInitLogs = data.cloud_init_logs || "No logs available.";
                     const dockerLogs = data.docker_logs || "No logs available.";
 
-                    cloudInitLogBox.textContent = cloudInitLogs;
-                    dockerLogBox.textContent = dockerLogs;
+                    setBoxText("cloudInitLogBox", cloudInitLogs);
+                    setBoxText("dockerLogBox", dockerLogs);
 
                     // Update stats
                     updateLogStats(cloudInitLogs, dockerLogs);
@@ -317,17 +327,17 @@
                         }
                     }
                 } else if (res.status === 503) {
-                    cloudInitLogBox.textContent = "The VM is currently initializing. Please wait.";
-                    dockerLogBox.textContent = "The VM is currently initializing. Please wait.";
+                    setBoxText("cloudInitLogBox", "The VM is currently initializing. Please wait.");
+                    setBoxText("dockerLogBox", "The VM is currently initializing. Please wait.");
                 } else {
-                    cloudInitLogBox.textContent = "Error loading logs. Please try again.";
-                    dockerLogBox.textContent = "Error loading logs. Please try again.";
+                    setBoxText("cloudInitLogBox", "Error loading logs. Please try again.");
+                    setBoxText("dockerLogBox", "Error loading logs. Please try again.");
                 }
             } catch (err) {
                 console.error("Error fetching logs:", err);
                 const msg = "Network error. Please check your connection.";
-                document.getElementById("cloudInitLogBox").textContent = msg;
-                document.getElementById("dockerLogBox").textContent = msg;
+                setBoxText("cloudInitLogBox", msg);
+                setBoxText("dockerLogBox", msg);
             }
         }
 
@@ -353,9 +363,14 @@
         }
 
         function downloadLogs() {
-            const cloudInit = document.getElementById("cloudInitLogBox").textContent;
             const docker = document.getElementById("dockerLogBox").textContent;
-            const logs = "=== Cloud Init Logs ===\n" + cloudInit + "\n\n=== Docker Logs ===\n" + docker;
+            let logs;
+            if (hasCloudInit) {
+                const cloudInit = document.getElementById("cloudInitLogBox").textContent;
+                logs = "=== Cloud Init Logs ===\n" + cloudInit + "\n\n=== Docker Logs ===\n" + docker;
+            } else {
+                logs = "=== Docker Logs ===\n" + docker;
+            }
             const blob = new Blob([logs], { type: 'text/plain' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -368,12 +383,15 @@
         }
 
         function updateLogStats(cloudInitLogs, dockerLogs) {
-            const cloudInitLines = cloudInitLogs ? cloudInitLogs.split('\n').length : 0;
+            const cloudInitLines = (hasCloudInit && cloudInitLogs) ? cloudInitLogs.split('\n').length : 0;
             const dockerLines = dockerLogs ? dockerLogs.split('\n').length : 0;
             const totalLines = cloudInitLines + dockerLines;
 
             document.getElementById("lineCount").textContent = totalLines.toLocaleString();
-            document.getElementById("cloudInitLineCount").textContent = cloudInitLines.toLocaleString();
+            const cloudInitBadge = document.getElementById("cloudInitLineCount");
+            if (cloudInitBadge) {
+                cloudInitBadge.textContent = cloudInitLines.toLocaleString();
+            }
             document.getElementById("dockerLineCount").textContent = dockerLines.toLocaleString();
         }
 
