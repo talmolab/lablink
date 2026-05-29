@@ -201,6 +201,12 @@ FIRST_ATTACH_LOOKBACK_S = 60
 CONTAINER_RESTART_WAIT_S = 5
 INSPECT_RETRY_INTERVAL_S = 30
 INSPECT_MAX_RETRIES = 5
+# After this many consecutive "exited" inspections, give up — the container
+# has stopped and docker is not restarting it, which means the user invoked
+# `docker stop`. With `--restart unless-stopped`, a crashed container goes to
+# "restarting" within ms, so consecutive "exited" reliably indicates user
+# intent rather than a transient state.
+MAX_EXITED_CONSECUTIVE = 3
 
 SELF_LOG_MAX_BYTES = 1_000_000
 
@@ -257,6 +263,7 @@ def run_shipper(
 
     # ---- Attach loop: re-runs if container restarts ----
     inspect_failures = 0
+    exited_consecutive = 0
     while True:
         if _line_iter is not None:
             line_source = _line_iter()
@@ -360,9 +367,25 @@ def run_shipper(
             _sleep(INSPECT_RETRY_INTERVAL_S)
             continue
         inspect_failures = 0
-        if status == "exited" or status == "restarting":
+        if status == "exited":
+            exited_consecutive += 1
+            if exited_consecutive >= MAX_EXITED_CONSECUTIVE:
+                self_log(
+                    SELF_LOG_FILE,
+                    f"container stayed exited for {exited_consecutive} "
+                    "consecutive checks; treating as user-initiated stop; "
+                    "exiting",
+                )
+                return
             _sleep(CONTAINER_RESTART_WAIT_S)
-        # status == "running" → reconnect immediately
+        elif status == "restarting":
+            # docker is bringing it back — don't count toward the give-up
+            # threshold, just wait and reconnect.
+            exited_consecutive = 0
+            _sleep(CONTAINER_RESTART_WAIT_S)
+        else:
+            # status == "running" → reconnect immediately
+            exited_consecutive = 0
         # update since for the reconnect so we don't re-ship
         new_since = read_last_shipped_ts(STATE_FILE)
         if new_since:

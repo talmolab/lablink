@@ -497,6 +497,93 @@ class TestRunShipper:
 
         assert captured_since == ["2026-05-28T14:00:00Z"]
 
+    def test_exits_after_consecutive_exited_inspections(
+        self, tmp_path, monkeypatch
+    ):
+        """`docker stop` leaves the container in 'exited' state; shipper must
+        exit rather than busy-looping. With --restart unless-stopped, a
+        crashed container reaches 'restarting' within ms, so consecutive
+        'exited' reliably means the user invoked stop."""
+        from unittest.mock import MagicMock
+        from lablink_cli.log_shipper import run_shipper, MAX_EXITED_CONSECUTIVE
+
+        env_file = self._env(tmp_path)
+
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.STATE_FILE",
+            tmp_path / "log_shipper.state",
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.SELF_LOG_FILE",
+            tmp_path / "log_shipper.log",
+        )
+
+        # Each docker-logs attach yields no lines (container is stopped).
+        def fake_open_logs(name, *, since):
+            mock = MagicMock()
+            mock.stdout = iter([])
+            return mock
+
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
+        )
+        inspect = MagicMock(return_value="exited")
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.inspect_container", inspect
+        )
+
+        run_shipper(env_file, _sleep=lambda s: None)
+
+        # Should give up after MAX_EXITED_CONSECUTIVE inspections — not loop
+        # forever. Pre-fix this test would hang indefinitely.
+        assert inspect.call_count == MAX_EXITED_CONSECUTIVE
+
+    def test_restarting_resets_exited_counter(
+        self, tmp_path, monkeypatch
+    ):
+        """If docker restarts the container (crash + --restart unless-stopped),
+        the 'restarting' status should reset the exited counter so the shipper
+        doesn't accumulate exits across reconnects and prematurely give up."""
+        from unittest.mock import MagicMock
+        from lablink_cli.log_shipper import run_shipper, MAX_EXITED_CONSECUTIVE
+
+        env_file = self._env(tmp_path)
+
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.STATE_FILE",
+            tmp_path / "log_shipper.state",
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.SELF_LOG_FILE",
+            tmp_path / "log_shipper.log",
+        )
+
+        def fake_open_logs(name, *, since):
+            mock = MagicMock()
+            mock.stdout = iter([])
+            return mock
+
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
+        )
+        # Alternate: exited, restarting, exited, restarting, ..., then a run
+        # of exited that should trigger the give-up. The intervening
+        # "restarting" results should keep resetting the counter.
+        sequence = (
+            ["exited", "restarting"] * (MAX_EXITED_CONSECUTIVE + 2)
+            + ["exited"] * MAX_EXITED_CONSECUTIVE
+        )
+        inspect = MagicMock(side_effect=sequence)
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.inspect_container", inspect
+        )
+
+        run_shipper(env_file, _sleep=lambda s: None)
+
+        # Total inspections = alternating prefix + N trailing exited.
+        expected = 2 * (MAX_EXITED_CONSECUTIVE + 2) + MAX_EXITED_CONSECUTIVE
+        assert inspect.call_count == expected
+
 
 class TestMainEntry:
     def test_writes_pid_file_on_start(self, tmp_path, monkeypatch):
