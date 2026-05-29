@@ -94,7 +94,11 @@ if [[ "$SOURCE" == docker:* ]]; then
         sleep 2
     done
     log "Streaming docker logs for container $CONTAINER_ID"
-    INPUT_CMD="docker logs --follow --timestamps $CONTAINER_ID 2>&1"
+    # Trim docker's RFC3339Nano fractional seconds (e.g.
+    # 2026-05-28T14:23:01.123456789Z → 2026-05-28T14:23:01Z) so the admin-facing
+    # CLI/web log views aren't cluttered with nanosecond noise. Whole-second
+    # precision is more than enough at the operator level.
+    INPUT_CMD="docker logs --follow --timestamps $CONTAINER_ID 2>&1 | sed -uE 's/^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})\\.[0-9]+Z/\\1Z/'"
 else
     # File-based source via tail -F
     log "Waiting for $SOURCE to appear..."
