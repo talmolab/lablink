@@ -116,6 +116,7 @@ class LogsApp(App):
         admin_user: str,
         admin_pw: str,
         deploy_dir: Path,
+        manual: bool = False,
     ) -> None:
         super().__init__()
         self._cfg = cfg
@@ -124,6 +125,7 @@ class LogsApp(App):
         self._admin_user = admin_user
         self._admin_pw = admin_pw
         self._deploy_dir = deploy_dir
+        self._manual = manual
         self._selected_vm: dict | None = None
         self._current_tab = "cloud_init"
         self._cached_logs: dict | None = None
@@ -280,14 +282,23 @@ class LogsApp(App):
                     ssl_provider=self._cfg.ssl.provider,
                 )
         else:
-            from lablink_cli.commands.logs import fetch_allocator_logs
+            # Manual provider's allocator is a local docker container, not
+            # an EC2 instance — bypass SSH and read `docker logs` directly.
+            if self._manual:
+                from lablink_cli.commands.logs import (
+                    fetch_manual_allocator_logs,
+                )
 
-            logs = fetch_allocator_logs(
-                instance_id=vm["instance_id"],
-                public_ip=vm.get("public_ip", "—"),
-                region=self._cfg.app.region,
-                deploy_dir=self._deploy_dir,
-            )
+                logs = fetch_manual_allocator_logs()
+            else:
+                from lablink_cli.commands.logs import fetch_allocator_logs
+
+                logs = fetch_allocator_logs(
+                    instance_id=vm["instance_id"],
+                    public_ip=vm.get("public_ip", "—"),
+                    region=self._cfg.app.region,
+                    deploy_dir=self._deploy_dir,
+                )
 
         # Guard: discard results if user selected a different VM while fetching
         if self._selected_vm is not vm:

@@ -114,7 +114,7 @@ class TestPostBatch:
         assert req.get_header("Content-type") == "application/json"
         body = json.loads(req.data.decode())
         assert body == {
-            "log_group": "docker",
+            "log_group": "manual-docker",
             "messages": ["[start] booting", "[agent] ready"],
         }
 
