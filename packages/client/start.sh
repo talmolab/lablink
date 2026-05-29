@@ -4,6 +4,17 @@ export PYTHONUNBUFFERED=1
 # Start
 CONTAINER_START_TIME=$(date +%s)
 
+# --- Chronological logging setup ---------------------------------------
+# Save the container's PID-1 stdout on fd 5 BEFORE we redirect fd 1 to a
+# tagger. Every top-level line written by this script flows through the
+# `[start]` sed and reaches the container's stdout via fd 5. Backgrounded
+# services are launched with their own `... | sed ... >&5 &` pipeline, so
+# the inner sed writes directly to fd 5 and bypasses the [start] tagger
+# (otherwise lines would be double-tagged as "[start] [agent] ...").
+exec 5>&1
+exec > >(sed -u 's/^/[start] /' >&5) 2>&1
+# -----------------------------------------------------------------------
+
 # Activate virtual environment
 source /home/client/.venv/bin/activate
 
@@ -67,10 +78,6 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
 else
   echo "No custom startup script found. Skipping."
 fi
-
-# Create a logs directory
-LOG_DIR="/home/client/logs"
-mkdir -p "$LOG_DIR"
 
 # kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing
 # file aborts the launch silently. Touch an empty one as the client user.
@@ -197,7 +204,7 @@ fi
 #      xterm pin below).
 # -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
 # is the network-layer firewall.
-Xvnc :1 \
+stdbuf -oL -eL Xvnc :1 \
     -auth /home/client/.Xauthority \
     -desktop kasmvnc \
     -httpd /usr/share/kasmvnc/www \
@@ -208,7 +215,7 @@ Xvnc :1 \
     "${AUTH_ARGS[@]}" \
     -AlwaysShared 1 \
     -noreset \
-    > "$LOG_DIR/kasmvnc.log" 2>&1 &
+    2>&1 | sed -u 's/^/[kasmvnc] /' >&5 &
 
 # Wait for the X socket so subsequent clients can connect.
 for i in $(seq 1 30); do
@@ -222,16 +229,16 @@ done
 # because of the no-system-dbus container env), this client keeps the
 # "last client exited" path from firing — which is what was tearing
 # Xvnc down ~11 seconds after start despite -noreset being set.
-DISPLAY=:1 xterm -iconic -geometry 1x1+0+0 \
-    > "$LOG_DIR/xterm-pin.log" 2>&1 &
+stdbuf -oL -eL env DISPLAY=:1 xterm -iconic -geometry 1x1+0+0 \
+    2>&1 | sed -u 's/^/[xterm-pin] /' >&5 &
 
 # Launch xfce4 against the now-live display.
-DISPLAY=:1 /home/client/.vnc/xstartup \
-    > "$LOG_DIR/xstartup.log" 2>&1 &
+stdbuf -oL -eL env DISPLAY=:1 /home/client/.vnc/xstartup \
+    2>&1 | sed -u 's/^/[xstartup] /' >&5 &
 
 # Start the client agent (:7070) — receives per-session password rotations
 # from the allocator. Bearer-authenticated via REGISTER_TOKEN env var.
-agent 2>&1 | tee "$LOG_DIR/agent.log" &
+agent 2>&1 | sed -u 's/^/[agent] /' >&5 &
 
 # Flip VM status to 'running' now that client services are launching.
 send_status "running"
@@ -239,17 +246,15 @@ send_status "running"
 # Existing health/heartbeat/in-use workers
 update_inuse_status \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 client.software=$SUBJECT_SOFTWARE \
-  2>&1 | tee "$LOG_DIR/update_inuse_status.log" &
+  2>&1 | sed -u 's/^/[update_inuse_status] /' >&5 &
 
 check_gpu \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
-  2>&1 | tee "$LOG_DIR/check_gpu.log" &
+  2>&1 | sed -u 's/^/[check_gpu] /' >&5 &
 
 heartbeat \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
-  2>&1 | tee "$LOG_DIR/heartbeat.log" &
-
-touch "$LOG_DIR/placeholder.log"
+  2>&1 | sed -u 's/^/[heartbeat] /' >&5 &
 
 # End time
 CONTAINER_END_TIME=$(date +%s)
@@ -265,5 +270,10 @@ curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
     \"container_startup_duration_seconds\": $CONTAINER_DURATION
   }" --max-time 5 || true
 
-# Keep container alive
-tail -F "$LOG_DIR/kasmvnc.log" "$LOG_DIR/xstartup.log" "$LOG_DIR/agent.log" "$LOG_DIR/update_inuse_status.log" "$LOG_DIR/check_gpu.log" "$LOG_DIR/heartbeat.log" "$LOG_DIR/placeholder.log"
+# Keep the container alive while any backgrounded service is running.
+# On `docker stop` (SIGTERM) or Ctrl-C (SIGINT), disarm the trap first
+# (so the re-delivered SIGTERM doesn't re-enter and spin), then `kill 0`
+# the whole process group to terminate every backgrounded service
+# cleanly within docker's grace period.
+trap 'trap - TERM INT; kill 0' TERM INT
+wait
