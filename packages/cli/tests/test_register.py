@@ -43,25 +43,126 @@ def _kwargs(env_file, **overrides):
     return base
 
 
-class TestIdempotencyGuard:
-    def test_aborts_if_env_file_exists_without_force(
-        self, tmp_env_file
+class TestResumePath:
+    @patch("lablink_cli.commands.register._start_log_shipper")
+    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register._shipper_alive")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    def test_everything_running_is_noop(
+        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
     ):
         from lablink_cli.commands.register import run_register
-        tmp_env_file.write_text("CLIENT_ID=99\n")
-        with pytest.raises(SystemExit) as exc:
-            run_register(**_kwargs(tmp_env_file))
-        assert exc.value.code != 0
+        tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
+        mock_inspect.return_value = "running"
+        mock_alive.return_value = True
+
+        run_register(**_kwargs(tmp_env_file))
+
+        # Should NOT start a new container, NOT spawn a new shipper.
+        mock_spawn.assert_not_called()
+        # And should NOT do a fresh `docker run`.
+        run_cmds = [
+            c for call in mock_run.call_args_list
+            for c in [call.args[0]]
+            if "run" in c and "--env-file" in c
+        ]
+        assert run_cmds == []
+
+    @patch("lablink_cli.commands.register._start_log_shipper")
+    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register._shipper_alive")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    def test_dead_shipper_revived_no_re_register(
+        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
+    ):
+        from lablink_cli.commands.register import run_register
+        tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
+        mock_inspect.return_value = "running"
+        mock_alive.return_value = False
+
+        run_register(**_kwargs(tmp_env_file))
+
+        mock_spawn.assert_called_once()
+        # The secret didn't change — env file content untouched.
+        assert "CLIENT_SECRET=s" in tmp_env_file.read_text()
+
+    @patch("lablink_cli.commands.register._start_log_shipper")
+    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register._shipper_alive")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    def test_exited_container_restarted(
+        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
+    ):
+        from lablink_cli.commands.register import run_register
+        tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
+        mock_inspect.return_value = "exited"
+        mock_alive.return_value = False
+        mock_run.return_value = MagicMock(returncode=0)
+
+        run_register(**_kwargs(tmp_env_file))
+
+        # docker start lablink-client invoked
+        start_cmds = [
+            c for call in mock_run.call_args_list
+            for c in [call.args[0]]
+            if c[:3] == ["docker", "start", "lablink-client"]
+        ]
+        assert start_cmds, (
+            f"expected `docker start lablink-client` in {mock_run.call_args_list}"
+        )
+        mock_spawn.assert_called_once()
+
+    def test_force_still_re_registers(
+        self, tmp_env_file, successful_response,
+    ):
+        """--force must still mint a new secret (NOT enter resume path)."""
+        from unittest.mock import patch
+        from lablink_cli.commands.register import run_register
+        tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=old\n")
+
+        with patch(
+            "lablink_cli.commands.register.RegistrationClient"
+        ) as mock_client_cls, patch(
+            "lablink_cli.commands.register.byo_detect"
+        ) as mock_detect, patch(
+            "lablink_cli.commands.register.shutil.which",
+            return_value="/usr/bin/docker",
+        ), patch(
+            "lablink_cli.commands.register.subprocess.run"
+        ) as mock_run, patch(
+            "lablink_cli.commands.register.subprocess.Popen"
+        ):
+            mock_detect.detect_hostname.return_value = "byo-01"
+            mock_detect.detect_lan_ip.return_value = "192.168.1.42"
+            mock_detect.resolve_machine_identity.return_value = "mid"
+            mock_detect.detect_gpu.return_value = (False, None)
+            client = MagicMock()
+            client.register.return_value = successful_response
+            mock_client_cls.return_value = client
+            mock_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
+
+            run_register(**_kwargs(tmp_env_file, force=True))
+
+            # A real `docker run` happened (not just `docker start`).
+            run_cmds = [
+                c for call in mock_run.call_args_list
+                for c in [call.args[0]]
+                if "run" in c and "--env-file" in c
+            ]
+            assert run_cmds, "expected `docker run` to be invoked under --force"
+            # Env file was overwritten with the new secret.
+            assert "CLIENT_SECRET=s" in tmp_env_file.read_text()
 
 
 class TestSuccessFlow:
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_full_success_writes_env_file_and_execs_docker(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "byo-01"
@@ -122,13 +223,20 @@ class TestSuccessFlow:
         assert cmd[pull_idx + 1] == "always"
         assert "ghcr.io/talmolab/lablink-client:0.4.0" in cmd
 
+        # Log shipper spawned exactly once with the env file
+        assert mock_popen.call_count == 1
+        shipper_cmd = mock_popen.call_args.args[0]
+        assert "lablink_cli.log_shipper" in shipper_cmd
+        assert str(tmp_env_file) in shipper_cmd
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_user_overrides_beat_detection(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "auto-host"
@@ -176,13 +284,14 @@ class TestSuccessFlow:
         with pytest.raises(SystemExit):
             run_register(**_kwargs(tmp_env_file))
 
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_gpu_present_override_keeps_detected_model(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         """User passes --gpu-present (no --gpu-model); detection still provides
         the model. Fixes a previous gap where this combination dropped the model."""
@@ -210,13 +319,14 @@ class TestSuccessFlow:
             gpu_model="NVIDIA A100",  # detection-supplied fallback
         )
 
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_gpu_model_override_wins_over_detection(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         from lablink_cli.commands.register import run_register
         mock_detect.detect_hostname.return_value = "h"
@@ -243,13 +353,14 @@ class TestSuccessFlow:
             gpu_model="USER_PROVIDED",
         )
 
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_publishes_agent_and_kasmvnc_ports_not_network_host(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         """The allocator reaches the BYO client over the LAN at
         ``<lan_ip>:7070`` (agent) and proxies KasmVNC over ``:6080``.
@@ -350,13 +461,14 @@ class TestGpuRuntimePreflight:
             f"got {all_cmds}"
         )
 
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_skips_cgroup_check_when_gpu_absent(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         """CPU-only BYO clients don't need GPU runtime — never query
         docker info, never block on cgroup driver. Even if the host is
@@ -439,13 +551,14 @@ class TestDockerMissing:
 
 
 class TestForceFlag:
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_force_overwrites_env_file(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         from lablink_cli.commands.register import run_register
         tmp_env_file.write_text("CLIENT_ID=99\n")  # stale
@@ -464,13 +577,14 @@ class TestForceFlag:
         assert "CLIENT_ID=42" in tmp_env_file.read_text()
         assert "CLIENT_ID=99" not in tmp_env_file.read_text()
 
+    @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
     @patch("lablink_cli.commands.register.RegistrationClient")
     @patch("lablink_cli.commands.register.byo_detect")
     def test_force_removes_existing_container_before_run(
         self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
-        tmp_env_file, successful_response,
+        mock_popen, tmp_env_file, successful_response,
     ):
         """With --force, the orchestrator must `docker rm -f` the old container
         before `docker run`, otherwise the new run hits a name collision."""
@@ -523,3 +637,111 @@ class TestErrorMapping:
         assert exc.value.code != 0
         # env file NOT created on failed register
         assert not tmp_env_file.exists()
+
+
+class TestStartLogShipper:
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    def test_spawns_detached_python_module(
+        self, mock_popen, tmp_path
+    ):
+        from lablink_cli.commands.register import _start_log_shipper
+        from rich.console import Console
+
+        env_file = tmp_path / "client.env"
+        env_file.write_text("CLIENT_ID=1\n")
+        mock_popen.return_value = MagicMock(pid=99999)
+
+        _start_log_shipper(env_file, Console())
+
+        assert mock_popen.call_count == 1
+        cmd = mock_popen.call_args.args[0]
+        # invoked as: python -m lablink_cli.log_shipper <env_file>
+        assert cmd[0].endswith("python") or "python" in cmd[0]
+        assert "-m" in cmd
+        assert "lablink_cli.log_shipper" in cmd
+        assert str(env_file) in cmd
+        # detached: start_new_session on POSIX OR Windows creationflags
+        kwargs = mock_popen.call_args.kwargs
+        assert kwargs.get("start_new_session") is True or (
+            kwargs.get("creationflags", 0) != 0
+        )
+        # stdin closed; stdout/stderr to log file
+        assert kwargs.get("stdin") is not None  # DEVNULL
+
+
+class TestShipperAlive:
+    def test_no_pid_file_returns_false(self, tmp_path, monkeypatch):
+        from lablink_cli.commands import register
+
+        pid_file = tmp_path / "log_shipper.pid"
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        assert register._shipper_alive() is False
+
+    def test_pid_with_matching_cmdline_returns_true(
+        self, tmp_path, monkeypatch
+    ):
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_proc = MagicMock()
+        fake_proc.cmdline.return_value = [
+            "/usr/bin/python", "-m",
+            "lablink_cli.log_shipper", "/home/u/.lablink/client.env",
+        ]
+        fake_psutil = MagicMock()
+        fake_psutil.Process.return_value = fake_proc
+        fake_psutil.NoSuchProcess = type("NoSuchProcess", (Exception,), {})
+        fake_psutil.AccessDenied = type("AccessDenied", (Exception,), {})
+        monkeypatch.setattr(register, "psutil", fake_psutil)
+
+        assert register._shipper_alive() is True
+
+    def test_pid_with_wrong_cmdline_returns_false(
+        self, tmp_path, monkeypatch
+    ):
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_proc = MagicMock()
+        fake_proc.cmdline.return_value = ["/usr/bin/vim"]
+        fake_psutil = MagicMock()
+        fake_psutil.Process.return_value = fake_proc
+        fake_psutil.NoSuchProcess = type("NoSuchProcess", (Exception,), {})
+        fake_psutil.AccessDenied = type("AccessDenied", (Exception,), {})
+        monkeypatch.setattr(register, "psutil", fake_psutil)
+
+        assert register._shipper_alive() is False
+
+    def test_dead_pid_returns_false(self, tmp_path, monkeypatch):
+        from unittest.mock import MagicMock
+        from lablink_cli.commands import register
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("12345")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        fake_psutil = MagicMock()
+        fake_psutil.NoSuchProcess = type("NoSuchProcess", (Exception,), {})
+        fake_psutil.AccessDenied = type("AccessDenied", (Exception,), {})
+        fake_psutil.Process.side_effect = fake_psutil.NoSuchProcess()
+        monkeypatch.setattr(register, "psutil", fake_psutil)
+
+        assert register._shipper_alive() is False
+
+    def test_corrupt_pid_file_returns_false(self, tmp_path, monkeypatch):
+        from lablink_cli.commands import register
+
+        pid_file = tmp_path / "log_shipper.pid"
+        pid_file.write_text("not-a-number")
+        monkeypatch.setattr(register, "PID_FILE", pid_file)
+
+        assert register._shipper_alive() is False
