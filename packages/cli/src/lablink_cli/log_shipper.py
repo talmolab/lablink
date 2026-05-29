@@ -62,7 +62,11 @@ def write_last_shipped_ts(state_file: Path, ts: str) -> None:
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_S = (1, 2, 4)  # sleep before retry attempt 1, 2, 3
-LOG_GROUP = "docker"
+# The allocator routes logs to the docker_logs column when log_group ends
+# with "-docker"; cloud_init otherwise (main.py:851). Manual/BYO clients
+# only ship docker container output, so use a name that satisfies the
+# suffix check.
+LOG_GROUP = "manual-docker"
 
 PostResult = Literal["ok", "drop", "fatal"]
 
