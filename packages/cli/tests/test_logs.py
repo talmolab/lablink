@@ -117,42 +117,213 @@ class TestSshViaPrivateKey:
 
 
 # ------------------------------------------------------------------
-# Manual-provider logs
+# fetch_manual_allocator_logs — local docker container
 # ------------------------------------------------------------------
-class TestManualLogs:
-    @patch("lablink_cli.commands.logs.subprocess.Popen")
-    def test_manual_tails_docker_logs(self, mock_popen, mock_cfg):
-        from lablink_cli.commands.logs import run_logs
+class TestFetchManualAllocatorLogs:
+    @patch("lablink_cli.commands.logs.subprocess.run")
+    def test_success_returns_docker_logs(self, mock_run):
+        from lablink_cli.commands.logs import fetch_manual_allocator_logs
 
-        mock_cfg.provider = "manual"
-        mock_cfg.deployment_name = "testlab"
-        proc = MagicMock()
-        proc.stdout = iter([])
-        mock_popen.return_value.__enter__.return_value = proc
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout="line 1\nline 2\n", stderr=""
+        )
 
-        run_logs(mock_cfg)
+        result = fetch_manual_allocator_logs()
 
-        assert mock_popen.called
-        cmd = mock_popen.call_args[0][0]
-        assert "docker" in cmd[0]
-        assert "logs" in cmd
-        assert "-f" in cmd
+        assert result["error"] is None
+        assert result["cloud_init_logs"] is None
+        assert result["docker_logs"] == "line 1\nline 2"
+        # Calls `docker logs --tail N lablink-allocator`.
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:2] == ["docker", "logs"]
+        assert "--tail" in cmd
         assert "lablink-allocator" in cmd
 
-    @patch("lablink_cli.commands.logs.subprocess.Popen")
-    def test_manual_does_not_use_ssh_or_deploy_dir(
-        self, mock_popen, mock_cfg,
-    ):
-        """Manual provider must not touch Terraform deploy dir or SSH."""
+    @patch("lablink_cli.commands.logs.subprocess.run")
+    def test_no_such_container_returns_friendly_error(self, mock_run):
+        from lablink_cli.commands.logs import fetch_manual_allocator_logs
+
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="Error: No such container: lablink-allocator\n",
+        )
+
+        result = fetch_manual_allocator_logs()
+
+        assert result["docker_logs"] is None
+        assert "lablink-allocator container is not running" in result["error"]
+
+    @patch("lablink_cli.commands.logs.subprocess.run")
+    def test_other_nonzero_returns_stderr(self, mock_run):
+        from lablink_cli.commands.logs import fetch_manual_allocator_logs
+
+        mock_run.return_value = MagicMock(
+            returncode=2, stdout="", stderr="permission denied\n"
+        )
+
+        result = fetch_manual_allocator_logs()
+
+        assert result["docker_logs"] is None
+        assert "permission denied" in result["error"]
+
+    @patch("lablink_cli.commands.logs.subprocess.run")
+    def test_docker_missing_returns_error(self, mock_run):
+        from lablink_cli.commands.logs import fetch_manual_allocator_logs
+
+        mock_run.side_effect = FileNotFoundError("docker")
+
+        result = fetch_manual_allocator_logs()
+
+        assert result["docker_logs"] is None
+        assert "docker logs failed" in result["error"]
+
+    @patch("lablink_cli.commands.logs.subprocess.run")
+    def test_merges_stdout_and_stderr(self, mock_run):
+        """Container can write to both stdout and stderr; the TUI shows one
+        chronological view."""
+        from lablink_cli.commands.logs import fetch_manual_allocator_logs
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="[info] up\n",
+            stderr="[warn] slow query\n",
+        )
+
+        result = fetch_manual_allocator_logs()
+
+        assert "up" in result["docker_logs"]
+        assert "slow query" in result["docker_logs"]
+
+
+# ------------------------------------------------------------------
+# Manual-provider TUI launcher (_run_logs_manual)
+# ------------------------------------------------------------------
+class TestRunLogsManualTui:
+    def _patch_common(self):
+        """Patches shared by every test in this class."""
+        return [
+            patch("lablink_cli.commands.status._resolve_manual_admin_credentials"),
+            patch("lablink_cli.commands.status._fetch_registered_clients"),
+            patch("lablink_cli.tui.logs_viewer.LogsApp"),
+        ]
+
+    def test_launches_tui_with_allocator_and_clients(self, mock_cfg):
         from lablink_cli.commands.logs import run_logs
 
         mock_cfg.provider = "manual"
         mock_cfg.deployment_name = "testlab"
-        proc = MagicMock()
-        proc.stdout = iter([])
-        mock_popen.return_value.__enter__.return_value = proc
 
         with patch(
+            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.commands.status._fetch_registered_clients",
+            return_value=([
+                {"hostname": "byo-01", "lan_ip": "192.168.1.10"},
+                {"hostname": "byo-02", "lan_ip": "192.168.1.11"},
+            ], ""),
+        ), patch(
+            "lablink_cli.tui.logs_viewer.LogsApp"
+        ) as mock_app_cls:
+            mock_app_cls.return_value = MagicMock()
+
+            run_logs(mock_cfg)
+
+        # LogsApp invoked with manual=True and a VM list containing
+        # allocator + both clients.
+        kwargs = mock_app_cls.call_args.kwargs
+        assert kwargs["manual"] is True
+        names = [vm["name"] for vm in kwargs["vms"]]
+        assert names[0] == "lablink-allocator"
+        assert "byo-01" in names
+        assert "byo-02" in names
+        # Allocator gets vm_type="allocator"; clients get vm_type="client".
+        types = {vm["name"]: vm["vm_type"] for vm in kwargs["vms"]}
+        assert types["lablink-allocator"] == "allocator"
+        assert types["byo-01"] == "client"
+        # Every VM dict must carry the keys VMListItem reads: vm_type, name,
+        # state. Missing state crashes the TUI at compose time.
+        required_keys = {"vm_type", "name", "state", "type", "public_ip"}
+        for vm in kwargs["vms"]:
+            assert required_keys.issubset(vm.keys()), (
+                f"VM dict missing keys: {required_keys - vm.keys()}"
+            )
+
+    def test_no_clients_still_shows_allocator(self, mock_cfg):
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.commands.status._fetch_registered_clients",
+            return_value=([], ""),
+        ), patch(
+            "lablink_cli.tui.logs_viewer.LogsApp"
+        ) as mock_app_cls:
+            mock_app_cls.return_value = MagicMock()
+
+            run_logs(mock_cfg)
+
+        vms = mock_app_cls.call_args.kwargs["vms"]
+        assert len(vms) == 1
+        assert vms[0]["name"] == "lablink-allocator"
+
+    def test_missing_creds_exits_with_helpful_message(self, mock_cfg):
+        import pytest
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            return_value=None,
+        ):
+            with pytest.raises(SystemExit) as exc:
+                run_logs(mock_cfg)
+
+        assert exc.value.code == 1
+
+    def test_fetch_clients_failure_exits(self, mock_cfg):
+        import pytest
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.commands.status._fetch_registered_clients",
+            return_value=(None, "connection refused"),
+        ):
+            with pytest.raises(SystemExit) as exc:
+                run_logs(mock_cfg)
+
+        assert exc.value.code == 1
+
+    def test_does_not_touch_aws_paths(self, mock_cfg):
+        """Manual provider must not call list_all_vms, get_deploy_dir, etc."""
+        from lablink_cli.commands.logs import run_logs
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+
+        with patch(
+            "lablink_cli.commands.status._resolve_manual_admin_credentials",
+            return_value=("admin", "pw"),
+        ), patch(
+            "lablink_cli.commands.status._fetch_registered_clients",
+            return_value=([], ""),
+        ), patch(
+            "lablink_cli.tui.logs_viewer.LogsApp"
+        ), patch(
             "lablink_cli.commands.logs.get_deploy_dir"
         ) as mock_deploy_dir, patch(
             "lablink_cli.commands.logs.list_all_vms"
@@ -161,24 +332,3 @@ class TestManualLogs:
 
         mock_deploy_dir.assert_not_called()
         mock_list_vms.assert_not_called()
-
-    @patch("lablink_cli.commands.logs.subprocess.Popen")
-    def test_manual_handles_keyboard_interrupt(self, mock_popen, mock_cfg):
-        """KeyboardInterrupt during tail should terminate the subprocess."""
-        from lablink_cli.commands.logs import run_logs
-
-        mock_cfg.provider = "manual"
-        mock_cfg.deployment_name = "testlab"
-
-        proc = MagicMock()
-
-        def _raise_kbi():
-            raise KeyboardInterrupt()
-            yield  # pragma: no cover
-
-        proc.stdout = _raise_kbi()
-        mock_popen.return_value.__enter__.return_value = proc
-
-        # Should not propagate KeyboardInterrupt.
-        run_logs(mock_cfg)
-        proc.terminate.assert_called_once()

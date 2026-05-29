@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+import psutil
+
 from rich.console import Console
 
 from lablink_cli import byo_detect
+from lablink_cli.log_shipper import inspect_container as inspect_container_for_register
 from lablink_cli.api import (
     AllocatorAuthError,
     AllocatorConflictError,
@@ -20,6 +25,7 @@ from lablink_cli.api import (
 )
 
 DEFAULT_ENV_FILE = Path.home() / ".lablink" / "client.env"
+PID_FILE = Path.home() / ".lablink" / "log_shipper.pid"
 
 
 def run_register(
@@ -44,14 +50,10 @@ def run_register(
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
-    # Step 1: idempotency
+    # Step 1: idempotency / resume
     if env_file.exists() and not force:
-        console.print(
-            f"[red]Already registered — {env_file} exists.[/red]\n"
-            "Re-register with --force to mint a new client_secret "
-            "(existing client container will be orphaned)."
-        )
-        raise SystemExit(1)
+        _resume(env_file, console)
+        return
 
     # Step 2: auto-detect (user overrides win)
     resolved_hostname = hostname or byo_detect.detect_hostname()
@@ -134,6 +136,71 @@ def run_register(
         f"[green]Registered as client #{response['client_id']}[/green]"
     )
     _exec_docker(cmd, console)
+    _start_log_shipper(env_file, console)
+
+
+def _resume(env_file: Path, console: Console) -> None:
+    """Re-run mode for an already-registered host.
+
+    Does NOT mint a new client_secret. Restarts the container if stopped,
+    revives the shipper if dead, otherwise prints a no-op message.
+
+    Note: container image is NOT re-pulled — that's `--force` territory.
+    """
+    status = inspect_container_for_register("lablink-client")
+    container_action: str | None = None
+
+    if status == "missing":
+        console.print(
+            "[yellow]Already registered, but lablink-client container is "
+            "missing.[/yellow] Re-run with [bold]--force[/bold] to recreate "
+            "it (this mints a new client_secret)."
+        )
+        raise SystemExit(1)
+    if status == "daemon_error":
+        console.print(
+            "[red]Docker daemon is unreachable.[/red] Start Docker and re-run."
+        )
+        raise SystemExit(1)
+    if status in ("exited", "restarting"):
+        try:
+            subprocess.run(
+                ["docker", "start", "lablink-client"],
+                check=True,
+                capture_output=True,
+            )
+            container_action = "restarted"
+        except subprocess.CalledProcessError as e:
+            console.print(
+                f"[red]docker start lablink-client failed:[/red] "
+                f"{e.stderr.decode().strip() if e.stderr else e}"
+            )
+            raise SystemExit(1) from e
+
+    shipper_action: str | None = None
+    if _shipper_alive():
+        if container_action is None:
+            console.print(
+                "[green]Already registered. Container and log shipper "
+                "are running.[/green]"
+            )
+            return
+    else:
+        _start_log_shipper(env_file, console)
+        shipper_action = "restarted"
+
+    if container_action and shipper_action:
+        console.print(
+            "[green]Restarted container and log shipper.[/green] "
+            "To pull a newer client image, re-run with --force."
+        )
+    elif container_action:
+        console.print(
+            "[green]Restarted container.[/green] "
+            "To pull a newer client image, re-run with --force."
+        )
+    elif shipper_action:
+        console.print("[green]Restarted log shipper.[/green]")
 
 
 def _write_env_file(
@@ -298,3 +365,109 @@ def _exec_docker(cmd: list[str], console: Console) -> None:
         "[green]Container running as lablink-client.[/green] "
         "View logs with: docker logs -f lablink-client"
     )
+
+
+def _stop_existing_shipper(console: Console) -> None:
+    """Terminate any running shipper recorded in the PID file.
+
+    Called before spawning a new shipper so ``--force`` re-register doesn't
+    leave the old shipper briefly tailing the replaced container and
+    POSTing duplicates against the same hostname. The cmdline guard
+    matches ``_shipper_alive`` so an unrelated PID-reused process is left
+    alone.
+    """
+    if not PID_FILE.exists():
+        return
+    try:
+        pid = int(PID_FILE.read_text().strip())
+    except (OSError, ValueError):
+        PID_FILE.unlink(missing_ok=True)
+        return
+    try:
+        proc = psutil.Process(pid)
+        cmdline = proc.cmdline()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        PID_FILE.unlink(missing_ok=True)
+        return
+    if not any("lablink_cli.log_shipper" in arg for arg in cmdline):
+        PID_FILE.unlink(missing_ok=True)
+        return
+
+    console.print(f"[dim]Stopping existing log shipper (PID {pid})...[/dim]")
+    try:
+        proc.terminate()
+        proc.wait(timeout=5)
+    except psutil.TimeoutExpired:
+        try:
+            proc.kill()
+        except psutil.NoSuchProcess:
+            pass
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    # The shipper's SIGTERM handler removes the PID file; if we escalated
+    # to SIGKILL the handler never ran, so clean up here.
+    PID_FILE.unlink(missing_ok=True)
+
+
+def _start_log_shipper(env_file: Path, console: Console) -> None:
+    """Spawn the log shipper as a detached background process.
+
+    The shipper survives this `register` invocation and runs until either
+    the user does ``docker stop lablink-client`` (shipper's docker-logs
+    subprocess exits and inspect reports missing) or the host reboots.
+    """
+    _stop_existing_shipper(console)
+
+    log_dir = Path.home() / ".lablink"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    shipper_log = log_dir / "log_shipper.log"
+    # Append-mode handle for the detached child's stdout+stderr. The
+    # shipper itself writes structured lines to this file via self_log();
+    # the open handle here is just a safety net for any stray print.
+    log_fd = open(shipper_log, "a", buffering=1)
+
+    cmd = [sys.executable, "-m", "lablink_cli.log_shipper", str(env_file)]
+
+    popen_kwargs: dict = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": log_fd,
+        "stderr": log_fd,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        # Windows: detach so the child survives the parent's exit.
+        popen_kwargs["creationflags"] = (
+            subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        # POSIX: new session detaches from the controlling TTY and parent
+        # process group, matching nohup semantics.
+        popen_kwargs["start_new_session"] = True
+
+    proc = subprocess.Popen(cmd, **popen_kwargs)
+    console.print(
+        f"[green]Log shipping started (PID {proc.pid}).[/green] "
+        f"Logs: {shipper_log}"
+    )
+
+
+def _shipper_alive() -> bool:
+    """True iff a live log-shipper process matching our PID file exists.
+
+    Two-stage check: PID present in PID file AND that PID belongs to a
+    process whose cmdline mentions ``lablink_cli.log_shipper``. The
+    cmdline guard prevents false positives from PID reuse after reboot.
+    """
+    if not PID_FILE.exists():
+        return False
+    try:
+        pid = int(PID_FILE.read_text().strip())
+    except (OSError, ValueError):
+        return False
+    try:
+        proc = psutil.Process(pid)
+        cmdline = proc.cmdline()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+    return any("lablink_cli.log_shipper" in arg for arg in cmdline)

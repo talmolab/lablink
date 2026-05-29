@@ -116,6 +116,7 @@ class LogsApp(App):
         admin_user: str,
         admin_pw: str,
         deploy_dir: Path,
+        manual: bool = False,
     ) -> None:
         super().__init__()
         self._cfg = cfg
@@ -124,8 +125,11 @@ class LogsApp(App):
         self._admin_user = admin_user
         self._admin_pw = admin_pw
         self._deploy_dir = deploy_dir
+        self._manual = manual
         self._selected_vm: dict | None = None
-        self._current_tab = "cloud_init"
+        # Manual provider has no cloud-init concept (BYO hosts boot
+        # themselves); default to docker and skip the cloud-init tab UI.
+        self._current_tab = "docker" if manual else "cloud_init"
         self._cached_logs: dict | None = None
 
     def compose(self) -> ComposeResult:
@@ -143,18 +147,27 @@ class LogsApp(App):
             with Vertical(id="log-panel"):
                 yield Label("Select a VM to view logs", id="vm-info")
                 with Horizontal(id="tab-bar"):
-                    yield Static(
-                        "[bold]Cloud-Init[/bold]",
-                        id="tab-cloud-init",
-                        classes="tab tab-active",
-                        markup=True,
-                    )
-                    yield Static(
-                        "Docker",
-                        id="tab-docker",
-                        classes="tab tab-inactive",
-                        markup=True,
-                    )
+                    if not self._manual:
+                        yield Static(
+                            "[bold]Cloud-Init[/bold]",
+                            id="tab-cloud-init",
+                            classes="tab tab-active",
+                            markup=True,
+                        )
+                        yield Static(
+                            "Docker",
+                            id="tab-docker",
+                            classes="tab tab-inactive",
+                            markup=True,
+                        )
+                    else:
+                        # Manual provider: only docker logs exist.
+                        yield Static(
+                            "[bold]Docker[/bold]",
+                            id="tab-docker",
+                            classes="tab tab-active",
+                            markup=True,
+                        )
                 yield RichLog(
                     id="log-output",
                     auto_scroll=True,
@@ -200,6 +213,9 @@ class LogsApp(App):
 
     def _update_tab_styles(self) -> None:
         """Update tab visual state."""
+        if self._manual:
+            # Manual mode renders only the docker tab; nothing to swap.
+            return
         cloud_init_tab = self.query_one("#tab-cloud-init", Static)
         docker_tab = self.query_one("#tab-docker", Static)
         if self._current_tab == "cloud_init":
@@ -280,14 +296,23 @@ class LogsApp(App):
                     ssl_provider=self._cfg.ssl.provider,
                 )
         else:
-            from lablink_cli.commands.logs import fetch_allocator_logs
+            # Manual provider's allocator is a local docker container, not
+            # an EC2 instance — bypass SSH and read `docker logs` directly.
+            if self._manual:
+                from lablink_cli.commands.logs import (
+                    fetch_manual_allocator_logs,
+                )
 
-            logs = fetch_allocator_logs(
-                instance_id=vm["instance_id"],
-                public_ip=vm.get("public_ip", "—"),
-                region=self._cfg.app.region,
-                deploy_dir=self._deploy_dir,
-            )
+                logs = fetch_manual_allocator_logs()
+            else:
+                from lablink_cli.commands.logs import fetch_allocator_logs
+
+                logs = fetch_allocator_logs(
+                    instance_id=vm["instance_id"],
+                    public_ip=vm.get("public_ip", "—"),
+                    region=self._cfg.app.region,
+                    deploy_dir=self._deploy_dir,
+                )
 
         # Guard: discard results if user selected a different VM while fetching
         if self._selected_vm is not vm:
@@ -310,6 +335,9 @@ class LogsApp(App):
 
     def action_show_cloud_init(self) -> None:
         """Switch to cloud-init log tab."""
+        if self._manual:
+            # No cloud-init for manual provider; binding is a no-op.
+            return
         self._current_tab = "cloud_init"
         self._update_tab_styles()
         self._display_logs()

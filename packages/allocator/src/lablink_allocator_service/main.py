@@ -902,7 +902,13 @@ def get_vm_logs(hostname):
     if not database.vm_exists(hostname=hostname):
         logger.error(f"VM with hostname {hostname} not found.")
         return jsonify({"error": "VM not found."}), 404
-    return render_template("instance-logs.html", hostname=hostname)
+    # Non-AWS providers (manual/BYO) have no cloud-init concept; the
+    # template hides that section when provider != "aws".
+    return render_template(
+        "instance-logs.html",
+        hostname=hostname,
+        provider=cfg.provider,
+    )
 
 
 @app.route("/api/vm-metrics/<hostname>", methods=["POST"])

@@ -255,31 +255,141 @@ def fetch_allocator_logs(
 
 
 # ------------------------------------------------------------------
-# Manual-provider logs
+# Log fetching — manual-provider allocator (local docker container)
+# ------------------------------------------------------------------
+_MANUAL_ALLOCATOR_TAIL = 2000
+
+
+def fetch_manual_allocator_logs() -> dict:
+    """Snapshot the local lablink-allocator container's logs.
+
+    Mirrors :func:`fetch_allocator_logs` / :func:`fetch_client_logs`
+    contract (cloud_init_logs, docker_logs, error keys) so the TUI can
+    treat manual + AWS uniformly.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "docker", "logs",
+                "--tail", str(_MANUAL_ALLOCATOR_TAIL),
+                "lablink-allocator",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        return {
+            "cloud_init_logs": None,
+            "docker_logs": None,
+            "error": f"docker logs failed: {e}",
+        }
+
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        if "No such container" in stderr:
+            err = (
+                "lablink-allocator container is not running. "
+                "Run `lablink deploy` to start it."
+            )
+        else:
+            err = stderr or f"docker logs exited {result.returncode}"
+        return {
+            "cloud_init_logs": None,
+            "docker_logs": None,
+            "error": err,
+        }
+
+    # docker writes the container's own stdout to its stdout, stderr to its
+    # stderr — merge them so the TUI shows everything chronologically.
+    combined = (result.stdout or "") + (result.stderr or "")
+    return {
+        "cloud_init_logs": None,
+        "docker_logs": combined.strip() or None,
+        "error": None,
+    }
+
+
+# ------------------------------------------------------------------
+# Manual-provider TUI launcher
 # ------------------------------------------------------------------
 def _run_logs_manual(cfg: Config) -> None:
-    """Tail `docker logs` of the local allocator container.
+    """Discover BYO clients via /api/v1/clients and launch the TUI.
 
-    Per-VM client logs are not centralized for the manual provider;
-    operators run `docker logs lablink-client` on each BYO box.
+    The TUI shows the local allocator container plus every registered
+    BYO client. Client logs come from /api/vm-logs/<hostname> (populated
+    by the manual-client log shipper). The allocator entry is fetched
+    via local ``docker logs lablink-allocator`` instead of SSH.
     """
-    console.print(
-        "[bold]Tailing allocator logs (Ctrl+C to stop)[/bold]\n"
-        "[dim]Per-VM client logs are not centralized for the manual "
-        "provider — run `docker logs lablink-client` on each BYO box.[/dim]\n"
+    from lablink_cli.commands.deploy_compose import DEFAULT_HTTP_PORT
+    from lablink_cli.commands.status import (
+        _fetch_registered_clients,
+        _resolve_manual_admin_credentials,
     )
-    with subprocess.Popen(
-        ["docker", "logs", "-f", "lablink-allocator"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    ) as proc:
-        try:
-            if proc.stdout is not None:
-                for line in proc.stdout:
-                    print(line, end="")
-        except KeyboardInterrupt:
-            proc.terminate()
+
+    workdir = Path.home() / ".lablink" / "compose" / (
+        cfg.deployment_name or "lablink"
+    )
+
+    creds = _resolve_manual_admin_credentials(cfg, workdir)
+    if not creds:
+        console.print(
+            "[red]Could not resolve allocator admin credentials.[/red]\n"
+            f"Run `lablink deploy` first (expected workdir: {workdir})."
+        )
+        raise SystemExit(1)
+    admin_user, admin_pw = creds
+
+    allocator_url = f"http://localhost:{DEFAULT_HTTP_PORT}"
+
+    console.print(
+        "[dim]Fetching registered BYO clients from the allocator...[/dim]"
+    )
+    clients, err = _fetch_registered_clients(
+        allocator_url, admin_user, admin_pw
+    )
+    if clients is None:
+        console.print(
+            f"[red]Failed to list clients:[/red] {err}\n"
+            "Is the allocator running? Try `lablink status`."
+        )
+        raise SystemExit(1)
+
+    # Synthetic VM list: allocator first, then clients. Shapes match the
+    # AWS-mode dicts (name, type, vm_type, public_ip, state) so LogsApp +
+    # VMListItem work uniformly. The allocator is implicitly "running"
+    # here — _fetch_registered_clients just succeeded against it.
+    vms: list[dict] = [
+        {
+            "name": "lablink-allocator",
+            "type": "compose",
+            "vm_type": "allocator",
+            "public_ip": "localhost",
+            "state": "running",
+        }
+    ]
+    for c in clients:
+        hostname = c.get("hostname") or "-"
+        vms.append({
+            "name": hostname,
+            "type": "byo",
+            "vm_type": "client",
+            "public_ip": c.get("lan_ip") or "—",
+            "state": c.get("status") or "unknown",
+        })
+
+    from lablink_cli.tui.logs_viewer import LogsApp
+
+    app = LogsApp(
+        cfg=cfg,
+        vms=vms,
+        allocator_url=allocator_url,
+        admin_user=admin_user,
+        admin_pw=admin_pw,
+        deploy_dir=workdir,
+        manual=True,
+    )
+    app.run()
 
 
 # ------------------------------------------------------------------
