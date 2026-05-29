@@ -683,6 +683,7 @@ class TestStartLogShipper:
     ):
         """Guarantees there is no overlap between old and new shippers
         (which would POST duplicates under --force re-register)."""
+        from unittest.mock import Mock
         from lablink_cli.commands.register import _start_log_shipper
         from rich.console import Console
 
@@ -690,17 +691,19 @@ class TestStartLogShipper:
         env_file.write_text("CLIENT_ID=1\n")
         mock_popen.return_value = MagicMock(pid=99999)
 
+        # Attach both mocks to a parent so we get a single ordered call
+        # log. Asserting the call names appear in source order catches a
+        # future refactor that moves Popen above _stop_existing_shipper.
+        parent = Mock()
+        parent.attach_mock(mock_stop, "stop")
+        parent.attach_mock(mock_popen, "popen")
+
         _start_log_shipper(env_file, Console())
 
-        # _stop_existing_shipper must be called before Popen.
-        assert mock_stop.called
-        # Ordering check: Popen happens after the stop.
-        stop_call_order = mock_stop.mock_calls[0]
-        popen_call_order = mock_popen.mock_calls[0]
-        # Both fire once; just confirm both are present (call ordering
-        # within a single sync function is guaranteed by source order).
-        assert stop_call_order is not None
-        assert popen_call_order is not None
+        call_names = [c[0] for c in parent.mock_calls]
+        assert call_names == ["stop", "popen"], (
+            f"expected stop -> popen, got {call_names}"
+        )
 
 
 class TestStopExistingShipper:
