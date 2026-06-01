@@ -8,14 +8,9 @@ import secrets
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Callable
 
 import requests
-
-from .get_config import get_config
-from .utils.aws_utils import (
-    get_instance_id_by_name,
-    get_instance_private_ip,
-)
 
 
 ROTATE_TIMEOUT = 5.0
@@ -32,32 +27,35 @@ class BrowserSessionTarget:
     browser_credential: str | None    # non-None ⇒ page sends HTTP Basic
 
 
-def _region() -> str:
-    """Read the AWS region from the allocator's loaded config."""
-    return get_config().app.region
+def _lookup_private_ip(
+    hostname: str,
+    database=None,
+    *,
+    fallback_fn: Callable[[str], str] | None = None,
+) -> str:
+    """Return the private IP for *hostname*.
 
+    Resolution order:
+    1. ``database.get_lan_ip(hostname)`` — present for BYO/manual rows that
+       record their LAN IP at registration time.
+    2. ``fallback_fn(hostname)`` — caller-supplied resolver (e.g. EC2 tag
+       lookup).  When omitted, falls through to step 3.
+    3. Raises :exc:`RotationFailed` with a descriptive message.
 
-def _lookup_private_ip(hostname: str, database=None) -> str:
-    # BYO/manual rows record their LAN IP at registration time
-    # (provider_metadata.lan_ip, or endpoint_url's host as a fallback).
-    # Those rows have no EC2 Name tag equal to their Linux hostname, so
-    # the EC2 lookup below would raise RotationFailed even though the
-    # IP is already known. Prefer the stored value when present; fall
-    # back to the EC2 lookup for older AWS rows that recorded neither.
+    The fallback is intentionally not hard-coded here so that
+    ``client_session`` has no dependency on AWS utilities.  Provider-specific
+    connectivity strategies (e.g. ``AllocatorProxiedClientConnectivity``) pass
+    their own resolver via :func:`prepare_browser_session`.
+    """
     if database is not None:
         stored = database.get_lan_ip(hostname)
         if stored:
             return stored
-    region = _region()
-    instance_id = get_instance_id_by_name(hostname, region)
-    if instance_id is None:
-        raise RotationFailed(f"no EC2 instance found for hostname {hostname}")
-    ip = get_instance_private_ip(instance_id, region)
-    if ip is None:
-        raise RotationFailed(
-            f"no private IP for instance {instance_id} ({hostname})"
-        )
-    return ip
+    if fallback_fn is not None:
+        return fallback_fn(hostname)
+    raise RotationFailed(
+        f"no IP recorded for {hostname} and no fallback resolver provided"
+    )
 
 
 def _post_rotate(url: str, body: dict, *, bearer: str) -> None:
@@ -86,6 +84,7 @@ def prepare_browser_session(
     session_id: uuid.UUID,
     browser_token: str,
     agent_token: str,
+    fallback_fn: Callable[[str], str] | None = None,
 ) -> BrowserSessionTarget:
     """Rotate the assigned client's VNC password and persist per-session
     columns on the VM row. Must be called inside the seat-assignment
@@ -96,8 +95,14 @@ def prepare_browser_session(
     Terraform user_data and validates it on every /api/session/start call.
     Passed explicitly rather than read from env so this function has no
     hidden global dependency for tests.
+
+    `fallback_fn` is an optional callable ``(hostname: str) -> str`` that
+    resolves the private IP when no stored LAN IP is found in the database.
+    Provider-specific connectivity strategies supply this (e.g.
+    ``AllocatorProxiedClientConnectivity`` passes an EC2 tag lookup).
+    When omitted and no stored IP exists, :exc:`RotationFailed` is raised.
     """
-    private_ip = _lookup_private_ip(hostname, database)
+    private_ip = _lookup_private_ip(hostname, database, fallback_fn=fallback_fn)
     password = secrets.token_urlsafe(24)
     upstream = f"{private_ip}:6080"
 
