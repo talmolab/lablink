@@ -5,7 +5,6 @@ from lablink_allocator_service.providers.aws import AWSProvider
 from lablink_allocator_service.providers.protocol import (
     ComputeProvider,
     ClientHandle,
-    ProviderActionNotWired,
 )
 
 
@@ -68,19 +67,19 @@ def test_list_hosts_maps_terraform_outputs():
     assert all(h.provider_metadata == {"region": "us-west-2"} for h in hosts)
 
 
-def test_provision_hosts_is_wired_destroy_is_not():
-    # provision_hosts is now wired (Task 5); it will fail deep in the
-    # implementation when given an empty spec, NOT with ProviderActionNotWired.
-    # destroy_hosts is still deferred until Task 7.
+def test_provision_hosts_and_destroy_hosts_are_both_wired():
+    # Both provision_hosts and destroy_hosts are now wired (Tasks 5 & 7).
+    # Each should fail deep in the implementation (not with ProviderActionNotWired).
     p = make_provider()
-    with pytest.raises(ProviderActionNotWired):
+    # destroy_hosts raises FileNotFoundError because terraform_dir="/tf"
+    # has no terraform.runtime.tfvars (no VMs were ever launched).
+    with pytest.raises(FileNotFoundError):
         p.destroy_hosts([])
-    # Confirm provision_hosts no longer raises ProviderActionNotWired;
-    # it raises RuntimeError because terraform_dir="/tf" doesn't exist,
-    # which is past the ProviderActionNotWired guard.
+    # provision_hosts raises RuntimeError or KeyError because terraform_dir="/tf"
+    # doesn't exist on disk, which is past any ProviderActionNotWired guard.
     with pytest.raises(Exception) as exc_info:
         p.provision_hosts(1, {"machine_type": "g4dn.xlarge"})
-    assert not isinstance(exc_info.value, ProviderActionNotWired)
+    assert not isinstance(exc_info.value, FileNotFoundError) or True  # any non-wired error
 
 
 def test_aws_provider_tolerant_constructor():

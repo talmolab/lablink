@@ -11,7 +11,7 @@ from lablink_allocator_service.providers.connectivity.allocator_proxied import (
 )
 from lablink_allocator_service.providers.protocol import (
     ClientHandle,
-    ProviderActionNotWired,
+    DestroyResult,
     ProvisionResult,
 )
 from lablink_allocator_service.utils.aws_utils import (
@@ -173,9 +173,38 @@ class AWSProvider:
             handles=handles, timings=timings, apply_stdout=clean_stdout,
         )
 
-    def destroy_hosts(self, handles: list[ClientHandle]) -> None:
-        # (unchanged stub — wired in Task 7)
-        raise ProviderActionNotWired(
-            "AWSProvider.destroy_hosts is not wired in PR B; Terraform "
-            "destroy stays inline in main.destroy() until PR D5 Task 7-8."
+    def destroy_hosts(self, handles: list[ClientHandle]) -> DestroyResult:
+        """Run `terraform destroy -auto-approve -var-file=...` for the entire
+        workspace. Terraform destroy operates against the state file as a
+        whole; `handles` is accepted for protocol consistency but not used
+        for per-handle filtering.
+
+        Raises FileNotFoundError if no runtime tfvars exists (signals
+        "no client VMs were ever launched" — route handler maps this to 404).
+        """
+        if self._terraform_dir is None:
+            raise RuntimeError(
+                "AWSProvider not configured with terraform_dir — cannot destroy."
+            )
+        terraform_dir = Path(self._terraform_dir)
+        runtime_file = terraform_dir / "terraform.runtime.tfvars"
+        if not runtime_file.exists():
+            raise FileNotFoundError(
+                "tfvars does not exist — no client VMs were launched"
+            )
+
+        cmd = [
+            "terraform", "destroy", "-auto-approve",
+            "-var-file=terraform.runtime.tfvars",
+        ]
+        try:
+            sg_id = current_instance_security_group(region=self._region)
+            cmd.append(f"-var=allocator_sg_id={sg_id}")
+        except NotOnEC2Error:
+            # Caller may log; we just skip the SG var.
+            pass
+
+        result = subprocess.run(
+            cmd, cwd=terraform_dir, check=True, capture_output=True, text=True,
         )
+        return DestroyResult(stdout=_ANSI_ESCAPE.sub("", result.stdout))

@@ -47,6 +47,13 @@ class ProvisionResult:
 
 
 @dataclass
+class DestroyResult:
+    """Result of provider.destroy_hosts(...)."""
+
+    stdout: str  # ANSI-stripped Terraform destroy output
+
+
+@dataclass
 class ClientJoinMaterial:
     """Everything a fresh client needs to bootstrap (SR-F13). Note:
     client_secret is minted by the registration endpoint, NOT carried here."""
@@ -77,7 +84,7 @@ class ComputeProvider(Protocol):
     can_recover_hosts: bool
 
     def provision_hosts(self, count: int, spec: dict) -> ProvisionResult: ...
-    def destroy_hosts(self, handles: list[ClientHandle]) -> None: ...
+    def destroy_hosts(self, handles: list[ClientHandle]) -> DestroyResult: ...
     # recover_hosts returns True iff every handle recycled OK
     def recover_hosts(self, handles: list[ClientHandle]) -> bool: ...
     def list_hosts(self) -> list[ClientHandle]: ...
