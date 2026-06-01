@@ -1023,7 +1023,9 @@ def main():
             f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
         )
         scheduler_service = ScheduledDestructionService(
-            database=database, db_url=db_url
+            database=database,
+            db_url=db_url,
+            provider=app.config["LABLINK_PROVIDER"],
         )
         scheduler_service.start()
         atexit.register(scheduler_service.stop)
