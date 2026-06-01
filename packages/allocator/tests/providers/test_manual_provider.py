@@ -16,11 +16,14 @@ def test_manual_provider_flags_and_connectivity():
 
 def test_manual_provider_lifecycle_raises():
     from lablink_allocator_service.providers.manual import ManualProvider
+    from lablink_allocator_service.providers.protocol import (
+        ProvisioningNotSupported,
+    )
     p = ManualProvider()
     for call in (lambda: p.provision_hosts(1, {}),
                  lambda: p.destroy_hosts([]),
                  lambda: p.recover_hosts([])):
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ProvisioningNotSupported):
             call()
 
 

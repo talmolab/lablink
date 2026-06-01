@@ -6,7 +6,10 @@ from __future__ import annotations
 from lablink_allocator_service.providers.connectivity.lan_direct import (
     LANDirectClientConnectivity,
 )
-from lablink_allocator_service.providers.protocol import ClientHandle
+from lablink_allocator_service.providers.protocol import (
+    ClientHandle,
+    ProvisioningNotSupported,
+)
 
 
 def _db():
@@ -29,18 +32,18 @@ class ManualProvider:
         )
 
     def provision_hosts(self, count, spec):
-        raise NotImplementedError(
+        raise ProvisioningNotSupported(
             "ManualProvider doesn't provision — instructor brings the "
             "machines. Use 'lablink launch' for the registration command."
         )
 
     def destroy_hosts(self, handles):
-        raise NotImplementedError(
+        raise ProvisioningNotSupported(
             "ManualProvider cannot destroy BYO machines."
         )
 
     def recover_hosts(self, handles):
-        raise NotImplementedError(
+        raise ProvisioningNotSupported(
             "ManualProvider cannot recover BYO machines; the box rejoins "
             "via docker --restart + idempotent re-registration."
         )
