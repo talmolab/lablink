@@ -52,17 +52,22 @@ class TestRenderComposeDir:
         # compose template no longer exposes 443.
         assert "HTTPS_PORT" not in env_content
 
-        # config.yaml carries the admin user/password (resolved before
-        # render_compose_dir is invoked from run_deploy_compose).
+        # config.yaml carries the admin user and HASHED password (resolved
+        # before render_compose_dir is invoked from run_deploy_compose).
+        # As of D5, plaintext admin_password is never written to disk — only
+        # the argon2 hash is stored in admin_password_hash.
         config_text = (target / "config.yaml").read_text()
         assert (
             "admin_user: admin" in config_text
             or "admin_user: 'admin'" in config_text
         )
-        assert (
-            "admin_password: pw" in config_text
-            or "admin_password: 'pw'" in config_text
-        )
+        # Plaintext password must NOT appear
+        assert "admin_password: pw" not in config_text
+        assert "admin_password: 'pw'" not in config_text
+        # Only the hash should be present
+        assert "admin_password_hash:" in config_text
+        # admin_password field should be empty
+        assert "admin_password: ''" in config_text
 
     def test_template_is_single_service(self, tmp_path):
         """Regression: compose template must NOT spin up a separate

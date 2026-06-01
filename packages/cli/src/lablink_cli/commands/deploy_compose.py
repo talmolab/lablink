@@ -26,7 +26,10 @@ import typer
 from rich.console import Console
 
 from lablink_cli.commands.status import check_health_endpoint
-from lablink_cli.commands.utils import resolve_admin_credentials
+from lablink_cli.commands.utils import (
+    resolve_admin_credentials,
+    hash_admin_password_in_config,
+)
 from lablink_cli.config.schema import Config, save_config
 
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
@@ -81,6 +84,8 @@ def render_compose_dir(cfg: Config, target: Path) -> None:
     # 3. Save config.yaml in the working dir. Mounted into the allocator
     #    container at /config/config.yaml (which matches the container's
     #    CONFIG_DIR default).
+    # Hash plaintext admin_password before saving so it never lands on disk.
+    hash_admin_password_in_config(cfg)
     save_config(cfg, target / "config.yaml")
 
 

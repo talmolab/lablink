@@ -237,3 +237,22 @@ def resolve_admin_credentials(
         or _resolve_from_deploy_dir(cfg)
         or _resolve_from_prompt()
     )
+
+
+def hash_admin_password_in_config(cfg: Config) -> None:
+    """Mutate cfg in-place: hash plaintext admin_password into admin_password_hash.
+
+    Idempotent: no-op if admin_password_hash is already set or if admin_password
+    is empty. Called before save_config in any deploy path so plaintext never
+    lands on disk via Lablink.
+
+    Args:
+        cfg: The Config object to update in-place.
+    """
+    from argon2 import PasswordHasher
+
+    if cfg.app.admin_password and not cfg.app.admin_password_hash:
+        cfg.app.admin_password_hash = PasswordHasher().hash(
+            cfg.app.admin_password
+        )
+        cfg.app.admin_password = ""

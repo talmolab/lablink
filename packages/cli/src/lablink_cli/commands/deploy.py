@@ -20,6 +20,7 @@ from lablink_cli.commands.utils import (
     get_allocator_url,
     get_deploy_dir,
     resolve_admin_credentials,
+    hash_admin_password_in_config,
 )
 from lablink_cli.api import (
     AllocatorAPI,
@@ -94,6 +95,8 @@ def _prepare_working_dir(
     # Write config/config.yaml from the Config object
     config_dir = deploy_dir / "config"
     config_dir.mkdir(exist_ok=True)
+    # Hash plaintext admin_password before saving so it never lands on disk.
+    hash_admin_password_in_config(cfg)
     save_config(cfg, config_dir / "config.yaml")
 
     # Copy custom startup script if configured
