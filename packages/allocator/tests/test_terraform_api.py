@@ -2,8 +2,6 @@ from unittest.mock import patch, MagicMock
 import json
 import subprocess
 
-import pytest
-
 POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 

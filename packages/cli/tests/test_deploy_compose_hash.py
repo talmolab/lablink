@@ -22,7 +22,9 @@ def cfg_with_plaintext_password():
     return cfg
 
 
-def test_render_compose_dir_hashes_admin_password(cfg_with_plaintext_password, tmp_path):
+def test_render_compose_dir_hashes_admin_password(
+    cfg_with_plaintext_password, tmp_path,
+):
     """Plaintext admin_password must NOT appear in the saved config.yaml."""
     render_compose_dir(cfg_with_plaintext_password, tmp_path)
     saved = yaml.safe_load((tmp_path / "config.yaml").read_text())

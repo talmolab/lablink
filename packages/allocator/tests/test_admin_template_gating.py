@@ -1,6 +1,5 @@
 """Admin template hides buttons whose capability is unsupported (D5)."""
 from __future__ import annotations
-import pytest
 
 
 def _make_fake_provider(*, can_provision: bool, can_destroy: bool, name: str):

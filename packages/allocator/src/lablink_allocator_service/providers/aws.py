@@ -23,10 +23,7 @@ from lablink_allocator_service.utils.aws_utils import (
     stop_start_ec2_instance,
     upload_to_s3,
 )
-from lablink_allocator_service.utils.sg_audit import (
-    SGAuditFailure,
-    audit_terraform_plan,
-)
+from lablink_allocator_service.utils.sg_audit import audit_terraform_plan
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ids,
     get_instance_names,

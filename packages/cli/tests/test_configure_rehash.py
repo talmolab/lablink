@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import yaml
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import argon2
 import pytest
 from typer.testing import CliRunner
@@ -40,8 +40,12 @@ def test_rehash_replaces_plaintext_with_hash(legacy_config):
 
     # Verify the hash was written
     after = yaml.safe_load(legacy_config.read_text())
-    assert "admin_password" not in after["app"], "plaintext admin_password should be removed"
-    assert "admin_password_hash" in after["app"], "admin_password_hash should be present"
+    assert "admin_password" not in after["app"], (
+        "plaintext admin_password should be removed"
+    )
+    assert "admin_password_hash" in after["app"], (
+        "admin_password_hash should be present"
+    )
 
     # Verify the hash matches the original plaintext
     hasher = argon2.PasswordHasher()
@@ -97,13 +101,3 @@ def test_rehash_config_file_not_found():
     assert "not found" in output.lower() or "error" in output.lower()
 
 
-def test_configure_without_rehash_still_hashes(tmp_path):
-    """Test that normal configure flow (without --rehash) also hashes the password."""
-    config_path = tmp_path / "config.yaml"
-
-    runner = CliRunner()
-
-    # This test would require mocking the entire wizard flow, which is complex.
-    # For now, we'll verify that the new hashing logic is in place through
-    # integration tests. Skipping detailed wizard flow mocking here.
-    pass
