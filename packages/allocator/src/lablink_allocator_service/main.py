@@ -316,7 +316,12 @@ def create_instances():
 @app.route("/admin")
 @auth.login_required
 def admin():
-    return render_template("admin.html")
+    provider = app.config["LABLINK_PROVIDER"]
+    return render_template(
+        "admin.html",
+        can_provision_hosts=provider.can_provision_hosts,
+        can_destroy_hosts=provider.can_destroy_hosts,
+    )
 
 
 @app.route("/admin/byo-onboarding")
