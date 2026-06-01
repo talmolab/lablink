@@ -17,6 +17,8 @@ from lablink_allocator_service.providers.protocol import (
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
     current_instance_security_group,
+    get_instance_id_by_name,
+    get_instance_public_ip,
     NotOnEC2Error,
     stop_start_ec2_instance,
     upload_to_s3,
@@ -29,6 +31,7 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ids,
     get_instance_names,
     get_instance_timings,
+    get_ssh_private_key,
 )
 
 # ANSI escape sequence stripper — moved from main.py to keep the
@@ -58,6 +61,31 @@ class AWSProvider:
             if not stop_start_ec2_instance(h.id, region=region):
                 all_ok = False
         return all_ok
+
+    def get_host_access(
+        self, hostname: str
+    ) -> tuple[str | None, str | None, str | None]:
+        """Return (instance_id, public_ip, ssh_key_path) for *hostname*.
+
+        Looks up the EC2 instance by Name tag, fetches its public IP, and
+        reads the SSH private key from the Terraform state directory.  Any
+        component may be None if unavailable (instance not found, no public
+        IP, or terraform_dir not set / key file absent).
+        """
+        instance_id = get_instance_id_by_name(hostname, region=self._region)
+        if not instance_id:
+            return (None, None, None)
+
+        ip = get_instance_public_ip(instance_id, region=self._region)
+
+        key_path: str | None = None
+        if self._terraform_dir:
+            try:
+                key_path = get_ssh_private_key(self._terraform_dir)
+            except Exception:
+                pass
+
+        return (instance_id, ip, key_path)
 
     def list_hosts(self) -> list[ClientHandle]:
         ids = get_instance_ids(terraform_dir=self._terraform_dir)

@@ -48,6 +48,12 @@ class ManualProvider:
             "via docker --restart + idempotent re-registration."
         )
 
+    def get_host_access(self, hostname):
+        # ManualProvider.can_recover_hosts is False; _reboot_vm gates on
+        # this capability flag before ever calling get_host_access, so
+        # this path is unreachable in normal operation.
+        return (None, None, None)
+
     def list_hosts(self):
         return [
             ClientHandle(id=h, hostname=h)

@@ -17,12 +17,6 @@ from datetime import datetime, timezone
 from threading import Thread, Event
 
 from lablink_allocator_service.database import PostgresqlDatabase
-from lablink_allocator_service.utils.aws_utils import (
-    get_instance_id_by_name,
-    get_instance_public_ip,
-    stop_start_ec2_instance,
-)
-from lablink_allocator_service.utils.terraform_utils import get_ssh_private_key
 
 logger = logging.getLogger(__name__)
 
@@ -214,15 +208,15 @@ class AutoRebootService:
         Returns:
             True if reboot was initiated, False otherwise.
         """
-        # Providers that can't recover hosts (manual/BYO) have no upstream
-        # to call — and in deployments without AWS credentials, the EC2
-        # lookups below would crash with NoCredentialsError every check
-        # interval. Mirror the capability-gate pattern used for terraform
-        # init in main.py (branch on capability, not type).
-        if self.provider is not None and not self.provider.can_recover_hosts:
+        # Gate on provider presence and capability.  Providers that can't
+        # recover hosts (manual/BYO) return False early so no AWS calls
+        # are attempted — avoids NoCredentialsError on every check interval
+        # in environments without AWS credentials.
+        if self.provider is None or not self.provider.can_recover_hosts:
             logger.info(
                 "provider %s cannot recover hosts; leaving %s failed",
-                getattr(self.provider, "name", type(self.provider).__name__),
+                getattr(self.provider, "name", type(self.provider).__name__)
+                if self.provider is not None else "none",
                 hostname,
             )
             return False
@@ -233,59 +227,44 @@ class AutoRebootService:
             f"(assigned={assigned})"
         )
 
-        # Look up EC2 instance ID by hostname (Name tag)
-        instance_id = get_instance_id_by_name(
-            hostname, region=self.region
-        )
+        # Look up instance access details via the provider (AWS-specific
+        # EC2 + SSH key lookups live in AWSProvider.get_host_access).
+        instance_id, ip, key_path = self.provider.get_host_access(hostname)
         if not instance_id:
             logger.error(
-                f"Could not find EC2 instance for VM "
+                f"Could not find instance for VM "
                 f"'{hostname}', skipping reboot"
             )
             return False
 
         # 1) Try SSH reboot (warm or cold depending on assignment)
-        ip = get_instance_public_ip(
-            instance_id, region=self.region
-        )
-        if ip and self.terraform_dir:
-            try:
-                key_path = get_ssh_private_key(self.terraform_dir)
-                ssh_reboot = (
-                    self._ssh_warm_reboot if assigned
-                    else self._ssh_cold_reboot
+        if ip and key_path:
+            ssh_reboot = (
+                self._ssh_warm_reboot if assigned
+                else self._ssh_cold_reboot
+            )
+            if ssh_reboot(ip, key_path):
+                self.database.record_reboot(hostname)
+                logger.info(
+                    f"SSH {reboot_type} reboot initiated for VM "
+                    f"'{hostname}' ({instance_id})"
                 )
-                if ssh_reboot(ip, key_path):
-                    self.database.record_reboot(hostname)
-                    logger.info(
-                        f"SSH {reboot_type} reboot initiated for VM "
-                        f"'{hostname}' ({instance_id})"
-                    )
-                    return True
-            except Exception as e:
-                logger.warning(
-                    f"Could not get SSH key for reboot: {e}"
-                )
+                return True
 
-        # 2) Last resort: stop/start (always cold — cloud-init re-runs)
+        # 2) Last resort: stop/start via provider (always cold — cloud-init re-runs)
         logger.info(
             f"SSH unavailable for VM '{hostname}', falling back "
             f"to stop/start (cold reboot)"
         )
-        if self.provider is not None and self.provider.can_recover_hosts:
-            from lablink_allocator_service.providers.protocol import ClientHandle
+        from lablink_allocator_service.providers.protocol import ClientHandle
 
-            success = self.provider.recover_hosts([
-                ClientHandle(
-                    id=instance_id,
-                    hostname=hostname,
-                    provider_metadata={"region": self.region},
-                )
-            ])
-        else:
-            success = stop_start_ec2_instance(
-                instance_id, region=self.region
+        success = self.provider.recover_hosts([
+            ClientHandle(
+                id=instance_id,
+                hostname=hostname,
+                provider_metadata={"region": self.region},
             )
+        ])
         if success:
             self.database.record_reboot(hostname)
             logger.info(

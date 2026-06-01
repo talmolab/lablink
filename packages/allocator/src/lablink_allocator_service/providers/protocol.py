@@ -88,3 +88,15 @@ class ComputeProvider(Protocol):
     # recover_hosts returns True iff every handle recycled OK
     def recover_hosts(self, handles: list[ClientHandle]) -> bool: ...
     def list_hosts(self) -> list[ClientHandle]: ...
+    def get_host_access(
+        self, hostname: str
+    ) -> tuple[str | None, str | None, str | None]:
+        """Return (instance_id, public_ip, ssh_key_path) for *hostname*.
+
+        Any component may be None if unavailable (no credentials, not
+        reachable, etc.).  Providers that cannot recover hosts should
+        return (None, None, None) — ``_reboot_vm`` gates on
+        ``can_recover_hosts`` before calling this, so it will only ever
+        be invoked on capable providers.
+        """
+        ...

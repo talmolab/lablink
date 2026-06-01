@@ -494,15 +494,14 @@ def test_ssh_warm_reboot_does_not_clean_cloud_init(monkeypatch):
 
 def test_reboot_vm_ssh_success(monkeypatch):
     """Test successful VM reboot via SSH."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     mock_run = MagicMock()
@@ -517,16 +516,15 @@ def test_reboot_vm_ssh_success(monkeypatch):
 
 def test_reboot_vm_ssh_fails_stop_start_succeeds(monkeypatch):
     """Test fallback to stop/start when SSH fails."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: True)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
+    mock_provider.recover_hosts.return_value = True
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     # SSH fails with exit code 1
@@ -543,15 +541,16 @@ def test_reboot_vm_ssh_fails_stop_start_succeeds(monkeypatch):
 
 def test_reboot_vm_no_ip_stop_start_succeeds(monkeypatch):
     """Test stop/start fallback when no public IP available."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: None)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: True)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    # No public IP — SSH skipped; falls straight to recover_hosts
+    mock_provider.get_host_access.return_value = ("i-12345", None, None)
+    mock_provider.recover_hosts.return_value = True
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     result = service._reboot_vm("vm-1", assigned=False)
@@ -562,16 +561,15 @@ def test_reboot_vm_no_ip_stop_start_succeeds(monkeypatch):
 
 def test_reboot_vm_all_methods_fail(monkeypatch):
     """Test when SSH and stop/start both fail."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", lambda *a, **kw: False)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
+    mock_provider.recover_hosts.return_value = False
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     # SSH fails
@@ -587,14 +585,16 @@ def test_reboot_vm_all_methods_fail(monkeypatch):
 
 
 def test_reboot_vm_instance_not_found(monkeypatch):
-    """Test reboot when EC2 instance not found."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: None)
+    """Test reboot when instance not found via provider."""
+    mock_provider = MagicMock(can_recover_hosts=True)
+    # Provider cannot find the instance
+    mock_provider.get_host_access.return_value = (None, None, None)
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     result = service._reboot_vm("vm-nonexistent", assigned=False)
@@ -605,15 +605,14 @@ def test_reboot_vm_instance_not_found(monkeypatch):
 
 def test_reboot_vm_uses_warm_reboot_for_assigned_vm(monkeypatch):
     """Assigned VMs (useremail set) get warm reboot to preserve container."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     mock_run = MagicMock()
@@ -631,15 +630,14 @@ def test_reboot_vm_uses_warm_reboot_for_assigned_vm(monkeypatch):
 
 def test_reboot_vm_uses_cold_reboot_for_unassigned_vm(monkeypatch):
     """Unassigned VMs (no useremail) get cold reboot with cloud-init clean."""
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345")
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4")
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem")
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     mock_run = MagicMock()
@@ -909,23 +907,15 @@ def test_reboot_vm_ssh_fails_stop_start_assigned_falls_back(monkeypatch):
     The "stop/start is always cold" semantic refers to post-boot behavior
     (cloud-init re-runs user_data), not to whether fallback triggers.
     """
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
-    )
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4"
-    )
-    monkeypatch.setattr(
-        reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem"
-    )
-    mock_stop_start = MagicMock(return_value=True)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
+    mock_provider.recover_hosts.return_value = True
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     # SSH fails with a non-zero, non-255 exit code
@@ -940,21 +930,19 @@ def test_reboot_vm_ssh_fails_stop_start_assigned_falls_back(monkeypatch):
     # SSH attempt was the warm path (sudo reboot, no cloud-init clean)
     cmd = mock_run.call_args[0][0]
     assert cmd[-1] == "sudo reboot"
-    # Stop/start was invoked as fallback
-    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    # Stop/start was invoked as fallback via provider
+    mock_provider.recover_hosts.assert_called_once()
+    (handles,), _ = mock_provider.recover_hosts.call_args
+    assert handles[0].id == "i-12345"
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
 def test_reboot_vm_no_ip_assigned_falls_back_to_stop_start(monkeypatch):
     """Assigned VM with no public IP skips SSH and goes straight to stop/start."""
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
-    )
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_public_ip", lambda *a, **kw: None
-    )
-    mock_stop_start = MagicMock(return_value=True)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    # No IP or key — SSH skipped; falls straight to recover_hosts
+    mock_provider.get_host_access.return_value = ("i-12345", None, None)
+    mock_provider.recover_hosts.return_value = True
 
     # Guard: subprocess.run must NOT be called (no SSH attempt without IP)
     mock_run = MagicMock()
@@ -964,36 +952,30 @@ def test_reboot_vm_no_ip_assigned_falls_back_to_stop_start(monkeypatch):
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     result = service._reboot_vm("vm-1", assigned=True)
 
     assert result is True
     mock_run.assert_not_called()
-    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    mock_provider.recover_hosts.assert_called_once()
+    (handles,), _ = mock_provider.recover_hosts.call_args
+    assert handles[0].id == "i-12345"
     mock_db.record_reboot.assert_called_once_with("vm-1")
 
 
 def test_reboot_vm_all_methods_fail_assigned(monkeypatch):
     """Assigned VM: when SSH and stop/start both fail, no reboot recorded."""
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_id_by_name", lambda *a, **kw: "i-12345"
-    )
-    monkeypatch.setattr(
-        reboot_mod, "get_instance_public_ip", lambda *a, **kw: "1.2.3.4"
-    )
-    monkeypatch.setattr(
-        reboot_mod, "get_ssh_private_key", lambda *a, **kw: "/tmp/key.pem"
-    )
-    mock_stop_start = MagicMock(return_value=False)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", mock_stop_start)
+    mock_provider = MagicMock(can_recover_hosts=True)
+    mock_provider.get_host_access.return_value = ("i-12345", "1.2.3.4", "/tmp/key.pem")
+    mock_provider.recover_hosts.return_value = False
 
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        provider=mock_provider,
     )
 
     mock_run = MagicMock()
@@ -1004,7 +986,9 @@ def test_reboot_vm_all_methods_fail_assigned(monkeypatch):
     result = service._reboot_vm("vm-1", assigned=True)
 
     assert result is False
-    mock_stop_start.assert_called_once_with("i-12345", region="us-west-2")
+    mock_provider.recover_hosts.assert_called_once()
+    (handles,), _ = mock_provider.recover_hosts.call_args
+    assert handles[0].id == "i-12345"
     mock_db.record_reboot.assert_not_called()
 
 
@@ -1014,17 +998,14 @@ def test_reboot_vm_all_methods_fail_assigned(monkeypatch):
 def test_reboot_vm_uses_provider_recover_when_capable(monkeypatch):
     """When provider.can_recover_hosts is True, recover_hosts is called instead of stop_start."""
     prov = MagicMock(can_recover_hosts=True)
+    # Return None for IP so SSH is skipped and we reach the EC2-fallback branch
+    prov.get_host_access.return_value = ("i-42", None, None)
     prov.recover_hosts.return_value = True
     svc = reboot_mod.AutoRebootService(
         database=MagicMock(),
         region="us-west-2",
-        terraform_dir="/tf",
         provider=prov,
     )
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **k: "i-42")
-    # Return None for IP so SSH is skipped and we reach the EC2-fallback branch
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **k: None)
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **k: None)
 
     assert svc._reboot_vm("vm-1", assigned=False) is True
     prov.recover_hosts.assert_called_once()
@@ -1034,36 +1015,28 @@ def test_reboot_vm_uses_provider_recover_when_capable(monkeypatch):
     svc.database.record_reboot.assert_called_once_with("vm-1")
 
     prov.recover_hosts.return_value = False
+    prov.recover_hosts.reset_mock()
     svc.database.record_reboot.reset_mock()
     assert svc._reboot_vm("vm-1", assigned=False) is False
     svc.database.record_reboot.assert_not_called()
 
 
-def test_reboot_vm_skips_ec2_when_provider_cannot_recover(monkeypatch):
-    """When provider.can_recover_hosts is False, stop_start_ec2_instance is NOT called."""
-    called = {"stop_start": False}
-    monkeypatch.setattr(
-        reboot_mod, "stop_start_ec2_instance",
-        lambda *a, **k: called.__setitem__("stop_start", True) or True,
-    )
+def test_reboot_vm_skips_ec2_when_provider_cannot_recover():
+    """When provider.can_recover_hosts is False, no recovery is attempted."""
     svc = reboot_mod.AutoRebootService(
         database=MagicMock(),
         region="us-west-2",
-        terraform_dir="/tf",
         provider=MagicMock(can_recover_hosts=False),
     )
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", lambda *a, **k: "i-7")
-    # Return None for IP so SSH is skipped and we reach the EC2-fallback branch
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", lambda *a, **k: None)
-    monkeypatch.setattr(reboot_mod, "get_ssh_private_key", lambda *a, **k: None)
 
     result = svc._reboot_vm("vm-9", assigned=False)
-    assert called["stop_start"] is False
     assert result is False
+    # get_host_access must NOT have been called (capability gate blocks all lookups)
+    svc.provider.get_host_access.assert_not_called()
     svc.database.record_reboot.assert_not_called()
 
 
-def test_reboot_vm_skips_all_aws_calls_when_provider_cannot_recover(monkeypatch):
+def test_reboot_vm_skips_all_aws_calls_when_provider_cannot_recover():
     """Manual/BYO providers must not invoke ANY AWS EC2 calls in _reboot_vm.
 
     Reproduces the manual-deployment NoCredentialsError loop where the
@@ -1071,38 +1044,21 @@ def test_reboot_vm_skips_all_aws_calls_when_provider_cannot_recover(monkeypatch)
     capability check on the stop/start fallback. With no credentials in
     the container, botocore raises NoCredentialsError and the reboot
     thread spams the log every check interval.
+
+    After the provider-seam refactor, all AWS lookups live inside
+    AWSProvider.get_host_access — the capability gate returns False before
+    ever reaching that call, so no botocore call is made.
     """
-    from botocore.exceptions import NoCredentialsError
-
-    calls = {"id": 0, "ip": 0, "stop_start": 0}
-
-    def fail_id(*a, **k):
-        calls["id"] += 1
-        raise NoCredentialsError()
-
-    def fail_ip(*a, **k):
-        calls["ip"] += 1
-        raise NoCredentialsError()
-
-    def fail_stop_start(*a, **k):
-        calls["stop_start"] += 1
-        raise NoCredentialsError()
-
-    monkeypatch.setattr(reboot_mod, "get_instance_id_by_name", fail_id)
-    monkeypatch.setattr(reboot_mod, "get_instance_public_ip", fail_ip)
-    monkeypatch.setattr(reboot_mod, "stop_start_ec2_instance", fail_stop_start)
-
     svc = reboot_mod.AutoRebootService(
         database=MagicMock(),
         region="us-west-2",
-        terraform_dir="/tf",
         provider=MagicMock(can_recover_hosts=False, name="manual"),
     )
 
     result = svc._reboot_vm("LAPTOP-M8NLMMGL", assigned=False)
 
     assert result is False
-    assert calls == {"id": 0, "ip": 0, "stop_start": 0}, (
-        f"manual provider must not call any AWS function, got {calls}"
-    )
+    # Capability gate must fire before get_host_access or recover_hosts
+    svc.provider.get_host_access.assert_not_called()
+    svc.provider.recover_hosts.assert_not_called()
     svc.database.record_reboot.assert_not_called()
