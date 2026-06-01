@@ -27,24 +27,16 @@ from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
 from lablink_allocator_service.utils.aws_utils import (
-    check_support_nvidia,
     current_instance_security_group,
     NotOnEC2Error,
-    upload_to_s3,
 )
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
     is_self_signed_ssl,
     should_use_https,
 )
-from lablink_allocator_service.utils.sg_audit import (
-    audit_terraform_plan,
-    SGAuditFailure,
-)
-from lablink_allocator_service.utils.terraform_utils import (
-    get_instance_timings,
-    has_runtime_tfvars,
-)
+from lablink_allocator_service.utils.sg_audit import SGAuditFailure
+from lablink_allocator_service.utils.terraform_utils import has_runtime_tfvars
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.client_session import RotationFailed
@@ -463,7 +455,14 @@ def _wants_json():
 @app.route("/api/launch", methods=["POST"])
 @auth.login_required
 def launch():
-    # Get and validate num_vms input
+    provider = app.config["LABLINK_PROVIDER"]
+    if not provider.can_provision_hosts:
+        error_msg = "Provider does not support host provisioning."
+        if _wants_json():
+            return jsonify({"status": "error", "error": error_msg}), 405
+        return render_template("dashboard.html", error=error_msg), 405
+
+    # Validate num_vms input (unchanged)
     try:
         num_vms_str = request.form.get("num_vms")
         if not num_vms_str:
@@ -483,204 +482,79 @@ def launch():
             return jsonify({"status": "error", "error": error_msg}), 400
         return render_template("dashboard.html", error=error_msg)
 
-    runtime_file = TERRAFORM_DIR / "terraform.runtime.tfvars"
+    if not allocator_ip or not key_name:
+        logger.error("Missing allocator outputs.")
+        error_msg = "Allocator outputs not found."
+        if _wants_json():
+            return jsonify({"status": "error", "error": error_msg}), 500
+        return render_template("dashboard.html", error=error_msg)
+
+    total_vms = num_vms + database.get_row_count()
+    allocator_url, scheme = get_allocator_url(cfg, allocator_ip)
+    logger.info(f"Using allocator URL: {allocator_url} (protocol: {scheme})")
+
+    spec = {
+        "allocator_ip": allocator_ip,
+        "allocator_url": allocator_url,
+        "machine_type": cfg.machine.machine_type,
+        "image_name": cfg.machine.image,
+        "repository": cfg.machine.repository,
+        "client_ami_id": cfg.machine.ami_id,
+        "subject_software": cfg.machine.software,
+        "resource_prefix": (
+            f"{cfg.machine.software}-lablink-client-{ENVIRONMENT}"
+        ),
+        "cloud_init_output_log_group": cloud_init_output_log_group,
+        "startup_on_error": cfg.startup_script.on_error,
+        "agent_token": AGENT_TOKEN,
+        "register_token": REGISTER_TOKEN,
+        "environment": ENVIRONMENT,
+        "bucket_name": cfg.bucket_name,
+        "deployment_name": getattr(cfg, "deployment_name", "lablink"),
+    }
 
     try:
-        # Calculate the number of VMs to launch
-        total_vms = num_vms + database.get_row_count()
-
-        logger.debug(f"Machine type: {cfg.machine.machine_type}")
-        logger.debug(f"Image name: {cfg.machine.image}")
-        logger.debug(f"client VM AMI ID: {cfg.machine.ami_id}")
-        logger.debug(f"GitHub repository: {cfg.machine.repository}")
-        logger.debug(f"Subject Software: {cfg.machine.software}")
-        logger.debug(f"Region: {cfg.app.region}")
-        logger.debug(f"Allocator IP: {allocator_ip}")
-        logger.debug(f"Log Group: {cloud_init_output_log_group}")
-
-        if not allocator_ip or not key_name:
-            logger.error("Missing allocator outputs.")
-            error_msg = "Allocator outputs not found."
-            if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 500
-            return render_template("dashboard.html", error=error_msg)
-
-        logger.debug(f"Allocator IP: {allocator_ip}")
-        logger.debug(f"Key Name: {key_name}")
-        logger.debug(f"ENVIRONMENT: {ENVIRONMENT}")
-
-        # Check if GPU is supported
-        gpu_support_bool = check_support_nvidia(machine_type=cfg.machine.machine_type)
-
-        # Process GPU support so that it can be used in the runtime file
-        if gpu_support_bool:
-            logger.info("GPU support is enabled for the machine type.")
-            gpu_support = "true"
-        else:
-            logger.info("GPU support is not enabled for the machine type.")
-            gpu_support = "false"
-
-        # Generate allocator URL based on DNS and SSL configuration
-        allocator_url, protocol = get_allocator_url(cfg, allocator_ip)
-        logger.info(f"Using allocator URL: {allocator_url} (protocol: {protocol})")
-
-        # Write the runtime variables to the file
-        with runtime_file.open("w") as f:
-            f.write(f'allocator_ip = "{allocator_ip}"\n')
-            f.write(f'allocator_url = "{allocator_url}"\n')
-            f.write(f'machine_type = "{cfg.machine.machine_type}"\n')
-            f.write(f'image_name = "{cfg.machine.image}"\n')
-            f.write(f'repository = "{cfg.machine.repository}"\n')
-            f.write(f'client_ami_id = "{cfg.machine.ami_id}"\n')
-            f.write(f'subject_software = "{cfg.machine.software}"\n')
-            prefix = f"{cfg.machine.software}-lablink-client-{ENVIRONMENT}"
-            f.write(f'resource_prefix = "{prefix}"\n')
-            f.write(f'gpu_support = "{gpu_support}"\n')
-            f.write(f'cloud_init_output_log_group = "{cloud_init_output_log_group}"\n')
-            f.write(f'region = "{cfg.app.region}"\n')
-            f.write(f'startup_on_error = "{cfg.startup_script.on_error}"\n')
-            f.write(f'agent_token = "{AGENT_TOKEN}"\n')
-            f.write(f'register_token = "{REGISTER_TOKEN}"\n')
-
-        # Build the var args once; they apply to both `plan` and `apply`.
-        # Look up the allocator's own SG via IMDSv2 so client EC2s can
-        # restrict :6080 / :7070 ingress to allocator-only. Outside EC2
-        # (dev / local test), skip the var; Terraform will fail with a
-        # missing-variable error in that case, which is the correct
-        # signal that this code path requires EC2.
-        tf_vars = [
-            "-var-file=terraform.runtime.tfvars",
-            f"-var=instance_count={total_vms}",
-        ]
-        try:
-            sg_id = current_instance_security_group(region=cfg.app.region)
-            tf_vars.append(f"-var=allocator_sg_id={sg_id}")
-        except NotOnEC2Error:
-            logger.warning(
-                "Not running on EC2 (IMDSv2 unreachable); "
-                "skipping -var=allocator_sg_id=. Terraform apply will "
-                "fail unless the variable is supplied another way."
-            )
-
-        # Pre-apply SG audit: save the plan to a file, read it back as
-        # JSON via `terraform show -json`, and audit the structured
-        # plan. Refuse to apply if the client SG would expose :6080 or
-        # :7070 to 0.0.0.0/0 or ::/0. Apply the saved plan file (not a
-        # fresh plan) so audit and apply see identical state — no
-        # TOCTOU window between the two terraform invocations.
-        plan_file = "tfplan.binary"
-        plan_file_path = TERRAFORM_DIR / plan_file
-        try:
-            plan_cmd = [
-                "terraform", "plan", "-no-color", "-out", plan_file, *tf_vars,
-            ]
-            logger.debug(f"Running command: {' '.join(plan_cmd)}")
-            try:
-                subprocess.run(
-                    plan_cmd,
-                    cwd=TERRAFORM_DIR,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-            except subprocess.CalledProcessError as e:
-                logger.error("terraform plan failed: %s", e.stderr)
-                error_msg = f"Terraform plan failed: {(e.stderr or '').strip()}"
-                if _wants_json():
-                    return jsonify({"status": "error", "error": error_msg}), 500
-                return render_template("dashboard.html", error=error_msg)
-
-            try:
-                show_result = subprocess.run(
-                    ["terraform", "show", "-json", plan_file],
-                    cwd=TERRAFORM_DIR,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                plan_json = json.loads(show_result.stdout)
-            except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-                logger.error("terraform show -json failed: %s", e)
-                error_msg = f"Could not read plan JSON: {e}"
-                if _wants_json():
-                    return jsonify({"status": "error", "error": error_msg}), 500
-                return render_template("dashboard.html", error=error_msg)
-
-            try:
-                audit_terraform_plan(plan_json)
-            except SGAuditFailure as exc:
-                logger.error("SG audit refused the plan: %s", exc)
-                error_msg = f"Security-group audit refused the plan: {exc}"
-                if _wants_json():
-                    return jsonify({"status": "error", "error": error_msg}), 400
-                return render_template("dashboard.html", error=error_msg), 400
-
-            # Audit passed; apply the saved plan (vars are baked in).
-            apply_cmd = ["terraform", "apply", "-auto-approve", plan_file]
-            logger.debug(f"Running command: {' '.join(apply_cmd)}")
-
-            # Run the Terraform apply command
-            result = subprocess.run(
-                apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
-            )
-        finally:
-            # Plan file has served its purpose (applied or rejected);
-            # drop it so it doesn't linger in TERRAFORM_DIR. Fires on
-            # every exit path — early returns, audit failure, and the
-            # CalledProcessError caught by the outer except below.
-            plan_file_path.unlink(missing_ok=True)
-
-        # Format the output to remove ANSI escape codes
-        clean_output = ANSI_ESCAPE.sub("", result.stdout)
-
-        # Upload the runtime file to S3
-        logger.debug(f"Uploading runtime file to S3 bucket: {cfg.bucket_name}...")
-        deployment_name = (
-            cfg.deployment_name
-            if hasattr(cfg, "deployment_name") and cfg.deployment_name
-            else "lablink"
-        )
-        upload_to_s3(
-            local_path=runtime_file,
-            env=ENVIRONMENT,
-            bucket_name=cfg.bucket_name,
-            region=cfg.app.region,
-            deployment_name=deployment_name,
-        )
-
-        # Store timing outputs in the database
-        timing_data = get_instance_timings(terraform_dir=TERRAFORM_DIR)
-        logger.debug(f"Timing data: {timing_data}")
-
-        for hostname, times in timing_data.items():
-            start_time = datetime.fromisoformat(
-                times["start_time"].replace("Z", "+00:00")
-            )
-            end_time = datetime.fromisoformat(times["end_time"].replace("Z", "+00:00"))
-            database.update_terraform_timing(
-                hostname=hostname,
-                per_instance_seconds=float(times["seconds"]),
-                per_instance_start_time=start_time,
-                per_instance_end_time=end_time,
-            )
-
+        result = provider.provision_hosts(count=total_vms, spec=spec)
+    except SGAuditFailure as exc:
+        logger.error("SG audit refused the plan: %s", exc)
+        error_msg = f"Security-group audit refused the plan: {exc}"
         if _wants_json():
-            return jsonify({"status": "success", "output": clean_output}), 200
-        return render_template("dashboard.html", output=clean_output)
-
+            return jsonify({"status": "error", "error": error_msg}), 400
+        return render_template("dashboard.html", error=error_msg), 400
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error during Terraform apply: {e}")
-        error_output = e.stderr or e.stdout
-        clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        logger.error("Terraform failed: %s", e.stderr)
+        error_msg = f"Terraform failed: {(e.stderr or '').strip()}"
         if _wants_json():
-            return jsonify({"status": "error", "error": clean_output}), 500
-        return render_template("dashboard.html", error=clean_output)
-
+            return jsonify({"status": "error", "error": error_msg}), 500
+        return render_template("dashboard.html", error=error_msg)
     except Exception as e:
-        logger.error(f"Unexpected error during launch: {e}")
+        logger.error("Unexpected error during launch: %s", e)
         if _wants_json():
             return jsonify({"status": "error", "error": str(e)}), 500
         return render_template("dashboard.html", error=str(e))
+
+    # Update DB with timings (route-owned; provider returned them)
+    for hostname, times in result.timings.items():
+        start_time = datetime.fromisoformat(
+            times["start_time"].replace("Z", "+00:00")
+        )
+        end_time = datetime.fromisoformat(
+            times["end_time"].replace("Z", "+00:00")
+        )
+        database.update_terraform_timing(
+            hostname=hostname,
+            per_instance_seconds=float(times["seconds"]),
+            per_instance_start_time=start_time,
+            per_instance_end_time=end_time,
+        )
+
+    # Success response — match the pre-refactor shape EXACTLY
+    if _wants_json():
+        return jsonify({
+            "status": "success",
+            "output": result.apply_stdout,
+        })
+    return render_template("dashboard.html", output=result.apply_stdout)
 
 
 @app.route("/destroy", methods=["POST"])
