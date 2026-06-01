@@ -34,6 +34,19 @@ class ClientHandle:
 
 
 @dataclass
+class ProvisionResult:
+    """Result of provider.provision_hosts(...).
+
+    Returned by AWSProvider.provision_hosts and consumed by the
+    /api/launch route handler in main.py.
+    """
+
+    handles: list[ClientHandle]
+    timings: dict[str, dict]  # hostname -> {start_time, end_time, seconds}
+    apply_stdout: str  # ANSI-stripped Terraform apply output
+
+
+@dataclass
 class ClientJoinMaterial:
     """Everything a fresh client needs to bootstrap (SR-F13). Note:
     client_secret is minted by the registration endpoint, NOT carried here."""
@@ -63,7 +76,7 @@ class ComputeProvider(Protocol):
     can_destroy_hosts: bool
     can_recover_hosts: bool
 
-    def provision_hosts(self, count: int, spec: dict) -> list[ClientHandle]: ...
+    def provision_hosts(self, count: int, spec: dict) -> ProvisionResult: ...
     def destroy_hosts(self, handles: list[ClientHandle]) -> None: ...
     # recover_hosts returns True iff every handle recycled OK
     def recover_hosts(self, handles: list[ClientHandle]) -> bool: ...

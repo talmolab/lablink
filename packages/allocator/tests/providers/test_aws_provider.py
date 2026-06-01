@@ -68,12 +68,19 @@ def test_list_hosts_maps_terraform_outputs():
     assert all(h.provider_metadata == {"region": "us-west-2"} for h in hosts)
 
 
-def test_provision_and_destroy_not_wired_in_pr_b():
+def test_provision_hosts_is_wired_destroy_is_not():
+    # provision_hosts is now wired (Task 5); it will fail deep in the
+    # implementation when given an empty spec, NOT with ProviderActionNotWired.
+    # destroy_hosts is still deferred until Task 7.
     p = make_provider()
     with pytest.raises(ProviderActionNotWired):
-        p.provision_hosts(1, {})
-    with pytest.raises(ProviderActionNotWired):
         p.destroy_hosts([])
+    # Confirm provision_hosts no longer raises ProviderActionNotWired;
+    # it raises RuntimeError because terraform_dir="/tf" doesn't exist,
+    # which is past the ProviderActionNotWired guard.
+    with pytest.raises(Exception) as exc_info:
+        p.provision_hosts(1, {"machine_type": "g4dn.xlarge"})
+    assert not isinstance(exc_info.value, ProviderActionNotWired)
 
 
 def test_aws_provider_tolerant_constructor():
