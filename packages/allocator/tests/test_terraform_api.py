@@ -414,14 +414,20 @@ def test_launch_apply_failure(
     assert 'gpu_support = "false"' in tfvars
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
+                         client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via terraform destroy."""
     # Create a fake terraform directory with tfvars
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     # Mock subprocess.run
     mock_run.return_value = type(
@@ -454,13 +460,19 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
     fake_db.clear_database.assert_called_once()
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
+                         client, admin_headers, monkeypatch, tmp_path):
     # Create a fake terraform directory with tfvars
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     # Mock subprocess.run to raise an error
     mock_run.side_effect = subprocess.CalledProcessError(
@@ -502,13 +514,19 @@ def test_launch_missing_num_vms(client, admin_headers):
 # ------------------------------------------------------------------
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_json_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_json_success(mock_run, mock_sg, mock_ids, mock_names,
+                               client, admin_headers, monkeypatch, tmp_path):
     """Test successful destroy returns JSON when Accept header is set."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     mock_run.return_value = type(
         "R", (), {"stdout": "\x1b[32mresources destroyed\x1b[0m", "stderr": ""}
@@ -530,13 +548,19 @@ def test_destroy_json_success(mock_run, client, admin_headers, monkeypatch, tmp_
     fake_db.clear_database.assert_called_once()
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_json_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
+                               client, admin_headers, monkeypatch, tmp_path):
     """Test terraform destroy failure returns JSON 500 when Accept header is set."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
@@ -553,22 +577,30 @@ def test_destroy_json_failure(mock_run, client, admin_headers, monkeypatch, tmp_
     assert "failed to destroy" in body["error"]
 
 
-def test_destroy_no_tfvars(client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+def test_destroy_no_tfvars(mock_ids, mock_names,
+                            client, admin_headers, monkeypatch, tmp_path):
     """Test destroy returns 404 when tfvars does not exist (no VMs launched)."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     # Do NOT create terraform.runtime.tfvars
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 404
 
 
-def test_destroy_no_tfvars_json(client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+def test_destroy_no_tfvars_json(mock_ids, mock_names,
+                                 client, admin_headers, monkeypatch, tmp_path):
     """Test destroy returns JSON 404 when tfvars does not exist."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     headers = {**admin_headers, **JSON_ACCEPT}
     resp = client.post(DESTROY_ENDPOINT, headers=headers)

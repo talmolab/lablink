@@ -26,17 +26,12 @@ import psycopg2
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.database import PostgresqlDatabase
-from lablink_allocator_service.utils.aws_utils import (
-    current_instance_security_group,
-    NotOnEC2Error,
-)
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
     is_self_signed_ssl,
     should_use_https,
 )
 from lablink_allocator_service.utils.sg_audit import SGAuditFailure
-from lablink_allocator_service.utils.terraform_utils import has_runtime_tfvars
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.client_session import RotationFailed
@@ -560,56 +555,38 @@ def launch():
 @app.route("/destroy", methods=["POST"])
 @auth.login_required
 def destroy():
-    # Check if tfvars exists — if not, no client VMs were ever launched
-    if not has_runtime_tfvars(TERRAFORM_DIR):
-        msg = "tfvars does not exist — no client VMs were launched"
+    provider = app.config["LABLINK_PROVIDER"]
+    if not provider.can_destroy_hosts:
+        error_msg = "Provider does not support host destruction."
+        if _wants_json():
+            return jsonify({"status": "error", "error": error_msg}), 405
+        return render_template("delete-dashboard.html", error=error_msg), 405
+
+    handles = provider.list_hosts()
+    try:
+        result = provider.destroy_hosts(handles)
+    except FileNotFoundError as e:
+        # No terraform.runtime.tfvars → no client VMs were ever launched.
+        msg = str(e)
         logger.info(msg)
         if _wants_json():
             return jsonify({"status": "error", "error": msg}), 404
         return render_template("delete-dashboard.html", error=msg), 404
-
-    try:
-        # Destroy Terraform resources. allocator_sg_id is a required var
-        # on the client module (added in PR A for :6080/:7070 lockdown);
-        # Terraform requires it on destroy too even though it doesn't
-        # affect what gets torn down.
-        apply_cmd = [
-            "terraform",
-            "destroy",
-            "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
-        ]
-        try:
-            sg_id = current_instance_security_group(region=cfg.app.region)
-            apply_cmd.append(f"-var=allocator_sg_id={sg_id}")
-        except NotOnEC2Error:
-            logger.warning(
-                "Not running on EC2 (IMDSv2 unreachable); "
-                "skipping -var=allocator_sg_id= on destroy. "
-                "Terraform may fail unless the variable is supplied another way."
-            )
-        result = subprocess.run(
-            apply_cmd, cwd=TERRAFORM_DIR, check=True, capture_output=True, text=True
-        )
-
-        # Clear the database
-        logger.debug("Clearing the database...")
-        database.clear_database()
-        logger.debug("Database cleared successfully.")
-
-        # Format the output to remove ANSI escape codes
-        clean_output = ANSI_ESCAPE.sub("", result.stdout)
-
-        if _wants_json():
-            return jsonify({"status": "success", "output": clean_output})
-        return render_template("delete-dashboard.html", output=clean_output)
     except subprocess.CalledProcessError as e:
         logger.error(f"Error during Terraform destroy: {e}")
-        error_output = e.stderr or e.stdout
-        clean_output = ANSI_ESCAPE.sub("", error_output or "")
+        error_output = e.stderr or e.stdout or ""
         if _wants_json():
-            return jsonify({"status": "error", "error": clean_output}), 500
-        return render_template("delete-dashboard.html", error=clean_output)
+            return jsonify({"status": "error", "error": error_output}), 500
+        return render_template("delete-dashboard.html", error=error_output)
+
+    # Clear the database after successful destroy.
+    logger.debug("Clearing the database...")
+    database.clear_database()
+    logger.debug("Database cleared successfully.")
+
+    if _wants_json():
+        return jsonify({"status": "success", "output": result.stdout})
+    return render_template("delete-dashboard.html", output=result.stdout)
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
