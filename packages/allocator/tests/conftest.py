@@ -100,6 +100,16 @@ def app(monkeypatch, omega_config):
         SECRET_KEY=omega_config.app.get("secret_key", "test-secret"),
     )
 
+    # Always reset LABLINK_PROVIDER to a fresh AWSProvider so tests that
+    # directly set app.config["LABLINK_PROVIDER"] (e.g. test_registration_api)
+    # don't pollute subsequent tests.  Tests that need a different provider
+    # may override via monkeypatch.setitem(main.app.config, ...) after this.
+    from lablink_allocator_service.providers.aws import AWSProvider
+    flask_app.config["LABLINK_PROVIDER"] = AWSProvider(
+        region=omega_config.app.region,
+        terraform_dir=str(main.TERRAFORM_DIR),
+    )
+
     with flask_app.app_context():
         yield flask_app
 

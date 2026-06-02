@@ -5,6 +5,22 @@ import subprocess
 POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
+# ---------------------------------------------------------------------------
+# Helper: wire a fresh AWSProvider to a given terraform_dir and inject it into
+# app.config["LABLINK_PROVIDER"] so the refactored /api/launch route calls
+# provision_hosts on the right directory.
+# ---------------------------------------------------------------------------
+
+def _wire_aws_provider(monkeypatch, terraform_dir, region="us-west-2"):
+    """Replace LABLINK_PROVIDER in app.config with an AWSProvider that uses
+    terraform_dir.  Must be called after the monkeypatch for TERRAFORM_DIR
+    so the two are in sync."""
+    from lablink_allocator_service import main
+    from lablink_allocator_service.providers.aws import AWSProvider
+
+    provider = AWSProvider(region=region, terraform_dir=str(terraform_dir))
+    monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
+
 JSON_ACCEPT = {"Accept": "application/json"}
 
 # JSON plan the SG audit accepts: protected ports :6080 / :7070 are
@@ -48,11 +64,20 @@ CLEAN_PLAN_JSON = json.dumps({
 })
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_success(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     client,
@@ -66,6 +91,7 @@ def test_launch_vm_success(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     # Mock Global Variables in "main.py"
     monkeypatch.setattr(
@@ -83,18 +109,16 @@ def test_launch_vm_success(
         "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
     )
 
-    # Fake terraform calls
+    # Fake terraform calls (plan + show + apply; get_instance_* are patched)
     class R:
         def __init__(self, out="OK"):
             self.stdout, self.stderr = out, ""
             self.returncode = 0
 
-    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
-        R("OK"),                  # terraform plan -out (writes plan file)
-        R(CLEAN_PLAN_JSON),       # terraform show -json (feeds the SG audit)
-        R("\x1b[32mapply success\x1b[0m"),  # terraform apply <planfile>
-        R(timing_json),           # terraform output -json
+        R("OK"),                             # terraform plan -out (writes plan file)
+        R(CLEAN_PLAN_JSON),                  # terraform show -json (feeds the SG audit)
+        R("\x1b[32mapply success\x1b[0m"),   # terraform apply <planfile>
     ]
 
     # Call route
@@ -102,8 +126,9 @@ def test_launch_vm_success(
     assert resp.status_code == 200
     assert b"Output Dashboard" in resp.data
 
-    # Assert calls (plan + show -json + apply + output = 4)
-    assert mock_run.call_count == 4
+    # Assert calls (plan + show -json + apply = 3; terraform output calls
+    # are handled by patched get_instance_* functions)
+    assert mock_run.call_count == 3
 
     # Check plan call (must come first; writes the plan file)
     plan_args, plan_kwargs = mock_run.call_args_list[0]
@@ -128,14 +153,6 @@ def test_launch_vm_success(
     # apply consumes a saved plan file rather than fresh -var flags
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
     assert apply_kwargs["cwd"] == terraform_dir
-
-    # Check output call
-    output_args, output_kwargs = mock_run.call_args_list[3]
-    output_cmd_list = output_args[0]
-    assert "output" in output_cmd_list
-    assert "-json" in output_cmd_list
-    assert "instance_terraform_apply_times" in output_cmd_list
-    assert output_kwargs["cwd"] == terraform_dir
 
     expected_lines = [
         'allocator_ip = "1.2.3.4"',
@@ -163,13 +180,22 @@ def test_launch_vm_success(
     )
 
 
-@patch("lablink_allocator_service.main.current_instance_security_group",
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-fake-allocator")
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_appends_allocator_sg_id_var(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     mock_current_sg,
@@ -185,6 +211,7 @@ def test_launch_vm_appends_allocator_sg_id_var(
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
                         terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -209,7 +236,6 @@ def test_launch_vm_appends_allocator_sg_id_var(
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
         R("apply ok"),         # terraform apply <planfile>
-        R("{}"),               # terraform output -json
     ]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers,
@@ -231,13 +257,22 @@ def test_launch_vm_appends_allocator_sg_id_var(
 
 
 @patch(
-    "lablink_allocator_service.main.current_instance_security_group",
+    "lablink_allocator_service.providers.aws.current_instance_security_group",
 )
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_skips_sg_var_when_not_on_ec2(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     mock_current_sg,
@@ -258,6 +293,7 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
                         terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -282,7 +318,6 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
         R("apply ok"),         # terraform apply <planfile>
-        R("{}"),               # terraform output -json
     ]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers,
@@ -305,15 +340,15 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_missing_allocator_outputs_returns_error(
-    mock_run, client, admin_headers, monkeypatch, tmp_path
+    client, admin_headers, monkeypatch, tmp_path
 ):
     """Test VM launch with missing allocator outputs."""
     # Create a fake terraform directory
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
@@ -325,16 +360,14 @@ def test_launch_missing_allocator_outputs_returns_error(
     )
     monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
 
-    mock_run.return_value = MagicMock(stdout="INIT", stderr="")
-
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
     assert resp.status_code == 200
     assert b"Allocator outputs not found." in resp.data
     assert not (terraform_dir / "terraform.runtime.tfvars").exists()
 
 
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -343,6 +376,7 @@ def test_launch_apply_failure(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
@@ -378,14 +412,20 @@ def test_launch_apply_failure(
     assert 'gpu_support = "false"' in tfvars
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
+                         client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via terraform destroy."""
     # Create a fake terraform directory with tfvars
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     # Mock subprocess.run
     mock_run.return_value = type(
@@ -418,13 +458,19 @@ def test_destroy_success(mock_run, client, admin_headers, monkeypatch, tmp_path)
     fake_db.clear_database.assert_called_once()
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
+                         client, admin_headers, monkeypatch, tmp_path):
     # Create a fake terraform directory with tfvars
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     # Mock subprocess.run to raise an error
     mock_run.side_effect = subprocess.CalledProcessError(
@@ -466,13 +512,19 @@ def test_launch_missing_num_vms(client, admin_headers):
 # ------------------------------------------------------------------
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_json_success(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_json_success(mock_run, mock_sg, mock_ids, mock_names,
+                               client, admin_headers, monkeypatch, tmp_path):
     """Test successful destroy returns JSON when Accept header is set."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     mock_run.return_value = type(
         "R", (), {"stdout": "\x1b[32mresources destroyed\x1b[0m", "stderr": ""}
@@ -494,13 +546,19 @@ def test_destroy_json_success(mock_run, client, admin_headers, monkeypatch, tmp_
     fake_db.clear_database.assert_called_once()
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
-def test_destroy_json_failure(mock_run, client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.current_instance_security_group",
+       return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
+def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
+                               client, admin_headers, monkeypatch, tmp_path):
     """Test terraform destroy failure returns JSON 500 when Accept header is set."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
@@ -517,22 +575,30 @@ def test_destroy_json_failure(mock_run, client, admin_headers, monkeypatch, tmp_
     assert "failed to destroy" in body["error"]
 
 
-def test_destroy_no_tfvars(client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+def test_destroy_no_tfvars(mock_ids, mock_names,
+                            client, admin_headers, monkeypatch, tmp_path):
     """Test destroy returns 404 when tfvars does not exist (no VMs launched)."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     # Do NOT create terraform.runtime.tfvars
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
     assert resp.status_code == 404
 
 
-def test_destroy_no_tfvars_json(client, admin_headers, monkeypatch, tmp_path):
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+def test_destroy_no_tfvars_json(mock_ids, mock_names,
+                                 client, admin_headers, monkeypatch, tmp_path):
     """Test destroy returns JSON 404 when tfvars does not exist."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
 
     headers = {**admin_headers, **JSON_ACCEPT}
     resp = client.post(DESTROY_ENDPOINT, headers=headers)
@@ -543,11 +609,20 @@ def test_destroy_no_tfvars_json(client, admin_headers, monkeypatch, tmp_path):
     assert "tfvars does not exist" in body["error"]
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_success(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     client,
@@ -559,6 +634,7 @@ def test_launch_json_success(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -577,12 +653,10 @@ def test_launch_json_success(
             self.stdout, self.stderr = out, ""
             self.returncode = 0
 
-    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
         R("apply success"),    # terraform apply <planfile>
-        R(timing_json),        # terraform output -json
     ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
@@ -622,14 +696,14 @@ def test_launch_json_invalid_num_vms(client, admin_headers):
     assert "valid integer" in body["error"].lower()
 
 
-@patch("lablink_allocator_service.main.subprocess.run")
 def test_launch_json_missing_allocator_outputs(
-    mock_run, client, admin_headers, monkeypatch, tmp_path
+    client, admin_headers, monkeypatch, tmp_path
 ):
     """Test missing allocator outputs returns JSON 500."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=lambda: 0),
@@ -649,8 +723,8 @@ def test_launch_json_missing_allocator_outputs(
     assert "Allocator outputs not found" in body["error"]
 
 
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=False)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_apply_failure(
     mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
 ):
@@ -658,6 +732,7 @@ def test_launch_json_apply_failure(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=lambda: 0),
@@ -692,9 +767,9 @@ def test_launch_json_apply_failure(
     assert "resource already exists" in body["error"]
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_unexpected_error(
     mock_run,
     mock_check_support_nvidia,
@@ -708,6 +783,7 @@ def test_launch_json_unexpected_error(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -732,7 +808,6 @@ def test_launch_json_unexpected_error(
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
         R("apply success"),    # terraform apply <planfile>
-        R("{}"),               # terraform output -json (safety net)
     ]
     mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
 
@@ -773,9 +848,9 @@ VIOLATING_PLAN_JSON = json.dumps({
 })
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_aborts_on_sg_audit_failure(
     mock_run,
     mock_check_support_nvidia,
@@ -793,6 +868,7 @@ def test_launch_aborts_on_sg_audit_failure(
     monkeypatch.setattr(
         "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
     )
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -838,9 +914,9 @@ def test_launch_aborts_on_sg_audit_failure(
     mock_upload_to_s3.assert_not_called()
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_aborts_on_sg_audit_failure_html(
     mock_run,
     mock_check_support_nvidia,
@@ -857,6 +933,7 @@ def test_launch_aborts_on_sg_audit_failure_html(
     monkeypatch.setattr(
         "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
     )
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -892,11 +969,20 @@ def test_launch_aborts_on_sg_audit_failure_html(
     mock_upload_to_s3.assert_not_called()
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_writes_register_token_to_tfvars(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     client,
@@ -908,6 +994,7 @@ def test_launch_writes_register_token_to_tfvars(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -933,12 +1020,10 @@ def test_launch_writes_register_token_to_tfvars(
         def __init__(self, out="OK"):
             self.stdout, self.stderr, self.returncode = out, "", 0
 
-    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
         R("OK"),
         R(CLEAN_PLAN_JSON),
         R("\x1b[32mapply success\x1b[0m"),
-        R(timing_json),
     ]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
@@ -949,11 +1034,20 @@ def test_launch_writes_register_token_to_tfvars(
     assert 'agent_token = "test-agent-token-value"' in tfvars
 
 
-@patch("lablink_allocator_service.main.upload_to_s3")
-@patch("lablink_allocator_service.main.check_support_nvidia", return_value=True)
-@patch("lablink_allocator_service.main.subprocess.run")
+@patch("lablink_allocator_service.providers.aws.upload_to_s3")
+@patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.get_instance_timings",
+       return_value={"vm-1": {"start_time": "2025-10-30T12:00:00Z",
+                              "end_time": "2025-10-30T12:01:00Z",
+                              "seconds": 60.0}})
+@patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
+@patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_writes_agent_token_to_tfvars_additively(
     mock_run,
+    mock_get_names,
+    mock_get_ids,
+    mock_get_timings,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     client,
@@ -969,6 +1063,7 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
+    _wire_aws_provider(monkeypatch, terraform_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -991,12 +1086,10 @@ def test_launch_writes_agent_token_to_tfvars_additively(
         def __init__(self, out="OK"):
             self.stdout, self.stderr, self.returncode = out, "", 0
 
-    timing_json = '{"vm-1": {"start_time": "2025-10-30T12:00:00Z", "end_time": "2025-10-30T12:01:00Z", "seconds": 60.0}}'
     mock_run.side_effect = [
         R("OK"),
         R(CLEAN_PLAN_JSON),
         R("\x1b[32mapply success\x1b[0m"),
-        R(timing_json),
     ]
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})

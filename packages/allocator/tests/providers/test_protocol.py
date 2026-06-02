@@ -44,6 +44,7 @@ def test_protocols_are_runtime_checkable():
         def destroy_hosts(self, handles): ...
         def recover_hosts(self, handles): ...
         def list_hosts(self): return []
+        def get_host_access(self, hostname): return (None, None, None)
 
     assert isinstance(GoodConn(), ClientConnectivity)
     assert isinstance(GoodProvider(), ComputeProvider)

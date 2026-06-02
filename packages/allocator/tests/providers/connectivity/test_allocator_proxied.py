@@ -17,6 +17,14 @@ def test_satisfies_protocol_and_name():
 
 
 def test_delegates_to_client_session_unchanged():
+    """AllocatorProxiedClientConnectivity.prepare_browser_session delegates to
+    client_session.prepare_browser_session and injects the AWS EC2 fallback
+    resolver via the ``fallback_fn`` kwarg (SR-F1: no AWS imports in
+    client_session)."""
+    from lablink_allocator_service.providers.connectivity.allocator_proxied import (
+        _aws_fallback_ip,
+    )
+
     sentinel = BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
     sid = uuid.uuid4()
     with patch(
@@ -33,12 +41,15 @@ def test_delegates_to_client_session_unchanged():
             agent_token="api",
         )
     assert out is sentinel
+    # The connectivity layer must inject the AWS IP resolver so client_session
+    # remains provider-agnostic.
     m.assert_called_once_with(
         database="DB",
         hostname="vm-1",
         session_id=sid,
         browser_token="tok",
         agent_token="api",
+        fallback_fn=_aws_fallback_ip,
     )
 
 

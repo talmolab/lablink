@@ -27,8 +27,11 @@ def execute_scheduled_destruction_job(
     This is a standalone function (not a method) to avoid pickling issues
     with APScheduler's SQLAlchemy job store.
 
-    Database credentials are read from the config system at runtime to avoid
-    storing sensitive data in the APScheduler job store.
+    Database credentials and provider configuration are read from the config
+    system at runtime to avoid storing sensitive data in the APScheduler job
+    store.  Destruction is dispatched through ``provider.destroy_hosts``
+    (the same path as the ``/destroy`` HTTP route) so that all teardown logic
+    lives in one place.
 
     Args:
         schedule_id: ID of the scheduled destruction
@@ -36,6 +39,7 @@ def execute_scheduled_destruction_job(
     """
     from lablink_allocator_service.database import PostgresqlDatabase
     from lablink_allocator_service.get_config import get_config
+    from lablink_allocator_service.providers.registry import get_provider
 
     # Load config at runtime to get credentials (avoids storing passwords in job store)
     cfg = get_config()
@@ -50,6 +54,13 @@ def execute_scheduled_destruction_job(
         table_name=cfg.db.table_name,
     )
 
+    # Instantiate the provider from config (same as main.py at startup)
+    provider = get_provider(
+        cfg.provider,
+        region=cfg.app.region,
+        terraform_dir=terraform_dir,
+    )
+
     logger.info(f"Executing scheduled destruction ID: {schedule_id}")
 
     try:
@@ -59,32 +70,17 @@ def execute_scheduled_destruction_job(
             status="executing",
         )
 
-        # Check if tfvars exists — if not, no client VMs were ever launched
-        from lablink_allocator_service.utils.terraform_utils import has_runtime_tfvars
-
-        if not has_runtime_tfvars(terraform_dir):
+        if not provider.can_destroy_hosts:
             logger.info(
-                "tfvars does not exist — no client VMs were launched, "
-                "skipping terraform destroy"
+                "Scheduled destruction skipped — provider %s does not support destroy.",
+                getattr(provider, "name", type(provider).__name__),
             )
         else:
-            # Run terraform destroy
-            logger.info("Running terraform destroy")
-            cmd = [
-                "terraform",
-                "destroy",
-                "-auto-approve",
-                "-var-file=terraform.runtime.tfvars",
-            ]
-
-            subprocess.run(
-                cmd,
-                cwd=terraform_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=600,  # 10 min timeout
-            )
+            # Dispatch through provider.destroy_hosts (mirrors /destroy route)
+            logger.info("Running provider.destroy_hosts via scheduled job")
+            handles = provider.list_hosts()
+            result = provider.destroy_hosts(handles)
+            logger.info("Scheduled destroy succeeded:\n%s", result.stdout)
 
         # Clear database
         logger.info("Clearing all VMs from database")
@@ -108,9 +104,6 @@ def execute_scheduled_destruction_job(
             status="failed",
             execution_result=error_msg,
         )
-
-        # Note: Retry logic would need to be implemented in the scheduler
-        # if this fails, as we can't easily schedule retries from here
 
     except Exception as e:
         error_msg = f"Destruction failed: {str(e)}"
@@ -263,7 +256,7 @@ class ScheduledDestructionService:
             trigger = DateTrigger(run_date=destruction_time)
 
         # Only pass non-sensitive data as arguments
-        # Database credentials are loaded from config at runtime
+        # Database credentials and provider are loaded from config at runtime
         self.scheduler.add_job(
             func=execute_scheduled_destruction_job,
             trigger=trigger,

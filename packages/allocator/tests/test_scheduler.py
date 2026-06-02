@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
@@ -279,111 +280,137 @@ def test_parse_rrule_to_cron_daily(scheduler_service):
         assert call_kwargs["minute"] == 0
 
 
+def _make_mock_config(provider_name="aws"):
+    """Helper: build a mock config object matching what get_config() returns."""
+    mock_config = MagicMock()
+    mock_config.db.dbname = "testdb"
+    mock_config.db.user = "testuser"
+    mock_config.db.password = "testpass"
+    mock_config.db.host = "localhost"
+    mock_config.db.port = 5432
+    mock_config.db.table_name = "vms"
+    mock_config.provider = provider_name
+    mock_config.app.region = "us-east-1"
+    return mock_config
+
+
 def test_execute_scheduled_destruction_success(
     scheduler_service, mock_database, tmp_path
 ):
-    """Test successful execution of scheduled destruction via standalone function."""
+    """Test successful execution of scheduled destruction via standalone function.
+
+    The job now dispatches through provider.destroy_hosts instead of calling
+    terraform directly.
+    """
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+    from lablink_allocator_service.providers.protocol import DestroyResult
 
     schedule_id = 42
+    terraform_dir = str(tmp_path / "terraform")
 
-    # Create terraform dir with tfvars so destroy proceeds
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = True
+    fake_provider.list_hosts.return_value = []
+    fake_provider.destroy_hosts.return_value = DestroyResult(stdout="Destroy complete!")
 
-    # Mock successful terraform destroy
-    with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_run.return_value = mock_result
+    with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
+         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
-        # Mock get_config to return test config (patch where it's imported)
-        with patch("lablink_allocator_service.get_config.get_config") as mock_get_config:
-            mock_config = MagicMock()
-            mock_config.db.dbname = "testdb"
-            mock_config.db.user = "testuser"
-            mock_config.db.password = "testpass"
-            mock_config.db.host = "localhost"
-            mock_config.db.port = 5432
-            mock_config.db.table_name = "vms"
-            mock_get_config.return_value = mock_config
+        mock_get_config.return_value = _make_mock_config()
 
-            # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
-            with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
-                execute_scheduled_destruction_job(
-                    schedule_id=schedule_id,
-                    terraform_dir=str(terraform_dir),
-                )
-
-        # Verify status updated to executing
-        assert mock_database.update_scheduled_destruction_status.call_count >= 2
-        first_call = mock_database.update_scheduled_destruction_status.call_args_list[0]
-        assert first_call[1]["schedule_id"] == schedule_id
-        assert first_call[1]["status"] == "executing"
-
-        # Verify terraform destroy was called
-        mock_run.assert_called_once()
-        cmd_call = mock_run.call_args
-        assert "terraform" in cmd_call[0][0]
-        assert "destroy" in cmd_call[0][0]
-        assert "-auto-approve" in cmd_call[0][0]
-
-        # Verify database was cleared
-        mock_database.clear_database.assert_called_once()
-
-        # Verify status updated to completed
-        last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
-        assert last_call[1]["status"] == "completed"
-        assert "successfully" in last_call[1]["execution_result"]
-
-
-def test_execute_scheduled_destruction_terraform_failure(
-    scheduler_service, mock_database, tmp_path
-):
-    """Test handling of terraform destroy failure via standalone function."""
-    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
-
-    schedule_id = 42
-
-    # Create terraform dir with tfvars so destroy proceeds
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
-
-    # Mock terraform destroy failure
-    with patch("lablink_allocator_service.scheduler.subprocess.run") as mock_run:
-        from subprocess import CalledProcessError
-
-        mock_run.side_effect = CalledProcessError(
-            returncode=1,
-            cmd=["terraform", "destroy"],
-            stderr="Error destroying resources",
+        execute_scheduled_destruction_job(
+            schedule_id=schedule_id,
+            terraform_dir=terraform_dir,
         )
 
-        # Mock get_config to return test config (patch where it's imported)
-        with patch("lablink_allocator_service.get_config.get_config") as mock_get_config:
-            mock_config = MagicMock()
-            mock_config.db.dbname = "testdb"
-            mock_config.db.user = "testuser"
-            mock_config.db.password = "testpass"
-            mock_config.db.host = "localhost"
-            mock_config.db.port = 5432
-            mock_config.db.table_name = "vms"
-            mock_get_config.return_value = mock_config
+    # Verify status updated to executing first
+    assert mock_database.update_scheduled_destruction_status.call_count >= 2
+    first_call = mock_database.update_scheduled_destruction_status.call_args_list[0]
+    assert first_call[1]["schedule_id"] == schedule_id
+    assert first_call[1]["status"] == "executing"
 
-            # Mock PostgresqlDatabase constructor (patch where it's imported in the function)
-            with patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database):
-                execute_scheduled_destruction_job(
-                    schedule_id=schedule_id,
-                    terraform_dir=str(terraform_dir),
-                )
+    # Verify provider.destroy_hosts was called (not subprocess/terraform directly)
+    fake_provider.destroy_hosts.assert_called_once()
 
-        # Verify status was updated to failed
-        calls = mock_database.update_scheduled_destruction_status.call_args_list
-        failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
-        assert failed_call[1]["schedule_id"] == schedule_id
-        assert "Terraform destroy failed" in failed_call[1]["execution_result"]
+    # Verify database was cleared
+    mock_database.clear_database.assert_called_once()
+
+    # Verify status updated to completed
+    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    assert last_call[1]["status"] == "completed"
+    assert "successfully" in last_call[1]["execution_result"]
+
+
+def test_execute_scheduled_destruction_provider_cannot_destroy(
+    scheduler_service, mock_database, tmp_path
+):
+    """Test that job skips destroy and still clears DB when provider lacks capability."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+
+    schedule_id = 7
+    terraform_dir = str(tmp_path / "terraform")
+
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = False
+
+    with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
+         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
+
+        mock_get_config.return_value = _make_mock_config(provider_name="manual")
+
+        execute_scheduled_destruction_job(
+            schedule_id=schedule_id,
+            terraform_dir=terraform_dir,
+        )
+
+    # destroy_hosts must NOT have been called
+    fake_provider.destroy_hosts.assert_not_called()
+
+    # DB should still be cleared and status set to completed
+    mock_database.clear_database.assert_called_once()
+    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    assert last_call[1]["status"] == "completed"
+
+
+def test_execute_scheduled_destruction_destroy_failure(
+    scheduler_service, mock_database, tmp_path
+):
+    """Test handling of provider.destroy_hosts failure (CalledProcessError)."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+
+    schedule_id = 42
+    terraform_dir = str(tmp_path / "terraform")
+
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = True
+    fake_provider.list_hosts.return_value = []
+    fake_provider.destroy_hosts.side_effect = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=["terraform", "destroy"],
+        stderr="Error destroying resources",
+    )
+
+    with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
+         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
+
+        mock_get_config.return_value = _make_mock_config()
+
+        execute_scheduled_destruction_job(
+            schedule_id=schedule_id,
+            terraform_dir=terraform_dir,
+        )
+
+    # Verify status was updated to failed
+    calls = mock_database.update_scheduled_destruction_status.call_args_list
+    failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
+    assert failed_call[1]["schedule_id"] == schedule_id
+    assert "Terraform destroy failed" in failed_call[1]["execution_result"]
+
+    # DB should NOT be cleared on failure
+    mock_database.clear_database.assert_not_called()
 
 
 # NOTE: Retry tests removed - retry logic moved out of scheduler class

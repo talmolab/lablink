@@ -95,18 +95,24 @@
         <button onclick="location.href='/admin/instances'">
           View Current Instances
         </button>
+        {% if can_provision_hosts %}
         <button onclick="location.href='/admin/create'">
           Create New VM Instance
         </button>
+        {% endif %}
+        {% if can_destroy_hosts %}
         <button onclick="location.href='/admin/instances/delete'">
           Extract or Delete VM Data
         </button>
         <button onclick="location.href='/admin/scheduled-destruction'">
           Schedule Destructions
         </button>
+        {% endif %}
+        {% if not can_provision_hosts %}
         <button onclick="location.href='/admin/byo-onboarding'">
           BYO Client Onboarding
         </button>
+        {% endif %}
       </div>
     </div>
   </body>

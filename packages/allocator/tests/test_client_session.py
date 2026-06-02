@@ -55,12 +55,6 @@ def test_happy_path_rotates_and_persists(vms_full_schema):
     )
 
     with patch(
-        "lablink_allocator_service.client_session.get_instance_id_by_name",
-        return_value="i-abc",
-    ), patch(
-        "lablink_allocator_service.client_session.get_instance_private_ip",
-        return_value="10.0.0.5",
-    ), patch(
         "lablink_allocator_service.client_session.requests.post"
     ) as mock_post:
         mock_post.return_value = MagicMock(
@@ -72,6 +66,7 @@ def test_happy_path_rotates_and_persists(vms_full_schema):
             session_id=session_id,
             browser_token="tok-abc",
             agent_token=AGENT_TOKEN,
+            fallback_fn=lambda h: "10.0.0.5",
         )
 
     # Agent POST: correct URL, Bearer header sourced from agent_token kwarg,
@@ -116,12 +111,6 @@ def test_one_retry_then_raises(vms_full_schema):
     )
 
     with patch(
-        "lablink_allocator_service.client_session.get_instance_id_by_name",
-        return_value="i-abc",
-    ), patch(
-        "lablink_allocator_service.client_session.get_instance_private_ip",
-        return_value="10.0.0.5",
-    ), patch(
         "lablink_allocator_service.client_session.requests.post",
         side_effect=requests.RequestException("boom"),
     ) as mock_post:
@@ -132,6 +121,7 @@ def test_one_retry_then_raises(vms_full_schema):
                 session_id=uuid.uuid4(),
                 browser_token="t",
                 agent_token=AGENT_TOKEN,
+                fallback_fn=lambda h: "10.0.0.5",
             )
 
     assert mock_post.call_count == 2  # initial + one retry
@@ -141,7 +131,7 @@ def test_prepare_browser_session_persists_render_columns(monkeypatch):
     import lablink_allocator_service.client_session as cs
     import uuid
 
-    monkeypatch.setattr(cs, "_lookup_private_ip", lambda h, db: "10.0.0.5")
+    monkeypatch.setattr(cs, "_lookup_private_ip", lambda h, db, *, fallback_fn=None: "10.0.0.5")
     posted = {}
     monkeypatch.setattr(cs, "_post_rotate",
                         lambda url, body, *, bearer: posted.update(
@@ -190,9 +180,13 @@ def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(vms_full_schema):
         prepare_browser_session,
     )
 
+    fallback_called = []
+
+    def _failing_fallback(hostname):
+        fallback_called.append(hostname)
+        raise AssertionError("fallback_fn should not be called for BYO rows")
+
     with patch(
-        "lablink_allocator_service.client_session.get_instance_id_by_name"
-    ) as mock_ec2, patch(
         "lablink_allocator_service.client_session.requests.post"
     ) as mock_post:
         mock_post.return_value = MagicMock(
@@ -204,10 +198,11 @@ def test_byo_row_uses_stored_lan_ip_without_ec2_lookup(vms_full_schema):
             session_id=uuid.uuid4(),
             browser_token="byo-tok",
             agent_token=AGENT_TOKEN,
+            fallback_fn=_failing_fallback,
         )
 
-    # Stored LAN IP wins: rotation targets it and EC2 is never queried.
-    mock_ec2.assert_not_called()
+    # Stored LAN IP wins: rotation targets it and fallback resolver is never called.
+    assert fallback_called == []
     assert mock_post.call_args[0][0] == (
         "http://172.31.37.226:7070/api/session/start"
     )
@@ -246,15 +241,18 @@ def test_raises_when_instance_id_not_found(vms_full_schema):
         prepare_browser_session,
     )
 
-    with patch(
-        "lablink_allocator_service.client_session.get_instance_id_by_name",
-        return_value=None,
-    ):
-        with pytest.raises(RotationFailed):
-            prepare_browser_session(
-                database=vms_full_schema,
-                hostname="ghost-host",
-                session_id=uuid.uuid4(),
-                browser_token="t",
-                agent_token=AGENT_TOKEN,
-            )
+    # Simulate a fallback resolver that cannot find the instance (e.g. EC2
+    # Name-tag lookup returns None).  The fallback is responsible for raising
+    # RotationFailed; client_session just propagates it.
+    def _not_found(hostname):
+        raise RotationFailed(f"no EC2 instance found for hostname {hostname}")
+
+    with pytest.raises(RotationFailed):
+        prepare_browser_session(
+            database=vms_full_schema,
+            hostname="ghost-host",
+            session_id=uuid.uuid4(),
+            browser_token="t",
+            agent_token=AGENT_TOKEN,
+            fallback_fn=_not_found,
+        )

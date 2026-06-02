@@ -6,6 +6,7 @@ from lablink_allocator_service.providers.protocol import (
     ComputeProvider,
     ClientHandle,
     ProviderActionNotWired,
+    ProvisioningNotSupported,
 )
 
 
@@ -68,12 +69,22 @@ def test_list_hosts_maps_terraform_outputs():
     assert all(h.provider_metadata == {"region": "us-west-2"} for h in hosts)
 
 
-def test_provision_and_destroy_not_wired_in_pr_b():
+def test_provision_hosts_and_destroy_hosts_are_both_wired():
+    # Both provision_hosts and destroy_hosts are now wired (Tasks 5 & 7).
+    # Each should fail deep in the implementation, not with the placeholder
+    # ProviderActionNotWired or the manual-only ProvisioningNotSupported.
     p = make_provider()
-    with pytest.raises(ProviderActionNotWired):
-        p.provision_hosts(1, {})
-    with pytest.raises(ProviderActionNotWired):
+    # destroy_hosts raises FileNotFoundError because terraform_dir="/tf"
+    # has no terraform.runtime.tfvars (no VMs were ever launched).
+    with pytest.raises(FileNotFoundError):
         p.destroy_hosts([])
+    # provision_hosts hits a real implementation error (terraform_dir doesn't
+    # exist on disk, so the tfvars write fails) — not a "not wired" sentinel.
+    with pytest.raises(Exception) as exc_info:
+        p.provision_hosts(1, {"machine_type": "g4dn.xlarge"})
+    assert not isinstance(
+        exc_info.value, (ProviderActionNotWired, ProvisioningNotSupported)
+    ), f"provision_hosts still raises a not-wired sentinel: {exc_info.value!r}"
 
 
 def test_aws_provider_tolerant_constructor():
