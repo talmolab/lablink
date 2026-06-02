@@ -92,13 +92,6 @@ def configure(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
-    rehash: bool = typer.Option(
-        False,
-        "--rehash",
-        help="Upgrade a legacy config.yaml by hashing the plaintext admin_password. "
-        "Does not run the full wizard; just re-prompts for the password and writes "
-        "admin_password_hash.",
-    ),
 ) -> None:
     """Create or edit the LabLink configuration.
 
@@ -106,20 +99,10 @@ def configure(
     then automatically creates the AWS resources needed for
     Terraform remote state (S3 bucket + DynamoDB lock table).
     Manual-provider configs skip the AWS setup step.
-
-    Use --rehash to upgrade a legacy config.yaml file (with plaintext
-    admin_password) to use admin_password_hash instead.
     """
-    config_path = Path(config) if config else DEFAULT_CONFIG
-
-    # Handle --rehash flag (targeted password hashing without full wizard)
-    if rehash:
-        from lablink_cli.commands.configure_rehash import run_rehash
-        run_rehash(config_path)
-        return
-
-    # Normal flow: run the wizard
     from lablink_cli.tui.wizard import ConfigWizard
+
+    config_path = Path(config) if config else DEFAULT_CONFIG
 
     existing = None
     if config_path.exists():
