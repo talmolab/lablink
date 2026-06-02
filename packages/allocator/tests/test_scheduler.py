@@ -100,33 +100,6 @@ def test_init_creates_scheduler(mock_database):
         mock_background_scheduler.assert_called()
 
 
-def test_init_accepts_provider(mock_database):
-    """Test that __init__ accepts and stores an optional provider."""
-    db_url = "postgresql://user:pass@localhost:5432/lablink"
-    fake_provider = MagicMock()
-    fake_provider.can_destroy_hosts = True
-
-    service = ScheduledDestructionService(
-        database=mock_database,
-        db_url=db_url,
-        provider=fake_provider,
-    )
-
-    assert service.provider is fake_provider
-
-
-def test_init_provider_defaults_to_none(mock_database):
-    """Test that provider defaults to None when not supplied."""
-    db_url = "postgresql://user:pass@localhost:5432/lablink"
-
-    service = ScheduledDestructionService(
-        database=mock_database,
-        db_url=db_url,
-    )
-
-    assert service.provider is None
-
-
 def test_init_custom_terraform_dir(mock_database):
     """Test that custom terraform_dir is used when provided."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"

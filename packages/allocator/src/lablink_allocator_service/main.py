@@ -493,7 +493,8 @@ def launch():
         return render_template("dashboard.html", error=error_msg), 400
     except subprocess.CalledProcessError as e:
         logger.error("Terraform failed: %s", e.stderr)
-        error_msg = f"Terraform failed: {(e.stderr or '').strip()}"
+        clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
+        error_msg = f"Terraform failed: {clean_err}"
         if _wants_json():
             return jsonify({"status": "error", "error": error_msg}), 500
         return render_template("dashboard.html", error=error_msg)
@@ -537,9 +538,10 @@ def destroy():
             return jsonify({"status": "error", "error": error_msg}), 405
         return render_template("delete-dashboard.html", error=error_msg), 405
 
-    handles = provider.list_hosts()
+    # destroy_hosts ignores the handles arg (terraform destroy operates on
+    # the whole workspace); skip the list_hosts() call.
     try:
-        result = provider.destroy_hosts(handles)
+        result = provider.destroy_hosts([])
     except FileNotFoundError as e:
         # No terraform.runtime.tfvars → no client VMs were ever launched.
         msg = str(e)
@@ -549,7 +551,7 @@ def destroy():
         return render_template("delete-dashboard.html", error=msg), 404
     except subprocess.CalledProcessError as e:
         logger.error(f"Error during Terraform destroy: {e}")
-        error_output = e.stderr or e.stdout or ""
+        error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
         if _wants_json():
             return jsonify({"status": "error", "error": error_output}), 500
         return render_template("delete-dashboard.html", error=error_output)
@@ -1000,7 +1002,6 @@ def main():
         scheduler_service = ScheduledDestructionService(
             database=database,
             db_url=db_url,
-            provider=app.config["LABLINK_PROVIDER"],
         )
         scheduler_service.start()
         atexit.register(scheduler_service.stop)

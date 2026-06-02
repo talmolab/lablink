@@ -130,7 +130,6 @@ class ScheduledDestructionService:
         database: PostgresqlDatabase,
         db_url: str,
         terraform_dir: Optional[str] = None,
-        provider=None,
     ):
         """Initialize the scheduler service.
 
@@ -138,13 +137,9 @@ class ScheduledDestructionService:
             database: PostgresqlDatabase instance
             db_url: PostgreSQL connection URL for APScheduler job store
             terraform_dir: Path to Terraform directory (optional, auto-detected if None)
-            provider: ComputeProvider instance (optional).  Stored for reference;
-                the scheduled job re-instantiates the provider from config at
-                runtime to avoid APScheduler serialisation issues.
         """
         self.database: PostgresqlDatabase = database
         self.db_url = db_url
-        self.provider = provider
 
         self.terraform_dir = terraform_dir or os.path.join(
             os.path.dirname(__file__), "terraform"
