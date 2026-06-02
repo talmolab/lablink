@@ -39,20 +39,12 @@ class AppConfig:
 
     Attributes:
         admin_user (str): The username for the admin user.
-        admin_password (str): Legacy plaintext password — deprecated as of D5.
-            Kept readable for backcompat; CLI no longer writes this field on
-            `lablink configure`. Use `admin_password_hash` instead.
-        admin_password_hash (str): Argon2 hash of the admin password (SR-F14).
-            Preferred over `admin_password`. CLI writes this on
-            `lablink configure` going forward; allocator startup falls back to
-            hashing `admin_password` in-memory when only the legacy field is
-            set.
+        admin_password (str): The password for the admin user.
         region (str): The AWS region where the service is deployed.
     """
 
     admin_user: str = field(default=MISSING_SECRET)
-    admin_password: str = field(default="")
-    admin_password_hash: str = field(default="")
+    admin_password: str = field(default=MISSING_SECRET)
     region: str = field(default="us-west-2")
 
 

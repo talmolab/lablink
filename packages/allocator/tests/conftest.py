@@ -30,7 +30,6 @@ def omega_config():
             "app": {
                 "admin_user": "test_admin",
                 "admin_password": "test_pass",
-                "admin_password_hash": "",
                 "region": "us-west-2",
             },
             "dns": {
@@ -79,11 +78,11 @@ def app(monkeypatch, omega_config):
     # Patch the cfg to use test config
     monkeypatch.setattr(main, "cfg", omega_config, raising=False)
 
-    # Patch the users dict to use test credentials (via secret_hash, same as prod)
-    from lablink_allocator_service.secret_hash import hash_secret
+    # Patch the users dict to use test credentials
+    from werkzeug.security import generate_password_hash
 
     test_users = {
-        omega_config.app.admin_user: hash_secret(
+        omega_config.app.admin_user: generate_password_hash(
             omega_config.app.admin_password
         )
     }
@@ -156,7 +155,6 @@ def valid_config_dict():
         "app": {
             "admin_user": "admin",
             "admin_password": "test_admin_password",
-            "admin_password_hash": "",
             "region": "us-west-2",
         },
         "dns": {
@@ -208,7 +206,6 @@ def invalid_config_dict():
         "app": {
             "admin_user": "admin",
             "admin_password": "test_admin_password",
-            "admin_password_hash": "",
             "region": "us-west-2",
         },
         # This key does not exist in the schema
@@ -242,7 +239,6 @@ def config_with_unknown_top_level_key():
         "app": {
             "admin_user": "admin",
             "admin_password": "test_password",
-            "admin_password_hash": "",
             "region": "us-west-2",
         },
         # This top-level key does NOT exist in Config schema
@@ -279,7 +275,6 @@ def config_with_unknown_nested_key():
         "app": {
             "admin_user": "admin",
             "admin_password": "test_password",
-            "admin_password_hash": "",
             "region": "us-west-2",
         },
         "bucket_name": "test-bucket",

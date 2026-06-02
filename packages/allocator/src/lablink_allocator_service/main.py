@@ -19,6 +19,7 @@ from flask import (
 )
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import psycopg2
 
@@ -102,9 +103,20 @@ os.environ["DATABASE_URL"] = (
     f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
 )
 
-# Users dict will be initialized after logger setup; see _init_users() below.
-# This placeholder exists so the module compiles; it's overwritten at line ~225.
-users = {}
+# Validate that required secrets are configured
+_missing = []
+if cfg.app.admin_user == MISSING_SECRET:
+    _missing.append("app.admin_user")
+if cfg.app.admin_password == MISSING_SECRET:
+    _missing.append("app.admin_password")
+if _missing:
+    raise SystemExit(
+        f"FATAL: Required secrets not configured: {', '.join(_missing)}. "
+        f"Set these in your config.yaml (injected from GitHub secrets in production)."
+    )
+
+# Initialize variables
+users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
@@ -169,47 +181,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(_log_level)
 
-
-def _validate_admin_secrets():
-    """Fail startup unless either admin_password_hash or admin_password is set.
-
-    Plaintext `admin_password` is deprecated as of D5; hashed
-    `admin_password_hash` is preferred. The validator is a function so tests
-    can call it directly without re-importing the module.
-    """
-    if cfg.app.admin_user == MISSING_SECRET:
-        raise SystemExit(
-            "FATAL: Required secret not configured: app.admin_user. "
-            "Set this in your config.yaml."
-        )
-    if not cfg.app.admin_password_hash and not cfg.app.admin_password:
-        raise SystemExit(
-            "FATAL: Neither app.admin_password_hash nor app.admin_password "
-            "is set. Run `lablink configure` to set one."
-        )
-
-
-def _init_users() -> dict[str, str]:
-    """Build the {admin_user: argon2_hash} verification table.
-
-    Prefer `admin_password_hash` (the D5 path). Fall back to hashing the
-    legacy `admin_password` in-memory with a deprecation warning so pre-D5
-    config.yaml files keep working without forced re-configure.
-    """
-    _validate_admin_secrets()
-    if cfg.app.admin_password_hash:
-        return {cfg.app.admin_user: cfg.app.admin_password_hash}
-    logger.warning(
-        "admin_password (plaintext) is deprecated as of D5. "
-        "Run `lablink configure --rehash` to upgrade your config.yaml to "
-        "admin_password_hash."
-    )
-    return {cfg.app.admin_user: hash_secret(cfg.app.admin_password)}
-
-
-# Initialize users dict with hybrid logic (hash preferred, plaintext fallback)
-users = _init_users()
-
 # For deployments where the allocator can't provision hosts (BYO / manual
 # provider), surface the register-token in the container logs so
 # `lablink deploy` (compose mode) can extract it. AWS deployments get the
@@ -234,7 +205,7 @@ def verify_password(username, password):
     Returns:
         str: The username if the credentials are valid, None otherwise.
     """
-    if username in users and verify_secret(password, users[username]):
+    if username in users and check_password_hash(users.get(username), password):
         return username
 
 
