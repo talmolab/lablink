@@ -647,11 +647,7 @@ class DnsScreen(Screen):
             cfg.ssl.provider = "self_signed"
             cfg.eip.strategy = "dynamic"
 
-        is_manual = getattr(cfg, "provider", "aws") == "manual"
-        if is_manual:
-            self.app.push_screen(ReviewScreen())
-        else:
-            self.app.push_screen(StartupScreen())
+        self.app.push_screen(StartupScreen())
 
 
 # ---------------------------------------------------------------------------
