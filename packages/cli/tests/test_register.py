@@ -13,6 +13,22 @@ def tmp_env_file(tmp_path):
     return tmp_path / "client.env"
 
 
+@pytest.fixture(autouse=True)
+def isolate_startup_script_path(tmp_path, monkeypatch):
+    """Redirect DEFAULT_STARTUP_SCRIPT into tmp_path for every test.
+
+    `_write_startup_script` writes/unlinks at this path on every
+    `run_register` call (including when the allocator returns an empty
+    payload — it unlinks then). Without this fixture, tests that
+    exercise the success path would touch the developer's real
+    ``~/.lablink/client-custom-startup.sh``.
+    """
+    monkeypatch.setattr(
+        "lablink_cli.commands.register.DEFAULT_STARTUP_SCRIPT",
+        tmp_path / "client-custom-startup.sh",
+    )
+
+
 @pytest.fixture
 def successful_response():
     return {
@@ -23,6 +39,12 @@ def successful_response():
         "allocator_url": "https://lablink.example.com",
         "connectivity": "lan_direct",
         "client_image": "ghcr.io/talmolab/lablink-client:0.4.0",
+        # New fields shipped by routes/registration.py. Defaults are
+        # the "disabled" payload (empty b64 → no mount, no env var),
+        # which matches the existing tests' assumption that docker run
+        # carries no --mount and no STARTUP_ON_ERROR.
+        "startup_script_b64": "",
+        "startup_on_error": "continue",
     }
 
 
@@ -900,6 +922,189 @@ class TestShipperAlive:
         monkeypatch.setattr(register, "psutil", fake_psutil)
 
         assert register._shipper_alive() is False
+
+
+class TestWriteStartupScript:
+    """Covers `_write_startup_script` — decodes the allocator-shipped
+    startup script to a host file the docker run can bind-mount.
+    """
+
+    def test_writes_decoded_bytes_when_payload_present(self, tmp_path, monkeypatch):
+        import base64
+        from lablink_cli.commands import register
+
+        target = tmp_path / "client-custom-startup.sh"
+        monkeypatch.setattr(register, "DEFAULT_STARTUP_SCRIPT", target)
+
+        payload = b"#!/bin/bash\necho hi\n"
+        resp = {"startup_script_b64": base64.b64encode(payload).decode()}
+        result = register._write_startup_script(resp)
+
+        assert result == target
+        assert target.read_bytes() == payload
+
+    def test_sets_executable_mode(self, tmp_path, monkeypatch):
+        """0755 so root-in-container can ``bash`` the file (start.sh also
+        chmod +x's it, but the source mode shouldn't be 0600 either —
+        keeps `ls -l` and direct host-side debugging meaningful)."""
+        import base64
+        import stat
+        from lablink_cli.commands import register
+
+        target = tmp_path / "client-custom-startup.sh"
+        monkeypatch.setattr(register, "DEFAULT_STARTUP_SCRIPT", target)
+
+        resp = {"startup_script_b64": base64.b64encode(b"#!/bin/bash\n").decode()}
+        register._write_startup_script(resp)
+
+        mode = stat.S_IMODE(target.stat().st_mode)
+        assert mode == 0o755
+
+    def test_returns_none_and_removes_stale_when_payload_empty(
+        self, tmp_path, monkeypatch
+    ):
+        """Re-register after the operator disables the script: a previous
+        registration left the file at DEFAULT_STARTUP_SCRIPT — must be
+        unlinked so we don't silently keep mounting old content. Without
+        this cleanup, a `--force` rerun would still bind-mount the prior
+        script even though the new register response says "no script"."""
+        from lablink_cli.commands import register
+
+        target = tmp_path / "client-custom-startup.sh"
+        target.write_text("stale content from a prior register")
+        monkeypatch.setattr(register, "DEFAULT_STARTUP_SCRIPT", target)
+
+        result = register._write_startup_script({"startup_script_b64": ""})
+
+        assert result is None
+        assert not target.exists()
+
+    def test_returns_none_when_field_absent(self, tmp_path, monkeypatch):
+        """Belt-and-suspenders: the allocator always emits the field, but
+        if a downstream proxy/transformer drops it, the CLI must treat
+        "missing key" the same as "empty payload" rather than KeyError."""
+        from lablink_cli.commands import register
+
+        target = tmp_path / "client-custom-startup.sh"
+        monkeypatch.setattr(register, "DEFAULT_STARTUP_SCRIPT", target)
+
+        # Response with NO startup_script_b64 key at all.
+        assert register._write_startup_script({}) is None
+        assert not target.exists()
+
+
+class TestDockerRunMountsStartupScript:
+    """End-to-end shape check via run_register: an enabled startup script
+    on the allocator side must produce a docker-run that bind-mounts it
+    at /docker_scripts/custom-startup.sh and forwards STARTUP_ON_ERROR.
+    This is the actual delivery path the bug fix is closing.
+    """
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_run_register_mounts_script_when_allocator_ships_one(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        import base64
+
+        from lablink_cli.commands.register import run_register
+
+        # Allocator-side response carrying a script and "fail" semantics.
+        payload = b"#!/bin/bash\necho hi from startup\n"
+        successful_response["startup_script_b64"] = base64.b64encode(payload).decode()
+        successful_response["startup_on_error"] = "fail"
+
+        mock_detect.detect_hostname.return_value = "byo-01"
+        mock_detect.detect_lan_ip.return_value = "192.168.1.42"
+        mock_detect.resolve_machine_identity.return_value = "mid"
+        mock_detect.detect_gpu.return_value = (False, None)
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
+
+        run_register(**_kwargs(tmp_env_file))
+
+        all_cmds = [call.args[0] for call in mock_subproc_run.call_args_list]
+        run_cmds = [c for c in all_cmds if "run" in c and "--env-file" in c]
+        assert run_cmds, f"Expected `docker run` call; got {all_cmds}"
+        cmd = run_cmds[0]
+
+        # The mount target inside the container MUST be the same path
+        # start.sh:64 reads from — AWS already mounts /docker_scripts/
+        # via Terraform/user_data; the BYO path mirrors it so start.sh
+        # has a single, provider-independent contract.
+        mount_args = [
+            cmd[i + 1] for i, v in enumerate(cmd)
+            if v == "--mount" and i + 1 < len(cmd)
+        ]
+        assert mount_args, f"expected --mount in docker run, got {cmd}"
+        assert any(
+            "dst=/docker_scripts/custom-startup.sh" in m for m in mount_args
+        ), f"mount target wrong; mounts={mount_args}"
+
+        # STARTUP_ON_ERROR must be forwarded — start.sh:73 gates fail-vs-
+        # continue on this env var. Picked up from the allocator's
+        # cfg.startup_script.on_error via the register response so the
+        # operator's "fail" choice actually reaches the client.
+        env_args = [
+            cmd[i + 1] for i, v in enumerate(cmd)
+            if v == "-e" and i + 1 < len(cmd)
+        ]
+        assert "STARTUP_ON_ERROR=fail" in env_args, (
+            f"STARTUP_ON_ERROR not forwarded; -e args={env_args}"
+        )
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_run_register_skips_mount_when_no_script(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        """Allocator returned empty payload (script disabled) → no
+        --mount, no -e STARTUP_ON_ERROR. Docker would refuse the run
+        with a missing bind-mount source, so the skip must be on the
+        client side, not just "rely on docker to reject"."""
+        from lablink_cli.commands.register import run_register
+
+        # Fixture default is already empty — make it explicit for clarity.
+        successful_response["startup_script_b64"] = ""
+
+        mock_detect.detect_hostname.return_value = "byo-01"
+        mock_detect.detect_lan_ip.return_value = "192.168.1.42"
+        mock_detect.resolve_machine_identity.return_value = "mid"
+        mock_detect.detect_gpu.return_value = (False, None)
+        mock_client = MagicMock()
+        mock_client.register.return_value = successful_response
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(returncode=0, stdout="cgroupfs\n")
+
+        run_register(**_kwargs(tmp_env_file))
+
+        all_cmds = [call.args[0] for call in mock_subproc_run.call_args_list]
+        run_cmds = [c for c in all_cmds if "run" in c and "--env-file" in c]
+        assert run_cmds, f"Expected `docker run` call; got {all_cmds}"
+        cmd = run_cmds[0]
+
+        assert "--mount" not in cmd, (
+            f"--mount must not appear when allocator ships no script; got {cmd}"
+        )
+        env_args = [
+            cmd[i + 1] for i, v in enumerate(cmd)
+            if v == "-e" and i + 1 < len(cmd)
+        ]
+        assert not any("STARTUP_ON_ERROR" in a for a in env_args), (
+            f"STARTUP_ON_ERROR must not be forwarded when no script; got {env_args}"
+        )
 
     def test_corrupt_pid_file_returns_false(self, tmp_path, monkeypatch):
         from lablink_cli.commands import register
