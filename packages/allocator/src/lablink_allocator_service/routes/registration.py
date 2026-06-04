@@ -6,6 +6,7 @@ routes/desktop.py using current_app instead of importing main.
 """
 from __future__ import annotations
 
+import base64
 from datetime import datetime
 import psycopg2
 import secrets
@@ -73,6 +74,25 @@ def register_client():
         hostname_hint=hostname,
     )
 
+    # Ship the custom startup script to the client. BYO clients (manual
+    # provider) have no other channel to receive it — the AWS path bakes
+    # it into user_data, but `lablink client register` is the only
+    # handshake the BYO box gets. Convention: the CLI stages the file at
+    # /config/custom-startup.sh in both the AWS deploy dir and the manual
+    # compose dir, so the path is the same regardless of provider.
+    startup_b64 = ""
+    if main.cfg.startup_script.enabled:
+        script_path = "/config/custom-startup.sh"
+        try:
+            with open(script_path, "rb") as f:
+                content = f.read()
+            if content:
+                startup_b64 = base64.b64encode(content).decode("ascii")
+        except FileNotFoundError:
+            current_app.logger.warning(
+                "startup_script.enabled=true but %s not found", script_path
+            )
+
     return jsonify(
         client_id=client_id,
         client_secret=client_secret,
@@ -81,6 +101,8 @@ def register_client():
         allocator_url=jm.allocator_url,
         connectivity=jm.connectivity,
         client_image=jm.client_image,
+        startup_script_b64=startup_b64,
+        startup_on_error=main.cfg.startup_script.on_error,
     ), 200
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import shutil
 import subprocess
@@ -25,6 +26,11 @@ from lablink_cli.api import (
 )
 
 DEFAULT_ENV_FILE = Path.home() / ".lablink" / "client.env"
+# Distinct from the operator-side override at ~/.lablink/custom-startup.sh
+# (read by deploy.py:101-103) so that running operator + BYO client on the
+# same box doesn't have the client-received copy clobber the operator's
+# local override.
+DEFAULT_STARTUP_SCRIPT = Path.home() / ".lablink" / "client-custom-startup.sh"
 PID_FILE = Path.home() / ".lablink" / "log_shipper.pid"
 
 
@@ -131,7 +137,10 @@ def run_register(
         _verify_gpu_runtime(console)
 
     # Step 7 + 8: docker run (always)
-    cmd = _build_docker_run(env_file, response, resolved_gpu_present)
+    startup_script_path = _write_startup_script(response)
+    cmd = _build_docker_run(
+        env_file, response, resolved_gpu_present, startup_script_path
+    )
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
     )
@@ -226,8 +235,31 @@ def _write_env_file(
     env_file.chmod(0o600)
 
 
+def _write_startup_script(resp: dict) -> Path | None:
+    """Materialize the allocator-provided startup script to disk.
+
+    Returns the host path to bind-mount into the client container, or
+    None when the allocator returned no script (disabled, file missing,
+    or empty). Mode 0755 so root-in-container can exec it via ``bash``.
+    Stale files from prior registrations are removed when the current
+    response carries no payload, so a script disabled on the allocator
+    side is not silently kept alive locally.
+    """
+    b64 = resp.get("startup_script_b64") or ""
+    if not b64:
+        DEFAULT_STARTUP_SCRIPT.unlink(missing_ok=True)
+        return None
+    DEFAULT_STARTUP_SCRIPT.parent.mkdir(parents=True, exist_ok=True)
+    DEFAULT_STARTUP_SCRIPT.write_bytes(base64.b64decode(b64))
+    DEFAULT_STARTUP_SCRIPT.chmod(0o755)
+    return DEFAULT_STARTUP_SCRIPT
+
+
 def _build_docker_run(
-    env_file: Path, resp: dict, gpu_present: bool
+    env_file: Path,
+    resp: dict,
+    gpu_present: bool,
+    startup_script: Path | None,
 ) -> list[str]:
     cmd = [
         "docker", "run", "-d",
@@ -243,6 +275,21 @@ def _build_docker_run(
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
+    # Mount path mirrors the AWS terraform/user_data mount so the client
+    # start.sh finds the script at /docker_scripts/custom-startup.sh
+    # regardless of provider. Skipped when the allocator returned no
+    # script — docker would refuse the run otherwise (bind src must
+    # exist), and start.sh already no-ops when the file is absent.
+    if startup_script is not None:
+        cmd += [
+            "--mount",
+            (
+                f"type=bind,src={startup_script},"
+                "dst=/docker_scripts/custom-startup.sh,ro"
+            ),
+            "-e",
+            f"STARTUP_ON_ERROR={resp.get('startup_on_error', 'continue')}",
+        ]
     # Publish 7070 (agent's /api/session/start) and 6080 (KasmVNC) on
     # the LAN IP so the allocator can reach them. `--network host` would
     # also do this on Linux, but on Docker Desktop (Windows/macOS) it
