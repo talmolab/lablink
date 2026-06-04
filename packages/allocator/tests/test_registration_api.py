@@ -210,6 +210,123 @@ def test_register_response_omits_api_token(reg_client):
     assert body.get("agent_token") is not None
 
 
+def test_register_response_omits_startup_script_when_disabled(reg_client):
+    """startup_script.enabled=false (default) → empty payload + the
+    config's on_error knob. BYO CLI uses the empty b64 as the signal
+    to skip the mount, so the field must be present and empty rather
+    than missing."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["startup_script_b64"] == ""
+    assert body["startup_on_error"] == "continue"
+
+
+def test_register_response_includes_startup_script_when_enabled(
+    reg_client, monkeypatch
+):
+    """startup_script.enabled=true + non-empty file at the conventional
+    path → base64-encoded content is shipped in the response so the
+    BYO CLI can write+mount it without filesystem access to the
+    operator's host. Round-trip the bytes to catch encoder regressions."""
+    import base64
+    from unittest.mock import mock_open, patch
+
+    from lablink_allocator_service import main
+    monkeypatch.setattr(
+        main.cfg.startup_script, "enabled", True, raising=False
+    )
+    monkeypatch.setattr(
+        main.cfg.startup_script, "on_error", "fail", raising=False
+    )
+
+    fake_content = b"#!/bin/bash\necho hi from custom startup\n"
+    client, fake_db = reg_client
+    with patch(
+        "lablink_allocator_service.routes.registration.open",
+        mock_open(read_data=fake_content),
+        create=True,
+    ):
+        r = client.post(
+            "/api/v1/clients/register",
+            json={"hostname": "vm-1", "machine_identity": "i-1"},
+            headers={"Authorization": "Bearer tk_test_register"},
+        )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["startup_script_b64"] == base64.b64encode(fake_content).decode()
+    assert body["startup_on_error"] == "fail"
+    # Round-trip back to bytes to guard against double-encoding regressions.
+    assert base64.b64decode(body["startup_script_b64"]) == fake_content
+
+
+def test_register_response_empty_when_enabled_but_file_missing(
+    reg_client, monkeypatch
+):
+    """enabled=true but /config/custom-startup.sh absent (operator
+    misconfiguration) → empty payload + warning logged. The CLI handles
+    the empty payload by skipping the mount; the warning is the operator
+    signal that something is wrong."""
+    from lablink_allocator_service import main
+    monkeypatch.setattr(
+        main.cfg.startup_script, "enabled", True, raising=False
+    )
+
+    from unittest.mock import patch
+
+    def _raise_fnf(*args, **kwargs):
+        raise FileNotFoundError("/config/custom-startup.sh")
+
+    client, fake_db = reg_client
+    with patch(
+        "lablink_allocator_service.routes.registration.open",
+        _raise_fnf,
+        create=True,
+    ):
+        r = client.post(
+            "/api/v1/clients/register",
+            json={"hostname": "vm-1", "machine_identity": "i-1"},
+            headers={"Authorization": "Bearer tk_test_register"},
+        )
+    assert r.status_code == 200
+    assert r.get_json()["startup_script_b64"] == ""
+
+
+def test_register_response_empty_when_enabled_but_file_empty(
+    reg_client, monkeypatch
+):
+    """enabled=true but the file is zero bytes — happens in the manual
+    flow when the wizard's "Disabled" path is selected (deploy_compose
+    still touches the file so the bind mount resolves). Must NOT ship
+    `base64("")` (which would still trigger the CLI to materialize an
+    empty script and mount it); ship `""` so the CLI skips the mount."""
+    from unittest.mock import mock_open, patch
+
+    from lablink_allocator_service import main
+    monkeypatch.setattr(
+        main.cfg.startup_script, "enabled", True, raising=False
+    )
+
+    client, fake_db = reg_client
+    with patch(
+        "lablink_allocator_service.routes.registration.open",
+        mock_open(read_data=b""),
+        create=True,
+    ):
+        r = client.post(
+            "/api/v1/clients/register",
+            json={"hostname": "vm-1", "machine_identity": "i-1"},
+            headers={"Authorization": "Bearer tk_test_register"},
+        )
+    assert r.status_code == 200
+    assert r.get_json()["startup_script_b64"] == ""
+
+
 def test_register_response_honors_x_forwarded_proto(reg_client, monkeypatch):
     """nginx terminates TLS and proxies plain HTTP to Flask. With HTTPS
     enabled, the ProxyFix gate opens and request.host_url reflects the

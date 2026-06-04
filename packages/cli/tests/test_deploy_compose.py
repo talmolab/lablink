@@ -142,6 +142,137 @@ class TestRenderComposeDir:
         )
 
 
+class TestStartupScriptStaging:
+    """`render_compose_dir` is responsible for putting custom-startup.sh
+    into the compose workdir so the docker-compose bind mount (added in
+    the template) resolves and the allocator container can read the
+    script at /config/custom-startup.sh. The file MUST exist on every
+    deploy — disabled or not — because docker-compose refuses a missing
+    bind-mount source. The allocator gates content delivery on a
+    separate non-empty check, not on file existence.
+    """
+
+    @pytest.fixture(autouse=True)
+    def isolate_home(self, tmp_path, monkeypatch):
+        """Redirect ``Path.home()`` away from the developer's real
+        ``~/.lablink/custom-startup.sh`` for every test in this class —
+        otherwise tests that exercise non-override branches accidentally
+        pick up the developer's real override file and assert against
+        its content. The dedicated override test plants its own file
+        inside ``fake_home`` to exercise that branch deliberately.
+        """
+        from lablink_cli.commands import deploy_compose
+
+        fake_home = tmp_path / "fake-home"
+        fake_home.mkdir()
+        monkeypatch.setattr(
+            deploy_compose.Path, "home", lambda: fake_home
+        )
+
+    def test_creates_empty_file_when_disabled(self, tmp_path):
+        """Default config (startup_script.enabled=false) → file is
+        present but empty so the compose bind mount resolves; the
+        allocator reads it and ships ``startup_script_b64=""`` to BYO
+        clients."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg()
+        # Sanity: default-disabled — guard against a schema flip
+        # making this test silently exercise the wrong branch.
+        assert cfg.startup_script.enabled is False
+
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        script = target / "custom-startup.sh"
+        assert script.exists(), (
+            "custom-startup.sh must always be materialized so the "
+            "docker-compose bind mount resolves"
+        )
+        assert script.read_bytes() == b""
+
+    def test_copies_script_from_config_path(self, tmp_path):
+        """enabled=true + path on the operator's filesystem → contents
+        copied verbatim into the compose dir."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        # Source script lives on the operator's machine; the path in
+        # the config points to it directly.
+        src = tmp_path / "operator-script.sh"
+        body = "#!/bin/bash\necho operator script\n"
+        src.write_text(body)
+
+        cfg = _manual_cfg()
+        cfg.startup_script.enabled = True
+        cfg.startup_script.path = str(src)
+
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        assert (target / "custom-startup.sh").read_text() == body
+
+    def test_user_override_at_home_wins(self, tmp_path):
+        """If ``~/.lablink/custom-startup.sh`` exists, it overrides
+        ``cfg.startup_script.path`` (mirrors deploy.py:101-103 for the
+        AWS path so operators have one mental model regardless of
+        provider). The autouse ``isolate_home`` fixture has already
+        redirected ``Path.home()`` to a fresh tmp dir; this test plants
+        the override there.
+        """
+        from lablink_cli.commands import deploy_compose
+
+        fake_home = deploy_compose.Path.home()
+        (fake_home / ".lablink").mkdir(parents=True)
+        override_body = "#!/bin/bash\necho FROM OVERRIDE\n"
+        (fake_home / ".lablink" / "custom-startup.sh").write_text(override_body)
+
+        # cfg.startup_script.path points at a real but DIFFERENT script;
+        # the override must still win.
+        cfg_src = tmp_path / "from-config.sh"
+        cfg_src.write_text("#!/bin/bash\necho FROM CONFIG\n")
+
+        cfg = _manual_cfg()
+        cfg.startup_script.enabled = True
+        cfg.startup_script.path = str(cfg_src)
+
+        target = tmp_path / "compose"
+        deploy_compose.render_compose_dir(cfg, target)
+
+        assert (target / "custom-startup.sh").read_text() == override_body
+
+    def test_falls_back_to_empty_when_configured_path_missing(self, tmp_path):
+        """enabled=true but the path doesn't exist on disk → warn and
+        materialize an empty file so the deploy doesn't crash. Operator
+        sees the yellow warning; the allocator's register handler will
+        also log + return empty b64."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg()
+        cfg.startup_script.enabled = True
+        cfg.startup_script.path = str(tmp_path / "does-not-exist.sh")
+
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        script = target / "custom-startup.sh"
+        assert script.exists()
+        assert script.read_bytes() == b""
+
+    def test_compose_template_mounts_startup_script(self, tmp_path):
+        """The rendered compose YAML must declare the bind mount —
+        otherwise the staged file at ./custom-startup.sh would not
+        reach the allocator container at /config/custom-startup.sh and
+        the registration handler would silently always ship empty b64."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg()
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "./custom-startup.sh:/config/custom-startup.sh" in compose_yaml
+
+
 def _read_env_var(env_file: Path, key: str) -> str:
     for line in env_file.read_text().splitlines():
         if line.startswith(f"{key}="):

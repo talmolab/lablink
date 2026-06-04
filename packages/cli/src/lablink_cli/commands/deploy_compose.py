@@ -83,6 +83,32 @@ def render_compose_dir(cfg: Config, target: Path) -> None:
     #    CONFIG_DIR default).
     save_config(cfg, target / "config.yaml")
 
+    # 4. Stage the custom startup script. Mirrors deploy.py:99-117 for
+    #    the AWS path: ~/.lablink/custom-startup.sh wins (CLI override),
+    #    else cfg.startup_script.path on the operator's filesystem. The
+    #    file is always materialized (empty when disabled or absent) so
+    #    the docker-compose bind mount resolves on every deploy; the
+    #    allocator's registration handler only forwards it to clients
+    #    when cfg.startup_script.enabled is true AND the file is non-
+    #    empty.
+    startup_target = target / "custom-startup.sh"
+    if cfg.startup_script.enabled and cfg.startup_script.path:
+        user_script = Path.home() / ".lablink" / "custom-startup.sh"
+        if user_script.exists():
+            src_startup = user_script
+        else:
+            src_startup = Path(cfg.startup_script.path)
+        if src_startup.exists():
+            shutil.copy2(src_startup, startup_target)
+        else:
+            console.print(
+                f"[yellow]startup_script.enabled=true but {src_startup} "
+                "not found — continuing without it.[/yellow]"
+            )
+            startup_target.touch()
+    else:
+        startup_target.touch()
+
 
 def _allocator_image(cfg: Config) -> str:
     """Construct the full allocator image string from base + image_tag.
