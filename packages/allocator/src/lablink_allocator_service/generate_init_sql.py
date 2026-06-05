@@ -92,7 +92,24 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     browser_credential TEXT,
     gpu_present        BOOLEAN,
     gpu_model          TEXT,
-    last_release_time  TIMESTAMP
+    last_release_time  TIMESTAMP,
+    SessionMetricsStartedAt          TIMESTAMPTZ,
+    SessionMetricsSealedAt           TIMESTAMPTZ,
+    SessionMetricsLastReportedAt     TIMESTAMPTZ,
+    SecondsInSubjectSoftware         INTEGER,
+    SecondsInTerminal                INTEGER,
+    SecondsInBrowser                 INTEGER,
+    SecondsInOther                   INTEGER,
+    GpuActiveSeconds                 INTEGER,
+    GpuUtilPeak                      INTEGER,
+    VramUsedPeakMb                   INTEGER,
+    SecondsToFirstSleapLabel         INTEGER,
+    SecondsToFirstSleapTrain         INTEGER,
+    SecondsToFirstSleapTrack         INTEGER,
+    MaxLabeledFrames                 INTEGER,
+    TrainingEpochsCompleted          INTEGER,
+    TrainingFinalLoss                DOUBLE PRECISION,
+    SessionMetricsRaw                JSONB
 );
 
 CREATE UNIQUE INDEX {VM_TABLE}_browser_token_idx
