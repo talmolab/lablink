@@ -62,3 +62,14 @@ startup_script:
   enabled: false # true = run custom startup script on client VMs, false = no script
   path: ""  # Path to custom startup script (optional)
   on_error: "continue"  # "continue" = ignore errors, "fail" = stop VM setup on error
+
+monitoring:
+  enabled: false
+  subject_window_patterns: []  # empty → derived from client.software at runtime
+  process_allowlist:
+    - sleap-train
+    - sleap-track
+    - sleap-label
+  watch_dir: /home/client/Desktop
+  sample_interval_seconds: 2
+  push_interval_seconds: 60
