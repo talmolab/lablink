@@ -73,7 +73,7 @@ def apply_sample(c: SessionCounters, s: Sample) -> None:
     attr = SUBJECT_FIELD if bucket == "subject" else f"seconds_in_{bucket}"
     setattr(c, attr, getattr(c, attr) + s.sample_interval_seconds)
 
-    if s.gpu_util_pct > GPU_ACTIVE_UTIL_THRESHOLD or s.vram_mb > 0:
+    if s.gpu_util_pct > GPU_ACTIVE_UTIL_THRESHOLD:
         c.gpu_active_seconds += s.sample_interval_seconds
     if s.gpu_util_pct > c.gpu_util_peak:
         c.gpu_util_peak = s.gpu_util_pct

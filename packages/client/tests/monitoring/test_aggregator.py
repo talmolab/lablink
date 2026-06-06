@@ -50,10 +50,14 @@ def test_apply_sample_in_subject_increments_only_subject(t0):
 
 
 def test_apply_sample_gpu_active_threshold_5pct(t0):
+    """Only samples with util > 5% should count toward gpu_active_seconds.
+
+    Peaks for util and VRAM track the high-water mark regardless of threshold.
+    """
     c = new_counters(session_started_at=t0)
-    apply_sample(c, _gpu_sample(t0, util=3, vram=1000))
-    apply_sample(c, _gpu_sample(t0, util=6, vram=1500))
-    assert c.gpu_active_seconds == 2
+    apply_sample(c, _gpu_sample(t0, util=3, vram=1000))  # below threshold
+    apply_sample(c, _gpu_sample(t0, util=6, vram=1500))  # above threshold
+    assert c.gpu_active_seconds == 1
     assert c.gpu_util_peak == 6
     assert c.vram_used_peak_mb == 1500
 
