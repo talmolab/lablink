@@ -60,6 +60,51 @@ class _PooledCursor:
         return False  # don't swallow exceptions
 
 
+def _median(values: list):
+    """Median of a list, ignoring None. Returns None when the list is empty."""
+    values = sorted(v for v in values if v is not None)
+    if not values:
+        return None
+    n = len(values)
+    mid = n // 2
+    if n % 2 == 1:
+        return values[mid]
+    return (values[mid - 1] + values[mid]) // 2
+
+
+def _build_summary(rows: list) -> dict:
+    """Build the session-metrics cohort summary from a row iterable.
+
+    Defensive on row length so test fixtures that don't include the
+    trailing frames/epochs columns still produce a valid summary.
+    """
+    total = len(rows)
+    started = sum(1 for r in rows if r[1] is not None)
+    labeled = sum(1 for r in rows if r[2] is not None)
+    trained = sum(1 for r in rows if r[3] is not None)
+    tracked = sum(1 for r in rows if r[4] is not None)
+    secs_in_subject = [r[5] for r in rows]
+    first_train = [r[3] for r in rows]
+    # Defensive on row length — test fixtures may not include all columns.
+    frames = [r[7] for r in rows if len(r) > 7]
+    epochs = [r[8] for r in rows if len(r) > 8]
+    pct_train = (trained / total * 100.0) if total else 0.0
+    return {
+        "total_vms": total,
+        "funnel": {
+            "started": started,
+            "labeled": labeled,
+            "trained": trained,
+            "tracked": tracked,
+        },
+        "pct_reached_training": pct_train,
+        "median_seconds_in_sleap": _median(secs_in_subject),
+        "median_seconds_to_first_train": _median(first_train),
+        "median_labeled_frames": _median(frames),
+        "median_epochs_completed": _median(epochs),
+    }
+
+
 class PostgresqlDatabase:
     """Class to interact with a PostgreSQL database.
     This class provides methods to connect to the database, insert data,
@@ -1415,6 +1460,114 @@ class PostgresqlDatabase:
                     f"Failed to release assignment for '{hostname}': {e}"
                 )
                 raise
+
+    def update_session_metrics(self, hostname: str, payload: dict) -> None:
+        """Last-write-wins UPDATE of session-metrics columns.
+
+        Raises:
+            LookupError: if hostname unknown.
+            ValueError: if the row is already sealed.
+        """
+        # Lazy import: the legacy test_database.py module-level mock of
+        # sys.modules does not stub psycopg2.extras, so importing Json
+        # at module scope would break that suite.
+        from psycopg2.extras import Json
+
+        counters = payload.get("counters", {})
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT SessionMetricsSealedAt FROM {self.table_name} "
+                "WHERE HostName = %s",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise LookupError(f"VM {hostname} not found")
+            if row[0] is not None:
+                raise ValueError(f"VM {hostname} session is sealed")
+
+            cursor.execute(
+                f"""
+                UPDATE {self.table_name} SET
+                  SessionMetricsStartedAt      = COALESCE(SessionMetricsStartedAt, %s),
+                  SessionMetricsLastReportedAt = NOW(),
+                  SecondsInSubjectSoftware     = %s,
+                  SecondsInTerminal            = %s,
+                  SecondsInBrowser             = %s,
+                  SecondsInOther               = %s,
+                  GpuActiveSeconds             = %s,
+                  GpuUtilPeak                  = %s,
+                  VramUsedPeakMb               = %s,
+                  SecondsToFirstSleapLabel     = %s,
+                  SecondsToFirstSleapTrain     = %s,
+                  SecondsToFirstSleapTrack     = %s,
+                  MaxLabeledFrames             = %s,
+                  TrainingEpochsCompleted      = %s,
+                  TrainingFinalLoss            = %s,
+                  SessionMetricsRaw            = %s
+                WHERE HostName = %s
+                """,
+                (
+                    payload.get("session_started_at"),
+                    counters.get("seconds_in_subject_software"),
+                    counters.get("seconds_in_terminal"),
+                    counters.get("seconds_in_browser"),
+                    counters.get("seconds_in_other"),
+                    counters.get("gpu_active_seconds"),
+                    counters.get("gpu_util_peak"),
+                    counters.get("vram_used_peak_mb"),
+                    counters.get("seconds_to_first_sleap_label"),
+                    counters.get("seconds_to_first_sleap_train"),
+                    counters.get("seconds_to_first_sleap_track"),
+                    counters.get("max_labeled_frames"),
+                    counters.get("training_epochs_completed"),
+                    counters.get("training_final_loss"),
+                    Json(counters),
+                    hostname,
+                ),
+            )
+
+    def seal_session_metrics(self, hostname: str) -> None:
+        """Mark a single VM's session-metrics row as sealed (final)."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"UPDATE {self.table_name} SET SessionMetricsSealedAt = NOW() "
+                "WHERE HostName = %s AND SessionMetricsSealedAt IS NULL",
+                (hostname,),
+            )
+
+    def bulk_seal_session_metrics(self) -> int:
+        """Seal every unsealed VM (called from the destroy paths).
+
+        Returns:
+            int: number of rows sealed.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"UPDATE {self.table_name} SET SessionMetricsSealedAt = NOW() "
+                "WHERE SessionMetricsSealedAt IS NULL"
+            )
+            return cursor.rowcount or 0
+
+    def get_session_metrics_summary(self) -> dict:
+        """Aggregate the cohort summary for the admin page."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"""
+                SELECT HostName,
+                       SessionMetricsStartedAt,
+                       SecondsToFirstSleapLabel,
+                       SecondsToFirstSleapTrain,
+                       SecondsToFirstSleapTrack,
+                       SecondsInSubjectSoftware,
+                       GpuActiveSeconds,
+                       MaxLabeledFrames,
+                       TrainingEpochsCompleted
+                FROM {self.table_name}
+                """
+            )
+            rows = cursor.fetchall()
+        return _build_summary(rows)
 
     def __del__(self):
         """Close all pooled connections when the object is deleted."""
