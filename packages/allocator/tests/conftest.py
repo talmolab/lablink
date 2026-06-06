@@ -55,6 +55,18 @@ def omega_config():
                 "path": "",
                 "on_error": "continue",
             },
+            "monitoring": {
+                "enabled": False,
+                "subject_window_patterns": [],
+                "process_allowlist": [
+                    "sleap-train",
+                    "sleap-track",
+                    "sleap-label",
+                ],
+                "watch_dir": "/home/client/Desktop",
+                "sample_interval_seconds": 2,
+                "push_interval_seconds": 60,
+            },
         }
     )
 

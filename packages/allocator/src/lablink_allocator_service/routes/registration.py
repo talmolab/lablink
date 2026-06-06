@@ -93,6 +93,21 @@ def register_client():
                 "startup_script.enabled=true but %s not found", script_path
             )
 
+    # Ship the Tier 1 monitoring block verbatim so the client's start.sh
+    # can write it to /tmp/lablink-monitoring.json and gate the agent
+    # launch on `enabled`. Lists are copied to plain Python via OmegaConf
+    # so jsonify doesn't choke on ListConfig/DictConfig.
+    monitoring = {
+        "enabled": bool(main.cfg.monitoring.enabled),
+        "subject_window_patterns": list(
+            main.cfg.monitoring.subject_window_patterns or []
+        ),
+        "process_allowlist": list(main.cfg.monitoring.process_allowlist),
+        "watch_dir": main.cfg.monitoring.watch_dir,
+        "sample_interval_seconds": main.cfg.monitoring.sample_interval_seconds,
+        "push_interval_seconds": main.cfg.monitoring.push_interval_seconds,
+    }
+
     return jsonify(
         client_id=client_id,
         client_secret=client_secret,
@@ -103,6 +118,7 @@ def register_client():
         client_image=jm.client_image,
         startup_script_b64=startup_b64,
         startup_on_error=main.cfg.startup_script.on_error,
+        monitoring=monitoring,
     ), 200
 
 

@@ -256,6 +256,49 @@ heartbeat \
   allocator.host=$ALLOCATOR_HOST allocator.port=80 \
   2>&1 | sed -u 's/^/[heartbeat] /' >&5 &
 
+# Tier 1 monitoring agent — launch only when the allocator shipped a
+# monitoring block (in REGISTER_RESPONSE) with enabled=true. The agent
+# reads its config from $LABLINK_MONITORING_CONFIG; we materialize that
+# file here from the registration response, injecting runtime fields
+# (allocator URL, hostname, client_secret, client.software for the
+# dynamic subject_window_patterns fallback) that the allocator can't
+# know at register time. Heredoc-driven Python avoids the JSON-quoting
+# hell of `python3 -c '...'`.
+MONITORING_CFG_PATH="/tmp/lablink-monitoring.json"
+if [ -n "${REGISTER_RESPONSE:-}" ]; then
+  REGISTER_RESPONSE="$REGISTER_RESPONSE" \
+  ALLOCATOR_URL="${ALLOCATOR_URL:-}" \
+  VM_NAME="${VM_NAME:-}" \
+  CLIENT_SECRET="${CLIENT_SECRET:-}" \
+  SUBJECT_SOFTWARE="${SUBJECT_SOFTWARE:-}" \
+  python3 - <<'PYEOF' > "$MONITORING_CFG_PATH" || true
+import json, os, sys
+try:
+    resp = json.loads(os.environ.get("REGISTER_RESPONSE", "") or "{}")
+except json.JSONDecodeError:
+    resp = {}
+m = dict(resp.get("monitoring") or {})
+# Inject runtime fields the pusher and subject-pattern fallback need.
+m["allocator_url"] = os.environ.get("ALLOCATOR_URL", "")
+m["hostname"] = os.environ.get("VM_NAME", "")
+m["client_secret"] = os.environ.get("CLIENT_SECRET", "")
+m["client_software"] = os.environ.get("SUBJECT_SOFTWARE", "")
+sys.stdout.write(json.dumps(m))
+PYEOF
+
+  # Launch the agent only if the allocator opted us in. Guard against
+  # missing/malformed config: a bad parse must not abort start.sh.
+  if python3 -c "import json,sys; d=json.load(open('$MONITORING_CFG_PATH')); sys.exit(0 if d.get('enabled') else 1)" 2>/dev/null; then
+    echo ">> Launching Tier 1 monitoring agent (LABLINK_MONITORING_CONFIG=$MONITORING_CFG_PATH)"
+    LABLINK_MONITORING_CONFIG="$MONITORING_CFG_PATH" lablink-monitoring \
+      2>&1 | sed -u 's/^/[monitoring] /' >&5 &
+  else
+    echo ">> Tier 1 monitoring disabled (allocator opted out); skipping agent launch."
+  fi
+else
+  echo ">> REGISTER_RESPONSE not set; skipping Tier 1 monitoring agent launch."
+fi
+
 # End time
 CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
