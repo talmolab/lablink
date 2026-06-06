@@ -798,6 +798,8 @@ def post_session_metrics(hostname):
     """Receive a Tier 1 monitoring summary push from a client VM."""
     try:
         data = request.get_json(silent=True) or {}
+        if "counters" not in data:
+            return jsonify({"error": "Missing 'counters' in payload."}), 400
         database.update_session_metrics(hostname=hostname, payload=data)
         return jsonify({"message": "Session metrics updated."}), 200
     except LookupError:

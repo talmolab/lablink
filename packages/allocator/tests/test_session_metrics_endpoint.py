@@ -51,7 +51,9 @@ def test_post_session_metrics_writes_and_returns_200(app):
         headers={"Authorization": "Bearer letmein"},
     )
     assert resp.status_code == 200
-    db.update_session_metrics.assert_called_once()
+    db.update_session_metrics.assert_called_once_with(
+        hostname="vm-1", payload=_payload()
+    )
 
 
 def test_post_session_metrics_404_when_unknown_host(app):
@@ -89,3 +91,16 @@ def test_post_session_metrics_401_without_secret(app):
         content_type="application/json",
     )
     assert resp.status_code == 401
+
+
+def test_post_session_metrics_400_when_counters_missing(app):
+    flask_app, db = app
+    client = flask_app.test_client()
+    resp = client.post(
+        "/api/session-metrics/vm-1",
+        data=json.dumps({"session_started_at": "2026-06-05T17:00:00+00:00"}),
+        content_type="application/json",
+        headers={"Authorization": "Bearer letmein"},
+    )
+    assert resp.status_code == 400
+    db.update_session_metrics.assert_not_called()
