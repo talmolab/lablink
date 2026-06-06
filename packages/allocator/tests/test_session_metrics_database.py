@@ -91,5 +91,5 @@ def test_get_session_metrics_summary_returns_funnel_counts(fake_db):
     assert summary["funnel"]["tracked"] == 1
     assert summary["pct_reached_training"] == pytest.approx(2 / 3 * 100, abs=0.1)
     # Medians over non-null values
-    assert summary["median_seconds_in_sleap"] == 3200
+    assert summary["median_seconds_in_subject_software"] == 3200
     assert summary["median_seconds_to_first_train"] == 900  # median of [720, 1080]

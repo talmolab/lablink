@@ -824,6 +824,46 @@ def post_session_metrics(hostname):
         return jsonify({"error": "Failed to update session metrics."}), 500
 
 
+@app.route("/admin/session-metrics", methods=["GET"])
+@auth.login_required
+def admin_session_metrics():
+    """Render the cohort summary + per-VM table for Tier 1 monitoring."""
+    monitoring_enabled = bool(
+        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
+    )
+    # The "subject software" label rendered in the table/tile headers — uses
+    # explicit subject_window_patterns when set, otherwise falls back to
+    # the deployment's machine.software value (e.g. "sleap", "deeplabcut").
+    patterns = list(getattr(cfg.monitoring, "subject_window_patterns", []) or [])
+    subject_software_label = (
+        patterns[0]
+        if patterns
+        else getattr(getattr(cfg, "machine", None), "software", "") or "subject"
+    )
+    if not monitoring_enabled:
+        return render_template(
+            "session-metrics.html",
+            monitoring_enabled=False,
+            summary=None,
+            vms=[],
+            subject_software_label=subject_software_label,
+        )
+
+    summary = database.get_session_metrics_summary()
+    vms = database.get_all_vms_for_export(include_logs=False)
+    for vm in vms:
+        for key, value in vm.items():
+            if hasattr(value, "isoformat"):
+                vm[key] = value.isoformat()
+    return render_template(
+        "session-metrics.html",
+        monitoring_enabled=True,
+        summary=summary,
+        vms=vms,
+        subject_software_label=subject_software_label,
+    )
+
+
 @app.route("/api/export-metrics", methods=["GET"])
 @auth.login_required
 def export_metrics():

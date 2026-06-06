@@ -98,7 +98,7 @@ def _build_summary(rows: list) -> dict:
             "tracked": tracked,
         },
         "pct_reached_training": pct_train,
-        "median_seconds_in_sleap": _median(secs_in_subject),
+        "median_seconds_in_subject_software": _median(secs_in_subject),
         "median_seconds_to_first_train": _median(first_train),
         "median_labeled_frames": _median(frames),
         "median_epochs_completed": _median(epochs),

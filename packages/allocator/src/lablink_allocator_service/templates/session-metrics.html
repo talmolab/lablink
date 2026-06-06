@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LabLink Session Metrics</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #eef2f5;
+        padding: 20px;
+        color: #333;
+      }
+      .page {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .button-group {
+        display: flex;
+        gap: 12px;
+      }
+      a.button {
+        display: inline-block;
+        padding: 10px 18px;
+        background-color: #007bff;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      a.button:hover {
+        background-color: #0056b3;
+      }
+      .summary-tiles .tile {
+        background: #f5f7fa;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+      }
+      .tile-label {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      .tile-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1976d2;
+      }
+      table.vm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.vm-table th,
+      table.vm-table td {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        text-align: left;
+      }
+      table.vm-table th {
+        background: #f5f7fa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+
+<h1>Session metrics</h1>
+
+{% if not monitoring_enabled %}
+  <p style="padding:1em; background:#fff8e1; border-left:4px solid #f9a825;">
+    Session metrics collection is disabled for this deployment.
+    Set <code>monitoring.enabled: true</code> in <code>lablink.yaml</code> to enable.
+  </p>
+{% else %}
+
+<div class="button-group" style="margin-bottom:1.5em;">
+  <a class="button" href="/api/export-metrics?format=csv" download>Download CSV</a>
+  <a class="button" href="/api/export-metrics?format=json" download>Download JSON</a>
+</div>
+
+<section class="summary-tiles" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1em; margin-bottom:1.5em;">
+  <div class="tile">
+    <div class="tile-label">Total VMs</div>
+    <div class="tile-value">{{ summary.total_vms }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">% reached training</div>
+    <div class="tile-value">{{ "%.1f"|format(summary.pct_reached_training) }}%</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Median time in {{ subject_software_label or "subject" }}</div>
+    <div class="tile-value">{{ summary.median_seconds_in_subject_software | default("—") }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Median time-to-first-train</div>
+    <div class="tile-value">{{ summary.median_seconds_to_first_train | default("—") }}</div>
+  </div>
+</section>
+
+<section class="funnel" style="margin-bottom:1.5em;">
+  <h2>Funnel</h2>
+  {% set total = summary.total_vms if summary.total_vms > 0 else 1 %}
+  {% for stage, count in [("Started", summary.funnel.started),
+                          ("Labeled", summary.funnel.labeled),
+                          ("Trained", summary.funnel.trained),
+                          ("Tracked", summary.funnel.tracked)] %}
+    {% set pct = (count / total * 100) | round(0, "common") | int %}
+    <div style="display:flex; align-items:center; gap:1em; margin:0.25em 0;">
+      <div style="width:6em;">{{ stage }}</div>
+      <div style="flex:1; background:#eee;">
+        <div style="width:{{ pct }}%; background:#1976d2; color:#fff; padding:0.2em 0.5em;">
+          &nbsp;
+        </div>
+      </div>
+      <div style="width:7em; text-align:right;">{{ count }} / {{ summary.total_vms }} ({{ pct }}%)</div>
+    </div>
+  {% endfor %}
+</section>
+
+<table class="vm-table" border="1" cellspacing="0" cellpadding="6">
+  <thead>
+    <tr>
+      <th>Host</th>
+      <th>User</th>
+      <th>Status</th>
+      <th>Session start</th>
+      <th>Sealed</th>
+      <th>Time in {{ subject_software_label or "subject" }} (s)</th>
+      <th>GPU-active (s)</th>
+      <th>t&rarr; label</th>
+      <th>t&rarr; train</th>
+      <th>t&rarr; track</th>
+      <th>Frames</th>
+      <th>Epochs</th>
+      <th>Final loss</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for vm in vms %}
+    <tr>
+      <td>{{ vm.HostName }}</td>
+      <td>{{ vm.UserEmail or "" }}</td>
+      <td>{{ vm.Status or "" }}</td>
+      <td>{{ vm.SessionMetricsStartedAt or "—" }}</td>
+      <td>{{ vm.SessionMetricsSealedAt or "in-progress" }}</td>
+      <td>{{ vm.SecondsInSubjectSoftware if vm.SecondsInSubjectSoftware is not none else "—" }}</td>
+      <td>{{ vm.GpuActiveSeconds if vm.GpuActiveSeconds is not none else "—" }}</td>
+      <td>{{ vm.SecondsToFirstSleapLabel if vm.SecondsToFirstSleapLabel is not none else "—" }}</td>
+      <td>{{ vm.SecondsToFirstSleapTrain if vm.SecondsToFirstSleapTrain is not none else "—" }}</td>
+      <td>{{ vm.SecondsToFirstSleapTrack if vm.SecondsToFirstSleapTrack is not none else "—" }}</td>
+      <td>{{ vm.MaxLabeledFrames if vm.MaxLabeledFrames is not none else "—" }}</td>
+      <td>{{ vm.TrainingEpochsCompleted if vm.TrainingEpochsCompleted is not none else "—" }}</td>
+      <td>{{ vm.TrainingFinalLoss if vm.TrainingFinalLoss is not none else "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endif %}
+
+    </div>
+  </body>
+</html>
