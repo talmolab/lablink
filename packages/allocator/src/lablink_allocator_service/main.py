@@ -287,10 +287,14 @@ def create_instances():
 @auth.login_required
 def admin():
     provider = app.config["LABLINK_PROVIDER"]
+    monitoring_enabled = bool(
+        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
+    )
     return render_template(
         "admin.html",
         can_provision_hosts=provider.can_provision_hosts,
         can_destroy_hosts=provider.can_destroy_hosts,
+        monitoring_enabled=monitoring_enabled,
     )
 
 

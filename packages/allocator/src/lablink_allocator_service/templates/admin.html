@@ -113,6 +113,11 @@
           BYO Client Onboarding
         </button>
         {% endif %}
+        {% if monitoring_enabled %}
+        <button onclick="location.href='/admin/session-metrics'">
+          Session Metrics
+        </button>
+        {% endif %}
       </div>
     </div>
   </body>
