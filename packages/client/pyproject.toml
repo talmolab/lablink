@@ -14,6 +14,7 @@ dependencies = [
   "hydra-core>=1.3,<2.0",
   "omegaconf>=2.3,<3.0",
   "psutil>=7.1,<7.3",
+  "h5py>=3,<4",
   "urllib3>=2.3.0,<3.0",
   "flask>=3.0",
   # DES for the RFB-format password file the agent writes in LAN-direct
