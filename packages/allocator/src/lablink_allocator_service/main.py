@@ -538,6 +538,16 @@ def destroy():
             return jsonify({"status": "error", "error": error_msg}), 405
         return render_template("delete-dashboard.html", error=error_msg), 405
 
+    # Seal any open session-metrics rows before tearing down VMs, so the
+    # final sessions get a duration even though the client agents are about
+    # to be killed. Best-effort: never block destroy on a seal failure.
+    try:
+        sealed = database.bulk_seal_session_metrics()
+        logger.info("Sealed %d session-metrics rows before destroy", sealed)
+    except Exception as e:
+        # Sealing is best-effort; do not block the destroy.
+        logger.warning("Could not bulk-seal session metrics: %s", e)
+
     # destroy_hosts ignores the handles arg (terraform destroy operates on
     # the whole workspace); skip the list_hosts() call.
     try:
