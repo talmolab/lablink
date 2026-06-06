@@ -827,9 +827,10 @@ def post_session_metrics(hostname):
 @app.route("/api/export-metrics", methods=["GET"])
 @auth.login_required
 def export_metrics():
-    """Export VM metrics data as JSON."""
+    """Export VM metrics as JSON or CSV (controlled by ?format=)."""
     try:
         include_logs = request.args.get("include_logs", "false").lower() == "true"
+        fmt = request.args.get("format", "json").lower()
         vms = database.get_all_vms_for_export(include_logs=include_logs)
 
         # Serialize datetime objects to ISO format strings
@@ -837,6 +838,32 @@ def export_metrics():
             for key, value in vm.items():
                 if hasattr(value, "isoformat"):
                     vm[key] = value.isoformat()
+
+        if fmt == "csv":
+            import csv
+            import io
+            from datetime import datetime as _dt
+
+            buf = io.StringIO()
+            if vms:
+                fieldnames: list[str] = []
+                seen: set[str] = set()
+                for vm in vms:
+                    for k in vm:
+                        if k not in seen:
+                            seen.add(k)
+                            fieldnames.append(k)
+                writer = csv.DictWriter(buf, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(vms)
+            deploy = getattr(cfg, "deployment_name", "lablink") or "lablink"
+            stamp = _dt.utcnow().strftime("%Y%m%d")
+            filename = f"lablink-session-metrics-{deploy}-{stamp}.csv"
+            resp = Response(buf.getvalue(), mimetype="text/csv")
+            resp.headers["Content-Disposition"] = (
+                f'attachment; filename="{filename}"'
+            )
+            return resp
 
         return jsonify({"vms": vms, "count": len(vms)}), 200
     except Exception as e:
