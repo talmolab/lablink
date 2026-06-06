@@ -411,6 +411,43 @@ When `enabled` is `true`, the content of the script specified by `path` will be 
 - If `on_error` is `continue`, any errors in the script will be logged, but the VM will continue to run.
 - If `on_error` is `fail`, the VM setup will be aborted if the script returns a non-zero exit code.
 
+### Monitoring Options (`monitoring`)
+
+Optional **Tier 1 usability telemetry** collected on each client VM and summarised per session in the allocator. **Disabled by default.**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `false` | Master switch. When `false`, no monitoring process runs on the VM. |
+| `subject_window_patterns` | list[str] | `[]` (empty) | Lower-cased substrings that mark a focused window as "the tutorial app" (e.g. `["sleap"]`, `["deeplabcut"]`). When empty, falls back to `[client.software]` at runtime — so most deployments don't need to set this. |
+| `process_allowlist` | list[str] | `["sleap-train","sleap-track","sleap-label"]` | Process names tracked for time-to-first-invocation. Column names in the DB (`SecondsToFirstSleapLabel/Train/Track`) are static, so a non-SLEAP tutorial will need to interpret those columns by allowlist position. |
+| `watch_dir` | string | `/home/client/Desktop` | Directory scanned for `.slp` files and `models/**/training_log.csv`. |
+| `sample_interval_seconds` | int | `2` | How often each sampler ticks. |
+| `push_interval_seconds` | int | `60` | How often the rolling summary is POSTed to the allocator. |
+
+**What is collected.** Window-title buckets (`subject` / `terminal` / `browser` / `other`; raw titles are not stored), GPU utilization and VRAM peaks, allowlisted process names, and numeric parses of `.slp` (labeled frame count) and `training_log.csv` (epochs + final loss).
+
+**What is NOT collected.** Keystrokes, mouse positions, clipboard content, screen pixels, audio, filenames, file contents (other than the numeric parses above), browser URLs, or command-line arguments.
+
+!!! note "Operator note"
+    Window titles can leak filenames into the bucketing step. If your participants may consider that sensitive, inform them when enabling.
+
+**Example:**
+
+```yaml
+monitoring:
+  enabled: true
+  subject_window_patterns: []        # empty → derived from client.software
+  process_allowlist:
+    - sleap-train
+    - sleap-track
+    - sleap-label
+  watch_dir: /home/client/Desktop
+  sample_interval_seconds: 2
+  push_interval_seconds: 60
+```
+
+**Viewing.** With `monitoring.enabled: true`, the admin UI exposes a **Session Metrics** button on the admin landing page; the page shows a cohort summary, funnel, per-VM table, and CSV/JSON download buttons. From the CLI, run `lablink stats` for the same summary in your terminal or `lablink export-metrics --client` to download CSV/JSON.
+
 ## Validating Configuration
 
 After modifying configuration, validate it:
