@@ -792,6 +792,26 @@ def receive_vm_metrics(hostname):
         return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
+@app.route("/api/session-metrics/<hostname>", methods=["POST"])
+@require_client_secret
+def post_session_metrics(hostname):
+    """Receive a Tier 1 monitoring summary push from a client VM."""
+    try:
+        data = request.get_json(silent=True) or {}
+        database.update_session_metrics(hostname=hostname, payload=data)
+        return jsonify({"message": "Session metrics updated."}), 200
+    except LookupError:
+        return jsonify({"error": "VM not found."}), 404
+    except ValueError as e:
+        # Sealed row — refuse update.
+        return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        logger.error(
+            f"Error in /api/session-metrics/{hostname}: {e}", exc_info=True
+        )
+        return jsonify({"error": "Failed to update session metrics."}), 500
+
+
 @app.route("/api/export-metrics", methods=["GET"])
 @auth.login_required
 def export_metrics():
