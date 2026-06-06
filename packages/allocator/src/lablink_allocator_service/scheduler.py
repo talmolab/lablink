@@ -14,14 +14,8 @@ from lablink_allocator_service.database import PostgresqlDatabase
 
 logger = logging.getLogger(__name__)
 
-# Module-level handles overridden by ``execute_scheduled_destruction_job`` (and
-# by tests via monkeypatch) so that ``run_scheduled_destroy`` can pick them up
-# without needing them passed in explicitly.
-database = None
-provider = None
 
-
-def run_scheduled_destroy(handles: list) -> None:
+def run_scheduled_destroy(handles: list, database, provider) -> None:
     """Seal session-metrics rows, then tear down the VMs."""
     logger.info("Bulk-sealing session metrics before destroy")
     sealed = database.bulk_seal_session_metrics()
@@ -56,8 +50,6 @@ def execute_scheduled_destruction_job(
     from lablink_allocator_service.database import PostgresqlDatabase
     from lablink_allocator_service.get_config import get_config
     from lablink_allocator_service.providers.registry import get_provider
-
-    global database, provider
 
     # Load config at runtime to get credentials (avoids storing passwords in job store)
     cfg = get_config()
@@ -98,7 +90,7 @@ def execute_scheduled_destruction_job(
             # by way of run_scheduled_destroy, which also seals any open
             # session-metrics rows so they don't survive the tear-down.
             handles = provider.list_hosts()
-            run_scheduled_destroy(handles)
+            run_scheduled_destroy(handles, database, provider)
 
         # Clear database
         logger.info("Clearing all VMs from database")
