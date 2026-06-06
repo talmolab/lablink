@@ -702,5 +702,20 @@ def export_metrics(
     )
 
 
+@app.command("stats", rich_help_panel="Operations")
+def stats(
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+) -> None:
+    """Show a cohort session-metrics summary in the terminal."""
+    from lablink_cli.commands.stats import run_stats
+
+    run_stats(_load_cfg(config))
+
+
 def main() -> None:
     app()
