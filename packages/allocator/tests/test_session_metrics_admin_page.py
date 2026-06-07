@@ -19,21 +19,26 @@ def app_with_summary(monkeypatch, app):
         "median_labeled_frames": 320,
         "median_epochs_completed": 20,
     }
+    # Postgres folds unquoted identifiers to lowercase, so the dict that
+    # psycopg2 hands back from get_all_vms_for_export() has lowercase keys
+    # — mirror that here so the template's vm.hostname / vm.useremail
+    # references actually resolve (a CamelCase fixture lets the test pass
+    # while the real page renders blank rows).
     fake_db.get_all_vms_for_export.return_value = [
         {
-            "HostName": "vm-1",
-            "UserEmail": "alice@lab.org",
-            "Status": "assigned",
-            "SessionMetricsStartedAt": "2026-06-05T17:00:00+00:00",
-            "SessionMetricsSealedAt": "2026-06-05T19:14:08+00:00",
-            "SecondsInSubjectSoftware": 4820,
-            "GpuActiveSeconds": 1640,
-            "SecondsToFirstSleapLabel": 312,
-            "SecondsToFirstSleapTrain": 1080,
-            "SecondsToFirstSleapTrack": 3120,
-            "MaxLabeledFrames": 480,
-            "TrainingEpochsCompleted": 35,
-            "TrainingFinalLoss": 0.0142,
+            "hostname": "vm-1",
+            "useremail": "alice@lab.org",
+            "status": "assigned",
+            "sessionmetricsstartedat": "2026-06-05T17:00:00+00:00",
+            "sessionmetricssealedat": "2026-06-05T19:14:08+00:00",
+            "secondsinsubjectsoftware": 4820,
+            "gpuactiveseconds": 1640,
+            "secondstofirstsleaplabel": 312,
+            "secondstofirstsleaptrain": 1080,
+            "secondstofirstsleaptrack": 3120,
+            "maxlabeledframes": 480,
+            "trainingepochscompleted": 35,
+            "trainingfinalloss": 0.0142,
         }
     ]
     monkeypatch.setattr(main, "database", fake_db, raising=False)

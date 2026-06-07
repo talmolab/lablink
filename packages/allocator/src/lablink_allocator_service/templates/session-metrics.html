@@ -151,19 +151,19 @@
   <tbody>
     {% for vm in vms %}
     <tr>
-      <td>{{ vm.HostName }}</td>
-      <td>{{ vm.UserEmail or "" }}</td>
-      <td>{{ vm.Status or "" }}</td>
-      <td>{{ vm.SessionMetricsStartedAt or "—" }}</td>
-      <td>{{ vm.SessionMetricsSealedAt or "in-progress" }}</td>
-      <td>{{ vm.SecondsInSubjectSoftware if vm.SecondsInSubjectSoftware is not none else "—" }}</td>
-      <td>{{ vm.GpuActiveSeconds if vm.GpuActiveSeconds is not none else "—" }}</td>
-      <td>{{ vm.SecondsToFirstSleapLabel if vm.SecondsToFirstSleapLabel is not none else "—" }}</td>
-      <td>{{ vm.SecondsToFirstSleapTrain if vm.SecondsToFirstSleapTrain is not none else "—" }}</td>
-      <td>{{ vm.SecondsToFirstSleapTrack if vm.SecondsToFirstSleapTrack is not none else "—" }}</td>
-      <td>{{ vm.MaxLabeledFrames if vm.MaxLabeledFrames is not none else "—" }}</td>
-      <td>{{ vm.TrainingEpochsCompleted if vm.TrainingEpochsCompleted is not none else "—" }}</td>
-      <td>{{ vm.TrainingFinalLoss if vm.TrainingFinalLoss is not none else "—" }}</td>
+      <td>{{ vm.hostname }}</td>
+      <td>{{ vm.useremail or "" }}</td>
+      <td>{{ vm.status or "" }}</td>
+      <td>{{ vm.sessionmetricsstartedat or "—" }}</td>
+      <td>{{ vm.sessionmetricssealedat or "in-progress" }}</td>
+      <td>{{ vm.secondsinsubjectsoftware if vm.secondsinsubjectsoftware is not none else "—" }}</td>
+      <td>{{ vm.gpuactiveseconds if vm.gpuactiveseconds is not none else "—" }}</td>
+      <td>{{ vm.secondstofirstsleaplabel if vm.secondstofirstsleaplabel is not none else "—" }}</td>
+      <td>{{ vm.secondstofirstsleaptrain if vm.secondstofirstsleaptrain is not none else "—" }}</td>
+      <td>{{ vm.secondstofirstsleaptrack if vm.secondstofirstsleaptrack is not none else "—" }}</td>
+      <td>{{ vm.maxlabeledframes if vm.maxlabeledframes is not none else "—" }}</td>
+      <td>{{ vm.trainingepochscompleted if vm.trainingepochscompleted is not none else "—" }}</td>
+      <td>{{ vm.trainingfinalloss if vm.trainingfinalloss is not none else "—" }}</td>
     </tr>
     {% endfor %}
   </tbody>
