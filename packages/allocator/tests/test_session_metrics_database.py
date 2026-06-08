@@ -50,18 +50,34 @@ def test_update_session_metrics_writes_columns(fake_db):
             "training_final_loss": 0.0142,
         },
     }
-    fake_db._cursor_mock.fetchone.return_value = (None,)  # not sealed
+    # UPDATE matched the row (not sealed) — happy path.
+    fake_db._cursor_mock.rowcount = 1
     fake_db.update_session_metrics("vm-1", payload)
     sql_calls = [c.args[0] for c in fake_db._cursor_mock.execute.call_args_list]
-    assert any("SecondsInSubjectSoftware" in s for s in sql_calls)
-    assert any("UPDATE" in s.upper() for s in sql_calls)
+    # UPDATE fired with the sealed-row guard folded into WHERE.
+    update_sql = next(s for s in sql_calls if "UPDATE" in s.upper())
+    assert "SecondsInSubjectSoftware" in update_sql
+    assert "SessionMetricsSealedAt IS NULL" in update_sql
+    # No follow-up existence SELECT needed on the happy path.
+    assert fake_db._cursor_mock.execute.call_count == 1
 
 
 def test_update_session_metrics_refuses_when_sealed(fake_db):
-    fake_db._cursor_mock.fetchone.return_value = ("2026-06-05T18:00:00Z",)
+    """UPDATE matches zero rows AND the row exists -> sealed."""
+    fake_db._cursor_mock.rowcount = 0
+    fake_db._cursor_mock.fetchone.return_value = (1,)  # row exists
     payload = {"session_started_at": "x", "counters": {}}
     with pytest.raises(ValueError, match="sealed"):
         fake_db.update_session_metrics("vm-1", payload)
+
+
+def test_update_session_metrics_lookup_error_when_host_unknown(fake_db):
+    """UPDATE matches zero rows AND no row exists -> LookupError."""
+    fake_db._cursor_mock.rowcount = 0
+    fake_db._cursor_mock.fetchone.return_value = None
+    payload = {"session_started_at": "x", "counters": {}}
+    with pytest.raises(LookupError, match="not found"):
+        fake_db.update_session_metrics("vm-missing", payload)
 
 
 def test_seal_session_metrics_sets_sealed_at(fake_db):

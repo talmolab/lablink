@@ -1464,6 +1464,13 @@ class PostgresqlDatabase:
     def update_session_metrics(self, hostname: str, payload: dict) -> None:
         """Last-write-wins UPDATE of session-metrics columns.
 
+        Atomic with respect to seal: the sealed-row check is folded into
+        the UPDATE's WHERE clause, so a concurrent ``bulk_seal_session_metrics``
+        cannot land between a separate SELECT and a separate UPDATE.
+        When the UPDATE affects zero rows, a follow-up existence SELECT
+        classifies the failure as ``LookupError`` (no such row) or
+        ``ValueError`` (row exists but is sealed).
+
         Raises:
             LookupError: if hostname unknown.
             ValueError: if the row is already sealed.
@@ -1475,17 +1482,6 @@ class PostgresqlDatabase:
 
         counters = payload.get("counters", {})
         with self._cursor as cursor:
-            cursor.execute(
-                f"SELECT SessionMetricsSealedAt FROM {self.table_name} "
-                "WHERE HostName = %s",
-                (hostname,),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                raise LookupError(f"VM {hostname} not found")
-            if row[0] is not None:
-                raise ValueError(f"VM {hostname} session is sealed")
-
             cursor.execute(
                 f"""
                 UPDATE {self.table_name} SET
@@ -1505,7 +1501,7 @@ class PostgresqlDatabase:
                   TrainingEpochsCompleted      = %s,
                   TrainingFinalLoss            = %s,
                   SessionMetricsRaw            = %s
-                WHERE HostName = %s
+                WHERE HostName = %s AND SessionMetricsSealedAt IS NULL
                 """,
                 (
                     payload.get("session_started_at"),
@@ -1526,6 +1522,19 @@ class PostgresqlDatabase:
                     hostname,
                 ),
             )
+            if cursor.rowcount >= 1:
+                return
+
+            # UPDATE matched zero rows — classify so the route can return
+            # 404 vs 409. HostName is PRIMARY KEY on vms, so this SELECT
+            # can return at most one row.
+            cursor.execute(
+                f"SELECT 1 FROM {self.table_name} WHERE HostName = %s",
+                (hostname,),
+            )
+            if cursor.fetchone() is None:
+                raise LookupError(f"VM {hostname} not found")
+            raise ValueError(f"VM {hostname} session is sealed")
 
     def seal_session_metrics(self, hostname: str) -> None:
         """Mark a single VM's session-metrics row as sealed (final)."""
