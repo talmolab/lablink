@@ -171,6 +171,11 @@ class MonitoringConfig:
     # client.software=deeplabcut). The bucket name in the schema is the
     # generic SecondsInSubjectSoftware regardless.
     subject_window_patterns: list[str] = field(default_factory=list)
+    # Canonical SLEAP entry-point names. The client-side process sampler
+    # reads /proc/<pid>/cmdline and normalises three invocation shapes
+    # back to these names: direct entry-point scripts (sleap-label as the
+    # GUI binary), `sleap <subcommand>` (GUI inference path), and
+    # `python -m sleap.cli <subcommand>` (GUI training path).
     process_allowlist: list[str] = field(
         default_factory=lambda: [
             "sleap-train",

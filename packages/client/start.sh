@@ -290,7 +290,12 @@ PYEOF
   # missing/malformed config: a bad parse must not abort start.sh.
   if python3 -c "import json,sys; d=json.load(open('$MONITORING_CFG_PATH')); sys.exit(0 if d.get('enabled') else 1)" 2>/dev/null; then
     echo ">> Launching Tier 1 monitoring agent (LABLINK_MONITORING_CONFIG=$MONITORING_CFG_PATH)"
-    LABLINK_MONITORING_CONFIG="$MONITORING_CFG_PATH" lablink-monitoring \
+    # DISPLAY=:1 is required for the active-window sampler — xdotool
+    # talks to the X server on that display (same one xterm/xstartup
+    # above are pinned to). Without it xdotool returns nothing and the
+    # bucket falls through to "other", leaving seconds_in_subject_software
+    # stuck at 0 even when SLEAP is the focused window.
+    LABLINK_MONITORING_CONFIG="$MONITORING_CFG_PATH" DISPLAY=:1 lablink-monitoring \
       2>&1 | sed -u 's/^/[monitoring] /' >&5 &
   else
     echo ">> Tier 1 monitoring disabled (allocator opted out); skipping agent launch."
