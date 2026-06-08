@@ -26,7 +26,7 @@ def test_aws_provider_shows_provision_destroy_hides_byo(
     r = client.get("/admin", headers=admin_headers)
     body = r.get_data(as_text=True)
     assert "Create New VM Instance" in body
-    assert "Extract or Delete VM Data" in body
+    assert "Delete VMs" in body
     assert "Schedule Destructions" in body
     assert "BYO Client Onboarding" not in body
     # View Current Instances is provider-agnostic; should always render.
