@@ -101,6 +101,15 @@ def _tick(cfg: dict, counters: SessionCounters) -> None:
 
 def main() -> None:
     global _counters, _cfg
+    # Without basicConfig the root logger sits at WARNING and the
+    # "agent started" / "push failed" messages get dropped — leaving
+    # operators with no signal that the agent is alive. INFO is loud
+    # enough to see liveness, quiet enough to not spam every sampler tick.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     _cfg = _read_config()
     _counters = new_counters(session_started_at=datetime.now(timezone.utc))
 
