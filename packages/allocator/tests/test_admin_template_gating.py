@@ -48,7 +48,7 @@ def test_manual_provider_hides_provision_destroy_shows_byo(
     r = client.get("/admin", headers=admin_headers)
     body = r.get_data(as_text=True)
     assert "Create New VM Instance" not in body
-    assert "Extract or Delete VM Data" not in body
+    assert "Delete VMs" not in body
     assert "Schedule Destructions" not in body
     assert "BYO Client Onboarding" in body
     assert "View Current Instances" in body
