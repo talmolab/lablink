@@ -60,6 +60,57 @@ def test_python3_variant_matches(tmp_path, allowlist):
     assert seen == {"sleap-track"}
 
 
+def test_uv_launched_sleap_label_gui(tmp_path, allowlist):
+    """UV tool launch shape — `<uv-python> /path/to/sleap-label`.
+
+    Observed on deployed VMs: UV-installed tools run their entry-point
+    script with the python interpreter as argv[0] and the script path
+    as argv[1]. The bare-script Case 1 alone won't catch this.
+    """
+    _write_cmdline(
+        tmp_path / "500",
+        [
+            "/home/client/.local/share/uv/tools/sleap/bin/python",
+            "/home/client/.local/bin/sleap-label",
+        ],
+    )
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == {"sleap-label"}
+
+
+def test_uv_launched_sleap_subcommand(tmp_path, allowlist):
+    """UV tool launch shape for inference — `<uv-python> /path/sleap track …`."""
+    _write_cmdline(
+        tmp_path / "600",
+        [
+            "/home/client/.local/share/uv/tools/sleap/bin/python",
+            "/home/client/.local/share/uv/tools/sleap/bin/sleap",
+            "track",
+            "--data_path",
+            "x.slp",
+        ],
+    )
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == {"sleap-track"}
+
+
+def test_python_with_unrelated_script_does_not_match(tmp_path, allowlist):
+    """`<python> /path/to/myscript.py` must NOT trip a false positive."""
+    _write_cmdline(
+        tmp_path / "700",
+        ["/usr/bin/python3", "/home/me/myscript.py", "--arg", "value"],
+    )
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == set()
+
+
+def test_bare_python_interpreter_does_not_match(tmp_path, allowlist):
+    """Just `python` alone (or REPL) must not match anything."""
+    _write_cmdline(tmp_path / "800", ["/usr/bin/python3"])
+    seen = processes.sample(allowlist=allowlist, proc_root=str(tmp_path))
+    assert seen == set()
+
+
 def test_ignores_non_allowlisted(tmp_path, allowlist):
     """Bash, random python, and unrelated `sleap-something` are ignored."""
     _write_cmdline(tmp_path / "100", ["/bin/bash", "-l"])

@@ -55,23 +55,36 @@ def _classify(parts: List[str], allowlist: Set[str]) -> Set[str]:
         return matches
     argv0 = os.path.basename(parts[0])
 
+    # `python -m sleap.cli <subcommand>` — the GUI's training path. Must
+    # be checked before stripping the python wrapper below, because the
+    # stripped form (`-m sleap.cli train …`) is no longer a recognisable
+    # entry-point invocation.
+    if argv0.startswith("python") and len(parts) > 3 and parts[1] == "-m" \
+            and parts[2] == "sleap.cli":
+        candidate = f"sleap-{parts[3]}"
+        if candidate in allowlist:
+            matches.add(candidate)
+        return matches
+
+    # UV-installed entry-point scripts launch as `<python> <script-path>`
+    # (the explicit python interpreter is argv[0], the script is argv[1]).
+    # Observed on real deployments:
+    #   /home/client/.local/share/uv/tools/sleap/bin/python \
+    #     /home/client/.local/bin/sleap-label
+    # Shift parts left by one and re-classify under the existing cases.
+    if argv0.startswith("python") and len(parts) > 1:
+        parts = parts[1:]
+        argv0 = os.path.basename(parts[0])
+
+    # Direct entry-point script (post-strip): argv[0] basename matches.
     if argv0 in allowlist:
         matches.add(argv0)
 
+    # `sleap <subcommand>` — the GUI's inference path.
     if argv0 == "sleap" and len(parts) > 1:
         candidate = f"sleap-{parts[1]}"
         if candidate in allowlist:
             matches.add(candidate)
-
-    if argv0.startswith("python"):
-        try:
-            i = parts.index("-m")
-        except ValueError:
-            i = -1
-        if 0 <= i and i + 2 < len(parts) and parts[i + 1] == "sleap.cli":
-            candidate = f"sleap-{parts[i + 2]}"
-            if candidate in allowlist:
-                matches.add(candidate)
 
     return matches
 
