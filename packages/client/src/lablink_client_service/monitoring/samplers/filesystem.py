@@ -18,6 +18,21 @@ logger = logging.getLogger(__name__)
 
 FRAMES_DATASET = "frames"  # SLEAP project HDF5 layout
 
+# training_log.csv column names have changed across SLEAP versions.
+# Walk this list in order; first non-null finite float wins.
+#   - "val/loss"   : SLEAP-NN trainer (sleap_nn/training/model_trainer.py)
+#   - "train/loss" : SLEAP-NN fallback when validation didn't log
+#   - "val_loss"   : SLEAP-NN CSVLoggerCallback default if trainer override skipped
+#   - "train_loss" : same, train-side
+#   - "loss"       : legacy SLEAP (pre-NN)
+LOSS_COLUMN_CANDIDATES = (
+    "val/loss",
+    "train/loss",
+    "val_loss",
+    "train_loss",
+    "loss",
+)
+
 
 def _latest(paths):
     paths = list(paths)
@@ -38,6 +53,22 @@ def count_labeled_frames(slp: Path) -> int | None:
         return None
 
 
+def _pick_loss(row: dict) -> float | None:
+    """Return the first parseable, finite loss from LOSS_COLUMN_CANDIDATES."""
+    for col in LOSS_COLUMN_CANDIDATES:
+        raw = row.get(col)
+        if raw is None or raw == "":
+            continue
+        try:
+            v = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if v != v:  # NaN guard
+            continue
+        return v
+    return None
+
+
 def parse_training_log(log: Path) -> tuple[int | None, float | None]:
     try:
         with log.open() as f:
@@ -50,11 +81,9 @@ def parse_training_log(log: Path) -> tuple[int | None, float | None]:
     last = rows[-1]
     try:
         epoch = int(float(last.get("epoch", "0")))
-        loss = float(last.get("loss", "nan"))
-        loss = None if loss != loss else loss  # NaN guard
     except (TypeError, ValueError):
         return None, None
-    return epoch, loss
+    return epoch, _pick_loss(last)
 
 
 def sample(watch_dir: str) -> tuple[int | None, int | None, float | None]:
