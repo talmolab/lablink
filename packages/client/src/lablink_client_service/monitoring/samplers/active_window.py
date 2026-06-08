@@ -15,8 +15,15 @@ logger = logging.getLogger(__name__)
 TERMINAL_PATS = ("xterm", "terminal", "files", "thunar")
 BROWSER_PATS = ("firefox", "chrome", "chromium")
 
+# Module-level latch so the "xdotool not installed" warning fires once
+# at startup instead of every 2 s sampling tick. A missing binary is a
+# permanent install-time problem — repeating the warning would just spam
+# the log without adding information.
+_xdotool_missing_warned = False
+
 
 def _get_title() -> str | None:
+    global _xdotool_missing_warned
     try:
         out = subprocess.run(
             ["xdotool", "getactivewindow", "getwindowname"],
@@ -27,8 +34,17 @@ def _get_title() -> str | None:
         if out.returncode != 0:
             return None
         return out.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-        logger.debug("xdotool probe failed: %s", e)
+    except FileNotFoundError:
+        if not _xdotool_missing_warned:
+            logger.warning(
+                "xdotool not found on PATH; active-window bucket will stay "
+                "at 'other' for the lifetime of this agent. Install xdotool "
+                "in the client image to record seconds_in_subject_software."
+            )
+            _xdotool_missing_warned = True
+        return None
+    except subprocess.TimeoutExpired as e:
+        logger.debug("xdotool probe timed out: %s", e)
         return None
 
 
