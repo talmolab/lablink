@@ -163,45 +163,26 @@ def test_vm_exists_returns_none(db_instance):
 
 
 def test_assign_vm(db_instance):
-    """Test assigning an available VM to a user."""
+    """assign_vm atomically claims a VM and returns its hostname."""
     email = "new-user@example.com"
     hostname = "available-vm"
+    db_instance.cursor.fetchone.return_value = (hostname,)
 
-    db_instance.get_first_available_vm = MagicMock(return_value=hostname)
-    db_instance.assign_vm(email)
+    result = db_instance.assign_vm(email)
 
-    # Using ANY to avoid matching the exact whitespace in the multi-line query string
-    db_instance.cursor.execute.assert_called_with(
-        ANY, (email, hostname)
-    )
+    assert result == hostname
+    # Single atomic claim, parameterized by email only (no separate SELECT).
+    db_instance.cursor.execute.assert_called_with(ANY, (email,))
+    sql = db_instance.cursor.execute.call_args[0][0]
+    assert "FOR UPDATE SKIP LOCKED" in sql
+    assert "RETURNING hostname" in sql
 
 
 def test_assign_vm_no_available(db_instance):
-    """Test assigning a VM when no VMs are available."""
-    db_instance.get_first_available_vm = MagicMock(return_value=None)
+    """assign_vm raises ValueError when the atomic claim returns no row."""
+    db_instance.cursor.fetchone.return_value = None
     with pytest.raises(ValueError, match="No available VMs to assign."):
         db_instance.assign_vm("user@example.com")
-
-
-def test_get_first_available_vm(db_instance):
-    """Test getting the first available VM.
-
-    The query skips rows marked Unhealthy so that a wedged VM
-    (rotation failed, agent unreachable) isn't handed to the next
-    student until the reboot service rescues it."""
-    hostname = "free-vm-01"
-    db_instance.cursor.fetchone.return_value = (hostname,)
-
-    result = db_instance.get_first_available_vm()
-
-    expected_query = (
-        "SELECT hostname FROM vms WHERE useremail IS NULL "
-        "AND status = 'running' "
-        "AND (healthy IS NULL OR healthy <> 'Unhealthy') "
-        "LIMIT 1"
-    )
-    db_instance.cursor.execute.assert_called_with(expected_query)
-    assert result == hostname
 
 
 def test_update_vm_in_use(db_instance):
@@ -625,8 +606,6 @@ def test_get_unassigned_vms_error(db_instance, caplog):
 
 def test_assign_vm_db_error(db_instance, caplog):
     """Test error handling in assign_vm."""
-    hostname = "available-vm"
-    db_instance.get_first_available_vm = MagicMock(return_value=hostname)
     db_instance.cursor.execute.side_effect = Exception("DB error")
     with pytest.raises(Exception, match="DB error"):
         db_instance.assign_vm("user@example.com")
@@ -1371,6 +1350,143 @@ def test_release_seat_clears_per_session_columns(real_db):
         row = cur.fetchone()
 
     assert row == (None, None, None, None, None, None, None, None)
+
+
+def _seed_race_table(real_db, hostnames):
+    """Create the columns assign_vm needs and seed the given running VMs."""
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS healthy TEXT, "
+            "ADD COLUMN IF NOT EXISTS inuse BOOLEAN"
+        )
+        # Clean slate: the seeded VMs must be the ONLY claimable rows, so a
+        # leftover available row from another real_db test can't be claimed
+        # and skew the distinct-VM count.
+        cur.execute("DELETE FROM vms")
+        for h in hostnames:
+            cur.execute(
+                "INSERT INTO vms (hostname, status, useremail, healthy) "
+                "VALUES (%s, 'running', NULL, NULL)",
+                (h,),
+            )
+
+
+def _assigned_rows(real_db):
+    with real_db._cursor as cur:
+        cur.execute(
+            "SELECT hostname, useremail FROM vms "
+            "WHERE hostname LIKE 'race-vm-%' AND useremail IS NOT NULL"
+        )
+        return cur.fetchall()
+
+
+def test_assign_vm_concurrent_no_double_assignment(real_db):
+    """N participants clicking 'join' at the same instant must each get a
+    DISTINCT VM.
+
+    The old design (SELECT ... LIMIT 1 with no ORDER BY / row lock, then a
+    separate UPDATE) let concurrent requests claim the same row, so students
+    collided onto one VM while the rest of the pool sat unused. assign_vm
+    must claim atomically (FOR UPDATE SKIP LOCKED ... RETURNING)."""
+    import threading
+
+    n = 6
+    _seed_race_table(real_db, [f"race-vm-{i:02d}" for i in range(n)])
+
+    barrier = threading.Barrier(n)
+    assigned: list = []
+    errors: list[BaseException] = []
+    lock = threading.Lock()
+
+    def claim(idx):
+        try:
+            barrier.wait(timeout=5)
+            hostname = real_db.assign_vm(email=f"student{idx}@example.com")
+            with lock:
+                assigned.append(hostname)
+        except BaseException as e:  # noqa: BLE001
+            with lock:
+                errors.append(e)
+
+    threads = [threading.Thread(target=claim, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    try:
+        assert not errors, f"Unexpected errors: {errors}"
+
+        # Ground truth from the DB: how many VMs were actually claimed.
+        rows = _assigned_rows(real_db)
+        distinct_vms = {r[0] for r in rows}
+        distinct_emails = {r[1] for r in rows}
+        assert len(distinct_vms) == n, (
+            f"Double-assignment race: {n} concurrent requests claimed only "
+            f"{len(distinct_vms)} VM(s) (expected {n} distinct): {sorted(distinct_vms)}"
+        )
+        assert len(distinct_emails) == n
+
+        # Each caller must learn its own distinct hostname via the return value.
+        assert len(assigned) == n
+        assert set(assigned) == distinct_vms
+    finally:
+        with real_db._cursor as cur:
+            cur.execute("DELETE FROM vms WHERE hostname LIKE 'race-vm-%'")
+
+
+def test_assign_vm_concurrent_oversubscribed(real_db):
+    """When more participants request than there are seats, each free VM is
+    claimed exactly once and the surplus requests raise ValueError — never a
+    double-assignment."""
+    import threading
+
+    n_vms = 3
+    n_req = 6
+    _seed_race_table(real_db, [f"race-vm-{i:02d}" for i in range(n_vms)])
+
+    barrier = threading.Barrier(n_req)
+    assigned: list = []
+    no_seat = []
+    other_errors: list[BaseException] = []
+    lock = threading.Lock()
+
+    def claim(idx):
+        try:
+            barrier.wait(timeout=5)
+            hostname = real_db.assign_vm(email=f"student{idx}@example.com")
+            with lock:
+                assigned.append(hostname)
+        except ValueError:
+            with lock:
+                no_seat.append(idx)
+        except BaseException as e:  # noqa: BLE001
+            with lock:
+                other_errors.append(e)
+
+    threads = [threading.Thread(target=claim, args=(i,)) for i in range(n_req)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    try:
+        assert not other_errors, f"Unexpected errors: {other_errors}"
+        rows = _assigned_rows(real_db)
+        distinct_vms = {r[0] for r in rows}
+        assert len(distinct_vms) == n_vms, (
+            f"Expected exactly {n_vms} VMs claimed, got {len(distinct_vms)}: "
+            f"{sorted(distinct_vms)}"
+        )
+        assert len(assigned) == n_vms
+        assert set(assigned) == distinct_vms
+        assert len(no_seat) == n_req - n_vms
+    finally:
+        with real_db._cursor as cur:
+            cur.execute("DELETE FROM vms WHERE hostname LIKE 'race-vm-%'")
 
 
 def test_set_setting_upserts(db_instance, mock_db_connection):

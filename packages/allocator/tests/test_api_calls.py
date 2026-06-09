@@ -246,6 +246,49 @@ def test_request_vm_success(client, monkeypatch):
     assert "SameSite=Strict" in set_cookie
 
 
+def test_request_vm_fresh_assignment_uses_returned_hostname(client, monkeypatch):
+    """Fresh assignment (no existing seat) uses the hostname assign_vm
+    returns directly — there is no second lookup-by-email, which is the
+    racy step the old handler relied on."""
+    fake_db = MagicMock()
+    # No existing seat -> take the fresh-assignment branch.
+    fake_db.get_assigned_vm_for_email.return_value = None
+    fake_db.assign_vm.return_value = "host-fresh"
+    fake_conn = MagicMock()
+    fake_db._pool.getconn.return_value = fake_conn
+
+    captured = {}
+
+    def _prepare(**kw):
+        captured.update(kw)
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=True
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.providers.connectivity.allocator_proxied.prepare_browser_session",
+        _prepare,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        lambda conn: "test-secret",
+    )
+
+    resp = client.post(
+        "/api/request_vm",
+        data={"email": "fresh@example.com"},
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    assert resp.headers["Location"].endswith("/desktop")
+    # The hostname handed to session-prep is exactly what assign_vm returned.
+    assert captured["hostname"] == "host-fresh"
+    fake_db.assign_vm.assert_called_once_with(email="fresh@example.com")
+    # Only the initial idempotency check ran — no second re-lookup by email.
+    fake_db.get_assigned_vm_for_email.assert_called_once()
+
+
 def test_request_vm_missing(client, monkeypatch):
     """POST /api/request_vm with missing email -> index.html with error."""
     fake_db = MagicMock()
