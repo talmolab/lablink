@@ -890,6 +890,13 @@ def export_metrics():
 
             buf = io.StringIO()
             if vms:
+                # IMPORTANT: fieldnames are auto-discovered from every key
+                # present on any row. Any column added to the `vms` table
+                # is therefore auto-exported via this endpoint, regardless
+                # of whether the operator intended it to be downloadable.
+                # If you add a new column carrying sensitive data
+                # (credentials, tokens, raw secrets), filter it explicitly
+                # here OR drop it from `get_all_vms_for_export` first.
                 fieldnames: list[str] = []
                 seen: set[str] = set()
                 for vm in vms:

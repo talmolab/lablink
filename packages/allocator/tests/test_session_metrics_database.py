@@ -94,10 +94,13 @@ def test_bulk_seal_session_metrics_targets_all_unsealed(fake_db):
 
 
 def test_get_session_metrics_summary_returns_funnel_counts(fake_db):
+    # Columns match _SUMMARY_COLUMNS order: host_name, started_at,
+    # to_first_label, to_first_train, to_first_track, in_subject,
+    # gpu_active, max_frames, epochs.
     fake_db._cursor_mock.fetchall.return_value = [
-        ("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640),
-        ("vm-2", "2026-06-05T17:01:00Z", 540, None, None, 820, 0),
-        ("vm-3", "2026-06-05T17:02:00Z", 280, 720, None, 3200, 1100),
+        ("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640, 480, 35),
+        ("vm-2", "2026-06-05T17:01:00Z", 540, None, None, 820, 0, 12, 0),
+        ("vm-3", "2026-06-05T17:02:00Z", 280, 720, None, 3200, 1100, 240, 18),
     ]
     summary = fake_db.get_session_metrics_summary()
     assert summary["total_vms"] == 3
@@ -109,3 +112,19 @@ def test_get_session_metrics_summary_returns_funnel_counts(fake_db):
     # Medians over non-null values
     assert summary["median_seconds_in_subject_software"] == 3200
     assert summary["median_seconds_to_first_train"] == 900  # median of [720, 1080]
+    assert summary["median_labeled_frames"] == 240          # median of [12, 240, 480]
+    assert summary["median_epochs_completed"] == 18         # median of [0, 18, 35]
+
+
+def test_summary_tolerates_short_rows(fake_db):
+    """The defensive zip lets test/legacy fixtures omit trailing
+    columns without crashing — missing keys medianize to None."""
+    fake_db._cursor_mock.fetchall.return_value = [
+        # 7-element row — frames + epochs columns omitted.
+        ("vm-1", "2026-06-05T17:00:00Z", 300, 1080, 3120, 4820, 1640),
+    ]
+    summary = fake_db.get_session_metrics_summary()
+    assert summary["total_vms"] == 1
+    assert summary["funnel"]["labeled"] == 1
+    assert summary["median_labeled_frames"] is None
+    assert summary["median_epochs_completed"] is None

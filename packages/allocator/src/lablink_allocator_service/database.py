@@ -61,7 +61,13 @@ class _PooledCursor:
 
 
 def _median(values: list):
-    """Median of a list, ignoring None. Returns None when the list is empty."""
+    """Median of a list, ignoring None. Returns None when the list is empty.
+
+    Uses floor division for the even-length case because every column
+    fed in here is INTEGER in the schema; `960` reads more cleanly in
+    the rendered admin tile than `960.0`. If a future caller passes a
+    DOUBLE PRECISION column, switch this site to true division.
+    """
     values = sorted(v for v in values if v is not None)
     if not values:
         return None
@@ -72,22 +78,43 @@ def _median(values: list):
     return (values[mid - 1] + values[mid]) // 2
 
 
+# Named-key contract for rows returned by get_session_metrics_summary's
+# SELECT. The SELECT statement MUST emit these columns in this order;
+# both sides reference this tuple so column renames/reorderings stay
+# in lockstep. Reordering the SELECT without updating this list is the
+# kind of silent-wrong-numbers bug an earlier review flagged.
+_SUMMARY_COLUMNS = (
+    "host_name",
+    "session_metrics_started_at",
+    "seconds_to_first_sleap_label",
+    "seconds_to_first_sleap_train",
+    "seconds_to_first_sleap_track",
+    "seconds_in_subject_software",
+    "gpu_active_seconds",
+    "max_labeled_frames",
+    "training_epochs_completed",
+)
+
+
 def _build_summary(rows: list) -> dict:
     """Build the session-metrics cohort summary from a row iterable.
 
-    Defensive on row length so test fixtures that don't include the
-    trailing frames/epochs columns still produce a valid summary.
+    Rows are positional tuples from psycopg2; we zip them against
+    `_SUMMARY_COLUMNS` so the rest of this function reads by name.
+    Test fixtures that pass fewer trailing fields produce dicts with
+    those keys missing — `.get(...)` returns None for those, which is
+    the same behavior callers see for a NULL column.
     """
-    total = len(rows)
-    started = sum(1 for r in rows if r[1] is not None)
-    labeled = sum(1 for r in rows if r[2] is not None)
-    trained = sum(1 for r in rows if r[3] is not None)
-    tracked = sum(1 for r in rows if r[4] is not None)
-    secs_in_subject = [r[5] for r in rows]
-    first_train = [r[3] for r in rows]
-    # Defensive on row length — test fixtures may not include all columns.
-    frames = [r[7] for r in rows if len(r) > 7]
-    epochs = [r[8] for r in rows if len(r) > 8]
+    keyed = [dict(zip(_SUMMARY_COLUMNS, r)) for r in rows]
+    total = len(keyed)
+    started = sum(1 for r in keyed if r.get("session_metrics_started_at") is not None)
+    labeled = sum(1 for r in keyed if r.get("seconds_to_first_sleap_label") is not None)
+    trained = sum(1 for r in keyed if r.get("seconds_to_first_sleap_train") is not None)
+    tracked = sum(1 for r in keyed if r.get("seconds_to_first_sleap_track") is not None)
+    secs_in_subject = [r.get("seconds_in_subject_software") for r in keyed]
+    first_train = [r.get("seconds_to_first_sleap_train") for r in keyed]
+    frames = [r.get("max_labeled_frames") for r in keyed]
+    epochs = [r.get("training_epochs_completed") for r in keyed]
     pct_train = (trained / total * 100.0) if total else 0.0
     return {
         "total_vms": total,
@@ -1559,7 +1586,11 @@ class PostgresqlDatabase:
             return cursor.rowcount or 0
 
     def get_session_metrics_summary(self) -> dict:
-        """Aggregate the cohort summary for the admin page."""
+        """Aggregate the cohort summary for the admin page.
+
+        The SELECT column order MUST match `_SUMMARY_COLUMNS` at module
+        top — `_build_summary` zips them together to access rows by name.
+        """
         with self._cursor as cursor:
             cursor.execute(
                 f"""
