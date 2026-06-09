@@ -828,44 +828,70 @@ def post_session_metrics(hostname):
         return jsonify({"error": "Failed to update session metrics."}), 500
 
 
+def _session_metrics_view_model() -> dict:
+    """Return the shared cohort-summary view model.
+
+    Used by both /admin/session-metrics (HTML) and
+    /api/session-metrics/summary (JSON) so the two routes cannot
+    disagree on monitoring-enabled state, subject-software label, or
+    summary numbers. Per-VM rows are NOT included here — the admin
+    HTML route fetches those separately for its per-VM table.
+    """
+    monitoring_enabled = bool(
+        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
+    )
+    patterns = list(
+        getattr(getattr(cfg, "monitoring", None), "subject_window_patterns", []) or []
+    )
+    subject_software_label = (
+        patterns[0]
+        if patterns
+        else getattr(getattr(cfg, "machine", None), "software", "")
+        or "subject"
+    )
+    summary = (
+        database.get_session_metrics_summary() if monitoring_enabled else None
+    )
+    return {
+        "enabled": monitoring_enabled,
+        "subject_software_label": subject_software_label,
+        "summary": summary,
+    }
+
+
 @app.route("/admin/session-metrics", methods=["GET"])
 @auth.login_required
 def admin_session_metrics():
     """Render the cohort summary + per-VM table for Tier 1 monitoring."""
-    monitoring_enabled = bool(
-        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
-    )
-    # The "subject software" label rendered in the table/tile headers — uses
-    # explicit subject_window_patterns when set, otherwise falls back to
-    # the deployment's machine.software value (e.g. "sleap", "deeplabcut").
-    patterns = list(getattr(cfg.monitoring, "subject_window_patterns", []) or [])
-    subject_software_label = (
-        patterns[0]
-        if patterns
-        else getattr(getattr(cfg, "machine", None), "software", "") or "subject"
-    )
-    if not monitoring_enabled:
+    vm = _session_metrics_view_model()
+    if not vm["enabled"]:
         return render_template(
             "session-metrics.html",
             monitoring_enabled=False,
             summary=None,
             vms=[],
-            subject_software_label=subject_software_label,
+            subject_software_label=vm["subject_software_label"],
         )
 
-    summary = database.get_session_metrics_summary()
     vms = database.get_all_vms_for_export(include_logs=False)
-    for vm in vms:
-        for key, value in vm.items():
+    for row in vms:
+        for key, value in row.items():
             if hasattr(value, "isoformat"):
-                vm[key] = value.isoformat()
+                row[key] = value.isoformat()
     return render_template(
         "session-metrics.html",
         monitoring_enabled=True,
-        summary=summary,
+        summary=vm["summary"],
         vms=vms,
-        subject_software_label=subject_software_label,
+        subject_software_label=vm["subject_software_label"],
     )
+
+
+@app.route("/api/session-metrics/summary", methods=["GET"])
+@auth.login_required
+def get_session_metrics_summary_json():
+    """JSON cohort summary — same view model as /admin/session-metrics."""
+    return jsonify(_session_metrics_view_model()), 200
 
 
 @app.route("/api/export-metrics", methods=["GET"])
