@@ -7,7 +7,7 @@ from pathlib import Path
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Center, Horizontal, VerticalScroll
+from textual.containers import Center, Container, Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -499,76 +499,239 @@ class DnsScreen(Screen):
                 "Step 4: DNS & SSL", classes="step-title"
             )
 
-            yield Label("Access Method", classes="field-label")
-            with RadioSet(id="dns-mode"):
+            # Mode toggle (Guided default, Advanced opt-in).
+            with RadioSet(id="dns-screen-mode"):
                 yield RadioButton(
-                    "IP Only — simplest setup, access via IP, no SSL",
-                    value=(default_idx == 0),
-                    id="dns-none",
+                    "Guided — common presets",
+                    value=True,
+                    id="screen-mode-guided",
                 )
-                if not is_manual:
-                    yield RadioButton(
-                        "Let's Encrypt — free automatic SSL, requires a "
-                        "domain (https://letsencrypt.org/)",
-                        value=(default_idx == 1),
-                        id="dns-letsencrypt",
-                    )
-                    yield RadioButton(
-                        "CloudFlare — use if your domain is already on "
-                        "CloudFlare (https://www.cloudflare.com/application-services/products/ssl/)",
-                        value=(default_idx == 2),
-                        id="dns-cloudflare",
-                    )
-                    yield RadioButton(
-                        "AWS ACM — AWS-managed SSL with load balancer, "
-                        "requires certificate "
-                        "(https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)",
-                        value=(default_idx == 3),
-                        id="dns-acm",
-                    )
                 yield RadioButton(
-                    "Self-signed — browser warns once; fine for closed-LAN labs",
-                    value=(default_idx == 4),
-                    id="dns-self_signed",
+                    "Advanced — edit every field directly",
+                    value=False,
+                    id="screen-mode-advanced",
                 )
 
-            yield Label(
-                "Domain Name",
-                classes="field-label",
-                id="domain-label",
-            )
-            yield Input(
-                value=cfg.dns.domain or "",
-                placeholder="lablink.example.com",
-                id="domain",
-                disabled=domain_disabled,
-            )
+            with Container(id="dns-guided"):
+                yield Label("Access Method", classes="field-label")
+                with RadioSet(id="dns-mode"):
+                    yield RadioButton(
+                        "IP Only — simplest setup, access via IP, no SSL",
+                        value=(default_idx == 0),
+                        id="dns-none",
+                    )
+                    if not is_manual:
+                        yield RadioButton(
+                            "Let's Encrypt — free automatic SSL, requires a "
+                            "domain (https://letsencrypt.org/)",
+                            value=(default_idx == 1),
+                            id="dns-letsencrypt",
+                        )
+                        yield RadioButton(
+                            "CloudFlare — use if your domain is already on "
+                            "CloudFlare (https://www.cloudflare.com/application-services/products/ssl/)",
+                            value=(default_idx == 2),
+                            id="dns-cloudflare",
+                        )
+                        yield RadioButton(
+                            "AWS ACM — AWS-managed SSL with load balancer, "
+                            "requires certificate "
+                            "(https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html)",
+                            value=(default_idx == 3),
+                            id="dns-acm",
+                        )
+                    yield RadioButton(
+                        "Self-signed — browser warns once; fine for closed-LAN labs",
+                        value=(default_idx == 4),
+                        id="dns-self_signed",
+                    )
 
-            yield Label(
-                "Email (for SSL certificates)",
-                classes="field-label",
-                id="email-label",
-            )
-            yield Input(
-                value=cfg.ssl.email or "",
-                placeholder="admin@example.com",
-                id="ssl-email",
-                disabled=email_disabled,
-            )
+                yield Label(
+                    "Domain Name",
+                    classes="field-label",
+                    id="domain-label",
+                )
+                yield Input(
+                    value=cfg.dns.domain or "",
+                    placeholder="lablink.example.com",
+                    id="domain",
+                    disabled=domain_disabled,
+                )
 
-            yield Label(
-                "ACM Certificate ARN",
-                classes="field-label",
-                id="acm-label",
-            )
-            yield Input(
-                value=cfg.ssl.certificate_arn or "",
-                placeholder=(
-                    "arn:aws:acm:region:account:certificate/id"
-                ),
-                id="acm-arn",
-                disabled=acm_disabled,
-            )
+                yield Label(
+                    "Email (for SSL certificates)",
+                    classes="field-label",
+                    id="email-label",
+                )
+                yield Input(
+                    value=cfg.ssl.email or "",
+                    placeholder="admin@example.com",
+                    id="ssl-email",
+                    disabled=email_disabled,
+                )
+
+                yield Label(
+                    "ACM Certificate ARN",
+                    classes="field-label",
+                    id="acm-label",
+                )
+                yield Input(
+                    value=cfg.ssl.certificate_arn or "",
+                    placeholder=(
+                        "arn:aws:acm:region:account:certificate/id"
+                    ),
+                    id="acm-arn",
+                    disabled=acm_disabled,
+                )
+
+                tag = (
+                    f"{cfg.deployment_name or '<deployment_name>'}"
+                    f"-eip-"
+                    f"{cfg.environment or '<environment>'}"
+                )
+                yield Label(
+                    "Persistent EIP required for Cloudflare.\n"
+                    "Tag your pre-allocated EIP with:\n"
+                    f"  Name = {tag}\n"
+                    "Example:\n"
+                    "  aws ec2 create-tags --resources eipalloc-XXXXX \\\n"
+                    f"    --tags Key=Name,Value={tag}",
+                    id="eip-help",
+                    classes="step-description",
+                )
+
+            with Container(id="dns-advanced"):
+                yield Label(
+                    "Advanced — direct config edit. "
+                    "Values from current config are pre-filled.",
+                    classes="step-description",
+                )
+
+                yield Label("DNS", classes="field-label")
+
+                yield Label("Enabled", classes="field-label")
+                with RadioSet(id="adv-dns-enabled"):
+                    yield RadioButton(
+                        "Yes",
+                        value=cfg.dns.enabled,
+                        id="adv-dns-enabled-yes",
+                    )
+                    yield RadioButton(
+                        "No",
+                        value=not cfg.dns.enabled,
+                        id="adv-dns-enabled-no",
+                    )
+
+                yield Label(
+                    "Terraform-managed records",
+                    classes="field-label",
+                )
+                with RadioSet(id="adv-dns-tfmanaged"):
+                    yield RadioButton(
+                        "Yes",
+                        value=cfg.dns.terraform_managed,
+                        id="adv-dns-tfmanaged-yes",
+                    )
+                    yield RadioButton(
+                        "No",
+                        value=not cfg.dns.terraform_managed,
+                        id="adv-dns-tfmanaged-no",
+                    )
+
+                yield Label("Domain", classes="field-label")
+                yield Input(
+                    value=cfg.dns.domain or "",
+                    placeholder="lablink.example.com",
+                    id="adv-dns-domain",
+                )
+
+                yield Label(
+                    "Zone ID (optional)", classes="field-label"
+                )
+                yield Input(
+                    value=cfg.dns.zone_id or "",
+                    placeholder="Z0123456789ABCDEFG",
+                    id="adv-dns-zone-id",
+                )
+
+                yield Label("SSL", classes="field-label")
+                yield Label("Provider", classes="field-label")
+                with RadioSet(id="adv-ssl-provider"):
+                    yield RadioButton(
+                        "none",
+                        value=(cfg.ssl.provider == "none"),
+                        id="adv-ssl-none",
+                    )
+                    yield RadioButton(
+                        "letsencrypt",
+                        value=(cfg.ssl.provider == "letsencrypt"),
+                        id="adv-ssl-letsencrypt",
+                    )
+                    yield RadioButton(
+                        "cloudflare",
+                        value=(cfg.ssl.provider == "cloudflare"),
+                        id="adv-ssl-cloudflare",
+                    )
+                    yield RadioButton(
+                        "acm",
+                        value=(cfg.ssl.provider == "acm"),
+                        id="adv-ssl-acm",
+                    )
+                    yield RadioButton(
+                        "self_signed",
+                        value=(cfg.ssl.provider == "self_signed"),
+                        id="adv-ssl-self_signed",
+                    )
+
+                yield Label("Email", classes="field-label")
+                yield Input(
+                    value=cfg.ssl.email or "",
+                    placeholder="admin@example.com",
+                    id="adv-ssl-email",
+                )
+
+                yield Label(
+                    "ACM Certificate ARN", classes="field-label"
+                )
+                yield Input(
+                    value=cfg.ssl.certificate_arn or "",
+                    placeholder=(
+                        "arn:aws:acm:region:account:certificate/id"
+                    ),
+                    id="adv-ssl-acm-arn",
+                )
+
+                yield Label("EIP", classes="field-label")
+                yield Label("Strategy", classes="field-label")
+                with RadioSet(id="adv-eip-strategy"):
+                    yield RadioButton(
+                        "dynamic",
+                        value=(cfg.eip.strategy == "dynamic"),
+                        id="adv-eip-dynamic",
+                    )
+                    yield RadioButton(
+                        "persistent",
+                        value=(cfg.eip.strategy == "persistent"),
+                        id="adv-eip-persistent",
+                    )
+
+                tag = (
+                    f"{cfg.deployment_name or '<deployment_name>'}"
+                    f"-eip-"
+                    f"{cfg.environment or '<environment>'}"
+                )
+                yield Label(
+                    "Persistent EIP requires a pre-allocated EIP tagged:\n"
+                    f"  Name = {tag}",
+                    id="adv-eip-help",
+                    classes="step-description",
+                )
+
+                yield Label(
+                    "",
+                    id="dns-validation-error",
+                    classes="step-description",
+                )
 
         with Center():
             with Horizontal(classes="nav-buttons"):
@@ -594,18 +757,153 @@ class DnsScreen(Screen):
         email_input.disabled = not email_needed
         acm_input.disabled = not acm_needed
 
+        # Toggle EIP-help visibility with the selected provider.
+        self.query_one("#eip-help").display = (provider == "cloudflare")
+
+    @on(RadioSet.Changed, "#dns-screen-mode")
+    def _screen_mode_changed(self, event: RadioSet.Changed) -> None:
+        is_advanced = event.pressed.id == "screen-mode-advanced"
+        if is_advanced:
+            # Save the Guided state to cfg so Advanced sees the latest.
+            self._save_guided()
+            self._refresh_advanced_from_cfg()
+        else:
+            # Going from Advanced back to Guided: save Advanced first.
+            self._save_advanced()
+            self._refresh_guided_from_cfg()
+        self.query_one("#dns-guided").display = not is_advanced
+        self.query_one("#dns-advanced").display = is_advanced
+
+    def _refresh_advanced_from_cfg(self) -> None:
+        cfg = self.app.config
+
+        def _select(radioset_id: str, button_id: str) -> None:
+            # We're called from RadioSet message handlers which run with
+            # `prevent(RadioButton.Changed)` active, so simply setting
+            # button.value won't propagate through RadioSet's single-selection
+            # logic. Mutate values directly and update the RadioSet's
+            # `_pressed_button` so callers see consistent state.
+            radio_set = self.query_one(radioset_id, RadioSet)
+            target: RadioButton | None = None
+            for btn in radio_set.query(RadioButton):
+                if btn.id == button_id:
+                    target = btn
+                else:
+                    if btn.value:
+                        btn.value = False
+            if target is not None:
+                target.value = True
+                radio_set._pressed_button = target
+
+        _select(
+            "#adv-dns-enabled",
+            "adv-dns-enabled-yes"
+            if cfg.dns.enabled
+            else "adv-dns-enabled-no",
+        )
+        _select(
+            "#adv-dns-tfmanaged",
+            "adv-dns-tfmanaged-yes"
+            if cfg.dns.terraform_managed
+            else "adv-dns-tfmanaged-no",
+        )
+        self.query_one("#adv-dns-domain").value = (
+            cfg.dns.domain or ""
+        )
+        self.query_one("#adv-dns-zone-id").value = (
+            cfg.dns.zone_id or ""
+        )
+        _select(
+            "#adv-ssl-provider",
+            {
+                "none": "adv-ssl-none",
+                "letsencrypt": "adv-ssl-letsencrypt",
+                "cloudflare": "adv-ssl-cloudflare",
+                "acm": "adv-ssl-acm",
+                "self_signed": "adv-ssl-self_signed",
+            }.get(cfg.ssl.provider, "adv-ssl-none"),
+        )
+        self.query_one("#adv-ssl-email").value = cfg.ssl.email or ""
+        self.query_one("#adv-ssl-acm-arn").value = (
+            cfg.ssl.certificate_arn or ""
+        )
+        _select(
+            "#adv-eip-strategy",
+            "adv-eip-persistent"
+            if cfg.eip.strategy == "persistent"
+            else "adv-eip-dynamic",
+        )
+        self.query_one("#adv-eip-help").display = (
+            cfg.eip.strategy == "persistent"
+        )
+
+    def _refresh_guided_from_cfg(self) -> None:
+        cfg = self.app.config
+        self.query_one("#domain").value = cfg.dns.domain or ""
+        self.query_one("#ssl-email").value = cfg.ssl.email or ""
+        self.query_one("#acm-arn").value = (
+            cfg.ssl.certificate_arn or ""
+        )
+
+        target_id = {
+            "none": "dns-none",
+            "letsencrypt": "dns-letsencrypt",
+            "cloudflare": "dns-cloudflare",
+            "acm": "dns-acm",
+            "self_signed": "dns-self_signed",
+        }.get(cfg.ssl.provider, "dns-none")
+        if not cfg.dns.enabled and cfg.ssl.provider == "self_signed":
+            target_id = "dns-self_signed"
+        elif not cfg.dns.enabled and cfg.ssl.provider == "none":
+            target_id = "dns-none"
+        # Same caveat as `_refresh_advanced_from_cfg._select`: this runs from
+        # inside a RadioSet message handler with RadioButton.Changed prevented,
+        # so we mutate values directly and reset `_pressed_button`.
+        dns_mode = self.query_one("#dns-mode", RadioSet)
+        target: RadioButton | None = None
+        for btn in dns_mode.query(RadioButton):
+            if btn.id == target_id:
+                target = btn
+            else:
+                if btn.value:
+                    btn.value = False
+        if target is not None:
+            target.value = True
+            dns_mode._pressed_button = target
+        self.query_one("#eip-help").display = (
+            cfg.ssl.provider == "cloudflare"
+        )
+
+    @on(RadioSet.Changed, "#adv-eip-strategy")
+    def _adv_eip_changed(self, event: RadioSet.Changed) -> None:
+        self.query_one("#adv-eip-help").display = (
+            event.pressed.id == "adv-eip-persistent"
+        )
+
+    def on_mount(self) -> None:
+        cfg = self.app.config
+        is_cloudflare = (
+            cfg.dns.enabled
+            and cfg.ssl.provider == "cloudflare"
+        )
+        self.query_one("#eip-help").display = is_cloudflare
+        self.query_one("#dns-guided").display = True
+        self.query_one("#dns-advanced").display = False
+        self.query_one("#adv-eip-help").display = (
+            cfg.eip.strategy == "persistent"
+        )
+        self.query_one("#dns-validation-error").display = False
+
     @on(Button.Pressed, "#back")
     def _back(self) -> None:
         self.app.pop_screen()
 
-    @on(Button.Pressed, "#next")
-    def _next(self) -> None:
+    def _save_guided(self) -> None:
         radio = self.query_one("#dns-mode", RadioSet)
         pressed_button = getattr(radio, "pressed_button", None)
         if pressed_button is not None:
             pressed_id = pressed_button.id
         else:
-            # Fallback for older Textual: find the button with value=True
             pressed_id = "dns-none"
             for btn in radio.query(RadioButton):
                 if btn.value:
@@ -634,7 +932,7 @@ class DnsScreen(Screen):
             cfg.dns.terraform_managed = False
             cfg.dns.domain = domain
             cfg.ssl.provider = "cloudflare"
-            cfg.eip.strategy = "dynamic"
+            cfg.eip.strategy = "persistent"
         elif provider == "acm":
             cfg.dns.enabled = True
             cfg.dns.terraform_managed = True
@@ -646,6 +944,65 @@ class DnsScreen(Screen):
             cfg.dns.enabled = False
             cfg.ssl.provider = "self_signed"
             cfg.eip.strategy = "dynamic"
+
+    def _save_advanced(self) -> None:
+        cfg = self.app.config
+
+        def _selected_id(radioset_id: str) -> str:
+            for btn in self.query_one(radioset_id).query(RadioButton):
+                if btn.value:
+                    return btn.id or ""
+            return ""
+
+        cfg.dns.enabled = (
+            _selected_id("#adv-dns-enabled") == "adv-dns-enabled-yes"
+        )
+        cfg.dns.terraform_managed = (
+            _selected_id("#adv-dns-tfmanaged")
+            == "adv-dns-tfmanaged-yes"
+        )
+        cfg.dns.domain = self.query_one("#adv-dns-domain").value
+        cfg.dns.zone_id = self.query_one("#adv-dns-zone-id").value
+
+        provider_map = {
+            "adv-ssl-none": "none",
+            "adv-ssl-letsencrypt": "letsencrypt",
+            "adv-ssl-cloudflare": "cloudflare",
+            "adv-ssl-acm": "acm",
+            "adv-ssl-self_signed": "self_signed",
+        }
+        cfg.ssl.provider = provider_map.get(
+            _selected_id("#adv-ssl-provider"), "none"
+        )
+        cfg.ssl.email = self.query_one("#adv-ssl-email").value
+        cfg.ssl.certificate_arn = self.query_one(
+            "#adv-ssl-acm-arn"
+        ).value
+
+        cfg.eip.strategy = (
+            "persistent"
+            if _selected_id("#adv-eip-strategy")
+            == "adv-eip-persistent"
+            else "dynamic"
+        )
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        from lablink_cli.config.schema import validate_config
+
+        is_advanced = self.query_one("#dns-advanced").display
+        if is_advanced:
+            self._save_advanced()
+        else:
+            self._save_guided()
+
+        if is_advanced:
+            errors = validate_config(self.app.config)
+            if errors:
+                err_label = self.query_one("#dns-validation-error")
+                err_label.update("\n".join(errors))
+                err_label.display = True
+                return
 
         self.app.push_screen(StartupScreen())
 

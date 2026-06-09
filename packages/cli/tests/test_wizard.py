@@ -82,3 +82,343 @@ def test_monitoring_screen_does_not_touch_other_fields():
     assert cfg.monitoring.watch_dir == original_watch_dir
     assert cfg.monitoring.sample_interval_seconds == original_sample
     assert cfg.monitoring.push_interval_seconds == original_push
+
+
+def _build_cfg_and_app(
+    deployment_name: str = "sleap-lablink",
+    environment: str = "prod",
+):
+    """Build a Config + ConfigWizard suitable for DnsScreen tests."""
+    from lablink_cli.config.schema import Config
+    from lablink_cli.tui.wizard import ConfigWizard
+
+    cfg = Config()
+    cfg.deployment_name = deployment_name
+    cfg.environment = environment
+    cfg.provider = "aws"
+    app = ConfigWizard(existing_config=cfg)
+    return cfg, app
+
+
+def _select_radio_by_id(screen, radioset_id: str, button_id: str) -> None:
+    """Set the RadioButton with the given id to value=True within the RadioSet."""
+    from textual.widgets import RadioButton, RadioSet
+
+    radio_set = screen.query_one(radioset_id, RadioSet)
+    for btn in radio_set.query(RadioButton):
+        btn.value = (btn.id == button_id)
+
+
+def test_dns_guided_cloudflare_sets_persistent_eip():
+    """Guided + Cloudflare radio → cfg.eip.strategy == 'persistent'."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-cloudflare")
+            # Populate required Cloudflare fields so _next() doesn't bail.
+            screen.query_one("#domain").value = "lablink.sleap.ai"
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.eip.strategy == "persistent"
+
+
+def test_dns_guided_letsencrypt_sets_dynamic_eip():
+    """Guided + Let's Encrypt → cfg.eip.strategy == 'dynamic'."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-letsencrypt")
+            screen.query_one("#domain").value = "lablink.example.com"
+            screen.query_one("#ssl-email").value = "admin@example.com"
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.eip.strategy == "dynamic"
+
+
+def test_dns_guided_none_sets_dynamic_eip():
+    """Guided + None (IP only) → cfg.eip.strategy == 'dynamic'."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-none")
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.eip.strategy == "dynamic"
+
+
+def test_dns_guided_self_signed_sets_dynamic_eip():
+    """Guided + Self-signed → cfg.eip.strategy == 'dynamic'."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-self_signed")
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.eip.strategy == "dynamic"
+
+
+def test_dns_guided_cloudflare_shows_eip_help():
+    """Selecting Cloudflare reveals a help label containing the literal EIP tag."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app(
+        deployment_name="sleap-lablink", environment="prod"
+    )
+
+    async def _run() -> str:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-cloudflare")
+            await pilot.pause()
+            label = screen.query_one("#eip-help")
+            return str(label.render())
+
+    text = asyncio.run(_run())
+    assert "sleap-lablink-eip-prod" in text
+
+
+def test_dns_screen_has_mode_toggle_default_guided():
+    """DnsScreen mounts with a Guided/Advanced toggle; Guided default."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> tuple[bool, bool]:
+        from textual.widgets import RadioButton, RadioSet
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            radio_set = screen.query_one("#dns-screen-mode", RadioSet)
+            buttons = list(radio_set.query(RadioButton))
+            guided_selected = (
+                buttons[0].id == "screen-mode-guided"
+                and buttons[0].value is True
+            )
+            advanced_hidden = (
+                screen.query_one("#dns-advanced").display is False
+            )
+            return guided_selected, advanced_hidden
+
+    guided, hidden = asyncio.run(_run())
+    assert guided is True
+    assert hidden is True
+
+
+def test_dns_advanced_persistent_eip_writes_through():
+    """Advanced mode: flipping EIP radio to persistent writes cfg.eip.strategy."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#dns-screen-mode", "screen-mode-advanced"
+            )
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#adv-dns-enabled", "adv-dns-enabled-yes"
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-dns-tfmanaged",
+                "adv-dns-tfmanaged-no",
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-ssl-provider",
+                "adv-ssl-cloudflare",
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-eip-strategy",
+                "adv-eip-persistent",
+            )
+            screen.query_one("#adv-dns-domain").value = (
+                "lablink.sleap.ai"
+            )
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.eip.strategy == "persistent"
+    assert cfg.dns.enabled is True
+    assert cfg.dns.terraform_managed is False
+    assert cfg.dns.domain == "lablink.sleap.ai"
+    assert cfg.ssl.provider == "cloudflare"
+
+
+def test_dns_advanced_zone_id_writes_through():
+    """Advanced mode: typed zone_id is saved to cfg.dns.zone_id."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> None:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#dns-screen-mode", "screen-mode-advanced"
+            )
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#adv-dns-enabled", "adv-dns-enabled-yes"
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-dns-tfmanaged",
+                "adv-dns-tfmanaged-yes",
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-ssl-provider",
+                "adv-ssl-letsencrypt",
+            )
+            screen.query_one("#adv-dns-domain").value = (
+                "lablink.example.com"
+            )
+            screen.query_one("#adv-ssl-email").value = (
+                "admin@example.com"
+            )
+            screen.query_one("#adv-dns-zone-id").value = (
+                "Z0123456789ABCDEFG"
+            )
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert cfg.dns.zone_id == "Z0123456789ABCDEFG"
+
+
+def test_dns_toggle_preserves_typed_domain():
+    """Typing a domain in Guided, toggling to Advanced shows the same value."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> str:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            _select_radio_by_id(screen, "#dns-mode", "dns-cloudflare")
+            await pilot.pause()
+            screen.query_one("#domain").value = "lablink.sleap.ai"
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#dns-screen-mode", "screen-mode-advanced"
+            )
+            await pilot.pause()
+            return screen.query_one("#adv-dns-domain").value
+
+    domain = asyncio.run(_run())
+    assert domain == "lablink.sleap.ai"
+
+
+def test_dns_advanced_invalid_combo_blocks_next():
+    """Advanced + invalid combo (DNS disabled + letsencrypt) → error shown, no push."""
+    import asyncio
+    from lablink_cli.tui.wizard import DnsScreen
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> tuple[bool, int, str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            stack_before = len(app.screen_stack)
+            _select_radio_by_id(
+                screen, "#dns-screen-mode", "screen-mode-advanced"
+            )
+            await pilot.pause()
+            _select_radio_by_id(
+                screen, "#adv-dns-enabled", "adv-dns-enabled-no"
+            )
+            _select_radio_by_id(
+                screen,
+                "#adv-ssl-provider",
+                "adv-ssl-letsencrypt",
+            )
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+            stack_after = len(app.screen_stack)
+            err = str(
+                screen.query_one("#dns-validation-error").render()
+            )
+            visible = screen.query_one(
+                "#dns-validation-error"
+            ).display
+            return visible, stack_after - stack_before, err
+
+    visible, stack_delta, err = asyncio.run(_run())
+    assert visible is True
+    assert stack_delta == 0  # screen did not push StartupScreen
+    assert err  # non-empty error text
