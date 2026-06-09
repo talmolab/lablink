@@ -879,11 +879,71 @@ class StartupScreen(Screen):
                 cfg.startup_script.enabled = False
                 self.app._startup_script_content = None
 
+        self.app.push_screen(MonitoringScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 6: Session Metrics (Tier 1 Monitoring)
+# ---------------------------------------------------------------------------
+class MonitoringScreen(Screen):
+    """Toggle Tier 1 session-metrics collection.
+
+    Single switch only: enabled / disabled. All other MonitoringConfig
+    fields (process_allowlist, watch_dir, intervals) keep their dataclass
+    defaults — operators who need to customize them still hand-edit
+    lablink.yaml. This screen is SLEAP-specific and expected to be
+    removed when monitoring is generalized or dropped.
+    """
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def compose(self) -> ComposeResult:
+        cfg = self.app.config
+
+        yield Header()
+        with VerticalScroll():
+            yield Label(
+                "Step 6: Session Metrics (optional)",
+                classes="step-title",
+            )
+            yield Label(
+                "Collect anonymous per-VM session metrics "
+                "(Tier 1 monitoring). Currently SLEAP-tuned — leave "
+                "disabled for non-SLEAP workloads.",
+                classes="step-description",
+            )
+
+            yield Label("Session metrics", classes="field-label")
+            with RadioSet(id="monitoring-mode"):
+                yield RadioButton(
+                    "Disabled (default)",
+                    value=not cfg.monitoring.enabled,
+                )
+                yield RadioButton(
+                    "Enabled",
+                    value=cfg.monitoring.enabled,
+                )
+
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
+                yield Button("Next", variant="primary", id="next")
+        yield Footer()
+
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        cfg = self.app.config
+        radio = self.query_one("#monitoring-mode", RadioSet)
+        cfg.monitoring.enabled = radio.pressed_index == 1
         self.app.push_screen(ReviewScreen())
 
 
 # ---------------------------------------------------------------------------
-# Screen 6: Review & Save
+# Screen 7: Review & Save
 # ---------------------------------------------------------------------------
 class ReviewScreen(Screen):
     """Review configuration and save."""
@@ -894,7 +954,7 @@ class ReviewScreen(Screen):
         yield Header()
         with VerticalScroll():
             yield Label(
-                "Step 6: Review & Save",
+                "Step 7: Review & Save",
                 classes="step-title",
             )
             yield TextArea(

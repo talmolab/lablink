@@ -149,3 +149,35 @@ The allocator SHALL provide an endpoint for client VMs to update their in-use st
 - **GIVEN** a client VM that was in-use
 - **WHEN** the client reports software has stopped
 - **THEN** the VM status is updated to "available"
+
+### Requirement: Session Metrics Summary Endpoint
+The allocator SHALL provide an authenticated JSON endpoint that returns the
+cohort-summary view model shared with the admin web UI at
+`/admin/session-metrics`, so external clients (e.g. the `lablink stats` CLI)
+render the same aggregates as the admin page without recomputing.
+
+#### Scenario: Monitoring enabled
+- **GIVEN** valid admin credentials and `monitoring.enabled: true`
+- **WHEN** the client submits `GET /api/session-metrics/summary`
+- **THEN** the allocator returns 200 with JSON body:
+  - `enabled`: `true`
+  - `subject_software_label`: string (first entry of
+    `monitoring.subject_window_patterns` if set, else `machine.software`,
+    else `"subject"`)
+  - `summary`: object with keys `total_vms`, `funnel`
+    (`{started, labeled, trained, tracked}`), `pct_reached_training`,
+    `median_seconds_in_subject_software`, `median_seconds_to_first_train`,
+    `median_labeled_frames`, `median_epochs_completed`
+
+#### Scenario: Monitoring disabled
+- **GIVEN** valid admin credentials and `monitoring.enabled: false`
+- **WHEN** the client submits `GET /api/session-metrics/summary`
+- **THEN** the allocator returns 200 with JSON body:
+  - `enabled`: `false`
+  - `subject_software_label`: resolved as above
+  - `summary`: `null`
+
+#### Scenario: Unauthorized access
+- **GIVEN** invalid or missing credentials
+- **WHEN** a user submits `GET /api/session-metrics/summary`
+- **THEN** HTTP 401 Unauthorized is returned
