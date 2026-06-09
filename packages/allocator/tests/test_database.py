@@ -568,7 +568,16 @@ def test_update_vm_status_invalid(db_instance, caplog):
 
 
 def test_load_database():
-    """Test the class method for loading a database instance."""
+    """Test the class method for loading a database instance.
+
+    Derives the expected pool sizes from the module constants so this
+    test doesn't lock in a specific default (the max is also configurable
+    via LABLINK_DB_POOL_MAX_SIZE — see _pool_max_size_from_env)."""
+    from lablink_allocator_service.database import (
+        POOL_MAX_SIZE,
+        POOL_MIN_SIZE,
+    )
+
     with patch.object(
         PostgresqlDatabase,
         "__init__",
@@ -580,7 +589,7 @@ def test_load_database():
 
     mock_init.assert_called_once_with(
         "db", "user", "pass", "host", 5432, "table",
-        pool_min_size=2, pool_max_size=20,
+        pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZE,
     )
 
     assert isinstance(inst, PostgresqlDatabase)
@@ -1209,6 +1218,38 @@ def test_pool_size_validation_rejects_max_below_min():
             pool_min_size=5,
             pool_max_size=2,
         )
+
+
+def test_pool_max_size_env_override_parses_int(monkeypatch):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "120")
+    assert _pool_max_size_from_env(default=60) == 120
+
+
+def test_pool_max_size_env_override_unset_returns_default(monkeypatch):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.delenv("LABLINK_DB_POOL_MAX_SIZE", raising=False)
+    assert _pool_max_size_from_env(default=60) == 60
+
+
+def test_pool_max_size_env_override_invalid_falls_back(monkeypatch, caplog):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "not-a-number")
+    with caplog.at_level("WARNING"):
+        assert _pool_max_size_from_env(default=60) == 60
+    assert "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE" in caplog.text
+
+
+def test_pool_max_size_env_override_nonpositive_falls_back(monkeypatch, caplog):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "0")
+    with caplog.at_level("WARNING"):
+        assert _pool_max_size_from_env(default=60) == 60
+    assert "Ignoring LABLINK_DB_POOL_MAX_SIZE=0" in caplog.text
 
 
 def test_cursor_returns_connection_on_success(db_instance):

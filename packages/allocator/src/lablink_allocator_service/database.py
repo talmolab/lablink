@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import json
 import logging
+import os
 from typing import List, Optional
 from urllib.parse import urlsplit
 
@@ -11,11 +12,32 @@ import psycopg2.pool
 logger = logging.getLogger(__name__)
 
 
-# Pool sizing. Internal: end users deploying the allocator don't need to
-# reason about this. Raise these in-code if production metrics show
-# getconn blocking during traffic bursts.
+def _pool_max_size_from_env(default: int) -> int:
+    """LABLINK_DB_POOL_MAX_SIZE override, clamped to >= POOL_MIN_SIZE.
+    Invalid/missing values fall through to the default."""
+    raw = os.environ.get("LABLINK_DB_POOL_MAX_SIZE")
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        logger.warning(
+            "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE=%r; using %d", raw, default
+        )
+        return default
+    if parsed < 1:
+        logger.warning(
+            "Ignoring LABLINK_DB_POOL_MAX_SIZE=%d (<1); using %d", parsed, default
+        )
+        return default
+    return parsed
+
+
+# Pool sizing. Default sized for ~30 client VMs polling concurrently plus
+# the admin UI. Override at deploy time with LABLINK_DB_POOL_MAX_SIZE
+# without rebuilding the image.
 POOL_MIN_SIZE = 2
-POOL_MAX_SIZE = 20
+POOL_MAX_SIZE = _pool_max_size_from_env(default=60)
 
 
 class _PooledCursor:
@@ -161,7 +183,8 @@ class PostgresqlDatabase:
             pool_min_size (int): Minimum pooled connections. Defaults to
                 POOL_MIN_SIZE. Override in tests only.
             pool_max_size (int): Maximum pooled connections. Defaults to
-                POOL_MAX_SIZE. Override in tests only.
+                POOL_MAX_SIZE (which honors LABLINK_DB_POOL_MAX_SIZE).
+                Override in tests only.
 
         Raises:
             ValueError: If pool sizing is invalid.
