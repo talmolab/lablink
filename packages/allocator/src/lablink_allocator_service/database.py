@@ -36,11 +36,12 @@ def _pool_max_size_from_env(default: int) -> int:
     return parsed
 
 
-# Pool sizing. Default sized for ~30 client VMs polling concurrently plus
-# the admin UI. Override at deploy time with LABLINK_DB_POOL_MAX_SIZE
-# without rebuilding the image.
+# Pool sizing. Default sized for ~100 client VMs polling concurrently
+# plus the admin UI; start.sh raises Postgres max_connections in lockstep.
+# Override at deploy time with LABLINK_DB_POOL_MAX_SIZE without rebuilding
+# the image (keep it below max_connections minus autovacuum/admin headroom).
 POOL_MIN_SIZE = 2
-POOL_MAX_SIZE = _pool_max_size_from_env(default=60)
+POOL_MAX_SIZE = _pool_max_size_from_env(default=200)
 
 
 # Secret-hash cache sizing. Every authed allocator endpoint reads the
