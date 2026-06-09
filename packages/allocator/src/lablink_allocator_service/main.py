@@ -343,22 +343,16 @@ def submit_vm_details():
         if existing is not None and existing["status"] == "running":
             hostname = existing["hostname"]
         else:
-            # Fresh assignment. assign_vm raises ValueError if no VM is
-            # available; we treat that as 503 (no seats).
+            # Fresh assignment. assign_vm atomically claims a seat and
+            # returns its hostname, or raises ValueError if the pool is
+            # empty; we treat that as 503 (no seats). Because the claim is
+            # atomic (FOR UPDATE SKIP LOCKED), there's no separate lookup
+            # to race against.
             try:
-                database.assign_vm(email=email)
+                hostname = database.assign_vm(email=email)
             except ValueError:
                 logger.warning("Pool empty when '%s' asked for a seat", email)
                 return render_template("no_seats.html"), 503
-            re_lookup = database.get_assigned_vm_for_email(email=email)
-            if re_lookup is None:
-                # Shouldn't happen: assign_vm succeeded but lookup missed.
-                logger.error(
-                    "Assigned VM not visible to follow-up lookup for '%s'",
-                    email,
-                )
-                return render_template("no_seats.html"), 503
-            hostname = re_lookup["hostname"]
 
         # Mint per-session identifiers and rotate the VNC password on the
         # assigned client. RotationFailed → mark unhealthy and ask the

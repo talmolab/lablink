@@ -539,35 +539,59 @@ class PostgresqlDatabase:
             )
             raise
 
-    def assign_vm(self, email) -> None:
-        """Assign a VM to a user.
+    def assign_vm(self, email) -> str:
+        """Atomically claim an available VM for a user and return its hostname.
+
+        The claim is a single statement: the inner SELECT picks one
+        unassigned, running, non-Unhealthy row and locks it with
+        ``FOR UPDATE SKIP LOCKED``, so concurrent callers each lock a
+        *different* row instead of racing on the same one. ``RETURNING``
+        hands back the hostname that was actually claimed, so the caller
+        never has to re-look it up by email (which is itself racy).
+
+        Skips rows marked Unhealthy so a VM whose agent went dark (rotation
+        failed, etc.) isn't handed to the next student to wedge in turn —
+        the reboot service picks it back up.
 
         Args:
             email (str): The email of the user.
+
+        Returns:
+            str: The hostname of the claimed VM.
+
+        Raises:
+            ValueError: If no VM is available to assign.
         """
-        hostname = self.get_first_available_vm()
-
-        if not hostname:
-            logger.warning("No available VMs to assign")
-            raise ValueError("No available VMs to assign.")
-
         query = f"""
         UPDATE {self.table_name}
         SET useremail = %s,
             inuse = FALSE
-        WHERE hostname = %s;
+        WHERE hostname = (
+            SELECT hostname FROM {self.table_name}
+            WHERE useremail IS NULL
+            AND status = 'running'
+            AND (healthy IS NULL OR healthy <> 'Unhealthy')
+            ORDER BY hostname
+            FOR UPDATE SKIP LOCKED
+            LIMIT 1
+        )
+        RETURNING hostname;
         """
         with self._cursor as cursor:
             try:
-                cursor.execute(query, (email, hostname))
-                logger.info(
-                    f"Assigned VM '{hostname}' to user '{email}'"
-                )
+                cursor.execute(query, (email,))
+                row = cursor.fetchone()
             except Exception as e:
-                logger.error(
-                    f"Failed to assign VM '{hostname}': {e}"
-                )
+                logger.error(f"Failed to assign VM to '{email}': {e}")
                 raise
+
+        if row is None:
+            logger.warning("No available VMs to assign")
+            raise ValueError("No available VMs to assign.")
+
+        hostname = row[0]
+        logger.info(f"Assigned VM '{hostname}' to user '{email}'")
+        return hostname
 
     def release_seat(self, *, hostname: str) -> None:
         """Clear useremail and every per-session column on a VM row,
@@ -586,28 +610,6 @@ class PostgresqlDatabase:
         )
         with self._cursor as cursor:
             cursor.execute(query, (hostname,))
-
-    def get_first_available_vm(self) -> str:
-        """Get the first available VM that is not assigned.
-
-        Skips rows marked Unhealthy so that a VM whose agent went dark
-        (rotation failed, etc.) isn't handed to the next student to
-        wedge in turn — it'll be picked back up by the reboot service.
-
-        Returns:
-            str: The hostname of the first available VM.
-        """
-        query = (
-            f"SELECT hostname FROM {self.table_name} "
-            f"WHERE useremail IS NULL "
-            f"AND status = 'running' "
-            f"AND (healthy IS NULL OR healthy <> 'Unhealthy') "
-            f"LIMIT 1"
-        )
-        with self._cursor as cursor:
-            cursor.execute(query)
-            row = cursor.fetchone()
-        return row[0] if row else None
 
     def update_vm_in_use(self, hostname: str, in_use: bool) -> None:
         """Update the in-use status of a VM.
