@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from rich.console import Console
 from rich.table import Table
 
+from lablink_cli.api import USER_AGENT
 from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
@@ -39,6 +40,7 @@ def _fetch(cfg) -> dict:
     req = Request(
         f"{allocator_url}/api/session-metrics/summary", method="GET"
     )
+    req.add_header("User-Agent", USER_AGENT)
     req.add_header("Authorization", f"Basic {credentials}")
     req.add_header("Accept", "application/json")
 

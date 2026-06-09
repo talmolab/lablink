@@ -9,6 +9,18 @@ from typing import NoReturn
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+try:
+    from importlib.metadata import version as _pkg_version
+
+    _CLI_VERSION = _pkg_version("lablink-cli")
+except Exception:  # pragma: no cover - package metadata unavailable
+    _CLI_VERSION = "0.0.0"
+
+# Product User-Agent for all CLI HTTP requests. urllib's default
+# "Python-urllib/x.y" is blocked with HTTP 403 by Cloudflare-proxied
+# allocators, so every Request must identify itself with this instead.
+USER_AGENT = f"lablink-cli/{_CLI_VERSION}"
+
 
 class AllocatorError(Exception):
     """Base exception for allocator API errors."""
@@ -59,6 +71,7 @@ class AllocatorAPI:
         """Send an HTTP request to the allocator."""
         url = f"{self.base_url}{path}"
         req = Request(url, data=data, method=method)
+        req.add_header("User-Agent", USER_AGENT)
         req.add_header("Authorization", self._auth_header)
         req.add_header("Accept", "application/json")
 
@@ -165,6 +178,7 @@ class RegistrationClient:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode()
         req = Request(url, data=data, method="POST")
+        req.add_header("User-Agent", USER_AGENT)
         req.add_header("Authorization", self._auth_header)
         req.add_header("Content-Type", "application/json")
         req.add_header("Accept", "application/json")
