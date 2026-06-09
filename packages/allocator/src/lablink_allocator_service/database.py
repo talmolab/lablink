@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import threading
+import time
 from typing import List, Optional
 from urllib.parse import urlsplit
 
@@ -38,6 +40,62 @@ def _pool_max_size_from_env(default: int) -> int:
 # without rebuilding the image.
 POOL_MIN_SIZE = 2
 POOL_MAX_SIZE = _pool_max_size_from_env(default=60)
+
+
+# Secret-hash cache sizing. Every authed allocator endpoint reads the
+# argon2 hash before letting the request through. With ~30 client VMs
+# polling on tight loops the lookup alone can starve the pool during
+# bursts. The cache is invalidated by register_client and
+# unregister_client; TTLs are a safety net for any unexpected writer.
+_SECRET_HASH_POSITIVE_TTL_S = 300.0
+_SECRET_HASH_NEGATIVE_TTL_S = 30.0
+
+
+class _SecretHashCache:
+    """Thread-safe per-hostname TTL cache for client_secret_hash lookups.
+
+    Caches both real hashes (positive_ttl) and absent-hostname None
+    results (negative_ttl). The shorter negative TTL keeps freshly
+    registered hosts auth-able within seconds without a register-time
+    invalidate, and prevents spoofed-hostname requests from being a
+    cheap DoS vector against the pool.
+    """
+
+    def __init__(
+        self,
+        *,
+        positive_ttl_seconds: float = _SECRET_HASH_POSITIVE_TTL_S,
+        negative_ttl_seconds: float = _SECRET_HASH_NEGATIVE_TTL_S,
+    ):
+        self._positive_ttl = positive_ttl_seconds
+        self._negative_ttl = negative_ttl_seconds
+        self._lock = threading.RLock()
+        self._entries: dict = {}
+
+    def get(self, hostname: str):
+        """Return (hit, value). hit=False means the caller must query DB."""
+        with self._lock:
+            entry = self._entries.get(hostname)
+            if entry is None:
+                return False, None
+            value, expires_at = entry
+            if time.monotonic() >= expires_at:
+                del self._entries[hostname]
+                return False, None
+            return True, value
+
+    def put(self, hostname: str, value):
+        ttl = self._positive_ttl if value is not None else self._negative_ttl
+        with self._lock:
+            self._entries[hostname] = (value, time.monotonic() + ttl)
+
+    def invalidate(self, hostname: str) -> None:
+        with self._lock:
+            self._entries.pop(hostname, None)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
 
 
 class _PooledCursor:
@@ -210,6 +268,7 @@ class PostgresqlDatabase:
             host=host,
             port=port,
         )
+        self._secret_hash_cache = _SecretHashCache()
 
     @property
     def _cursor(self):
@@ -341,7 +400,15 @@ class PostgresqlDatabase:
         return row[0] if row else None
 
     def get_client_secret_hash(self, hostname: str):
-        """Return the argon2 client_secret_hash for a hostname, or None."""
+        """Return the argon2 client_secret_hash for a hostname, or None.
+
+        Cached per-hostname (see ``_SecretHashCache``). Cache entries are
+        busted by ``register_client`` and ``unregister_client``; the TTL
+        is a safety net for any unexpected writer.
+        """
+        hit, cached = self._secret_hash_cache.get(hostname)
+        if hit:
+            return cached
         with self._cursor as cursor:
             cursor.execute(
                 f"SELECT client_secret_hash FROM {self.table_name} "
@@ -349,7 +416,9 @@ class PostgresqlDatabase:
                 (hostname,),
             )
             row = cursor.fetchone()
-        return row[0] if row else None
+        value = row[0] if row else None
+        self._secret_hash_cache.put(hostname, value)
+        return value
 
     def get_lan_ip(self, hostname: str):
         """LAN IP for a manual client: provider_metadata->>'lan_ip',
@@ -431,6 +500,8 @@ class PostgresqlDatabase:
                  client_secret_hash, gpu_present, gpu_model),
             )
             row = cursor.fetchone()
+        if row:
+            self._secret_hash_cache.invalidate(hostname)
         return row[0] if row else None
 
     def unregister_client(self, client_id: str) -> bool:
@@ -445,7 +516,10 @@ class PostgresqlDatabase:
                 f"DELETE FROM {t} WHERE hostname = %s;",
                 (client_id,),
             )
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+        if deleted:
+            self._secret_hash_cache.invalidate(client_id)
+        return deleted
 
     def list_registered_clients(self) -> list[dict]:
         """Return registered clients as a list of dicts.

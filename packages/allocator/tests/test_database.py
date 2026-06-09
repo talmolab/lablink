@@ -1583,6 +1583,170 @@ def test_get_client_secret_hash_missing(db_instance, mock_db_connection):
     assert db_instance.get_client_secret_hash("nope") is None
 
 
+def test_get_client_secret_hash_caches_positive_within_ttl(
+    db_instance, mock_db_connection
+):
+    """Repeat reads within TTL should not re-query the DB. Critical for
+    pool pressure under bursty client polling."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert mock_cursor.execute.call_count == 1
+    # Second + third calls should hit the cache, not the DB.
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert mock_cursor.execute.call_count == 1
+
+
+def test_get_client_secret_hash_caches_negative_within_ttl(
+    db_instance, mock_db_connection
+):
+    """None results are cached too — prevents spoofed-hostname requests
+    from drilling the pool."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("nope") is None
+    assert mock_cursor.execute.call_count == 1
+    assert db_instance.get_client_secret_hash("nope") is None
+    assert mock_cursor.execute.call_count == 1
+
+
+def test_get_client_secret_hash_separate_keys_each_query_once(
+    db_instance, mock_db_connection
+):
+    """Cache is per-hostname; different hosts each hit the DB once."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.side_effect = [("$h1",), ("$h2",)]
+    assert db_instance.get_client_secret_hash("vm-1") == "$h1"
+    assert db_instance.get_client_secret_hash("vm-2") == "$h2"
+    assert mock_cursor.execute.call_count == 2
+    # Repeats are served from cache.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h1"
+    assert db_instance.get_client_secret_hash("vm-2") == "$h2"
+    assert mock_cursor.execute.call_count == 2
+
+
+def test_register_client_invalidates_cache(db_instance, mock_db_connection):
+    """A successful register/re-register rotates the secret hash; cached
+    entry from before must be busted so the next auth check sees the new
+    hash."""
+    _, mock_cursor, _ = mock_db_connection
+    # Seed the cache with an old hash.
+    mock_cursor.fetchone.return_value = ("$old",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$old"
+    assert mock_cursor.execute.call_count == 1
+
+    # Re-register with a new hash (RETURNING hostname signals success).
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    db_instance.register_client(
+        hostname="vm-1", machine_identity="i-1", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$new",
+    )
+
+    # Next read must hit the DB and pick up the new hash.
+    mock_cursor.fetchone.return_value = ("$new",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$new"
+    # 1 (seed get) + 1 (register) + 1 (re-fetched after invalidate) = 3.
+    assert mock_cursor.execute.call_count == 3
+
+
+def test_register_client_no_hijack_conflict_does_not_invalidate(
+    db_instance, mock_db_connection
+):
+    """If the upsert's WHERE excludes the row (different machine_identity),
+    RETURNING is empty and nothing changed — cache must NOT be busted."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.fetchone.return_value = None  # no-hijack conflict
+    cid = db_instance.register_client(
+        hostname="vm-1", machine_identity="i-other", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$other",
+    )
+    assert cid is None
+
+    # Cached value still served; no extra SELECT.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    # 1 (seed) + 1 (failed register) = 2; the third get was a cache hit.
+    assert mock_cursor.execute.call_count == 2
+
+
+def test_unregister_client_invalidates_cache(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.rowcount = 1  # DELETE matched a row
+    assert db_instance.unregister_client("vm-1") is True
+
+    # Next read must re-query the DB; the row is gone, so None.
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("vm-1") is None
+    assert mock_cursor.execute.call_count == 3
+
+
+def test_unregister_client_noop_does_not_invalidate(
+    db_instance, mock_db_connection
+):
+    """If unregister didn't delete a row, cache should be untouched."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.rowcount = 0  # DELETE matched nothing
+    assert db_instance.unregister_client("vm-1") is False
+
+    # Cache still serves the original value.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 2  # 1 seed + 1 unregister
+
+
+def test_secret_hash_cache_ttl_expiry_re_queries():
+    """Direct test of the cache primitive: after expiry, the next get is
+    a miss and the caller must re-query."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache(
+        positive_ttl_seconds=0.05, negative_ttl_seconds=0.05
+    )
+    cache.put("vm-1", "$h")
+    hit, val = cache.get("vm-1")
+    assert hit is True and val == "$h"
+
+    import time as _time
+    _time.sleep(0.08)
+
+    hit, val = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_negative_entry_returns_hit_with_none():
+    """A cached None must read back as (hit=True, value=None) so the
+    caller short-circuits the DB query."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    cache.put("nope", None)
+    hit, val = cache.get("nope")
+    assert hit is True and val is None
+
+
+def test_secret_hash_cache_invalidate_clears_entry():
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    cache.put("vm-1", "$h")
+    cache.invalidate("vm-1")
+    hit, val = cache.get("vm-1")
+    assert hit is False and val is None
+
+
 def test_register_client_upsert_returns_hostname(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchone.return_value = ("vm-1",)
