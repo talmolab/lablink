@@ -4355,6 +4355,7 @@
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="bug-fixes">Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h3>
 <ul>
+<li>fix(allocator): make VM assignment atomic to stop double-booking under load (#372)</li>
 <li>fix(security): prevent command injection via crd_command (#329)</li>
 <li>fix: defer VM status='running' until container startup completes (#321)</li>
 <li>fix: clear VM assignment on auto-reboot so VMs become available for reassignment (#312)</li>
