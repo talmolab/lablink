@@ -20,6 +20,7 @@ from rich.table import Table
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.api import USER_AGENT
 from lablink_cli.commands.utils import (
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
@@ -79,6 +80,7 @@ def check_http(url: str) -> dict:
     result = {"check": "HTTP Health", "status": "fail"}
     try:
         req = Request(url, method="GET")
+        req.add_header("User-Agent", USER_AGENT)
         resp = urlopen(req, timeout=10)  # noqa: S310
         code = resp.getcode()
         if code and code < 400:
@@ -114,6 +116,7 @@ def check_health_endpoint(base_url: str) -> dict:
     }
     try:
         req = Request(url, method="GET")
+        req.add_header("User-Agent", USER_AGENT)
         resp = urlopen(req, timeout=10)  # noqa: S310
         body = json.loads(resp.read().decode())
         if body.get("status") == "healthy":

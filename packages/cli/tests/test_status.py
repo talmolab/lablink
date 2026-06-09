@@ -134,6 +134,40 @@ class TestCheckHealthEndpoint:
 
 
 # ------------------------------------------------------------------
+# User-Agent header
+#
+# Cloudflare-proxied allocators return HTTP 403 to the default
+# "Python-urllib/x.y" User-Agent. Health-check requests must send a
+# product User-Agent so they reach the origin instead of being blocked
+# at the Cloudflare edge.
+# ------------------------------------------------------------------
+class TestUserAgent:
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_check_http_sends_product_user_agent(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.getcode.return_value = 200
+        mock_urlopen.return_value = mock_resp
+
+        check_http("http://example.com")
+
+        req = mock_urlopen.call_args.args[0]
+        assert req.get_header("User-agent", "").startswith("lablink-cli/")
+
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_check_health_endpoint_sends_product_user_agent(self, mock_urlopen):
+        import json
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"status": "healthy"}).encode()
+        mock_urlopen.return_value = mock_resp
+
+        check_health_endpoint("http://1.2.3.4:5000")
+
+        req = mock_urlopen.call_args.args[0]
+        assert req.get_header("User-agent", "").startswith("lablink-cli/")
+
+
+# ------------------------------------------------------------------
 # estimate_costs
 # ------------------------------------------------------------------
 class TestEstimateCosts:

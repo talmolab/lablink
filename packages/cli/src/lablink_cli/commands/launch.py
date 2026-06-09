@@ -15,6 +15,7 @@ from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
+from lablink_cli.api import USER_AGENT
 from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
@@ -81,6 +82,7 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
     ).decode()
 
     req = Request(url, data=data, method="POST")
+    req.add_header("User-Agent", USER_AGENT)
     req.add_header("Authorization", f"Basic {credentials}")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     req.add_header("Accept", "application/json")

@@ -13,6 +13,8 @@ from urllib.request import Request, urlopen
 import typer
 from rich.console import Console
 
+from lablink_cli.api import USER_AGENT
+
 DEFAULT_ENV_FILE = Path.home() / ".lablink" / "client.env"
 
 
@@ -124,6 +126,7 @@ def _notify_deregister(
     """
     url = f"{allocator_url.rstrip('/')}/api/v1/clients/{client_id}"
     req = Request(url, method="DELETE")
+    req.add_header("User-Agent", USER_AGENT)
     req.add_header("Authorization", f"Bearer {client_secret}")
     req.add_header("Accept", "application/json")
 
