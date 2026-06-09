@@ -287,10 +287,14 @@ def create_instances():
 @auth.login_required
 def admin():
     provider = app.config["LABLINK_PROVIDER"]
+    monitoring_enabled = bool(
+        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
+    )
     return render_template(
         "admin.html",
         can_provision_hosts=provider.can_provision_hosts,
         can_destroy_hosts=provider.can_destroy_hosts,
+        monitoring_enabled=monitoring_enabled,
     )
 
 
@@ -537,6 +541,16 @@ def destroy():
         if _wants_json():
             return jsonify({"status": "error", "error": error_msg}), 405
         return render_template("delete-dashboard.html", error=error_msg), 405
+
+    # Seal any open session-metrics rows before tearing down VMs, so the
+    # final sessions get a duration even though the client agents are about
+    # to be killed. Best-effort: never block destroy on a seal failure.
+    try:
+        sealed = database.bulk_seal_session_metrics()
+        logger.info("Sealed %d session-metrics rows before destroy", sealed)
+    except Exception as e:
+        # Sealing is best-effort; do not block the destroy.
+        logger.warning("Could not bulk-seal session metrics: %s", e)
 
     # destroy_hosts ignores the handles arg (terraform destroy operates on
     # the whole workspace); skip the list_hosts() call.
@@ -792,12 +806,75 @@ def receive_vm_metrics(hostname):
         return jsonify({"error": "Failed to post VM metrics."}), 500
 
 
+@app.route("/api/session-metrics/<hostname>", methods=["POST"])
+@require_client_secret
+def post_session_metrics(hostname):
+    """Receive a Tier 1 monitoring summary push from a client VM."""
+    try:
+        data = request.get_json(silent=True) or {}
+        if "counters" not in data:
+            return jsonify({"error": "Missing 'counters' in payload."}), 400
+        database.update_session_metrics(hostname=hostname, payload=data)
+        return jsonify({"message": "Session metrics updated."}), 200
+    except LookupError:
+        return jsonify({"error": "VM not found."}), 404
+    except ValueError as e:
+        # Sealed row — refuse update.
+        return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        logger.error(
+            f"Error in /api/session-metrics/{hostname}: {e}", exc_info=True
+        )
+        return jsonify({"error": "Failed to update session metrics."}), 500
+
+
+@app.route("/admin/session-metrics", methods=["GET"])
+@auth.login_required
+def admin_session_metrics():
+    """Render the cohort summary + per-VM table for Tier 1 monitoring."""
+    monitoring_enabled = bool(
+        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
+    )
+    # The "subject software" label rendered in the table/tile headers — uses
+    # explicit subject_window_patterns when set, otherwise falls back to
+    # the deployment's machine.software value (e.g. "sleap", "deeplabcut").
+    patterns = list(getattr(cfg.monitoring, "subject_window_patterns", []) or [])
+    subject_software_label = (
+        patterns[0]
+        if patterns
+        else getattr(getattr(cfg, "machine", None), "software", "") or "subject"
+    )
+    if not monitoring_enabled:
+        return render_template(
+            "session-metrics.html",
+            monitoring_enabled=False,
+            summary=None,
+            vms=[],
+            subject_software_label=subject_software_label,
+        )
+
+    summary = database.get_session_metrics_summary()
+    vms = database.get_all_vms_for_export(include_logs=False)
+    for vm in vms:
+        for key, value in vm.items():
+            if hasattr(value, "isoformat"):
+                vm[key] = value.isoformat()
+    return render_template(
+        "session-metrics.html",
+        monitoring_enabled=True,
+        summary=summary,
+        vms=vms,
+        subject_software_label=subject_software_label,
+    )
+
+
 @app.route("/api/export-metrics", methods=["GET"])
 @auth.login_required
 def export_metrics():
-    """Export VM metrics data as JSON."""
+    """Export VM metrics as JSON or CSV (controlled by ?format=)."""
     try:
         include_logs = request.args.get("include_logs", "false").lower() == "true"
+        fmt = request.args.get("format", "json").lower()
         vms = database.get_all_vms_for_export(include_logs=include_logs)
 
         # Serialize datetime objects to ISO format strings
@@ -805,6 +882,39 @@ def export_metrics():
             for key, value in vm.items():
                 if hasattr(value, "isoformat"):
                     vm[key] = value.isoformat()
+
+        if fmt == "csv":
+            import csv
+            import io
+            from datetime import datetime as _dt
+
+            buf = io.StringIO()
+            if vms:
+                # IMPORTANT: fieldnames are auto-discovered from every key
+                # present on any row. Any column added to the `vms` table
+                # is therefore auto-exported via this endpoint, regardless
+                # of whether the operator intended it to be downloadable.
+                # If you add a new column carrying sensitive data
+                # (credentials, tokens, raw secrets), filter it explicitly
+                # here OR drop it from `get_all_vms_for_export` first.
+                fieldnames: list[str] = []
+                seen: set[str] = set()
+                for vm in vms:
+                    for k in vm:
+                        if k not in seen:
+                            seen.add(k)
+                            fieldnames.append(k)
+                writer = csv.DictWriter(buf, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(vms)
+            deploy = getattr(cfg, "deployment_name", "lablink") or "lablink"
+            stamp = _dt.utcnow().strftime("%Y%m%d")
+            filename = f"lablink-session-metrics-{deploy}-{stamp}.csv"
+            resp = Response(buf.getvalue(), mimetype="text/csv")
+            resp.headers["Content-Disposition"] = (
+                f'attachment; filename="{filename}"'
+            )
+            return resp
 
         return jsonify({"vms": vms, "count": len(vms)}), 200
     except Exception as e:

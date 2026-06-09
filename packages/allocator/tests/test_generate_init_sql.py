@@ -65,3 +65,36 @@ def test_d1_render_columns_present():
     sql = build_init_sql()
     assert "browser_ws_url     TEXT" in sql
     assert "browser_credential TEXT" in sql
+
+
+def test_vms_table_has_session_metrics_columns():
+    """Tier 1 monitoring: session-metrics columns must be present and nullable."""
+    from lablink_allocator_service.generate_init_sql import build_init_sql
+
+    sql = build_init_sql()
+
+    expected_columns = [
+        "SessionMetricsStartedAt",
+        "SessionMetricsSealedAt",
+        "SessionMetricsLastReportedAt",
+        "SecondsInSubjectSoftware",
+        "SecondsInTerminal",
+        "SecondsInBrowser",
+        "SecondsInOther",
+        "GpuActiveSeconds",
+        "GpuUtilPeak",
+        "VramUsedPeakMb",
+        "SecondsToFirstSleapLabel",
+        "SecondsToFirstSleapTrain",
+        "SecondsToFirstSleapTrack",
+        "MaxLabeledFrames",
+        "TrainingEpochsCompleted",
+        "TrainingFinalLoss",
+        "SessionMetricsRaw",
+    ]
+    for col in expected_columns:
+        assert col in sql, f"missing column {col}"
+
+    # None of the new columns should be declared NOT NULL.
+    for col in expected_columns:
+        assert f"{col} NOT NULL" not in sql, f"{col} must be nullable"

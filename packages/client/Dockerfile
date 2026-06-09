@@ -56,6 +56,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # "last X client exited" path never fires, which otherwise tears
     # Xvnc down when xfce4 components race on dbus name ownership.
     xterm \
+    # xdotool is shelled out to by the Tier 1 monitoring agent's
+    # active-window sampler to read the focused window title. Without
+    # it, seconds_in_subject_software stays at 0 forever.
+    xdotool \
     # Provides process management utilities
     psmisc \
     # Dummy X server for headless environments

@@ -196,6 +196,57 @@ def test_register_response_includes_agent_token(reg_client):
     assert r.get_json()["agent_token"] == main.AGENT_TOKEN
 
 
+def test_register_response_includes_monitoring_block(reg_client, monkeypatch):
+    """Register response must ship the monitoring block so start.sh can
+    write it to /tmp/lablink-monitoring.json before launching the agent.
+    The block is sourced verbatim from cfg.monitoring so operators can
+    enable/disable Tier 1 without rebuilding client images."""
+    from lablink_allocator_service import main
+
+    monkeypatch.setattr(main.cfg.monitoring, "enabled", True, raising=False)
+    monkeypatch.setattr(
+        main.cfg.monitoring,
+        "process_allowlist",
+        ["sleap-train", "sleap-label"],
+        raising=False,
+    )
+
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert "monitoring" in body
+    m = body["monitoring"]
+    assert m["enabled"] is True
+    assert m["subject_window_patterns"] == []
+    assert m["process_allowlist"] == ["sleap-train", "sleap-label"]
+    assert m["watch_dir"] == "/home/client/Desktop"
+    assert m["sample_interval_seconds"] == 2
+    assert m["push_interval_seconds"] == 60
+
+
+def test_register_response_monitoring_disabled_by_default(reg_client):
+    """The default config has monitoring.enabled=false; the route must
+    still ship a monitoring block with enabled=false so start.sh has an
+    unambiguous gate (and never trips on a missing key)."""
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["monitoring"]["enabled"] is False
+    # process_allowlist still ships even when disabled — the client uses
+    # it as soon as the operator re-enables monitoring without restarting.
+    assert "sleap-train" in body["monitoring"]["process_allowlist"]
+
+
 def test_register_response_omits_api_token(reg_client):
     """API_TOKEN is retired — registration response no longer includes it.
     Clients must use per-client client_secret for all authenticated endpoints."""

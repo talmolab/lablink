@@ -1114,3 +1114,71 @@ class TestDockerRunMountsStartupScript:
         monkeypatch.setattr(register, "PID_FILE", pid_file)
 
         assert register._shipper_alive() is False
+
+
+class TestWriteEnvFile:
+    """`_write_env_file` must propagate the full register response so the
+    client container's start.sh can extract the Tier 1 monitoring block
+    (and any future server-shipped settings) from REGISTER_RESPONSE."""
+
+    def _resp_with_monitoring(self):
+        return {
+            "client_id": 42,
+            "client_secret": "s3cret",
+            "agent_token": "a",
+            "register_token": "r",
+            "allocator_url": "https://lablink.example.com",
+            "connectivity": "lan_direct",
+            "client_image": "ghcr.io/talmolab/lablink-client:0.4.0",
+            "startup_script_b64": "",
+            "startup_on_error": "continue",
+            "monitoring": {
+                "enabled": True,
+                "subject_window_patterns": [],
+                "process_allowlist": [
+                    "sleap-train", "sleap-track", "sleap-label",
+                ],
+                "watch_dir": "/home/client/Desktop",
+                "sample_interval_seconds": 2,
+                "push_interval_seconds": 60,
+            },
+        }
+
+    def test_register_response_present_as_single_line(self, tmp_env_file):
+        """env-file format is line-oriented: the JSON value must not
+        contain a literal newline, or docker --env-file truncates it."""
+        import json
+        from lablink_cli.commands.register import _write_env_file
+
+        _write_env_file(
+            tmp_env_file, "https://lablink.example.com",
+            self._resp_with_monitoring(),
+        )
+
+        text = tmp_env_file.read_text()
+        # Find the REGISTER_RESPONSE line.
+        register_lines = [
+            line for line in text.splitlines()
+            if line.startswith("REGISTER_RESPONSE=")
+        ]
+        assert len(register_lines) == 1
+        value = register_lines[0].removeprefix("REGISTER_RESPONSE=")
+        assert "\n" not in value
+        # And the value must round-trip back to the original response.
+        parsed = json.loads(value)
+        assert parsed["monitoring"]["enabled"] is True
+        assert parsed["client_secret"] == "s3cret"
+
+    def test_other_env_vars_untouched(self, tmp_env_file):
+        """The existing CLIENT_SECRET / VM_NAME / ALLOCATOR_URL lines
+        must still be written unchanged."""
+        from lablink_cli.commands.register import _write_env_file
+
+        _write_env_file(
+            tmp_env_file, "https://lablink.example.com",
+            self._resp_with_monitoring(),
+        )
+        text = tmp_env_file.read_text()
+        assert "CLIENT_SECRET=s3cret" in text
+        assert "VM_NAME=42" in text
+        assert "ALLOCATOR_URL=https://lablink.example.com" in text

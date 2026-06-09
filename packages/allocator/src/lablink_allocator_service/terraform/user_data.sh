@@ -181,6 +181,7 @@ if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
     -e AGENT_TOKEN="${agent_token}" \
     -e CLIENT_SECRET="$CLIENT_SECRET" \
+    -e REGISTER_RESPONSE="$REGISTER_RESPONSE" \
     --network host \
     "${image_name}"; then
     echo ">> Container launched; start.sh inside the container will POST status='running' after custom-startup completes and client services launch."
