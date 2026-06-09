@@ -40,7 +40,7 @@ from lablink_allocator_service.signed_cookie import (
     get_or_create_cookie_secret,
 )
 from lablink_allocator_service.providers.registry import get_provider
-from lablink_allocator_service.secret_hash import hash_secret, verify_secret
+from lablink_allocator_service.secret_hash import hash_secret, verify_secret_cached
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
@@ -233,7 +233,7 @@ def require_client_secret(f):
             return jsonify({"error": "client identity required."}), 401
 
         stored = database.get_client_secret_hash(hostname)
-        if not stored or not verify_secret(token, stored):
+        if not stored or not verify_secret_cached(hostname, token, stored):
             return jsonify({"error": "Invalid client secret."}), 401
         return f(*args, **kwargs)
 

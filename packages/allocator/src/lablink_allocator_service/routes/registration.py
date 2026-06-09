@@ -13,7 +13,11 @@ import secrets
 
 from flask import Blueprint, current_app, jsonify, request
 
-from lablink_allocator_service.secret_hash import hash_secret, verify_secret
+from lablink_allocator_service.secret_hash import (
+    REGISTER_TOKEN_SUBJECT,
+    hash_secret,
+    verify_secret_cached,
+)
 
 bp = Blueprint("registration", __name__)
 
@@ -28,7 +32,9 @@ def register_client():
     token = auth_header[7:]
 
     stored = main.database.get_setting("register_token_hash")
-    if not stored or not verify_secret(token, stored):
+    if not stored or not verify_secret_cached(
+        REGISTER_TOKEN_SUBJECT, token, stored
+    ):
         return jsonify({"error": "registration rejected"}), 401
 
     body = request.get_json(silent=True) or {}
@@ -131,7 +137,7 @@ def client_status(client_id):
         return jsonify({"error": "Invalid client secret."}), 401
     token = auth_header[7:]
     stored = main.database.get_client_secret_hash(client_id)
-    if not stored or not verify_secret(token, stored):
+    if not stored or not verify_secret_cached(client_id, token, stored):
         return jsonify({"error": "Invalid client secret."}), 401
 
     status = main.database.get_status_by_hostname(client_id)
@@ -155,7 +161,7 @@ def unregister_client(client_id):
         return jsonify({"error": "Invalid client secret."}), 401
     token = auth_header[7:]
     stored = main.database.get_client_secret_hash(client_id)
-    if not stored or not verify_secret(token, stored):
+    if not stored or not verify_secret_cached(client_id, token, stored):
         return jsonify({"error": "Invalid client secret."}), 401
 
     deleted = main.database.unregister_client(client_id)

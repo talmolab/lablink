@@ -11,6 +11,8 @@ from urllib.parse import urlsplit
 import psycopg2
 import psycopg2.pool
 
+from lablink_allocator_service.secret_hash import invalidate_verify
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -561,6 +563,7 @@ class PostgresqlDatabase:
             row = cursor.fetchone()
         if row:
             self._secret_hash_cache.invalidate(hostname)
+            invalidate_verify(hostname)
         return row[0] if row else None
 
     def unregister_client(self, client_id: str) -> bool:
@@ -578,6 +581,7 @@ class PostgresqlDatabase:
             deleted = cursor.rowcount > 0
         if deleted:
             self._secret_hash_cache.invalidate(client_id)
+            invalidate_verify(client_id)
         return deleted
 
     def list_registered_clients(self) -> list[dict]:
