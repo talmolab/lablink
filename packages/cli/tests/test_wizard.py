@@ -101,12 +101,22 @@ def _build_cfg_and_app(
 
 
 def _select_radio_by_id(screen, radioset_id: str, button_id: str) -> None:
-    """Set the RadioButton with the given id to value=True within the RadioSet."""
+    """Set the RadioButton with the given id to value=True within the RadioSet.
+
+    Only flips the target to True; RadioSet's own RadioButton.Changed handler
+    unsets the previously-pressed sibling inside a prevent block. Setting the
+    sibling to False here would race that handler — its "click off" guard
+    re-asserts value=True when it sees Changed(value=False), so depending on
+    cross-widget message-queue order both buttons can end up True and
+    `_save_advanced` (which returns the first True button) reads the wrong one.
+    """
     from textual.widgets import RadioButton, RadioSet
 
     radio_set = screen.query_one(radioset_id, RadioSet)
     for btn in radio_set.query(RadioButton):
-        btn.value = (btn.id == button_id)
+        if btn.id == button_id:
+            btn.value = True
+            return
 
 
 def test_dns_guided_cloudflare_sets_persistent_eip():
@@ -422,3 +432,56 @@ def test_dns_advanced_invalid_combo_blocks_next():
     assert visible is True
     assert stack_delta == 0  # screen did not push StartupScreen
     assert err  # non-empty error text
+
+
+def test_dns_advanced_eip_radio_is_scrollable_into_view():
+    """Regression: under #dns-advanced the form is longer than the viewport.
+    A previous CSS configuration left the inner VerticalScroll viewport
+    sized to 1 row and the dns-advanced Container clamped to ~10 rows,
+    so widgets near the bottom of Advanced (the EIP strategy radio
+    being the rearmost) were unreachable — they rendered at y≈55 with
+    no scroll headroom. This asserts the layout permits a real user to
+    scroll the EIP radio into view at a normal terminal size."""
+    import asyncio
+    from textual.widgets import RadioSet
+
+    cfg, app = _build_cfg_and_app()
+
+    async def _run() -> tuple[int, int]:
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            from lablink_cli.tui.wizard import DnsScreen
+
+            screen = DnsScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+
+            # Real keyboard activation; pilot.click is unreliable on
+            # RadioButtons in this Textual version (see issue tracker
+            # / monitoring screen tests for the same workaround).
+            mode = screen.query_one("#dns-screen-mode", RadioSet)
+            mode.focus()
+            await pilot.pause()
+            await pilot.press("down", "enter")
+            for _ in range(5):
+                await pilot.pause()
+
+            vs = next(iter(screen.query("VerticalScroll")))
+            eip = screen.query_one("#adv-eip-strategy", RadioSet)
+            vs.scroll_to_widget(eip, animate=False, top=True)
+            for _ in range(5):
+                await pilot.pause()
+            return vs.max_scroll_y, eip.region.y
+
+    max_scroll_y, eip_y = asyncio.run(_run())
+    # If max_scroll_y == 0 the container collapsed and the user has no
+    # way to reach the bottom of Advanced. Should be substantial.
+    assert max_scroll_y > 0, (
+        f"dns-advanced collapsed: VerticalScroll.max_scroll_y={max_scroll_y}; "
+        "the EIP strategy radio (and any field below it) is unreachable."
+    )
+    # After scrolling, EIP should land inside the viewport (0..screen.height).
+    assert 1 <= eip_y < 30, (
+        f"After scroll_to_widget, EIP radio at y={eip_y} is outside the "
+        "30-row test viewport — scroll isn't bringing it into view."
+    )

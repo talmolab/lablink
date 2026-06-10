@@ -1394,6 +1394,12 @@ class ConfigWizard(App):
     Screen {
         align: center middle;
     }
+    VerticalScroll {
+        height: 1fr;
+    }
+    #dns-guided, #dns-advanced {
+        height: auto;
+    }
     .step-title {
         text-style: bold;
         color: $accent;
