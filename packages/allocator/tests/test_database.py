@@ -568,7 +568,16 @@ def test_update_vm_status_invalid(db_instance, caplog):
 
 
 def test_load_database():
-    """Test the class method for loading a database instance."""
+    """Test the class method for loading a database instance.
+
+    Derives the expected pool sizes from the module constants so this
+    test doesn't lock in a specific default (the max is also configurable
+    via LABLINK_DB_POOL_MAX_SIZE — see _pool_max_size_from_env)."""
+    from lablink_allocator_service.database import (
+        POOL_MAX_SIZE,
+        POOL_MIN_SIZE,
+    )
+
     with patch.object(
         PostgresqlDatabase,
         "__init__",
@@ -580,7 +589,7 @@ def test_load_database():
 
     mock_init.assert_called_once_with(
         "db", "user", "pass", "host", 5432, "table",
-        pool_min_size=2, pool_max_size=20,
+        pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZE,
     )
 
     assert isinstance(inst, PostgresqlDatabase)
@@ -1211,6 +1220,38 @@ def test_pool_size_validation_rejects_max_below_min():
         )
 
 
+def test_pool_max_size_env_override_parses_int(monkeypatch):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "120")
+    assert _pool_max_size_from_env(default=60) == 120
+
+
+def test_pool_max_size_env_override_unset_returns_default(monkeypatch):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.delenv("LABLINK_DB_POOL_MAX_SIZE", raising=False)
+    assert _pool_max_size_from_env(default=60) == 60
+
+
+def test_pool_max_size_env_override_invalid_falls_back(monkeypatch, caplog):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "not-a-number")
+    with caplog.at_level("WARNING"):
+        assert _pool_max_size_from_env(default=60) == 60
+    assert "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE" in caplog.text
+
+
+def test_pool_max_size_env_override_nonpositive_falls_back(monkeypatch, caplog):
+    from lablink_allocator_service.database import _pool_max_size_from_env
+
+    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "0")
+    with caplog.at_level("WARNING"):
+        assert _pool_max_size_from_env(default=60) == 60
+    assert "Ignoring LABLINK_DB_POOL_MAX_SIZE=0" in caplog.text
+
+
 def test_cursor_returns_connection_on_success(db_instance):
     """After a successful `with self._cursor` block, the pool's
     putconn is called once with close=False."""
@@ -1540,6 +1581,259 @@ def test_get_client_secret_hash_missing(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchone.return_value = None
     assert db_instance.get_client_secret_hash("nope") is None
+
+
+def test_get_client_secret_hash_caches_positive_within_ttl(
+    db_instance, mock_db_connection
+):
+    """Repeat reads within TTL should not re-query the DB. Critical for
+    pool pressure under bursty client polling."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$argon2id$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert mock_cursor.execute.call_count == 1
+    # Second + third calls should hit the cache, not the DB.
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert db_instance.get_client_secret_hash("vm-1") == "$argon2id$h"
+    assert mock_cursor.execute.call_count == 1
+
+
+def test_get_client_secret_hash_caches_negative_within_ttl(
+    db_instance, mock_db_connection
+):
+    """None results are cached too — prevents spoofed-hostname requests
+    from drilling the pool."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("nope") is None
+    assert mock_cursor.execute.call_count == 1
+    assert db_instance.get_client_secret_hash("nope") is None
+    assert mock_cursor.execute.call_count == 1
+
+
+def test_get_client_secret_hash_separate_keys_each_query_once(
+    db_instance, mock_db_connection
+):
+    """Cache is per-hostname; different hosts each hit the DB once."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.side_effect = [("$h1",), ("$h2",)]
+    assert db_instance.get_client_secret_hash("vm-1") == "$h1"
+    assert db_instance.get_client_secret_hash("vm-2") == "$h2"
+    assert mock_cursor.execute.call_count == 2
+    # Repeats are served from cache.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h1"
+    assert db_instance.get_client_secret_hash("vm-2") == "$h2"
+    assert mock_cursor.execute.call_count == 2
+
+
+def test_register_client_invalidates_cache(db_instance, mock_db_connection):
+    """A successful register/re-register rotates the secret hash; cached
+    entry from before must be busted so the next auth check sees the new
+    hash."""
+    _, mock_cursor, _ = mock_db_connection
+    # Seed the cache with an old hash.
+    mock_cursor.fetchone.return_value = ("$old",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$old"
+    assert mock_cursor.execute.call_count == 1
+
+    # Re-register with a new hash (RETURNING hostname signals success).
+    mock_cursor.fetchone.return_value = ("vm-1",)
+    db_instance.register_client(
+        hostname="vm-1", machine_identity="i-1", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$new",
+    )
+
+    # Next read must hit the DB and pick up the new hash.
+    mock_cursor.fetchone.return_value = ("$new",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$new"
+    # 1 (seed get) + 1 (register) + 1 (re-fetched after invalidate) = 3.
+    assert mock_cursor.execute.call_count == 3
+
+
+def test_register_client_no_hijack_conflict_does_not_invalidate(
+    db_instance, mock_db_connection
+):
+    """If the upsert's WHERE excludes the row (different machine_identity),
+    RETURNING is empty and nothing changed — cache must NOT be busted."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.fetchone.return_value = None  # no-hijack conflict
+    cid = db_instance.register_client(
+        hostname="vm-1", machine_identity="i-other", provider="aws",
+        endpoint_url=None, provider_metadata={}, gpu_present=None,
+        gpu_model=None, client_secret_hash="$other",
+    )
+    assert cid is None
+
+    # Cached value still served; no extra SELECT.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    # 1 (seed) + 1 (failed register) = 2; the third get was a cache hit.
+    assert mock_cursor.execute.call_count == 2
+
+
+def test_unregister_client_invalidates_cache(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.rowcount = 1  # DELETE matched a row
+    assert db_instance.unregister_client("vm-1") is True
+
+    # Next read must re-query the DB; the row is gone, so None.
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_client_secret_hash("vm-1") is None
+    assert mock_cursor.execute.call_count == 3
+
+
+def test_unregister_client_noop_does_not_invalidate(
+    db_instance, mock_db_connection
+):
+    """If unregister didn't delete a row, cache should be untouched."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("$h",)
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 1
+
+    mock_cursor.rowcount = 0  # DELETE matched nothing
+    assert db_instance.unregister_client("vm-1") is False
+
+    # Cache still serves the original value.
+    assert db_instance.get_client_secret_hash("vm-1") == "$h"
+    assert mock_cursor.execute.call_count == 2  # 1 seed + 1 unregister
+
+
+def test_secret_hash_cache_ttl_expiry_re_queries():
+    """Direct test of the cache primitive: after expiry, the next get is
+    a miss and the caller must re-query."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache(
+        positive_ttl_seconds=0.05, negative_ttl_seconds=0.05
+    )
+    assert cache.put("vm-1", "$h", expected_version=0) is True
+    hit, val, _ = cache.get("vm-1")
+    assert hit is True and val == "$h"
+
+    import time as _time
+    _time.sleep(0.08)
+
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_negative_entry_returns_hit_with_none():
+    """A cached None must read back as (hit=True, value=None) so the
+    caller short-circuits the DB query."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    assert cache.put("nope", None, expected_version=0) is True
+    hit, val, _ = cache.get("nope")
+    assert hit is True and val is None
+
+
+def test_secret_hash_cache_invalidate_clears_entry():
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    cache.put("vm-1", "$h", expected_version=0)
+    cache.invalidate("vm-1")
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_put_rejected_when_invalidate_races():
+    """Simulate the rotate-race: reader gets a version, mid-flight
+    invalidate (concurrent re-register) bumps it, reader's put must
+    not commit the stale value."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    # Reader observes the version before the DB SELECT.
+    hit, _, version = cache.get("vm-1")
+    assert hit is False
+
+    # Concurrent register_client rotates the secret and invalidates.
+    cache.invalidate("vm-1")
+
+    # Reader's SELECT returned the now-stale hash; put must be rejected.
+    accepted = cache.put("vm-1", "$stale", expected_version=version)
+    assert accepted is False
+
+    # Cache stays empty so the next caller re-fetches and gets the
+    # rotated value from the DB.
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_put_accepted_when_no_race():
+    """Sanity check: with no intervening invalidate, put commits."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    hit, _, version = cache.get("vm-1")
+    assert hit is False
+    assert cache.put("vm-1", "$h", expected_version=version) is True
+    hit, val, _ = cache.get("vm-1")
+    assert hit is True and val == "$h"
+
+
+def test_secret_hash_cache_version_bumped_per_hostname_only():
+    """Invalidating vm-1 must not affect vm-2's version: a concurrent
+    put for vm-2 must still succeed."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    _, _, v1 = cache.get("vm-1")
+    _, _, v2 = cache.get("vm-2")
+    cache.invalidate("vm-1")
+    assert cache.put("vm-2", "$h2", expected_version=v2) is True
+    assert cache.put("vm-1", "$h1", expected_version=v1) is False
+
+
+def test_secret_hash_cache_lru_eviction_at_max_size():
+    """When the cache is full, inserting a new entry evicts the LRU
+    one. Bounds memory under unique-key floods."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache(max_size=2)
+    assert cache.put("a", "$a", expected_version=0) is True
+    assert cache.put("b", "$b", expected_version=0) is True
+    # Touch "a" so "b" becomes LRU.
+    hit, _, _ = cache.get("a")
+    assert hit is True
+    # Inserting "c" should evict "b", not "a".
+    assert cache.put("c", "$c", expected_version=0) is True
+    assert cache.get("a")[0] is True
+    assert cache.get("b")[0] is False
+    assert cache.get("c")[0] is True
+
+
+def test_secret_hash_cache_rejects_invalid_max_size():
+    from lablink_allocator_service.database import _SecretHashCache
+
+    with pytest.raises(ValueError, match="Invalid cache max_size"):
+        _SecretHashCache(max_size=0)
+
+
+def test_secret_hash_cache_clear_resets_versions():
+    """clear() wipes entries and versions so a subsequent put against
+    the old version is still accepted (no zombie versions)."""
+    from lablink_allocator_service.database import _SecretHashCache
+
+    cache = _SecretHashCache()
+    cache.put("vm-1", "$h", expected_version=0)
+    cache.invalidate("vm-1")  # bumps version to 1
+    cache.clear()
+    # After clear, version is back to 0 for any hostname.
+    _, _, version = cache.get("vm-1")
+    assert version == 0
+    assert cache.put("vm-1", "$h2", expected_version=0) is True
 
 
 def test_register_client_upsert_returns_hostname(db_instance, mock_db_connection):

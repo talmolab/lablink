@@ -24,9 +24,12 @@ echo "Running init.sql..."
 until pg_isready -U postgres; do sleep 1; done
 su postgres -c "psql -d postgres -f /app/init.sql"
 
-# Set listen_addresses = '*'
+# Set listen_addresses = '*' and raise max_connections.
+# max_connections must stay above database.py's POOL_MAX_SIZE (200) with
+# headroom for autovacuum workers, replication, and admin sessions.
 echo "Configuring PostgreSQL to listen on all addresses..."
 su postgres -c "psql -d postgres -c \"ALTER SYSTEM SET listen_addresses = '*';\""
+su postgres -c "psql -d postgres -c \"ALTER SYSTEM SET max_connections = 300;\""
 
 pg_ctlcluster 17 main restart
 

@@ -1,21 +1,159 @@
+from collections import OrderedDict
 from datetime import datetime, timezone
 import json
 import logging
+import os
+import threading
+import time
 from typing import List, Optional
 from urllib.parse import urlsplit
 
 import psycopg2
 import psycopg2.pool
 
+from lablink_allocator_service.secret_hash import invalidate_verify
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-# Pool sizing. Internal: end users deploying the allocator don't need to
-# reason about this. Raise these in-code if production metrics show
-# getconn blocking during traffic bursts.
+def _pool_max_size_from_env(default: int) -> int:
+    """LABLINK_DB_POOL_MAX_SIZE override, clamped to >= POOL_MIN_SIZE.
+    Invalid/missing values fall through to the default."""
+    raw = os.environ.get("LABLINK_DB_POOL_MAX_SIZE")
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        logger.warning(
+            "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE=%r; using %d", raw, default
+        )
+        return default
+    if parsed < 1:
+        logger.warning(
+            "Ignoring LABLINK_DB_POOL_MAX_SIZE=%d (<1); using %d", parsed, default
+        )
+        return default
+    return parsed
+
+
+# Pool sizing. Default sized for ~100 client VMs polling concurrently
+# plus the admin UI; start.sh raises Postgres max_connections in lockstep.
+# Override at deploy time with LABLINK_DB_POOL_MAX_SIZE without rebuilding
+# the image (keep it below max_connections minus autovacuum/admin headroom).
 POOL_MIN_SIZE = 2
-POOL_MAX_SIZE = 20
+POOL_MAX_SIZE = _pool_max_size_from_env(default=200)
+
+
+# Secret-hash cache sizing. Every authed allocator endpoint reads the
+# argon2 hash before letting the request through. With ~30 client VMs
+# polling on tight loops the lookup alone can starve the pool during
+# bursts. The cache is invalidated by register_client and
+# unregister_client; TTLs are a safety net for any unexpected writer.
+# Positive TTL is short (60 s) so that any path that updates the hash
+# without going through invalidate (e.g. direct SQL, future code) only
+# leaves stale auth state for ~1 minute. With ~30 VMs polling at ~1 Hz
+# this still cuts steady-state DB load by ~60×.
+_SECRET_HASH_POSITIVE_TTL_S = 60.0
+_SECRET_HASH_NEGATIVE_TTL_S = 30.0
+# Working set is the number of registered VMs (tens). Cap well above
+# that so legitimate workloads never evict; the cap bounds memory under
+# unique-key floods.
+_SECRET_HASH_CACHE_MAX_SIZE = 1024
+
+
+class _SecretHashCache:
+    """Thread-safe per-hostname TTL+LRU cache for client_secret_hash.
+
+    Caches both real hashes (positive_ttl) and absent-hostname None
+    results (negative_ttl). The shorter negative TTL keeps freshly
+    registered hosts auth-able within seconds without a register-time
+    invalidate, and limits how long a repeatedly probed unknown
+    hostname sits in memory.
+
+    Race-against-rotation: ``get`` returns a per-hostname version token
+    that ``put`` re-checks under lock. If ``invalidate`` ran between
+    ``get`` and ``put`` — i.e. a concurrent ``register_client`` rotated
+    the secret while a stale SELECT was in flight — the version
+    mismatch rejects the stale write, so the next call re-queries the
+    DB and picks up the new hash.
+
+    Bounded size: the underlying store is an ``OrderedDict`` with LRU
+    eviction on insert beyond ``max_size``. Both ``get`` and ``put``
+    move the entry to the most-recently-used end. This bounds memory
+    even if a misbehaving caller iterates through unique fake
+    hostnames.
+    """
+
+    def __init__(
+        self,
+        *,
+        positive_ttl_seconds: float = _SECRET_HASH_POSITIVE_TTL_S,
+        negative_ttl_seconds: float = _SECRET_HASH_NEGATIVE_TTL_S,
+        max_size: int = _SECRET_HASH_CACHE_MAX_SIZE,
+    ):
+        if max_size < 1:
+            raise ValueError(f"Invalid cache max_size: {max_size}")
+        self._positive_ttl = positive_ttl_seconds
+        self._negative_ttl = negative_ttl_seconds
+        self._max_size = max_size
+        self._lock = threading.RLock()
+        # hostname -> (value, expires_at)
+        self._entries: OrderedDict = OrderedDict()
+        # hostname -> int. Bumped only by invalidate(); never reset by
+        # TTL expiry or LRU eviction (those aren't "the hash changed"
+        # events). put() rejects stores whose observed version is stale.
+        self._versions: dict = {}
+
+    def get(self, hostname: str):
+        """Return ``(hit, value, version)``.
+
+        ``hit=False`` means the caller must query the DB; pass
+        ``version`` back to :meth:`put` so a concurrent invalidate
+        between get and put rejects the stale write.
+        """
+        with self._lock:
+            version = self._versions.get(hostname, 0)
+            entry = self._entries.get(hostname)
+            if entry is None:
+                return False, None, version
+            value, expires_at = entry
+            if time.monotonic() >= expires_at:
+                del self._entries[hostname]
+                return False, None, version
+            # LRU touch
+            self._entries.move_to_end(hostname)
+            return True, value, version
+
+    def put(self, hostname: str, value, expected_version: int) -> bool:
+        """Store ``value`` for ``hostname`` if no invalidate raced.
+
+        Returns ``True`` if the entry was written, ``False`` if a
+        concurrent ``invalidate`` bumped the version between the
+        caller's ``get`` and this ``put``.
+        """
+        ttl = self._positive_ttl if value is not None else self._negative_ttl
+        with self._lock:
+            if self._versions.get(hostname, 0) != expected_version:
+                return False
+            self._entries[hostname] = (value, time.monotonic() + ttl)
+            self._entries.move_to_end(hostname)
+            # Evict LRU entries beyond cap. Bound is a soft DoS guard,
+            # not a working-set sizing knob.
+            while len(self._entries) > self._max_size:
+                self._entries.popitem(last=False)
+            return True
+
+    def invalidate(self, hostname: str) -> None:
+        with self._lock:
+            self._versions[hostname] = self._versions.get(hostname, 0) + 1
+            self._entries.pop(hostname, None)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+            self._versions.clear()
 
 
 class _PooledCursor:
@@ -161,7 +299,8 @@ class PostgresqlDatabase:
             pool_min_size (int): Minimum pooled connections. Defaults to
                 POOL_MIN_SIZE. Override in tests only.
             pool_max_size (int): Maximum pooled connections. Defaults to
-                POOL_MAX_SIZE. Override in tests only.
+                POOL_MAX_SIZE (which honors LABLINK_DB_POOL_MAX_SIZE).
+                Override in tests only.
 
         Raises:
             ValueError: If pool sizing is invalid.
@@ -187,6 +326,7 @@ class PostgresqlDatabase:
             host=host,
             port=port,
         )
+        self._secret_hash_cache = _SecretHashCache()
 
     @property
     def _cursor(self):
@@ -318,7 +458,18 @@ class PostgresqlDatabase:
         return row[0] if row else None
 
     def get_client_secret_hash(self, hostname: str):
-        """Return the argon2 client_secret_hash for a hostname, or None."""
+        """Return the argon2 client_secret_hash for a hostname, or None.
+
+        Cached per-hostname (see ``_SecretHashCache``). The version token
+        captured before the SELECT is re-checked on put — a concurrent
+        ``register_client`` or ``unregister_client`` that bumps the
+        version mid-flight rejects the stale write, so the next call
+        re-queries and serves the freshly rotated hash. TTLs and LRU
+        eviction are belt-and-suspenders.
+        """
+        hit, cached, version = self._secret_hash_cache.get(hostname)
+        if hit:
+            return cached
         with self._cursor as cursor:
             cursor.execute(
                 f"SELECT client_secret_hash FROM {self.table_name} "
@@ -326,7 +477,9 @@ class PostgresqlDatabase:
                 (hostname,),
             )
             row = cursor.fetchone()
-        return row[0] if row else None
+        value = row[0] if row else None
+        self._secret_hash_cache.put(hostname, value, expected_version=version)
+        return value
 
     def get_lan_ip(self, hostname: str):
         """LAN IP for a manual client: provider_metadata->>'lan_ip',
@@ -408,6 +561,9 @@ class PostgresqlDatabase:
                  client_secret_hash, gpu_present, gpu_model),
             )
             row = cursor.fetchone()
+        if row:
+            self._secret_hash_cache.invalidate(hostname)
+            invalidate_verify(hostname)
         return row[0] if row else None
 
     def unregister_client(self, client_id: str) -> bool:
@@ -422,7 +578,11 @@ class PostgresqlDatabase:
                 f"DELETE FROM {t} WHERE hostname = %s;",
                 (client_id,),
             )
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+        if deleted:
+            self._secret_hash_cache.invalidate(client_id)
+            invalidate_verify(client_id)
+        return deleted
 
     def list_registered_clients(self) -> list[dict]:
         """Return registered clients as a list of dicts.
