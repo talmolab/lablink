@@ -101,12 +101,22 @@ def _build_cfg_and_app(
 
 
 def _select_radio_by_id(screen, radioset_id: str, button_id: str) -> None:
-    """Set the RadioButton with the given id to value=True within the RadioSet."""
+    """Set the RadioButton with the given id to value=True within the RadioSet.
+
+    Only flips the target to True; RadioSet's own RadioButton.Changed handler
+    unsets the previously-pressed sibling inside a prevent block. Setting the
+    sibling to False here would race that handler — its "click off" guard
+    re-asserts value=True when it sees Changed(value=False), so depending on
+    cross-widget message-queue order both buttons can end up True and
+    `_save_advanced` (which returns the first True button) reads the wrong one.
+    """
     from textual.widgets import RadioButton, RadioSet
 
     radio_set = screen.query_one(radioset_id, RadioSet)
     for btn in radio_set.query(RadioButton):
-        btn.value = (btn.id == button_id)
+        if btn.id == button_id:
+            btn.value = True
+            return
 
 
 def test_dns_guided_cloudflare_sets_persistent_eip():
