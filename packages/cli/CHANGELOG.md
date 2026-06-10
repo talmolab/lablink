@@ -60,6 +60,12 @@ this project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Bumped the pinned `lablink-template` version to **v0.2.2**, which fixes
+  Cloudflare **Full** SSL mode. The allocator origin now serves HTTPS:443
+  with a self-signed cert (Caddy `tls internal`) instead of HTTP only, so
+  Cloudflare's recommended Full mode can connect (previously it returned
+  Cloudflare Error 521). Updated `TEMPLATE_VERSION` and `TEMPLATE_SHA256`.
+
 - LAN-direct browser auth: switched from HTTP BasicAuth (browser-blocked
   on WebSocket upgrades) to RFB `VncAuth` with a per-session 8-byte
   credential. Includes a `sed` patch on the bundled KasmVNC noVNC to undo
