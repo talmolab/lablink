@@ -20,6 +20,7 @@ from lablink_client_service.monitoring.aggregator import (
     new_counters,
 )
 from lablink_client_service.monitoring.pusher import push_summary
+from lablink_client_service.session_anchor import read_anchor
 from lablink_client_service.monitoring.samplers.active_window import (
     sample as _sample_active_window,
 )
@@ -77,6 +78,28 @@ def _resolve_subject_patterns(cfg: dict) -> list[str]:
     return [software] if software else []
 
 
+def _maybe_reanchor(counters: SessionCounters) -> SessionCounters:
+    """Return fresh counters anchored at the on-disk timestamp if the agent
+    has recorded a session-start newer than the current anchor; otherwise
+    return the passed-in counters unchanged.
+
+    Resetting zeros every counter (not just the anchor) so a row's
+    metrics describe one user's session — pre-assignment activity isn't
+    meaningful, and mixed semantics ("anchor = assignment, accumulators =
+    boot") are harder to reason about than a clean reset.
+    """
+    on_disk = read_anchor()
+    if on_disk is None:
+        return counters
+    if on_disk == counters.session_started_at:
+        return counters
+    logger.info(
+        "Session anchor changed (now %s); resetting counters",
+        on_disk.isoformat(),
+    )
+    return new_counters(session_started_at=on_disk)
+
+
 def _tick(cfg: dict, counters: SessionCounters) -> None:
     ts = datetime.now(timezone.utc)
     bucket = _sample_active_window(subject_patterns=_resolve_subject_patterns(cfg))
@@ -132,6 +155,7 @@ def main() -> None:
         push_int,
     )
     while not _stop_event.is_set():
+        _counters = _maybe_reanchor(_counters)
         try:
             _tick(_cfg, _counters)
         except Exception:
