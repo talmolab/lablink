@@ -2089,3 +2089,7 @@ def test_release_expired_admin_sessions_releases_old_and_keeps_recent(real_db):
         cur.execute(
             "DELETE FROM vms WHERE hostname IN ('host-expired', 'host-fresh')"
         )
+
+
+def test_pool_property_returns_underlying_pool(db_instance):
+    assert db_instance.pool is db_instance._pool
