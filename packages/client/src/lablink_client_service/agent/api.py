@@ -16,10 +16,12 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.
 """
 import logging
 import os
+from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify
 
 from lablink_client_service.agent.kasmvnc import rotate_kasmvnc_password
+from lablink_client_service.session_anchor import write_anchor
 
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,18 @@ def create_app() -> Flask:
         except Exception as exc:
             logger.exception("KasmVNC password rotation failed")
             return jsonify(error=f"rotation failed: {exc}"), 500
+
+        # Anchor the monitoring agent's session clock at user-assignment
+        # time. A write failure here is non-fatal: the seat is usable;
+        # only metric timing is affected (clock will stay at last anchor
+        # or at agent boot if none has been written yet).
+        try:
+            write_anchor(datetime.now(timezone.utc))
+        except OSError:
+            logger.exception(
+                "Failed to write session anchor; metrics may be misaligned"
+            )
+
         return jsonify(ok=True), 200
 
     @app.get("/healthz")
