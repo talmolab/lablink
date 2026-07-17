@@ -36,7 +36,10 @@ from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
 from lablink_allocator_service.operations import OperationsWorker
-from lablink_allocator_service.operations_db import OperationsDatabase
+from lablink_allocator_service.operations_db import (
+    OperationInProgress,
+    OperationsDatabase,
+)
 from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.signed_cookie import (
     sign,
@@ -155,6 +158,12 @@ admin_session_expiry_service = None
 # There is deliberately no operations_worker.stop()/atexit registration
 # to match: there is no loop to join.
 operations_worker = None
+
+# Operations-table query layer (initialized in main()), promoted to a
+# module global alongside operations_worker so routes can read job status
+# directly (list/get/in-progress) without going through the worker, which
+# only exposes submit()/start().
+operations_db = None
 
 # Startup timestamp for uptime tracking (set in main())
 _startup_time: float | None = None
@@ -1226,10 +1235,27 @@ def scheduled_destruction_page():
     return render_template("scheduled-destruction.html")
 
 
+@app.route("/api/operations", methods=["GET"])
+@auth.login_required
+def list_operations():
+    if request.args.get("status") == "in_progress":
+        return jsonify(operations_db.get_in_progress_operation())
+    return jsonify(operations_db.list_operations(limit=50))
+
+
+@app.route("/api/operations/<int:operation_id>", methods=["GET"])
+@auth.login_required
+def get_operation(operation_id):
+    operation = operations_db.get_operation(operation_id)
+    if operation is None:
+        return jsonify({"error": "Operation not found"}), 404
+    return jsonify(operation)
+
+
 def main():
     """Main entry point for the allocator service."""
     global scheduler_service, reboot_service, admin_session_expiry_service
-    global operations_worker
+    global operations_worker, operations_db
     global _startup_time
 
     try:
