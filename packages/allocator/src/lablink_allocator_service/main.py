@@ -34,6 +34,7 @@ from lablink_allocator_service.utils.config_helpers import (
 from lablink_allocator_service.utils.sg_audit import SGAuditFailure
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
+from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
 from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.signed_cookie import (
     sign,
@@ -141,6 +142,9 @@ scheduler_service = None
 
 # Auto-reboot service (initialized in main())
 reboot_service = None
+
+# Admin-session expiry service (initialized in main())
+admin_session_expiry_service = None
 
 # Startup timestamp for uptime tracking (set in main())
 _startup_time: float | None = None
@@ -320,6 +324,97 @@ def byo_onboarding():
 def view_instances():
     instances = database.get_all_vms()
     return render_template("instances.html", instances=instances)
+
+
+@app.route("/admin/instances/<hostname>/peek")
+@auth.login_required
+def admin_peek_vm(hostname):
+    """View (read-only) a VM already assigned to a participant, without
+    touching useremail or rotating credentials — opens a second WS
+    viewer onto the same live KasmVNC session."""
+    session = database.get_session_for_peek(hostname)
+    if session is None:
+        return redirect("/admin/instances?vnc_error=peek_unavailable")
+
+    conn = database._pool.getconn()
+    try:
+        secret = get_or_create_cookie_secret(conn)
+    finally:
+        database._pool.putconn(conn)
+
+    signed = sign(f"{session['sessionid']}:view_only", secret=secret)
+    resp = redirect("/desktop", code=303)
+    is_https = request.headers.get("X-Forwarded-Proto") == "https"
+    resp.set_cookie(
+        "lablink_session", signed,
+        httponly=True, samesite="Strict",
+        secure=is_https, path="/",
+    )
+    return resp
+
+
+@app.route("/admin/instances/<hostname>/connect", methods=["POST"])
+@auth.login_required
+def admin_connect_vm(hostname):
+    """Connect (full control) to a VM not currently assigned to anyone,
+    for admin troubleshooting. Reserves the VM out of the assignable
+    pool (AdminReservedAt) and mints a real session via the same
+    prepare_browser_session path /api/request_vm uses — but never sets
+    useremail."""
+    import uuid
+
+    if not database.admin_reserve_vm(hostname):
+        return redirect("/admin/instances?vnc_error=connect_raced")
+
+    session_id = uuid.uuid4()
+    browser_token = secrets.token_urlsafe(16)
+    provider = app.config.get("LABLINK_PROVIDER") or get_provider(
+        cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+    )
+    try:
+        provider.client_connectivity.prepare_browser_session(
+            database=database,
+            hostname=hostname,
+            session_id=session_id,
+            browser_token=browser_token,
+            agent_token=AGENT_TOKEN,
+        )
+    except RotationFailed as exc:
+        logger.warning(
+            "Admin connect rotation failed for '%s': %s", hostname, exc
+        )
+        try:
+            database.update_health(hostname=hostname, healthy="Unhealthy")
+            database.release_seat(hostname=hostname)
+        except Exception:
+            logger.exception("Could not mark '%s' unhealthy", hostname)
+        return redirect("/admin/instances?vnc_error=rotation_failed")
+
+    conn = database._pool.getconn()
+    try:
+        secret = get_or_create_cookie_secret(conn)
+    finally:
+        database._pool.putconn(conn)
+
+    signed = sign(f"{session_id}:admin_session", secret=secret)
+    resp = redirect("/desktop", code=303)
+    is_https = request.headers.get("X-Forwarded-Proto") == "https"
+    resp.set_cookie(
+        "lablink_session", signed,
+        httponly=True, samesite="Strict",
+        secure=is_https, path="/",
+    )
+    return resp
+
+
+@app.route("/admin/instances/<hostname>/release", methods=["POST"])
+@auth.login_required
+def admin_release_vm(hostname):
+    """End an admin troubleshooting session, returning the VM to the
+    assignable pool. Posted to by both the dashboard row's Release
+    button and the /desktop wrapper page's Release form."""
+    database.release_seat(hostname=hostname)
+    return redirect("/admin/instances")
 
 
 @app.route("/admin/instances/delete")
@@ -1116,7 +1211,7 @@ def scheduled_destruction_page():
 
 def main():
     """Main entry point for the allocator service."""
-    global scheduler_service, reboot_service, _startup_time
+    global scheduler_service, reboot_service, admin_session_expiry_service, _startup_time
 
     try:
         _startup_time = time.monotonic()
@@ -1148,6 +1243,16 @@ def main():
         reboot_service.start()
         atexit.register(reboot_service.stop)
         logger.info("Auto-reboot service started successfully")
+
+        # Initialize admin-session expiry sweep
+        logger.info("Initializing admin-session expiry service...")
+        admin_session_expiry_service = AdminSessionExpiryService(
+            database=database,
+            timeout_minutes=cfg.app.admin_session_timeout_minutes,
+        )
+        admin_session_expiry_service.start()
+        atexit.register(admin_session_expiry_service.stop)
+        logger.info("Admin-session expiry service started successfully")
 
         # Terraform initialization — gated on the provider's capability flag
         # (mirrors the policy at module top: branch on capability, not type).
@@ -1224,6 +1329,18 @@ def main():
             except Exception as cleanup_error:
                 logger.error(
                     f"Error stopping scheduler during cleanup: {cleanup_error}"
+                )
+
+        if admin_session_expiry_service is not None:
+            try:
+                logger.info(
+                    "Stopping admin-session expiry service due to startup failure..."
+                )
+                admin_session_expiry_service.stop()
+            except Exception as cleanup_error:
+                logger.error(
+                    f"Error stopping admin-session expiry service during "
+                    f"cleanup: {cleanup_error}"
                 )
 
         # Re-raise the exception to exit with error code

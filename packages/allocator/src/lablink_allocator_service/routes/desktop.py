@@ -7,6 +7,7 @@ configured from the persisted browser_ws_url and browser_credential.
 If the cookie is missing, invalid, or the bound VM is no longer
 running, redirect to / so the student can submit their email again.
 """
+import html
 import json
 from urllib.parse import quote, urlsplit
 
@@ -34,15 +35,17 @@ def desktop():
     try:
         secret = get_or_create_cookie_secret(conn)
         try:
-            session_id = verify(raw_cookie, secret=secret)
+            payload = verify(raw_cookie, secret=secret)
         except InvalidSignature:
             return redirect("/", code=302)
+        session_id, _, suffix = payload.partition(":")
 
         table = sql.Identifier(current_app.config["VM_TABLE_NAME"])
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
-                    "SELECT browser_ws_url, browser_credential FROM {table} "
+                    "SELECT browser_ws_url, browser_credential, hostname "
+                    "FROM {table} "
                     "WHERE sessionid = %s AND status = 'running'"
                 ).format(table=table),
                 (session_id,),
@@ -54,14 +57,19 @@ def desktop():
     if row is None or row[0] is None:
         return redirect("/", code=302)
 
-    ws_url, credential = row[0], row[1]
+    ws_url, credential, hostname = row
+    view_only = suffix == "view_only"
+
+    if suffix == "admin_session":
+        return _render_admin_session_page(ws_url, hostname)
 
     # Proxied path (relative, server-side credential): byte-identical to
     # the historical viewer URL — AWS regression-locked.
     if ws_url.startswith("proxy/"):
+        vo_qs = "&view_only=1" if view_only else ""
         return redirect(
             f"/static/novnc/vnc.html?path={ws_url}"
-            f"&autoconnect=1&resize=remote",
+            f"&autoconnect=1&resize=remote{vo_qs}",
             code=302,
         )
 
@@ -83,9 +91,10 @@ def desktop():
     port = parts.port or 6080
     encrypt = "1" if parts.scheme == "wss" else "0"
     pw_qs = "" if credential is None else f"&password={quote(credential, safe='')}"
+    vo_qs = "&view_only=1" if view_only else ""
     target = (
         f"/static/novnc/vnc.html?host={host}&port={port}&encrypt={encrypt}"
-        f"&autoconnect=1&resize=remote{pw_qs}"
+        f"&autoconnect=1&resize=remote{pw_qs}{vo_qs}"
     )
     return (
         "<!doctype html><meta charset=utf-8>"
@@ -93,3 +102,39 @@ def desktop():
         f"<script>location.replace({json.dumps(target)});</script>",
         200,
     )
+
+
+def _render_admin_session_page(ws_url: str, hostname: str) -> str:
+    """Wrap the noVNC viewer with a persistent Release control for an
+    admin troubleshooting session (full control, no participant assigned).
+
+    Unlike the student/peek paths (a bare redirect), this renders
+    directly, since the Release form needs to know the hostname.
+    """
+    viewer_src = f"/static/novnc/vnc.html?path={ws_url}&autoconnect=1&resize=remote"
+    release_action = f"/admin/instances/{quote(hostname, safe='')}/release"
+    safe_hostname = html.escape(hostname)
+    return f"""<!doctype html>
+<meta charset="utf-8">
+<style>
+  body {{ margin: 0; display: flex; flex-direction: column; height: 100vh; }}
+  header {{
+    flex: 0 0 auto; background: #222; color: #fff; padding: 8px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: sans-serif;
+  }}
+  header form {{ margin: 0; }}
+  header button {{
+    background: #c0392b; color: #fff; border: none; padding: 6px 14px;
+    border-radius: 4px; cursor: pointer;
+  }}
+  iframe {{ flex: 1 1 auto; border: none; }}
+</style>
+<header>
+  <span>Admin session on {safe_hostname}</span>
+  <form method="POST" action="{release_action}">
+    <button type="submit">Release</button>
+  </form>
+</header>
+<iframe src="{viewer_src}"></iframe>
+"""
