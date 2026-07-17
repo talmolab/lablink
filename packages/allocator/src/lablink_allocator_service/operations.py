@@ -75,6 +75,11 @@ class OperationsWorker:
                 operation_id, status="failed", error=str(e)
             )
             return
+        # Deliberately outside the try: if terraform genuinely succeeded but
+        # this final status write fails, folding it into the except above
+        # would mislabel a successful run as "failed". Leaving the row at
+        # "running" is the more honest outcome — it's picked up as
+        # "interrupted" by the next startup sweep, same as a mid-job crash.
         self.database.finish_operation(
             operation_id, status="succeeded", output=output
         )
