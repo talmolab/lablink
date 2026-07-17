@@ -56,6 +56,27 @@ CREATE TRIGGER scheduled_destructions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_scheduled_destructions_updated_at();
 
+CREATE TABLE IF NOT EXISTS operations (
+    id SERIAL PRIMARY KEY,
+    op_type VARCHAR(16) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    params TEXT,
+    created_by VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMP,
+    finished_at TIMESTAMP,
+    output TEXT,
+    error TEXT
+);
+
+CREATE INDEX idx_operations_created_at ON operations(created_at);
+
+-- At most one queued/running operation at a time. This is the entire
+-- concurrency guard: two near-simultaneous INSERTs under Flask's
+-- threaded=True can't both succeed, so no separate locking code is needed.
+CREATE UNIQUE INDEX IF NOT EXISTS operations_single_flight
+    ON operations ((1)) WHERE status IN ('queued', 'running');
+
 CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     HostName VARCHAR(1024) PRIMARY KEY,
     UserEmail VARCHAR(1024),

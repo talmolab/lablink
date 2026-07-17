@@ -110,3 +110,19 @@ def test_assignable_index_excludes_admin_reserved():
     assert "adminreservedat IS NULL" in sql
     # The existing predicate must still be intact alongside the new one.
     assert "useremail IS NULL AND status = 'running'" in sql
+
+
+def test_operations_table_present():
+    sql = build_init_sql()
+    assert "CREATE TABLE IF NOT EXISTS operations" in sql
+    for col in (
+        "op_type", "status", "params", "created_by",
+        "created_at", "started_at", "finished_at", "output", "error",
+    ):
+        assert col in sql, f"missing column {col}"
+
+
+def test_operations_single_flight_index_present():
+    sql = build_init_sql()
+    assert "operations_single_flight" in sql
+    assert "WHERE status IN ('queued', 'running')" in sql
