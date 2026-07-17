@@ -16,8 +16,6 @@ from typing import List, Optional
 
 import psycopg2
 
-from lablink_allocator_service.database import _PooledCursor
-
 logger = logging.getLogger(__name__)
 
 # Named-key contract for rows returned by the SELECT * queries below. Every
@@ -63,7 +61,21 @@ class OperationsDatabase:
     @property
     def _cursor(self):
         """Return a context manager that checks out a pooled connection
-        and yields a cursor. See database._PooledCursor."""
+        and yields a cursor. See database._PooledCursor.
+
+        Imported lazily (not at module level): database.py does a real,
+        unmocked `import psycopg2` at its own top level, and several test
+        files (test_database.py, test_reboot.py) guard against that by
+        patching sys.modules before their own first import of database.py.
+        An eager module-level import here would race those files during
+        pytest collection — whichever import runs first wins, and a real
+        psycopg2 import poisons the cached database module for every test
+        file collected afterward. Deferring the import to first use (well
+        after collection, when those guards have already run) avoids the
+        race entirely.
+        """
+        from lablink_allocator_service.database import _PooledCursor
+
         return _PooledCursor(self._pool)
 
     def create_operation(
