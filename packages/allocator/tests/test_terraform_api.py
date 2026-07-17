@@ -2,6 +2,8 @@ from unittest.mock import patch, MagicMock
 import json
 import subprocess
 
+import pytest
+
 POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
@@ -121,10 +123,17 @@ def test_launch_vm_success(
         R("\x1b[32mapply success\x1b[0m"),   # terraform apply <planfile>
     ]
 
-    # Call route
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "2"})
-    assert resp.status_code == 200
-    assert b"Output Dashboard" in resp.data
+    # Call route -- now async: it submits a job and returns immediately
+    # instead of running terraform inline. Capture and invoke the closure
+    # (still within the scope of the @patch decorators above) to exercise
+    # the same provision_hosts call the background thread would make.
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "2"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
     # Assert calls (plan + show -json + apply = 3; terraform output calls
     # are handled by patched get_instance_* functions)
@@ -238,9 +247,14 @@ def test_launch_vm_appends_allocator_sg_id_var(
         R("apply ok"),         # terraform apply <planfile>
     ]
 
-    resp = client.post(POST_ENDPOINT, headers=admin_headers,
-                        data={"num_vms": "1"})
-    assert resp.status_code == 200
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                            data={"num_vms": "1"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
     # The allocator-SG var is supplied via terraform plan; apply runs
     # off the saved plan file and never sees -var flags directly.
@@ -320,9 +334,14 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
         R("apply ok"),         # terraform apply <planfile>
     ]
 
-    resp = client.post(POST_ENDPOINT, headers=admin_headers,
-                        data={"num_vms": "1"})
-    assert resp.status_code == 200
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers,
+                            data={"num_vms": "1"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
     # When IMDSv2 was unreachable, the plan must not include the
     # allocator-SG var. apply runs off the saved plan file and has
@@ -404,9 +423,14 @@ def test_launch_apply_failure(
 
     mock_run.side_effect = side_effect
 
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "4"})
-    assert resp.status_code == 200
-    assert b"boom" in resp.data  # stripped
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "4"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(RuntimeError, match="Terraform failed: boom"):
+            fn()
 
     tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
     assert 'gpu_support = "false"' in tfvars
@@ -660,12 +684,19 @@ def test_launch_json_success(
     ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "2"})
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 5
+        resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "2"})
 
-    assert resp.status_code == 200
-    body = json.loads(resp.data)
-    assert body["status"] == "success"
-    assert "apply success" in body["output"]
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+        assert body["job_id"] == 5
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        output = fn()
+
+    assert output == "apply success"
 
 
 def test_launch_json_missing_num_vms(client, admin_headers):
@@ -759,12 +790,21 @@ def test_launch_json_apply_failure(
     mock_run.side_effect = side_effect
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
 
-    assert resp.status_code == 500
-    body = json.loads(resp.data)
-    assert body["status"] == "error"
-    assert "resource already exists" in body["error"]
+        # Submission itself succeeds immediately (job queued); the
+        # terraform failure only surfaces once the closure runs.
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(
+            RuntimeError, match="Terraform failed: Error: resource already exists"
+        ):
+            fn()
 
 
 @patch("lablink_allocator_service.providers.aws.upload_to_s3")
@@ -812,12 +852,21 @@ def test_launch_json_unexpected_error(
     mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
 
-    assert resp.status_code == 500
-    body = json.loads(resp.data)
-    assert body["status"] == "error"
-    assert "AccessDenied" in body["error"]
+        # Submission succeeds immediately; unexpected errors (anything
+        # other than SGAuditFailure/CalledProcessError) are NOT reformatted
+        # by the closure -- they propagate as-is, to be recorded by
+        # OperationsWorker as the operation's error.
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(Exception, match="AccessDenied"):
+            fn()
 
 
 # ------------------------------------------------------------------
@@ -897,14 +946,24 @@ def test_launch_aborts_on_sg_audit_failure(
     ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(
-        POST_ENDPOINT, headers=headers, data={"num_vms": "1"}
-    )
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(
+            POST_ENDPOINT, headers=headers, data={"num_vms": "1"}
+        )
 
-    assert resp.status_code == 400
-    body = json.loads(resp.data)
-    assert body["status"] == "error"
-    assert "6080" in body["error"]  # error mentions the offending port
+        # Submission succeeds immediately; the SG audit gate now fires
+        # inside the closure, not synchronously in the route.
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(
+            RuntimeError, match="Security-group audit refused the plan"
+        ) as excinfo:
+            fn()
+        assert "6080" in str(excinfo.value)  # error mentions the offending port
 
     # Confirm apply was not invoked — only plan + show ran.
     assert mock_run.call_count == 2
@@ -959,11 +1018,23 @@ def test_launch_aborts_on_sg_audit_failure_html(
         R(VIOLATING_PLAN_JSON),   # terraform show -json (fed to audit)
     ]
 
-    resp = client.post(
-        POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"}
-    )
-    assert resp.status_code == 400
-    assert b"6080" in resp.data
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(
+            POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"}
+        )
+        # Browser-form submit gets a redirect carrying the job id, not a
+        # rendered error page — the audit failure now surfaces later, on
+        # the background thread.
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(
+            RuntimeError, match="Security-group audit refused the plan"
+        ) as excinfo:
+            fn()
+        assert "6080" in str(excinfo.value)
+
     # Plan + show ran; apply did not.
     assert mock_run.call_count == 2
     mock_upload_to_s3.assert_not_called()
@@ -1026,8 +1097,13 @@ def test_launch_writes_register_token_to_tfvars(
         R("\x1b[32mapply success\x1b[0m"),
     ]
 
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
-    assert resp.status_code == 200
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
     tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
     assert 'register_token = "test-register-token-value"' in tfvars
@@ -1092,8 +1168,13 @@ def test_launch_writes_agent_token_to_tfvars_additively(
         R("\x1b[32mapply success\x1b[0m"),
     ]
 
-    resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
-    assert resp.status_code == 200
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
     from lablink_allocator_service import main
 

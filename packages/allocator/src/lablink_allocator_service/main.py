@@ -3,6 +3,7 @@ import logging
 import secrets
 import subprocess
 import time
+import json
 from pathlib import Path
 from datetime import datetime
 import re
@@ -602,49 +603,54 @@ def launch():
         "deployment_name": getattr(cfg, "deployment_name", "lablink"),
     }
 
+    def _run_launch() -> str:
+        """Runs on OperationsWorker's background thread, not the request
+        thread. Reformats known failure types into RuntimeError with the
+        same user-facing text the old synchronous route used, so that
+        text ends up in the operation's `error` column."""
+        try:
+            result = provider.provision_hosts(count=total_vms, spec=spec)
+        except SGAuditFailure as exc:
+            raise RuntimeError(
+                f"Security-group audit refused the plan: {exc}"
+            ) from exc
+        except subprocess.CalledProcessError as e:
+            clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
+            raise RuntimeError(f"Terraform failed: {clean_err}") from e
+
+        for hostname, times in result.timings.items():
+            start_time = datetime.fromisoformat(
+                times["start_time"].replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(
+                times["end_time"].replace("Z", "+00:00")
+            )
+            database.update_terraform_timing(
+                hostname=hostname,
+                per_instance_seconds=float(times["seconds"]),
+                per_instance_start_time=start_time,
+                per_instance_end_time=end_time,
+            )
+        return result.apply_stdout
+
     try:
-        result = provider.provision_hosts(count=total_vms, spec=spec)
-    except SGAuditFailure as exc:
-        logger.error("SG audit refused the plan: %s", exc)
-        error_msg = f"Security-group audit refused the plan: {exc}"
+        job_id = operations_worker.submit(
+            op_type="apply",
+            fn=_run_launch,
+            params=json.dumps({"num_vms": num_vms}),
+            created_by=auth.current_user(),
+        )
+    except OperationInProgress as exc:
+        error_msg = f"An operation is already in progress (job #{exc.job_id})"
         if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 400
-        return render_template("dashboard.html", error=error_msg), 400
-    except subprocess.CalledProcessError as e:
-        logger.error("Terraform failed: %s", e.stderr)
-        clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
-        error_msg = f"Terraform failed: {clean_err}"
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 500
-        return render_template("dashboard.html", error=error_msg)
-    except Exception as e:
-        logger.error("Unexpected error during launch: %s", e)
-        if _wants_json():
-            return jsonify({"status": "error", "error": str(e)}), 500
-        return render_template("dashboard.html", error=str(e))
+            return jsonify({
+                "status": "error", "error": error_msg, "job_id": exc.job_id,
+            }), 409
+        return render_template("dashboard.html", error=error_msg), 409
 
-    # Update DB with timings (route-owned; provider returned them)
-    for hostname, times in result.timings.items():
-        start_time = datetime.fromisoformat(
-            times["start_time"].replace("Z", "+00:00")
-        )
-        end_time = datetime.fromisoformat(
-            times["end_time"].replace("Z", "+00:00")
-        )
-        database.update_terraform_timing(
-            hostname=hostname,
-            per_instance_seconds=float(times["seconds"]),
-            per_instance_start_time=start_time,
-            per_instance_end_time=end_time,
-        )
-
-    # Success response — match the pre-refactor shape EXACTLY
     if _wants_json():
-        return jsonify({
-            "status": "success",
-            "output": result.apply_stdout,
-        })
-    return render_template("dashboard.html", output=result.apply_stdout)
+        return jsonify({"job_id": job_id, "status": "queued"}), 202
+    return redirect(f"/admin/instances?job={job_id}")
 
 
 @app.route("/destroy", methods=["POST"])
