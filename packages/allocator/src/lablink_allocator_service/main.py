@@ -326,6 +326,39 @@ def view_instances():
     return render_template("instances.html", instances=instances)
 
 
+def _sign_session_cookie_and_redirect(session_id, *, suffix: str = "") -> Response:
+    """Sign ``session_id`` (optionally with a ``:suffix``) into the
+    lablink_session cookie and redirect to /desktop.
+
+    Shared by /api/request_vm and the admin peek/connect routes so the
+    cookie-hardening flags (httponly, samesite, secure) can't drift
+    apart across call sites.
+
+    Args:
+        session_id: The session identifier to sign (str or UUID).
+        suffix: Optional payload suffix (e.g. "view_only", "admin_session").
+            Omitted entirely for a bare student session.
+    """
+    conn = database._pool.getconn()
+    try:
+        secret = get_or_create_cookie_secret(conn)
+    finally:
+        database._pool.putconn(conn)
+
+    payload = f"{session_id}:{suffix}" if suffix else str(session_id)
+    signed = sign(payload, secret=secret)
+    resp = redirect("/desktop", code=303)
+    # Secure flag is decided by whether the inbound request was https —
+    # front door (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.
+    is_https = request.headers.get("X-Forwarded-Proto") == "https"
+    resp.set_cookie(
+        "lablink_session", signed,
+        httponly=True, samesite="Strict",
+        secure=is_https, path="/",
+    )
+    return resp
+
+
 @app.route("/admin/instances/<hostname>/peek")
 @auth.login_required
 def admin_peek_vm(hostname):
@@ -336,21 +369,9 @@ def admin_peek_vm(hostname):
     if session is None:
         return redirect("/admin/instances?vnc_error=peek_unavailable")
 
-    conn = database._pool.getconn()
-    try:
-        secret = get_or_create_cookie_secret(conn)
-    finally:
-        database._pool.putconn(conn)
-
-    signed = sign(f"{session['sessionid']}:view_only", secret=secret)
-    resp = redirect("/desktop", code=303)
-    is_https = request.headers.get("X-Forwarded-Proto") == "https"
-    resp.set_cookie(
-        "lablink_session", signed,
-        httponly=True, samesite="Strict",
-        secure=is_https, path="/",
+    return _sign_session_cookie_and_redirect(
+        session["sessionid"], suffix="view_only"
     )
-    return resp
 
 
 @app.route("/admin/instances/<hostname>/connect", methods=["POST"])
@@ -366,45 +387,48 @@ def admin_connect_vm(hostname):
     if not database.admin_reserve_vm(hostname):
         return redirect("/admin/instances?vnc_error=connect_raced")
 
-    session_id = uuid.uuid4()
-    browser_token = secrets.token_urlsafe(16)
-    provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-        cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
-    )
     try:
-        provider.client_connectivity.prepare_browser_session(
-            database=database,
-            hostname=hostname,
-            session_id=session_id,
-            browser_token=browser_token,
-            agent_token=AGENT_TOKEN,
-        )
-    except RotationFailed as exc:
-        logger.warning(
-            "Admin connect rotation failed for '%s': %s", hostname, exc
+        session_id = uuid.uuid4()
+        browser_token = secrets.token_urlsafe(16)
+        provider = app.config.get("LABLINK_PROVIDER") or get_provider(
+            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
         )
         try:
-            database.update_health(hostname=hostname, healthy="Unhealthy")
+            provider.client_connectivity.prepare_browser_session(
+                database=database,
+                hostname=hostname,
+                session_id=session_id,
+                browser_token=browser_token,
+                agent_token=AGENT_TOKEN,
+            )
+        except RotationFailed as exc:
+            logger.warning(
+                "Admin connect rotation failed for '%s': %s", hostname, exc
+            )
+            try:
+                database.update_health(hostname=hostname, healthy="Unhealthy")
+                database.release_seat(hostname=hostname)
+            except Exception:
+                logger.exception("Could not mark '%s' unhealthy", hostname)
+            return redirect("/admin/instances?vnc_error=rotation_failed")
+
+        return _sign_session_cookie_and_redirect(
+            session_id, suffix="admin_session"
+        )
+    except Exception:
+        # Anything unexpected here (provider lookup, cookie signing, etc.)
+        # would otherwise leave AdminReservedAt set with no page ever
+        # telling the admin to release it. Release now rather than rely
+        # solely on the dashboard row / 30-minute sweep to recover it.
+        logger.exception(
+            "Unexpected error setting up admin connect session for '%s'; "
+            "releasing reservation", hostname,
+        )
+        try:
             database.release_seat(hostname=hostname)
         except Exception:
-            logger.exception("Could not mark '%s' unhealthy", hostname)
-        return redirect("/admin/instances?vnc_error=rotation_failed")
-
-    conn = database._pool.getconn()
-    try:
-        secret = get_or_create_cookie_secret(conn)
-    finally:
-        database._pool.putconn(conn)
-
-    signed = sign(f"{session_id}:admin_session", secret=secret)
-    resp = redirect("/desktop", code=303)
-    is_https = request.headers.get("X-Forwarded-Proto") == "https"
-    resp.set_cookie(
-        "lablink_session", signed,
-        httponly=True, samesite="Strict",
-        secure=is_https, path="/",
-    )
-    return resp
+            logger.exception("Could not release seat for '%s'", hostname)
+        return redirect("/admin/instances?vnc_error=connect_failed")
 
 
 @app.route("/admin/instances/<hostname>/release", methods=["POST"])
@@ -482,24 +506,7 @@ def submit_vm_details():
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return render_template("rotation_failed.html"), 503
 
-        # Sign the session_id and set the cookie. Secure flag is decided
-        # by whether the inbound request was https — front door
-        # (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.
-        conn = database._pool.getconn()
-        try:
-            secret = get_or_create_cookie_secret(conn)
-        finally:
-            database._pool.putconn(conn)
-
-        signed = sign(str(session_id), secret=secret)
-        resp = redirect("/desktop", code=303)
-        is_https = request.headers.get("X-Forwarded-Proto") == "https"
-        resp.set_cookie(
-            "lablink_session", signed,
-            httponly=True, samesite="Strict",
-            secure=is_https, path="/",
-        )
-        return resp
+        return _sign_session_cookie_and_redirect(session_id)
 
     except Exception as e:
         logger.error("Error in submit_vm_details: %s", e, exc_info=True)

@@ -147,6 +147,39 @@ def test_connect_rotation_failure_marks_unhealthy_and_releases(
     fake_db.release_seat.assert_called_once_with(hostname="host1")
 
 
+def test_connect_unexpected_error_releases_reservation(
+    client, admin_headers, monkeypatch
+):
+    """An error other than RotationFailed (e.g. a provider bug) must still
+    release the AdminReservedAt claim rather than leaving the VM stuck
+    reserved with no page ever telling the admin to release it."""
+    fake_db = MagicMock()
+    fake_db.admin_reserve_vm.return_value = True
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=True
+    )
+
+    def _raise(**kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.providers.connectivity.allocator_proxied."
+        "prepare_browser_session",
+        _raise,
+    )
+
+    resp = client.post(
+        "/admin/instances/host1/connect",
+        headers=admin_headers,
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 302
+    assert "vnc_error=connect_failed" in resp.headers["Location"]
+    fake_db.release_seat.assert_called_once_with(hostname="host1")
+    fake_db.update_health.assert_not_called()
+
+
 def test_release_requires_auth(client):
     resp = client.post("/admin/instances/host1/release")
     assert resp.status_code == 401

@@ -93,6 +93,8 @@
         This VM was just claimed by someone else. Please refresh and try again.
       {% elif vnc_error == 'rotation_failed' %}
         Could not establish a VNC session — the VM's agent may be unreachable. It has been marked unhealthy.
+      {% elif vnc_error == 'connect_failed' %}
+        Something went wrong while connecting to this VM. The reservation has been released — please try again.
       {% else %}
         An error occurred.
       {% endif %}
@@ -135,7 +137,7 @@
               class="btn-sm"
               target="_blank"
             >
-              <i class="bi bi-file-text"></i> View Logs
+              View Logs
             </a>
           </td>
           <td class="actions-cell">
