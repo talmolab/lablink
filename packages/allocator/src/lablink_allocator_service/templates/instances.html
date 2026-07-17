@@ -38,6 +38,47 @@
       tr:hover {
         background-color: #f1f1f1;
       }
+
+      .actions-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .btn-sm {
+        display: inline-block;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid #007bff;
+        background-color: transparent;
+        color: #007bff;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+      }
+
+      .btn-sm:hover {
+        background-color: #007bff;
+        color: white;
+      }
+
+      .btn-sm-solid {
+        background-color: #007bff;
+        color: white;
+      }
+
+      .btn-sm-solid:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+      }
+
+      .admin-session-label {
+        color: #555;
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
@@ -91,16 +132,16 @@
               >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
             >
           </td>
-          <td>
+          <td class="actions-cell">
             <a
               href="/admin/logs/{{ vm.hostname }}"
-              class="btn btn-sm btn-outline-primary"
+              class="btn-sm"
               target="_blank"
             >
               <i class="bi bi-file-text"></i> View Logs
             </a>
             {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
-            <a href="/admin/instances/{{ vm.hostname }}/peek" target="_blank">
+            <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
               Peek (view-only)
             </a>
             {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
@@ -108,18 +149,16 @@
               method="POST"
               action="/admin/instances/{{ vm.hostname }}/connect"
               target="_blank"
-              style="display:inline"
             >
-              <button type="submit">Connect</button>
+              <button type="submit" class="btn-sm btn-sm-solid">Connect</button>
             </form>
             {% elif vm.adminreservedat %}
-            <span>Admin session active</span>
+            <span class="admin-session-label">Admin session active</span>
             <form
               method="POST"
               action="/admin/instances/{{ vm.hostname }}/release"
-              style="display:inline"
             >
-              <button type="submit">Release</button>
+              <button type="submit" class="btn-sm">Release</button>
             </form>
             {% endif %}
           </td>
