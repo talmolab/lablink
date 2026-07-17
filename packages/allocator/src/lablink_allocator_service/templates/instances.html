@@ -111,6 +111,7 @@
           <th>Container Startup Duration</th>
           <th>Total Startup Duration</th>
           <th>Logs</th>
+          <th>Access</th>
         </tr>
       </thead>
       <tbody>
@@ -128,7 +129,7 @@
               >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
             >
           </td>
-          <td class="actions-cell">
+          <td>
             <a
               href="/admin/logs/{{ vm.hostname }}"
               class="btn-sm"
@@ -136,6 +137,8 @@
             >
               <i class="bi bi-file-text"></i> View Logs
             </a>
+          </td>
+          <td class="actions-cell">
             {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
             <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
               Peek (view-only)
@@ -156,6 +159,8 @@
             >
               <button type="submit" class="btn-sm">Release</button>
             </form>
+            {% else %}
+            <span class="admin-session-label">—</span>
             {% endif %}
           </td>
         </tr>
