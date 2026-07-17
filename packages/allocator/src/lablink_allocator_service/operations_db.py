@@ -77,6 +77,11 @@ class OperationsDatabase:
         Raises:
             OperationInProgress: if another operation is already
                 queued/running (operations_single_flight guard).
+            RuntimeError: if the INSERT fails on the single-flight guard
+                but the in-progress operation has since vanished (an
+                unusual race between the failed insert and the
+                get_in_progress_operation lookup, e.g. the colliding
+                operation finished in between).
         """
         query = """
             INSERT INTO operations (op_type, status, params, created_by)

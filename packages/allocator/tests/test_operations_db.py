@@ -82,6 +82,24 @@ def test_create_operation_raises_operation_in_progress_with_existing_job_id(
     assert exc_info.value.job_id == 5
 
 
+def test_create_operation_raises_runtime_error_when_in_progress_operation_vanishes(
+    operations_db,
+):
+    operations_db.cursor.execute.side_effect = [
+        psycopg2.IntegrityError(
+            'duplicate key value violates unique constraint '
+            '"operations_single_flight"'
+        ),
+        None,  # the SELECT inside get_in_progress_operation
+    ]
+    operations_db.cursor.fetchone.return_value = None
+
+    with pytest.raises(RuntimeError):
+        operations_db.create_operation(
+            op_type="apply", params=None, created_by="admin"
+        )
+
+
 def test_get_operation_returns_dict(operations_db):
     operations_db.cursor.fetchone.return_value = (
         3, "apply", "succeeded", '{"num_vms": 2}', "admin",
