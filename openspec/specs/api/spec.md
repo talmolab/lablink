@@ -181,3 +181,45 @@ render the same aggregates as the admin page without recomputing.
 - **GIVEN** invalid or missing credentials
 - **WHEN** a user submits `GET /api/session-metrics/summary`
 - **THEN** HTTP 401 Unauthorized is returned
+
+### Requirement: Admin VNC Peek Endpoint
+The allocator SHALL provide an authenticated endpoint for an admin to view
+(read-only) a VM currently assigned to a participant, without modifying the
+VM's assignment.
+
+#### Scenario: Peek at an in-use VM
+- **GIVEN** valid admin credentials and a VM with an active participant session
+- **WHEN** an admin accesses `GET /admin/instances/<hostname>/peek`
+- **THEN** the admin's browser is redirected to `/desktop` in view-only mode,
+  viewing the same live session — the VM's assignment is untouched
+
+#### Scenario: Nothing to peek at
+- **GIVEN** valid admin credentials and a VM with no active participant session
+- **WHEN** an admin accesses `GET /admin/instances/<hostname>/peek`
+- **THEN** the admin is redirected to `/admin/instances` with an error indicator
+
+### Requirement: Admin VNC Connect Endpoint
+The allocator SHALL provide an authenticated endpoint for an admin to connect
+(full control) to a VM not currently assigned to any participant, for
+troubleshooting, without marking the VM assigned.
+
+#### Scenario: Connect to an idle VM
+- **GIVEN** valid admin credentials and a VM with no participant assigned
+- **WHEN** an admin submits `POST /admin/instances/<hostname>/connect`
+- **THEN** the VM is reserved (excluded from the assignable pool) and the
+  admin's browser is redirected to `/desktop` with full control
+
+#### Scenario: Race with a concurrent claim
+- **GIVEN** the VM was just claimed by a student or another admin
+- **WHEN** an admin submits `POST /admin/instances/<hostname>/connect`
+- **THEN** the admin is redirected to `/admin/instances` with an error indicator
+
+### Requirement: Admin VNC Release Endpoint
+The allocator SHALL provide an authenticated endpoint to end an admin
+troubleshooting session and return the VM to the assignable pool.
+
+#### Scenario: Release an admin-reserved VM
+- **GIVEN** valid admin credentials and a VM reserved for admin troubleshooting
+- **WHEN** an admin submits `POST /admin/instances/<hostname>/release`
+- **THEN** the reservation and any session state are cleared
+- **AND** the VM becomes assignable again

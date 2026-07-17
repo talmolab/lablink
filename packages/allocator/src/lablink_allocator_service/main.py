@@ -1211,7 +1211,8 @@ def scheduled_destruction_page():
 
 def main():
     """Main entry point for the allocator service."""
-    global scheduler_service, reboot_service, admin_session_expiry_service, _startup_time
+    global scheduler_service, reboot_service, admin_session_expiry_service
+    global _startup_time
 
     try:
         _startup_time = time.monotonic()

@@ -146,3 +146,48 @@ def test_log_page_vm_not_found(client, admin_headers, monkeypatch):
     response = client.get(f"/admin/logs/{hostname}", headers=admin_headers)
     assert response.status_code == 404
     assert "VM not found." in response.data.decode()
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_vnc_actions_by_state(mock_database, client, admin_headers):
+    """Each VM state shows the right VNC action in the actions cell."""
+    rows = [
+        SimpleNamespace(
+            hostname="vm-peek", useremail="a@x.com", inuse=True,
+            healthy="Healthy", status="running", sessionid="sid-1",
+            adminreservedat=None,
+        ),
+        SimpleNamespace(
+            hostname="vm-connect", useremail=None, inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None,
+        ),
+        SimpleNamespace(
+            hostname="vm-admin-active", useremail=None, inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat="2026-07-17T12:00:00Z",
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning", useremail=None, inuse=False,
+            healthy=None, status="provisioning", sessionid=None,
+            adminreservedat=None,
+        ),
+    ]
+    mock_database.get_all_vms.return_value = rows
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "/admin/instances/vm-peek/peek" in html
+    assert "/admin/instances/vm-connect/connect" in html
+    assert "/admin/instances/vm-admin-active/release" in html
+    assert "Admin session active" in html
+    assert "/admin/instances/vm-provisioning/connect" not in html
+    assert "/admin/instances/vm-provisioning/peek" not in html
+
+
+def test_view_instances_shows_vnc_error_banner(client, admin_headers):
+    resp = client.get(
+        "/admin/instances?vnc_error=connect_raced", headers=admin_headers
+    )
+    assert b"claimed by someone else" in resp.data
