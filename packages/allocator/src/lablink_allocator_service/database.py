@@ -339,6 +339,13 @@ class PostgresqlDatabase:
         """
         return _PooledCursor(self._pool)
 
+    @property
+    def pool(self):
+        """The underlying connection pool, shared with other classes that
+        need pooled access to the same database (e.g. OperationsDatabase)
+        rather than opening a second one."""
+        return self._pool
+
     def get_all_vms(self) -> list:
         """Get all VMs from the table, excluding logs.
 
