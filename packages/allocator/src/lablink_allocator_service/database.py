@@ -623,7 +623,8 @@ class PostgresqlDatabase:
         """
         query = (
             f"SELECT hostname FROM {self.table_name} WHERE "
-            f"useremail IS NULL AND status = 'running'"
+            f"useremail IS NULL AND status = 'running' "
+            f"AND adminreservedat IS NULL"
         )
         try:
             with self._cursor as cursor:
@@ -731,6 +732,7 @@ class PostgresqlDatabase:
             WHERE useremail IS NULL
             AND status = 'running'
             AND (healthy IS NULL OR healthy <> 'Unhealthy')
+            AND adminreservedat IS NULL
             ORDER BY hostname
             FOR UPDATE SKIP LOCKED
             LIMIT 1
@@ -755,7 +757,10 @@ class PostgresqlDatabase:
 
     def release_seat(self, *, hostname: str) -> None:
         """Clear useremail and every per-session column on a VM row,
-        returning the seat to the available pool."""
+        returning the seat to the available pool. Also clears
+        AdminReservedAt — a no-op for ordinary student releases (already
+        NULL there), but what actually frees a VM an admin reserved for
+        troubleshooting."""
         query = (
             f"UPDATE {self.table_name} "
             f"SET useremail = NULL, "
@@ -765,11 +770,92 @@ class PostgresqlDatabase:
             f"    upstream = NULL, "
             f"    browser_ws_url = NULL, "
             f"    browser_credential = NULL, "
-            f"    sessionstartedat = NULL "
+            f"    sessionstartedat = NULL, "
+            f"    adminreservedat = NULL "
             f"WHERE hostname = %s"
         )
         with self._cursor as cursor:
             cursor.execute(query, (hostname,))
+
+    def get_session_for_peek(self, hostname: str) -> Optional[dict]:
+        """Look up the live session_id for an in-use VM, for admin peek.
+
+        Returns None when there's nothing to peek at — unassigned, not
+        running, or no session has been minted yet.
+
+        Args:
+            hostname: The hostname of the VM.
+
+        Returns:
+            Optional[dict]: ``{"sessionid": <uuid string>}``, or None.
+        """
+        query = (
+            f"SELECT sessionid FROM {self.table_name} "
+            f"WHERE hostname = %s AND useremail IS NOT NULL "
+            f"AND status = 'running' AND sessionid IS NOT NULL"
+        )
+        with self._cursor as cursor:
+            cursor.execute(query, (hostname,))
+            row = cursor.fetchone()
+        if row is None:
+            return None
+        return {"sessionid": row[0]}
+
+    def admin_reserve_vm(self, hostname: str) -> bool:
+        """Atomically reserve an unassigned VM for admin troubleshooting.
+
+        Claims the row by setting AdminReservedAt, but only if it is
+        still unassigned, not already admin-reserved, and running — so a
+        concurrent student assignment or a second admin session can't
+        collide with this one.
+
+        Args:
+            hostname: The hostname of the VM to reserve.
+
+        Returns:
+            bool: True if this call claimed the VM, False if it lost the
+                race (or the VM doesn't exist / isn't eligible).
+        """
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET adminreservedat = NOW() "
+            f"WHERE hostname = %s "
+            f"AND useremail IS NULL "
+            f"AND adminreservedat IS NULL "
+            f"AND status = 'running' "
+            f"RETURNING hostname"
+        )
+        with self._cursor as cursor:
+            cursor.execute(query, (hostname,))
+            row = cursor.fetchone()
+        return row is not None
+
+    def release_expired_admin_sessions(self, timeout_minutes: int) -> int:
+        """Release any admin-reserved VM whose reservation has outlived
+        timeout_minutes, returning it to the assignable pool.
+
+        Called periodically by AdminSessionExpiryService as the safety-net
+        backstop for admins who close the troubleshooting tab without
+        clicking Release.
+
+        Args:
+            timeout_minutes: Age, in minutes, past which a reservation is
+                considered expired.
+
+        Returns:
+            int: The number of VMs released.
+        """
+        query = (
+            f"SELECT hostname FROM {self.table_name} "
+            f"WHERE adminreservedat IS NOT NULL "
+            f"AND adminreservedat < NOW() - (%s || ' minutes')::interval"
+        )
+        with self._cursor as cursor:
+            cursor.execute(query, (timeout_minutes,))
+            hostnames = [row[0] for row in cursor.fetchall()]
+        for hostname in hostnames:
+            self.release_seat(hostname=hostname)
+        return len(hostnames)
 
     def update_vm_in_use(self, hostname: str, in_use: bool) -> None:
         """Update the in-use status of a VM.

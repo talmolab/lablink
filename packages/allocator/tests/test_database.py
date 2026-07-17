@@ -139,7 +139,9 @@ def test_get_unassigned_vms(db_instance):
     result = db_instance.get_unassigned_vms()
 
     expected_query = (
-        "SELECT hostname FROM vms WHERE useremail IS NULL AND status = 'running'"
+        "SELECT hostname FROM vms WHERE "
+        "useremail IS NULL AND status = 'running' "
+        "AND adminreservedat IS NULL"
     )
     db_instance.cursor.execute.assert_called_with(expected_query)
     assert result == ["vm-free-1", "vm-free-2"]
@@ -176,6 +178,7 @@ def test_assign_vm(db_instance):
     sql = db_instance.cursor.execute.call_args[0][0]
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "RETURNING hostname" in sql
+    assert "adminreservedat IS NULL" in sql
 
 
 def test_assign_vm_no_available(db_instance):
@@ -1350,9 +1353,7 @@ def test_concurrent_queries_do_not_serialize(real_db):
 
 def test_release_seat_clears_per_session_columns(real_db):
     """release_seat() returns a seat to the pool by clearing useremail
-    and every per-session column on the row."""
-    # The real_db fixture creates a minimal vms (hostname text PRIMARY KEY)
-    # table. Extend it with the columns this test cares about.
+    and every per-session column on the row, including AdminReservedAt."""
     with real_db._cursor as cur:
         cur.execute(
             "ALTER TABLE vms "
@@ -1364,7 +1365,8 @@ def test_release_seat_clears_per_session_columns(real_db):
             "ADD COLUMN IF NOT EXISTS upstream TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
             "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
-            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ"
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS adminreservedat TIMESTAMPTZ"
         )
         # Clear any leftover row from a prior test
         cur.execute("DELETE FROM vms WHERE hostname = 'host-task2'")
@@ -1372,11 +1374,11 @@ def test_release_seat_clears_per_session_columns(real_db):
             "INSERT INTO vms (hostname, status, useremail, sessionid, "
             "                 browsertoken, vncpassword, upstream, "
             "                 browser_ws_url, browser_credential, "
-            "                 sessionstartedat) "
+            "                 sessionstartedat, adminreservedat) "
             "VALUES ('host-task2', 'running', 'sam@x.com', "
             "        '11111111-1111-1111-1111-111111111111', "
             "        'tok-abc', 'pw-xyz', '10.0.0.5:6080', "
-            "        'ws://10.0.0.5:6080', 'pw-xyz-cred', NOW())"
+            "        'ws://10.0.0.5:6080', 'pw-xyz-cred', NOW(), NOW())"
         )
 
     real_db.release_seat(hostname='host-task2')
@@ -1385,12 +1387,12 @@ def test_release_seat_clears_per_session_columns(real_db):
         cur.execute(
             "SELECT useremail, sessionid, browsertoken, vncpassword, "
             "       upstream, browser_ws_url, browser_credential, "
-            "       sessionstartedat "
+            "       sessionstartedat, adminreservedat "
             "FROM vms WHERE hostname = 'host-task2'"
         )
         row = cur.fetchone()
 
-    assert row == (None, None, None, None, None, None, None, None)
+    assert row == (None, None, None, None, None, None, None, None, None)
 
 
 def _seed_race_table(real_db, hostnames):
@@ -1401,7 +1403,8 @@ def _seed_race_table(real_db, hostnames):
             "ADD COLUMN IF NOT EXISTS status TEXT, "
             "ADD COLUMN IF NOT EXISTS useremail TEXT, "
             "ADD COLUMN IF NOT EXISTS healthy TEXT, "
-            "ADD COLUMN IF NOT EXISTS inuse BOOLEAN"
+            "ADD COLUMN IF NOT EXISTS inuse BOOLEAN, "
+            "ADD COLUMN IF NOT EXISTS adminreservedat TIMESTAMPTZ"
         )
         # Clean slate: the seeded VMs must be the ONLY claimable rows, so a
         # leftover available row from another real_db test can't be claimed
@@ -1528,6 +1531,86 @@ def test_assign_vm_concurrent_oversubscribed(real_db):
     finally:
         with real_db._cursor as cur:
             cur.execute("DELETE FROM vms WHERE hostname LIKE 'race-vm-%'")
+
+
+def test_get_session_for_peek_found(db_instance):
+    """Returns the live session_id when the VM is assigned and running."""
+    db_instance.cursor.fetchone.return_value = (
+        "11111111-1111-1111-1111-111111111111",
+    )
+    result = db_instance.get_session_for_peek("host-1")
+    assert result == {"sessionid": "11111111-1111-1111-1111-111111111111"}
+    sql = db_instance.cursor.execute.call_args[0][0]
+    assert "useremail IS NOT NULL" in sql
+    assert "status = 'running'" in sql
+    assert "sessionid IS NOT NULL" in sql
+
+
+def test_get_session_for_peek_not_found(db_instance):
+    """Returns None when there's nothing to peek at."""
+    db_instance.cursor.fetchone.return_value = None
+    result = db_instance.get_session_for_peek("host-1")
+    assert result is None
+
+
+def test_admin_reserve_vm_claims_row(db_instance):
+    """admin_reserve_vm returns True when it wins the atomic claim."""
+    db_instance.cursor.fetchone.return_value = ("host-1",)
+    assert db_instance.admin_reserve_vm("host-1") is True
+    db_instance.cursor.execute.assert_called_with(ANY, ("host-1",))
+    sql = db_instance.cursor.execute.call_args[0][0]
+    assert "adminreservedat = NOW()" in sql
+    assert "useremail IS NULL" in sql
+    assert "adminreservedat IS NULL" in sql
+    assert "RETURNING hostname" in sql
+
+
+def test_admin_reserve_vm_loses_race(db_instance):
+    """admin_reserve_vm returns False when the row is already claimed
+    (by a student, another admin, or doesn't exist/isn't running)."""
+    db_instance.cursor.fetchone.return_value = None
+    assert db_instance.admin_reserve_vm("host-1") is False
+
+
+def test_admin_reserve_vm_concurrent_only_one_wins(real_db):
+    """Two admins clicking Connect on the same idle VM at once must not
+    both succeed — only one claim can win."""
+    import threading
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS adminreservedat TIMESTAMPTZ"
+        )
+        cur.execute("DELETE FROM vms WHERE hostname = 'host-race-admin'")
+        cur.execute(
+            "INSERT INTO vms (hostname, status, useremail) "
+            "VALUES ('host-race-admin', 'running', NULL)"
+        )
+
+    barrier = threading.Barrier(2)
+    results: list = []
+    lock = threading.Lock()
+
+    def claim():
+        barrier.wait(timeout=5)
+        won = real_db.admin_reserve_vm("host-race-admin")
+        with lock:
+            results.append(won)
+
+    threads = [threading.Thread(target=claim) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    try:
+        assert sorted(results) == [False, True]
+    finally:
+        with real_db._cursor as cur:
+            cur.execute("DELETE FROM vms WHERE hostname = 'host-race-admin'")
 
 
 def test_set_setting_upserts(db_instance, mock_db_connection):
@@ -1946,3 +2029,63 @@ def test_unregister_client_returns_false_when_no_row(db_instance, mock_db_connec
         "DELETE FROM vms WHERE hostname = %s;", ("vm-missing",)
     )
     assert result is False
+
+
+def test_release_expired_admin_sessions_mocked(db_instance):
+    """Sweeps hostnames past the timeout and releases each one."""
+    db_instance.cursor.fetchall.return_value = [("host-a",), ("host-b",)]
+    db_instance.release_seat = MagicMock()
+
+    released = db_instance.release_expired_admin_sessions(timeout_minutes=30)
+
+    assert released == 2
+    sql = db_instance.cursor.execute.call_args[0][0]
+    assert "adminreservedat IS NOT NULL" in sql
+    assert "adminreservedat < NOW()" in sql
+    db_instance.release_seat.assert_any_call(hostname="host-a")
+    db_instance.release_seat.assert_any_call(hostname="host-b")
+
+
+def test_release_expired_admin_sessions_releases_old_and_keeps_recent(real_db):
+    with real_db._cursor as cur:
+        cur.execute(
+            "ALTER TABLE vms "
+            "ADD COLUMN IF NOT EXISTS status TEXT, "
+            "ADD COLUMN IF NOT EXISTS useremail TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionid UUID, "
+            "ADD COLUMN IF NOT EXISTS browsertoken TEXT, "
+            "ADD COLUMN IF NOT EXISTS vncpassword TEXT, "
+            "ADD COLUMN IF NOT EXISTS upstream TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_ws_url TEXT, "
+            "ADD COLUMN IF NOT EXISTS browser_credential TEXT, "
+            "ADD COLUMN IF NOT EXISTS sessionstartedat TIMESTAMPTZ, "
+            "ADD COLUMN IF NOT EXISTS adminreservedat TIMESTAMPTZ"
+        )
+        cur.execute(
+            "DELETE FROM vms WHERE hostname IN ('host-expired', 'host-fresh')"
+        )
+        cur.execute(
+            "INSERT INTO vms (hostname, status, adminreservedat) "
+            "VALUES ('host-expired', 'running', NOW() - interval '45 minutes')"
+        )
+        cur.execute(
+            "INSERT INTO vms (hostname, status, adminreservedat) "
+            "VALUES ('host-fresh', 'running', NOW() - interval '5 minutes')"
+        )
+
+    released = real_db.release_expired_admin_sessions(timeout_minutes=30)
+
+    assert released == 1
+    with real_db._cursor as cur:
+        cur.execute(
+            "SELECT hostname, adminreservedat FROM vms "
+            "WHERE hostname IN ('host-expired', 'host-fresh')"
+        )
+        rows = dict(cur.fetchall())
+    assert rows["host-expired"] is None
+    assert rows["host-fresh"] is not None
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "DELETE FROM vms WHERE hostname IN ('host-expired', 'host-fresh')"
+        )
