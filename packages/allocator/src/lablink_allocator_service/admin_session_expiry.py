@@ -9,10 +9,14 @@ into whether the admin's VNC WebSocket is still open once nginx's
 auth_request handshake has succeeded once.
 """
 
+from __future__ import annotations
+
 import logging
 from threading import Event, Thread
+from typing import TYPE_CHECKING
 
-from lablink_allocator_service.database import PostgresqlDatabase
+if TYPE_CHECKING:
+    from lablink_allocator_service.database import PostgresqlDatabase
 
 logger = logging.getLogger(__name__)
 
