@@ -108,8 +108,6 @@
           <th>In Use</th>
           <th>VM Status</th>
           <th>GPU Health Status</th>
-          <th>Terraform Apply Duration</th>
-          <th>Cloud-Init Duration</th>
           <th>Container Startup Duration</th>
           <th>Total Startup Duration</th>
           <th>Logs</th>
@@ -124,8 +122,6 @@
           <td>{{ "Yes" if vm.inuse else "No" }}</td>
           <td>{{ vm.status or "Unknown" }}</td>
           <td>{{ vm.healthy or "—" }}</td>
-          <td>{{ "%.1f"|format(vm.terraformapplydurationseconds or 0) }}s</td>
-          <td>{{ "%.1f"|format(vm.cloudinitdurationseconds or 0) }}s</td>
           <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
           <td>
             <strong
@@ -150,7 +146,7 @@
               action="/admin/instances/{{ vm.hostname }}/connect"
               target="_blank"
             >
-              <button type="submit" class="btn-sm btn-sm-solid">Connect</button>
+              <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
             </form>
             {% elif vm.adminreservedat %}
             <span class="admin-session-label">Admin session active</span>
