@@ -145,8 +145,10 @@ def test_manual_lan_direct_e2e(manual_reg_client, monkeypatch):
     assert password in params
 
     # -------------------------------------------------------------------
-    # Phase 3 -- /desktop: row stub returns the two persisted columns ->
-    # 200 in-page render with lan_ip/port + credential, NO proxy redirect.
+    # Phase 3 -- /desktop: row stub returns browser_ws_url, browser_credential,
+    # and hostname (the desktop route also needs hostname to render the
+    # admin_session wrapper page) -> 200 in-page render with lan_ip/port +
+    # credential, NO proxy redirect.
     # (Mirrors test_desktop_route.py::desktop_client_with_row.)
     # -------------------------------------------------------------------
     import lablink_allocator_service.main as main_module
@@ -157,7 +159,7 @@ def test_manual_lan_direct_e2e(manual_reg_client, monkeypatch):
     mock_cur = MagicMock()
     mock_cur.__enter__ = lambda s: s
     mock_cur.__exit__ = MagicMock(return_value=False)
-    mock_cur.fetchone.return_value = (EXPECTED_WS_URL, password)
+    mock_cur.fetchone.return_value = (EXPECTED_WS_URL, password, HOSTNAME)
 
     mock_conn = MagicMock()
     mock_conn.cursor.return_value = mock_cur
