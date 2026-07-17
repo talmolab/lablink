@@ -2,8 +2,7 @@
 
 Runs each operation on its own daemon thread, off the Flask request
 thread, so a slow `terraform apply`/`destroy` doesn't hold an HTTP
-connection open long enough to hit Cloudflare's edge timeout. See
-docs/superpowers/specs/2026-07-17-async-terraform-worker-design.md.
+connection open long enough to hit Cloudflare's edge timeout.
 """
 from __future__ import annotations
 
@@ -65,8 +64,8 @@ class OperationsWorker:
         return operation_id
 
     def _run(self, operation_id: int, fn: Callable[[], str]) -> None:
-        self.database.start_operation(operation_id)
         try:
+            self.database.start_operation(operation_id)
             output = fn()
         except Exception as e:
             logger.error(

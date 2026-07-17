@@ -93,6 +93,23 @@ def test_submit_marks_failed_when_fn_raises(worker, mock_database):
     )
 
 
+def test_submit_marks_failed_when_start_operation_raises(worker, mock_database):
+    """If start_operation itself blows up, the row must still be marked
+    failed instead of staying stuck at status='queued' forever (which
+    would make the single-flight guard reject all future submits)."""
+    mock_database.create_operation.return_value = 4
+    mock_database.start_operation.side_effect = RuntimeError("db exploded")
+    fn = MagicMock(return_value="unused")
+
+    worker.submit(op_type="apply", fn=fn, params=None, created_by="admin")
+
+    assert _wait_until(lambda: mock_database.finish_operation.called)
+    fn.assert_not_called()
+    mock_database.finish_operation.assert_called_once_with(
+        4, status="failed", error="db exploded"
+    )
+
+
 def test_submit_does_not_block_caller_on_slow_fn(worker, mock_database):
     """The whole point of this worker: submit() returns before fn() finishes."""
     mock_database.create_operation.return_value = 3
