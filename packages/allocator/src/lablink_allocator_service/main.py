@@ -35,6 +35,8 @@ from lablink_allocator_service.utils.sg_audit import SGAuditFailure
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
+from lablink_allocator_service.operations import OperationsWorker
+from lablink_allocator_service.operations_db import OperationsDatabase
 from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.signed_cookie import (
     sign,
@@ -145,6 +147,14 @@ reboot_service = None
 
 # Admin-session expiry service (initialized in main())
 admin_session_expiry_service = None
+
+# Operations worker for on-demand apply/destroy jobs (initialized in
+# main()). Unlike the other three services, this has no persistent
+# background thread/loop of its own — start() just runs a one-time
+# startup sweep, and each submitted job gets its own short-lived thread.
+# There is deliberately no operations_worker.stop()/atexit registration
+# to match: there is no loop to join.
+operations_worker = None
 
 # Startup timestamp for uptime tracking (set in main())
 _startup_time: float | None = None
@@ -1219,6 +1229,7 @@ def scheduled_destruction_page():
 def main():
     """Main entry point for the allocator service."""
     global scheduler_service, reboot_service, admin_session_expiry_service
+    global operations_worker
     global _startup_time
 
     try:
@@ -1261,6 +1272,15 @@ def main():
         admin_session_expiry_service.start()
         atexit.register(admin_session_expiry_service.stop)
         logger.info("Admin-session expiry service started successfully")
+
+        # Initialize operations worker (on-demand apply/destroy jobs).
+        # No atexit registration: see the module-level comment on
+        # operations_worker — there's no background loop to stop.
+        logger.info("Initializing operations worker...")
+        operations_db = OperationsDatabase(pool=database.pool)
+        operations_worker = OperationsWorker(database=operations_db)
+        operations_worker.start()
+        logger.info("Operations worker started successfully")
 
         # Terraform initialization — gated on the provider's capability flag
         # (mirrors the policy at module top: branch on capability, not type).
