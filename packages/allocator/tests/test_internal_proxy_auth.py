@@ -78,6 +78,24 @@ def test_proxy_auth_happy_path(client_with_db, real_db):
     assert "X-VNC-Password" not in resp.headers
 
 
+def test_proxy_auth_accepts_admin_cookie_suffix(client_with_db, real_db):
+    """Admin peek/connect cookies carry a suffix after the session_id
+    (":view_only" or ":admin_session"). proxy_auth must strip it before
+    using the session_id in the lookup — this is the exact bug the final
+    whole-branch review caught: without the partition, the suffixed
+    string was compared against a UUID column and never matched."""
+    sid = _seed_running_row(real_db, hostname="host-pa-suffix", token="tok-suffix")
+    client_with_db.set_cookie(
+        "lablink_session", sign(f"{sid}:view_only", secret=SEED_SECRET)
+    )
+    resp = client_with_db.post(
+        "/internal/proxy_auth",
+        headers={"X-Original-URI": "/proxy/tok-suffix"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["X-Upstream"] == "10.0.0.5:6080"
+
+
 def test_proxy_auth_rejects_bad_cookie(client_with_db, real_db):
     _seed_running_row(real_db, hostname="host-pa-2")
     client_with_db.set_cookie("lablink_session", "garbage")

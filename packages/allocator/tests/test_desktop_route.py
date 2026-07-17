@@ -114,21 +114,22 @@ def test_desktop_redirects_when_status_not_running(client_with_db, real_db):
 @pytest.fixture
 def desktop_client_with_row(monkeypatch):
     """Factory fixture: yields a callable that returns a Flask test client
-    whose /desktop row lookup returns ``(ws_url, cred)`` for a valid running
+    whose /desktop row lookup returns ``(ws_url, cred, hostname)`` for a valid running
     session + signed cookie.  No real Postgres required."""
 
-    def _make(*, ws_url, cred):
+    def _make(*, ws_url, cred, suffix="", hostname="host-x"):
         import lablink_allocator_service.main as main_module
 
-        # Stable session id — sign it with SEED_SECRET.
+        # Stable session id — sign it (optionally with a suffix) with SEED_SECRET.
         sid = str(uuid.uuid4())
-        signed = sign(sid, secret=SEED_SECRET)
+        payload = f"{sid}:{suffix}" if suffix else sid
+        signed = sign(payload, secret=SEED_SECRET)
 
-        # Mock cursor: fetchone returns the two new columns.
+        # Mock cursor: fetchone returns the three new columns.
         mock_cur = MagicMock()
         mock_cur.__enter__ = lambda s: s
         mock_cur.__exit__ = MagicMock(return_value=False)
-        mock_cur.fetchone.return_value = (ws_url, cred)
+        mock_cur.fetchone.return_value = (ws_url, cred, hostname)
 
         # Mock connection: cursor() returns mock_cur.
         mock_conn = MagicMock()
@@ -190,3 +191,52 @@ def test_desktop_lan_direct_urlencodes_credential(desktop_client_with_row):
     # `/`, `+`, `=` all need percent-encoding inside a value position.
     assert "&password=a%2Fb%2Bc%3Dd" in body
     assert "a/b+c=d" not in body
+
+
+def test_desktop_view_only_appends_query_param(desktop_client_with_row):
+    client = desktop_client_with_row(
+        ws_url="proxy/btok123", cred=None, suffix="view_only"
+    )
+    r = client.get("/desktop")
+    assert r.status_code == 302
+    assert r.headers["Location"] == (
+        "/static/novnc/vnc.html?path=proxy/btok123"
+        "&autoconnect=1&resize=remote&view_only=1"
+    )
+
+
+def test_desktop_plain_session_has_no_view_only_param(desktop_client_with_row):
+    client = desktop_client_with_row(ws_url="proxy/btok123", cred=None)
+    r = client.get("/desktop")
+    assert "view_only" not in r.headers["Location"]
+
+
+def test_desktop_admin_session_renders_wrapper_with_release_form(
+    desktop_client_with_row,
+):
+    client = desktop_client_with_row(
+        ws_url="proxy/tok-admin", cred=None,
+        suffix="admin_session", hostname="host-troubleshoot",
+    )
+    r = client.get("/desktop")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Admin session on host-troubleshoot" in body
+    assert (
+        '<form method="POST" action="/admin/instances/host-troubleshoot/release">'
+        in body
+    )
+    assert (
+        'src="/static/novnc/vnc.html?path=proxy/tok-admin'
+        '&autoconnect=1&resize=remote"' in body
+    )
+
+
+def test_desktop_admin_session_escapes_hostname(desktop_client_with_row):
+    client = desktop_client_with_row(
+        ws_url="proxy/tok-x", cred=None,
+        suffix="admin_session", hostname="host<script>",
+    )
+    body = client.get("/desktop").get_data(as_text=True)
+    assert "<script>" not in body
+    assert "&lt;script&gt;" in body

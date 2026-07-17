@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS {VM_TABLE} (
     VncPassword TEXT,
     Upstream TEXT,
     SessionStartedAt TIMESTAMPTZ,
+    AdminReservedAt TIMESTAMPTZ,
     machine_identity   TEXT,
     provider           TEXT NOT NULL DEFAULT 'aws',
     endpoint_url       TEXT,
@@ -121,7 +122,7 @@ CREATE UNIQUE INDEX {VM_TABLE}_machine_identity_idx
 CREATE INDEX {VM_TABLE}_provider_idx ON {VM_TABLE}(provider);
 CREATE INDEX {VM_TABLE}_assignable_idx
     ON {VM_TABLE}(status, useremail, last_release_time)
-    WHERE useremail IS NULL AND status = 'running';
+    WHERE useremail IS NULL AND status = 'running' AND adminreservedat IS NULL;
 
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

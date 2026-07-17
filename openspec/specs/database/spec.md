@@ -104,3 +104,19 @@ The `updated_at` timestamp SHALL automatically update when a VM record changes.
 - **GIVEN** a VM record exists
 - **WHEN** the record is updated
 - **THEN** the `updated_at` field is set to the current timestamp
+
+### Requirement: Admin VNC Reservation Column
+The VM table SHALL track a nullable `AdminReservedAt` timestamp so an admin
+can troubleshoot an unassigned VM without marking it assigned to a student.
+
+#### Scenario: Reservation excludes a VM from the assignable pool
+- **GIVEN** a VM with `useremail IS NULL` and `AdminReservedAt` set
+- **WHEN** the allocator selects a VM to assign to a new student
+- **THEN** that VM is not selected, even though `useremail` is NULL
+
+#### Scenario: Reservation expires
+- **GIVEN** a VM with `AdminReservedAt` older than the configured timeout
+  (`app.admin_session_timeout_minutes`, default 30)
+- **WHEN** the periodic admin-session expiry sweep runs
+- **THEN** `AdminReservedAt` and all per-session columns are cleared
+- **AND** the VM becomes assignable again

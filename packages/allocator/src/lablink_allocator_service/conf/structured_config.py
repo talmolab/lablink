@@ -41,11 +41,15 @@ class AppConfig:
         admin_user (str): The username for the admin user.
         admin_password (str): The password for the admin user.
         region (str): The AWS region where the service is deployed.
+        admin_session_timeout_minutes (int): Fixed duration cap for an
+            admin's VNC troubleshooting session on an unassigned VM,
+            after which the reservation is force-released.
     """
 
     admin_user: str = field(default=MISSING_SECRET)
     admin_password: str = field(default=MISSING_SECRET)
     region: str = field(default="us-west-2")
+    admin_session_timeout_minutes: int = field(default=30)
 
 
 @dataclass

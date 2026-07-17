@@ -229,6 +229,7 @@ General application settings.
 | `admin_user` | string | `admin` | Admin username for web UI |
 | `admin_password` | string | `admin_password` | Admin password (override with `PLACEHOLDER_ADMIN_PASSWORD` or GitHub secret) |
 | `region` | string | `us-west-2` | AWS region for deployments |
+| `admin_session_timeout_minutes` | integer | `30` | Fixed duration cap for an admin's VNC troubleshooting session on an unassigned VM before it's force-released |
 
 !!! danger "Configure Passwords"
     Configure `ADMIN_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#change-default-passwords).

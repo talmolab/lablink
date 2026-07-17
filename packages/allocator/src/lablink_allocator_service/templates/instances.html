@@ -38,10 +38,68 @@
       tr:hover {
         background-color: #f1f1f1;
       }
+
+      .actions-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .btn-sm {
+        display: inline-block;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid #007bff;
+        background-color: transparent;
+        color: #007bff;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+      }
+
+      .btn-sm:hover {
+        background-color: #007bff;
+        color: white;
+      }
+
+      .btn-sm-solid {
+        background-color: #007bff;
+        color: white;
+      }
+
+      .btn-sm-solid:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+      }
+
+      .admin-session-label {
+        color: #555;
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
     <h2>Existing VM Instances</h2>
+
+    {% if request.args.get('vnc_error') %}
+    {% set vnc_error = request.args.get('vnc_error') %}
+    <div style="background:#ffe0e0;color:#900;padding:10px;margin-bottom:10px;border-radius:4px;">
+      {% if vnc_error == 'peek_unavailable' %}
+        This VM no longer has an active session to view.
+      {% elif vnc_error == 'connect_raced' %}
+        This VM was just claimed by someone else. Please refresh and try again.
+      {% elif vnc_error == 'rotation_failed' %}
+        Could not establish a VNC session — the VM's agent may be unreachable. It has been marked unhealthy.
+      {% elif vnc_error == 'connect_failed' %}
+        Something went wrong while connecting to this VM. The reservation has been released — please try again.
+      {% else %}
+        An error occurred.
+      {% endif %}
+    </div>
+    {% endif %}
 
     <table>
       <thead>
@@ -52,11 +110,10 @@
           <th>In Use</th>
           <th>VM Status</th>
           <th>GPU Health Status</th>
-          <th>Terraform Apply Duration</th>
-          <th>Cloud-Init Duration</th>
           <th>Container Startup Duration</th>
           <th>Total Startup Duration</th>
           <th>Logs</th>
+          <th>Access</th>
         </tr>
       </thead>
       <tbody>
@@ -68,8 +125,6 @@
           <td>{{ "Yes" if vm.inuse else "No" }}</td>
           <td>{{ vm.status or "Unknown" }}</td>
           <td>{{ vm.healthy or "—" }}</td>
-          <td>{{ "%.1f"|format(vm.terraformapplydurationseconds or 0) }}s</td>
-          <td>{{ "%.1f"|format(vm.cloudinitdurationseconds or 0) }}s</td>
           <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
           <td>
             <strong
@@ -79,11 +134,36 @@
           <td>
             <a
               href="/admin/logs/{{ vm.hostname }}"
-              class="btn btn-sm btn-outline-primary"
+              class="btn-sm"
               target="_blank"
             >
-              <i class="bi bi-file-text"></i> View Logs
+              View Logs
             </a>
+          </td>
+          <td class="actions-cell">
+            {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
+            <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
+              Peek (view-only)
+            </a>
+            {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
+            <form
+              method="POST"
+              action="/admin/instances/{{ vm.hostname }}/connect"
+              target="_blank"
+            >
+              <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
+            </form>
+            {% elif vm.adminreservedat %}
+            <span class="admin-session-label">Admin session active</span>
+            <form
+              method="POST"
+              action="/admin/instances/{{ vm.hostname }}/release"
+            >
+              <button type="submit" class="btn-sm">Release</button>
+            </form>
+            {% else %}
+            <span class="admin-session-label">—</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

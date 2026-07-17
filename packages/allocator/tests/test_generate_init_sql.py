@@ -98,3 +98,15 @@ def test_vms_table_has_session_metrics_columns():
     # None of the new columns should be declared NOT NULL.
     for col in expected_columns:
         assert f"{col} NOT NULL" not in sql, f"{col} must be nullable"
+
+
+def test_admin_reserved_at_column_present():
+    sql = build_init_sql()
+    assert "AdminReservedAt TIMESTAMPTZ" in sql
+
+
+def test_assignable_index_excludes_admin_reserved():
+    sql = build_init_sql()
+    assert "adminreservedat IS NULL" in sql
+    # The existing predicate must still be intact alongside the new one.
+    assert "useremail IS NULL AND status = 'running'" in sql

@@ -45,9 +45,10 @@ def proxy_auth():
     try:
         secret = get_or_create_cookie_secret(conn)
         try:
-            session_id = verify(raw_cookie, secret=secret)
+            payload = verify(raw_cookie, secret=secret)
         except InvalidSignature:
             return _unauth()
+        session_id = payload.partition(":")[0]
         table = sql.Identifier(current_app.config["VM_TABLE_NAME"])
         with conn.cursor() as cur:
             cur.execute(
