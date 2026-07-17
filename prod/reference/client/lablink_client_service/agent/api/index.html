@@ -3652,6 +3652,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../session_anchor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    session_anchor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../update_inuse_status/" class="md-nav__link">
         
   
@@ -3909,9 +3937,7 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/agent/api.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-30">30</a></span>
 <span class="normal"><a href="#__codelineno-0-31">31</a></span>
 <span class="normal"><a href="#__codelineno-0-32">32</a></span>
 <span class="normal"><a href="#__codelineno-0-33">33</a></span>
@@ -3943,41 +3969,67 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
 <span class="normal"><a href="#__codelineno-0-59">59</a></span>
 <span class="normal"><a href="#__codelineno-0-60">60</a></span>
 <span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Flask</span><span class="p">:</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/session/start&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">session_start</span><span class="p">():</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a>        <span class="c1"># Constant-time-ish check: short-circuit on the prefix to keep</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="c1"># the path uniform-ish for malformed headers, then compare the</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>        <span class="c1"># token. We don&#39;t bother with hmac.compare_digest because the</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="c1"># token&#39;s already randomly generated and the agent is one-call-</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>        <span class="c1"># per-seat — timing-channel risk is negligible.</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="n">auth</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">expected</span><span class="p">:</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN env var is not set; rejecting all calls&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;server misconfigured&quot;</span><span class="p">),</span> <span class="mi">500</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">auth</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Bearer &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">auth</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;unauthorized&quot;</span><span class="p">),</span> <span class="mi">401</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>        <span class="n">body</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>        <span class="n">password</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">password</span><span class="p">:</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;password required&quot;</span><span class="p">),</span> <span class="mi">400</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>            <span class="n">rotate_kasmvnc_password</span><span class="p">(</span><span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;KasmVNC password rotation failed&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;rotation failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span> <span class="mi">500</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">ok</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">200</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/healthz&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">healthz</span><span class="p">():</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="k">return</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="mi">200</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="k">return</span> <span class="n">app</span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Flask</span><span class="p">:</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="n">expected</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/session/start&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">session_start</span><span class="p">():</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>        <span class="c1"># Constant-time-ish check: short-circuit on the prefix to keep</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="c1"># the path uniform-ish for malformed headers, then compare the</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>        <span class="c1"># token. We don&#39;t bother with hmac.compare_digest because the</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="c1"># token&#39;s already randomly generated and the agent is one-call-</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="c1"># per-seat — timing-channel risk is negligible.</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">auth</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">expected</span><span class="p">:</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;AGENT_TOKEN env var is not set; rejecting all calls&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;server misconfigured&quot;</span><span class="p">),</span> <span class="mi">500</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">auth</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Bearer &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">auth</span><span class="p">[</span><span class="mi">7</span><span class="p">:]</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;unauthorized&quot;</span><span class="p">),</span> <span class="mi">401</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="n">body</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>        <span class="n">password</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">password</span><span class="p">:</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="s2">&quot;password required&quot;</span><span class="p">),</span> <span class="mi">400</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>            <span class="n">rotate_kasmvnc_password</span><span class="p">(</span><span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;KasmVNC password rotation failed&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;rotation failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span> <span class="mi">500</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="c1"># Anchor the monitoring agent&#39;s session clock at user-assignment</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="c1"># time. A write failure here is non-fatal: the seat is usable;</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="c1"># only metric timing is affected (clock will stay at last anchor</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="c1"># or at agent boot if none has been written yet).</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>            <span class="n">write_anchor</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">))</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>                <span class="s2">&quot;Failed to write session anchor; metrics may be misaligned&quot;</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="p">)</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">ok</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">200</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/healthz&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">healthz</span><span class="p">():</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="k">return</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="mi">200</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="k">return</span> <span class="n">app</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3998,9 +4050,9 @@ allocator. /healthz is unauthenticated for ALB / Docker healthchecks.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/client/src/lablink_client_service/agent/api.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">create_app</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">7070</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="n">create_app</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">7070</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
