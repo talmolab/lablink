@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import re
-import ssl
 import time
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.api import USER_AGENT
+from lablink_cli.api import (
+    AllocatorAPI,
+    AllocatorAuthError,
+    AllocatorError,
+    AllocatorUnavailableError,
+)
 from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
@@ -62,7 +61,6 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
 
     console.print()
 
-    # Resolve allocator URL
     allocator_url = get_allocator_url(cfg)
     if not allocator_url:
         console.print(
@@ -72,29 +70,10 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
         raise SystemExit(1)
 
     admin_user, admin_pw = resolve_admin_credentials(cfg)
+    api = AllocatorAPI(allocator_url, admin_user, admin_pw, cfg.ssl.provider)
 
-    # Build request
-    url = f"{allocator_url}/api/launch"
-    data = urlencode({"num_vms": str(num_vms)}).encode()
-
-    credentials = base64.b64encode(
-        f"{admin_user}:{admin_pw}".encode()
-    ).decode()
-
-    req = Request(url, data=data, method="POST")
-    req.add_header("User-Agent", USER_AGENT)
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Content-Type", "application/x-www-form-urlencoded")
-    req.add_header("Accept", "application/json")
-
-    console.print(f"  [dim]POST {url}[/dim]")
+    console.print(f"  [dim]POST {allocator_url}/api/launch[/dim]")
     console.print()
-
-    # SSL context — handle self-signed certs
-    ctx = ssl.create_default_context()
-    if cfg.ssl.provider == "self_signed":
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
 
     started = time.monotonic()
     try:
@@ -102,57 +81,44 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
             f"[bold]Launching {num_vms} client VM(s)...[/bold]",
             spinner="dots",
         ):
-            resp = urlopen(req, timeout=600, context=ctx)  # noqa: S310
-            body = json.loads(resp.read().decode())
+            result = api.launch_vms(num_vms)
         elapsed = time.monotonic() - started
 
-        if body.get("status") == "success":
-            output = body.get("output", "")
-            summary = _summarize_apply(output)
-            console.print(
-                f"[green]✓ Launch successful[/green]  "
-                f"[dim]({_format_duration(elapsed)})[/dim]"
-            )
-            if summary:
-                console.print(f"  {summary}")
-            if verbose and output:
-                console.print()
-                console.print("[bold]Terraform output:[/bold]")
-                console.print(output)
-            elif output:
-                console.print(
-                    "  [dim]Pass --verbose to see full Terraform "
-                    "output.[/dim]"
-                )
-        else:
-            console.print(
-                f"[yellow]Unexpected response:[/yellow] {body}"
-            )
-
-    except HTTPError as e:
-        if e.code == 401:
-            console.print(
-                "[red]Authentication failed.[/red] "
-                "Check your admin credentials."
-            )
-        else:
-            # Try to parse JSON error body
-            try:
-                body = json.loads(e.read().decode())
-                error_msg = body.get("error", str(e))
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                error_msg = str(e)
-            console.print(
-                f"[red]Launch failed (HTTP {e.code}):[/red] {error_msg}"
-            )
-        raise SystemExit(1)
-
-    except URLError as e:
+        output = (result or {}).get("output", "")
+        summary = _summarize_apply(output)
         console.print(
-            f"[red]Could not connect to allocator:[/red] {e.reason}"
+            f"[green]✓ Launch successful[/green]  "
+            f"[dim]({_format_duration(elapsed)})[/dim]"
+        )
+        if summary:
+            console.print(f"  {summary}")
+        if verbose and output:
+            console.print()
+            console.print("[bold]Terraform output:[/bold]")
+            console.print(output)
+        elif output:
+            console.print(
+                "  [dim]Pass --verbose to see full Terraform "
+                "output.[/dim]"
+            )
+
+    except AllocatorAuthError:
+        console.print(
+            "[red]Authentication failed.[/red] "
+            "Check your admin credentials."
+        )
+        raise SystemExit(1)
+    except AllocatorUnavailableError as e:
+        console.print(
+            f"[red]Could not connect to allocator:[/red] {e}"
         )
         console.print(
             "  Check that the allocator is running with 'lablink status'."
+        )
+        raise SystemExit(1)
+    except AllocatorError as e:
+        console.print(
+            f"[red]Launch failed:[/red] {e}"
         )
         raise SystemExit(1)
 
