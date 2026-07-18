@@ -219,3 +219,21 @@ def test_view_instances_banner_absent_without_job_param(
     html = resp.data.decode()
     assert 'id="operation-banner"' in html
     assert 'const initialJobId = "";' in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_html_escapes_operation_output_and_error(
+    mock_database, client, admin_headers,
+):
+    """op.output/op.error (terraform stdout/stderr) must be HTML-escaped
+    before going into innerHTML, not interpolated raw — XSS risk otherwise."""
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "function escapeHtml(" in html
+    assert "${escapeHtml(op.output)}" in html
+    assert "${escapeHtml(op.error)}" in html
+    assert "${op.output}" not in html
+    assert "${op.error}" not in html

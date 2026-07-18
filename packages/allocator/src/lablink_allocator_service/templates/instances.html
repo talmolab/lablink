@@ -212,6 +212,12 @@
     <script>
       const initialJobId = "{{ request.args.get('job', '') }}";
 
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
       function renderOperationBanner(op) {
         const banner = document.getElementById("operation-banner");
         if (!op) {
@@ -231,14 +237,14 @@
           banner.innerHTML =
             `${label} job #${op.id}: succeeded` +
             (op.output
-              ? `<details><summary>Show output</summary><pre>${op.output}</pre></details>`
+              ? `<details><summary>Show output</summary><pre>${escapeHtml(op.output)}</pre></details>`
               : "");
         } else if (op.status === "failed") {
           banner.className = "state-failed";
           banner.innerHTML =
             `${label} job #${op.id}: failed` +
             (op.error
-              ? `<details><summary>Show error</summary><pre>${op.error}</pre></details>`
+              ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
               : "");
         } else if (op.status === "interrupted") {
           banner.className = "state-interrupted";
