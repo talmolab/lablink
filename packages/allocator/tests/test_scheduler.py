@@ -313,8 +313,13 @@ def test_execute_scheduled_destruction_success(
     fake_provider.list_hosts.return_value = []
     fake_provider.destroy_hosts.return_value = DestroyResult(stdout="Destroy complete!")
 
+    fake_operations_db = MagicMock()
+    fake_operations_db.get_in_progress_operation.return_value = None
+
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
          patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+               return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
         mock_get_config.return_value = _make_mock_config()
@@ -354,8 +359,13 @@ def test_execute_scheduled_destruction_provider_cannot_destroy(
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = False
 
+    fake_operations_db = MagicMock()
+    fake_operations_db.get_in_progress_operation.return_value = None
+
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
          patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+               return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
         mock_get_config.return_value = _make_mock_config(provider_name="manual")
@@ -392,8 +402,13 @@ def test_execute_scheduled_destruction_destroy_failure(
         stderr="Error destroying resources",
     )
 
+    fake_operations_db = MagicMock()
+    fake_operations_db.get_in_progress_operation.return_value = None
+
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
          patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+               return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
         mock_get_config.return_value = _make_mock_config()
@@ -411,6 +426,89 @@ def test_execute_scheduled_destruction_destroy_failure(
 
     # DB should NOT be cleared on failure
     mock_database.clear_database.assert_not_called()
+
+
+def test_execute_scheduled_destruction_skips_when_operation_in_progress(
+    scheduler_service, mock_database, tmp_path
+):
+    """A scheduled destruction must not run while an on-demand operation
+    (submitted via /destroy or /api/launch) is queued/running — it would
+    race the same Terraform state."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+
+    schedule_id = 42
+    terraform_dir = str(tmp_path / "terraform")
+
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = True
+
+    fake_operations_db = MagicMock()
+    fake_operations_db.get_in_progress_operation.return_value = {
+        "id": 17, "op_type": "apply", "status": "running",
+    }
+
+    with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
+         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+               return_value=fake_operations_db), \
+         patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
+
+        mock_get_config.return_value = _make_mock_config()
+
+        execute_scheduled_destruction_job(
+            schedule_id=schedule_id,
+            terraform_dir=terraform_dir,
+        )
+
+    # destroy_hosts must NOT have been called — the in-progress operation
+    # wins.
+    fake_provider.destroy_hosts.assert_not_called()
+
+    # DB must NOT be cleared either — nothing was actually destroyed.
+    mock_database.clear_database.assert_not_called()
+
+    calls = mock_database.update_scheduled_destruction_status.call_args_list
+    failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
+    assert failed_call[1]["schedule_id"] == schedule_id
+    assert "operation was in progress" in failed_call[1]["execution_result"]
+
+
+def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
+    scheduler_service, mock_database, tmp_path
+):
+    """Baseline unchanged: with no on-demand operation running, the
+    scheduled destruction proceeds exactly as before."""
+    from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
+    from lablink_allocator_service.providers.protocol import DestroyResult
+
+    schedule_id = 43
+    terraform_dir = str(tmp_path / "terraform")
+
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = True
+    fake_provider.list_hosts.return_value = []
+    fake_provider.destroy_hosts.return_value = DestroyResult(stdout="Destroy complete!")
+
+    fake_operations_db = MagicMock()
+    fake_operations_db.get_in_progress_operation.return_value = None
+
+    with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
+         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
+         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+               return_value=fake_operations_db), \
+         patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
+
+        mock_get_config.return_value = _make_mock_config()
+
+        execute_scheduled_destruction_job(
+            schedule_id=schedule_id,
+            terraform_dir=terraform_dir,
+        )
+
+    fake_provider.destroy_hosts.assert_called_once()
+    mock_database.clear_database.assert_called_once()
+    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    assert last_call[1]["status"] == "completed"
 
 
 # NOTE: Retry tests removed - retry logic moved out of scheduler class

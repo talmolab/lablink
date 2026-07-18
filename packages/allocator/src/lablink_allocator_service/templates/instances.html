@@ -79,6 +79,43 @@
         color: #555;
         font-size: 13px;
       }
+
+      #operation-banner {
+        display: none;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      #operation-banner.state-active {
+        display: block;
+        background: #e7f1ff;
+        color: #004085;
+      }
+
+      #operation-banner.state-succeeded {
+        display: block;
+        background: #e2f6e9;
+        color: #14532d;
+      }
+
+      #operation-banner.state-failed,
+      #operation-banner.state-interrupted {
+        display: block;
+        background: #ffe0e0;
+        color: #900;
+      }
+
+      #operation-banner details {
+        margin-top: 8px;
+      }
+
+      #operation-banner pre {
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body>
@@ -100,6 +137,8 @@
       {% endif %}
     </div>
     {% endif %}
+
+    <div id="operation-banner"></div>
 
     <table>
       <thead>
@@ -140,7 +179,8 @@
               View Logs
             </a>
           </td>
-          <td class="actions-cell">
+          <td>
+            <div class="actions-cell">
             {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
             <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
               Peek (view-only)
@@ -164,10 +204,91 @@
             {% else %}
             <span class="admin-session-label">—</span>
             {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    <script>
+      const initialJobId = "{{ request.args.get('job', '') }}";
+
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function renderOperationBanner(op) {
+        const banner = document.getElementById("operation-banner");
+        if (!op) {
+          banner.className = "";
+          banner.innerHTML = "";
+          return;
+        }
+
+        const label = op.op_type === "apply" ? "Launch" : "Destroy";
+
+        if (op.status === "queued" || op.status === "running") {
+          banner.className = "state-active";
+          banner.innerHTML =
+            `${label} job #${op.id}: ${op.status}…`;
+        } else if (op.status === "succeeded") {
+          banner.className = "state-succeeded";
+          banner.innerHTML =
+            `${label} job #${op.id}: succeeded` +
+            (op.output
+              ? `<details><summary>Show output</summary><pre>${escapeHtml(op.output)}</pre></details>`
+              : "");
+        } else if (op.status === "failed") {
+          banner.className = "state-failed";
+          banner.innerHTML =
+            `${label} job #${op.id}: failed` +
+            (op.error
+              ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
+              : "");
+        } else if (op.status === "interrupted") {
+          banner.className = "state-interrupted";
+          banner.innerHTML =
+            `${label} job #${op.id}: interrupted — the allocator ` +
+            `restarted mid-job. Check Terraform state manually.`;
+        }
+      }
+
+      function pollOperation(jobId) {
+        let intervalId = null;
+
+        function tick() {
+          fetch(`/api/operations/${jobId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((op) => {
+              renderOperationBanner(op);
+              if (op && op.status !== "queued" && op.status !== "running") {
+                if (intervalId) clearInterval(intervalId);
+              }
+            })
+            .catch((err) => console.error("Error polling operation:", err));
+        }
+
+        tick();
+        intervalId = setInterval(tick, 3000);
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        if (initialJobId) {
+          pollOperation(initialJobId);
+          return;
+        }
+        fetch("/api/operations?status=in_progress")
+          .then((res) => (res.ok ? res.json() : null))
+          .then((op) => {
+            if (op) pollOperation(op.id);
+          })
+          .catch((err) =>
+            console.error("Error checking in-progress operation:", err)
+          );
+      });
+    </script>
   </body>
 </html>

@@ -65,7 +65,14 @@ def test_admin_destroy_route_seals_before_destroy(
     mock_run, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
-    """POST /destroy must seal session-metrics rows before tear-down."""
+    """POST /destroy's closure must seal session-metrics rows before
+    tear-down.
+
+    Since the async rewrite, the route itself only submits a job; the
+    seal-then-destroy ordering is enforced inside the closure that runs
+    on OperationsWorker's background thread, so we capture and invoke
+    that closure directly.
+    """
     fake_db = destroy_setup["database"]
     call_order: list[str] = []
 
@@ -82,11 +89,18 @@ def test_admin_destroy_route_seals_before_destroy(
     fake_db.bulk_seal_session_metrics.side_effect = _seal
     mock_run.side_effect = _run
 
-    resp = client.post("/destroy", headers=admin_headers)
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post("/destroy", headers=admin_headers)
 
-    assert resp.status_code == 200, (
-        f"Expected 200, got {resp.status_code}: {resp.get_data(as_text=True)[:300]}"
-    )
+        assert resp.status_code == 302, (
+            f"Expected redirect, got {resp.status_code}: "
+            f"{resp.get_data(as_text=True)[:300]}"
+        )
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
+
     fake_db.bulk_seal_session_metrics.assert_called_once()
     assert call_order == ["seal", "destroy"], (
         f"Expected seal before destroy, got {call_order}"
@@ -104,16 +118,23 @@ def test_admin_destroy_route_continues_when_seal_fails(
     mock_run, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
-    """If bulk_seal fails, /destroy logs a warning and continues to destroy."""
+    """If bulk_seal fails, the closure logs a warning and continues to
+    destroy."""
     mock_run.return_value = MagicMock(
         stdout="Destroy complete (mocked)", stderr="", returncode=0
     )
     fake_db = destroy_setup["database"]
     fake_db.bulk_seal_session_metrics.side_effect = RuntimeError("db blew up")
 
-    resp = client.post("/destroy", headers=admin_headers)
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post("/destroy", headers=admin_headers)
 
-    assert resp.status_code == 200
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
+
     fake_db.bulk_seal_session_metrics.assert_called_once()
     # Destroy still ran despite the seal failure.
     assert mock_run.called

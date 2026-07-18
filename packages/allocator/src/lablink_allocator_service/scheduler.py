@@ -80,6 +80,24 @@ def execute_scheduled_destruction_job(
             status="executing",
         )
 
+        from lablink_allocator_service.operations_db import OperationsDatabase
+
+        operations_db = OperationsDatabase(pool=database.pool)
+        if operations_db.get_in_progress_operation() is not None:
+            logger.info(
+                "Scheduled destruction %s skipped — an on-demand operation "
+                "is in progress",
+                schedule_id,
+            )
+            database.update_scheduled_destruction_status(
+                schedule_id=schedule_id,
+                status="failed",
+                execution_result=(
+                    "Skipped: an on-demand operation was in progress"
+                ),
+            )
+            return
+
         if not provider.can_destroy_hosts:
             logger.info(
                 "Scheduled destruction skipped — provider %s does not support destroy.",

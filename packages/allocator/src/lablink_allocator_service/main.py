@@ -3,6 +3,7 @@ import logging
 import secrets
 import subprocess
 import time
+import json
 from pathlib import Path
 from datetime import datetime
 import re
@@ -36,7 +37,10 @@ from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
 from lablink_allocator_service.operations import OperationsWorker
-from lablink_allocator_service.operations_db import OperationsDatabase
+from lablink_allocator_service.operations_db import (
+    OperationInProgress,
+    OperationsDatabase,
+)
 from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.signed_cookie import (
     sign,
@@ -155,6 +159,12 @@ admin_session_expiry_service = None
 # There is deliberately no operations_worker.stop()/atexit registration
 # to match: there is no loop to join.
 operations_worker = None
+
+# Operations-table query layer (initialized in main()), promoted to a
+# module global alongside operations_worker so routes can read job status
+# directly (list/get/in-progress) without going through the worker, which
+# only exposes submit()/start().
+operations_db = None
 
 # Startup timestamp for uptime tracking (set in main())
 _startup_time: float | None = None
@@ -593,49 +603,54 @@ def launch():
         "deployment_name": getattr(cfg, "deployment_name", "lablink"),
     }
 
+    def _run_launch() -> str:
+        """Runs on OperationsWorker's background thread, not the request
+        thread. Reformats known failure types into RuntimeError with the
+        same user-facing text the old synchronous route used, so that
+        text ends up in the operation's `error` column."""
+        try:
+            result = provider.provision_hosts(count=total_vms, spec=spec)
+        except SGAuditFailure as exc:
+            raise RuntimeError(
+                f"Security-group audit refused the plan: {exc}"
+            ) from exc
+        except subprocess.CalledProcessError as e:
+            clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
+            raise RuntimeError(f"Terraform failed: {clean_err}") from e
+
+        for hostname, times in result.timings.items():
+            start_time = datetime.fromisoformat(
+                times["start_time"].replace("Z", "+00:00")
+            )
+            end_time = datetime.fromisoformat(
+                times["end_time"].replace("Z", "+00:00")
+            )
+            database.update_terraform_timing(
+                hostname=hostname,
+                per_instance_seconds=float(times["seconds"]),
+                per_instance_start_time=start_time,
+                per_instance_end_time=end_time,
+            )
+        return result.apply_stdout
+
     try:
-        result = provider.provision_hosts(count=total_vms, spec=spec)
-    except SGAuditFailure as exc:
-        logger.error("SG audit refused the plan: %s", exc)
-        error_msg = f"Security-group audit refused the plan: {exc}"
+        job_id = operations_worker.submit(
+            op_type="apply",
+            fn=_run_launch,
+            params=json.dumps({"num_vms": num_vms}),
+            created_by=auth.current_user(),
+        )
+    except OperationInProgress as exc:
+        error_msg = f"An operation is already in progress (job #{exc.job_id})"
         if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 400
-        return render_template("dashboard.html", error=error_msg), 400
-    except subprocess.CalledProcessError as e:
-        logger.error("Terraform failed: %s", e.stderr)
-        clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
-        error_msg = f"Terraform failed: {clean_err}"
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 500
-        return render_template("dashboard.html", error=error_msg)
-    except Exception as e:
-        logger.error("Unexpected error during launch: %s", e)
-        if _wants_json():
-            return jsonify({"status": "error", "error": str(e)}), 500
-        return render_template("dashboard.html", error=str(e))
+            return jsonify({
+                "status": "error", "error": error_msg, "job_id": exc.job_id,
+            }), 409
+        return render_template("dashboard.html", error=error_msg), 409
 
-    # Update DB with timings (route-owned; provider returned them)
-    for hostname, times in result.timings.items():
-        start_time = datetime.fromisoformat(
-            times["start_time"].replace("Z", "+00:00")
-        )
-        end_time = datetime.fromisoformat(
-            times["end_time"].replace("Z", "+00:00")
-        )
-        database.update_terraform_timing(
-            hostname=hostname,
-            per_instance_seconds=float(times["seconds"]),
-            per_instance_start_time=start_time,
-            per_instance_end_time=end_time,
-        )
-
-    # Success response — match the pre-refactor shape EXACTLY
     if _wants_json():
-        return jsonify({
-            "status": "success",
-            "output": result.apply_stdout,
-        })
-    return render_template("dashboard.html", output=result.apply_stdout)
+        return jsonify({"job_id": job_id, "status": "queued"}), 202
+    return redirect(f"/admin/instances?job={job_id}")
 
 
 @app.route("/destroy", methods=["POST"])
@@ -648,42 +663,53 @@ def destroy():
             return jsonify({"status": "error", "error": error_msg}), 405
         return render_template("delete-dashboard.html", error=error_msg), 405
 
-    # Seal any open session-metrics rows before tearing down VMs, so the
-    # final sessions get a duration even though the client agents are about
-    # to be killed. Best-effort: never block destroy on a seal failure.
-    try:
-        sealed = database.bulk_seal_session_metrics()
-        logger.info("Sealed %d session-metrics rows before destroy", sealed)
-    except Exception as e:
-        # Sealing is best-effort; do not block the destroy.
-        logger.warning("Could not bulk-seal session metrics: %s", e)
+    def _run_destroy() -> str:
+        """Runs on OperationsWorker's background thread, not the request
+        thread."""
+        # Seal any open session-metrics rows before tearing down VMs, so the
+        # final sessions get a duration even though the client agents are
+        # about to be killed. Best-effort: never block destroy on a seal
+        # failure.
+        try:
+            sealed = database.bulk_seal_session_metrics()
+            logger.info("Sealed %d session-metrics rows before destroy", sealed)
+        except Exception as e:
+            logger.warning("Could not bulk-seal session metrics: %s", e)
 
-    # destroy_hosts ignores the handles arg (terraform destroy operates on
-    # the whole workspace); skip the list_hosts() call.
-    try:
-        result = provider.destroy_hosts([])
-    except FileNotFoundError as e:
-        # No terraform.runtime.tfvars → no client VMs were ever launched.
-        msg = str(e)
-        logger.info(msg)
-        if _wants_json():
-            return jsonify({"status": "error", "error": msg}), 404
-        return render_template("delete-dashboard.html", error=msg), 404
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error during Terraform destroy: {e}")
-        error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_output}), 500
-        return render_template("delete-dashboard.html", error=error_output)
+        # destroy_hosts ignores the handles arg (terraform destroy operates
+        # on the whole workspace); skip the list_hosts() call.
+        try:
+            result = provider.destroy_hosts([])
+        except FileNotFoundError as e:
+            # No terraform.runtime.tfvars → no client VMs were ever launched.
+            raise RuntimeError(str(e)) from e
+        except subprocess.CalledProcessError as e:
+            error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
+            raise RuntimeError(error_output) from e
 
-    # Clear the database after successful destroy.
-    logger.debug("Clearing the database...")
-    database.clear_database()
-    logger.debug("Database cleared successfully.")
+        logger.debug("Clearing the database...")
+        database.clear_database()
+        logger.debug("Database cleared successfully.")
+        return result.stdout
+
+    try:
+        job_id = operations_worker.submit(
+            op_type="destroy",
+            fn=_run_destroy,
+            params=None,
+            created_by=auth.current_user(),
+        )
+    except OperationInProgress as exc:
+        error_msg = f"An operation is already in progress (job #{exc.job_id})"
+        if _wants_json():
+            return jsonify({
+                "status": "error", "error": error_msg, "job_id": exc.job_id,
+            }), 409
+        return render_template("delete-dashboard.html", error=error_msg), 409
 
     if _wants_json():
-        return jsonify({"status": "success", "output": result.stdout})
-    return render_template("delete-dashboard.html", output=result.stdout)
+        return jsonify({"job_id": job_id, "status": "queued"}), 202
+    return redirect(f"/admin/instances?job={job_id}")
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
@@ -1226,10 +1252,27 @@ def scheduled_destruction_page():
     return render_template("scheduled-destruction.html")
 
 
+@app.route("/api/operations", methods=["GET"])
+@auth.login_required
+def list_operations():
+    if request.args.get("status") == "in_progress":
+        return jsonify(operations_db.get_in_progress_operation())
+    return jsonify(operations_db.list_operations(limit=50))
+
+
+@app.route("/api/operations/<int:operation_id>", methods=["GET"])
+@auth.login_required
+def get_operation(operation_id):
+    operation = operations_db.get_operation(operation_id)
+    if operation is None:
+        return jsonify({"error": "Operation not found"}), 404
+    return jsonify(operation)
+
+
 def main():
     """Main entry point for the allocator service."""
     global scheduler_service, reboot_service, admin_session_expiry_service
-    global operations_worker
+    global operations_worker, operations_db
     global _startup_time
 
     try:

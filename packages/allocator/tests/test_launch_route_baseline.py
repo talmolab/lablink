@@ -192,51 +192,101 @@ def launch_setup(app, monkeypatch, tmp_path):
 # Baseline tests
 # ---------------------------------------------------------------------------
 
-def test_launch_calls_aws_utils(launch_setup, client, admin_headers):
-    """Baseline: check_support_nvidia, current_instance_security_group,
-    and upload_to_s3 are all called during a successful /api/launch."""
-    with _provider_happy_path_patches() as mocks:
-        r = client.post("/api/launch", headers=admin_headers, data={"num_vms": "2"})
+def test_launch_submits_job_and_returns_202(launch_setup, client, admin_headers):
+    """The route no longer blocks on Terraform — it submits a job and
+    returns immediately with a job id.
 
-        assert r.status_code == 200, (
-            f"Expected 200, got {r.status_code}: {r.get_data(as_text=True)[:500]}"
-        )
-        mocks["nvidia"].assert_called()
-        mocks["sg"].assert_called()
-        mocks["s3"].assert_called()
-
-
-def test_launch_writes_runtime_tfvars_with_expected_keys(
-    launch_setup, client, admin_headers,
-):
-    """Baseline: terraform.runtime.tfvars contains the 14 expected keys."""
-    with _provider_happy_path_patches():
-        client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
-
-    tfvars_path = launch_setup["tmp_path"] / "terraform.runtime.tfvars"
-    assert tfvars_path.exists(), "runtime tfvars was not written"
-    content = tfvars_path.read_text()
-
-    for key in [
-        "allocator_ip", "allocator_url", "machine_type", "image_name",
-        "repository", "client_ami_id", "subject_software", "resource_prefix",
-        "gpu_support", "cloud_init_output_log_group", "region",
-        "startup_on_error", "agent_token", "register_token",
-    ]:
-        assert f"{key} = " in content, (
-            f"key '{key}' missing from runtime tfvars; got:\n{content}"
+    `main.operations_worker` is patched here (like every other test below)
+    because the module-level global is `None` until the real allocator's
+    `main()` initializes it at process startup; tests never call `main()`,
+    so the route would otherwise hit `AttributeError` on `None.submit`.
+    """
+    with _provider_happy_path_patches(), patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        mock_worker.submit.return_value = 42
+        r = client.post(
+            "/api/launch",
+            headers={**admin_headers, "Accept": "application/json"},
+            data={"num_vms": "2"},
         )
 
+    assert r.status_code == 202, (
+        f"Expected 202, got {r.status_code}: {r.get_data(as_text=True)[:500]}"
+    )
+    body = r.get_json()
+    assert body["status"] == "queued"
+    assert isinstance(body["job_id"], int)
 
-def test_launch_runs_terraform_plan_show_apply_sequence(
+
+def test_launch_redirects_browser_client_with_job_id(
     launch_setup, client, admin_headers,
 ):
-    """Baseline: terraform plan → show -json → apply in that order."""
-    with _provider_happy_path_patches() as mocks:
+    """A non-JSON (browser form) submit gets a redirect carrying the job id,
+    not a rendered terraform-output page."""
+    with _provider_happy_path_patches(), patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        mock_worker.submit.return_value = 7
+        r = client.post(
+            "/api/launch", headers=admin_headers, data={"num_vms": "1"},
+            follow_redirects=False,
+        )
+
+    assert r.status_code == 302
+    assert r.headers["Location"].startswith("/admin/instances?job=")
+
+
+def test_launch_closure_calls_aws_utils_and_writes_timings(
+    launch_setup, client, admin_headers,
+):
+    """Capture the closure passed to operations_worker.submit(fn=...) and
+    invoke it directly — this is what actually runs on the background
+    thread, so it must still do everything the old inline route body did:
+    call the AWS utils, run plan/show/apply in order, audit the SG plan,
+    and write timing rows per host."""
+    from unittest.mock import patch
+
+    with _provider_happy_path_patches() as mocks, patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        mock_worker.submit.return_value = 42
+        r = client.post(
+            "/api/launch", headers=admin_headers, data={"num_vms": "1"},
+        )
+        assert r.status_code == 302
+
+        mock_worker.submit.assert_called_once()
+        call_kwargs = mock_worker.submit.call_args.kwargs
+        assert call_kwargs["op_type"] == "apply"
+        assert call_kwargs["params"] == '{"num_vms": 1}'
+        fn = call_kwargs["fn"]
+
+        output = fn()
+
+    mocks["nvidia"].assert_called()
+    mocks["sg"].assert_called()
+    mocks["s3"].assert_called()
+    assert output == "apply success"
+
+    db = launch_setup["database"]
+    assert db.update_terraform_timing.call_count == 1
+
+
+def test_launch_closure_runs_plan_show_apply_in_order(
+    launch_setup, client, admin_headers,
+):
+    """Baseline preserved: terraform plan -> show -json -> apply, in order."""
+    from unittest.mock import patch
+
+    with _provider_happy_path_patches() as mocks, patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
         client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
 
         calls = mocks["run"].call_args_list
-        # Extract the command list from each call (first positional arg)
         cmds = [
             list(c.args[0])
             for c in calls
@@ -249,48 +299,92 @@ def test_launch_runs_terraform_plan_show_apply_sequence(
                     return i
             return -1
 
-        plan_idx = index_of("plan")
-        show_idx = index_of("show")
-        apply_idx = index_of("apply")
-
-        assert plan_idx != -1, f"terraform plan not called; cmds: {cmds}"
-        assert show_idx != -1, f"terraform show not called; cmds: {cmds}"
-        assert apply_idx != -1, f"terraform apply not called; cmds: {cmds}"
-        assert plan_idx < show_idx < apply_idx, (
-            f"terraform plan/show/apply not in order: "
-            f"plan={plan_idx}, show={show_idx}, apply={apply_idx}; cmds: {cmds}"
+        plan_idx, show_idx, apply_idx = (
+            index_of("plan"), index_of("show"), index_of("apply"),
         )
+        assert plan_idx != -1 and show_idx != -1 and apply_idx != -1
+        assert plan_idx < show_idx < apply_idx
 
 
-def test_launch_calls_sg_audit_with_plan_json(launch_setup, client, admin_headers):
-    """Baseline: audit_terraform_plan is called with the parsed plan JSON dict."""
-    with _provider_happy_path_patches():
-        with patch("lablink_allocator_service.providers.aws.audit_terraform_plan") as mock_audit:
-            mock_audit.return_value = None
-            client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
-            mock_audit.assert_called_once()
-            call_arg = mock_audit.call_args[0][0]
-            assert isinstance(call_arg, dict), (
-                f"audit_terraform_plan expected a dict, got "
-                f"{type(call_arg).__name__}: {call_arg}"
-            )
+def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_headers):
+    """SGAuditFailure inside the closure is reformatted into a RuntimeError
+    with the same user-facing message the old synchronous route produced,
+    so it lands in operations.error with useful detail intact.
+
+    audit_terraform_plan runs between the `show -json` and `apply` calls
+    inside provider.provision_hosts, so this must override just that one
+    call while every other provider dependency stays mocked to the happy
+    path — and the closure must be invoked in the SAME `with` block that
+    sets those patches up, not after they've been torn down, or fn() will
+    hit unmocked subprocess.run/upload_to_s3/etc. calls."""
+    from unittest.mock import patch
+    from lablink_allocator_service.utils.sg_audit import SGAuditFailure
+
+    with _provider_happy_path_patches(), patch(
+        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        side_effect=SGAuditFailure("port 6080 exposed"),
+    ), patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+
+        with pytest.raises(
+            RuntimeError, match="Security-group audit refused the plan"
+        ):
+            fn()
 
 
-def test_launch_calls_update_terraform_timing_per_host(
+def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_headers):
+    """CalledProcessError inside the closure is reformatted with the
+    ANSI-stripped stderr, matching the old synchronous route's error text."""
+    import subprocess
+    from unittest.mock import patch
+
+    with patch(
+        "lablink_allocator_service.providers.aws.upload_to_s3", return_value=None,
+    ), patch(
+        "lablink_allocator_service.providers.aws.current_instance_security_group",
+        return_value="sg-allocator-test",
+    ), patch(
+        "lablink_allocator_service.providers.aws.check_support_nvidia",
+        return_value=True,
+    ), patch(
+        "lablink_allocator_service.providers.aws.subprocess.run",
+        side_effect=subprocess.CalledProcessError(
+            1, ["terraform", "apply"], stderr="\x1b[31mError: boom\x1b[0m",
+        ),
+    ), patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+
+        # fn() must be invoked while the subprocess.run/upload_to_s3/etc.
+        # patches above are still active — calling it after this `with`
+        # block exits would hit real, unmocked subprocess/AWS calls.
+        with pytest.raises(RuntimeError, match="Terraform failed: Error: boom"):
+            fn()
+
+
+def test_launch_returns_409_when_operation_in_progress(
     launch_setup, client, admin_headers,
 ):
-    """Baseline: database.update_terraform_timing is called once per host
-    returned by get_instance_timings."""
-    with _provider_happy_path_patches():
-        client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
+    from unittest.mock import patch
+    from lablink_allocator_service.operations_db import OperationInProgress
 
-    db = launch_setup["database"]
-    # _TIMING_DATA has one host ("vm-1"), so update_terraform_timing must be
-    # called exactly once.
-    assert db.update_terraform_timing.call_count == 1, (
-        f"Expected 1 update_terraform_timing call, "
-        f"got {db.update_terraform_timing.call_count}"
-    )
+    with patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        mock_worker.submit.side_effect = OperationInProgress(job_id=3)
+        r = client.post(
+            "/api/launch",
+            headers={**admin_headers, "Accept": "application/json"},
+            data={"num_vms": "1"},
+        )
+
+    assert r.status_code == 409
+    body = r.get_json()
+    assert body["job_id"] == 3
+    assert "already in progress" in body["error"]
 
 
 def test_launch_returns_405_when_provider_cannot_provision(
@@ -299,7 +393,6 @@ def test_launch_returns_405_when_provider_cannot_provision(
     """After Task 6, the route returns 405 when the provider can't provision."""
     from lablink_allocator_service import main
 
-    # Force can_provision_hosts=False via a fake provider in app.config
     fake_provider = type("FakeProvider", (), {
         "can_provision_hosts": False,
         "can_destroy_hosts": True,
