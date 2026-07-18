@@ -179,7 +179,8 @@
               View Logs
             </a>
           </td>
-          <td class="actions-cell">
+          <td>
+            <div class="actions-cell">
             {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
             <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
               Peek (view-only)
@@ -203,6 +204,7 @@
             {% else %}
             <span class="admin-session-label">—</span>
             {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}
