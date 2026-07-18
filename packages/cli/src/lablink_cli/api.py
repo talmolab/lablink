@@ -165,7 +165,7 @@ class AllocatorAPI:
         self,
         method: str,
         path: str,
-        data: bytes | None = b"",
+        data: bytes | None = None,
         *,
         content_type: str | None = None,
     ) -> dict | None:
