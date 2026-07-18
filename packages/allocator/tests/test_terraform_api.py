@@ -462,10 +462,20 @@ def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the destroy endpoint
-    resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 200
-    assert b"resources destroyed" in resp.data
+    # Call the destroy endpoint -- now async: it submits a job and returns
+    # immediately instead of running terraform inline. Capture and invoke
+    # the closure (still within the scope of the @patch decorators above)
+    # to exercise the same destroy_hosts call the background thread would
+    # make.
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        output = fn()
+
+    assert "resources destroyed" in output
 
     # Correct terraform command called with cwd
     mock_run.assert_called_once()
@@ -501,9 +511,16 @@ def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
         returncode=1, cmd=["terraform", "destroy"], stderr="\x1b[31merror\x1b[0m"
     )
 
-    # Call the destroy endpoint
-    resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
-    assert b"error" in resp.data
+    # Call the destroy endpoint -- submission succeeds immediately (job
+    # queued); the terraform failure only surfaces once the closure runs.
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(RuntimeError, match="error"):
+            fn()
 
     # Ensure run was called correctly
     mock_run.assert_called_once()
@@ -560,13 +577,18 @@ def test_destroy_json_success(mock_run, mock_sg, mock_ids, mock_names,
     )
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(DESTROY_ENDPOINT, headers=headers)
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=headers)
 
-    assert resp.status_code == 200
-    body = json.loads(resp.data)
-    assert body["status"] == "success"
-    assert "resources destroyed" in body["output"]
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
 
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        output = fn()
+
+    assert "resources destroyed" in output
     fake_db.clear_database.assert_called_once()
 
 
@@ -591,46 +613,67 @@ def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
     )
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(DESTROY_ENDPOINT, headers=headers)
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=headers)
 
-    assert resp.status_code == 500
-    body = json.loads(resp.data)
-    assert body["status"] == "error"
-    assert "failed to destroy" in body["error"]
+        # Submission itself succeeds immediately (job queued); the
+        # terraform failure only surfaces once the closure runs.
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(RuntimeError, match="failed to destroy"):
+            fn()
 
 
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 def test_destroy_no_tfvars(mock_ids, mock_names,
                             client, admin_headers, monkeypatch, tmp_path):
-    """Test destroy returns 404 when tfvars does not exist (no VMs launched)."""
+    """Test destroy closure raises RuntimeError when tfvars does not exist
+    (no VMs launched) -- this now surfaces only when the background thread
+    runs the closure, not synchronously from the route."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     # Do NOT create terraform.runtime.tfvars
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
     _wire_aws_provider(monkeypatch, terraform_dir)
 
-    resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
-    assert resp.status_code == 404
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(RuntimeError, match="tfvars does not exist"):
+            fn()
 
 
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 def test_destroy_no_tfvars_json(mock_ids, mock_names,
                                  client, admin_headers, monkeypatch, tmp_path):
-    """Test destroy returns JSON 404 when tfvars does not exist."""
+    """Test destroy closure raises RuntimeError (JSON client) when tfvars
+    does not exist -- submission itself still succeeds immediately."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
     _wire_aws_provider(monkeypatch, terraform_dir)
 
     headers = {**admin_headers, **JSON_ACCEPT}
-    resp = client.post(DESTROY_ENDPOINT, headers=headers)
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=headers)
 
-    assert resp.status_code == 404
-    body = json.loads(resp.data)
-    assert body["status"] == "error"
-    assert "tfvars does not exist" in body["error"]
+        assert resp.status_code == 202
+        body = json.loads(resp.data)
+        assert body["status"] == "queued"
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        with pytest.raises(RuntimeError, match="tfvars does not exist"):
+            fn()
 
 
 @patch("lablink_allocator_service.providers.aws.upload_to_s3")

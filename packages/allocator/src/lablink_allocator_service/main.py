@@ -663,42 +663,53 @@ def destroy():
             return jsonify({"status": "error", "error": error_msg}), 405
         return render_template("delete-dashboard.html", error=error_msg), 405
 
-    # Seal any open session-metrics rows before tearing down VMs, so the
-    # final sessions get a duration even though the client agents are about
-    # to be killed. Best-effort: never block destroy on a seal failure.
-    try:
-        sealed = database.bulk_seal_session_metrics()
-        logger.info("Sealed %d session-metrics rows before destroy", sealed)
-    except Exception as e:
-        # Sealing is best-effort; do not block the destroy.
-        logger.warning("Could not bulk-seal session metrics: %s", e)
+    def _run_destroy() -> str:
+        """Runs on OperationsWorker's background thread, not the request
+        thread."""
+        # Seal any open session-metrics rows before tearing down VMs, so the
+        # final sessions get a duration even though the client agents are
+        # about to be killed. Best-effort: never block destroy on a seal
+        # failure.
+        try:
+            sealed = database.bulk_seal_session_metrics()
+            logger.info("Sealed %d session-metrics rows before destroy", sealed)
+        except Exception as e:
+            logger.warning("Could not bulk-seal session metrics: %s", e)
 
-    # destroy_hosts ignores the handles arg (terraform destroy operates on
-    # the whole workspace); skip the list_hosts() call.
-    try:
-        result = provider.destroy_hosts([])
-    except FileNotFoundError as e:
-        # No terraform.runtime.tfvars → no client VMs were ever launched.
-        msg = str(e)
-        logger.info(msg)
-        if _wants_json():
-            return jsonify({"status": "error", "error": msg}), 404
-        return render_template("delete-dashboard.html", error=msg), 404
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error during Terraform destroy: {e}")
-        error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_output}), 500
-        return render_template("delete-dashboard.html", error=error_output)
+        # destroy_hosts ignores the handles arg (terraform destroy operates
+        # on the whole workspace); skip the list_hosts() call.
+        try:
+            result = provider.destroy_hosts([])
+        except FileNotFoundError as e:
+            # No terraform.runtime.tfvars → no client VMs were ever launched.
+            raise RuntimeError(str(e)) from e
+        except subprocess.CalledProcessError as e:
+            error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
+            raise RuntimeError(error_output) from e
 
-    # Clear the database after successful destroy.
-    logger.debug("Clearing the database...")
-    database.clear_database()
-    logger.debug("Database cleared successfully.")
+        logger.debug("Clearing the database...")
+        database.clear_database()
+        logger.debug("Database cleared successfully.")
+        return result.stdout
+
+    try:
+        job_id = operations_worker.submit(
+            op_type="destroy",
+            fn=_run_destroy,
+            params=None,
+            created_by=auth.current_user(),
+        )
+    except OperationInProgress as exc:
+        error_msg = f"An operation is already in progress (job #{exc.job_id})"
+        if _wants_json():
+            return jsonify({
+                "status": "error", "error": error_msg, "job_id": exc.job_id,
+            }), 409
+        return render_template("delete-dashboard.html", error=error_msg), 409
 
     if _wants_json():
-        return jsonify({"status": "success", "output": result.stdout})
-    return render_template("delete-dashboard.html", output=result.stdout)
+        return jsonify({"job_id": job_id, "status": "queued"}), 202
+    return redirect(f"/admin/instances?job={job_id}")
 
 
 @app.route("/api/unassigned_vms_count", methods=["GET"])
