@@ -211,6 +211,17 @@ def test_view_instances_shows_vnc_error_banner(client, admin_headers):
 
 
 @patch("lablink_allocator_service.main.database")
+def test_view_instances_shows_back_to_admin_link(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+
+    html = resp.data.decode()
+    assert 'href="/admin"' in html
+    assert "Back to Admin Dashboard" in html
+
+
+@patch("lablink_allocator_service.main.database")
 def test_view_instances_embeds_job_id_from_query_param(
     mock_database, client, admin_headers,
 ):
