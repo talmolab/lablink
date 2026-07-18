@@ -191,3 +191,31 @@ def test_view_instances_shows_vnc_error_banner(client, admin_headers):
         "/admin/instances?vnc_error=connect_raced", headers=admin_headers
     )
     assert b"claimed by someone else" in resp.data
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_embeds_job_id_from_query_param(
+    mock_database, client, admin_headers,
+):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances?job=17", headers=admin_headers)
+
+    html = resp.data.decode()
+    assert 'id="operation-banner"' in html
+    assert "17" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_banner_absent_without_job_param(
+    mock_database, client, admin_headers,
+):
+    """No ?job= param and nothing in progress: the banner container exists
+    (for JS to fill in later) but starts with no job id embedded."""
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+
+    html = resp.data.decode()
+    assert 'id="operation-banner"' in html
+    assert 'const initialJobId = "";' in html
