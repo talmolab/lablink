@@ -80,6 +80,16 @@
         font-size: 13px;
       }
 
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
       #operation-banner {
         display: none;
         padding: 12px 16px;
@@ -119,6 +129,8 @@
     </style>
   </head>
   <body>
+    <a href="/admin" class="back-link">&larr; Back to Admin Dashboard</a>
+
     <h2>Existing VM Instances</h2>
 
     {% if request.args.get('vnc_error') %}
