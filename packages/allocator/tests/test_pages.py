@@ -106,11 +106,28 @@ def test_admin_delete_instance(client, admin_headers):
     response = client.get("/admin/instances/delete", headers=admin_headers)
     assert response.status_code == 200
     assert b"Run terraform destroy" in response.data
+    assert b'href="/admin"' in response.data
+    assert "Back to Admin Dashboard".encode() in response.data
 
 
 def test_admin_delete_instance_no_auth(client):
     """Test deleting an instance without authentication."""
     response = client.get("/admin/instances/delete")
+    assert response.status_code == 401
+
+
+def test_admin_create_instance(client, admin_headers):
+    """Test the create-instances page as an admin."""
+    response = client.get("/admin/create", headers=admin_headers)
+    assert response.status_code == 200
+    assert b"Launch VMs" in response.data
+    assert b'href="/admin"' in response.data
+    assert "Back to Admin Dashboard".encode() in response.data
+
+
+def test_admin_create_instance_no_auth(client):
+    """Test the create-instances page without authentication."""
+    response = client.get("/admin/create")
     assert response.status_code == 401
 
 
