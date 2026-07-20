@@ -185,13 +185,20 @@ def deploy(
         help="Skip confirmation prompts. Does not bypass credential prompts "
         "(admin password still required interactively).",
     ),
+    tailscale_authkey: str = typer.Option(
+        None, "--tailscale-authkey",
+        help="Tailscale auth key for the allocator's own tailnet sidecar. "
+        "Required on the first deploy when manual.connectivity is "
+        "'mesh_overlay'; optional on redeploys (the previous value is "
+        "carried forward). Manual provider only.",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
     cfg = _load_cfg(config)
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        run_deploy_compose(cfg, yes=yes)
+        run_deploy_compose(cfg, yes=yes, tailscale_authkey=tailscale_authkey)
         return
 
     from lablink_cli.commands.deploy import run_deploy

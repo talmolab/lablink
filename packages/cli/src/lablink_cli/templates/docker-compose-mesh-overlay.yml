@@ -1,0 +1,78 @@
+# Rendered by `lablink deploy` (manual provider, connectivity: mesh_overlay)
+# — DO NOT edit by hand. Re-run `lablink deploy` to regenerate after config
+# changes.
+#
+# Identical to docker-compose.yml except for the added `tailscale` sidecar,
+# which shares the allocator's network namespace (network_mode:
+# service:allocator) so the allocator's own nginx can route to
+# <hostname>.<tailnet>.ts.net when proxying a mesh-overlay client's
+# KasmVNC connection. TS_AUTHKEY comes from `.env` (populated by `lablink
+# deploy --tailscale-authkey`, not persisted in config.yaml) — only needed
+# for the first join; tailscaled's own state (the tailscale_state volume)
+# carries the node's identity across restarts/redeploys after that.
+services:
+  allocator:
+    image: ${ALLOCATOR_IMAGE}
+    # Mutable tags like `linux-amd64-latest[-test]` are republished by CI
+    # without changing the tag string, so the local cache would otherwise
+    # mask updates. `always` makes `docker compose up -d` re-pull every
+    # time and is what makes "push a new image, re-run lablink deploy"
+    # actually deploy the new image.
+    pull_policy: always
+    # The allocator image is published amd64-only; pin the platform so
+    # Apple Silicon (and other arm64 hosts) emulate via Rosetta instead
+    # of failing with "no matching manifest for linux/arm64/v8". This is
+    # a no-op on native amd64 hosts. Drop this once multi-arch images
+    # are published from lablink-template's CI.
+    platform: linux/amd64
+    # Pin the container name so the CLI's logs/status/_extract_register_token
+    # helpers can address it without knowing the compose project name.
+    container_name: lablink-allocator
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      # The CLI's render_compose_dir always materializes custom-startup.sh
+      # in this directory (empty when disabled), so this bind mount
+      # always resolves. The allocator reads it at register time and
+      # ships its base64 content to BYO clients via the register
+      # response — matching the AWS path where Terraform/user_data
+      # delivers the same file to the client container.
+      - ./custom-startup.sh:/config/custom-startup.sh:ro
+      - allocator_pgdata:/var/lib/postgresql
+    ports:
+      # The container's nginx listens on :5000 (see lablink-nginx.conf in
+      # the allocator package). It is the only listener — there is no TLS
+      # terminator inside this image, so HTTPS is not exposed by the
+      # manual provider; front the stack with your own reverse proxy
+      # (Caddy, nginx, Cloudflare Tunnel) for public TLS.
+      - "${HTTP_PORT}:5000"
+    restart: unless-stopped
+
+  # Joins the allocator's host to the tailnet so its nginx can reach
+  # mesh-overlay clients. network_mode: service:allocator means this
+  # container shares the allocator's network namespace — the allocator's
+  # own process sees the tailscale0 interface directly, no separate
+  # networking setup needed on the allocator service itself. Depends on
+  # allocator (not the other way around): sharing a network namespace
+  # requires that namespace to already exist.
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: lablink-allocator-tailscale
+    network_mode: "service:allocator"
+    depends_on:
+      - allocator
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:-}
+      - TS_HOSTNAME=${TAILSCALE_HOSTNAME:-lablink-allocator}
+      - TS_STATE_DIR=/var/lib/tailscale
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+    restart: unless-stopped
+
+volumes:
+  allocator_pgdata:
+  tailscale_state:

@@ -16,6 +16,8 @@ def _manual_cfg(
     admin_password="pw",
     ssl_provider="none",
     image_tag="linux-amd64-latest",
+    connectivity="lan_direct",
+    overlay_tailnet="",
 ):
     cfg = Config()
     cfg.provider = "manual"
@@ -24,6 +26,8 @@ def _manual_cfg(
     cfg.app.admin_password = admin_password
     cfg.ssl.provider = ssl_provider
     cfg.allocator.image_tag = image_tag
+    cfg.manual.connectivity = connectivity
+    cfg.manual.overlay_tailnet = overlay_tailnet
     return cfg
 
 
@@ -140,6 +144,121 @@ class TestRenderComposeDir:
             "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator-image:v1.2.3"
             in env_content
         )
+
+
+class TestRenderComposeDirMeshOverlay:
+    def test_lan_direct_uses_plain_template_no_sidecar(self, tmp_path):
+        """Default connectivity must not render the sidecar — byte-identical
+        compose stack to every existing lan_direct deployment."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg()
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale" not in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY" not in env_content
+
+    def test_mesh_overlay_renders_sidecar_and_authkey(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale:" in compose_yaml
+        assert 'network_mode: "service:allocator"' in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-abc" in env_content
+        assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
+
+    def test_redeploy_without_authkey_carries_previous_value_forward(
+        self, tmp_path
+    ):
+        """A redeploy that omits --tailscale-authkey must not blank out an
+        already-joined sidecar's key."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
+        render_compose_dir(cfg, target, tailscale_authkey=None)
+
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-first" in env_content
+
+    def test_redeploy_with_new_authkey_overrides_previous_value(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-second")
+
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-second" in env_content
+        assert "tskey-first" not in env_content
+
+
+class TestDeployComposeMeshOverlayPreflight:
+    def test_first_deploy_without_authkey_rejected(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_first_deploy_with_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+        mock_up.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_redeploy_without_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Second deploy call must not require --tailscale-authkey again —
+        the .env from the first deploy already carries a value forward."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        assert mock_up.call_count == 2
 
 
 class TestStartupScriptStaging:

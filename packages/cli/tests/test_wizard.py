@@ -485,3 +485,71 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
         f"After scroll_to_widget, EIP radio at y={eip_y} is outside the "
         "30-row test viewport — scroll isn't bringing it into view."
     )
+
+
+# ---------------------------------------------------------------------------
+# ManualConnectivityScreen
+# ---------------------------------------------------------------------------
+def _drive_connectivity_screen(
+    *, choose_mesh_overlay: bool, overlay_tailnet: str = ""
+):
+    """Push ManualConnectivityScreen directly, drive it, return
+    (cfg.manual.connectivity, cfg.manual.overlay_tailnet, screen_stack_grew)."""
+    import asyncio
+    from textual.widgets import Input, RadioButton, RadioSet
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+
+    async def _run() -> tuple[str, str, int]:
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = ManualConnectivityScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            stack_before = len(app.screen_stack)
+
+            if choose_mesh_overlay:
+                radio_set = screen.query_one("#connectivity-select", RadioSet)
+                for btn in radio_set.query(RadioButton):
+                    if btn.id == "connectivity-mesh-overlay":
+                        btn.value = True
+                screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+            await pilot.pause()
+            screen._next()
+            await pilot.pause()
+            return (
+                cfg.manual.connectivity,
+                cfg.manual.overlay_tailnet,
+                len(app.screen_stack) - stack_before,
+            )
+
+    return asyncio.run(_run())
+
+
+def test_connectivity_screen_defaults_to_lan_direct():
+    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False
+    )
+    assert connectivity == "lan_direct"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
+    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=True, overlay_tailnet="example.ts.net"
+    )
+    assert connectivity == "mesh_overlay"
+    assert tailnet == "example.ts.net"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_next_when_tailnet_missing():
+    """mesh_overlay chosen but no tailnet domain → validation error, no push."""
+    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=True, overlay_tailnet=""
+    )
+    assert connectivity == "mesh_overlay"
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
