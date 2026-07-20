@@ -1998,6 +1998,27 @@ def test_get_lan_ip_none_when_row_absent(db_instance, mock_db_connection):
     assert db_instance.get_lan_ip("nope") is None
 
 
+def test_get_overlay_hostname_present(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("classroom-gpu-3",)
+    assert db_instance.get_overlay_hostname("vm-1") == "classroom-gpu-3"
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'overlay_hostname'" in sql
+    assert "WHERE hostname = %s" in sql
+
+
+def test_get_overlay_hostname_none_when_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.get_overlay_hostname("vm-1") is None
+
+
+def test_get_overlay_hostname_none_when_row_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_overlay_hostname("nope") is None
+
+
 def test_list_hosts_by_provider(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchall.return_value = [("vm-1",), ("vm-2",)]

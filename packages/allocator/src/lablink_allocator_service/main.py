@@ -104,6 +104,7 @@ app.config["LABLINK_PROVIDER"] = get_provider(
     cfg.provider,
     region=cfg.app.region,
     terraform_dir=str(TERRAFORM_DIR),
+    connectivity=cfg.manual.connectivity,
 )
 
 os.environ["DATABASE_URL"] = (
@@ -277,6 +278,30 @@ def home():
     return render_template("index.html")
 
 
+def _tailscale_status() -> str:
+    """Return "ok" / "not joined" / "not installed" for the allocator
+    host's own Tailscale connection. Shelled out to rather than imported
+    as a library — Tailscale ships no supported Python bindings; `tailscale
+    status --json`'s exit code and BackendState are the documented way to
+    check this from a script."""
+    try:
+        result = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except FileNotFoundError:
+        return "not installed"
+    except (subprocess.TimeoutExpired, OSError):
+        return "not joined"
+    if result.returncode != 0:
+        return "not joined"
+    try:
+        state = json.loads(result.stdout).get("BackendState", "")
+    except json.JSONDecodeError:
+        return "not joined"
+    return "ok" if state == "Running" else "not joined"
+
+
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -285,6 +310,8 @@ def health_check():
         "scheduler": "ok" if scheduler_service is not None else "not initialized",
         "reboot_service": "ok" if reboot_service is not None else "not initialized",
     }
+    if app.config["LABLINK_PROVIDER"].client_connectivity.requires_tailscale_check:
+        checks["tailscale"] = _tailscale_status()
 
     all_ready = all(v == "ok" for v in checks.values())
     status = "healthy" if all_ready else "starting"
@@ -411,7 +438,8 @@ def admin_connect_vm(hostname):
         session_id = uuid.uuid4()
         browser_token = secrets.token_urlsafe(16)
         provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
+            connectivity=cfg.manual.connectivity,
         )
         try:
             provider.client_connectivity.prepare_browser_session(
@@ -500,7 +528,8 @@ def submit_vm_details():
         browser_token = secrets.token_urlsafe(16)
         try:
             provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
+                connectivity=cfg.manual.connectivity,
             )
             provider.client_connectivity.prepare_browser_session(
                 database=database,

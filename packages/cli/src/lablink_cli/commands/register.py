@@ -47,58 +47,97 @@ def run_register(
     force: bool,
     env_file: Path | None,
     insecure: bool,
+    overlay_hostname: str | None = None,
+    tailscale_authkey: str | None = None,
 ) -> None:
     """Orchestrate registration. Exits non-zero on any user-facing error.
 
-    Always docker-runs the client container after persisting secrets.
-    If docker is missing, errors but preserves the env file so the user
-    can install docker and re-run with --force.
+    Two shapes:
+    - Real BYO box (default): auto-detects hostname/LAN IP/machine
+      identity/GPU, then docker-runs the client container after
+      persisting secrets.
+    - Mesh-overlay (``overlay_hostname`` set, e.g. a Run:AI-hosted
+      workload): the box doesn't exist yet, so auto-detection is
+      skipped entirely (it would report *this* machine's own facts);
+      ``--hostname``/``--machine-identity`` are required. No docker
+      run — instead prints the secrets for the admin to paste into
+      their own workload submission.
     """
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
-    # Step 1: idempotency / resume
-    if env_file.exists() and not force:
+    if overlay_hostname is not None:
+        if not tailscale_authkey:
+            console.print(
+                "[red]--tailscale-authkey is required with "
+                "--overlay-hostname.[/red]"
+            )
+            raise SystemExit(1)
+        if not hostname:
+            console.print(
+                "[red]--hostname is required with --overlay-hostname.[/red] "
+                "Auto-detection would report this machine's own hostname, "
+                "not the future client's — the client doesn't exist yet."
+            )
+            raise SystemExit(1)
+        if not machine_identity:
+            console.print(
+                "[red]--machine-identity is required with "
+                "--overlay-hostname.[/red] Auto-detection would report "
+                "this machine's own identity, not the future client's."
+            )
+            raise SystemExit(1)
+
+    # Step 1: idempotency / resume (real-BYO path only — a mesh-overlay
+    # registration has no local container/env-file lifecycle to resume).
+    if overlay_hostname is None and env_file.exists() and not force:
         _resume(env_file, console)
         return
 
-    # Step 2: auto-detect (user overrides win)
-    resolved_hostname = hostname or byo_detect.detect_hostname()
-    if not resolved_hostname:
-        console.print(
-            "[red]Could not detect hostname.[/red] "
-            "Pass --hostname explicitly."
+    if overlay_hostname is not None:
+        resolved_hostname = hostname
+        resolved_machine_identity = machine_identity
+        resolved_gpu_present = bool(gpu_present)
+        resolved_gpu_model = gpu_model
+        console.print(f"Registering overlay hostname: {overlay_hostname}")
+    else:
+        # Step 2: auto-detect (user overrides win)
+        resolved_hostname = hostname or byo_detect.detect_hostname()
+        if not resolved_hostname:
+            console.print(
+                "[red]Could not detect hostname.[/red] "
+                "Pass --hostname explicitly."
+            )
+            raise SystemExit(1)
+        console.print(f"Detected hostname: {resolved_hostname}")
+
+        resolved_lan_ip = lan_ip or byo_detect.detect_lan_ip()
+        if not resolved_lan_ip:
+            console.print(
+                "[red]Could not detect LAN IP.[/red] "
+                "Pass --lan-ip explicitly."
+            )
+            raise SystemExit(1)
+        console.print(f"Detected LAN IP: {resolved_lan_ip}")
+
+        resolved_machine_identity = (
+            machine_identity or byo_detect.resolve_machine_identity()
         )
-        raise SystemExit(1)
-    console.print(f"Detected hostname: {resolved_hostname}")
-
-    resolved_lan_ip = lan_ip or byo_detect.detect_lan_ip()
-    if not resolved_lan_ip:
         console.print(
-            "[red]Could not detect LAN IP.[/red] "
-            "Pass --lan-ip explicitly."
+            f"Detected machine identity: {resolved_machine_identity}"
         )
-        raise SystemExit(1)
-    console.print(f"Detected LAN IP: {resolved_lan_ip}")
 
-    resolved_machine_identity = (
-        machine_identity or byo_detect.resolve_machine_identity()
-    )
-    console.print(
-        f"Detected machine identity: {resolved_machine_identity}"
-    )
-
-    # GPU: always detect; user flags override either field independently.
-    detected_present, detected_model = byo_detect.detect_gpu()
-    resolved_gpu_present = (
-        gpu_present if gpu_present is not None else detected_present
-    )
-    resolved_gpu_model = gpu_model or detected_model
-    console.print(
-        f"Detected GPU: {resolved_gpu_model}"
-        if resolved_gpu_present
-        else "Detected GPU: none"
-    )
+        # GPU: always detect; user flags override either field independently.
+        detected_present, detected_model = byo_detect.detect_gpu()
+        resolved_gpu_present = (
+            gpu_present if gpu_present is not None else detected_present
+        )
+        resolved_gpu_model = gpu_model or detected_model
+        console.print(
+            f"Detected GPU: {resolved_gpu_model}"
+            if resolved_gpu_present
+            else "Detected GPU: none"
+        )
 
     # Step 3 + 4: build + POST
     ssl_provider = "self_signed" if insecure else "none"
@@ -107,13 +146,22 @@ def run_register(
     )
     console.print(f"Registering with {allocator_url} …")
     try:
-        response = client.register(
-            hostname=resolved_hostname,
-            machine_identity=resolved_machine_identity,
-            lan_ip=resolved_lan_ip,
-            gpu_present=resolved_gpu_present,
-            gpu_model=resolved_gpu_model,
-        )
+        if overlay_hostname is not None:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                overlay_hostname=overlay_hostname,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
+        else:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                lan_ip=resolved_lan_ip,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
     except AllocatorAuthError as e:
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1) from e
@@ -132,6 +180,24 @@ def run_register(
     console.print(
         f"[green]Secrets saved to {env_file} (mode 0600)[/green]"
     )
+
+    if overlay_hostname is not None:
+        # No host for the CLI to act on — the Run:AI workload doesn't
+        # exist yet. Print everything the admin needs to paste into
+        # their own workload submission instead of docker-running
+        # anything.
+        console.print(
+            "\n[bold]No local container will be started[/bold] — this "
+            "box doesn't exist yet. Paste the following into your "
+            "Run:AI workload's environment variables:\n"
+        )
+        for line in env_file.read_text().splitlines():
+            if line.startswith("#"):
+                continue
+            print(line)
+        print(f"OVERLAY_HOSTNAME={overlay_hostname}")
+        print(f"TAILSCALE_AUTHKEY={tailscale_authkey}")
+        return
 
     # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
     if resolved_gpu_present:

@@ -27,6 +27,7 @@ def test_browser_session_target_is_reexported_singleton():
 def test_protocols_are_runtime_checkable():
     class GoodConn:
         name = "allocator_proxied"
+        requires_tailscale_check = False
 
         def prepare_browser_session(self, **kwargs):
             return BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
@@ -81,6 +82,7 @@ def test_client_connectivity_protocol_requires_make_join_material():
 
     class Complete:
         name = "x"
+        requires_tailscale_check = False
 
         def prepare_browser_session(self, **kwargs):
             ...

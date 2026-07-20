@@ -258,22 +258,34 @@ class RegistrationClient:
         *,
         hostname: str,
         machine_identity: str,
-        lan_ip: str,
         gpu_present: bool,
         gpu_model: str | None,
+        lan_ip: str | None = None,
+        overlay_hostname: str | None = None,
     ) -> dict:
         """POST /api/v1/clients/register; return parsed JSON.
+
+        Exactly one of ``lan_ip`` (real BYO box, LAN-direct connectivity)
+        or ``overlay_hostname`` (mesh-overlay connectivity, e.g. a
+        Run:AI-hosted workload) is expected — enforced by the caller
+        (``run_register``), not here.
 
         Raises AllocatorAuthError on 401, AllocatorConflictError on 409,
         AllocatorUnavailableError on connection failure, AllocatorError
         on other HTTP error codes / malformed response.
         """
+        if overlay_hostname is not None:
+            provider_metadata = {"overlay_hostname": overlay_hostname}
+            endpoint_url = None
+        else:
+            provider_metadata = {"lan_ip": lan_ip}
+            endpoint_url = f"http://{lan_ip}:7070"
         body = {
             "hostname": hostname,
             "machine_identity": machine_identity,
             "provider": "manual",
-            "endpoint_url": f"http://{lan_ip}:7070",
-            "provider_metadata": {"lan_ip": lan_ip},
+            "endpoint_url": endpoint_url,
+            "provider_metadata": provider_metadata,
             "gpu_present": gpu_present,
             "gpu_model": gpu_model,
         }

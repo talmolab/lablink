@@ -79,6 +79,31 @@ else
   echo "No custom startup script found. Skipping."
 fi
 
+# Join the Tailscale overlay when this client was registered with an
+# overlay hostname (mesh-overlay connectivity — MeshOverlayClientConnectivity
+# on the allocator side). Gated purely on TAILSCALE_AUTHKEY's presence;
+# lan_direct/allocator_proxied clients never set it, so this is a no-op
+# for every existing deployment.
+if [ -n "$TAILSCALE_AUTHKEY" ]; then
+  echo "Starting tailscaled..."
+  sudo tailscaled >/tmp/tailscaled.log 2>&1 &
+  # Wait for tailscaled's local socket to come up before calling `tailscale up` —
+  # `tailscale status` exits 0 once the daemon is reachable, whether or not
+  # it's logged in yet, so this loop is purely "wait for the socket", not
+  # "wait for join".
+  for i in $(seq 1 30); do
+    sudo tailscale status >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  echo "Joining Tailscale as $OVERLAY_HOSTNAME..."
+  sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="$OVERLAY_HOSTNAME"
+  if [ $? -ne 0 ]; then
+    echo "Failed to join Tailscale overlay" >&2
+    send_status "error"
+    exit 1
+  fi
+fi
+
 # kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing
 # file aborts the launch silently. Touch an empty one as the client user.
 touch /home/client/.Xauthority

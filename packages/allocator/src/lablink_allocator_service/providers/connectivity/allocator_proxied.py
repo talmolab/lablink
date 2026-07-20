@@ -36,6 +36,7 @@ def _aws_fallback_ip(hostname: str) -> str:
 
 class AllocatorProxiedClientConnectivity:
     name = "allocator_proxied"
+    requires_tailscale_check = False
 
     def prepare_browser_session(self, **kwargs) -> BrowserSessionTarget:
         # Inject AWS EC2 fallback resolver so client_session.py remains

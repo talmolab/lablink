@@ -167,6 +167,31 @@ class StartupConfig:
 
 
 @dataclass
+class ManualConfig:
+    """Configuration for the manual provider's client connectivity strategy.
+
+    Attributes:
+        connectivity (str): How the browser reaches a manual client's
+            KasmVNC desktop. Options:
+            - "lan_direct": the browser opens a WebSocket straight to the
+              client's LAN IP (default; requires client on the allocator's
+              own LAN).
+            - "mesh_overlay": the client joins a Tailscale tailnet; the
+              allocator reaches it via that overlay and proxies the byte
+              path through its own nginx, same as the AWS path. For
+              clients that aren't on the allocator's LAN (e.g. a
+              Run:AI-hosted workload).
+        overlay_tailnet (str): The Tailscale tailnet's MagicDNS domain
+            suffix (e.g. "example.ts.net"), used to resolve a registered
+            client's overlay hostname. Required when connectivity is
+            "mesh_overlay"; ignored otherwise.
+    """
+
+    connectivity: str = field(default="lan_direct")
+    overlay_tailnet: str = field(default="")
+
+
+@dataclass
 class MonitoringConfig:
     enabled: bool = False
     # Optional override for window-bucket title matching. Empty/unset means
@@ -229,4 +254,5 @@ class Config:
     bucket_name: str = field(default="tf-state-lablink-allocator-bucket")
     startup_script: StartupConfig = field(default_factory=StartupConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
+    manual: ManualConfig = field(default_factory=ManualConfig)
 

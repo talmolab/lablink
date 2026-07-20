@@ -88,6 +88,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Tailscale — joined at container start (start.sh) only when a
+# mesh-overlay client was registered with TAILSCALE_AUTHKEY set;
+# lan_direct/allocator_proxied clients never invoke `tailscale up`.
+RUN curl -fsSL https://tailscale.com/install.sh | sh
 
 # KasmVNC standalone VNC server. Pin to a current stable release;
 # bump alongside client image releases.

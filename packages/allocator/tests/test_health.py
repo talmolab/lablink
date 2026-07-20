@@ -68,3 +68,58 @@ class TestHealthEndpoint:
         """Health endpoint should not require authentication."""
         resp = client.get("/api/health")
         assert resp.status_code != 401
+
+    def test_tailscale_check_absent_when_not_mesh_overlay(self, client, monkeypatch):
+        """A connectivity strategy that doesn't require a tailscale check
+        (e.g. lan_direct/allocator_proxied) must not add a tailscale key —
+        byte-identical health payload to today for every existing deployment."""
+        import lablink_allocator_service.main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_tailscale_check",
+            False,
+        )
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert "tailscale" not in resp.get_json()["checks"]
+
+    def test_tailscale_check_ok_when_joined(self, client, monkeypatch):
+        import lablink_allocator_service.main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_tailscale_check",
+            True,
+        )
+        monkeypatch.setattr(main_mod, "_tailscale_status", lambda: "ok")
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.get_json()["checks"]["tailscale"] == "ok"
+
+    def test_tailscale_check_not_joined_marks_unhealthy(self, client, monkeypatch):
+        import lablink_allocator_service.main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_tailscale_check",
+            True,
+        )
+        monkeypatch.setattr(main_mod, "_tailscale_status", lambda: "not joined")
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 503
+        data = resp.get_json()
+        assert data["status"] == "starting"
+        assert data["checks"]["tailscale"] == "not joined"

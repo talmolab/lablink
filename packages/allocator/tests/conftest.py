@@ -41,6 +41,10 @@ def omega_config():
             "deployment_name": "test-lablink",
             "environment": "prod",
             "provider": "aws",
+            "manual": {
+                "connectivity": "lan_direct",
+                "overlay_tailnet": "",
+            },
             "eip": {
                 "strategy": "dynamic",
             },

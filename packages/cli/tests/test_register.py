@@ -176,6 +176,102 @@ class TestResumePath:
             assert "CLIENT_SECRET=s" in tmp_env_file.read_text()
 
 
+class TestOverlayHostnamePath:
+    def test_requires_tailscale_authkey(self, tmp_env_file):
+        from lablink_cli.commands.register import run_register
+
+        try:
+            run_register(**_kwargs(
+                tmp_env_file,
+                overlay_hostname="classroom-gpu-3",
+                hostname="classroom-gpu-3",
+                machine_identity="classroom-gpu-3",
+            ))
+            assert False, "expected SystemExit"
+        except SystemExit as e:
+            assert e.code == 1
+        assert not tmp_env_file.exists()
+
+    def test_requires_hostname_no_autodetect(self, tmp_env_file):
+        """--hostname must be required with --overlay-hostname — auto-detect
+        would silently report the admin's own laptop, not the future client."""
+        from lablink_cli.commands.register import run_register
+
+        try:
+            run_register(**_kwargs(
+                tmp_env_file,
+                overlay_hostname="classroom-gpu-3",
+                tailscale_authkey="tskey-abc",
+                machine_identity="classroom-gpu-3",
+            ))
+            assert False, "expected SystemExit"
+        except SystemExit as e:
+            assert e.code == 1
+        assert not tmp_env_file.exists()
+
+    def test_requires_machine_identity_no_autodetect(self, tmp_env_file):
+        from lablink_cli.commands.register import run_register
+
+        try:
+            run_register(**_kwargs(
+                tmp_env_file,
+                overlay_hostname="classroom-gpu-3",
+                tailscale_authkey="tskey-abc",
+                hostname="classroom-gpu-3",
+            ))
+            assert False, "expected SystemExit"
+        except SystemExit as e:
+            assert e.code == 1
+        assert not tmp_env_file.exists()
+
+    @patch("lablink_cli.commands.register.byo_detect")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    def test_success_skips_docker_and_prints_env(
+        self, mock_client_cls, mock_detect, tmp_env_file, successful_response, capsys,
+    ):
+        from lablink_cli.commands.register import run_register
+
+        resp = dict(successful_response, connectivity="mesh_overlay")
+        mock_client = MagicMock()
+        mock_client.register.return_value = resp
+        mock_client_cls.return_value = mock_client
+
+        run_register(**_kwargs(
+            tmp_env_file,
+            overlay_hostname="classroom-gpu-3",
+            tailscale_authkey="tskey-abc",
+            hostname="classroom-gpu-3",
+            machine_identity="classroom-gpu-3",
+        ))
+
+        # byo_detect must never be consulted on this path — it would
+        # report facts about the admin's own laptop, not the future client.
+        mock_detect.detect_hostname.assert_not_called()
+        mock_detect.detect_lan_ip.assert_not_called()
+        mock_detect.resolve_machine_identity.assert_not_called()
+        mock_detect.detect_gpu.assert_not_called()
+
+        # register() called with overlay_hostname, no lan_ip.
+        mock_client.register.assert_called_once_with(
+            hostname="classroom-gpu-3",
+            machine_identity="classroom-gpu-3",
+            overlay_hostname="classroom-gpu-3",
+            gpu_present=False,
+            gpu_model=None,
+        )
+
+        # env file still written.
+        assert tmp_env_file.exists()
+
+        # No docker/container output — instead, the env block + overlay
+        # values are printed for the admin to paste into their own
+        # Run:AI workload submission.
+        out = capsys.readouterr().out
+        assert "OVERLAY_HOSTNAME=classroom-gpu-3" in out
+        assert "TAILSCALE_AUTHKEY=tskey-abc" in out
+        assert "CLIENT_SECRET=s" in out
+
+
 class TestSuccessFlow:
     @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")

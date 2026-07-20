@@ -395,6 +395,19 @@ def register(
         None, "--gpu-model",
         help="Override auto-detected GPU model string.",
     ),
+    overlay_hostname: str = typer.Option(
+        None, "--overlay-hostname",
+        help="Register a mesh-overlay client (e.g. a Run:AI-hosted "
+        "workload) under this Tailscale hostname, chosen by you before "
+        "the workload exists. Requires --hostname, --machine-identity, "
+        "and --tailscale-authkey. No local container is started.",
+    ),
+    tailscale_authkey: str = typer.Option(
+        None, "--tailscale-authkey",
+        help="Tailscale auth key the workload will use to join the "
+        "tailnet. Required with --overlay-hostname; echoed back in the "
+        "printed env block for you to paste into your workload spec.",
+    ),
     force: bool = typer.Option(
         False, "--force",
         help="Overwrite an existing ~/.lablink/client.env. Mints a new "
@@ -429,6 +442,8 @@ def register(
         force=force,
         env_file=env_file,
         insecure=insecure,
+        overlay_hostname=overlay_hostname,
+        tailscale_authkey=tailscale_authkey,
     )
 
 
