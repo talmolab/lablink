@@ -64,6 +64,12 @@ services:
       - TS_AUTHKEY=${TS_AUTHKEY:-}
       - TS_HOSTNAME=${TAILSCALE_HOSTNAME:-lablink-allocator}
       - TS_STATE_DIR=/var/lib/tailscale
+      # containerboot defaults to --tun=userspace-networking, a
+      # software-only netstack with no real tailscale0 interface — nginx
+      # can't route to it. Confirmed live against a real tailnet: NET_ADMIN
+      # + /dev/net/tun alone were not enough; this must be set explicitly
+      # to get the kernel interface nginx depends on.
+      - TS_USERSPACE=false
     cap_add:
       - NET_ADMIN
       - NET_RAW

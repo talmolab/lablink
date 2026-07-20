@@ -279,27 +279,34 @@ def home():
 
 
 def _tailscale_status() -> str:
-    """Return "ok" / "not joined" / "not installed" for the allocator
-    host's own Tailscale connection. Shelled out to rather than imported
-    as a library — Tailscale ships no supported Python bindings; `tailscale
-    status --json`'s exit code and BackendState are the documented way to
-    check this from a script."""
+    """Return "ok" / "not joined" for the allocator's own tailnet
+    connection.
+
+    The mesh-overlay sidecar shares the allocator's *network* namespace
+    (network_mode: service:allocator) but not its filesystem, so the
+    `tailscale` CLI binary — which lives only in the sidecar's image —
+    is never present here; shelling out to it would always report
+    "not installed" regardless of whether the sidecar actually joined.
+
+    Checking for the shared `tailscale0` interface's existence alone is
+    not enough either: confirmed live against a real tailnet, the kernel
+    interface stays up (`UP,LOWER_UP`, with a link-local IPv6 address)
+    even while the node is logged out and unauthenticated with the
+    control plane — a control-plane hiccup can leave the device node
+    behind with no working overlay path. Requiring an actual Tailscale
+    IPv4 address (only assigned once the control plane has authenticated
+    the node) avoids that false positive, still with no CLI and no
+    socket-sharing between the two containers."""
     try:
         result = subprocess.run(
-            ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5,
+            ["ip", "-4", "-o", "addr", "show", "tailscale0"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
-    except FileNotFoundError:
-        return "not installed"
-    except (subprocess.TimeoutExpired, OSError):
+    except (OSError, subprocess.TimeoutExpired):
         return "not joined"
-    if result.returncode != 0:
-        return "not joined"
-    try:
-        state = json.loads(result.stdout).get("BackendState", "")
-    except json.JSONDecodeError:
-        return "not joined"
-    return "ok" if state == "Running" else "not joined"
+    return "ok" if result.returncode == 0 and "inet " in result.stdout else "not joined"
 
 
 @app.route("/api/health", methods=["GET"])
