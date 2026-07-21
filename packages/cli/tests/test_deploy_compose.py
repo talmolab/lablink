@@ -177,6 +177,31 @@ class TestRenderComposeDirMeshOverlay:
         assert "TS_AUTHKEY=tskey-abc" in env_content
         assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
 
+    def test_sidecar_always_pulls(self, tmp_path):
+        """Regression guard: without pull_policy: always, a locally cached
+        image from a prior pull silently wins even when it's the wrong
+        architecture for the current host. Confirmed live: a stale amd64-
+        cached tailscale/tailscale:latest ran QEMU-emulated on an Apple
+        Silicon host and corrupted the Noise-protocol handshake
+        (chacha20poly1305: message authentication failed), even though the
+        image is genuinely published multi-arch and a native arm64 pull
+        joins the tailnet immediately."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        # Split on the service key itself (2-space indent), not the bare
+        # substring "tailscale:" — that also matches inside the image name
+        # "tailscale/tailscale:latest" a few characters later and would
+        # truncate the block before pull_policy.
+        tailscale_service = compose_yaml.split("\n  tailscale:\n")[1]
+        assert "pull_policy: always" in tailscale_service
+
     def test_redeploy_without_authkey_carries_previous_value_forward(
         self, tmp_path
     ):

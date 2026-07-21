@@ -56,6 +56,15 @@ services:
   # requires that namespace to already exist.
   tailscale:
     image: tailscale/tailscale:latest
+    # Without this, a locally cached image from a prior pull silently wins
+    # even when it's the wrong architecture for the current host — confirmed
+    # live: a stale amd64-cached image ran QEMU-emulated on an Apple Silicon
+    # host and corrupted the Noise-protocol handshake (surfaced as
+    # `chacha20poly1305: message authentication failed`), even though the
+    # image is genuinely published multi-arch and a native arm64 pull joins
+    # the tailnet immediately. Matches the allocator service's own
+    # pull_policy above.
+    pull_policy: always
     container_name: lablink-allocator-tailscale
     network_mode: "service:allocator"
     depends_on:
