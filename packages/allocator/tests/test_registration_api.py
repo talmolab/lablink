@@ -138,6 +138,26 @@ def test_register_success_mints_secret(reg_client):
     assert kw["machine_identity"] == "i-1"
 
 
+def test_register_client_image_is_machine_image_only(reg_client):
+    """cfg.machine.repository is the tutorial-repo-to-clone URL (see the
+    AWS spec dict in main.py and TUTORIAL_REPO_TO_CLONE in client/start.sh)
+    — an unrelated setting from cfg.machine.image (the actual docker image
+    reference used verbatim on the AWS path as spec["image_name"]).
+    client_image must never be built by prefixing repository onto image;
+    the omega_config fixture sets both fields to prove they don't get
+    concatenated for the manual/BYO registration path either."""
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    assert main.cfg.machine.repository, "fixture must set repository to exercise the bug"
+    assert r.get_json()["client_image"] == main.cfg.machine.image
+
+
 def test_status_requires_client_secret(reg_client):
     client, fake_db = reg_client
     fake_db.get_client_secret_hash.return_value = None

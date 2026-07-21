@@ -68,11 +68,12 @@ def register_client():
         terraform_dir=str(main.TERRAFORM_DIR),
     )
     allocator_url = request.host_url.rstrip("/")
-    client_image = (
-        f"{main.cfg.machine.repository}:{main.cfg.machine.image}"
-        if main.cfg.machine.get("repository", None)
-        else main.cfg.machine.image
-    )
+    # cfg.machine.repository is the tutorial-repo-to-clone URL (shipped to
+    # the AWS path as spec["repository"] -> TUTORIAL_REPO_TO_CLONE in
+    # client/start.sh) — unrelated to the docker image reference. The AWS
+    # path already uses cfg.machine.image verbatim (spec["image_name"]);
+    # match that here instead of prefixing repository onto it.
+    client_image = main.cfg.machine.image
     jm = prov.client_connectivity.make_join_material(
         allocator_url=allocator_url,
         client_image=client_image,
