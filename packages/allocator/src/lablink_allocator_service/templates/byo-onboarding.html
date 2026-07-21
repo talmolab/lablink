@@ -120,14 +120,31 @@
       function copyCmd() {
         const txt = document.getElementById("cmd").innerText;
         const btn = document.getElementById("copyBtn");
-        navigator.clipboard.writeText(txt).then(() => {
+        const onCopied = () => {
           btn.textContent = "Copied!";
           btn.classList.add("copied");
           setTimeout(() => {
             btn.textContent = "Copy";
             btn.classList.remove("copied");
           }, 1500);
-        });
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(onCopied);
+          return;
+        }
+        // navigator.clipboard only exists in a secure context (HTTPS or
+        // localhost). The manual provider has no TLS terminator of its
+        // own (ssl.provider is forced to none/self_signed), so an admin
+        // on a plain-HTTP LAN deployment always hits this fallback.
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        onCopied();
       }
     </script>
   </body>
