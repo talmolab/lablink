@@ -644,6 +644,53 @@ class TestPrintSummary:
         assert "docker logs lablink-allocator 2>&1 | grep" in out
 
 
+class TestPrintSummaryMeshOverlay:
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_next_step_shows_overlay_flags(self, mock_extract, mock_lan, capsys):
+        """mesh_overlay clients aren't on the allocator's LAN — the
+        lan_direct wording ('on each BYO box on the same LAN') is wrong
+        here, and the command must include --overlay-hostname/
+        --tailscale-authkey, which the lan_direct message never
+        mentions since that connectivity has no such flags."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+        )
+
+        out = capsys.readouterr().out
+        assert "on the same LAN" not in out
+        assert "--overlay-hostname" in out
+        assert "--tailscale-authkey" in out
+        assert (
+            f"--allocator-url http://192.168.1.42 --register-token {token}"
+            in out
+        )
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_next_step_unchanged(self, mock_extract, mock_lan, capsys):
+        """Regression guard: the default lan_direct connectivity keeps
+        its original BYO-on-the-LAN wording, with no overlay flags
+        leaking into a connectivity mode that doesn't use them."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(_manual_cfg(connectivity="lan_direct"))
+
+        out = capsys.readouterr().out
+        assert "on each BYO box on the same LAN" in out
+        assert "--overlay-hostname" not in out
+        assert "--tailscale-authkey" not in out
+
+
 class TestDetectLanIp:
     @patch("lablink_cli.commands.deploy_compose.socket.socket")
     def test_returns_routing_ip(self, mock_socket):

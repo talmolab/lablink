@@ -346,16 +346,36 @@ def _print_summary(cfg: Config) -> None:
         )
 
     # Print a copy-paste-ready command using the LAN URL when available
-    # (BYO boxes can't reach localhost). The token-bearing line uses
-    # soft_wrap=True so narrow terminals don't insert a hard newline
-    # mid-command — that would break the operator's copy-paste.
-    console.print(
-        "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
-    )
-    register_cmd = (
-        f"  lablink client register --allocator-url {register_url} "
-        f"--register-token {register_token or '<token>'}"
-    )
+    # (clients registering over the LAN can't reach localhost). The
+    # token-bearing line uses soft_wrap=True so narrow terminals don't
+    # insert a hard newline mid-command — that would break the
+    # operator's copy-paste.
+    mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    if mesh_overlay:
+        # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
+        # the allocator's LAN at all — "on each BYO box on the same LAN"
+        # is wrong here, and --overlay-hostname/--tailscale-authkey are
+        # required flags this connectivity has that lan_direct doesn't.
+        console.print(
+            "\n[bold]Next step:[/bold] for each mesh-overlay client "
+            "(e.g. a Run:AI-hosted workload), run this from anywhere "
+            "with network access to the allocator, choosing a unique "
+            "hostname and a Tailscale auth key for that client:"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'} "
+            "--hostname <name> --machine-identity <name> "
+            "--overlay-hostname <name> --tailscale-authkey <key>"
+        )
+    else:
+        console.print(
+            "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'}"
+        )
     console.print(register_cmd, soft_wrap=True, highlight=False)
     if not lan_url:
         # If we fell back to localhost, the printed command only works
