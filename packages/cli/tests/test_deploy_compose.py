@@ -652,7 +652,10 @@ class TestPrintSummaryMeshOverlay:
         lan_direct wording ('on each BYO box on the same LAN') is wrong
         here, and the command must include --overlay-hostname/
         --tailscale-authkey, which the lan_direct message never
-        mentions since that connectivity has no such flags."""
+        mentions since that connectivity has no such flags. hostname/machine-
+        identity are no longer shown as required — run_locally defaults
+        to on and auto-detects them; a --no-run-locally note points at
+        the opt-out instead."""
         from lablink_cli.commands.deploy_compose import _print_summary
 
         token = "abc123def456ghi789jklmnop"
@@ -667,6 +670,9 @@ class TestPrintSummaryMeshOverlay:
         assert "on the same LAN" not in out
         assert "--overlay-hostname" in out
         assert "--tailscale-authkey" in out
+        assert "--hostname <name>" not in out
+        assert "--machine-identity <name>" not in out
+        assert "--no-run-locally" in out
         assert (
             f"--allocator-url http://192.168.1.42 --register-token {token}"
             in out
@@ -689,6 +695,7 @@ class TestPrintSummaryMeshOverlay:
         assert "on each BYO box on the same LAN" in out
         assert "--overlay-hostname" not in out
         assert "--tailscale-authkey" not in out
+        assert "--no-run-locally" not in out
 
 
 class TestDetectLanIp:

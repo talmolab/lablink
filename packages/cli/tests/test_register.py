@@ -193,8 +193,10 @@ class TestOverlayHostnamePath:
         assert not tmp_env_file.exists()
 
     def test_requires_hostname_no_autodetect(self, tmp_env_file):
-        """--hostname must be required with --overlay-hostname — auto-detect
-        would silently report the admin's own laptop, not the future client."""
+        """--hostname is required with --overlay-hostname --no-run-locally
+        — auto-detect would silently report the admin's own laptop, not
+        the future client. (run_locally defaults to True, where hostname
+        IS auto-detected — this test exercises the hand-off opt-out.)"""
         from lablink_cli.commands.register import run_register
 
         try:
@@ -203,6 +205,7 @@ class TestOverlayHostnamePath:
                 overlay_hostname="classroom-gpu-3",
                 tailscale_authkey="tskey-abc",
                 machine_identity="classroom-gpu-3",
+                run_locally=False,
             ))
             assert False, "expected SystemExit"
         except SystemExit as e:
@@ -218,6 +221,7 @@ class TestOverlayHostnamePath:
                 overlay_hostname="classroom-gpu-3",
                 tailscale_authkey="tskey-abc",
                 hostname="classroom-gpu-3",
+                run_locally=False,
             ))
             assert False, "expected SystemExit"
         except SystemExit as e:
@@ -242,6 +246,7 @@ class TestOverlayHostnamePath:
             tailscale_authkey="tskey-abc",
             hostname="classroom-gpu-3",
             machine_identity="classroom-gpu-3",
+            run_locally=False,
         ))
 
         # byo_detect must never be consulted on this path — it would
@@ -270,6 +275,72 @@ class TestOverlayHostnamePath:
         assert "OVERLAY_HOSTNAME=classroom-gpu-3" in out
         assert "TAILSCALE_AUTHKEY=tskey-abc" in out
         assert "CLIENT_SECRET=s" in out
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_run_locally_default_autodetects_and_execs_docker(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        """run_locally defaults to True: with --overlay-hostname alone
+        (no --hostname/--machine-identity), the client is auto-detected
+        exactly like real BYO, and the container is docker-run
+        immediately with OVERLAY_HOSTNAME/TAILSCALE_AUTHKEY wired into
+        its env file so start.sh's tailscale join fires."""
+        from lablink_cli.commands.register import run_register
+
+        mock_detect.detect_hostname.return_value = "runai-pod-7"
+        mock_detect.resolve_machine_identity.return_value = "mid-runai-7"
+        mock_detect.detect_gpu.return_value = (True, "NVIDIA A100")
+
+        resp = dict(successful_response, connectivity="mesh_overlay")
+        mock_client = MagicMock()
+        mock_client.register.return_value = resp
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(
+            returncode=0, stdout="cgroupfs\n"
+        )
+
+        run_register(**_kwargs(
+            tmp_env_file,
+            overlay_hostname="classroom-gpu-3",
+            tailscale_authkey="tskey-abc",
+        ))
+
+        # lan_ip is never consulted for the overlay path, run_locally or not.
+        mock_detect.detect_lan_ip.assert_not_called()
+
+        mock_client.register.assert_called_once_with(
+            hostname="runai-pod-7",
+            machine_identity="mid-runai-7",
+            overlay_hostname="classroom-gpu-3",
+            gpu_present=True,
+            gpu_model="NVIDIA A100",
+        )
+
+        content = tmp_env_file.read_text()
+        assert "OVERLAY_HOSTNAME=classroom-gpu-3" in content
+        assert "TAILSCALE_AUTHKEY=tskey-abc" in content
+
+        all_cmds = [call.args[0] for call in mock_subproc_run.call_args_list]
+        run_cmds = [c for c in all_cmds if "run" in c and "--env-file" in c]
+        assert run_cmds, f"Expected a `docker run` call; got {all_cmds}"
+
+    def test_no_run_locally_without_overlay_hostname_aborts(self, tmp_env_file):
+        """--no-run-locally only makes sense alongside --overlay-hostname
+        — real BYO has no hand-off mode to opt into."""
+        from lablink_cli.commands.register import run_register
+
+        try:
+            run_register(**_kwargs(tmp_env_file, run_locally=False))
+            assert False, "expected SystemExit"
+        except SystemExit as e:
+            assert e.code == 1
+        assert not tmp_env_file.exists()
 
 
 class TestSuccessFlow:
@@ -1278,3 +1349,29 @@ class TestWriteEnvFile:
         assert "CLIENT_SECRET=s3cret" in text
         assert "VM_NAME=42" in text
         assert "ALLOCATOR_URL=https://lablink.example.com" in text
+
+    def test_overlay_fields_included_when_given(self, tmp_env_file):
+        from lablink_cli.commands.register import _write_env_file
+
+        _write_env_file(
+            tmp_env_file, "https://lablink.example.com",
+            self._resp_with_monitoring(),
+            overlay_hostname="classroom-gpu-3",
+            tailscale_authkey="tskey-abc",
+        )
+
+        content = tmp_env_file.read_text()
+        assert "OVERLAY_HOSTNAME=classroom-gpu-3" in content
+        assert "TAILSCALE_AUTHKEY=tskey-abc" in content
+
+    def test_overlay_fields_absent_when_not_given(self, tmp_env_file):
+        from lablink_cli.commands.register import _write_env_file
+
+        _write_env_file(
+            tmp_env_file, "https://lablink.example.com",
+            self._resp_with_monitoring(),
+        )
+
+        content = tmp_env_file.read_text()
+        assert "OVERLAY_HOSTNAME" not in content
+        assert "TAILSCALE_AUTHKEY" not in content

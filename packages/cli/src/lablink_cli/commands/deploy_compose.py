@@ -354,18 +354,18 @@ def _print_summary(cfg: Config) -> None:
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
         # the allocator's LAN at all — "on each BYO box on the same LAN"
-        # is wrong here, and --overlay-hostname/--tailscale-authkey are
-        # required flags this connectivity has that lan_direct doesn't.
+        # is wrong here. --run-locally defaults to on, so hostname/
+        # machine-identity/GPU are auto-detected same as real BYO; only
+        # --overlay-hostname/--tailscale-authkey are required.
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
-            "(e.g. a Run:AI-hosted workload), run this from anywhere "
-            "with network access to the allocator, choosing a unique "
-            "hostname and a Tailscale auth key for that client:"
+            "(e.g. a Run:AI-hosted workload), open a terminal inside "
+            "that workload and run (hostname/machine-identity/GPU are "
+            "auto-detected):"
         )
         register_cmd = (
             f"  lablink client register --allocator-url {register_url} "
             f"--register-token {register_token or '<token>'} "
-            "--hostname <name> --machine-identity <name> "
             "--overlay-hostname <name> --tailscale-authkey <key>"
         )
     else:
@@ -377,6 +377,13 @@ def _print_summary(cfg: Config) -> None:
             f"--register-token {register_token or '<token>'}"
         )
     console.print(register_cmd, soft_wrap=True, highlight=False)
+    if mesh_overlay:
+        console.print(
+            "  [dim]Registering ahead of time from elsewhere instead? "
+            "Add --no-run-locally to print secrets for your own "
+            "workload submission instead of running here, along with "
+            "--hostname/--machine-identity.[/dim]"
+        )
     if not lan_url:
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the

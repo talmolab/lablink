@@ -405,15 +405,26 @@ def register(
     overlay_hostname: str = typer.Option(
         None, "--overlay-hostname",
         help="Register a mesh-overlay client (e.g. a Run:AI-hosted "
-        "workload) under this Tailscale hostname, chosen by you before "
-        "the workload exists. Requires --hostname, --machine-identity, "
-        "and --tailscale-authkey. No local container is started.",
+        "workload) under this Tailscale hostname, chosen by you. "
+        "Requires --tailscale-authkey. By default (see --run-locally) "
+        "docker-runs the client container on this box now; pass "
+        "--no-run-locally to instead print secrets for a separate "
+        "workload submission, which also requires --hostname and "
+        "--machine-identity.",
     ),
     tailscale_authkey: str = typer.Option(
         None, "--tailscale-authkey",
         help="Tailscale auth key the workload will use to join the "
-        "tailnet. Required with --overlay-hostname; echoed back in the "
-        "printed env block for you to paste into your workload spec.",
+        "tailnet. Required with --overlay-hostname.",
+    ),
+    run_locally: bool = typer.Option(
+        True, "--run-locally/--no-run-locally",
+        help="With --overlay-hostname: docker-run the client container "
+        "on this box now, auto-detecting hostname/machine-identity/GPU "
+        "like a real BYO box (default: on). Pass --no-run-locally to "
+        "instead just print secrets for pasting into a separate Run:AI "
+        "workload submission — for registering ahead of time, from "
+        "somewhere other than the workload itself.",
     ),
     force: bool = typer.Option(
         False, "--force",
@@ -432,9 +443,12 @@ def register(
 ) -> None:
     """Register this BYO box as a manual client and run the client container.
 
-    Always docker-runs the client container after registering. If docker
-    is missing, the env file is preserved so the user can install docker
-    and re-run with --force.
+    Docker-runs the client container after registering — for a real BYO
+    box, or for a mesh-overlay client (--overlay-hostname) with the
+    default --run-locally. Pass --overlay-hostname --no-run-locally to
+    instead print secrets for a separate Run:AI workload submission. If
+    docker is missing, the env file is preserved so the user can install
+    docker and re-run with --force.
     """
     from lablink_cli.commands.register import run_register
 
@@ -451,6 +465,7 @@ def register(
         insecure=insecure,
         overlay_hostname=overlay_hostname,
         tailscale_authkey=tailscale_authkey,
+        run_locally=run_locally,
     )
 
 
