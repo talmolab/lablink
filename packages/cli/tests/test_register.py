@@ -330,6 +330,21 @@ class TestOverlayHostnamePath:
         run_cmds = [c for c in all_cmds if "run" in c and "--env-file" in c]
         assert run_cmds, f"Expected a `docker run` call; got {all_cmds}"
 
+        # tailscaled (started by start.sh) needs to create a TUN network
+        # interface — without NET_ADMIN + /dev/net/tun it dies immediately
+        # and `tailscale up` fails with "failed to connect to local
+        # tailscaled; it doesn't appear to be running".
+        cmd = run_cmds[0]
+        cap_adds = [
+            cmd[i + 1] for i, v in enumerate(cmd)
+            if v == "--cap-add" and i + 1 < len(cmd)
+        ]
+        assert "NET_ADMIN" in cap_adds, f"missing --cap-add NET_ADMIN in {cmd}"
+        assert "NET_RAW" in cap_adds, f"missing --cap-add NET_RAW in {cmd}"
+        assert "--device" in cmd, f"missing --device in {cmd}"
+        device_idx = cmd.index("--device")
+        assert cmd[device_idx + 1] == "/dev/net/tun"
+
     def test_no_run_locally_without_overlay_hostname_aborts(self, tmp_env_file):
         """--no-run-locally only makes sense alongside --overlay-hostname
         — real BYO has no hand-off mode to opt into."""
@@ -601,6 +616,14 @@ class TestSuccessFlow:
         # Windows/macOS Docker Desktop and is unnecessary on Linux.
         assert "--network" not in cmd, (
             f"--network must not be passed (was: {cmd})"
+        )
+        # A real-BYO (lan_direct) client never runs `tailscale up` — the
+        # NET_ADMIN/tun grant is overlay-only and must not leak here.
+        assert "--cap-add" not in cmd, (
+            f"real-BYO docker run must not request any capabilities: {cmd}"
+        )
+        assert "--device" not in cmd, (
+            f"real-BYO docker run must not request any devices: {cmd}"
         )
 
 

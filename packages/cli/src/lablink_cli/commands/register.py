@@ -255,7 +255,8 @@ def run_register(
     # Step 7 + 8: docker run (always)
     startup_script_path = _write_startup_script(response)
     cmd = _build_docker_run(
-        env_file, response, resolved_gpu_present, startup_script_path
+        env_file, response, resolved_gpu_present, startup_script_path,
+        overlay_hostname,
     )
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
@@ -401,6 +402,7 @@ def _build_docker_run(
     resp: dict,
     gpu_present: bool,
     startup_script: Path | None,
+    overlay_hostname: str | None,
 ) -> list[str]:
     cmd = [
         "docker", "run", "-d",
@@ -416,6 +418,19 @@ def _build_docker_run(
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
+    if overlay_hostname is not None:
+        # start.sh's `tailscaled` needs to create a TUN network interface
+        # to route tailnet traffic to this container's own listening
+        # sockets (6080/7070). Without these, tailscaled can't open
+        # /dev/net/tun, dies immediately, and the subsequent `tailscale
+        # up` fails with "failed to connect to local tailscaled; it
+        # doesn't appear to be running". Gated on overlay_hostname since
+        # lan_direct/allocator_proxied clients never invoke `tailscale up`.
+        cmd += [
+            "--cap-add", "NET_ADMIN",
+            "--cap-add", "NET_RAW",
+            "--device", "/dev/net/tun",
+        ]
     # Mount path mirrors the AWS terraform/user_data mount so the client
     # start.sh finds the script at /docker_scripts/custom-startup.sh
     # regardless of provider. Skipped when the allocator returned no
