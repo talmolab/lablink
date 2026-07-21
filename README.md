@@ -5,6 +5,7 @@
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
 [![PyPI - lablink-cli](https://img.shields.io/pypi/v/lablink-cli?label=cli)](https://pypi.org/project/lablink-cli/)
+[![CI](https://img.shields.io/github/actions/workflow/status/talmolab/lablink/ci.yml?event=pull_request&label=CI)](https://github.com/talmolab/lablink/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
 [![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
 
@@ -18,12 +19,12 @@ This repository contains the **core LabLink packages, Docker images, and documen
 
 - **[lablink-allocator](packages/allocator/)** - VM Allocator Service
   ```bash
-  pip install lablink-allocator
+  pip install lablink-allocator-service
   ```
 
 - **[lablink-client](packages/client/)** - Client Service
   ```bash
-  pip install lablink-client
+  pip install lablink-client-service
   ```
 
 - **[lablink-cli](packages/cli/)** - Command-line tool to deploy and manage LabLink infrastructure
@@ -68,11 +69,35 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 
 ## 🚀 Quick Start
 
-### For Users
+### Two Deployment Paths
 
-**Using LabLink:**
+| | **Path A — CLI (recommended)** | **Path B — Template fork** |
+|---|---|---|
+| Install | `uv tool install lablink-cli` | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
+| Configure | Interactive TUI (`lablink configure`) | Edit `lablink.yaml` by hand |
+| Deploy | `lablink deploy` | `terraform apply` |
+| Best for | Most users | Custom Terraform workflows |
 
-This repository provides the **Python packages and Docker images**. To deploy LabLink infrastructure (allocator EC2, DNS, etc.), use the **[LabLink Template Repository](https://github.com/talmolab/lablink-template)**.
+### Using the CLI
+
+```bash
+# Install
+uv tool install lablink-cli
+
+# Interactive configuration wizard (Textual TUI)
+lablink configure
+
+# Validate your environment
+lablink doctor
+
+# Deploy infrastructure
+lablink setup   # one-time GCP/Tailscale bootstrap
+lablink deploy  # provision allocator + VMs
+
+# Monitor
+lablink status  # check running infrastructure
+lablink logs    # live log viewer (Textual TUI)
+```
 
 ### For Developers
 
