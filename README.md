@@ -5,7 +5,7 @@
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
 [![PyPI - lablink-cli](https://img.shields.io/pypi/v/lablink-cli?label=cli)](https://pypi.org/project/lablink-cli/)
-[![CI](https://img.shields.io/github/actions/workflow/status/talmolab/lablink/ci.yml?branch=main&label=CI)](https://github.com/talmolab/lablink/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/talmolab/lablink/ci.yml?event=pull_request&label=CI)](https://github.com/talmolab/lablink/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
 [![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
 
