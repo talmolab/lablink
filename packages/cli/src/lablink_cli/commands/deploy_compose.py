@@ -76,6 +76,16 @@ def _read_env_value(env_path: Path, key: str) -> str | None:
     return None
 
 
+def _needs_tailscale_sidecar(cfg: Config) -> bool:
+    """True if a tailnet join is needed for either of two independent
+    reasons: reaching mesh-overlay clients, or publishing the allocator
+    itself to participants via Funnel. Both reuse the same sidecar."""
+    return (
+        cfg.manual.connectivity == "mesh_overlay"
+        or cfg.manual.participant_exposure == "tailscale_funnel"
+    )
+
+
 def render_compose_dir(
     cfg: Config, target: Path, *, tailscale_authkey: str | None = None
 ) -> None:
@@ -102,10 +112,7 @@ def render_compose_dir(
     to join for the first time.
     """
     target.mkdir(parents=True, exist_ok=True)
-    needs_sidecar = (
-        cfg.manual.connectivity == "mesh_overlay"
-        or cfg.manual.participant_exposure == "tailscale_funnel"
-    )
+    needs_sidecar = _needs_tailscale_sidecar(cfg)
 
     # 1. Copy the bundled docker-compose template — the sidecar variant
     #    adds the Tailscale sidecar; otherwise identical.
@@ -195,20 +202,18 @@ def run_deploy_compose(
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
-    `tailscale_authkey` is required when `cfg.manual.connectivity ==
-    "mesh_overlay"` unless a value is already on record in this
-    deployment's existing `.env` (the sidecar has nothing to join with
-    otherwise) — carried forward on ordinary mesh-overlay redeploys by
-    `render_compose_dir`.
+    `tailscale_authkey` is required when a tailnet join is needed for
+    either `cfg.manual.connectivity == "mesh_overlay"` or
+    `cfg.manual.participant_exposure == "tailscale_funnel"`, unless a
+    value is already on record in this deployment's existing `.env`
+    (the sidecar has nothing to join with otherwise) — carried forward
+    on ordinary redeploys by `render_compose_dir`.
     """
     target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
         cfg.deployment_name or "lablink"
     )
 
-    needs_sidecar = (
-        cfg.manual.connectivity == "mesh_overlay"
-        or cfg.manual.participant_exposure == "tailscale_funnel"
-    )
+    needs_sidecar = _needs_tailscale_sidecar(cfg)
     if needs_sidecar:
         # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
         # enough: a redeploy that *switches* to needing the sidecar has
@@ -370,6 +375,7 @@ def _enable_funnel() -> bool:
             console.print(
                 "[green]Tailscale Funnel enabled for participant access.[/green]"
             )
+            console.print(output.strip())
             return True
         if attempt < FUNNEL_ENABLE_MAX_ATTEMPTS:
             time.sleep(FUNNEL_ENABLE_RETRY_DELAY_SECONDS)
