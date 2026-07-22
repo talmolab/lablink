@@ -50,6 +50,7 @@ def register_client():
         main.cfg.get("provider", None),
         region=main.cfg.app.region,
         terraform_dir=str(main.TERRAFORM_DIR),
+        connectivity=main.cfg.manual.connectivity,
     )
 
     # Manual/BYO clients pick their provider_metadata shape based on which

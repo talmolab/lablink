@@ -649,6 +649,40 @@ def test_register_skips_connectivity_check_for_non_manual_provider(reg_client):
     fake_db.register_client.assert_called_once()
 
 
+def test_register_fallback_provider_construction_includes_connectivity(
+    reg_client, monkeypatch,
+):
+    """When LABLINK_PROVIDER isn't already cached in app.config, the
+    fallback ``main.get_provider(...)`` call in this view must still pass
+    ``connectivity=main.cfg.manual.connectivity`` through -- otherwise it
+    silently defaults to lan_direct regardless of the deployment's actual
+    configured connectivity, which would make the mismatched-metadata
+    check above reject legitimate --overlay-hostname registrations against
+    a mesh_overlay allocator. Mirrors the connectivity= fix already applied
+    to the admin_connect_vm/submit_vm_details fallback call sites in
+    main.py."""
+    from lablink_allocator_service import main
+
+    client, fake_db = reg_client
+    monkeypatch.delitem(client.application.config, "LABLINK_PROVIDER")
+    monkeypatch.setattr(main.cfg, "provider", "manual", raising=False)
+    monkeypatch.setattr(
+        main.cfg.manual, "connectivity", "mesh_overlay", raising=False
+    )
+
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
 def test_list_clients_returns_safe_fields(reg_client, admin_headers):
     from datetime import datetime
 
