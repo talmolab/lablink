@@ -46,6 +46,8 @@ ALLOCATOR_INTERNAL_PORT = 5000
 # Exact substring from `tailscale funnel`'s own output when the tailnet
 # hasn't granted the Funnel ACL yet (verified live, 2026-07-22 spike).
 FUNNEL_ACL_NOT_GRANTED_MARKER = "Funnel is not enabled on your tailnet"
+FUNNEL_ENABLE_MAX_ATTEMPTS = 5
+FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 
 console = Console()
 
@@ -330,40 +332,54 @@ def _enable_funnel() -> bool:
     that URL and returns False rather than silently leaving the
     allocator unreachable to participants.
 
+    Retries a few times with a short delay: the sidecar may still be
+    completing its own `tailscale up` join when this runs (right after
+    `_compose_up`/`_health_poll`, which only confirm the *allocator*
+    container is healthy, not the sidecar's tailnet membership) — the
+    same class of startup race already fixed on the client side (commit
+    7a8ab9f6). Only retried for transient not-ready-yet failures; an
+    ACL-not-granted response is unambiguous and returned immediately
+    without retrying, since retrying can't fix a missing grant.
+
     Returns True if Funnel is enabled (or already was); False otherwise
-    (ACL not granted, or any other failure) — callers should still let
-    the rest of the deploy complete either way (the stack is functional
-    for LAN/mesh-overlay access regardless), but should ultimately exit
-    non-zero when this returns False.
+    (ACL not granted, or failure persisting across all retries) —
+    callers should still let the rest of the deploy complete either way
+    (the stack is functional for LAN/mesh-overlay access regardless),
+    but should ultimately exit non-zero when this returns False.
     """
-    result = subprocess.run(
-        [
-            "docker", "exec", TAILSCALE_SIDECAR_CONTAINER_NAME,
-            "tailscale", "funnel", "--bg", str(ALLOCATOR_INTERNAL_PORT),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    output = result.stdout + result.stderr
-    if FUNNEL_ACL_NOT_GRANTED_MARKER in output:
-        console.print(
-            "[yellow]Tailscale Funnel isn't authorized on this tailnet "
-            "yet.[/yellow] The compose stack is up and reachable on your "
-            "LAN, but participant exposure needs a one-time grant:\n"
+    for attempt in range(1, FUNNEL_ENABLE_MAX_ATTEMPTS + 1):
+        result = subprocess.run(
+            [
+                "docker", "exec", TAILSCALE_SIDECAR_CONTAINER_NAME,
+                "tailscale", "funnel", "--bg", str(ALLOCATOR_INTERNAL_PORT),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        console.print(output.strip())
-        return False
-    if result.returncode != 0:
+        output = result.stdout + result.stderr
+        if FUNNEL_ACL_NOT_GRANTED_MARKER in output:
+            console.print(
+                "[yellow]Tailscale Funnel isn't authorized on this tailnet "
+                "yet.[/yellow] The compose stack is up and reachable on your "
+                "LAN, but participant exposure needs a one-time grant:\n"
+            )
+            console.print(output.strip())
+            return False
+        if result.returncode == 0:
+            console.print(
+                "[green]Tailscale Funnel enabled for participant access.[/green]"
+            )
+            return True
+        if attempt < FUNNEL_ENABLE_MAX_ATTEMPTS:
+            time.sleep(FUNNEL_ENABLE_RETRY_DELAY_SECONDS)
+            continue
         console.print(
-            f"[red]Failed to enable Tailscale Funnel (exit "
+            f"[red]Failed to enable Tailscale Funnel after "
+            f"{FUNNEL_ENABLE_MAX_ATTEMPTS} attempts (exit "
             f"{result.returncode}):[/red]\n{output.strip()}"
         )
         return False
-    console.print(
-        "[green]Tailscale Funnel enabled for participant access.[/green]"
-    )
-    return True
 
 
 def _health_poll() -> None:

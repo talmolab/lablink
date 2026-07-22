@@ -496,6 +496,7 @@ class TestEnableFunnel:
         assert _enable_funnel() is False
         captured = capsys.readouterr()
         assert "login.tailscale.com/f/funnel" in captured.out
+        assert mock_run.call_count == 1
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
     def test_uses_correct_container_and_port(self, mock_run):
@@ -509,14 +510,32 @@ class TestEnableFunnel:
             "tailscale", "funnel", "--bg", "5000",
         ]
 
+    @patch("lablink_cli.commands.deploy_compose.time.sleep")
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_unexpected_failure_returns_false(self, mock_run):
-        from lablink_cli.commands.deploy_compose import _enable_funnel
+    def test_unexpected_failure_returns_false(self, mock_run, mock_sleep):
+        from lablink_cli.commands.deploy_compose import (
+            _enable_funnel,
+            FUNNEL_ENABLE_MAX_ATTEMPTS,
+        )
 
         mock_run.return_value = MagicMock(
             returncode=1, stdout="", stderr="some other docker error"
         )
         assert _enable_funnel() is False
+        assert mock_run.call_count == FUNNEL_ENABLE_MAX_ATTEMPTS
+
+    @patch("lablink_cli.commands.deploy_compose.time.sleep")
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_retries_on_transient_failure_then_succeeds(self, mock_run, mock_sleep):
+        from lablink_cli.commands.deploy_compose import _enable_funnel
+
+        transient_fail = MagicMock(returncode=1, stdout="", stderr="not ready yet")
+        success = MagicMock(returncode=0, stdout="Available on the internet:\n", stderr="")
+        mock_run.side_effect = [transient_fail, transient_fail, success]
+
+        assert _enable_funnel() is True
+        assert mock_run.call_count == 3
+        assert mock_sleep.call_count == 2
 
 
 class TestRunDeployComposeFunnelWiring:
