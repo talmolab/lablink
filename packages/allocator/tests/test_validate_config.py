@@ -86,6 +86,39 @@ def test_validate_config_with_startup_script(valid_config_dict, write_config_fil
     assert "[PASS]" in message
 
 
+def test_startup_config_retry_defaults():
+    """New retry/success-check fields on StartupConfig must default to
+    safe values so existing deployments get retry protection without
+    touching their config."""
+    from lablink_allocator_service.conf.structured_config import StartupConfig
+
+    cfg = StartupConfig()
+    assert cfg.max_attempts == 3
+    assert cfg.base_delay_seconds == 30
+    assert cfg.success_check == ""
+
+
+def test_validate_config_with_startup_script_retry_options(
+    valid_config_dict, write_config_file
+):
+    """Test that the new retry/success-check fields are accepted in schema."""
+    config = valid_config_dict.copy()
+    config["startup_script"] = {
+        "enabled": True,
+        "path": "/path/to/script.sh",
+        "on_error": "fail",
+        "max_attempts": 5,
+        "base_delay_seconds": 15,
+        "success_check": "sleap --version",
+    }
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is True
+    assert "[PASS]" in message
+
+
 def test_unknown_top_level_key_behavior(
     config_with_unknown_top_level_key, write_config_file
 ):
