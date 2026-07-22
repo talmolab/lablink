@@ -386,6 +386,89 @@ class TestDeployComposeMeshOverlayPreflight:
         assert mock_up.call_count == 2
 
 
+class TestDeployComposeParticipantExposurePreflight:
+    def test_lan_direct_with_funnel_requires_authkey(self, tmp_path):
+        """A lan_direct deployment that enables tailscale_funnel still
+        needs the sidecar to join a tailnet — same requirement as
+        mesh_overlay, generalized."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_lan_direct_with_funnel_and_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        mock_up.assert_called_once()
+
+    def test_weak_admin_password_rejected_when_funnel_enabled(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="123456",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            )
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_strong_admin_password_proceeds_when_funnel_enabled(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        mock_up.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_weak_password_irrelevant_when_funnel_disabled(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """The password gate is scoped to tailscale_funnel — an ordinary
+        lan_direct deployment must not be newly blocked by it."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(connectivity="lan_direct", admin_password="123456")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        mock_up.assert_called_once()
+
+
 class TestStartupScriptStaging:
     """`render_compose_dir` is responsible for putting custom-startup.sh
     into the compose workdir so the docker-compose bind mount (added in

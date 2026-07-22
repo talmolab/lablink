@@ -189,7 +189,8 @@ def deploy(
         None, "--tailscale-authkey",
         help="Tailscale auth key for the allocator's own tailnet sidecar. "
         "Required on the first deploy when manual.connectivity is "
-        "'mesh_overlay'; optional on redeploys (the previous value is "
+        "'mesh_overlay' and/or manual.participant_exposure is "
+        "'tailscale_funnel'; optional on redeploys (the previous value is "
         "carried forward). Manual provider only.",
     ),
 ) -> None:

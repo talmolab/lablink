@@ -196,19 +196,25 @@ def run_deploy_compose(
         cfg.deployment_name or "lablink"
     )
 
-    if cfg.manual.connectivity == "mesh_overlay":
+    needs_sidecar = (
+        cfg.manual.connectivity == "mesh_overlay"
+        or cfg.manual.participant_exposure == "tailscale_funnel"
+    )
+    if needs_sidecar:
         # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
-        # enough: a redeploy that *switches* connectivity from lan_direct
-        # to mesh_overlay has an existing .env, but that .env has no
-        # TS_AUTHKEY line to carry forward. Read the actual prior value
-        # (if any) so that case still requires --tailscale-authkey
-        # instead of silently rendering an empty key.
+        # enough: a redeploy that *switches* to needing the sidecar has
+        # an existing .env, but that .env has no TS_AUTHKEY line to carry
+        # forward. Read the actual prior value (if any) so that case
+        # still requires --tailscale-authkey instead of silently
+        # rendering an empty key.
         previous_authkey = _read_env_value(target / ".env", "TS_AUTHKEY")
         if not tailscale_authkey and not previous_authkey:
             console.print(
-                "[red]manual.connectivity is 'mesh_overlay' but no "
-                "--tailscale-authkey was given, and no previous value is "
-                "on record for this deployment.[/red]\n"
+                "[red]A Tailscale sidecar is needed (manual.connectivity "
+                "is 'mesh_overlay' and/or manual.participant_exposure is "
+                "'tailscale_funnel') but no --tailscale-authkey was given, "
+                "and no previous value is on record for this "
+                "deployment.[/red]\n"
                 "Generate an authkey from your Tailscale admin console "
                 "and re-run with --tailscale-authkey <key>."
             )
@@ -243,6 +249,27 @@ def run_deploy_compose(
     admin_user, admin_pw = resolve_admin_credentials(cfg)
     cfg.app.admin_user = admin_user
     cfg.app.admin_password = admin_pw
+
+    # Preflight: a Funnel-exposed allocator is scanned by bots within
+    # minutes of publication (empirically confirmed 2026-07-22) — refuse
+    # to ship a weak/example admin password once that's the case. Placed
+    # after resolve_admin_credentials so a value resolved interactively
+    # is what actually gets checked, not whatever (possibly empty) value
+    # cfg.app.admin_password held before resolution.
+    if cfg.manual.participant_exposure == "tailscale_funnel":
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+
+        if is_weak_admin_password(admin_pw):
+            console.print(
+                "[red]manual.participant_exposure is 'tailscale_funnel' "
+                "but the resolved admin password is empty, a known "
+                "example value, or shorter than 12 characters.[/red]\n"
+                "A Funnel-exposed allocator is reachable from the public "
+                "internet and gets scanned within minutes — set a strong "
+                "admin_password (12+ characters, not a common default) "
+                "before deploying."
+            )
+            raise SystemExit(1)
 
     if not yes:
         action = "create" if not target.exists() else "update"
