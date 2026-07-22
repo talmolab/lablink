@@ -30,11 +30,19 @@ echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 send_status() {
   local status="$1"
   echo ">> Reporting status='$status' to allocator..."
+  # --retry-all-errors covers DNS-not-ready ("Could not resolve host") and
+  # connection-not-ready ("Connection timed out") alike — both observed for
+  # mesh-overlay clients, whose Tailscale route (especially over a DERP
+  # relay fallback) isn't actually usable for a few seconds after
+  # `tailscale up` returns. Without a retry here, this call's failure is
+  # permanent: nothing else in this script ever re-sets `status`, and
+  # assign_vm requires status='running', so a client that loses this race
+  # can never be handed to a student despite being otherwise healthy.
   curl -sS -X POST "$ALLOCATOR_URL/api/vm-status" \
     -H "Authorization: Bearer $CLIENT_SECRET" \
     -H "Content-Type: application/json" \
     -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
-    --max-time 5 \
+    --max-time 5 --retry 5 --retry-delay 2 --retry-all-errors \
     || echo ">> WARNING: failed to report status=$status (continuing)"
 }
 
@@ -77,6 +85,31 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   fi
 else
   echo "No custom startup script found. Skipping."
+fi
+
+# Join the Tailscale overlay when this client was registered with an
+# overlay hostname (mesh-overlay connectivity — MeshOverlayClientConnectivity
+# on the allocator side). Gated purely on TAILSCALE_AUTHKEY's presence;
+# lan_direct/allocator_proxied clients never set it, so this is a no-op
+# for every existing deployment.
+if [ -n "$TAILSCALE_AUTHKEY" ]; then
+  echo "Starting tailscaled..."
+  sudo tailscaled >/tmp/tailscaled.log 2>&1 &
+  # Wait for tailscaled's local socket to come up before calling `tailscale up` —
+  # `tailscale status` exits 0 once the daemon is reachable, whether or not
+  # it's logged in yet, so this loop is purely "wait for the socket", not
+  # "wait for join".
+  for i in $(seq 1 30); do
+    sudo tailscale status >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  echo "Joining Tailscale as $OVERLAY_HOSTNAME..."
+  sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="$OVERLAY_HOSTNAME"
+  if [ $? -ne 0 ]; then
+    echo "Failed to join Tailscale overlay" >&2
+    send_status "error"
+    exit 1
+  fi
 fi
 
 # kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing

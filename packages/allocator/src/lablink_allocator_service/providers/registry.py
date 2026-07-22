@@ -8,6 +8,12 @@ from importlib.metadata import entry_points
 
 from lablink_allocator_service.providers.aws import AWSProvider
 from lablink_allocator_service.providers.manual import ManualProvider
+from lablink_allocator_service.providers.connectivity.lan_direct import (
+    LANDirectClientConnectivity,
+)
+from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+    MeshOverlayClientConnectivity,
+)
 from lablink_allocator_service.providers.protocol import ComputeProvider
 
 logger = logging.getLogger(__name__)
@@ -17,6 +23,15 @@ DEFAULT_PROVIDER = "aws"
 # Built-in fallback so the allocator works in editable/test installs where
 # entry-point metadata may not be regenerated.
 _BUILTIN: dict[str, type] = {"aws": AWSProvider, "manual": ManualProvider}
+
+# Connectivity choices selectable for the "manual" provider only. Not an
+# entry-point-discovered registry (unlike _BUILTIN/providers) — this is a
+# small, closed set for now; see the mesh-overlay design spec's Forward
+# Path for how a second backend would slot in.
+_CONNECTIVITY_BUILTIN: dict[str, type] = {
+    "lan_direct": LANDirectClientConnectivity,
+    "mesh_overlay": MeshOverlayClientConnectivity,
+}
 
 
 def _discover() -> dict[str, type]:
@@ -35,7 +50,11 @@ def _discover() -> dict[str, type]:
 
 
 def get_provider(
-    name: str | None, *, region: str, terraform_dir: str
+    name: str | None,
+    *,
+    region: str,
+    terraform_dir: str,
+    connectivity: str | None = None,
 ) -> ComputeProvider:
     name = name or DEFAULT_PROVIDER
     providers = _discover()
@@ -43,5 +62,18 @@ def get_provider(
     if cls is None:
         raise ValueError(
             f"unknown provider '{name}'; available: {sorted(providers)}"
+        )
+    if name == "manual":
+        conn_name = connectivity or "lan_direct"
+        conn_cls = _CONNECTIVITY_BUILTIN.get(conn_name)
+        if conn_cls is None:
+            raise ValueError(
+                f"unknown connectivity '{conn_name}'; "
+                f"available: {sorted(_CONNECTIVITY_BUILTIN)}"
+            )
+        return cls(
+            region=region,
+            terraform_dir=terraform_dir,
+            client_connectivity=conn_cls(),
         )
     return cls(region=region, terraform_dir=terraform_dir)

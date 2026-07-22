@@ -97,6 +97,21 @@ class TestLoadSaveConfig:
         assert cfg.dns.enabled is True
         assert cfg.dns.domain == "test.example.com"
 
+    def test_round_trip_manual_connectivity(self, tmp_path):
+        from lablink_allocator_service.conf.structured_config import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.manual.connectivity = "mesh_overlay"
+        cfg.manual.overlay_tailnet = "example.ts.net"
+
+        path = tmp_path / "config.yaml"
+        save_config(cfg, path)
+        loaded = load_config(path)
+
+        assert loaded.manual.connectivity == "mesh_overlay"
+        assert loaded.manual.overlay_tailnet == "example.ts.net"
+
 
 # ------------------------------------------------------------------
 # validate_config

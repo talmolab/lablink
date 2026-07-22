@@ -116,6 +116,46 @@ class TestRegister:
         with pytest.raises(AllocatorError):
             _make_client().register(**_payload())
 
+    @patch("lablink_cli.api.urlopen")
+    def test_overlay_hostname_sends_provider_metadata(self, mock_urlopen):
+        response = {"client_id": 1}
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(response).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        _make_client().register(
+            hostname="classroom-gpu-3",
+            machine_identity="classroom-gpu-3",
+            overlay_hostname="classroom-gpu-3",
+            gpu_present=True,
+            gpu_model="A10G",
+        )
+
+        sent_req = mock_urlopen.call_args[0][0]
+        body = json.loads(sent_req.data.decode())
+        assert body["provider_metadata"] == {"overlay_hostname": "classroom-gpu-3"}
+        assert body["endpoint_url"] is None
+        assert body["provider"] == "manual"
+
+    @patch("lablink_cli.api.urlopen")
+    def test_lan_ip_shape_unchanged(self, mock_urlopen):
+        """Existing lan_ip callers must see byte-identical body shape."""
+        response = {"client_id": 1}
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(response).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        _make_client().register(**_payload())
+
+        sent_req = mock_urlopen.call_args[0][0]
+        body = json.loads(sent_req.data.decode())
+        assert body["provider_metadata"] == {"lan_ip": "192.168.1.42"}
+        assert body["endpoint_url"] == "http://192.168.1.42:7070"
+
 
 class TestSslProvider:
     def test_default_strict_tls(self):

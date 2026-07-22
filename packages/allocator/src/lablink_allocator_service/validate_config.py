@@ -30,6 +30,11 @@ logger = logging.getLogger(__name__)
 # `lablink client register` CLI.
 VALID_PROVIDERS = ("aws", "manual")
 
+# manual.connectivity — must stay in sync with the connectivity registry
+# (_CONNECTIVITY_BUILTIN in providers/registry.py). "mesh_overlay" reaches
+# clients that aren't on the allocator's own LAN over a Tailscale tailnet.
+VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
+
 
 def validate_domain_format(domain: str) -> Tuple[bool, str]:
     """Validate domain format to prevent malformed domains.
@@ -77,6 +82,25 @@ def get_config_errors(cfg) -> list:
             f"provider must be one of: {', '.join(VALID_PROVIDERS)} "
             f"(got '{provider}')"
         )
+
+    # manual.connectivity must be a known value, and mesh_overlay requires
+    # a tailnet domain to resolve overlay hostnames against (see
+    # MeshOverlayClientConnectivity._resolve_overlay_host).
+    manual_cfg = getattr(cfg, "manual", None)
+    if manual_cfg is not None:
+        connectivity = getattr(manual_cfg, "connectivity", "lan_direct")
+        if connectivity not in VALID_CONNECTIVITY:
+            errors.append(
+                f"manual.connectivity must be one of: "
+                f"{', '.join(VALID_CONNECTIVITY)} (got '{connectivity}')"
+            )
+        elif connectivity == "mesh_overlay" and not getattr(
+            manual_cfg, "overlay_tailnet", ""
+        ):
+            errors.append(
+                "manual.overlay_tailnet is required when manual.connectivity "
+                "is 'mesh_overlay' (e.g. 'example.ts.net')"
+            )
 
     # DNS enabled requires non-empty domain
     if cfg.dns.enabled and not cfg.dns.domain:

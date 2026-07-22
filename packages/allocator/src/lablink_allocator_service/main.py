@@ -104,6 +104,7 @@ app.config["LABLINK_PROVIDER"] = get_provider(
     cfg.provider,
     region=cfg.app.region,
     terraform_dir=str(TERRAFORM_DIR),
+    connectivity=cfg.manual.connectivity,
 )
 
 os.environ["DATABASE_URL"] = (
@@ -277,6 +278,37 @@ def home():
     return render_template("index.html")
 
 
+def _tailscale_status() -> str:
+    """Return "ok" / "not joined" for the allocator's own tailnet
+    connection.
+
+    The mesh-overlay sidecar shares the allocator's *network* namespace
+    (network_mode: service:allocator) but not its filesystem, so the
+    `tailscale` CLI binary — which lives only in the sidecar's image —
+    is never present here; shelling out to it would always report
+    "not installed" regardless of whether the sidecar actually joined.
+
+    Checking for the shared `tailscale0` interface's existence alone is
+    not enough either: confirmed live against a real tailnet, the kernel
+    interface stays up (`UP,LOWER_UP`, with a link-local IPv6 address)
+    even while the node is logged out and unauthenticated with the
+    control plane — a control-plane hiccup can leave the device node
+    behind with no working overlay path. Requiring an actual Tailscale
+    IPv4 address (only assigned once the control plane has authenticated
+    the node) avoids that false positive, still with no CLI and no
+    socket-sharing between the two containers."""
+    try:
+        result = subprocess.run(
+            ["ip", "-4", "-o", "addr", "show", "tailscale0"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "not joined"
+    return "ok" if result.returncode == 0 and "inet " in result.stdout else "not joined"
+
+
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -285,6 +317,8 @@ def health_check():
         "scheduler": "ok" if scheduler_service is not None else "not initialized",
         "reboot_service": "ok" if reboot_service is not None else "not initialized",
     }
+    if app.config["LABLINK_PROVIDER"].client_connectivity.requires_tailscale_check:
+        checks["tailscale"] = _tailscale_status()
 
     all_ready = all(v == "ok" for v in checks.values())
     status = "healthy" if all_ready else "starting"
@@ -411,7 +445,8 @@ def admin_connect_vm(hostname):
         session_id = uuid.uuid4()
         browser_token = secrets.token_urlsafe(16)
         provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
+            connectivity=cfg.manual.connectivity,
         )
         try:
             provider.client_connectivity.prepare_browser_session(
@@ -500,7 +535,8 @@ def submit_vm_details():
         browser_token = secrets.token_urlsafe(16)
         try:
             provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR)
+                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
+                connectivity=cfg.manual.connectivity,
             )
             provider.client_connectivity.prepare_browser_session(
                 database=database,

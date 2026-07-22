@@ -69,6 +69,7 @@ class ClientConnectivity(Protocol):
     """Provider-owned strategy for browser -> client KasmVNC reachability."""
 
     name: str
+    requires_tailscale_check: bool
 
     def prepare_browser_session(self, **kwargs) -> BrowserSessionTarget: ...
 

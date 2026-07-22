@@ -16,6 +16,8 @@ def _manual_cfg(
     admin_password="pw",
     ssl_provider="none",
     image_tag="linux-amd64-latest",
+    connectivity="lan_direct",
+    overlay_tailnet="",
 ):
     cfg = Config()
     cfg.provider = "manual"
@@ -24,6 +26,8 @@ def _manual_cfg(
     cfg.app.admin_password = admin_password
     cfg.ssl.provider = ssl_provider
     cfg.allocator.image_tag = image_tag
+    cfg.manual.connectivity = connectivity
+    cfg.manual.overlay_tailnet = overlay_tailnet
     return cfg
 
 
@@ -140,6 +144,189 @@ class TestRenderComposeDir:
             "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator-image:v1.2.3"
             in env_content
         )
+
+
+class TestRenderComposeDirMeshOverlay:
+    def test_lan_direct_uses_plain_template_no_sidecar(self, tmp_path):
+        """Default connectivity must not render the sidecar — byte-identical
+        compose stack to every existing lan_direct deployment."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg()
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale" not in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY" not in env_content
+
+    def test_mesh_overlay_renders_sidecar_and_authkey(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale:" in compose_yaml
+        assert 'network_mode: "service:allocator"' in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-abc" in env_content
+        assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
+
+    def test_sidecar_always_pulls(self, tmp_path):
+        """Regression guard: without pull_policy: always, a locally cached
+        image from a prior pull silently wins even when it's the wrong
+        architecture for the current host. Confirmed live: a stale amd64-
+        cached tailscale/tailscale:latest ran QEMU-emulated on an Apple
+        Silicon host and corrupted the Noise-protocol handshake
+        (chacha20poly1305: message authentication failed), even though the
+        image is genuinely published multi-arch and a native arm64 pull
+        joins the tailnet immediately."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        # Split on the service key itself (2-space indent), not the bare
+        # substring "tailscale:" — that also matches inside the image name
+        # "tailscale/tailscale:latest" a few characters later and would
+        # truncate the block before pull_policy.
+        tailscale_service = compose_yaml.split("\n  tailscale:\n")[1]
+        assert "pull_policy: always" in tailscale_service
+
+    def test_redeploy_without_authkey_carries_previous_value_forward(
+        self, tmp_path
+    ):
+        """A redeploy that omits --tailscale-authkey must not blank out an
+        already-joined sidecar's key."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
+        render_compose_dir(cfg, target, tailscale_authkey=None)
+
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-first" in env_content
+
+    def test_redeploy_with_new_authkey_overrides_previous_value(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-second")
+
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-second" in env_content
+        assert "tskey-first" not in env_content
+
+
+class TestDeployComposeMeshOverlayPreflight:
+    def test_first_deploy_without_authkey_rejected(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_first_deploy_with_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+        mock_up.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_redeploy_without_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Second deploy call must not require --tailscale-authkey again —
+        the .env from the first deploy already carries a value forward."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        assert mock_up.call_count == 2
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_switch_from_lan_direct_without_authkey_rejected(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Regression guard: an existing lan_direct deployment (its .env
+        has no TS_AUTHKEY line) that switches manual.connectivity to
+        mesh_overlay must still be required to pass --tailscale-authkey.
+        ".env exists" alone is not a valid proxy for "an authkey is on
+        record" — without this guard the preflight silently skipped the
+        check and render_compose_dir wrote TS_AUTHKEY= (empty)."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        lan_cfg = _manual_cfg(connectivity="lan_direct")
+        run_deploy_compose(lan_cfg, yes=True, workdir_root=tmp_path)
+
+        mesh_cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(mesh_cfg, yes=True, workdir_root=tmp_path)
+        mock_up.assert_called_once()  # only the first (lan_direct) deploy ran
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_switch_from_lan_direct_with_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        lan_cfg = _manual_cfg(connectivity="lan_direct")
+        run_deploy_compose(lan_cfg, yes=True, workdir_root=tmp_path)
+
+        mesh_cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            mesh_cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        assert mock_up.call_count == 2
 
 
 class TestStartupScriptStaging:
@@ -498,6 +685,60 @@ class TestPrintSummary:
         # `docker logs … | grep …` only sees stdout. Regression guard
         # for the empty-grep footgun.
         assert "docker logs lablink-allocator 2>&1 | grep" in out
+
+
+class TestPrintSummaryMeshOverlay:
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_next_step_shows_overlay_flags(self, mock_extract, mock_lan, capsys):
+        """mesh_overlay clients aren't on the allocator's LAN — the
+        lan_direct wording ('on each BYO box on the same LAN') is wrong
+        here, and the command must include --overlay-hostname/
+        --tailscale-authkey, which the lan_direct message never
+        mentions since that connectivity has no such flags. hostname/machine-
+        identity are no longer shown as required — run_locally defaults
+        to on and auto-detects them; a --no-run-locally note points at
+        the opt-out instead."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+        )
+
+        out = capsys.readouterr().out
+        assert "on the same LAN" not in out
+        assert "--overlay-hostname" in out
+        assert "--tailscale-authkey" in out
+        assert "--hostname <name>" not in out
+        assert "--machine-identity <name>" not in out
+        assert "--no-run-locally" in out
+        assert (
+            f"--allocator-url http://192.168.1.42 --register-token {token}"
+            in out
+        )
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_next_step_unchanged(self, mock_extract, mock_lan, capsys):
+        """Regression guard: the default lan_direct connectivity keeps
+        its original BYO-on-the-LAN wording, with no overlay flags
+        leaking into a connectivity mode that doesn't use them."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(_manual_cfg(connectivity="lan_direct"))
+
+        out = capsys.readouterr().out
+        assert "on each BYO box on the same LAN" in out
+        assert "--overlay-hostname" not in out
+        assert "--tailscale-authkey" not in out
+        assert "--no-run-locally" not in out
 
 
 class TestDetectLanIp:

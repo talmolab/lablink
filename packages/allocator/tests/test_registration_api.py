@@ -138,6 +138,26 @@ def test_register_success_mints_secret(reg_client):
     assert kw["machine_identity"] == "i-1"
 
 
+def test_register_client_image_is_machine_image_only(reg_client):
+    """cfg.machine.repository is the tutorial-repo-to-clone URL (see the
+    AWS spec dict in main.py and TUTORIAL_REPO_TO_CLONE in client/start.sh)
+    — an unrelated setting from cfg.machine.image (the actual docker image
+    reference used verbatim on the AWS path as spec["image_name"]).
+    client_image must never be built by prefixing repository onto image;
+    the omega_config fixture sets both fields to prove they don't get
+    concatenated for the manual/BYO registration path either."""
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    assert main.cfg.machine.repository, "fixture must set repository to exercise the bug"
+    assert r.get_json()["client_image"] == main.cfg.machine.image
+
+
 def test_status_requires_client_secret(reg_client):
     client, fake_db = reg_client
     fake_db.get_client_secret_hash.return_value = None
@@ -514,6 +534,153 @@ def test_list_clients_accepts_admin_basic(reg_client, admin_headers):
     r = client.get("/api/v1/clients", headers=admin_headers)
     assert r.status_code == 200
     assert r.get_json() == {"clients": []}
+
+
+def test_register_rejects_lan_ip_metadata_against_mesh_overlay_allocator(
+    reg_client, monkeypatch,
+):
+    """A manual client that auto-detected --lan-ip (forgot
+    --overlay-hostname) must not silently register against a
+    mesh_overlay-configured allocator: the browser would end up trying
+    to dial the client's private LAN IP directly, which is unreachable
+    off that LAN -- exactly the failure mode this guards against."""
+    from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+        MeshOverlayClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        MeshOverlayClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"lan_ip": "1.2.3.4"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "overlay-hostname" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_overlay_hostname_metadata_against_lan_direct_allocator(
+    reg_client,
+):
+    """The inverse mismatch: --overlay-hostname against a lan_direct
+    (real-BYO) allocator must also be rejected rather than silently
+    accepted -- this connectivity mode has no Tailscale sidecar to
+    resolve the hostname through."""
+    client, fake_db = reg_client
+    # reg_client's default stub is AllocatorProxiedClientConnectivity
+    # (name != "mesh_overlay"), matching a non-mesh_overlay deployment.
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "overlay-hostname" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_accepts_overlay_hostname_metadata_against_mesh_overlay_allocator(
+    reg_client,
+):
+    """The matching, correct case: --overlay-hostname against a
+    mesh_overlay-configured allocator registers normally."""
+    from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+        MeshOverlayClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        MeshOverlayClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
+def test_register_accepts_lan_ip_metadata_against_lan_direct_allocator(reg_client):
+    """Regression guard: the ordinary real-BYO case (--lan-ip against a
+    non-mesh_overlay allocator) is unaffected by the new check."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"lan_ip": "1.2.3.4"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
+def test_register_skips_connectivity_check_for_non_manual_provider(reg_client):
+    """AWS-provisioned VMs never send lan_ip/overlay_hostname metadata
+    and don't go through this CLI-driven flow -- the check must not
+    fire for provider != 'manual' regardless of metadata shape."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "aws",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
+def test_register_fallback_provider_construction_includes_connectivity(
+    reg_client, monkeypatch,
+):
+    """When LABLINK_PROVIDER isn't already cached in app.config, the
+    fallback ``main.get_provider(...)`` call in this view must still pass
+    ``connectivity=main.cfg.manual.connectivity`` through -- otherwise it
+    silently defaults to lan_direct regardless of the deployment's actual
+    configured connectivity, which would make the mismatched-metadata
+    check above reject legitimate --overlay-hostname registrations against
+    a mesh_overlay allocator. Mirrors the connectivity= fix already applied
+    to the admin_connect_vm/submit_vm_details fallback call sites in
+    main.py."""
+    from lablink_allocator_service import main
+
+    client, fake_db = reg_client
+    monkeypatch.delitem(client.application.config, "LABLINK_PROVIDER")
+    monkeypatch.setattr(main.cfg, "provider", "manual", raising=False)
+    monkeypatch.setattr(
+        main.cfg.manual, "connectivity", "mesh_overlay", raising=False
+    )
+
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
 
 
 def test_list_clients_returns_safe_fields(reg_client, admin_headers):

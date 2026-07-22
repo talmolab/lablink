@@ -54,3 +54,37 @@ def test_get_provider_manual_returns_constructed_instance():
     from lablink_allocator_service.providers.manual import ManualProvider
     p = get_provider("manual", region=None, terraform_dir=None)
     assert isinstance(p, ManualProvider)
+
+
+def test_get_provider_manual_default_connectivity_is_lan_direct():
+    from lablink_allocator_service.providers.connectivity.lan_direct import (
+        LANDirectClientConnectivity,
+    )
+    p = get_provider("manual", region=None, terraform_dir=None)
+    assert isinstance(p.client_connectivity, LANDirectClientConnectivity)
+
+
+def test_get_provider_manual_mesh_overlay_connectivity():
+    from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+        MeshOverlayClientConnectivity,
+    )
+    p = get_provider(
+        "manual", region=None, terraform_dir=None, connectivity="mesh_overlay",
+    )
+    assert isinstance(p.client_connectivity, MeshOverlayClientConnectivity)
+
+
+def test_get_provider_manual_unknown_connectivity_raises():
+    with pytest.raises(ValueError, match="unknown connectivity 'bogus'"):
+        get_provider(
+            "manual", region=None, terraform_dir=None, connectivity="bogus",
+        )
+
+
+def test_get_provider_aws_ignores_connectivity_param():
+    """connectivity is a manual-provider-only concept; AWS must not choke
+    on it (nor change behavior) if it's passed."""
+    p = get_provider(
+        "aws", region="us-west-2", terraform_dir="/tf", connectivity="mesh_overlay",
+    )
+    assert isinstance(p, AWSProvider)

@@ -269,7 +269,107 @@ class ManualMachineScreen(Screen):
         cfg = self.app.config
         image = self.query_one("#client-image", Input).value.strip()
         cfg.machine.image = image or self.DEFAULT_IMAGE
-        # Skip Region + Machine instance-type + EIP — go straight to DNS/SSL
+        # Skip Region + Machine instance-type + EIP — go to connectivity.
+        self.app.push_screen(ManualConnectivityScreen())
+
+
+# ---------------------------------------------------------------------------
+# Screen 4 (Manual path only): Client connectivity
+# ---------------------------------------------------------------------------
+class ManualConnectivityScreen(Screen):
+    """How the student's browser reaches a manual client's KasmVNC desktop."""
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def action_back(self) -> None:
+        self.app.pop_screen()
+
+    def compose(self) -> ComposeResult:
+        cfg = self.app.config
+        current = getattr(cfg.manual, "connectivity", "lan_direct") or "lan_direct"
+
+        yield Header()
+        with VerticalScroll():
+            # No "Step N:" prefix here deliberately — DnsScreen (the next
+            # screen on this path) hardcodes "Step 4: DNS & SSL" and is
+            # shared with the AWS path, so inserting a step between it and
+            # ManualMachineScreen's "Step 3" would collide with that label
+            # rather than shifting it. Renumbering DnsScreen is out of
+            # scope here (it's shared, and the AWS path already has its
+            # own pre-existing step-count drift across RegionScreen/
+            # MachineScreen).
+            yield Label(
+                "Client connectivity",
+                classes="step-title",
+            )
+            yield Label(
+                "How the student's browser reaches a client's KasmVNC desktop.\n"
+                "lan_direct: the client is on the allocator's own LAN (default).\n"
+                "mesh_overlay: the client isn't on the allocator's LAN (e.g. a\n"
+                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.",
+                classes="step-description",
+            )
+
+            yield Label("Connectivity", classes="field-label")
+            with RadioSet(id="connectivity-select"):
+                yield RadioButton(
+                    "lan_direct — client is on the allocator's LAN (default)",
+                    value=(current == "lan_direct"),
+                    id="connectivity-lan-direct",
+                )
+                yield RadioButton(
+                    "mesh_overlay — client reached over Tailscale",
+                    value=(current == "mesh_overlay"),
+                    id="connectivity-mesh-overlay",
+                )
+
+            yield Label(
+                "Tailscale tailnet domain (only used for mesh_overlay, "
+                "e.g. example.ts.net)",
+                classes="field-label",
+            )
+            yield Input(
+                value=cfg.manual.overlay_tailnet or "",
+                placeholder="example.ts.net",
+                id="overlay-tailnet",
+            )
+            yield Label("", id="connectivity-error", classes="error")
+        with Center():
+            with Horizontal(classes="nav-buttons"):
+                yield Button("Back", id="back")
+                yield Button("Next", variant="primary", id="next")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.query_one("#connectivity-error").display = False
+
+    @on(Button.Pressed, "#back")
+    def _back(self) -> None:
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#next")
+    def _next(self) -> None:
+        cfg = self.app.config
+        rb = self.query_one("#connectivity-select", RadioSet)
+        chosen = "lan_direct"
+        if rb.pressed_button and rb.pressed_button.id == "connectivity-mesh-overlay":
+            chosen = "mesh_overlay"
+        cfg.manual.connectivity = chosen
+        cfg.manual.overlay_tailnet = self.query_one(
+            "#overlay-tailnet", Input
+        ).value.strip()
+
+        errors = [
+            e for e in validate_config(cfg)
+            if "connectivity" in e or "overlay_tailnet" in e
+        ]
+        error_label = self.query_one("#connectivity-error", Label)
+        if errors:
+            error_label.update("\n".join(errors))
+            error_label.display = True
+            return
+        error_label.display = False
+
         self.app.push_screen(DnsScreen())
 
 

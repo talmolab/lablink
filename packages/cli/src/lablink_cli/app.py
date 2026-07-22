@@ -185,13 +185,20 @@ def deploy(
         help="Skip confirmation prompts. Does not bypass credential prompts "
         "(admin password still required interactively).",
     ),
+    tailscale_authkey: str = typer.Option(
+        None, "--tailscale-authkey",
+        help="Tailscale auth key for the allocator's own tailnet sidecar. "
+        "Required on the first deploy when manual.connectivity is "
+        "'mesh_overlay'; optional on redeploys (the previous value is "
+        "carried forward). Manual provider only.",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
     cfg = _load_cfg(config)
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        run_deploy_compose(cfg, yes=yes)
+        run_deploy_compose(cfg, yes=yes, tailscale_authkey=tailscale_authkey)
         return
 
     from lablink_cli.commands.deploy import run_deploy
@@ -395,6 +402,30 @@ def register(
         None, "--gpu-model",
         help="Override auto-detected GPU model string.",
     ),
+    overlay_hostname: str = typer.Option(
+        None, "--overlay-hostname",
+        help="Register a mesh-overlay client (e.g. a Run:AI-hosted "
+        "workload) under this Tailscale hostname, chosen by you. "
+        "Requires --tailscale-authkey. By default (see --run-locally) "
+        "docker-runs the client container on this box now; pass "
+        "--no-run-locally to instead print secrets for a separate "
+        "workload submission, which also requires --hostname and "
+        "--machine-identity.",
+    ),
+    tailscale_authkey: str = typer.Option(
+        None, "--tailscale-authkey",
+        help="Tailscale auth key the workload will use to join the "
+        "tailnet. Required with --overlay-hostname.",
+    ),
+    run_locally: bool = typer.Option(
+        True, "--run-locally/--no-run-locally",
+        help="With --overlay-hostname: docker-run the client container "
+        "on this box now, auto-detecting hostname/machine-identity/GPU "
+        "like a real BYO box (default: on). Pass --no-run-locally to "
+        "instead just print secrets for pasting into a separate Run:AI "
+        "workload submission — for registering ahead of time, from "
+        "somewhere other than the workload itself.",
+    ),
     force: bool = typer.Option(
         False, "--force",
         help="Overwrite an existing ~/.lablink/client.env. Mints a new "
@@ -412,9 +443,12 @@ def register(
 ) -> None:
     """Register this BYO box as a manual client and run the client container.
 
-    Always docker-runs the client container after registering. If docker
-    is missing, the env file is preserved so the user can install docker
-    and re-run with --force.
+    Docker-runs the client container after registering — for a real BYO
+    box, or for a mesh-overlay client (--overlay-hostname) with the
+    default --run-locally. Pass --overlay-hostname --no-run-locally to
+    instead print secrets for a separate Run:AI workload submission. If
+    docker is missing, the env file is preserved so the user can install
+    docker and re-run with --force.
     """
     from lablink_cli.commands.register import run_register
 
@@ -429,6 +463,9 @@ def register(
         force=force,
         env_file=env_file,
         insecure=insecure,
+        overlay_hostname=overlay_hostname,
+        tailscale_authkey=tailscale_authkey,
+        run_locally=run_locally,
     )
 
 

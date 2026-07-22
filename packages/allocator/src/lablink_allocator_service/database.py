@@ -507,6 +507,24 @@ class PostgresqlDatabase:
             return urlsplit(endpoint_url).hostname
         return None
 
+    def get_overlay_hostname(self, hostname: str):
+        """Overlay hostname for a mesh-overlay client:
+        provider_metadata->>'overlay_hostname'. None if absent.
+
+        Unlike get_lan_ip, there is no endpoint_url fallback — mesh-overlay
+        clients don't set endpoint_url (see MeshOverlayClientConnectivity's
+        registration flow)."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'overlay_hostname' "
+                f"FROM {self.table_name} WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        if not row:
+            return None
+        return row[0]
+
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:
             cursor.execute(

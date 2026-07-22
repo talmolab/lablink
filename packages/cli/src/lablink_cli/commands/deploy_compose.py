@@ -49,32 +49,74 @@ def compose_workdir(cfg: Config) -> Path:
     return DEFAULT_COMPOSE_DIR / name
 
 
-def render_compose_dir(cfg: Config, target: Path) -> None:
+def _read_env_value(env_path: Path, key: str) -> str | None:
+    """Read a single KEY=value line from an existing .env file.
+
+    Used to carry TS_AUTHKEY forward across redeploys without requiring
+    the admin to re-supply --tailscale-authkey every time — tailscaled's
+    own state (the tailscale_state volume) is what actually matters after
+    the first join, but the sidecar's compose environment still needs
+    *some* value on every render.
+    """
+    if not env_path.exists():
+        return None
+    prefix = f"{key}="
+    for line in env_path.read_text().splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix):]
+    return None
+
+
+def render_compose_dir(
+    cfg: Config, target: Path, *, tailscale_authkey: str | None = None
+) -> None:
     """Render docker-compose.yml + .env + config.yaml into target.
 
     The allocator image is monolithic (bundles its own Postgres), so the
-    compose stack is single-service. The internal Postgres data is
-    persisted via a named volume on /var/lib/postgresql. Admin/DB creds
-    live in the saved config.yaml (NOT in env vars) — the caller is
+    compose stack is single-service — plus a `tailscale` sidecar service
+    when `cfg.manual.connectivity == "mesh_overlay"` (network_mode:
+    service:allocator, so the allocator's own nginx can route to a
+    mesh-overlay client's Tailscale hostname). The internal Postgres data
+    is persisted via a named volume on /var/lib/postgresql. Admin/DB
+    creds live in the saved config.yaml (NOT in env vars) — the caller is
     responsible for populating cfg.app.admin_user/admin_password (via
     `resolve_admin_credentials`) before invoking this helper.
+
+    `tailscale_authkey` is only meaningful when connectivity is
+    mesh_overlay. It is not persisted in config.yaml (unlike admin/DB
+    creds) — only into this deployment's .env, and only for as long as
+    the sidecar needs it to join for the first time.
     """
     target.mkdir(parents=True, exist_ok=True)
+    mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
 
-    # 1. Copy the bundled docker-compose template.
-    template = resources.files("lablink_cli.templates").joinpath(
-        "docker-compose.yml"
+    # 1. Copy the bundled docker-compose template — the mesh-overlay
+    #    variant adds the Tailscale sidecar; otherwise identical.
+    template_name = (
+        "docker-compose-mesh-overlay.yml" if mesh_overlay else "docker-compose.yml"
     )
+    template = resources.files("lablink_cli.templates").joinpath(template_name)
     (target / "docker-compose.yml").write_text(template.read_text())
 
     # 2. Render .env — only the values the compose template substitutes.
-    #    No DB or admin creds here: they're inside config.yaml.
+    #    No DB or admin creds here: they're inside config.yaml. Read the
+    #    OLD .env (if any) before overwriting it, so a redeploy that
+    #    omits --tailscale-authkey carries the previous value forward
+    #    instead of blanking out an already-joined sidecar's key.
+    env_path = target / ".env"
+    previous_authkey = _read_env_value(env_path, "TS_AUTHKEY")
+
     allocator_image = _allocator_image(cfg)
     env_lines = [
         f"ALLOCATOR_IMAGE={allocator_image}",
         f"HTTP_PORT={DEFAULT_HTTP_PORT}",
     ]
-    env_path = target / ".env"
+    if mesh_overlay:
+        resolved_authkey = tailscale_authkey or previous_authkey or ""
+        env_lines.append(f"TS_AUTHKEY={resolved_authkey}")
+        env_lines.append(
+            f"TAILSCALE_HOSTNAME=lablink-allocator-{cfg.deployment_name or 'lablink'}"
+        )
     env_path.write_text("\n".join(env_lines) + "\n")
     env_path.chmod(0o600)
 
@@ -125,6 +167,7 @@ def run_deploy_compose(
     *,
     yes: bool = False,
     workdir_root: Path | None = None,
+    tailscale_authkey: str | None = None,
 ) -> None:
     """Bring up the allocator stack via docker-compose.
 
@@ -135,7 +178,33 @@ def run_deploy_compose(
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
+    `tailscale_authkey` is required when `cfg.manual.connectivity ==
+    "mesh_overlay"` unless a value is already on record in this
+    deployment's existing `.env` (the sidecar has nothing to join with
+    otherwise) — carried forward on ordinary mesh-overlay redeploys by
+    `render_compose_dir`.
     """
+    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
+        cfg.deployment_name or "lablink"
+    )
+
+    if cfg.manual.connectivity == "mesh_overlay":
+        # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
+        # enough: a redeploy that *switches* connectivity from lan_direct
+        # to mesh_overlay has an existing .env, but that .env has no
+        # TS_AUTHKEY line to carry forward. Read the actual prior value
+        # (if any) so that case still requires --tailscale-authkey
+        # instead of silently rendering an empty key.
+        previous_authkey = _read_env_value(target / ".env", "TS_AUTHKEY")
+        if not tailscale_authkey and not previous_authkey:
+            console.print(
+                "[red]manual.connectivity is 'mesh_overlay' but no "
+                "--tailscale-authkey was given, and no previous value is "
+                "on record for this deployment.[/red]\n"
+                "Generate an authkey from your Tailscale admin console "
+                "and re-run with --tailscale-authkey <key>."
+            )
+            raise SystemExit(1)
     # Preflight: SSL provider must be one the compose template supports.
     # The allocator image has no TLS terminator, so only ssl=none works
     # out of the box. Operators who need TLS run their own reverse proxy
@@ -167,10 +236,6 @@ def run_deploy_compose(
     cfg.app.admin_user = admin_user
     cfg.app.admin_password = admin_pw
 
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
-        cfg.deployment_name or "lablink"
-    )
-
     if not yes:
         action = "create" if not target.exists() else "update"
         console.print(
@@ -183,7 +248,7 @@ def run_deploy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    render_compose_dir(cfg, target)
+    render_compose_dir(cfg, target, tailscale_authkey=tailscale_authkey)
     console.print(f"[green]Rendered {target}[/green]")
 
     _compose_up(target)
@@ -289,17 +354,44 @@ def _print_summary(cfg: Config) -> None:
         )
 
     # Print a copy-paste-ready command using the LAN URL when available
-    # (BYO boxes can't reach localhost). The token-bearing line uses
-    # soft_wrap=True so narrow terminals don't insert a hard newline
-    # mid-command — that would break the operator's copy-paste.
-    console.print(
-        "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
-    )
-    register_cmd = (
-        f"  lablink client register --allocator-url {register_url} "
-        f"--register-token {register_token or '<token>'}"
-    )
+    # (clients registering over the LAN can't reach localhost). The
+    # token-bearing line uses soft_wrap=True so narrow terminals don't
+    # insert a hard newline mid-command — that would break the
+    # operator's copy-paste.
+    mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    if mesh_overlay:
+        # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
+        # the allocator's LAN at all — "on each BYO box on the same LAN"
+        # is wrong here. --run-locally defaults to on, so hostname/
+        # machine-identity/GPU are auto-detected same as real BYO; only
+        # --overlay-hostname/--tailscale-authkey are required.
+        console.print(
+            "\n[bold]Next step:[/bold] for each mesh-overlay client "
+            "(e.g. a Run:AI-hosted workload), open a terminal inside "
+            "that workload and run (hostname/machine-identity/GPU are "
+            "auto-detected):"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'} "
+            "--overlay-hostname <name> --tailscale-authkey <key>"
+        )
+    else:
+        console.print(
+            "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'}"
+        )
     console.print(register_cmd, soft_wrap=True, highlight=False)
+    if mesh_overlay:
+        console.print(
+            "  [dim]Registering ahead of time from elsewhere instead? "
+            "Add --no-run-locally to print secrets for your own "
+            "workload submission instead of running here, along with "
+            "--hostname/--machine-identity.[/dim]"
+        )
     if not lan_url:
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the

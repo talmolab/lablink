@@ -35,6 +35,38 @@ DEFAULT_STARTUP_SCRIPT = Path.home() / ".lablink" / "client-custom-startup.sh"
 PID_FILE = Path.home() / ".lablink" / "log_shipper.pid"
 
 
+def _detect_hostname(hostname: str | None, console: Console) -> str:
+    resolved = hostname or byo_detect.detect_hostname()
+    if not resolved:
+        console.print(
+            "[red]Could not detect hostname.[/red] "
+            "Pass --hostname explicitly."
+        )
+        raise SystemExit(1)
+    console.print(f"Detected hostname: {resolved}")
+    return resolved
+
+
+def _detect_machine_identity(machine_identity: str | None, console: Console) -> str:
+    resolved = machine_identity or byo_detect.resolve_machine_identity()
+    console.print(f"Detected machine identity: {resolved}")
+    return resolved
+
+
+def _detect_gpu(
+    gpu_present: bool | None, gpu_model: str | None, console: Console
+) -> tuple[bool, str | None]:
+    detected_present, detected_model = byo_detect.detect_gpu()
+    resolved_present = gpu_present if gpu_present is not None else detected_present
+    resolved_model = gpu_model or detected_model
+    console.print(
+        f"Detected GPU: {resolved_model}"
+        if resolved_present
+        else "Detected GPU: none"
+    )
+    return resolved_present, resolved_model
+
+
 def run_register(
     *,
     allocator_url: str,
@@ -47,58 +79,109 @@ def run_register(
     force: bool,
     env_file: Path | None,
     insecure: bool,
+    overlay_hostname: str | None = None,
+    tailscale_authkey: str | None = None,
+    run_locally: bool = True,
 ) -> None:
     """Orchestrate registration. Exits non-zero on any user-facing error.
 
-    Always docker-runs the client container after persisting secrets.
-    If docker is missing, errors but preserves the env file so the user
-    can install docker and re-run with --force.
+    Three shapes:
+    - Real BYO box (default): auto-detects hostname/LAN IP/machine
+      identity/GPU, then docker-runs the client container after
+      persisting secrets.
+    - Mesh-overlay, run locally (``overlay_hostname`` set, ``run_locally``
+      true — the default): the box registering *is* the target client
+      right now (e.g. a terminal inside an already-running Run:AI
+      workload with docker-in-docker), so hostname/machine-identity/GPU
+      are auto-detected the same as real BYO, and the client container
+      is docker-run immediately, joining the Tailscale tailnet on start.
+    - Mesh-overlay, hand-off (``overlay_hostname`` set, ``run_locally``
+      false via ``--no-run-locally``): the box doesn't exist yet, so
+      auto-detection is skipped entirely (it would report *this*
+      machine's own facts); ``--hostname``/``--machine-identity`` are
+      required. No docker run — instead prints the secrets for the
+      admin to paste into their own workload submission.
     """
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
-    # Step 1: idempotency / resume
-    if env_file.exists() and not force:
+    if overlay_hostname is None:
+        if not run_locally:
+            console.print(
+                "[red]--no-run-locally only applies with "
+                "--overlay-hostname.[/red]"
+            )
+            raise SystemExit(1)
+    else:
+        if not tailscale_authkey:
+            console.print(
+                "[red]--tailscale-authkey is required with "
+                "--overlay-hostname.[/red]"
+            )
+            raise SystemExit(1)
+        if not run_locally:
+            if not hostname:
+                console.print(
+                    "[red]--hostname is required with --overlay-hostname "
+                    "--no-run-locally.[/red] Auto-detection would report "
+                    "this machine's own hostname, not the future "
+                    "client's — the client doesn't exist yet."
+                )
+                raise SystemExit(1)
+            if not machine_identity:
+                console.print(
+                    "[red]--machine-identity is required with "
+                    "--overlay-hostname --no-run-locally.[/red] "
+                    "Auto-detection would report this machine's own "
+                    "identity, not the future client's."
+                )
+                raise SystemExit(1)
+
+    # Step 1: idempotency / resume. Skipped only for the mesh-overlay
+    # hand-off case (overlay_hostname set, run_locally false) — that
+    # case has no local container/env-file lifecycle to resume.
+    if (
+        (overlay_hostname is None or run_locally)
+        and env_file.exists()
+        and not force
+    ):
         _resume(env_file, console)
         return
 
-    # Step 2: auto-detect (user overrides win)
-    resolved_hostname = hostname or byo_detect.detect_hostname()
-    if not resolved_hostname:
-        console.print(
-            "[red]Could not detect hostname.[/red] "
-            "Pass --hostname explicitly."
+    if overlay_hostname is not None:
+        console.print(f"Registering overlay hostname: {overlay_hostname}")
+        if run_locally:
+            resolved_hostname = _detect_hostname(hostname, console)
+            resolved_machine_identity = _detect_machine_identity(
+                machine_identity, console
+            )
+            resolved_gpu_present, resolved_gpu_model = _detect_gpu(
+                gpu_present, gpu_model, console
+            )
+        else:
+            resolved_hostname = hostname
+            resolved_machine_identity = machine_identity
+            resolved_gpu_present = bool(gpu_present)
+            resolved_gpu_model = gpu_model
+    else:
+        # Step 2: auto-detect (user overrides win)
+        resolved_hostname = _detect_hostname(hostname, console)
+
+        resolved_lan_ip = lan_ip or byo_detect.detect_lan_ip()
+        if not resolved_lan_ip:
+            console.print(
+                "[red]Could not detect LAN IP.[/red] "
+                "Pass --lan-ip explicitly."
+            )
+            raise SystemExit(1)
+        console.print(f"Detected LAN IP: {resolved_lan_ip}")
+
+        resolved_machine_identity = _detect_machine_identity(
+            machine_identity, console
         )
-        raise SystemExit(1)
-    console.print(f"Detected hostname: {resolved_hostname}")
-
-    resolved_lan_ip = lan_ip or byo_detect.detect_lan_ip()
-    if not resolved_lan_ip:
-        console.print(
-            "[red]Could not detect LAN IP.[/red] "
-            "Pass --lan-ip explicitly."
+        resolved_gpu_present, resolved_gpu_model = _detect_gpu(
+            gpu_present, gpu_model, console
         )
-        raise SystemExit(1)
-    console.print(f"Detected LAN IP: {resolved_lan_ip}")
-
-    resolved_machine_identity = (
-        machine_identity or byo_detect.resolve_machine_identity()
-    )
-    console.print(
-        f"Detected machine identity: {resolved_machine_identity}"
-    )
-
-    # GPU: always detect; user flags override either field independently.
-    detected_present, detected_model = byo_detect.detect_gpu()
-    resolved_gpu_present = (
-        gpu_present if gpu_present is not None else detected_present
-    )
-    resolved_gpu_model = gpu_model or detected_model
-    console.print(
-        f"Detected GPU: {resolved_gpu_model}"
-        if resolved_gpu_present
-        else "Detected GPU: none"
-    )
 
     # Step 3 + 4: build + POST
     ssl_provider = "self_signed" if insecure else "none"
@@ -107,13 +190,22 @@ def run_register(
     )
     console.print(f"Registering with {allocator_url} …")
     try:
-        response = client.register(
-            hostname=resolved_hostname,
-            machine_identity=resolved_machine_identity,
-            lan_ip=resolved_lan_ip,
-            gpu_present=resolved_gpu_present,
-            gpu_model=resolved_gpu_model,
-        )
+        if overlay_hostname is not None:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                overlay_hostname=overlay_hostname,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
+        else:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                lan_ip=resolved_lan_ip,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
     except AllocatorAuthError as e:
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1) from e
@@ -128,10 +220,33 @@ def run_register(
         raise SystemExit(1) from e
 
     # Step 5: persist env file (0600)
-    _write_env_file(env_file, allocator_url, response)
+    _write_env_file(
+        env_file,
+        allocator_url,
+        response,
+        overlay_hostname=overlay_hostname,
+        tailscale_authkey=tailscale_authkey,
+    )
     console.print(
         f"[green]Secrets saved to {env_file} (mode 0600)[/green]"
     )
+
+    if overlay_hostname is not None and not run_locally:
+        # No host for the CLI to act on — the Run:AI workload doesn't
+        # exist yet. Print everything the admin needs to paste into
+        # their own workload submission instead of docker-running
+        # anything. The loop below already emits OVERLAY_HOSTNAME/
+        # TAILSCALE_AUTHKEY since _write_env_file now includes them.
+        console.print(
+            "\n[bold]No local container will be started[/bold] — this "
+            "box doesn't exist yet. Paste the following into your "
+            "Run:AI workload's environment variables:\n"
+        )
+        for line in env_file.read_text().splitlines():
+            if line.startswith("#"):
+                continue
+            print(line)
+        return
 
     # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
     if resolved_gpu_present:
@@ -140,12 +255,19 @@ def run_register(
     # Step 7 + 8: docker run (always)
     startup_script_path = _write_startup_script(response)
     cmd = _build_docker_run(
-        env_file, response, resolved_gpu_present, startup_script_path
+        env_file, response, resolved_gpu_present, startup_script_path,
+        overlay_hostname,
     )
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
     )
     _exec_docker(cmd, console)
+    if overlay_hostname is not None:
+        console.print(
+            "[dim]This container joins Tailscale as "
+            f"{overlay_hostname} on start — confirm with "
+            "`docker logs lablink-client`.[/dim]"
+        )
     _start_log_shipper(env_file, console)
 
 
@@ -214,7 +336,12 @@ def _resume(env_file: Path, console: Console) -> None:
 
 
 def _write_env_file(
-    env_file: Path, allocator_url: str, resp: dict
+    env_file: Path,
+    allocator_url: str,
+    resp: dict,
+    *,
+    overlay_hostname: str | None = None,
+    tailscale_authkey: str | None = None,
 ) -> None:
     env_file.parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -239,6 +366,13 @@ def _write_env_file(
         f"CLIENT_IMAGE={resp['client_image']}",
         f"REGISTER_RESPONSE={register_response_json}",
     ]
+    if overlay_hostname is not None:
+        # Written so a nested `docker run --env-file` (the run_locally
+        # path) carries these into the container automatically —
+        # start.sh's existing `if [ -n "$TAILSCALE_AUTHKEY" ]` gate then
+        # joins the tailnet with no client-image changes needed.
+        lines.append(f"OVERLAY_HOSTNAME={overlay_hostname}")
+        lines.append(f"TAILSCALE_AUTHKEY={tailscale_authkey}")
     env_file.write_text("\n".join(lines) + "\n")
     env_file.chmod(0o600)
 
@@ -268,6 +402,7 @@ def _build_docker_run(
     resp: dict,
     gpu_present: bool,
     startup_script: Path | None,
+    overlay_hostname: str | None,
 ) -> list[str]:
     cmd = [
         "docker", "run", "-d",
@@ -283,6 +418,19 @@ def _build_docker_run(
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
+    if overlay_hostname is not None:
+        # start.sh's `tailscaled` needs to create a TUN network interface
+        # to route tailnet traffic to this container's own listening
+        # sockets (6080/7070). Without these, tailscaled can't open
+        # /dev/net/tun, dies immediately, and the subsequent `tailscale
+        # up` fails with "failed to connect to local tailscaled; it
+        # doesn't appear to be running". Gated on overlay_hostname since
+        # lan_direct/allocator_proxied clients never invoke `tailscale up`.
+        cmd += [
+            "--cap-add", "NET_ADMIN",
+            "--cap-add", "NET_RAW",
+            "--device", "/dev/net/tun",
+        ]
     # Mount path mirrors the AWS terraform/user_data mount so the client
     # start.sh finds the script at /docker_scripts/custom-startup.sh
     # regardless of provider. Skipped when the allocator returned no

@@ -508,3 +508,29 @@ class TestDeployDispatch:
         runner.invoke(app, ["deploy", "-y"])
         mock_aws_run.assert_called_once()
         mock_compose_run.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# client register command
+# ------------------------------------------------------------------
+class TestClientRegisterCommand:
+    def test_passes_overlay_flags_through(self):
+        runner = CliRunner()
+        with patch("lablink_cli.commands.register.run_register") as mock_run:
+            result = runner.invoke(
+                app,
+                [
+                    "client", "register",
+                    "--allocator-url", "https://a.example.com",
+                    "--register-token", "rtok",
+                    "--hostname", "classroom-gpu-3",
+                    "--machine-identity", "classroom-gpu-3",
+                    "--overlay-hostname", "classroom-gpu-3",
+                    "--tailscale-authkey", "tskey-abc",
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["overlay_hostname"] == "classroom-gpu-3"
+        assert kwargs["tailscale_authkey"] == "tskey-abc"
