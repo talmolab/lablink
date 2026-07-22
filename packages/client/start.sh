@@ -30,11 +30,19 @@ echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 send_status() {
   local status="$1"
   echo ">> Reporting status='$status' to allocator..."
+  # --retry-all-errors covers DNS-not-ready ("Could not resolve host") and
+  # connection-not-ready ("Connection timed out") alike — both observed for
+  # mesh-overlay clients, whose Tailscale route (especially over a DERP
+  # relay fallback) isn't actually usable for a few seconds after
+  # `tailscale up` returns. Without a retry here, this call's failure is
+  # permanent: nothing else in this script ever re-sets `status`, and
+  # assign_vm requires status='running', so a client that loses this race
+  # can never be handed to a student despite being otherwise healthy.
   curl -sS -X POST "$ALLOCATOR_URL/api/vm-status" \
     -H "Authorization: Bearer $CLIENT_SECRET" \
     -H "Content-Type: application/json" \
     -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
-    --max-time 5 \
+    --max-time 5 --retry 5 --retry-delay 2 --retry-all-errors \
     || echo ">> WARNING: failed to report status=$status (continuing)"
 }
 
