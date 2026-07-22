@@ -536,6 +536,119 @@ def test_list_clients_accepts_admin_basic(reg_client, admin_headers):
     assert r.get_json() == {"clients": []}
 
 
+def test_register_rejects_lan_ip_metadata_against_mesh_overlay_allocator(
+    reg_client, monkeypatch,
+):
+    """A manual client that auto-detected --lan-ip (forgot
+    --overlay-hostname) must not silently register against a
+    mesh_overlay-configured allocator: the browser would end up trying
+    to dial the client's private LAN IP directly, which is unreachable
+    off that LAN -- exactly the failure mode this guards against."""
+    from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+        MeshOverlayClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        MeshOverlayClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"lan_ip": "1.2.3.4"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "overlay-hostname" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_overlay_hostname_metadata_against_lan_direct_allocator(
+    reg_client,
+):
+    """The inverse mismatch: --overlay-hostname against a lan_direct
+    (real-BYO) allocator must also be rejected rather than silently
+    accepted -- this connectivity mode has no Tailscale sidecar to
+    resolve the hostname through."""
+    client, fake_db = reg_client
+    # reg_client's default stub is AllocatorProxiedClientConnectivity
+    # (name != "mesh_overlay"), matching a non-mesh_overlay deployment.
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "overlay-hostname" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_accepts_overlay_hostname_metadata_against_mesh_overlay_allocator(
+    reg_client,
+):
+    """The matching, correct case: --overlay-hostname against a
+    mesh_overlay-configured allocator registers normally."""
+    from lablink_allocator_service.providers.connectivity.mesh_overlay import (
+        MeshOverlayClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        MeshOverlayClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
+def test_register_accepts_lan_ip_metadata_against_lan_direct_allocator(reg_client):
+    """Regression guard: the ordinary real-BYO case (--lan-ip against a
+    non-mesh_overlay allocator) is unaffected by the new check."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"lan_ip": "1.2.3.4"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
+def test_register_skips_connectivity_check_for_non_manual_provider(reg_client):
+    """AWS-provisioned VMs never send lan_ip/overlay_hostname metadata
+    and don't go through this CLI-driven flow -- the check must not
+    fire for provider != 'manual' regardless of metadata shape."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "aws",
+            "provider_metadata": {"overlay_hostname": "classroom-1"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    fake_db.register_client.assert_called_once()
+
+
 def test_list_clients_returns_safe_fields(reg_client, admin_headers):
     from datetime import datetime
 

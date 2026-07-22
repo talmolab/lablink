@@ -44,6 +44,42 @@ def register_client():
         return jsonify({"error": "hostname and machine_identity required."}), 400
 
     provider = body.get("provider", "aws")
+    provider_metadata = body.get("provider_metadata") or {}
+
+    prov = current_app.config.get("LABLINK_PROVIDER") or main.get_provider(
+        main.cfg.get("provider", None),
+        region=main.cfg.app.region,
+        terraform_dir=str(main.TERRAFORM_DIR),
+    )
+
+    # Manual/BYO clients pick their provider_metadata shape based on which
+    # CLI flag they used (--lan-ip auto-detect vs --overlay-hostname). That
+    # shape must match this deployment's configured connectivity strategy,
+    # or the client silently registers under the wrong byte-path -- e.g. a
+    # real-BYO lan_ip registration against a mesh_overlay allocator has the
+    # browser dial the client's private LAN IP directly, which is
+    # unreachable off that LAN. Caught here, at registration time, instead
+    # of failing opaquely at session-assignment time.
+    if provider == "manual":
+        expects_overlay = prov.client_connectivity.name == "mesh_overlay"
+        has_overlay = "overlay_hostname" in provider_metadata
+        if expects_overlay and not has_overlay:
+            return jsonify({
+                "error": (
+                    "This allocator is configured for mesh_overlay "
+                    "connectivity -- register with --overlay-hostname "
+                    "and --tailscale-authkey."
+                )
+            }), 400
+        if not expects_overlay and has_overlay:
+            return jsonify({
+                "error": (
+                    "This allocator is configured for lan_direct "
+                    "connectivity -- --overlay-hostname is not applicable "
+                    "here; omit it and let --lan-ip auto-detect."
+                )
+            }), 400
+
     client_secret = secrets.token_urlsafe(32)
 
     try:
@@ -52,7 +88,7 @@ def register_client():
             machine_identity=machine_identity,
             provider=provider,
             endpoint_url=body.get("endpoint_url"),
-            provider_metadata=body.get("provider_metadata") or {},
+            provider_metadata=provider_metadata,
             gpu_present=body.get("gpu_present"),
             gpu_model=body.get("gpu_model"),
             client_secret_hash=hash_secret(client_secret),
@@ -62,11 +98,6 @@ def register_client():
     if client_id is None:
         return jsonify({"error": "registration conflict"}), 409
 
-    prov = current_app.config.get("LABLINK_PROVIDER") or main.get_provider(
-        main.cfg.get("provider", None),
-        region=main.cfg.app.region,
-        terraform_dir=str(main.TERRAFORM_DIR),
-    )
     allocator_url = request.host_url.rstrip("/")
     # cfg.machine.repository is the tutorial-repo-to-clone URL (shipped to
     # the AWS path as spec["repository"] -> TUTORIAL_REPO_TO_CLONE in
