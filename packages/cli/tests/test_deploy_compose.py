@@ -390,11 +390,13 @@ class TestDeployComposeParticipantExposurePreflight:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
     def test_lan_direct_with_funnel_and_authkey_proceeds(
-        self, mock_up, mock_poll, mock_summary, tmp_path
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
     ):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
+        mock_funnel.return_value = True
         cfg = _manual_cfg(
             connectivity="lan_direct",
             participant_exposure="tailscale_funnel",
@@ -429,11 +431,13 @@ class TestDeployComposeParticipantExposurePreflight:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
     def test_strong_admin_password_proceeds_when_funnel_enabled(
-        self, mock_up, mock_poll, mock_summary, tmp_path
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
     ):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
+        mock_funnel.return_value = True
         cfg = _manual_cfg(
             connectivity="lan_direct",
             participant_exposure="tailscale_funnel",
