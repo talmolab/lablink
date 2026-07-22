@@ -547,3 +547,26 @@ class TestParticipantExposureWeakPasswordGate:
         cfg.app.admin_password = "123456"
         errors = get_config_errors(cfg)
         assert not any("admin_password" in e for e in errors)
+
+    def test_missing_secret_default_not_flagged_as_weak(self):
+        """AppConfig.admin_password defaults to the MISSING_SECRET sentinel
+        (`lablink configure`'s wizard never collects it — resolve_admin_
+        credentials fills it in at deploy time). Regression: this used to
+        block the wizard's ReviewScreen on every fresh config that chose
+        tailscale_funnel, since "MISSING" is short enough to look weak."""
+        from lablink_allocator_service.conf.structured_config import (
+            MISSING_SECRET,
+            Config,
+        )
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.participant_exposure = "tailscale_funnel"
+        cfg.manual.overlay_tailnet = "example.ts.net"
+        assert cfg.app.admin_password == MISSING_SECRET
+        errors = get_config_errors(cfg)
+        assert not any("admin_password" in e for e in errors)
