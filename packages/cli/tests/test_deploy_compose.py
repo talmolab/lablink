@@ -18,6 +18,7 @@ def _manual_cfg(
     image_tag="linux-amd64-latest",
     connectivity="lan_direct",
     overlay_tailnet="",
+    participant_exposure="none",
 ):
     cfg = Config()
     cfg.provider = "manual"
@@ -28,6 +29,7 @@ def _manual_cfg(
     cfg.allocator.image_tag = image_tag
     cfg.manual.connectivity = connectivity
     cfg.manual.overlay_tailnet = overlay_tailnet
+    cfg.manual.participant_exposure = participant_exposure
     return cfg
 
 
@@ -232,6 +234,61 @@ class TestRenderComposeDirMeshOverlay:
         env_content = (target / ".env").read_text()
         assert "TS_AUTHKEY=tskey-second" in env_content
         assert "tskey-first" not in env_content
+
+
+class TestRenderComposeDirParticipantExposure:
+    def test_lan_direct_no_funnel_no_sidecar(self, tmp_path):
+        """Baseline: neither axis active -> no sidecar, matching existing
+        lan_direct behavior exactly."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale" not in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY" not in env_content
+
+    def test_lan_direct_with_funnel_renders_sidecar(self, tmp_path):
+        """New combination: lan_direct clients + tailscale_funnel exposure
+        must still get the sidecar, even though connectivity isn't
+        mesh_overlay."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale:" in compose_yaml
+        assert 'network_mode: "service:allocator"' in compose_yaml
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-abc" in env_content
+        assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
+
+    def test_mesh_overlay_with_funnel_still_one_sidecar(self, tmp_path):
+        """Both axes active at once must not error or duplicate anything —
+        same sidecar serves both purposes."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert compose_yaml.count("\n  tailscale:\n") == 1
+        env_content = (target / ".env").read_text()
+        assert "TS_AUTHKEY=tskey-abc" in env_content
 
 
 class TestDeployComposeMeshOverlayPreflight:

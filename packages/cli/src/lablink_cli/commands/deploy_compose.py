@@ -74,26 +74,34 @@ def render_compose_dir(
 
     The allocator image is monolithic (bundles its own Postgres), so the
     compose stack is single-service — plus a `tailscale` sidecar service
-    when `cfg.manual.connectivity == "mesh_overlay"` (network_mode:
+    whenever a tailnet join is needed for either of two independent
+    reasons: `cfg.manual.connectivity == "mesh_overlay"` (network_mode:
     service:allocator, so the allocator's own nginx can route to a
-    mesh-overlay client's Tailscale hostname). The internal Postgres data
-    is persisted via a named volume on /var/lib/postgresql. Admin/DB
-    creds live in the saved config.yaml (NOT in env vars) — the caller is
-    responsible for populating cfg.app.admin_user/admin_password (via
-    `resolve_admin_credentials`) before invoking this helper.
+    mesh-overlay client's Tailscale hostname) or
+    `cfg.manual.participant_exposure == "tailscale_funnel"` (so the
+    allocator can publish itself to participants via Funnel). Both reuse
+    the exact same sidecar — it doesn't care which reason applies. The
+    internal Postgres data is persisted via a named volume on
+    /var/lib/postgresql. Admin/DB creds live in the saved config.yaml
+    (NOT in env vars) — the caller is responsible for populating
+    cfg.app.admin_user/admin_password (via `resolve_admin_credentials`)
+    before invoking this helper.
 
-    `tailscale_authkey` is only meaningful when connectivity is
-    mesh_overlay. It is not persisted in config.yaml (unlike admin/DB
-    creds) — only into this deployment's .env, and only for as long as
-    the sidecar needs it to join for the first time.
+    `tailscale_authkey` is only meaningful when the sidecar is needed. It
+    is not persisted in config.yaml (unlike admin/DB creds) — only into
+    this deployment's .env, and only for as long as the sidecar needs it
+    to join for the first time.
     """
     target.mkdir(parents=True, exist_ok=True)
-    mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    needs_sidecar = (
+        cfg.manual.connectivity == "mesh_overlay"
+        or cfg.manual.participant_exposure == "tailscale_funnel"
+    )
 
-    # 1. Copy the bundled docker-compose template — the mesh-overlay
-    #    variant adds the Tailscale sidecar; otherwise identical.
+    # 1. Copy the bundled docker-compose template — the sidecar variant
+    #    adds the Tailscale sidecar; otherwise identical.
     template_name = (
-        "docker-compose-mesh-overlay.yml" if mesh_overlay else "docker-compose.yml"
+        "docker-compose-mesh-overlay.yml" if needs_sidecar else "docker-compose.yml"
     )
     template = resources.files("lablink_cli.templates").joinpath(template_name)
     (target / "docker-compose.yml").write_text(template.read_text())
@@ -111,7 +119,7 @@ def render_compose_dir(
         f"ALLOCATOR_IMAGE={allocator_image}",
         f"HTTP_PORT={DEFAULT_HTTP_PORT}",
     ]
-    if mesh_overlay:
+    if needs_sidecar:
         resolved_authkey = tailscale_authkey or previous_authkey or ""
         env_lines.append(f"TS_AUTHKEY={resolved_authkey}")
         env_lines.append(
