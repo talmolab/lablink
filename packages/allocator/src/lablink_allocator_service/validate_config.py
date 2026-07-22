@@ -108,9 +108,11 @@ def get_config_errors(cfg) -> list:
             f"(got '{provider}')"
         )
 
-    # manual.connectivity must be a known value, and mesh_overlay requires
-    # a tailnet domain to resolve overlay hostnames against (see
-    # MeshOverlayClientConnectivity._resolve_overlay_host).
+    # manual.connectivity must be a known value. Either mesh_overlay
+    # (to resolve overlay hostnames — see
+    # MeshOverlayClientConnectivity._resolve_overlay_host) or
+    # participant_exposure == "tailscale_funnel" (to publish the
+    # allocator's own hostname) requires a tailnet domain.
     manual_cfg = getattr(cfg, "manual", None)
     if manual_cfg is not None:
         connectivity = getattr(manual_cfg, "connectivity", "lan_direct")
