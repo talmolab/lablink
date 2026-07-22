@@ -278,4 +278,3 @@ class Config:
     startup_script: StartupConfig = field(default_factory=StartupConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
     manual: ManualConfig = field(default_factory=ManualConfig)
-

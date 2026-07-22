@@ -62,12 +62,10 @@ class TestRenderComposeDir:
         # render_compose_dir is invoked from run_deploy_compose).
         config_text = (target / "config.yaml").read_text()
         assert (
-            "admin_user: admin" in config_text
-            or "admin_user: 'admin'" in config_text
+            "admin_user: admin" in config_text or "admin_user: 'admin'" in config_text
         )
         assert (
-            "admin_password: pw" in config_text
-            or "admin_password: 'pw'" in config_text
+            "admin_password: pw" in config_text or "admin_password: 'pw'" in config_text
         )
 
     def test_template_is_single_service(self, tmp_path):
@@ -166,9 +164,7 @@ class TestRenderComposeDirMeshOverlay:
     def test_mesh_overlay_renders_sidecar_and_authkey(self, tmp_path):
         from lablink_cli.commands.deploy_compose import render_compose_dir
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
@@ -190,9 +186,7 @@ class TestRenderComposeDirMeshOverlay:
         joins the tailnet immediately."""
         from lablink_cli.commands.deploy_compose import render_compose_dir
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
@@ -204,16 +198,12 @@ class TestRenderComposeDirMeshOverlay:
         tailscale_service = compose_yaml.split("\n  tailscale:\n")[1]
         assert "pull_policy: always" in tailscale_service
 
-    def test_redeploy_without_authkey_carries_previous_value_forward(
-        self, tmp_path
-    ):
+    def test_redeploy_without_authkey_carries_previous_value_forward(self, tmp_path):
         """A redeploy that omits --tailscale-authkey must not blank out an
         already-joined sidecar's key."""
         from lablink_cli.commands.deploy_compose import render_compose_dir
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
         render_compose_dir(cfg, target, tailscale_authkey=None)
@@ -224,9 +214,7 @@ class TestRenderComposeDirMeshOverlay:
     def test_redeploy_with_new_authkey_overrides_previous_value(self, tmp_path):
         from lablink_cli.commands.deploy_compose import render_compose_dir
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-first")
         render_compose_dir(cfg, target, tailscale_authkey="tskey-second")
@@ -295,9 +283,7 @@ class TestDeployComposeMeshOverlayPreflight:
     def test_first_deploy_without_authkey_rejected(self, tmp_path):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         with pytest.raises(SystemExit):
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
 
@@ -309,9 +295,7 @@ class TestDeployComposeMeshOverlayPreflight:
     ):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         run_deploy_compose(
             cfg,
             yes=True,
@@ -330,9 +314,7 @@ class TestDeployComposeMeshOverlayPreflight:
         the .env from the first deploy already carries a value forward."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        cfg = _manual_cfg(
-            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
-        )
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         run_deploy_compose(
             cfg,
             yes=True,
@@ -381,7 +363,10 @@ class TestDeployComposeMeshOverlayPreflight:
             connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
         )
         run_deploy_compose(
-            mesh_cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            mesh_cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
         )
         assert mock_up.call_count == 2
 
@@ -417,7 +402,10 @@ class TestDeployComposeParticipantExposurePreflight:
             admin_password="a-strong-enough-password",
         )
         run_deploy_compose(
-            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
         )
         mock_up.assert_called_once()
 
@@ -432,7 +420,10 @@ class TestDeployComposeParticipantExposurePreflight:
         )
         with pytest.raises(SystemExit):
             run_deploy_compose(
-                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
             )
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
@@ -450,7 +441,10 @@ class TestDeployComposeParticipantExposurePreflight:
             admin_password="a-strong-enough-password",
         )
         run_deploy_compose(
-            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
         )
         mock_up.assert_called_once()
 
@@ -506,8 +500,13 @@ class TestEnableFunnel:
         _enable_funnel()
         cmd = mock_run.call_args[0][0]
         assert cmd == [
-            "docker", "exec", "lablink-allocator-tailscale",
-            "tailscale", "funnel", "--bg", "5000",
+            "docker",
+            "exec",
+            "lablink-allocator-tailscale",
+            "tailscale",
+            "funnel",
+            "--bg",
+            "5000",
         ]
 
     @patch("lablink_cli.commands.deploy_compose.time.sleep")
@@ -530,7 +529,9 @@ class TestEnableFunnel:
         from lablink_cli.commands.deploy_compose import _enable_funnel
 
         transient_fail = MagicMock(returncode=1, stdout="", stderr="not ready yet")
-        success = MagicMock(returncode=0, stdout="Available on the internet:\n", stderr="")
+        success = MagicMock(
+            returncode=0, stdout="Available on the internet:\n", stderr=""
+        )
         mock_run.side_effect = [transient_fail, transient_fail, success]
 
         assert _enable_funnel() is True
@@ -556,7 +557,10 @@ class TestRunDeployComposeFunnelWiring:
             admin_password="a-strong-enough-password",
         )
         run_deploy_compose(
-            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            cfg,
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
         )
         mock_funnel.assert_called_once()
 
@@ -591,7 +595,10 @@ class TestRunDeployComposeFunnelWiring:
         )
         with pytest.raises(SystemExit):
             run_deploy_compose(
-                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
             )
         mock_summary.assert_called_once()
 
@@ -619,9 +626,7 @@ class TestStartupScriptStaging:
 
         fake_home = tmp_path / "fake-home"
         fake_home.mkdir()
-        monkeypatch.setattr(
-            deploy_compose.Path, "home", lambda: fake_home
-        )
+        monkeypatch.setattr(deploy_compose.Path, "home", lambda: fake_home)
 
     def test_creates_empty_file_when_disabled(self, tmp_path):
         """Default config (startup_script.enabled=false) → file is
@@ -883,9 +888,7 @@ class TestDestroyCompose:
 class TestPrintSummary:
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
     @patch("lablink_cli.commands.deploy_compose._extract_register_token")
-    def test_next_step_uses_lan_url_when_detected(
-        self, mock_extract, mock_lan, capsys
-    ):
+    def test_next_step_uses_lan_url_when_detected(self, mock_extract, mock_lan, capsys):
         """The 'Next step' hint must use the operator's LAN IP, not
         localhost — BYO clients on other boxes can't route to localhost.
         Regression guard for the original copy-paste-with-localhost
@@ -982,10 +985,7 @@ class TestPrintSummaryMeshOverlay:
         assert "--hostname <name>" not in out
         assert "--machine-identity <name>" not in out
         assert "--no-run-locally" in out
-        assert (
-            f"--allocator-url http://192.168.1.42 --register-token {token}"
-            in out
-        )
+        assert f"--allocator-url http://192.168.1.42 --register-token {token}" in out
 
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
     @patch("lablink_cli.commands.deploy_compose._extract_register_token")
@@ -1102,7 +1102,5 @@ class TestExtractRegisterToken:
     def test_returns_none_when_no_match(self, mock_run):
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="nothing relevant\n"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="nothing relevant\n")
         assert _extract_register_token() is None

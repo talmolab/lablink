@@ -104,8 +104,7 @@ def get_config_errors(cfg) -> list:
     provider = getattr(cfg, "provider", "aws")
     if provider not in VALID_PROVIDERS:
         errors.append(
-            f"provider must be one of: {', '.join(VALID_PROVIDERS)} "
-            f"(got '{provider}')"
+            f"provider must be one of: {', '.join(VALID_PROVIDERS)} (got '{provider}')"
         )
 
     # manual.connectivity must be a known value. Either mesh_overlay
@@ -131,8 +130,7 @@ def get_config_errors(cfg) -> list:
             )
 
         needs_tailnet = (
-            connectivity == "mesh_overlay"
-            or participant_exposure == "tailscale_funnel"
+            connectivity == "mesh_overlay" or participant_exposure == "tailscale_funnel"
         )
         if needs_tailnet and not getattr(manual_cfg, "overlay_tailnet", ""):
             errors.append(
