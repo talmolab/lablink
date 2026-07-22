@@ -39,6 +39,13 @@ ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
 # stack with their own reverse proxy.
 SUPPORTED_SSL_FOR_MANUAL = ("none",)
 ALLOCATOR_CONTAINER_NAME = "lablink-allocator"
+TAILSCALE_SIDECAR_CONTAINER_NAME = "lablink-allocator-tailscale"
+# The allocator's own nginx port inside the sidecar's shared network
+# namespace — same target the manual `tailscale funnel 5000` spike used.
+ALLOCATOR_INTERNAL_PORT = 5000
+# Exact substring from `tailscale funnel`'s own output when the tailnet
+# hasn't granted the Funnel ACL yet (verified live, 2026-07-22 spike).
+FUNNEL_ACL_NOT_GRANTED_MARKER = "Funnel is not enabled on your tailnet"
 
 console = Console()
 
@@ -288,7 +295,15 @@ def run_deploy_compose(
 
     _compose_up(target)
     _health_poll()
+
+    funnel_ok = True
+    if cfg.manual.participant_exposure == "tailscale_funnel":
+        funnel_ok = _enable_funnel()
+
     _print_summary(cfg)
+
+    if not funnel_ok:
+        raise SystemExit(1)
 
 
 def _compose_up(target: Path) -> None:
@@ -301,6 +316,54 @@ def _compose_up(target: Path) -> None:
     if result.returncode != 0:
         console.print("[red]docker compose up failed.[/red]")
         raise SystemExit(result.returncode or 1)
+
+
+def _enable_funnel() -> bool:
+    """Idempotently enable Tailscale Funnel on the allocator's own nginx
+    port, via the sidecar container.
+
+    `tailscale funnel`'s config lives in tailscaled's own local state
+    (already persisted by the compose file's `tailscale_state` named
+    volume), so this is safe to re-run on every deploy — a no-op if
+    already enabled. If the tailnet hasn't granted the Funnel ACL yet,
+    the command's own output names the exact grant URL; this surfaces
+    that URL and returns False rather than silently leaving the
+    allocator unreachable to participants.
+
+    Returns True if Funnel is enabled (or already was); False otherwise
+    (ACL not granted, or any other failure) — callers should still let
+    the rest of the deploy complete either way (the stack is functional
+    for LAN/mesh-overlay access regardless), but should ultimately exit
+    non-zero when this returns False.
+    """
+    result = subprocess.run(
+        [
+            "docker", "exec", TAILSCALE_SIDECAR_CONTAINER_NAME,
+            "tailscale", "funnel", "--bg", str(ALLOCATOR_INTERNAL_PORT),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = result.stdout + result.stderr
+    if FUNNEL_ACL_NOT_GRANTED_MARKER in output:
+        console.print(
+            "[yellow]Tailscale Funnel isn't authorized on this tailnet "
+            "yet.[/yellow] The compose stack is up and reachable on your "
+            "LAN, but participant exposure needs a one-time grant:\n"
+        )
+        console.print(output.strip())
+        return False
+    if result.returncode != 0:
+        console.print(
+            f"[red]Failed to enable Tailscale Funnel (exit "
+            f"{result.returncode}):[/red]\n{output.strip()}"
+        )
+        return False
+    console.print(
+        "[green]Tailscale Funnel enabled for participant access.[/green]"
+    )
+    return True
 
 
 def _health_poll() -> None:

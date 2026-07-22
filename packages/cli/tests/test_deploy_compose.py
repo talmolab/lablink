@@ -469,6 +469,114 @@ class TestDeployComposeParticipantExposurePreflight:
         mock_up.assert_called_once()
 
 
+class TestEnableFunnel:
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_already_enabled_or_newly_enabled_returns_true(self, mock_run):
+        from lablink_cli.commands.deploy_compose import _enable_funnel
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="Available on the internet:\nhttps://x.tailnet.ts.net/\n",
+            stderr="",
+        )
+        assert _enable_funnel() is True
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_acl_not_granted_returns_false_and_prints_url(self, mock_run, capsys):
+        from lablink_cli.commands.deploy_compose import _enable_funnel
+
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr=(
+                "Funnel is not enabled on your tailnet.\nTo enable, visit:"
+                "\n\n         https://login.tailscale.com/f/funnel?node=abc123\n"
+            ),
+        )
+        assert _enable_funnel() is False
+        captured = capsys.readouterr()
+        assert "login.tailscale.com/f/funnel" in captured.out
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_uses_correct_container_and_port(self, mock_run):
+        from lablink_cli.commands.deploy_compose import _enable_funnel
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        _enable_funnel()
+        cmd = mock_run.call_args[0][0]
+        assert cmd == [
+            "docker", "exec", "lablink-allocator-tailscale",
+            "tailscale", "funnel", "--bg", "5000",
+        ]
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_unexpected_failure_returns_false(self, mock_run):
+        from lablink_cli.commands.deploy_compose import _enable_funnel
+
+        mock_run.return_value = MagicMock(
+            returncode=1, stdout="", stderr="some other docker error"
+        )
+        assert _enable_funnel() is False
+
+
+class TestRunDeployComposeFunnelWiring:
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_calls_enable_funnel_when_participant_exposure_is_funnel(
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_funnel.return_value = True
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        mock_funnel.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_does_not_call_enable_funnel_when_disabled(
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        mock_funnel.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_exits_nonzero_when_funnel_not_enabled_but_summary_still_prints(
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_funnel.return_value = False
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            )
+        mock_summary.assert_called_once()
+
+
 class TestStartupScriptStaging:
     """`render_compose_dir` is responsible for putting custom-startup.sh
     into the compose workdir so the docker-compose bind mount (added in
