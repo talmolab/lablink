@@ -287,6 +287,9 @@ class ManualConnectivityScreen(Screen):
     def compose(self) -> ComposeResult:
         cfg = self.app.config
         current = getattr(cfg.manual, "connectivity", "lan_direct") or "lan_direct"
+        current_exposure = (
+            getattr(cfg.manual, "participant_exposure", "none") or "none"
+        )
 
         yield Header()
         with VerticalScroll():
@@ -324,8 +327,8 @@ class ManualConnectivityScreen(Screen):
                 )
 
             yield Label(
-                "Tailscale tailnet domain (only used for mesh_overlay, "
-                "e.g. example.ts.net)",
+                "Tailscale tailnet domain (used by mesh_overlay and/or "
+                "participant exposure below, e.g. example.ts.net)",
                 classes="field-label",
             )
             yield Input(
@@ -333,6 +336,35 @@ class ManualConnectivityScreen(Screen):
                 placeholder="example.ts.net",
                 id="overlay-tailnet",
             )
+
+            yield Label(
+                "Participant exposure",
+                classes="step-title",
+            )
+            yield Label(
+                "How participants (not clients) reach the allocator when it\n"
+                "isn't on their LAN. Independent of connectivity above — you\n"
+                "can combine either connectivity option with either exposure\n"
+                "option.\n"
+                "none: allocator stays LAN-only, as today (default).\n"
+                "tailscale_funnel: publish the allocator itself to\n"
+                "participants over the public internet via Tailscale Funnel —\n"
+                "no Tailscale install needed on their side.",
+                classes="step-description",
+            )
+            with RadioSet(id="participant-exposure-select"):
+                yield RadioButton(
+                    "none — allocator stays LAN-only (default)",
+                    value=(current_exposure == "none"),
+                    id="participant-exposure-none",
+                )
+                yield RadioButton(
+                    "tailscale_funnel — publish to participants via "
+                    "Tailscale Funnel",
+                    value=(current_exposure == "tailscale_funnel"),
+                    id="participant-exposure-funnel",
+                )
+
             yield Label("", id="connectivity-error", classes="error")
         with Center():
             with Horizontal(classes="nav-buttons"):
@@ -359,9 +391,27 @@ class ManualConnectivityScreen(Screen):
             "#overlay-tailnet", Input
         ).value.strip()
 
+        rb_exposure = self.query_one("#participant-exposure-select", RadioSet)
+        chosen_exposure = "none"
+        if (
+            rb_exposure.pressed_button
+            and rb_exposure.pressed_button.id == "participant-exposure-funnel"
+        ):
+            chosen_exposure = "tailscale_funnel"
+        cfg.manual.participant_exposure = chosen_exposure
+
         errors = [
             e for e in validate_config(cfg)
-            if "connectivity" in e or "overlay_tailnet" in e
+            if (
+                "connectivity" in e
+                or "overlay_tailnet" in e
+                or "participant_exposure" in e
+            )
+            # admin_password isn't collected until deploy time (resolve_admin_
+            # credentials runs in deploy_compose.py, not the wizard) — the
+            # weak-password gate would always spuriously fire here otherwise,
+            # since cfg.app.admin_password is still unset at this point.
+            and "admin_password" not in e
         ]
         error_label = self.query_one("#connectivity-error", Label)
         if errors:
