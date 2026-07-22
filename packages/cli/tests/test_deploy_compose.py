@@ -1011,6 +1011,131 @@ class TestPrintSummaryMeshOverlay:
         assert "--no-run-locally" not in out
 
 
+class TestPrintSummaryFunnel:
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_mesh_overlay_register_hint_uses_public_url_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Regression: a mesh-overlay client (e.g. a Run:AI workload) is
+        never on the allocator's LAN, so the LAN IP was always the wrong
+        address for it — Funnel's public URL actually is reachable from
+        anywhere, so prefer it here once Funnel is live."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        expected_url = "https://lablink-allocator-testlab.example.ts.net/"
+        assert (
+            f"--allocator-url {expected_url} --register-token {token}" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_shows_public_url_line_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            "Allocator URL (public): "
+            "https://lablink-allocator-testlab.example.ts.net/"
+        ) in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_no_public_url_line_when_funnel_inactive(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Default funnel_active=False (participant_exposure: none, or
+        Funnel enable failed) — no public URL line, unchanged output."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(_manual_cfg(connectivity="mesh_overlay"))
+
+        out = capsys.readouterr().out
+        assert "Allocator URL (public)" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_no_localhost_warning_when_funnel_substituted(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """When no LAN IP is detected but Funnel supplies a real public
+        URL for the mesh-overlay hint, the 'only valid for same machine'
+        warning (which describes a localhost fallback that didn't
+        happen here) must not fire."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = None
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert "only" not in out.lower() or "same machine" not in out.lower()
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_register_hint_unaffected_by_funnel(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """lan_direct clients genuinely are on the LAN — funnel_active
+        must not redirect their register hint to the public URL, only
+        mesh_overlay's."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="lan_direct",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            f"--allocator-url http://192.168.1.42 --register-token {token}" in out
+        )
+
+
 class TestDetectLanIp:
     @patch("lablink_cli.commands.deploy_compose.socket.socket")
     def test_returns_routing_ip(self, mock_socket):

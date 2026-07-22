@@ -307,8 +307,9 @@ def run_deploy_compose(
     funnel_ok = True
     if cfg.manual.participant_exposure == "tailscale_funnel":
         funnel_ok = _enable_funnel()
+    funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    _print_summary(cfg)
+    _print_summary(cfg, funnel_active=funnel_active)
 
     if not funnel_ok:
         raise SystemExit(1)
@@ -434,7 +435,17 @@ def _print_last_log_lines(lines: int = 30) -> None:
         console.print(result.stdout)
 
 
-def _print_summary(cfg: Config) -> None:
+def _funnel_participant_url(cfg: Config) -> str:
+    """The public URL Tailscale Funnel publishes the allocator at, once
+    enabled. Deterministic from the same TAILSCALE_HOSTNAME/overlay_tailnet
+    values render_compose_dir already writes into .env — no need to parse
+    `tailscale funnel`'s own stdout, which is what _enable_funnel does for
+    its own success/failure detection instead."""
+    hostname = f"lablink-allocator-{cfg.deployment_name or 'lablink'}"
+    return f"https://{hostname}.{cfg.manual.overlay_tailnet}/"
+
+
+def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
     register_token = _extract_register_token()
     # Manual provider is HTTP-only; preflight rejects anything else.
     local_url = "http://localhost"
@@ -447,6 +458,12 @@ def _print_summary(cfg: Config) -> None:
     register_url = lan_url or local_url
 
     console.print("\n[bold green]Deployment complete.[/bold green]")
+    if funnel_active:
+        console.print(
+            f"  Allocator URL (public): {_funnel_participant_url(cfg)}",
+            soft_wrap=True,
+            highlight=False,
+        )
     console.print(f"  Allocator URL (local): {local_url}")
     if lan_url:
         console.print(f"  Allocator URL (LAN):   {lan_url}")
@@ -485,10 +502,14 @@ def _print_summary(cfg: Config) -> None:
     mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
-        # the allocator's LAN at all — "on each BYO box on the same LAN"
-        # is wrong here. --run-locally defaults to on, so hostname/
-        # machine-identity/GPU are auto-detected same as real BYO; only
-        # --overlay-hostname/--tailscale-authkey are required.
+        # the allocator's LAN at all — the LAN URL above is unreachable
+        # from it regardless of whether we detected one. When Funnel is
+        # live, its public URL actually IS reachable from anywhere with
+        # internet access, so prefer it here specifically — but only for
+        # this mesh-overlay hint; lan_direct clients genuinely are on the
+        # LAN, so their own hint below keeps using register_url as-is.
+        if funnel_active:
+            register_url = _funnel_participant_url(cfg)
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "
@@ -514,10 +535,12 @@ def _print_summary(cfg: Config) -> None:
             "workload submission instead of running here, along with "
             "--hostname/--machine-identity.[/dim]"
         )
-    if not lan_url:
+    if not lan_url and not (mesh_overlay and funnel_active):
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the
-        # operator doesn't blindly hand it to a remote teammate.
+        # operator doesn't blindly hand it to a remote teammate. Doesn't
+        # apply when the mesh-overlay hint above already substituted the
+        # Funnel URL instead of falling back to localhost.
         console.print(
             "  [yellow]Note:[/yellow] the URL above is localhost — only "
             "valid for a BYO client running on this same machine. For "
