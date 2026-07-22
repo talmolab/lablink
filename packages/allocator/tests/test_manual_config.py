@@ -21,3 +21,14 @@ class TestManualConfig:
         cfg = Config()
         assert isinstance(cfg.manual, ManualConfig)
         assert cfg.manual.connectivity == "lan_direct"
+
+    def test_manual_config_participant_exposure_default(self):
+        config = ManualConfig()
+        assert config.participant_exposure == "none"
+
+    def test_manual_config_participant_exposure_tailscale_funnel(self):
+        config = ManualConfig(
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        assert config.participant_exposure == "tailscale_funnel"

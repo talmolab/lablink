@@ -168,7 +168,8 @@ class StartupConfig:
 
 @dataclass
 class ManualConfig:
-    """Configuration for the manual provider's client connectivity strategy.
+    """Configuration for the manual provider's client connectivity and
+    participant-exposure strategy.
 
     Attributes:
         connectivity (str): How the browser reaches a manual client's
@@ -183,12 +184,24 @@ class ManualConfig:
               Run:AI-hosted workload).
         overlay_tailnet (str): The Tailscale tailnet's MagicDNS domain
             suffix (e.g. "example.ts.net"), used to resolve a registered
-            client's overlay hostname. Required when connectivity is
-            "mesh_overlay"; ignored otherwise.
+            client's overlay hostname, and/or the allocator's own
+            Funnel-published hostname. Required when connectivity is
+            "mesh_overlay" or participant_exposure is "tailscale_funnel";
+            ignored otherwise.
+        participant_exposure (str): How participants (not clients) reach
+            the allocator when it isn't on their LAN. Independent of
+            connectivity — an admin can have lan_direct clients and still
+            want off-LAN participants, or vice versa. Options:
+            - "none": unchanged, LAN-only (default).
+            - "tailscale_funnel": publish the allocator's HTTP port to the
+              public internet via the tailnet named by overlay_tailnet,
+              using the same tailscale sidecar connectivity="mesh_overlay"
+              already provisions (reused, not a second sidecar).
     """
 
     connectivity: str = field(default="lan_direct")
     overlay_tailnet: str = field(default="")
+    participant_exposure: str = field(default="none")
 
 
 @dataclass
