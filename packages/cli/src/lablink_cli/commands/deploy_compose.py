@@ -178,21 +178,29 @@ def run_deploy_compose(
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
-    `tailscale_authkey` is required on the first deploy when
-    `cfg.manual.connectivity == "mesh_overlay"` (the sidecar has nothing
-    to join with otherwise) — optional on redeploys, since
-    `render_compose_dir` carries the previous value forward.
+    `tailscale_authkey` is required when `cfg.manual.connectivity ==
+    "mesh_overlay"` unless a value is already on record in this
+    deployment's existing `.env` (the sidecar has nothing to join with
+    otherwise) — carried forward on ordinary mesh-overlay redeploys by
+    `render_compose_dir`.
     """
     target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
         cfg.deployment_name or "lablink"
     )
 
     if cfg.manual.connectivity == "mesh_overlay":
-        first_deploy = not (target / ".env").exists()
-        if first_deploy and not tailscale_authkey:
+        # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
+        # enough: a redeploy that *switches* connectivity from lan_direct
+        # to mesh_overlay has an existing .env, but that .env has no
+        # TS_AUTHKEY line to carry forward. Read the actual prior value
+        # (if any) so that case still requires --tailscale-authkey
+        # instead of silently rendering an empty key.
+        previous_authkey = _read_env_value(target / ".env", "TS_AUTHKEY")
+        if not tailscale_authkey and not previous_authkey:
             console.print(
                 "[red]manual.connectivity is 'mesh_overlay' but no "
-                "--tailscale-authkey was given for this first deploy.[/red]\n"
+                "--tailscale-authkey was given, and no previous value is "
+                "on record for this deployment.[/red]\n"
                 "Generate an authkey from your Tailscale admin console "
                 "and re-run with --tailscale-authkey <key>."
             )

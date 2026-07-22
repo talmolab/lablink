@@ -285,6 +285,49 @@ class TestDeployComposeMeshOverlayPreflight:
         run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
         assert mock_up.call_count == 2
 
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_switch_from_lan_direct_without_authkey_rejected(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Regression guard: an existing lan_direct deployment (its .env
+        has no TS_AUTHKEY line) that switches manual.connectivity to
+        mesh_overlay must still be required to pass --tailscale-authkey.
+        ".env exists" alone is not a valid proxy for "an authkey is on
+        record" — without this guard the preflight silently skipped the
+        check and render_compose_dir wrote TS_AUTHKEY= (empty)."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        lan_cfg = _manual_cfg(connectivity="lan_direct")
+        run_deploy_compose(lan_cfg, yes=True, workdir_root=tmp_path)
+
+        mesh_cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(mesh_cfg, yes=True, workdir_root=tmp_path)
+        mock_up.assert_called_once()  # only the first (lan_direct) deploy ran
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_switch_from_lan_direct_with_authkey_proceeds(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        lan_cfg = _manual_cfg(connectivity="lan_direct")
+        run_deploy_compose(lan_cfg, yes=True, workdir_root=tmp_path)
+
+        mesh_cfg = _manual_cfg(
+            connectivity="mesh_overlay", overlay_tailnet="example.ts.net"
+        )
+        run_deploy_compose(
+            mesh_cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        assert mock_up.call_count == 2
+
 
 class TestStartupScriptStaging:
     """`render_compose_dir` is responsible for putting custom-startup.sh
