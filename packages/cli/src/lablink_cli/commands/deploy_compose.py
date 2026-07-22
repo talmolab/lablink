@@ -72,7 +72,7 @@ def _read_env_value(env_path: Path, key: str) -> str | None:
     prefix = f"{key}="
     for line in env_path.read_text().splitlines():
         if line.startswith(prefix):
-            return line[len(prefix):]
+            return line[len(prefix) :]
     return None
 
 
@@ -209,9 +209,7 @@ def run_deploy_compose(
     (the sidecar has nothing to join with otherwise) — carried forward
     on ordinary redeploys by `render_compose_dir`.
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
-        cfg.deployment_name or "lablink"
-    )
+    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (cfg.deployment_name or "lablink")
 
     needs_sidecar = _needs_tailscale_sidecar(cfg)
     if needs_sidecar:
@@ -355,8 +353,13 @@ def _enable_funnel() -> bool:
     for attempt in range(1, FUNNEL_ENABLE_MAX_ATTEMPTS + 1):
         result = subprocess.run(
             [
-                "docker", "exec", TAILSCALE_SIDECAR_CONTAINER_NAME,
-                "tailscale", "funnel", "--bg", str(ALLOCATOR_INTERNAL_PORT),
+                "docker",
+                "exec",
+                TAILSCALE_SIDECAR_CONTAINER_NAME,
+                "tailscale",
+                "funnel",
+                "--bg",
+                str(ALLOCATOR_INTERNAL_PORT),
             ],
             capture_output=True,
             text=True,
@@ -404,9 +407,7 @@ def _health_poll() -> None:
         result = check_health_endpoint(base_url)
         if result.get("healthy"):
             elapsed = time.monotonic() - start
-            console.print(
-                f"[green]Allocator healthy after {elapsed:.0f}s[/green]"
-            )
+            console.print(f"[green]Allocator healthy after {elapsed:.0f}s[/green]")
             return
         time.sleep(3)
 
@@ -497,9 +498,7 @@ def _print_summary(cfg: Config) -> None:
             "--overlay-hostname <name> --tailscale-authkey <key>"
         )
     else:
-        console.print(
-            "\n[bold]Next step:[/bold] on each BYO box on the same LAN, run"
-        )
+        console.print("\n[bold]Next step:[/bold] on each BYO box on the same LAN, run")
         register_cmd = (
             f"  lablink client register --allocator-url {register_url} "
             f"--register-token {register_token or '<token>'}"
@@ -606,9 +605,7 @@ def run_destroy_compose(
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
-        cfg.deployment_name or "lablink"
-    )
+    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (cfg.deployment_name or "lablink")
 
     if not target.exists():
         console.print(
@@ -644,9 +641,7 @@ def run_destroy_compose(
         shutil.rmtree(target)
         console.print(f"[green]Removed {target}.[/green]")
     else:
-        console.print(
-            f"[green]Stack torn down (data preserved in {target}).[/green]"
-        )
+        console.print(f"[green]Stack torn down (data preserved in {target}).[/green]")
 
     console.print(
         "\n[bold]Reminder:[/bold] each BYO client box still has "
