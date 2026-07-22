@@ -369,3 +369,125 @@ class TestRegisterTokenLogging:
         )
         assert m is not None
         assert m.group(1) == main.REGISTER_TOKEN
+
+
+class TestParticipantExposureField:
+    """Tests for manual.participant_exposure validation."""
+
+    def _make_cfg(self, participant_exposure="none", overlay_tailnet="", admin_password="a-strong-enough-password"):
+        from lablink_allocator_service.conf.structured_config import Config
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.participant_exposure = participant_exposure
+        cfg.manual.overlay_tailnet = overlay_tailnet
+        cfg.app.admin_password = admin_password
+        return cfg
+
+    def test_default_is_none(self):
+        from lablink_allocator_service.conf.structured_config import Config
+        cfg = Config()
+        assert cfg.manual.participant_exposure == "none"
+
+    def test_rejects_unknown_value(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(participant_exposure="cloudflare_tunnel")
+        errors = get_config_errors(cfg)
+        assert any(
+            "manual.participant_exposure must be one of" in e for e in errors
+        )
+
+    def test_accepts_none(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(participant_exposure="none")
+        errors = get_config_errors(cfg)
+        assert not any("manual.participant_exposure" in e for e in errors)
+
+    def test_accepts_tailscale_funnel_with_tailnet(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        errors = get_config_errors(cfg)
+        assert not any("manual.participant_exposure" in e for e in errors)
+        assert not any("overlay_tailnet is required" in e for e in errors)
+
+    def test_tailscale_funnel_without_tailnet_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(
+            participant_exposure="tailscale_funnel", overlay_tailnet=""
+        )
+        errors = get_config_errors(cfg)
+        assert any("overlay_tailnet is required" in e for e in errors)
+
+    def test_mesh_overlay_without_funnel_still_requires_tailnet(self):
+        """Regression: broadening the overlay_tailnet check to cover
+        participant_exposure must not weaken its existing mesh_overlay
+        requirement."""
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(participant_exposure="none", overlay_tailnet="")
+        cfg.manual.connectivity = "mesh_overlay"
+        errors = get_config_errors(cfg)
+        assert any("overlay_tailnet is required" in e for e in errors)
+
+
+class TestWeakAdminPasswordHelper:
+    """Tests for the standalone is_weak_admin_password helper."""
+
+    def test_empty_is_weak(self):
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+        assert is_weak_admin_password("") is True
+
+    def test_known_example_value_is_weak(self):
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+        assert is_weak_admin_password("123456") is True
+
+    def test_short_password_is_weak(self):
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+        assert is_weak_admin_password("short1") is True
+
+    def test_strong_password_is_not_weak(self):
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+        assert is_weak_admin_password("a-genuinely-long-passphrase-99") is False
+
+
+class TestParticipantExposureWeakPasswordGate:
+    def _make_cfg(self, admin_password):
+        from lablink_allocator_service.conf.structured_config import Config
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.participant_exposure = "tailscale_funnel"
+        cfg.manual.overlay_tailnet = "example.ts.net"
+        cfg.app.admin_password = admin_password
+        return cfg
+
+    def test_weak_password_rejected_when_funnel_enabled(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(admin_password="123456")
+        errors = get_config_errors(cfg)
+        assert any("admin_password" in e for e in errors)
+
+    def test_strong_password_accepted_when_funnel_enabled(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = self._make_cfg(admin_password="a-genuinely-long-passphrase-99")
+        errors = get_config_errors(cfg)
+        assert not any("admin_password" in e for e in errors)
+
+    def test_weak_password_irrelevant_when_exposure_is_none(self):
+        from lablink_allocator_service.conf.structured_config import Config
+        from lablink_allocator_service.validate_config import get_config_errors
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.participant_exposure = "none"
+        cfg.app.admin_password = "123456"
+        errors = get_config_errors(cfg)
+        assert not any("admin_password" in e for e in errors)

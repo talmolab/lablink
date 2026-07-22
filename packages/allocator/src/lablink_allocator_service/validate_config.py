@@ -35,6 +35,31 @@ VALID_PROVIDERS = ("aws", "manual")
 # clients that aren't on the allocator's own LAN over a Tailscale tailnet.
 VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
 
+# manual.participant_exposure — how participants (not clients) reach the
+# allocator when it isn't on their LAN. Independent of connectivity above;
+# "tailscale_funnel" reuses the same tailnet, just for a different purpose
+# (publishing the allocator's own HTTP port, not reaching a client).
+VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel")
+
+# Deployment-example / commonly-typed weak values a Funnel-exposed admin
+# panel must never ship with — CT-log scanning finds a newly-published
+# Funnel host within minutes of publication (empirically confirmed
+# 2026-07-22), so "my own LAN, who cares" stops being a defensible posture
+# the moment participant_exposure != "none".
+WEAK_ADMIN_PASSWORDS = frozenset({"123456", "admin", "password", "changeme", ""})
+MIN_ADMIN_PASSWORD_LENGTH = 12
+
+
+def is_weak_admin_password(password: str) -> bool:
+    """True if *password* is empty, a known example/default value, or
+    shorter than the minimum length required once the allocator is
+    reachable from the public internet."""
+    if not password:
+        return True
+    if password.lower() in WEAK_ADMIN_PASSWORDS:
+        return True
+    return len(password) < MIN_ADMIN_PASSWORD_LENGTH
+
 
 def validate_domain_format(domain: str) -> Tuple[bool, str]:
     """Validate domain format to prevent malformed domains.
@@ -94,13 +119,36 @@ def get_config_errors(cfg) -> list:
                 f"manual.connectivity must be one of: "
                 f"{', '.join(VALID_CONNECTIVITY)} (got '{connectivity}')"
             )
-        elif connectivity == "mesh_overlay" and not getattr(
-            manual_cfg, "overlay_tailnet", ""
-        ):
+
+        participant_exposure = getattr(manual_cfg, "participant_exposure", "none")
+        if participant_exposure not in VALID_PARTICIPANT_EXPOSURE:
+            errors.append(
+                f"manual.participant_exposure must be one of: "
+                f"{', '.join(VALID_PARTICIPANT_EXPOSURE)} "
+                f"(got '{participant_exposure}')"
+            )
+
+        needs_tailnet = (
+            connectivity == "mesh_overlay"
+            or participant_exposure == "tailscale_funnel"
+        )
+        if needs_tailnet and not getattr(manual_cfg, "overlay_tailnet", ""):
             errors.append(
                 "manual.overlay_tailnet is required when manual.connectivity "
-                "is 'mesh_overlay' (e.g. 'example.ts.net')"
+                "is 'mesh_overlay' or manual.participant_exposure is "
+                "'tailscale_funnel' (e.g. 'example.ts.net')"
             )
+
+        if participant_exposure == "tailscale_funnel":
+            admin_password = getattr(getattr(cfg, "app", None), "admin_password", "")
+            if is_weak_admin_password(admin_password):
+                errors.append(
+                    "manual.participant_exposure is 'tailscale_funnel' but "
+                    "app.admin_password is empty, a known example value, or "
+                    "shorter than 12 characters — a Funnel-exposed allocator "
+                    "is scanned by bots within minutes; set a strong "
+                    "admin_password"
+                )
 
     # DNS enabled requires non-empty domain
     if cfg.dns.enabled and not cfg.dns.domain:
