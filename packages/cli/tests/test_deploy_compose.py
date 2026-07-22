@@ -504,7 +504,10 @@ class TestDeployComposePreflight:
 
 class TestDestroyCompose:
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_default_compose_down_no_volumes(self, mock_run, tmp_path):
+    def test_default_wipes_volumes_and_workdir(self, mock_run, tmp_path):
+        """Default behavior is now a full wipe — matches what "destroy"
+        means for every other provider, and what most operators expect
+        (a subsequent `lablink deploy` starts from an empty database)."""
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
@@ -513,18 +516,16 @@ class TestDestroyCompose:
         (workdir / "docker-compose.yml").write_text("")
         mock_run.return_value = MagicMock(returncode=0)
 
-        run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=tmp_path / "compose"
-        )
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
         mock_run.assert_called_once()
         cmd = mock_run.call_args[0][0]
         assert "down" in cmd
-        assert "--volumes" not in cmd
-        assert workdir.exists()  # NOT removed without --purge
+        assert "--volumes" in cmd
+        assert not workdir.exists()  # removed by default
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_purge_removes_volumes_and_workdir(self, mock_run, tmp_path):
+    def test_keep_data_preserves_volumes_and_workdir(self, mock_run, tmp_path):
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
@@ -534,22 +535,20 @@ class TestDestroyCompose:
         mock_run.return_value = MagicMock(returncode=0)
 
         run_destroy_compose(
-            cfg, yes=True, purge=True, workdir_root=tmp_path / "compose"
+            cfg, yes=True, keep_data=True, workdir_root=tmp_path / "compose"
         )
 
         cmd = mock_run.call_args[0][0]
         assert "down" in cmd
-        assert "--volumes" in cmd
-        assert not workdir.exists()  # removed on purge
+        assert "--volumes" not in cmd
+        assert workdir.exists()  # NOT removed with --keep-data
 
     def test_noop_when_workdir_missing(self, tmp_path):
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
         # No directory created — should just print a message and return.
-        run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=tmp_path / "compose"
-        )
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
     def test_destroy_compose_prints_unregister_reminder_on_success(
         self, tmp_path, capsys, monkeypatch
@@ -567,7 +566,7 @@ class TestDestroyCompose:
         monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
 
         deploy_compose.run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=workdir_root,
+            cfg, yes=True, workdir_root=workdir_root,
         )
 
         out = capsys.readouterr().out
@@ -584,7 +583,7 @@ class TestDestroyCompose:
         cfg = _manual_cfg()
 
         deploy_compose.run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=workdir_root,
+            cfg, yes=True, workdir_root=workdir_root,
         )
 
         out = capsys.readouterr().out
@@ -607,7 +606,7 @@ class TestDestroyCompose:
 
         with pytest.raises(SystemExit):
             deploy_compose.run_destroy_compose(
-                cfg, yes=True, purge=False, workdir_root=workdir_root,
+                cfg, yes=True, workdir_root=workdir_root,
             )
 
         out = capsys.readouterr().out

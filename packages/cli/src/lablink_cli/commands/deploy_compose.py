@@ -471,17 +471,25 @@ def run_destroy_compose(
     cfg: Config,
     *,
     yes: bool = False,
-    purge: bool = False,
+    keep_data: bool = False,
     workdir_root: Path | None = None,
 ) -> None:
     """Tear down a manual-provider compose stack.
 
-    Default behavior: `docker compose down` (preserves the Postgres
-    data volume and the working directory — re-deploying restores the
-    DB state).
+    Default behavior: wipes everything — `docker compose down --volumes`
+    (deletes the Postgres data volume: all registration history,
+    sessions, etc.) plus the working directory. A subsequent
+    `lablink deploy` with the same deployment_name then starts from a
+    genuinely empty database, matching what "destroy" means for every
+    other provider — previously the default silently preserved the old
+    volume, so a "fresh" redeploy kept showing every client registered
+    under a prior deployment.
 
-    With `purge=True`: also runs `--volumes` and removes the working
-    directory, wiping all registration history. Destructive.
+    With `keep_data=True`: only `docker compose down` (no `--volumes`),
+    and the working directory is left in place — re-deploying with the
+    same deployment_name restores the previous DB state instead of
+    starting fresh. Opt into this only if that's specifically what you
+    want (e.g. a deliberate maintenance restart, not a real teardown).
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
@@ -497,10 +505,11 @@ def run_destroy_compose(
         return
 
     if not yes:
-        if purge:
+        if not keep_data:
             console.print(
-                "[red bold]--purge will DELETE the Postgres data volume "
-                "(all registration history, sessions, etc.).[/red bold]"
+                "[red bold]This will DELETE the Postgres data volume "
+                "(all registration history, sessions, etc.). Pass "
+                "--keep-data to preserve it instead.[/red bold]"
             )
         confirmation = typer.prompt(
             f"Type 'yes' to tear down compose stack at {target}",
@@ -512,7 +521,7 @@ def run_destroy_compose(
             raise SystemExit(1)
 
     cmd = ["docker", "compose", "down"]
-    if purge:
+    if not keep_data:
         cmd.append("--volumes")
 
     result = subprocess.run(cmd, cwd=target, check=False)
@@ -520,7 +529,7 @@ def run_destroy_compose(
         console.print("[red]docker compose down failed.[/red]")
         raise SystemExit(result.returncode or 1)
 
-    if purge:
+    if not keep_data:
         shutil.rmtree(target)
         console.print(f"[green]Removed {target}.[/green]")
     else:
