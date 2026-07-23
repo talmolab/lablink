@@ -393,24 +393,34 @@ S3 bucket for Terraform state storage. Must be globally unique.
 
 Controls a custom startup script to be run on client VMs after the container starts.
 
-| Option     | Type    | Default    | Description                                      |
-|------------|---------|------------|--------------------------------------------------|
-| `enabled`  | boolean | `false`    | Enable custom startup script                     |
-| `path`     | string  | `""`       | Path to the startup script file                  |
-| `on_error` | string  | `continue` | Behavior on script error: `continue` or `fail`   |
+| Option               | Type    | Default    | Description                                                          |
+|----------------------|---------|------------|------------------------------------------------------------------------|
+| `enabled`            | boolean | `false`    | Enable custom startup script                                         |
+| `path`               | string  | `""`       | Path to the startup script file                                      |
+| `on_error`           | string  | `continue` | Behavior on script error: `continue` or `fail`                       |
+| `max_attempts`       | integer | `3`        | Total attempts to run the script before giving up (`1` = no retry)   |
+| `base_delay_seconds` | integer | `30`       | Base delay for exponential backoff between retries (doubles each attempt, plus jitter) |
+| `success_check`      | string  | `""`       | Optional shell command run after the script exits `0`, to verify success beyond its own exit code. Empty disables the check. |
 
 **Example:**
 
 ```yaml
 startup_script:
   enabled: true
-  path: "/path/to/your/script.sh"
+  path: "/path/to/install-sleap.sh"
   on_error: "fail"
+  max_attempts: 3
+  base_delay_seconds: 30
+  success_check: "sleap --version"
 ```
 
-When `enabled` is `true`, the content of the script specified by `path` will be executed on the client VM.
-- If `on_error` is `continue`, any errors in the script will be logged, but the VM will continue to run.
-- If `on_error` is `fail`, the VM setup will be aborted if the script returns a non-zero exit code.
+When `enabled` is `true`, the content of the script specified by `path` will be executed on the client VM, retried up to `max_attempts` times with exponential backoff if it fails (or if `success_check` is set and fails after the script exits `0`).
+- If `on_error` is `continue`, an error on the final attempt is logged, but the VM will continue to run.
+- If `on_error` is `fail`, the VM setup will be aborted if the final attempt still returns a non-zero exit code (or fails `success_check`).
+
+**Retries re-run the entire script, not just the failing step** — so the script must be safe to run more than once (e.g. `uv tool install` already is: re-running it when the tool is already installed is a no-op).
+
+**`success_check` runs in a separate shell**, after the script's own process has already exited — it will not see any `PATH`/environment changes the script made only for its own subshell. Reference tools by absolute path, or ensure the script places them somewhere already on the container's `PATH` (e.g. `/usr/local/bin`), not just its own local shell state.
 
 ### Monitoring Options (`monitoring`)
 
