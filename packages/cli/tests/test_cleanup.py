@@ -108,6 +108,80 @@ class TestCleanupSecurityGroups:
 
         cleanup_security_groups(ec2, "mylab", "dev", dry_run=True)
         ec2.delete_security_group.assert_not_called()
+        ec2.revoke_security_group_ingress.assert_not_called()
+        ec2.revoke_security_group_egress.assert_not_called()
+
+    def test_revokes_rules_before_delete(self):
+        ec2 = MagicMock()
+        ingress = [{"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80}]
+        egress = [{"IpProtocol": "-1"}]
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {
+                        "GroupName": "mylab-allocator-sg-dev",
+                        "GroupId": "sg-aaa",
+                        "IpPermissions": ingress,
+                        "IpPermissionsEgress": egress,
+                    }
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.revoke_security_group_ingress.assert_called_once_with(
+            GroupId="sg-aaa", IpPermissions=ingress
+        )
+        ec2.revoke_security_group_egress.assert_called_once_with(
+            GroupId="sg-aaa", IpPermissions=egress
+        )
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
+    def test_dependency_violation_does_not_abort(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {
+                "SecurityGroups": [
+                    {"GroupName": "x-lablink-client-dev-sg", "GroupId": "sg-bbb"}
+                ]
+            },
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = [
+            ClientError(
+                {"Error": {"Code": "DependencyViolation", "Message": "x"}},
+                "DeleteSecurityGroup",
+            ),
+            None,
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        # Both SGs were attempted; second one succeeded.
+        assert ec2.delete_security_group.call_count == 2
+
+    def test_skips_revoke_when_no_rules(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.revoke_security_group_ingress.assert_not_called()
+        ec2.revoke_security_group_egress.assert_not_called()
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
 
 
 # ------------------------------------------------------------------
