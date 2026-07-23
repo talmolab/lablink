@@ -68,16 +68,53 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
-# Run the custom startup script if it exists and is non-empty
+# Run the custom startup script if it exists and is non-empty, retrying
+# with exponential backoff on failure — startup scripts frequently call
+# `uv`/pip, which is prone to transient PyPI timeouts when many VMs boot
+# in parallel (see lablink#376). Retry re-runs the WHOLE script, so it
+# must be safe to run more than once (e.g. `uv tool install` already is).
 if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-startup.sh" ]; then
-  echo "Running custom startup script..."
   sudo chmod +x /docker_scripts/custom-startup.sh
 
-  bash /docker_scripts/custom-startup.sh 2>&1
-  rc=$?
+  MAX_ATTEMPTS="${STARTUP_MAX_ATTEMPTS:-1}"
+  [ "$MAX_ATTEMPTS" -lt 1 ] 2>/dev/null && MAX_ATTEMPTS=1
+  BASE_DELAY="${STARTUP_BASE_DELAY_SECONDS:-0}"
+
+  # success_check travels base64-encoded end-to-end (both the AWS and
+  # manual/BYO paths) because it's a free-text shell command that could
+  # contain characters ($, %) that break Terraform's templatefile()
+  # interpolation in user_data.sh — same reason the script content
+  # itself is base64-encoded.
+  SUCCESS_CHECK=""
+  if [ -n "${STARTUP_SUCCESS_CHECK_B64:-}" ]; then
+    SUCCESS_CHECK=$(printf '%s' "$STARTUP_SUCCESS_CHECK_B64" | base64 -d 2>/dev/null || true)
+  fi
+
+  for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+    echo "Running custom startup script (attempt $attempt/$MAX_ATTEMPTS)..."
+    bash /docker_scripts/custom-startup.sh 2>&1
+    rc=$?
+
+    if [ $rc -eq 0 ] && [ -n "$SUCCESS_CHECK" ]; then
+      echo "Verifying success with: $SUCCESS_CHECK"
+      bash -c "$SUCCESS_CHECK" 2>&1
+      rc=$?
+      [ $rc -ne 0 ] && echo "Success check failed (exit $rc)"
+    fi
+
+    [ $rc -eq 0 ] && break
+
+    if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+      DELAY=$((BASE_DELAY * (2 ** (attempt - 1))))
+      JITTER=$((RANDOM % (DELAY + 1)))
+      SLEEP=$((DELAY + JITTER))
+      echo "Startup script failed (exit $rc); retrying in ${SLEEP}s..."
+      sleep "$SLEEP"
+    fi
+  done
 
   if [ $rc -ne 0 ]; then
-    echo "Warning: custom startup script exited with code $rc"
+    echo "Warning: custom startup script did not succeed after $MAX_ATTEMPTS attempt(s) (exit $rc)"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
       send_status "error"
       exit $rc

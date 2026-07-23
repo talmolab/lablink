@@ -407,3 +407,51 @@ def test_launch_returns_405_when_provider_cannot_provision(
     )
     assert r.status_code == 405, \
         f"expected 405 when provider can't provision; got {r.status_code}"
+
+
+def test_launch_closure_base64_encodes_success_check(
+    launch_setup, client, admin_headers, monkeypatch,
+):
+    """main.py's launch() must base64-encode a non-empty success_check into
+    the spec dict, the same way routes/registration.py already does for the
+    BYO path (test_registration_api.py::test_register_response_includes_startup_script_when_enabled)
+    — this closes the asymmetric coverage the final review flagged.
+
+    Rather than reusing `_provider_happy_path_patches()` (which mocks
+    AWSProvider's internals so provision_hosts's real implementation can
+    run), this test swaps the whole provider for a minimal fake. `spec` is
+    built by `launch()` itself before `provider.provision_hosts(...)` is
+    even called, so a fake provider that just records its `spec` kwarg is
+    enough to verify main.py's own encoding line — no need to also exercise
+    AWSProvider's terraform/AWS plumbing.
+    """
+    import base64
+
+    from lablink_allocator_service import main
+    from lablink_allocator_service.providers.protocol import ProvisionResult
+
+    monkeypatch.setattr(
+        main.cfg.startup_script, "success_check", "sleap --version", raising=False
+    )
+
+    captured = {}
+
+    class _FakeProvider:
+        can_provision_hosts = True
+
+        def provision_hosts(self, count, spec):
+            captured["spec"] = spec
+            return ProvisionResult(handles=[], timings={}, apply_stdout="ok")
+
+    monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", _FakeProvider())
+
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        fn()
+
+    assert "spec" in captured, "provision_hosts was never called"
+    assert (
+        base64.b64decode(captured["spec"]["startup_success_check_b64"])
+        == b"sleap --version"
+    )

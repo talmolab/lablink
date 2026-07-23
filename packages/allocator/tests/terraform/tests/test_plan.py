@@ -63,6 +63,9 @@ def test_variables(plan):
         plan["variables"]["custom_startup_script_path"]["value"]
         == "../../../tests/terraform/fixtures/custom-startup.sh"
     )
+    assert plan["variables"]["startup_max_attempts"]["value"] == 3
+    assert plan["variables"]["startup_base_delay_seconds"]["value"] == 30
+    assert plan["variables"]["startup_success_check_b64"]["value"] == ""
 
 
 def _resource_map(plan):
@@ -240,6 +243,27 @@ def test_custom_startup_script_in_user_data(plan, fixture_dir):
     decoded_script = _extract_startup_script_from_user_data(user_data_content)
     assert decoded_script is not None, "Could not find base64-encoded startup script"
     assert decoded_script.strip() == expected_script_content
+
+
+def _decode_user_data(user_data_content: str) -> str:
+    """Same decode as _extract_startup_script_from_user_data, generalized
+    for asserting on any plain-text substring in the rendered script."""
+    try:
+        return gzip.decompress(base64.b64decode(user_data_content)).decode("utf-8")
+    except Exception:
+        return base64.b64decode(user_data_content).decode("utf-8")
+
+
+def test_startup_retry_env_vars_in_user_data(plan):
+    """New retry/success-check variables must reach the client container
+    as env vars, using the plan's declared defaults (3, 30, "")."""
+    instances = _collect_resources(plan, "aws_instance", "lablink_vm")
+    first_instance_addr = sorted(instances.keys(), key=_numeric_sort_key)[0]
+    user_data_content = instances[first_instance_addr]["values"]["user_data_base64"]
+    decoded = _decode_user_data(user_data_content)
+    assert 'STARTUP_MAX_ATTEMPTS="3"' in decoded
+    assert 'STARTUP_BASE_DELAY_SECONDS="30"' in decoded
+    assert 'STARTUP_SUCCESS_CHECK_B64=""' in decoded
 
 
 def test_multiline_special_chars_custom_startup_script(fixture_dir):

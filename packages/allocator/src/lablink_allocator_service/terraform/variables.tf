@@ -82,6 +82,24 @@ variable "startup_on_error" {
   default     = "continue"
 }
 
+variable "startup_max_attempts" {
+  type        = number
+  description = "Number of attempts for the custom startup script before giving up (1 = no retry)"
+  default     = 3
+}
+
+variable "startup_base_delay_seconds" {
+  type        = number
+  description = "Base delay in seconds for exponential backoff between custom startup script retries"
+  default     = 30
+}
+
+variable "startup_success_check_b64" {
+  type        = string
+  description = "Base64-encoded optional shell command to verify custom startup script success beyond its exit code"
+  default     = ""
+}
+
 variable "custom_startup_script_path" {
   type        = string
   description = "Path to a custom startup script to be executed on instance launch within EC2 Instance"

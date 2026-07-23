@@ -1222,6 +1222,36 @@ class StartupScreen(Screen):
                     ),
                 )
 
+            yield Label(
+                "Max attempts", classes="field-label"
+            )
+            yield Input(
+                value=str(cfg.startup_script.max_attempts),
+                type="integer",
+                id="max-attempts",
+            )
+
+            yield Label(
+                "Base delay (seconds)", classes="field-label"
+            )
+            yield Input(
+                value=str(cfg.startup_script.base_delay_seconds),
+                type="integer",
+                id="base-delay",
+            )
+
+            yield Label(
+                "Success check command (optional)",
+                classes="field-label",
+            )
+            yield Input(
+                value=cfg.startup_script.success_check,
+                placeholder=(
+                    "e.g. /home/client/.local/bin/sleap --version"
+                ),
+                id="success-check",
+            )
+
         with Center():
             with Horizontal(classes="nav-buttons"):
                 yield Button("Back", id="back")
@@ -1303,6 +1333,22 @@ class StartupScreen(Screen):
             if error_radio.pressed_index == 1
             else "continue"
         )
+
+        max_attempts_value = self.query_one(
+            "#max-attempts", Input
+        ).value
+        cfg.startup_script.max_attempts = (
+            int(max_attempts_value) if max_attempts_value else 3
+        )
+        base_delay_value = self.query_one(
+            "#base-delay", Input
+        ).value
+        cfg.startup_script.base_delay_seconds = (
+            int(base_delay_value) if base_delay_value else 30
+        )
+        cfg.startup_script.success_check = self.query_one(
+            "#success-check", Input
+        ).value.strip()
 
         if idx == 0:
             # Disabled

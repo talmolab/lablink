@@ -159,11 +159,21 @@ class StartupConfig:
         on_error (str): Behavior on startup script error. Options:
             - "continue": Log the error and continue startup.
             - "fail": Abort startup on error.
+        max_attempts (int): Total attempts to run the startup script
+            before giving up (1 = no retry).
+        base_delay_seconds (int): Base delay for exponential backoff
+            between retries; doubles each attempt, plus jitter.
+        success_check (str): Optional shell command run after the
+            script exits 0 to verify success beyond its own exit code.
+            Empty string disables the check (success = exit code only).
     """
 
     enabled: bool = field(default=False)
     path: str = field(default="")
     on_error: str = field(default="continue")  # Options: "continue", "fail"
+    max_attempts: int = field(default=3)
+    base_delay_seconds: int = field(default=30)
+    success_check: str = field(default="")
 
 
 @dataclass

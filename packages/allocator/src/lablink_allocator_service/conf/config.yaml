@@ -62,6 +62,9 @@ startup_script:
   enabled: false # true = run custom startup script on client VMs, false = no script
   path: ""  # Path to custom startup script (optional)
   on_error: "continue"  # "continue" = ignore errors, "fail" = stop VM setup on error
+  max_attempts: 3  # Total attempts before giving up (1 = no retry)
+  base_delay_seconds: 30  # Base delay for exponential backoff between retries
+  success_check: ""  # Optional command to verify success beyond exit code; empty disables the check
 
 monitoring:
   enabled: false
