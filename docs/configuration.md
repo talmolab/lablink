@@ -411,7 +411,7 @@ startup_script:
   on_error: "fail"
   max_attempts: 3
   base_delay_seconds: 30
-  success_check: "sleap --version"
+  success_check: "/home/client/.local/bin/sleap --version"
 ```
 
 When `enabled` is `true`, the content of the script specified by `path` will be executed on the client VM, retried up to `max_attempts` times with exponential backoff if it fails (or if `success_check` is set and fails after the script exits `0`).
