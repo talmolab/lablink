@@ -445,6 +445,18 @@ def _build_docker_run(
             ),
             "-e",
             f"STARTUP_ON_ERROR={resp.get('startup_on_error', 'continue')}",
+            "-e",
+            f"STARTUP_MAX_ATTEMPTS={resp.get('startup_max_attempts', 1)}",
+            "-e",
+            (
+                "STARTUP_BASE_DELAY_SECONDS="
+                f"{resp.get('startup_base_delay_seconds', 0)}"
+            ),
+            "-e",
+            (
+                "STARTUP_SUCCESS_CHECK_B64="
+                f"{resp.get('startup_success_check_b64', '')}"
+            ),
         ]
     # Publish 7070 (agent's /api/session/start) and 6080 (KasmVNC) on
     # the LAN IP so the allocator can reach them. `--network host` would

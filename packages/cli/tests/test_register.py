@@ -40,11 +40,14 @@ def successful_response():
         "connectivity": "lan_direct",
         "client_image": "ghcr.io/talmolab/lablink-client:0.4.0",
         # New fields shipped by routes/registration.py. Defaults are
-        # the "disabled" payload (empty b64 → no mount, no env var),
+        # the "disabled" payload (empty b64 → no mount, no env vars),
         # which matches the existing tests' assumption that docker run
         # carries no --mount and no STARTUP_ON_ERROR.
         "startup_script_b64": "",
         "startup_on_error": "continue",
+        "startup_max_attempts": 3,
+        "startup_base_delay_seconds": 30,
+        "startup_success_check_b64": "",
     }
 
 
@@ -1207,6 +1210,11 @@ class TestDockerRunMountsStartupScript:
         payload = b"#!/bin/bash\necho hi from startup\n"
         successful_response["startup_script_b64"] = base64.b64encode(payload).decode()
         successful_response["startup_on_error"] = "fail"
+        successful_response["startup_max_attempts"] = 5
+        successful_response["startup_base_delay_seconds"] = 15
+        successful_response["startup_success_check_b64"] = base64.b64encode(
+            b"sleap --version"
+        ).decode()
 
         mock_detect.detect_hostname.return_value = "byo-01"
         mock_detect.detect_lan_ip.return_value = "192.168.1.42"
@@ -1248,6 +1256,18 @@ class TestDockerRunMountsStartupScript:
         ]
         assert "STARTUP_ON_ERROR=fail" in env_args, (
             f"STARTUP_ON_ERROR not forwarded; -e args={env_args}"
+        )
+        assert "STARTUP_MAX_ATTEMPTS=5" in env_args, (
+            f"STARTUP_MAX_ATTEMPTS not forwarded; -e args={env_args}"
+        )
+        assert "STARTUP_BASE_DELAY_SECONDS=15" in env_args, (
+            f"STARTUP_BASE_DELAY_SECONDS not forwarded; -e args={env_args}"
+        )
+        assert (
+            f"STARTUP_SUCCESS_CHECK_B64="
+            f"{successful_response['startup_success_check_b64']}"
+        ) in env_args, (
+            f"STARTUP_SUCCESS_CHECK_B64 not forwarded; -e args={env_args}"
         )
 
     @patch("lablink_cli.commands.register.subprocess.Popen")
@@ -1294,6 +1314,15 @@ class TestDockerRunMountsStartupScript:
         ]
         assert not any("STARTUP_ON_ERROR" in a for a in env_args), (
             f"STARTUP_ON_ERROR must not be forwarded when no script; got {env_args}"
+        )
+        assert not any("STARTUP_MAX_ATTEMPTS" in a for a in env_args), (
+            f"STARTUP_MAX_ATTEMPTS must not be forwarded when no script; got {env_args}"
+        )
+        assert not any("STARTUP_BASE_DELAY_SECONDS" in a for a in env_args), (
+            f"STARTUP_BASE_DELAY_SECONDS must not be forwarded when no script; got {env_args}"
+        )
+        assert not any("STARTUP_SUCCESS_CHECK_B64" in a for a in env_args), (
+            f"STARTUP_SUCCESS_CHECK_B64 must not be forwarded when no script; got {env_args}"
         )
 
     def test_corrupt_pid_file_returns_false(self, tmp_path, monkeypatch):
