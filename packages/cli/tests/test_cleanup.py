@@ -183,6 +183,68 @@ class TestCleanupSecurityGroups:
         ec2.revoke_security_group_egress.assert_not_called()
         ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
 
+    def test_not_found_on_delete(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = ClientError(
+            {"Error": {"Code": "InvalidGroup.NotFound", "Message": "x"}},
+            "DeleteSecurityGroup",
+        )
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
+    def test_unexpected_error_on_delete_reraises(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = ClientError(
+            {"Error": {"Code": "UnauthorizedOperation", "Message": "x"}},
+            "DeleteSecurityGroup",
+        )
+
+        with pytest.raises(ClientError):
+            cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+
+    def test_revoke_failure_does_not_block_delete(self):
+        ec2 = MagicMock()
+        ingress = [{"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80}]
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {
+                        "GroupName": "mylab-allocator-sg-dev",
+                        "GroupId": "sg-aaa",
+                        "IpPermissions": ingress,
+                    }
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.revoke_security_group_ingress.side_effect = ClientError(
+            {"Error": {"Code": "AuthFailure", "Message": "x"}},
+            "RevokeSecurityGroupIngress",
+        )
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
 
 # ------------------------------------------------------------------
 # cleanup_key_pairs
