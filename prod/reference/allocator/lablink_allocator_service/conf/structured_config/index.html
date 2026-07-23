@@ -2599,6 +2599,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;participant_exposure
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5479,6 +5490,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;participant_exposure
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -7591,7 +7613,7 @@ software to be used.</p>
 
 
 <h4 id="lablink_allocator_service.conf.structured_config.ManualConfig" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ManualConfig</span><span class="p">(</span><span class="n">connectivity</span><span class="o">=</span><span class="s1">&#39;lan_direct&#39;</span><span class="p">,</span> <span class="n">overlay_tailnet</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ManualConfig</span><span class="p">(</span><span class="n">connectivity</span><span class="o">=</span><span class="s1">&#39;lan_direct&#39;</span><span class="p">,</span> <span class="n">overlay_tailnet</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">participant_exposure</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -7604,7 +7626,8 @@ software to be used.</p>
 
 
 
-        <p>Configuration for the manual provider's client connectivity strategy.</p>
+        <p>Configuration for the manual provider's client connectivity and
+participant-exposure strategy.</p>
 
 
 <p><span class="doc-section-title">Attributes:</span></p>
@@ -7656,8 +7679,34 @@ KasmVNC desktop. Options:
               <div class="doc-md-description">
                 <p>The Tailscale tailnet's MagicDNS domain
 suffix (e.g. "example.ts.net"), used to resolve a registered
-client's overlay hostname. Required when connectivity is
-"mesh_overlay"; ignored otherwise.</p>
+client's overlay hostname, and/or the allocator's own
+Funnel-published hostname. Required when connectivity is
+"mesh_overlay" or participant_exposure is "tailscale_funnel";
+ignored otherwise.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><a class="autorefs autorefs-internal" title="            participant_exposure = field(default='none')
+
+  
+      class-attribute
+      instance-attribute
+   (lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure)" href="#lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure">participant_exposure</a></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How participants (not clients) reach
+the allocator when it isn't on their LAN. Independent of
+connectivity — an admin can have lan_direct clients and still
+want off-LAN participants, or vice versa. Options:
+- "none": unchanged, LAN-only (default).
+- "tailscale_funnel": publish the allocator's HTTP port to the
+  public internet via the tailnet named by overlay_tailnet,
+  using the same tailscale sidecar connectivity="mesh_overlay"
+  already provisions (reused, not a second sidecar).</p>
               </div>
             </td>
           </tr>
@@ -7716,6 +7765,27 @@ client's overlay hostname. Required when connectivity is
   </span>
 
 <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.overlay_tailnet" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">participant_exposure</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
