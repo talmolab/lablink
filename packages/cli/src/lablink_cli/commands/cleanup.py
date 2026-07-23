@@ -174,9 +174,18 @@ def cleanup_key_pairs(
 
 
 def cleanup_elastic_ips(
-    ec2, deployment_name: str, environment: str, dry_run: bool
+    ec2,
+    deployment_name: str,
+    environment: str,
+    eip_strategy: str,
+    dry_run: bool,
 ) -> None:
-    """Release lablink elastic IPs."""
+    """Release lablink elastic IPs.
+
+    Never releases when eip_strategy is "persistent" — the whole point
+    of that strategy is reuse across deployments (and, commonly, a DNS
+    record pointed at it), regardless of dry_run.
+    """
     console.print("[bold]Elastic IPs[/bold]")
     resp = ec2.describe_addresses(
         Filters=[
@@ -188,6 +197,16 @@ def cleanup_elastic_ips(
     )
     if not resp["Addresses"]:
         console.print("  [dim]none found[/dim]")
+        return
+
+    if eip_strategy == "persistent":
+        for addr in resp["Addresses"]:
+            ip = addr.get("PublicIp", "")
+            alloc_id = addr["AllocationId"]
+            console.print(
+                f"  [dim]skipping[/dim] {ip} ({alloc_id}) — "
+                "eip.strategy is 'persistent', reused across deployments"
+            )
         return
 
     for addr in resp["Addresses"]:
@@ -508,7 +527,9 @@ def run_cleanup(
     console.print()
     cleanup_key_pairs(ec2, deployment_name, environment, software, dry_run)
     console.print()
-    cleanup_elastic_ips(ec2, deployment_name, environment, dry_run)
+    cleanup_elastic_ips(
+        ec2, deployment_name, environment, cfg.eip.strategy, dry_run
+    )
     console.print()
     cleanup_iam(session, deployment_name, environment, software, dry_run)
     console.print()
