@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import os
-import ssl
 import subprocess
 import tempfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from rich.console import Console
 
 from lablink_allocator_service.conf.structured_config import Config
 
-from lablink_cli.api import USER_AGENT
+from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     get_allocator_url,
     get_deploy_dir,
@@ -40,23 +36,11 @@ def fetch_client_logs(
 ) -> dict:
     """Fetch logs for a client VM from the allocator API."""
     url = f"{allocator_url}/api/vm-logs/{hostname}"
-    credentials = base64.b64encode(
-        f"{admin_user}:{admin_pw}".encode()
-    ).decode()
-
-    req = Request(url, method="GET")
-    req.add_header("User-Agent", USER_AGENT)
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Accept", "application/json")
-
-    ctx = ssl.create_default_context()
-    if ssl_provider == "self_signed":
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
 
     try:
-        resp = urlopen(req, timeout=30, context=ctx)  # noqa: S310
-        body = json.loads(resp.read().decode())
+        body = authenticated_json_request(
+            url, admin_user, admin_pw, ssl_provider=ssl_provider, timeout=30
+        )
         return {
             "cloud_init_logs": body.get("cloud_init_logs"),
             "docker_logs": body.get("docker_logs"),

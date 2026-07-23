@@ -8,16 +8,12 @@ the same deployment state.
 
 from __future__ import annotations
 
-import base64
-import json
-import ssl
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from rich.console import Console
 from rich.table import Table
 
-from lablink_cli.api import USER_AGENT
+from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
@@ -33,25 +29,14 @@ def _fetch(cfg) -> dict:
         raise SystemExit(1)
 
     admin_user, admin_pw = resolve_admin_credentials(cfg)
-    credentials = base64.b64encode(
-        f"{admin_user}:{admin_pw}".encode()
-    ).decode()
-
-    req = Request(
-        f"{allocator_url}/api/session-metrics/summary", method="GET"
-    )
-    req.add_header("User-Agent", USER_AGENT)
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Accept", "application/json")
-
-    ctx = ssl.create_default_context()
-    if cfg.ssl.provider == "self_signed":
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
 
     try:
-        resp = urlopen(req, timeout=60, context=ctx)
-        return json.loads(resp.read().decode())
+        return authenticated_json_request(
+            f"{allocator_url}/api/session-metrics/summary",
+            admin_user,
+            admin_pw,
+            ssl_provider=cfg.ssl.provider,
+        )
     except (HTTPError, URLError) as e:
         console.print(f"[red]Could not reach allocator: {e}[/red]")
         raise SystemExit(1) from e

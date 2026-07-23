@@ -45,7 +45,7 @@ def _patches(payload):
             return_value=("admin", "pw"),
         ),
         patch(
-            "lablink_cli.commands.stats.urlopen",
+            "lablink_cli.api.urlopen",
             return_value=_resp(payload),
         ),
     )
@@ -141,7 +141,7 @@ def test_stats_hits_summary_endpoint_not_export_metrics(mock_cfg):
         ),
     )
     with p1, p2, patch(
-        "lablink_cli.commands.stats.urlopen",
+        "lablink_cli.api.urlopen",
         return_value=_resp(_POPULATED),
     ) as mock_urlopen:
         run_stats(mock_cfg)
