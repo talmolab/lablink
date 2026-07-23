@@ -114,34 +114,83 @@ def cleanup_ec2_instances(
 def cleanup_security_groups(
     ec2, deployment_name: str, environment: str, dry_run: bool
 ) -> None:
-    """Delete lablink security groups."""
+    """Delete lablink security groups.
+
+    Lablink SGs commonly cross-reference each other (e.g., the client SG has
+    an ingress rule sourcing the allocator SG). AWS rejects deletion while any
+    rule still references the SG, so revoke every matched SG's ingress and
+    egress rules first to break the cycle before attempting deletes. A single
+    SG with an external dependent (an ENI we don't own, a non-lablink SG) is
+    surfaced and skipped instead of aborting the rest of cleanup.
+    """
     console.print("[bold]Security Groups[/bold]")
-    found = False
+    matched: list[dict] = []
     for pattern in [
         f"{deployment_name}-allocator-sg-{environment}",
         f"*-lablink-client-{environment}-sg",
         f"{deployment_name}-alb-sg-{environment}",
     ]:
         resp = ec2.describe_security_groups(
-            Filters=[
-                {"Name": "group-name", "Values": [pattern]}
-            ]
+            Filters=[{"Name": "group-name", "Values": [pattern]}]
         )
-        for sg in resp["SecurityGroups"]:
-            found = True
-            if dry_run:
-                console.print(
-                    f"  [yellow]would delete[/yellow] "
-                    f"{sg['GroupName']} ({sg['GroupId']})"
-                )
-            else:
-                _delete_if_exists(
-                    f"{sg['GroupName']} ({sg['GroupId']})",
-                    ec2.delete_security_group,
-                    GroupId=sg["GroupId"],
-                )
-    if not found:
+        matched.extend(resp["SecurityGroups"])
+
+    if not matched:
         console.print("  [dim]none found[/dim]")
+        return
+
+    if dry_run:
+        for sg in matched:
+            console.print(
+                f"  [yellow]would delete[/yellow] "
+                f"{sg['GroupName']} ({sg['GroupId']})"
+            )
+        return
+
+    for sg in matched:
+        gid = sg["GroupId"]
+        if sg.get("IpPermissions"):
+            try:
+                ec2.revoke_security_group_ingress(
+                    GroupId=gid, IpPermissions=sg["IpPermissions"]
+                )
+            except ClientError as e:
+                console.print(
+                    f"  [dim]revoke ingress failed on {gid}, continuing: "
+                    f"{e.response['Error']['Code']}[/dim]"
+                )
+        if sg.get("IpPermissionsEgress"):
+            try:
+                ec2.revoke_security_group_egress(
+                    GroupId=gid, IpPermissions=sg["IpPermissionsEgress"]
+                )
+            except ClientError as e:
+                console.print(
+                    f"  [dim]revoke egress failed on {gid}, continuing: "
+                    f"{e.response['Error']['Code']}[/dim]"
+                )
+
+    for sg in matched:
+        label = f"{sg['GroupName']} ({sg['GroupId']})"
+        try:
+            ec2.delete_security_group(GroupId=sg["GroupId"])
+            console.print(f"  [green]deleted[/green] {label}")
+        except ClientError as e:
+            code = e.response["Error"]["Code"]
+            if code == "DependencyViolation":
+                console.print(
+                    f"  [red]could not delete[/red] {label}: still has "
+                    f"dependents (likely an ENI or non-lablink SG rule); "
+                    f"investigate manually"
+                )
+            elif code in (
+                "InvalidGroup.NotFound",
+                "NotFoundException",
+                "404",
+            ):
+                console.print(f"  [dim]not found[/dim] {label}")
+            else:
+                raise
 
 
 def cleanup_key_pairs(
