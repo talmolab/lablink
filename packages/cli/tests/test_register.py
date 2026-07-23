@@ -1319,10 +1319,12 @@ class TestDockerRunMountsStartupScript:
             f"STARTUP_MAX_ATTEMPTS must not be forwarded when no script; got {env_args}"
         )
         assert not any("STARTUP_BASE_DELAY_SECONDS" in a for a in env_args), (
-            f"STARTUP_BASE_DELAY_SECONDS must not be forwarded when no script; got {env_args}"
+            f"STARTUP_BASE_DELAY_SECONDS must not be forwarded when no "
+            f"script; got {env_args}"
         )
         assert not any("STARTUP_SUCCESS_CHECK_B64" in a for a in env_args), (
-            f"STARTUP_SUCCESS_CHECK_B64 must not be forwarded when no script; got {env_args}"
+            f"STARTUP_SUCCESS_CHECK_B64 must not be forwarded when no "
+            f"script; got {env_args}"
         )
 
     def test_corrupt_pid_file_returns_false(self, tmp_path, monkeypatch):
