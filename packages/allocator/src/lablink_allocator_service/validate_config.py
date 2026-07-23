@@ -15,6 +15,7 @@ from hydra.errors import ConfigCompositionException
 from omegaconf import DictConfig
 from omegaconf.errors import ConfigKeyError, ValidationError
 
+from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.get_config import get_config
 
 # Configure logging
@@ -34,6 +35,38 @@ VALID_PROVIDERS = ("aws", "manual")
 # (_CONNECTIVITY_BUILTIN in providers/registry.py). "mesh_overlay" reaches
 # clients that aren't on the allocator's own LAN over a Tailscale tailnet.
 VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
+
+# manual.participant_exposure — how participants (not clients) reach the
+# allocator when it isn't on their LAN. Independent of connectivity above;
+# "tailscale_funnel" reuses the same tailnet, just for a different purpose
+# (publishing the allocator's own HTTP port, not reaching a client).
+VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel")
+
+# Deployment-example / commonly-typed weak values a Funnel-exposed admin
+# panel must never ship with — CT-log scanning finds a newly-published
+# Funnel host within minutes of publication (empirically confirmed
+# 2026-07-22), so "my own LAN, who cares" stops being a defensible posture
+# the moment participant_exposure != "none". "placeholder_admin_password"
+# is included despite exceeding MIN_ADMIN_PASSWORD_LENGTH: it's the literal
+# value committed in conf/config.yaml (meant to be injected from a GitHub
+# secret at AWS deploy time) — publicly known simply by being in this
+# repo, so a manual config that retained it unchanged is exactly as
+# compromised as one using "123456".
+WEAK_ADMIN_PASSWORDS = frozenset(
+    {"123456", "admin", "password", "changeme", "placeholder_admin_password", ""}
+)
+MIN_ADMIN_PASSWORD_LENGTH = 12
+
+
+def is_weak_admin_password(password: str) -> bool:
+    """True if *password* is empty, a known example/default value, or
+    shorter than the minimum length required once the allocator is
+    reachable from the public internet."""
+    if not password:
+        return True
+    if password.lower() in WEAK_ADMIN_PASSWORDS:
+        return True
+    return len(password) < MIN_ADMIN_PASSWORD_LENGTH
 
 
 def validate_domain_format(domain: str) -> Tuple[bool, str]:
@@ -79,13 +112,14 @@ def get_config_errors(cfg) -> list:
     provider = getattr(cfg, "provider", "aws")
     if provider not in VALID_PROVIDERS:
         errors.append(
-            f"provider must be one of: {', '.join(VALID_PROVIDERS)} "
-            f"(got '{provider}')"
+            f"provider must be one of: {', '.join(VALID_PROVIDERS)} (got '{provider}')"
         )
 
-    # manual.connectivity must be a known value, and mesh_overlay requires
-    # a tailnet domain to resolve overlay hostnames against (see
-    # MeshOverlayClientConnectivity._resolve_overlay_host).
+    # manual.connectivity must be a known value. Either mesh_overlay
+    # (to resolve overlay hostnames — see
+    # MeshOverlayClientConnectivity._resolve_overlay_host) or
+    # participant_exposure == "tailscale_funnel" (to publish the
+    # allocator's own hostname) requires a tailnet domain.
     manual_cfg = getattr(cfg, "manual", None)
     if manual_cfg is not None:
         connectivity = getattr(manual_cfg, "connectivity", "lan_direct")
@@ -94,13 +128,61 @@ def get_config_errors(cfg) -> list:
                 f"manual.connectivity must be one of: "
                 f"{', '.join(VALID_CONNECTIVITY)} (got '{connectivity}')"
             )
-        elif connectivity == "mesh_overlay" and not getattr(
-            manual_cfg, "overlay_tailnet", ""
-        ):
+
+        participant_exposure = getattr(manual_cfg, "participant_exposure", "none")
+        if participant_exposure not in VALID_PARTICIPANT_EXPOSURE:
+            errors.append(
+                f"manual.participant_exposure must be one of: "
+                f"{', '.join(VALID_PARTICIPANT_EXPOSURE)} "
+                f"(got '{participant_exposure}')"
+            )
+
+        # lan_direct sends the participant's browser straight to a client's
+        # LAN IP (ws://<client-ip>:6080 — see LANDirectClientConnectivity),
+        # bypassing the allocator entirely. That's unreachable off-LAN and,
+        # once the allocator itself is Funnel-exposed, actively blocked as
+        # mixed content by the browser (ws:// from an https:// page).
+        # mesh_overlay doesn't have this problem — it proxies sessions
+        # through the allocator's own nginx, which Funnel already exposes.
+        if participant_exposure == "tailscale_funnel" and connectivity == "lan_direct":
+            errors.append(
+                "manual.participant_exposure is 'tailscale_funnel' but "
+                "manual.connectivity is 'lan_direct' — participant sessions "
+                "would connect directly to a client's LAN IP, which is "
+                "unreachable off-LAN and blocked as mixed content from the "
+                "HTTPS Funnel page. Use manual.connectivity: mesh_overlay "
+                "instead, which proxies sessions through the allocator."
+            )
+
+        needs_tailnet = (
+            connectivity == "mesh_overlay" or participant_exposure == "tailscale_funnel"
+        )
+        if needs_tailnet and not getattr(manual_cfg, "overlay_tailnet", ""):
             errors.append(
                 "manual.overlay_tailnet is required when manual.connectivity "
-                "is 'mesh_overlay' (e.g. 'example.ts.net')"
+                "is 'mesh_overlay' or manual.participant_exposure is "
+                "'tailscale_funnel' (e.g. 'example.ts.net')"
             )
+
+        if participant_exposure == "tailscale_funnel":
+            admin_password = getattr(getattr(cfg, "app", None), "admin_password", "")
+            # MISSING_SECRET is AppConfig.admin_password's dataclass default —
+            # the sentinel for "not yet resolved" (the wizard never collects
+            # it; resolve_admin_credentials fills it in at deploy time, and
+            # THAT resolved value is what deploy_compose.py's own preflight
+            # gate checks). Treating the sentinel as "weak" would block
+            # `lablink configure`'s ReviewScreen on every fresh config,
+            # before the operator has had any chance to set a real password.
+            if admin_password != MISSING_SECRET and is_weak_admin_password(
+                admin_password
+            ):
+                errors.append(
+                    "manual.participant_exposure is 'tailscale_funnel' but "
+                    "app.admin_password is empty, a known example value, or "
+                    "shorter than 12 characters — a Funnel-exposed allocator "
+                    "is scanned by bots within minutes; set a strong "
+                    "admin_password"
+                )
 
     # DNS enabled requires non-empty domain
     if cfg.dns.enabled and not cfg.dns.domain:

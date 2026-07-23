@@ -108,9 +108,7 @@ def configure(
     if config_path.exists():
         existing = load_config(config_path)
 
-    wizard = ConfigWizard(
-        existing_config=existing, save_path=config_path
-    )
+    wizard = ConfigWizard(existing_config=existing, save_path=config_path)
     wizard.run()
 
     # After the wizard saves config, run AWS setup automatically
@@ -175,8 +173,7 @@ def deploy(
     terraform_bundle: str = typer.Option(
         None,
         "--terraform-bundle",
-        help="Path to a local template tarball for offline deploys. "
-        "AWS provider only.",
+        help="Path to a local template tarball for offline deploys. AWS provider only.",
     ),
     yes: bool = typer.Option(
         False,
@@ -186,10 +183,12 @@ def deploy(
         "(admin password still required interactively).",
     ),
     tailscale_authkey: str = typer.Option(
-        None, "--tailscale-authkey",
+        None,
+        "--tailscale-authkey",
         help="Tailscale auth key for the allocator's own tailnet sidecar. "
         "Required on the first deploy when manual.connectivity is "
-        "'mesh_overlay'; optional on redeploys (the previous value is "
+        "'mesh_overlay' and/or manual.participant_exposure is "
+        "'tailscale_funnel'; optional on redeploys (the previous value is "
         "carried forward). Manual provider only.",
     ),
 ) -> None:
@@ -371,8 +370,7 @@ def register(
     allocator_url: str = typer.Option(
         ...,
         "--allocator-url",
-        help="Base URL of the LabLink allocator "
-        "(e.g., https://lablink.example.com).",
+        help="Base URL of the LabLink allocator (e.g., https://lablink.example.com).",
     ),
     register_token: str = typer.Option(
         ...,
@@ -384,27 +382,33 @@ def register(
         "(prompted if omitted; also reads $LABLINK_REGISTER_TOKEN).",
     ),
     hostname: str = typer.Option(
-        None, "--hostname",
+        None,
+        "--hostname",
         help="Override auto-detected hostname.",
     ),
     lan_ip: str = typer.Option(
-        None, "--lan-ip",
+        None,
+        "--lan-ip",
         help="Override auto-detected LAN IP.",
     ),
     machine_identity: str = typer.Option(
-        None, "--machine-identity",
+        None,
+        "--machine-identity",
         help="Override auto-detected machine identifier.",
     ),
     gpu_present: bool = typer.Option(
-        None, "--gpu-present/--no-gpu-present",
+        None,
+        "--gpu-present/--no-gpu-present",
         help="Override auto-detected GPU presence.",
     ),
     gpu_model: str = typer.Option(
-        None, "--gpu-model",
+        None,
+        "--gpu-model",
         help="Override auto-detected GPU model string.",
     ),
     overlay_hostname: str = typer.Option(
-        None, "--overlay-hostname",
+        None,
+        "--overlay-hostname",
         help="Register a mesh-overlay client (e.g. a Run:AI-hosted "
         "workload) under this Tailscale hostname, chosen by you. "
         "Requires --tailscale-authkey. By default (see --run-locally) "
@@ -414,12 +418,14 @@ def register(
         "--machine-identity.",
     ),
     tailscale_authkey: str = typer.Option(
-        None, "--tailscale-authkey",
+        None,
+        "--tailscale-authkey",
         help="Tailscale auth key the workload will use to join the "
         "tailnet. Required with --overlay-hostname.",
     ),
     run_locally: bool = typer.Option(
-        True, "--run-locally/--no-run-locally",
+        True,
+        "--run-locally/--no-run-locally",
         help="With --overlay-hostname: docker-run the client container "
         "on this box now, auto-detecting hostname/machine-identity/GPU "
         "like a real BYO box (default: on). Pass --no-run-locally to "
@@ -428,16 +434,19 @@ def register(
         "somewhere other than the workload itself.",
     ),
     force: bool = typer.Option(
-        False, "--force",
+        False,
+        "--force",
         help="Overwrite an existing ~/.lablink/client.env. Mints a new "
         "client_secret (orphans any running container).",
     ),
     env_file: Path = typer.Option(
-        None, "--env-file",
+        None,
+        "--env-file",
         help="Path to write secrets (default ~/.lablink/client.env).",
     ),
     insecure: bool = typer.Option(
-        False, "--insecure",
+        False,
+        "--insecure",
         help="Skip TLS verification (use when the allocator's "
         "ssl.provider is self_signed).",
     ),
@@ -473,16 +482,20 @@ def register(
 @client_app.command("unregister")
 def unregister(
     env_file: Path = typer.Option(
-        None, "--env-file",
+        None,
+        "--env-file",
         help="Path to client.env (default ~/.lablink/client.env).",
     ),
     insecure: bool = typer.Option(
-        False, "--insecure",
+        False,
+        "--insecure",
         help="Skip TLS verification for the allocator notify call "
         "(use when the allocator's ssl.provider is self_signed).",
     ),
     yes: bool = typer.Option(
-        False, "--yes", "-y",
+        False,
+        "--yes",
+        "-y",
         help="Skip the confirmation prompt.",
     ),
 ) -> None:
@@ -524,17 +537,13 @@ def show_config(
 
     raw = config_path.read_text()
     console = Console()
-    console.print(
-        f"[dim]Config file:[/dim] {config_path}\n"
-    )
+    console.print(f"[dim]Config file:[/dim] {config_path}\n")
     console.print(Syntax(raw, "yaml", theme="monokai"))
 
     cfg = load_config(config_path)
     errors = validate_config(cfg)
     if errors:
-        console.print(
-            "\n[bold red]Validation errors:[/bold red]"
-        )
+        console.print("\n[bold red]Validation errors:[/bold red]")
         for e in errors:
             console.print(f"  [red]*[/red] {e}")
     else:
@@ -561,9 +570,7 @@ def _clear_terraform_cache(console) -> None:
     for v in sorted(versions):
         console.print(f"  Removing {v}...")
     shutil.rmtree(cache_dir)
-    console.print(
-        f"[green]Cleared {len(versions)} cached version(s).[/green]"
-    )
+    console.print(f"[green]Cleared {len(versions)} cached version(s).[/green]")
 
 
 def _clear_deployments_cache(console, stale_only: bool = False) -> None:
@@ -611,9 +618,7 @@ def _clear_deployments_cache(console, stale_only: bool = False) -> None:
         p.unlink()
     label = "stale deployment record" if stale_only else "deployment record"
     suffix = "s" if len(records) != 1 else ""
-    console.print(
-        f"[green]Cleared {len(records)} {label}{suffix}.[/green]"
-    )
+    console.print(f"[green]Cleared {len(records)} {label}{suffix}.[/green]")
 
 
 @app.command("cache-clear", rich_help_panel="Maintenance")
@@ -630,10 +635,7 @@ def cache_clear(
     all_caches: bool = typer.Option(
         False,
         "--all",
-        help=(
-            "Clear all LabLink caches (Terraform templates AND deployment "
-            "metrics)."
-        ),
+        help=("Clear all LabLink caches (Terraform templates AND deployment metrics)."),
     ),
     stale: bool = typer.Option(
         False,
@@ -657,9 +659,7 @@ def cache_clear(
     console = Console()
 
     if stale and not deployments:
-        console.print(
-            "[yellow]--stale has no effect without --deployments.[/yellow]"
-        )
+        console.print("[yellow]--stale has no effect without --deployments.[/yellow]")
 
     if all_caches:
         _clear_terraform_cache(console)

@@ -491,17 +491,21 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
 # ManualConnectivityScreen
 # ---------------------------------------------------------------------------
 def _drive_connectivity_screen(
-    *, choose_mesh_overlay: bool, overlay_tailnet: str = ""
+    *,
+    choose_mesh_overlay: bool,
+    overlay_tailnet: str = "",
+    choose_funnel: bool = False,
 ):
     """Push ManualConnectivityScreen directly, drive it, return
-    (cfg.manual.connectivity, cfg.manual.overlay_tailnet, screen_stack_grew)."""
+    (cfg.manual.connectivity, cfg.manual.overlay_tailnet,
+    cfg.manual.participant_exposure, screen_stack_grew)."""
     import asyncio
     from textual.widgets import Input, RadioButton, RadioSet
 
     cfg, app = _build_cfg_and_app()
     cfg.provider = "manual"
 
-    async def _run() -> tuple[str, str, int]:
+    async def _run() -> tuple[str, str, str, int]:
         from lablink_cli.tui.wizard import ManualConnectivityScreen
 
         async with app.run_test() as pilot:
@@ -517,12 +521,24 @@ def _drive_connectivity_screen(
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
                 screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+            if choose_funnel:
+                exposure_set = screen.query_one(
+                    "#participant-exposure-select", RadioSet
+                )
+                for btn in exposure_set.query(RadioButton):
+                    if btn.id == "participant-exposure-funnel":
+                        btn.value = True
+                if not choose_mesh_overlay:
+                    screen.query_one(
+                        "#overlay-tailnet", Input
+                    ).value = overlay_tailnet
             await pilot.pause()
             screen._next()
             await pilot.pause()
             return (
                 cfg.manual.connectivity,
                 cfg.manual.overlay_tailnet,
+                cfg.manual.participant_exposure,
                 len(app.screen_stack) - stack_before,
             )
 
@@ -530,25 +546,27 @@ def _drive_connectivity_screen(
 
 
 def test_connectivity_screen_defaults_to_lan_direct():
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=False
     )
     assert connectivity == "lan_direct"
+    assert exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet="example.ts.net"
     )
     assert connectivity == "mesh_overlay"
     assert tailnet == "example.ts.net"
+    assert exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_blocks_next_when_tailnet_missing():
     """mesh_overlay chosen but no tailnet domain → validation error, no push."""
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet=""
     )
     assert connectivity == "mesh_overlay"
@@ -616,3 +634,62 @@ def test_startup_screen_empty_numeric_fields_fall_back_to_defaults():
     )
     assert result.max_attempts == 3
     assert result.base_delay_seconds == 30
+
+
+def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity():
+    """participant_exposure is a separate field from connectivity, set
+    independently in the UI — but lan_direct + tailscale_funnel is
+    rejected (see test_connectivity_screen_blocks_lan_direct_with_funnel),
+    since lan_direct sends participants straight to a client's LAN IP,
+    bypassing the allocator Funnel exposes. mesh_overlay + funnel is the
+    valid combination."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=True,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert connectivity == "mesh_overlay"
+    assert exposure == "tailscale_funnel"
+    assert tailnet == "example.ts.net"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_lan_direct_with_funnel():
+    """lan_direct sends the participant's browser straight to a client's
+    LAN IP, bypassing the allocator — unreachable off-LAN and blocked as
+    mixed content once the allocator itself is Funnel-exposed. Rejected
+    even with a tailnet domain supplied, unlike the missing-tailnet case."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert connectivity == "lan_direct"
+    assert exposure == "tailscale_funnel"
+    assert stack_delta == 0, "invalid combination must not push DnsScreen"
+
+
+def test_connectivity_screen_blocks_next_when_funnel_missing_tailnet():
+    """tailscale_funnel chosen but no tailnet domain → validation error,
+    no push — same requirement mesh_overlay already has, generalized."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False, choose_funnel=True, overlay_tailnet=""
+    )
+    assert exposure == "tailscale_funnel"
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
+    """The weak-admin-password gate is deferred to deploy time (the wizard
+    never collects app.admin_password) — choosing tailscale_funnel here
+    must not be spuriously blocked by that check."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=True,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert exposure == "tailscale_funnel"
+    assert stack_delta == 1, (
+        "a real requirement (tailnet) blocks progression; an unset "
+        "admin_password (not yet collected at this wizard stage) must not"
+    )
