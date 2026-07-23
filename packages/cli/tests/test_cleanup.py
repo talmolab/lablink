@@ -140,7 +140,7 @@ class TestCleanupElasticIps:
         ec2 = MagicMock()
         ec2.describe_addresses.return_value = {"Addresses": []}
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.release_address.assert_not_called()
 
     def test_release_ip(self):
@@ -151,7 +151,7 @@ class TestCleanupElasticIps:
             ]
         }
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.release_address.assert_called_once_with(AllocationId="eipalloc-123")
 
     def test_disassociate_before_release(self):
@@ -166,11 +166,42 @@ class TestCleanupElasticIps:
             ]
         }
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.disassociate_address.assert_called_once_with(
             AssociationId="eipassoc-456"
         )
         ec2.release_address.assert_called_once()
+
+    def test_skips_release_when_persistent_strategy(self):
+        """The whole point of eip.strategy=persistent is reuse across
+        deployments — cleanup must never release it, regardless of
+        dry_run. Regression test for the incident where `lablink cleanup`
+        released a persistent, DNS-pointed production EIP."""
+        ec2 = MagicMock()
+        ec2.describe_addresses.return_value = {
+            "Addresses": [
+                {
+                    "AllocationId": "eipalloc-123",
+                    "PublicIp": "1.2.3.4",
+                    "AssociationId": "eipassoc-456",
+                }
+            ]
+        }
+
+        cleanup_elastic_ips(ec2, "mylab", "dev", "persistent", dry_run=False)
+        ec2.disassociate_address.assert_not_called()
+        ec2.release_address.assert_not_called()
+
+    def test_skips_release_when_persistent_strategy_even_in_dry_run(self):
+        ec2 = MagicMock()
+        ec2.describe_addresses.return_value = {
+            "Addresses": [
+                {"AllocationId": "eipalloc-123", "PublicIp": "1.2.3.4"}
+            ]
+        }
+
+        cleanup_elastic_ips(ec2, "mylab", "dev", "persistent", dry_run=True)
+        ec2.release_address.assert_not_called()
 
 
 # ------------------------------------------------------------------
