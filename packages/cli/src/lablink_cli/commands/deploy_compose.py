@@ -301,6 +301,16 @@ def run_deploy_compose(
     render_compose_dir(cfg, target, tailscale_authkey=tailscale_authkey)
     console.print(f"[green]Rendered {target}[/green]")
 
+    # Explicitly disable Funnel *before* _compose_up, whenever the new
+    # config no longer wants it — this must run before --remove-orphans
+    # potentially deletes the sidecar (a removed container can't be
+    # `docker exec`'d into), and it's needed even when the sidecar
+    # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
+    # since Funnel persists in the sidecar's own state regardless of
+    # whether _enable_funnel keeps getting called. See _disable_funnel.
+    if cfg.manual.participant_exposure != "tailscale_funnel":
+        _disable_funnel()
+
     _compose_up(target)
     _health_poll()
 
@@ -318,7 +328,15 @@ def run_deploy_compose(
 def _compose_up(target: Path) -> None:
     console.print("[bold]docker compose up -d …[/bold]")
     result = subprocess.run(
-        ["docker", "compose", "up", "-d"],
+        # --remove-orphans: if needs_sidecar just became False (connectivity
+        # switched off mesh_overlay AND participant_exposure switched off
+        # tailscale_funnel), the freshly-rendered compose file no longer
+        # declares the tailscale service — without this flag, `docker
+        # compose up` leaves that now-undeclared container running
+        # untouched, forever. _disable_funnel() (called before this, in
+        # run_deploy_compose) already clears its Funnel state first, so
+        # this just ensures the container itself doesn't linger too.
+        ["docker", "compose", "up", "-d", "--remove-orphans"],
         cwd=target,
         check=False,
     )
@@ -393,6 +411,50 @@ def _enable_funnel() -> bool:
             f"{result.returncode}):[/red]\n{output.strip()}"
         )
         return False
+
+
+def _disable_funnel() -> None:
+    """Explicitly clear Tailscale Funnel's serve config on the sidecar,
+    best-effort.
+
+    `tailscale funnel --bg` persists in tailscaled's own local state (the
+    `tailscale_state` named volume) across container restarts — and even
+    across container *recreation*, since a freshly-created sidecar
+    reattaches to that same volume and the same node identity resumes
+    serving from its last-known config. Simply no longer calling
+    `_enable_funnel()` is NOT enough to actually turn Funnel off; it has
+    to be explicitly disabled, or a previously-Funnel-exposed allocator
+    stays publicly reachable even after an operator sets
+    participant_exposure back to "none".
+
+    Called whenever the new config's participant_exposure is no longer
+    "tailscale_funnel", *before* `_compose_up` — including the case
+    where the sidecar is about to be removed entirely as a compose
+    orphan (needs_sidecar became False), since a removed container can
+    no longer be `docker exec`'d into and its persisted volume would
+    otherwise carry the stale "enabled" state forward to any future
+    sidecar that reattaches to it.
+
+    Best-effort and silent on failure: if the sidecar container doesn't
+    exist at all (e.g. a fresh deployment that never enabled Funnel),
+    there is nothing to disable and no error is surfaced.
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "exec",
+            TAILSCALE_SIDECAR_CONTAINER_NAME,
+            "tailscale",
+            "funnel",
+            "--https=443",
+            "off",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        console.print("[dim]Tailscale Funnel disabled.[/dim]")
 
 
 def _health_poll() -> None:
