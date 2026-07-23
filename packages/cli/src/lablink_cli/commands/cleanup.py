@@ -154,15 +154,21 @@ def cleanup_security_groups(
                 ec2.revoke_security_group_ingress(
                     GroupId=gid, IpPermissions=sg["IpPermissions"]
                 )
-            except ClientError:
-                pass
+            except ClientError as e:
+                console.print(
+                    f"  [dim]revoke ingress failed on {gid}, continuing: "
+                    f"{e.response['Error']['Code']}[/dim]"
+                )
         if sg.get("IpPermissionsEgress"):
             try:
                 ec2.revoke_security_group_egress(
                     GroupId=gid, IpPermissions=sg["IpPermissionsEgress"]
                 )
-            except ClientError:
-                pass
+            except ClientError as e:
+                console.print(
+                    f"  [dim]revoke egress failed on {gid}, continuing: "
+                    f"{e.response['Error']['Code']}[/dim]"
+                )
 
     for sg in matched:
         label = f"{sg['GroupName']} ({sg['GroupId']})"
