@@ -13,17 +13,14 @@ network, so it works even after ``lablink destroy``.
 
 from __future__ import annotations
 
-import base64
 import csv
 import json
-import ssl
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from rich.console import Console
 
-from lablink_cli.api import USER_AGENT
+from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     get_allocator_url,
     resolve_admin_credentials,
@@ -63,23 +60,10 @@ def _export_client_metrics(
     logs_param = "true" if include_logs else "false"
     url = f"{allocator_url}/api/export-metrics?include_logs={logs_param}"
 
-    credentials = base64.b64encode(
-        f"{admin_user}:{admin_pw}".encode()
-    ).decode()
-
-    req = Request(url, method="GET")
-    req.add_header("User-Agent", USER_AGENT)
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Accept", "application/json")
-
-    ctx = ssl.create_default_context()
-    if cfg.ssl.provider == "self_signed":
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
     try:
-        resp = urlopen(req, timeout=60, context=ctx)
-        body = json.loads(resp.read().decode())
+        body = authenticated_json_request(
+            url, admin_user, admin_pw, ssl_provider=cfg.ssl.provider
+        )
     except HTTPError as e:
         console.print(f"[red]HTTP {e.code}: {e.reason}[/red]")
         raise SystemExit(1) from e

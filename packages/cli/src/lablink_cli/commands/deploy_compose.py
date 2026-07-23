@@ -43,10 +43,13 @@ ALLOCATOR_CONTAINER_NAME = "lablink-allocator"
 console = Console()
 
 
-def compose_workdir(cfg: Config) -> Path:
-    """Path to the rendered compose working directory for this deployment."""
+def compose_workdir(cfg: Config, root: Path | None = None) -> Path:
+    """Path to the rendered compose working directory for this deployment.
+
+    `root` overrides `DEFAULT_COMPOSE_DIR` (used by tests via `workdir_root`).
+    """
     name = cfg.deployment_name or "lablink"
-    return DEFAULT_COMPOSE_DIR / name
+    return (root or DEFAULT_COMPOSE_DIR) / name
 
 
 def _read_env_value(env_path: Path, key: str) -> str | None:
@@ -184,9 +187,7 @@ def run_deploy_compose(
     otherwise) — carried forward on ordinary mesh-overlay redeploys by
     `render_compose_dir`.
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
-        cfg.deployment_name or "lablink"
-    )
+    target = compose_workdir(cfg, workdir_root)
 
     if cfg.manual.connectivity == "mesh_overlay":
         # Checking ".env exists" alone (i.e. "is this a redeploy") isn't
@@ -494,9 +495,7 @@ def run_destroy_compose(
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (
-        cfg.deployment_name or "lablink"
-    )
+    target = compose_workdir(cfg, workdir_root)
 
     if not target.exists():
         console.print(

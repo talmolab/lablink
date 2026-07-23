@@ -57,7 +57,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
         ):
@@ -102,7 +102,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 side_effect=fake_urlopen,
             ),
         ):
@@ -131,7 +131,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
         ):
@@ -162,7 +162,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 side_effect=error,
             ),
             pytest.raises(SystemExit),
@@ -219,7 +219,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
         ):
@@ -269,7 +269,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
         ):
@@ -295,7 +295,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
             pytest.raises(SystemExit),
@@ -328,7 +328,7 @@ class TestRunExportMetrics:
                 return_value=("admin", "secret"),
             ),
             patch(
-                "lablink_cli.commands.export_metrics.urlopen",
+                "lablink_cli.api.urlopen",
                 return_value=mock_resp,
             ),
         ):
@@ -367,7 +367,7 @@ def _patch_export_calls(mock_resp):
             return_value=("admin", "secret"),
         ),
         patch(
-            "lablink_cli.commands.export_metrics.urlopen",
+            "lablink_cli.api.urlopen",
             return_value=mock_resp,
         ),
     ]
@@ -521,7 +521,7 @@ class TestExportMetricsFlags:
                 )
             )
             mock_open = stack.enter_context(
-                patch("lablink_cli.commands.export_metrics.urlopen")
+                patch("lablink_cli.api.urlopen")
             )
 
             run_export_metrics(

@@ -79,11 +79,6 @@ def get_allocator_url(cfg: DictConfig, allocator_ip: str) -> Tuple[str, str]:
     return base_url, protocol
 
 
-def should_use_dns(cfg) -> bool:
-    """Check if DNS is enabled in config."""
-    return hasattr(cfg, "dns") and cfg.dns.enabled
-
-
 def should_use_https(cfg) -> bool:
     """Check if HTTPS is enabled in config."""
     return hasattr(cfg, "ssl") and cfg.ssl.provider != "none"

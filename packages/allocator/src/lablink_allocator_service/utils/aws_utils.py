@@ -42,30 +42,6 @@ def _imds_get(path: str, token: str) -> str:
     return resp.text
 
 
-def get_all_instance_types(region="us-west-2"):
-    """Fetch all available EC2 instance types in a given AWS region.
-    Args:
-        region (str): The AWS region to query for instance types.
-    Returns:
-        list: A list of available EC2 instance types in the specified region.
-    """
-    kwargs = {
-        "region_name": region,
-        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
-    }
-    if os.getenv("AWS_SESSION_TOKEN"):
-        kwargs["aws_session_token"] = os.getenv("AWS_SESSION_TOKEN")
-
-    ec2 = boto3.client("ec2", **kwargs)
-    instance_types = []
-    paginator = ec2.get_paginator("describe_instance_types")
-    for page in paginator.paginate():
-        for itype in page["InstanceTypes"]:
-            instance_types.append(itype["InstanceType"])
-    return instance_types
-
-
 def check_support_nvidia(machine_type) -> bool:
     """Check if a given EC2 instance type supports NVIDIA GPUs.
     Args:
