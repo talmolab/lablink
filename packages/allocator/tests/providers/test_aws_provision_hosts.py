@@ -23,6 +23,9 @@ def _make_spec():
         "resource_prefix": "sleap-lablink-test",
         "cloud_init_output_log_group": "lg",
         "startup_on_error": "continue",
+        "startup_max_attempts": 3,
+        "startup_base_delay_seconds": 30,
+        "startup_success_check_b64": "",
         "agent_token": "agent-tok",
         "register_token": "reg-tok",
         "deployment_name": "test",
@@ -108,7 +111,8 @@ def test_provision_hosts_writes_runtime_tfvars(aws_provider, all_aws_mocks, tmp_
         "allocator_ip", "allocator_url", "machine_type", "image_name",
         "repository", "client_ami_id", "subject_software", "resource_prefix",
         "gpu_support", "cloud_init_output_log_group", "region",
-        "startup_on_error", "agent_token", "register_token",
+        "startup_on_error", "startup_max_attempts", "startup_base_delay_seconds",
+        "startup_success_check_b64", "agent_token", "register_token",
     ]:
         assert f"{key} = " in content, f"missing key {key}"
 

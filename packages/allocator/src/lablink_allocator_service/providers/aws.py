@@ -136,6 +136,15 @@ class AWSProvider:
             )
             f.write(f'region = "{self._region}"\n')
             f.write(f'startup_on_error = "{spec["startup_on_error"]}"\n')
+            f.write(f'startup_max_attempts = {spec["startup_max_attempts"]}\n')
+            f.write(
+                f'startup_base_delay_seconds = '
+                f'{spec["startup_base_delay_seconds"]}\n'
+            )
+            f.write(
+                f'startup_success_check_b64 = '
+                f'"{spec["startup_success_check_b64"]}"\n'
+            )
             f.write(f'agent_token = "{spec["agent_token"]}"\n')
             f.write(f'register_token = "{spec["register_token"]}"\n')
 

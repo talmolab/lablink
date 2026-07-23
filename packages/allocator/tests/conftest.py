@@ -58,6 +58,9 @@ def omega_config():
                 "enabled": False,
                 "path": "",
                 "on_error": "continue",
+                "max_attempts": 3,
+                "base_delay_seconds": 30,
+                "success_check": "",
             },
             "monitoring": {
                 "enabled": False,

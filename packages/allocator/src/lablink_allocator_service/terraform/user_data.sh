@@ -179,6 +179,9 @@ if docker run -dit --restart unless-stopped $DOCKER_GPU_ARGS \
     -e VM_NAME="${resource_prefix}-vm-${count_index}" \
     -e SUBJECT_SOFTWARE="${subject_software}" \
     -e STARTUP_ON_ERROR="${startup_on_error}" \
+    -e STARTUP_MAX_ATTEMPTS="${startup_max_attempts}" \
+    -e STARTUP_BASE_DELAY_SECONDS="${startup_base_delay_seconds}" \
+    -e STARTUP_SUCCESS_CHECK_B64="${startup_success_check_b64}" \
     -e AGENT_TOKEN="${agent_token}" \
     -e CLIENT_SECRET="$CLIENT_SECRET" \
     -e REGISTER_RESPONSE="$REGISTER_RESPONSE" \

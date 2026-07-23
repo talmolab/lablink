@@ -4,6 +4,7 @@ import secrets
 import subprocess
 import time
 import json
+import base64
 from pathlib import Path
 from datetime import datetime
 import re
@@ -632,6 +633,13 @@ def launch():
         ),
         "cloud_init_output_log_group": cloud_init_output_log_group,
         "startup_on_error": cfg.startup_script.on_error,
+        "startup_max_attempts": cfg.startup_script.max_attempts,
+        "startup_base_delay_seconds": cfg.startup_script.base_delay_seconds,
+        "startup_success_check_b64": (
+            base64.b64encode(cfg.startup_script.success_check.encode()).decode()
+            if cfg.startup_script.success_check
+            else ""
+        ),
         "agent_token": AGENT_TOKEN,
         "register_token": REGISTER_TOKEN,
         "environment": ENVIRONMENT,
