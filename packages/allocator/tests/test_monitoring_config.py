@@ -3,6 +3,7 @@
 import ast
 from pathlib import Path
 
+import pytest
 from omegaconf import OmegaConf
 
 from lablink_allocator_service.conf.structured_config import (
@@ -78,6 +79,12 @@ def test_monitoring_config_matches_client_package():
     dead/duplicate-code audit). This guards against silent field drift
     between them — if it fails after an intentional change, update both
     dataclasses to match, don't just adjust this test.
+
+    Only meaningful in a full monorepo checkout (the normal `pytest`
+    CI job). Some environments run this suite against just the
+    allocator package's own subtree with no sibling `packages/client`
+    on disk (e.g. the built allocator Docker image's verification
+    step) — skip there rather than fail on a missing file.
     """
     repo_root = Path(__file__).resolve().parents[3]
     allocator_path = (
@@ -88,6 +95,11 @@ def test_monitoring_config_matches_client_package():
         repo_root
         / "packages/client/src/lablink_client_service/conf/structured_config.py"
     )
+    if not allocator_path.exists() or not client_path.exists():
+        pytest.skip(
+            "sibling packages/client checkout not present in this test "
+            "environment; parity is only checked in the full-monorepo CI job"
+        )
     assert _monitoring_config_fields(allocator_path) == _monitoring_config_fields(
         client_path
     )
