@@ -315,11 +315,12 @@ def run_deploy_compose(
     _health_poll()
 
     funnel_ok = True
+    funnel_url = None
     if cfg.manual.participant_exposure == "tailscale_funnel":
-        funnel_ok = _enable_funnel()
+        funnel_ok, funnel_url = _enable_funnel()
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    _print_summary(cfg, funnel_active=funnel_active)
+    _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
 
     if not funnel_ok:
         raise SystemExit(1)
@@ -345,7 +346,39 @@ def _compose_up(target: Path) -> None:
         raise SystemExit(result.returncode or 1)
 
 
-def _enable_funnel() -> bool:
+FUNNEL_STATUS_URL_RE = re.compile(r"(https://\S+)\s*\(Funnel on\)")
+
+
+def _funnel_status_url() -> str | None:
+    """Query the sidecar for the public URL Tailscale Funnel is actually
+    serving right now, via `tailscale funnel status`.
+
+    This is the authoritative source for the URL — Tailscale assigns the
+    node's hostname, and it does not necessarily match
+    `lablink-allocator-<deployment_name>`: a name collision with an
+    existing (possibly offline) tailnet node from a prior deploy gets a
+    numeric suffix appended instead (verified live: `-2`, `-3`, ... after
+    repeated deploy/destroy cycles). Returns None if Funnel isn't active
+    or the output didn't match the expected format.
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "exec",
+            TAILSCALE_SIDECAR_CONTAINER_NAME,
+            "tailscale",
+            "funnel",
+            "status",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    match = FUNNEL_STATUS_URL_RE.search(result.stdout)
+    return match.group(1) if match else None
+
+
+def _enable_funnel() -> tuple[bool, str | None]:
     """Idempotently enable Tailscale Funnel on the allocator's own nginx
     port, via the sidecar container.
 
@@ -354,7 +387,7 @@ def _enable_funnel() -> bool:
     volume), so this is safe to re-run on every deploy — a no-op if
     already enabled. If the tailnet hasn't granted the Funnel ACL yet,
     the command's own output names the exact grant URL; this surfaces
-    that URL and returns False rather than silently leaving the
+    that URL and returns (False, None) rather than silently leaving the
     allocator unreachable to participants.
 
     Retries a few times with a short delay: the sidecar may still be
@@ -366,11 +399,14 @@ def _enable_funnel() -> bool:
     ACL-not-granted response is unambiguous and returned immediately
     without retrying, since retrying can't fix a missing grant.
 
-    Returns True if Funnel is enabled (or already was); False otherwise
-    (ACL not granted, or failure persisting across all retries) —
-    callers should still let the rest of the deploy complete either way
-    (the stack is functional for LAN/mesh-overlay access regardless),
-    but should ultimately exit non-zero when this returns False.
+    Returns (True, url) if Funnel is enabled (or already was) — url is
+    the real address from `_funnel_status_url()`, or None if that lookup
+    didn't find one despite the enable itself succeeding. Returns
+    (False, None) otherwise (ACL not granted, or failure persisting
+    across all retries) — callers should still let the rest of the
+    deploy complete either way (the stack is functional for LAN/
+    mesh-overlay access regardless), but should ultimately exit non-zero
+    when this returns False.
     """
     for attempt in range(1, FUNNEL_ENABLE_MAX_ATTEMPTS + 1):
         result = subprocess.run(
@@ -395,13 +431,13 @@ def _enable_funnel() -> bool:
                 "LAN, but participant exposure needs a one-time grant:\n"
             )
             console.print(output.strip())
-            return False
+            return False, None
         if result.returncode == 0:
             console.print(
                 "[green]Tailscale Funnel enabled for participant access.[/green]"
             )
             console.print(output.strip())
-            return True
+            return True, _funnel_status_url()
         if attempt < FUNNEL_ENABLE_MAX_ATTEMPTS:
             time.sleep(FUNNEL_ENABLE_RETRY_DELAY_SECONDS)
             continue
@@ -410,7 +446,7 @@ def _enable_funnel() -> bool:
             f"{FUNNEL_ENABLE_MAX_ATTEMPTS} attempts (exit "
             f"{result.returncode}):[/red]\n{output.strip()}"
         )
-        return False
+        return False, None
 
 
 def _disable_funnel() -> None:
@@ -497,17 +533,9 @@ def _print_last_log_lines(lines: int = 30) -> None:
         console.print(result.stdout)
 
 
-def _funnel_participant_url(cfg: Config) -> str:
-    """The public URL Tailscale Funnel publishes the allocator at, once
-    enabled. Deterministic from the same TAILSCALE_HOSTNAME/overlay_tailnet
-    values render_compose_dir already writes into .env — no need to parse
-    `tailscale funnel`'s own stdout, which is what _enable_funnel does for
-    its own success/failure detection instead."""
-    hostname = f"lablink-allocator-{cfg.deployment_name or 'lablink'}"
-    return f"https://{hostname}.{cfg.manual.overlay_tailnet}/"
-
-
-def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
+def _print_summary(
+    cfg: Config, *, funnel_active: bool = False, funnel_url: str | None = None
+) -> None:
     register_token = _extract_register_token()
     # Manual provider is HTTP-only; preflight rejects anything else.
     local_url = "http://localhost"
@@ -521,8 +549,13 @@ def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
 
     console.print("\n[bold green]Deployment complete.[/bold green]")
     if funnel_active:
+        public_url = funnel_url or (
+            "(enabled, but the URL could not be determined — run "
+            f"`docker exec {TAILSCALE_SIDECAR_CONTAINER_NAME} tailscale "
+            "funnel status` to see it)"
+        )
         console.print(
-            f"  Allocator URL (public): {_funnel_participant_url(cfg)}",
+            f"  Allocator URL (public): {public_url}",
             soft_wrap=True,
             highlight=False,
         )
@@ -562,6 +595,11 @@ def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
     # insert a hard newline mid-command — that would break the
     # operator's copy-paste.
     mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    # Only substitute when we actually have the real URL — funnel_active
+    # can be True while funnel_url is None (enable succeeded but the
+    # status lookup didn't match), and a guessed fallback here would be
+    # exactly the wrong URL this function used to print.
+    funnel_url_used = mesh_overlay and funnel_active and bool(funnel_url)
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
         # the allocator's LAN at all — the LAN URL above is unreachable
@@ -570,8 +608,8 @@ def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
         # internet access, so prefer it here specifically — but only for
         # this mesh-overlay hint; lan_direct clients genuinely are on the
         # LAN, so their own hint below keeps using register_url as-is.
-        if funnel_active:
-            register_url = _funnel_participant_url(cfg)
+        if funnel_url_used:
+            register_url = funnel_url
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "
@@ -597,7 +635,7 @@ def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
             "workload submission instead of running here, along with "
             "--hostname/--machine-identity.[/dim]"
         )
-    if not lan_url and not (mesh_overlay and funnel_active):
+    if not lan_url and not funnel_url_used:
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the
         # operator doesn't blindly hand it to a remote teammate. Doesn't
@@ -674,6 +712,31 @@ def _extract_register_token() -> str | None:
     return None
 
 
+def _pgdata_volume_name() -> str | None:
+    """Resolve the Docker volume currently backing the allocator's Postgres data.
+
+    Looked up by inspecting the running container's mounts rather than
+    guessing Compose's project-name normalization, so it's exact regardless
+    of deployment name. Returns None if the allocator container isn't
+    present (nothing to look up — there's no volume to selectively remove).
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            ALLOCATOR_CONTAINER_NAME,
+            "--format",
+            '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}'
+            "{{.Name}}{{end}}{{end}}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    name = result.stdout.strip()
+    return name or None
+
+
 def run_destroy_compose(
     cfg: Config,
     *,
@@ -683,20 +746,27 @@ def run_destroy_compose(
 ) -> None:
     """Tear down a manual-provider compose stack.
 
-    Default behavior: wipes everything — `docker compose down --volumes`
-    (deletes the Postgres data volume: all registration history,
-    sessions, etc.) plus the working directory. A subsequent
+    Default behavior: wipes the Postgres data volume (all registration
+    history, sessions, etc.) plus the working directory. A subsequent
     `lablink deploy` with the same deployment_name then starts from a
     genuinely empty database, matching what "destroy" means for every
     other provider — previously the default silently preserved the old
     volume, so a "fresh" redeploy kept showing every client registered
     under a prior deployment.
 
-    With `keep_data=True`: only `docker compose down` (no `--volumes`),
-    and the working directory is left in place — re-deploying with the
-    same deployment_name restores the previous DB state instead of
-    starting fresh. Opt into this only if that's specifically what you
-    want (e.g. a deliberate maintenance restart, not a real teardown).
+    The Postgres volume is removed by name (resolved via `_pgdata_volume_name`)
+    rather than via `docker compose down --volumes`, which would also delete
+    the mesh-overlay `tailscale_state` volume — that volume carries the
+    Tailscale node's identity, not "data": wiping it forces a brand-new
+    tailnet registration on the next deploy, which changes the node's
+    hostname (and any Funnel URL already handed to participants) for no
+    reason. `tailscale_state` is always preserved, independent of `keep_data`.
+
+    With `keep_data=True`: no volumes are touched at all, and the working
+    directory is left in place — re-deploying with the same deployment_name
+    restores the previous DB state instead of starting fresh. Opt into this
+    only if that's specifically what you want (e.g. a deliberate maintenance
+    restart, not a real teardown).
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
@@ -725,16 +795,16 @@ def run_destroy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    cmd = ["docker", "compose", "down"]
-    if not keep_data:
-        cmd.append("--volumes")
+    pgdata_volume = None if keep_data else _pgdata_volume_name()
 
-    result = subprocess.run(cmd, cwd=target, check=False)
+    result = subprocess.run(["docker", "compose", "down"], cwd=target, check=False)
     if result.returncode != 0:
         console.print("[red]docker compose down failed.[/red]")
         raise SystemExit(result.returncode or 1)
 
     if not keep_data:
+        if pgdata_volume:
+            subprocess.run(["docker", "volume", "rm", pgdata_volume], check=False)
         shutil.rmtree(target)
         console.print(f"[green]Removed {target}.[/green]")
     else:
