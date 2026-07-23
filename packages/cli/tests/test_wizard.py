@@ -553,3 +553,66 @@ def test_connectivity_screen_blocks_next_when_tailnet_missing():
     )
     assert connectivity == "mesh_overlay"
     assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def _drive_startup_retry_fields(
+    max_attempts: str | None, base_delay: str | None, success_check: str | None
+):
+    """Push StartupScreen directly, optionally edit the retry fields, hit Next.
+
+    Passing None for an input leaves its pre-filled value untouched;
+    passing "" clears it (simulating a user deleting the field).
+    """
+    from lablink_cli.config.schema import Config
+    from lablink_cli.tui.wizard import ConfigWizard, StartupScreen
+
+    cfg = Config()
+    app = ConfigWizard(existing_config=cfg)
+
+    async def _run() -> None:
+        from textual.widgets import Input
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = StartupScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+
+            if max_attempts is not None:
+                screen.query_one("#max-attempts", Input).value = max_attempts
+            if base_delay is not None:
+                screen.query_one("#base-delay", Input).value = base_delay
+            if success_check is not None:
+                screen.query_one("#success-check", Input).value = success_check
+            await pilot.pause()
+
+            # Invoke the screen's Next handler directly — clicking via the
+            # pilot needs viewport coords that aren't reliable in headless
+            # tests, matching the pattern used for MonitoringScreen/
+            # ConnectivityScreen above.
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    return cfg.startup_script
+
+
+def test_startup_screen_writes_retry_fields():
+    result = _drive_startup_retry_fields(
+        max_attempts="5",
+        base_delay="45",
+        success_check="/home/client/.local/bin/sleap --version",
+    )
+    assert result.max_attempts == 5
+    assert result.base_delay_seconds == 45
+    assert result.success_check == "/home/client/.local/bin/sleap --version"
+
+
+def test_startup_screen_empty_numeric_fields_fall_back_to_defaults():
+    """Clearing max-attempts/base-delay must not crash int() on '' — falls
+    back to StartupConfig's own declared defaults (3, 30)."""
+    result = _drive_startup_retry_fields(
+        max_attempts="", base_delay="", success_check=None
+    )
+    assert result.max_attempts == 3
+    assert result.base_delay_seconds == 30
