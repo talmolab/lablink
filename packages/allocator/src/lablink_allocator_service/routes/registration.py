@@ -110,7 +110,6 @@ def register_client():
         allocator_url=allocator_url,
         client_image=client_image,
         register_token=token,
-        hostname_hint=hostname,
     )
 
     # Ship the custom startup script to the client. BYO clients (manual
