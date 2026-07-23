@@ -240,9 +240,13 @@ class TestRenderComposeDirParticipantExposure:
         assert "TS_AUTHKEY" not in env_content
 
     def test_lan_direct_with_funnel_renders_sidecar(self, tmp_path):
-        """New combination: lan_direct clients + tailscale_funnel exposure
-        must still get the sidecar, even though connectivity isn't
-        mesh_overlay."""
+        """Unit-level coverage of _needs_tailscale_sidecar's OR logic in
+        isolation: render_compose_dir itself doesn't enforce the
+        connectivity/exposure business rule (run_deploy_compose's own
+        preflight now rejects this exact combination — see
+        TestLanDirectFunnelRejectedAtDeploy — since lan_direct + Funnel
+        can't actually serve participant sessions), it just renders
+        whatever config it's given."""
         from lablink_cli.commands.deploy_compose import render_compose_dir
 
         cfg = _manual_cfg(
@@ -280,9 +284,11 @@ class TestRenderComposeDirParticipantExposure:
 
 
 class TestDeployComposeMeshOverlayPreflight:
-    def test_first_deploy_without_authkey_rejected(self, tmp_path):
+    @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
+    def test_first_deploy_without_authkey_rejected(self, mock_state_exists, tmp_path):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
+        mock_state_exists.return_value = False
         cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
         with pytest.raises(SystemExit):
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
@@ -307,6 +313,26 @@ class TestDeployComposeMeshOverlayPreflight:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
+    def test_no_authkey_proceeds_when_tailscale_state_volume_already_exists(
+        self, mock_state_exists, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Regression (P2 review finding): default `lablink destroy`
+        preserves tailscale_state but removes the whole working
+        directory, including .env's TS_AUTHKEY line. A subsequent deploy
+        must not demand a fresh authkey purely because there's no .env to
+        read one from — the sidecar's identity is already authenticated
+        and sitting in that preserved volume."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_state_exists.return_value = True
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        mock_up.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_redeploy_without_authkey_proceeds(
         self, mock_up, mock_poll, mock_summary, tmp_path
     ):
@@ -324,11 +350,12 @@ class TestDeployComposeMeshOverlayPreflight:
         run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
         assert mock_up.call_count == 2
 
+    @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_switch_from_lan_direct_without_authkey_rejected(
-        self, mock_up, mock_poll, mock_summary, tmp_path
+        self, mock_up, mock_poll, mock_summary, mock_state_exists, tmp_path
     ):
         """Regression guard: an existing lan_direct deployment (its .env
         has no TS_AUTHKEY line) that switches manual.connectivity to
@@ -338,6 +365,7 @@ class TestDeployComposeMeshOverlayPreflight:
         check and render_compose_dir wrote TS_AUTHKEY= (empty)."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
+        mock_state_exists.return_value = False
         lan_cfg = _manual_cfg(connectivity="lan_direct")
         run_deploy_compose(lan_cfg, yes=True, workdir_root=tmp_path)
 
@@ -372,12 +400,14 @@ class TestDeployComposeMeshOverlayPreflight:
 
 
 class TestDeployComposeParticipantExposurePreflight:
-    def test_lan_direct_with_funnel_requires_authkey(self, tmp_path):
+    @patch("lablink_cli.commands.deploy_compose._tailscale_state_volume_exists")
+    def test_lan_direct_with_funnel_requires_authkey(self, mock_state_exists, tmp_path):
         """A lan_direct deployment that enables tailscale_funnel still
         needs the sidecar to join a tailnet — same requirement as
         mesh_overlay, generalized."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
+        mock_state_exists.return_value = False
         cfg = _manual_cfg(
             connectivity="lan_direct",
             participant_exposure="tailscale_funnel",
@@ -398,7 +428,7 @@ class TestDeployComposeParticipantExposurePreflight:
 
         mock_funnel.return_value = (True, "https://lablink-allocator-testlab.example.ts.net")
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="a-strong-enough-password",
@@ -415,7 +445,7 @@ class TestDeployComposeParticipantExposurePreflight:
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="123456",
@@ -439,7 +469,7 @@ class TestDeployComposeParticipantExposurePreflight:
 
         mock_funnel.return_value = (True, "https://lablink-allocator-testlab.example.ts.net")
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="a-strong-enough-password",
@@ -465,6 +495,49 @@ class TestDeployComposeParticipantExposurePreflight:
         cfg = _manual_cfg(connectivity="lan_direct", admin_password="123456")
         run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
         mock_up.assert_called_once()
+
+
+class TestLanDirectFunnelRejectedAtDeploy:
+    """`get_config_errors` rejects lan_direct + tailscale_funnel too (see
+    TestLanDirectFunnelRejected in test_validate_config.py), but
+    `lablink deploy` never calls that validator for the manual provider —
+    this is the actual enforcement point for a hand-edited config.yaml
+    deployed directly, without going through the wizard."""
+
+    def test_rejected_even_with_authkey_and_strong_password(self, tmp_path):
+        """Regression: must fire even when every OTHER preflight check
+        would otherwise pass (authkey present, password strong) — the
+        combination itself is what's rejected, not a missing prerequisite."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            )
+
+    def test_error_message_explains_why(self, tmp_path, capsys):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+            )
+        out = capsys.readouterr().out
+        assert "'tailscale_funnel'" in out
+        assert "'lan_direct'" in out
+        assert "mesh_overlay" in out
 
 
 class TestComposeUp:
@@ -666,7 +739,7 @@ class TestRunDeployComposeFunnelWiring:
 
         mock_funnel.return_value = (True, "https://lablink-allocator-testlab.example.ts.net")
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="a-strong-enough-password",
@@ -703,12 +776,16 @@ class TestRunDeployComposeFunnelWiring:
     ):
         """Regression: participant_exposure going back to "none" must
         actively turn Funnel off, not just stop re-enabling it — Funnel
-        persists in the sidecar's own state otherwise (P1 finding)."""
+        persists in the sidecar's own state otherwise (P1 finding).
+        Called twice (before and after _compose_up — see
+        test_disable_funnel_called_before_and_after_compose_up) since a
+        stopped-but-not-removed sidecar can't be `docker exec`'d into
+        until _compose_up restarts it."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
         run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
-        mock_disable.assert_called_once()
+        assert mock_disable.call_count == 2
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -732,7 +809,7 @@ class TestRunDeployComposeFunnelWiring:
         run_deploy_compose(
             cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
         )
-        mock_disable.assert_called_once()
+        assert mock_disable.call_count == 2
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -746,7 +823,7 @@ class TestRunDeployComposeFunnelWiring:
 
         mock_funnel.return_value = (True, "https://lablink-allocator-testlab.example.ts.net")
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="a-strong-enough-password",
@@ -756,12 +833,15 @@ class TestRunDeployComposeFunnelWiring:
         )
         mock_disable.assert_not_called()
 
-    def test_disable_funnel_runs_before_compose_up_could_remove_sidecar(
-        self, tmp_path
-    ):
-        """Ordering regression: _disable_funnel must run before
-        _compose_up, since --remove-orphans could delete the sidecar
-        container that _disable_funnel needs to `docker exec` into."""
+    def test_disable_funnel_runs_before_and_after_compose_up(self, tmp_path):
+        """Ordering regression: _disable_funnel must run both before
+        _compose_up (since --remove-orphans could delete the sidecar
+        container it needs to `docker exec` into) and after (since a
+        stopped-but-not-removed sidecar can't be `docker exec`'d into
+        until _compose_up restarts it — the P1 finding this second call
+        guards against: Compose reattaching a restarted sidecar to
+        tailscale_state with Funnel's last-known "on" config still
+        intact, if the first disable call silently no-op'd)."""
         from lablink_cli.commands import deploy_compose
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
@@ -782,7 +862,7 @@ class TestRunDeployComposeFunnelWiring:
             cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
 
-        assert call_order == ["disable", "compose_up"]
+        assert call_order == ["disable", "compose_up", "disable"]
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -795,7 +875,7 @@ class TestRunDeployComposeFunnelWiring:
 
         mock_funnel.return_value = (False, None)
         cfg = _manual_cfg(
-            connectivity="lan_direct",
+            connectivity="mesh_overlay",
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
             admin_password="a-strong-enough-password",
@@ -981,27 +1061,82 @@ class TestDeployComposePreflight:
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
 
 
+class TestTailscaleStateVolumeExists:
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_true_when_volume_found(self, mock_run, tmp_path):
+        from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
+
+        target = tmp_path / "testlab"
+        target.mkdir()
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+
+        assert _tailscale_state_volume_exists(target) is True
+        cmd = mock_run.call_args[0][0]
+        assert cmd == ["docker", "volume", "inspect", "testlab_tailscale_state"]
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_false_when_volume_missing(self, mock_run, tmp_path):
+        from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
+
+        target = tmp_path / "testlab"
+        target.mkdir()
+        mock_run.return_value = MagicMock(returncode=1, stdout="")
+
+        assert _tailscale_state_volume_exists(target) is False
+
+
 class TestPgdataVolumeName:
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_resolved_name(self, mock_run):
+    def test_returns_resolved_name_from_running_container(self, mock_run, tmp_path):
         from lablink_cli.commands.deploy_compose import _pgdata_volume_name
 
         mock_run.return_value = MagicMock(
             returncode=0, stdout="sleap-lablink_allocator_pgdata\n"
         )
 
-        assert _pgdata_volume_name() == "sleap-lablink_allocator_pgdata"
+        assert _pgdata_volume_name(tmp_path) == "sleap-lablink_allocator_pgdata"
         cmd = mock_run.call_args[0][0]
         assert cmd[:2] == ["docker", "inspect"]
         assert "lablink-allocator" in cmd
+        mock_run.assert_called_once()  # found on the first try, no fallback needed
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_none_when_container_missing(self, mock_run):
+    def test_falls_back_to_directory_basename_guess_when_container_missing(
+        self, mock_run, tmp_path
+    ):
+        """Regression (P1 review finding): if the allocator container was
+        already removed (e.g. an earlier manual `docker compose down`),
+        the volume itself can still exist — falling back to Compose's own
+        directory-basename naming convention (verified via `docker volume
+        inspect` before trusting it) finds it instead of silently
+        reporting nothing to remove."""
         from lablink_cli.commands.deploy_compose import _pgdata_volume_name
 
+        target = tmp_path / "testlab"
+        target.mkdir()
+        container_missing = MagicMock(returncode=1, stdout="")
+        guess_verified = MagicMock(returncode=0, stdout="")
+        mock_run.side_effect = [container_missing, guess_verified]
+
+        assert _pgdata_volume_name(target) == "testlab_allocator_pgdata"
+        assert mock_run.call_count == 2
+        guess_cmd = mock_run.call_args_list[1][0][0]
+        assert guess_cmd == ["docker", "volume", "inspect", "testlab_allocator_pgdata"]
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_returns_none_when_neither_container_nor_guess_finds_it(
+        self, mock_run, tmp_path
+    ):
+        """Genuinely nothing to remove — this deployment never actually
+        created a volume (e.g. `docker compose up` never ran)."""
+        from lablink_cli.commands.deploy_compose import _pgdata_volume_name
+
+        target = tmp_path / "testlab"
+        target.mkdir()
         mock_run.return_value = MagicMock(returncode=1, stdout="")
 
-        assert _pgdata_volume_name() is None
+        assert _pgdata_volume_name(target) is None
+        assert mock_run.call_count == 2
 
 
 class TestDestroyCompose:
@@ -1036,13 +1171,11 @@ class TestDestroyCompose:
         assert not workdir.exists()  # removed by default
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_default_skips_volume_rm_when_container_not_found(
-        self, mock_run, tmp_path
-    ):
-        """If the allocator container isn't present, there's no mount to
-        resolve a volume name from — destroy still completes (`docker
-        compose down` handles an already-stopped project fine); it just
-        has no specific volume to remove."""
+    def test_falls_back_to_guess_when_container_not_found(self, mock_run, tmp_path):
+        """Regression (P1 review finding): the allocator container being
+        already removed must not silently skip volume removal — the
+        directory-basename fallback (verified via `docker volume
+        inspect`) still finds and removes it."""
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
@@ -1050,14 +1183,71 @@ class TestDestroyCompose:
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
 
-        inspect_result = MagicMock(returncode=1, stdout="")
+        container_missing = MagicMock(returncode=1, stdout="")
+        guess_verified = MagicMock(returncode=0, stdout="")
         down_result = MagicMock(returncode=0)
-        mock_run.side_effect = [inspect_result, down_result]
+        volume_rm_result = MagicMock(returncode=0)
+        mock_run.side_effect = [
+            container_missing, guess_verified, down_result, volume_rm_result,
+        ]
 
         run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
-        assert mock_run.call_count == 2  # no docker volume rm call
+        assert mock_run.call_count == 4
+        rm_cmd = mock_run.call_args_list[3][0][0]
+        assert rm_cmd == ["docker", "volume", "rm", "testlab_allocator_pgdata"]
         assert not workdir.exists()
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_skips_volume_rm_when_genuinely_nothing_found(self, mock_run, tmp_path):
+        """Container missing AND the directory-basename guess doesn't
+        exist either — genuinely nothing to remove (this deployment
+        never actually created a volume); destroy still completes."""
+        from lablink_cli.commands.deploy_compose import run_destroy_compose
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / "docker-compose.yml").write_text("")
+
+        container_missing = MagicMock(returncode=1, stdout="")
+        guess_not_found = MagicMock(returncode=1, stdout="")
+        down_result = MagicMock(returncode=0)
+        mock_run.side_effect = [container_missing, guess_not_found, down_result]
+
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
+
+        assert mock_run.call_count == 3  # no docker volume rm call
+        assert not workdir.exists()
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_aborts_without_deleting_workdir_when_volume_rm_fails(
+        self, mock_run, tmp_path
+    ):
+        """Regression (P1 review finding): a resolved volume that
+        `docker volume rm` fails to actually remove must not be reported
+        as success — the workdir stays in place (rather than being
+        deleted alongside a false "Removed" message) so a retry can pick
+        up where this left off, and a later deploy can't silently
+        reattach to surviving data."""
+        from lablink_cli.commands.deploy_compose import run_destroy_compose
+
+        cfg = _manual_cfg()
+        workdir = tmp_path / "compose" / "testlab"
+        workdir.mkdir(parents=True)
+        (workdir / "docker-compose.yml").write_text("")
+
+        inspect_result = MagicMock(returncode=0, stdout="testlab_allocator_pgdata\n")
+        down_result = MagicMock(returncode=0)
+        volume_rm_failure = MagicMock(
+            returncode=1, stdout="", stderr="volume is in use"
+        )
+        mock_run.side_effect = [inspect_result, down_result, volume_rm_failure]
+
+        with pytest.raises(SystemExit):
+            run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
+
+        assert workdir.exists()  # NOT removed — removal wasn't confirmed
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
     def test_keep_data_preserves_volumes_and_workdir(self, mock_run, tmp_path):

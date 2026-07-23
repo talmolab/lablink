@@ -637,8 +637,28 @@ def test_startup_screen_empty_numeric_fields_fall_back_to_defaults():
 
 
 def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity():
-    """participant_exposure is independent of connectivity — lan_direct
-    clients + tailscale_funnel exposure is a valid combination."""
+    """participant_exposure is a separate field from connectivity, set
+    independently in the UI — but lan_direct + tailscale_funnel is
+    rejected (see test_connectivity_screen_blocks_lan_direct_with_funnel),
+    since lan_direct sends participants straight to a client's LAN IP,
+    bypassing the allocator Funnel exposes. mesh_overlay + funnel is the
+    valid combination."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=True,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert connectivity == "mesh_overlay"
+    assert exposure == "tailscale_funnel"
+    assert tailnet == "example.ts.net"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_lan_direct_with_funnel():
+    """lan_direct sends the participant's browser straight to a client's
+    LAN IP, bypassing the allocator — unreachable off-LAN and blocked as
+    mixed content once the allocator itself is Funnel-exposed. Rejected
+    even with a tailnet domain supplied, unlike the missing-tailnet case."""
     connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=False,
         choose_funnel=True,
@@ -646,8 +666,7 @@ def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity
     )
     assert connectivity == "lan_direct"
     assert exposure == "tailscale_funnel"
-    assert tailnet == "example.ts.net"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 0, "invalid combination must not push DnsScreen"
 
 
 def test_connectivity_screen_blocks_next_when_funnel_missing_tailnet():
@@ -665,7 +684,7 @@ def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
     never collects app.admin_password) — choosing tailscale_funnel here
     must not be spuriously blocked by that check."""
     connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
-        choose_mesh_overlay=False,
+        choose_mesh_overlay=True,
         choose_funnel=True,
         overlay_tailnet="example.ts.net",
     )

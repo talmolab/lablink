@@ -46,8 +46,15 @@ VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel")
 # panel must never ship with — CT-log scanning finds a newly-published
 # Funnel host within minutes of publication (empirically confirmed
 # 2026-07-22), so "my own LAN, who cares" stops being a defensible posture
-# the moment participant_exposure != "none".
-WEAK_ADMIN_PASSWORDS = frozenset({"123456", "admin", "password", "changeme", ""})
+# the moment participant_exposure != "none". "placeholder_admin_password"
+# is included despite exceeding MIN_ADMIN_PASSWORD_LENGTH: it's the literal
+# value committed in conf/config.yaml (meant to be injected from a GitHub
+# secret at AWS deploy time) — publicly known simply by being in this
+# repo, so a manual config that retained it unchanged is exactly as
+# compromised as one using "123456".
+WEAK_ADMIN_PASSWORDS = frozenset(
+    {"123456", "admin", "password", "changeme", "placeholder_admin_password", ""}
+)
 MIN_ADMIN_PASSWORD_LENGTH = 12
 
 
@@ -128,6 +135,23 @@ def get_config_errors(cfg) -> list:
                 f"manual.participant_exposure must be one of: "
                 f"{', '.join(VALID_PARTICIPANT_EXPOSURE)} "
                 f"(got '{participant_exposure}')"
+            )
+
+        # lan_direct sends the participant's browser straight to a client's
+        # LAN IP (ws://<client-ip>:6080 — see LANDirectClientConnectivity),
+        # bypassing the allocator entirely. That's unreachable off-LAN and,
+        # once the allocator itself is Funnel-exposed, actively blocked as
+        # mixed content by the browser (ws:// from an https:// page).
+        # mesh_overlay doesn't have this problem — it proxies sessions
+        # through the allocator's own nginx, which Funnel already exposes.
+        if participant_exposure == "tailscale_funnel" and connectivity == "lan_direct":
+            errors.append(
+                "manual.participant_exposure is 'tailscale_funnel' but "
+                "manual.connectivity is 'lan_direct' — participant sessions "
+                "would connect directly to a client's LAN IP, which is "
+                "unreachable off-LAN and blocked as mixed content from the "
+                "HTTPS Funnel page. Use manual.connectivity: mesh_overlay "
+                "instead, which proxies sessions through the allocator."
             )
 
         needs_tailnet = (

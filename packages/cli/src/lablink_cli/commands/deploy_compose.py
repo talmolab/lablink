@@ -89,6 +89,31 @@ def _needs_tailscale_sidecar(cfg: Config) -> bool:
     )
 
 
+def _tailscale_state_volume_exists(target: Path) -> bool:
+    """True if this deployment's `tailscale_state` volume already exists.
+
+    Default `lablink destroy` preserves this volume (it carries the
+    sidecar's Tailscale node identity, not "data") but removes the whole
+    working directory, including the `.env` that would otherwise carry
+    TS_AUTHKEY forward. Without this check, a redeploy after such a
+    destroy would demand a fresh --tailscale-authkey purely because
+    there's no .env to read one from — even though the sidecar's identity
+    is already authenticated and sitting in this preserved volume, and
+    containerboot skips the `tailscale up --authkey` step when valid
+    state is already present. Guessed the same way as
+    `_pgdata_volume_name`'s fallback (verified via `docker volume
+    inspect`, safe because target.name is regex-constrained to Compose's
+    own project-name character set).
+    """
+    result = subprocess.run(
+        ["docker", "volume", "inspect", f"{target.name}_tailscale_state"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def render_compose_dir(
     cfg: Config, target: Path, *, tailscale_authkey: str | None = None
 ) -> None:
@@ -209,8 +234,12 @@ def run_deploy_compose(
     either `cfg.manual.connectivity == "mesh_overlay"` or
     `cfg.manual.participant_exposure == "tailscale_funnel"`, unless a
     value is already on record in this deployment's existing `.env`
-    (the sidecar has nothing to join with otherwise) — carried forward
-    on ordinary redeploys by `render_compose_dir`.
+    (carried forward on ordinary redeploys by `render_compose_dir`) or
+    the sidecar already has a valid, authenticated identity sitting in
+    its preserved `tailscale_state` volume (e.g. after a default
+    `lablink destroy`, which wipes the working directory — including
+    `.env` — but keeps that volume specifically so this doesn't force a
+    needless re-auth).
     """
     target = compose_workdir(cfg, workdir_root)
 
@@ -223,7 +252,11 @@ def run_deploy_compose(
         # still requires --tailscale-authkey instead of silently
         # rendering an empty key.
         previous_authkey = _read_env_value(target / ".env", "TS_AUTHKEY")
-        if not tailscale_authkey and not previous_authkey:
+        if (
+            not tailscale_authkey
+            and not previous_authkey
+            and not _tailscale_state_volume_exists(target)
+        ):
             console.print(
                 "[red]A Tailscale sidecar is needed (manual.connectivity "
                 "is 'mesh_overlay' and/or manual.participant_exposure is "
@@ -245,6 +278,32 @@ def run_deploy_compose(
             "The allocator image has no TLS terminator; for public TLS, "
             "front the compose stack with your own reverse proxy "
             "(Caddy, nginx, Cloudflare Tunnel)."
+        )
+        raise SystemExit(1)
+
+    # Preflight: lan_direct + tailscale_funnel is not a supported
+    # combination. lan_direct sends the participant's browser straight to
+    # a client's LAN IP (ws://<client-ip>:6080 — see
+    # LANDirectClientConnectivity), bypassing the allocator entirely —
+    # unreachable off-LAN and blocked as mixed content once the allocator
+    # itself is Funnel-exposed. mesh_overlay proxies sessions through the
+    # allocator's own nginx instead, which Funnel already exposes.
+    # get_config_errors() also rejects this (catches it in the wizard/
+    # `show-config`/`doctor`), but `lablink deploy` never calls that
+    # validator for the manual provider — this is the actual enforcement
+    # point for a hand-edited config.yaml deployed directly.
+    if (
+        cfg.manual.participant_exposure == "tailscale_funnel"
+        and cfg.manual.connectivity == "lan_direct"
+    ):
+        console.print(
+            "[red]manual.participant_exposure is 'tailscale_funnel' but "
+            "manual.connectivity is 'lan_direct'.[/red]\n"
+            "Participant sessions would connect directly to a client's LAN "
+            "IP, which is unreachable off-LAN and blocked as mixed content "
+            "from the HTTPS Funnel page. Use manual.connectivity: "
+            "mesh_overlay instead, which proxies sessions through the "
+            "allocator."
         )
         raise SystemExit(1)
 
@@ -313,6 +372,19 @@ def run_deploy_compose(
 
     _compose_up(target)
     _health_poll()
+
+    # Disable again, now that the sidecar (if the compose file still
+    # declares one) is guaranteed running. The call above can silently
+    # no-op if the sidecar was stopped-but-not-removed at that point —
+    # `docker exec` fails on a stopped container the same way it does on
+    # a missing one, and _disable_funnel() can't tell those apart. If
+    # connectivity stays mesh_overlay, _compose_up just restarted that
+    # same stopped sidecar, reattached to tailscale_state with Funnel's
+    # last-known "on" config still intact — this second call is what
+    # actually clears it. Harmless no-op if the sidecar was removed as
+    # an orphan instead (nothing to disable).
+    if cfg.manual.participant_exposure != "tailscale_funnel":
+        _disable_funnel()
 
     funnel_ok = True
     funnel_url = None
@@ -712,13 +784,23 @@ def _extract_register_token() -> str | None:
     return None
 
 
-def _pgdata_volume_name() -> str | None:
+def _pgdata_volume_name(target: Path) -> str | None:
     """Resolve the Docker volume currently backing the allocator's Postgres data.
 
-    Looked up by inspecting the running container's mounts rather than
-    guessing Compose's project-name normalization, so it's exact regardless
-    of deployment name. Returns None if the allocator container isn't
-    present (nothing to look up — there's no volume to selectively remove).
+    Tries the running container's actual mount first (exact, no guessing).
+    Falls back to Compose's own directory-basename project-naming
+    convention when the container's already gone — e.g. an operator ran a
+    manual `docker compose down` (removing containers, leaving volumes)
+    before `lablink destroy` — verified via `docker volume inspect` before
+    trusting it, so a wrong guess can't be silently mistaken for "nothing
+    to remove". Guessing is safe here specifically because deployment_name
+    (and therefore target.name) is already regex-constrained to Compose's
+    own project-name character set (`^[a-z][a-z0-9-]*[a-z0-9]$` — see
+    config/schema.py's DEPLOYMENT_NAME_RE), so there's no normalization
+    mismatch to worry about.
+
+    Returns None only if no volume can be found by either method — i.e.
+    this deployment never actually created one.
     """
     result = subprocess.run(
         [
@@ -734,7 +816,17 @@ def _pgdata_volume_name() -> str | None:
         check=False,
     )
     name = result.stdout.strip()
-    return name or None
+    if name:
+        return name
+
+    candidate = f"{target.name}_allocator_pgdata"
+    check = subprocess.run(
+        ["docker", "volume", "inspect", candidate],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return candidate if check.returncode == 0 else None
 
 
 def run_destroy_compose(
@@ -795,7 +887,7 @@ def run_destroy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    pgdata_volume = None if keep_data else _pgdata_volume_name()
+    pgdata_volume = None if keep_data else _pgdata_volume_name(target)
 
     result = subprocess.run(["docker", "compose", "down"], cwd=target, check=False)
     if result.returncode != 0:
@@ -804,7 +896,22 @@ def run_destroy_compose(
 
     if not keep_data:
         if pgdata_volume:
-            subprocess.run(["docker", "volume", "rm", pgdata_volume], check=False)
+            rm_result = subprocess.run(
+                ["docker", "volume", "rm", pgdata_volume],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if rm_result.returncode != 0:
+                console.print(
+                    f"[red]Failed to remove Postgres volume "
+                    f"{pgdata_volume}:[/red] {rm_result.stderr.strip()}\n"
+                    "The working directory was NOT removed — a later "
+                    "deploy could otherwise silently reattach to this "
+                    "volume's old data. Resolve the error above and "
+                    "re-run `lablink destroy`."
+                )
+                raise SystemExit(1)
         shutil.rmtree(target)
         console.print(f"[green]Removed {target}.[/green]")
     else:

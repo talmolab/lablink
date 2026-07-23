@@ -457,6 +457,7 @@ class TestParticipantExposureField:
             participant_exposure="tailscale_funnel",
             overlay_tailnet="example.ts.net",
         )
+        cfg.manual.connectivity = "mesh_overlay"
         errors = get_config_errors(cfg)
         assert not any("manual.participant_exposure" in e for e in errors)
         assert not any("overlay_tailnet is required" in e for e in errors)
@@ -467,6 +468,7 @@ class TestParticipantExposureField:
         cfg = self._make_cfg(
             participant_exposure="tailscale_funnel", overlay_tailnet=""
         )
+        cfg.manual.connectivity = "mesh_overlay"
         errors = get_config_errors(cfg)
         assert any("overlay_tailnet is required" in e for e in errors)
 
@@ -480,6 +482,59 @@ class TestParticipantExposureField:
         cfg.manual.connectivity = "mesh_overlay"
         errors = get_config_errors(cfg)
         assert any("overlay_tailnet is required" in e for e in errors)
+
+
+class TestLanDirectFunnelRejected:
+    """lan_direct sends the participant's browser directly to a client's
+    LAN IP, bypassing the allocator — unreachable/mixed-content-blocked
+    once the allocator itself is Funnel-exposed. mesh_overlay proxies
+    through the allocator instead, so it doesn't have this problem."""
+
+    def _make_cfg(self, connectivity, participant_exposure, overlay_tailnet=""):
+        from lablink_allocator_service.conf.structured_config import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.connectivity = connectivity
+        cfg.manual.participant_exposure = participant_exposure
+        cfg.manual.overlay_tailnet = overlay_tailnet
+        cfg.app.admin_password = "a-strong-enough-password"
+        return cfg
+
+    def test_lan_direct_with_funnel_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = self._make_cfg(
+            "lan_direct", "tailscale_funnel", overlay_tailnet="example.ts.net"
+        )
+        errors = get_config_errors(cfg)
+        assert any(
+            "manual.participant_exposure is 'tailscale_funnel' but "
+            "manual.connectivity is 'lan_direct'" in e
+            for e in errors
+        )
+
+    def test_mesh_overlay_with_funnel_accepted(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = self._make_cfg(
+            "mesh_overlay", "tailscale_funnel", overlay_tailnet="example.ts.net"
+        )
+        errors = get_config_errors(cfg)
+        assert not any("lan_direct" in e for e in errors)
+
+    def test_lan_direct_without_funnel_unaffected(self):
+        """Regression: the default lan_direct + participant_exposure=none
+        combination must remain fully valid — this check only fires when
+        Funnel is actually requested."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = self._make_cfg("lan_direct", "none")
+        errors = get_config_errors(cfg)
+        assert not any("lan_direct" in e for e in errors)
 
 
 class TestWeakAdminPasswordHelper:
@@ -505,6 +560,22 @@ class TestWeakAdminPasswordHelper:
 
         assert is_weak_admin_password("a-genuinely-long-passphrase-99") is False
 
+    def test_placeholder_admin_password_is_weak(self):
+        """Regression (P1 review finding): PLACEHOLDER_ADMIN_PASSWORD is
+        committed verbatim in conf/config.yaml (meant to be injected from
+        a GitHub secret at AWS deploy time) — publicly known simply by
+        being in this repo. It's 26 characters, so length alone wouldn't
+        catch it; a manual config that retained it unchanged must still
+        be rejected, same as a config using "123456"."""
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+
+        assert is_weak_admin_password("PLACEHOLDER_ADMIN_PASSWORD") is True
+
+    def test_placeholder_admin_password_case_insensitive(self):
+        from lablink_allocator_service.validate_config import is_weak_admin_password
+
+        assert is_weak_admin_password("placeholder_admin_password") is True
+
 
 class TestParticipantExposureWeakPasswordGate:
     def _make_cfg(self, admin_password):
@@ -515,6 +586,7 @@ class TestParticipantExposureWeakPasswordGate:
         cfg.ssl.provider = "none"
         cfg.dns.enabled = False
         cfg.dns.domain = ""
+        cfg.manual.connectivity = "mesh_overlay"
         cfg.manual.participant_exposure = "tailscale_funnel"
         cfg.manual.overlay_tailnet = "example.ts.net"
         cfg.app.admin_password = admin_password
@@ -565,6 +637,7 @@ class TestParticipantExposureWeakPasswordGate:
         cfg.ssl.provider = "none"
         cfg.dns.enabled = False
         cfg.dns.domain = ""
+        cfg.manual.connectivity = "mesh_overlay"
         cfg.manual.participant_exposure = "tailscale_funnel"
         cfg.manual.overlay_tailnet = "example.ts.net"
         assert cfg.app.admin_password == MISSING_SECRET
