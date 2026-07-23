@@ -362,8 +362,8 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
 def test_launch_missing_allocator_outputs_returns_error(
     client, admin_headers, monkeypatch, tmp_path
 ):
-    """Test VM launch with missing allocator outputs."""
-    # Create a fake terraform directory
+    """Missing allocator outputs redirects to /admin/instances with an
+    error code instead of rendering dashboard.html inline."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
@@ -380,8 +380,8 @@ def test_launch_missing_allocator_outputs_returns_error(
     monkeypatch.setattr("lablink_allocator_service.main.key_name", None, raising=False)
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
-    assert resp.status_code == 200
-    assert b"Allocator outputs not found." in resp.data
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/instances?error=allocator_outputs_missing"
     assert not (terraform_dir / "terraform.runtime.tfvars").exists()
 
 
@@ -527,25 +527,26 @@ def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
 
 
 def test_launch_invalid_num_vms(client, admin_headers):
-    """Test that providing an invalid number of VMs returns an error."""
+    """Invalid num_vms redirects to /admin/instances with an error code
+    instead of rendering dashboard.html inline."""
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "0"})
-    assert resp.status_code == 200
-    assert b"Number of VMs must be greater than 0." in resp.data
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/instances?error=num_vms_invalid"
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "-1"})
-    assert resp.status_code == 200
-    assert b"Number of VMs must be greater than 0." in resp.data
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/instances?error=num_vms_invalid"
 
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "abc"})
-    assert resp.status_code == 200
-    assert b"Invalid number of VMs. Please enter a valid integer." in resp.data
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/instances?error=num_vms_invalid"
 
 
 def test_launch_missing_num_vms(client, admin_headers):
-    """Test that not providing the number of VMs returns an error."""
+    """Missing num_vms redirects to /admin/instances with an error code."""
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={})
-    assert resp.status_code == 200
-    assert b"Number of VMs is required." in resp.data
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/instances?error=num_vms_required"
 
 
 # ------------------------------------------------------------------
