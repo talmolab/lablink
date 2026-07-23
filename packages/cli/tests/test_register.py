@@ -1429,3 +1429,40 @@ class TestWriteEnvFile:
         content = tmp_env_file.read_text()
         assert "OVERLAY_HOSTNAME" not in content
         assert "TAILSCALE_AUTHKEY" not in content
+
+    def test_prefers_caller_url_over_downgraded_response_url(self, tmp_env_file):
+        """Regression (P1 review finding): a mesh-overlay/Funnel allocator's
+        register response derives allocator_url from Flask's
+        request.host_url, which can't detect it arrived over HTTPS behind
+        Tailscale Funnel (Funnel adds no X-Forwarded-Proto) and so reports
+        an http:// URL even for a registration that just succeeded over
+        https://. That URL only 302-redirects under Funnel, which
+        downgrades subsequent POSTs to GET — the actual cause of gpu_health/
+        heartbeat 405s observed live. The caller's own allocator_url is
+        proven reachable (registration just used it) and must win."""
+        from lablink_cli.commands.register import _write_env_file
+
+        resp = self._resp_with_monitoring()
+        resp["allocator_url"] = "http://lablink-allocator.example.ts.net"
+
+        _write_env_file(
+            tmp_env_file,
+            "https://lablink-allocator.example.ts.net",
+            resp,
+        )
+
+        content = tmp_env_file.read_text()
+        assert "ALLOCATOR_URL=https://lablink-allocator.example.ts.net" in content
+        assert "ALLOCATOR_URL=http://lablink-allocator.example.ts.net" not in content
+
+    def test_falls_back_to_response_url_when_caller_url_empty(self, tmp_env_file):
+        """Defensive fallback only — allocator_url is a required str in
+        practice, but the response's value still wins if it's ever empty."""
+        from lablink_cli.commands.register import _write_env_file
+
+        _write_env_file(
+            tmp_env_file, "", self._resp_with_monitoring(),
+        )
+
+        content = tmp_env_file.read_text()
+        assert "ALLOCATOR_URL=https://lablink.example.com" in content

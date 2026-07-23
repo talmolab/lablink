@@ -345,7 +345,19 @@ def _write_env_file(
 ) -> None:
     env_file.parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    resolved_url = resp.get("allocator_url") or allocator_url
+    # Prefer the URL the caller actually used to register — if it didn't
+    # work, registration would have failed before reaching this point, so
+    # it's a proven-reachable, correctly-scheme'd address. The server's
+    # own `allocator_url` in the response is derived from Flask's
+    # request.host_url, which is unreliable behind a Tailscale Funnel
+    # front door (Funnel doesn't add X-Forwarded-Proto, so the allocator
+    # can't tell it arrived over HTTPS) — it can silently downgrade an
+    # https:// registration to an http:// value that Funnel then only
+    # 302-redirects, breaking every subsequent POST (redirects turn POST
+    # into GET per RFC/requests convention, e.g. gpu_health/heartbeat
+    # reports 405ing). Only fall back to the response's value if the
+    # caller somehow didn't supply one.
+    resolved_url = allocator_url or resp.get("allocator_url")
     allocator_host = urlparse(resolved_url).hostname or ""
     # REGISTER_RESPONSE is the full server response, re-serialized as
     # single-line JSON. The client's start.sh parses it to materialize
