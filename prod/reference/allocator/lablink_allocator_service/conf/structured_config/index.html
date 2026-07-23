@@ -2801,10 +2801,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.base_delay_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;base_delay_seconds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.enabled" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;enabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.max_attempts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;max_attempts
       
     </span>
   </a>
@@ -2827,6 +2849,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.success_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;success_check
       
     </span>
   </a>
@@ -5676,10 +5709,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.base_delay_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;base_delay_seconds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.enabled" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;enabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.max_attempts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;max_attempts
       
     </span>
   </a>
@@ -5702,6 +5757,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.success_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;success_check
       
     </span>
   </a>
@@ -8055,7 +8121,7 @@ client's overlay hostname. Required when connectivity is
 
 
 <h4 id="lablink_allocator_service.conf.structured_config.StartupConfig" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">StartupConfig</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">on_error</span><span class="o">=</span><span class="s1">&#39;continue&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">StartupConfig</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">on_error</span><span class="o">=</span><span class="s1">&#39;continue&#39;</span><span class="p">,</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">base_delay_seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">success_check</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -8074,7 +8140,14 @@ Attributes:
     path (str): Path to the startup script to be executed.
     on_error (str): Behavior on startup script error. Options:
         - "continue": Log the error and continue startup.
-        - "fail": Abort startup on error.</p>
+        - "fail": Abort startup on error.
+    max_attempts (int): Total attempts to run the startup script
+        before giving up (1 = no retry).
+    base_delay_seconds (int): Base delay for exponential backoff
+        between retries; doubles each attempt, plus jitter.
+    success_check (str): Optional shell command run after the
+        script exits 0 to verify success beyond its own exit code.
+        Empty string disables the check (success = exit code only).</p>
 
 
 
@@ -8098,6 +8171,27 @@ Attributes:
 
 
 
+<h6 id="lablink_allocator_service.conf.structured_config.StartupConfig.base_delay_seconds" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">base_delay_seconds</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.StartupConfig.base_delay_seconds" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h6 id="lablink_allocator_service.conf.structured_config.StartupConfig.enabled" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">enabled</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
@@ -8107,6 +8201,27 @@ Attributes:
   </span>
 
 <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.enabled" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="lablink_allocator_service.conf.structured_config.StartupConfig.max_attempts" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">max_attempts</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.StartupConfig.max_attempts" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
@@ -8149,6 +8264,27 @@ Attributes:
   </span>
 
 <a href="#lablink_allocator_service.conf.structured_config.StartupConfig.path" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="lablink_allocator_service.conf.structured_config.StartupConfig.success_check" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">success_check</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.StartupConfig.success_check" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
