@@ -52,10 +52,13 @@ FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 console = Console()
 
 
-def compose_workdir(cfg: Config) -> Path:
-    """Path to the rendered compose working directory for this deployment."""
+def compose_workdir(cfg: Config, root: Path | None = None) -> Path:
+    """Path to the rendered compose working directory for this deployment.
+
+    `root` overrides `DEFAULT_COMPOSE_DIR` (used by tests via `workdir_root`).
+    """
     name = cfg.deployment_name or "lablink"
-    return DEFAULT_COMPOSE_DIR / name
+    return (root or DEFAULT_COMPOSE_DIR) / name
 
 
 def _read_env_value(env_path: Path, key: str) -> str | None:
@@ -209,7 +212,7 @@ def run_deploy_compose(
     (the sidecar has nothing to join with otherwise) — carried forward
     on ordinary redeploys by `render_compose_dir`.
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (cfg.deployment_name or "lablink")
+    target = compose_workdir(cfg, workdir_root)
 
     needs_sidecar = _needs_tailscale_sidecar(cfg)
     if needs_sidecar:
@@ -298,14 +301,25 @@ def run_deploy_compose(
     render_compose_dir(cfg, target, tailscale_authkey=tailscale_authkey)
     console.print(f"[green]Rendered {target}[/green]")
 
+    # Explicitly disable Funnel *before* _compose_up, whenever the new
+    # config no longer wants it — this must run before --remove-orphans
+    # potentially deletes the sidecar (a removed container can't be
+    # `docker exec`'d into), and it's needed even when the sidecar
+    # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
+    # since Funnel persists in the sidecar's own state regardless of
+    # whether _enable_funnel keeps getting called. See _disable_funnel.
+    if cfg.manual.participant_exposure != "tailscale_funnel":
+        _disable_funnel()
+
     _compose_up(target)
     _health_poll()
 
     funnel_ok = True
     if cfg.manual.participant_exposure == "tailscale_funnel":
         funnel_ok = _enable_funnel()
+    funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    _print_summary(cfg)
+    _print_summary(cfg, funnel_active=funnel_active)
 
     if not funnel_ok:
         raise SystemExit(1)
@@ -314,7 +328,15 @@ def run_deploy_compose(
 def _compose_up(target: Path) -> None:
     console.print("[bold]docker compose up -d …[/bold]")
     result = subprocess.run(
-        ["docker", "compose", "up", "-d"],
+        # --remove-orphans: if needs_sidecar just became False (connectivity
+        # switched off mesh_overlay AND participant_exposure switched off
+        # tailscale_funnel), the freshly-rendered compose file no longer
+        # declares the tailscale service — without this flag, `docker
+        # compose up` leaves that now-undeclared container running
+        # untouched, forever. _disable_funnel() (called before this, in
+        # run_deploy_compose) already clears its Funnel state first, so
+        # this just ensures the container itself doesn't linger too.
+        ["docker", "compose", "up", "-d", "--remove-orphans"],
         cwd=target,
         check=False,
     )
@@ -391,6 +413,50 @@ def _enable_funnel() -> bool:
         return False
 
 
+def _disable_funnel() -> None:
+    """Explicitly clear Tailscale Funnel's serve config on the sidecar,
+    best-effort.
+
+    `tailscale funnel --bg` persists in tailscaled's own local state (the
+    `tailscale_state` named volume) across container restarts — and even
+    across container *recreation*, since a freshly-created sidecar
+    reattaches to that same volume and the same node identity resumes
+    serving from its last-known config. Simply no longer calling
+    `_enable_funnel()` is NOT enough to actually turn Funnel off; it has
+    to be explicitly disabled, or a previously-Funnel-exposed allocator
+    stays publicly reachable even after an operator sets
+    participant_exposure back to "none".
+
+    Called whenever the new config's participant_exposure is no longer
+    "tailscale_funnel", *before* `_compose_up` — including the case
+    where the sidecar is about to be removed entirely as a compose
+    orphan (needs_sidecar became False), since a removed container can
+    no longer be `docker exec`'d into and its persisted volume would
+    otherwise carry the stale "enabled" state forward to any future
+    sidecar that reattaches to it.
+
+    Best-effort and silent on failure: if the sidecar container doesn't
+    exist at all (e.g. a fresh deployment that never enabled Funnel),
+    there is nothing to disable and no error is surfaced.
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "exec",
+            TAILSCALE_SIDECAR_CONTAINER_NAME,
+            "tailscale",
+            "funnel",
+            "--https=443",
+            "off",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        console.print("[dim]Tailscale Funnel disabled.[/dim]")
+
+
 def _health_poll() -> None:
     """Poll the allocator's /api/health on localhost until healthy."""
     # Manual provider is HTTP-only; the host port comes from the rendered
@@ -431,7 +497,17 @@ def _print_last_log_lines(lines: int = 30) -> None:
         console.print(result.stdout)
 
 
-def _print_summary(cfg: Config) -> None:
+def _funnel_participant_url(cfg: Config) -> str:
+    """The public URL Tailscale Funnel publishes the allocator at, once
+    enabled. Deterministic from the same TAILSCALE_HOSTNAME/overlay_tailnet
+    values render_compose_dir already writes into .env — no need to parse
+    `tailscale funnel`'s own stdout, which is what _enable_funnel does for
+    its own success/failure detection instead."""
+    hostname = f"lablink-allocator-{cfg.deployment_name or 'lablink'}"
+    return f"https://{hostname}.{cfg.manual.overlay_tailnet}/"
+
+
+def _print_summary(cfg: Config, *, funnel_active: bool = False) -> None:
     register_token = _extract_register_token()
     # Manual provider is HTTP-only; preflight rejects anything else.
     local_url = "http://localhost"
@@ -444,6 +520,12 @@ def _print_summary(cfg: Config) -> None:
     register_url = lan_url or local_url
 
     console.print("\n[bold green]Deployment complete.[/bold green]")
+    if funnel_active:
+        console.print(
+            f"  Allocator URL (public): {_funnel_participant_url(cfg)}",
+            soft_wrap=True,
+            highlight=False,
+        )
     console.print(f"  Allocator URL (local): {local_url}")
     if lan_url:
         console.print(f"  Allocator URL (LAN):   {lan_url}")
@@ -482,10 +564,14 @@ def _print_summary(cfg: Config) -> None:
     mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
-        # the allocator's LAN at all — "on each BYO box on the same LAN"
-        # is wrong here. --run-locally defaults to on, so hostname/
-        # machine-identity/GPU are auto-detected same as real BYO; only
-        # --overlay-hostname/--tailscale-authkey are required.
+        # the allocator's LAN at all — the LAN URL above is unreachable
+        # from it regardless of whether we detected one. When Funnel is
+        # live, its public URL actually IS reachable from anywhere with
+        # internet access, so prefer it here specifically — but only for
+        # this mesh-overlay hint; lan_direct clients genuinely are on the
+        # LAN, so their own hint below keeps using register_url as-is.
+        if funnel_active:
+            register_url = _funnel_participant_url(cfg)
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "
@@ -511,10 +597,12 @@ def _print_summary(cfg: Config) -> None:
             "workload submission instead of running here, along with "
             "--hostname/--machine-identity.[/dim]"
         )
-    if not lan_url:
+    if not lan_url and not (mesh_overlay and funnel_active):
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the
-        # operator doesn't blindly hand it to a remote teammate.
+        # operator doesn't blindly hand it to a remote teammate. Doesn't
+        # apply when the mesh-overlay hint above already substituted the
+        # Funnel URL instead of falling back to localhost.
         console.print(
             "  [yellow]Note:[/yellow] the URL above is localhost — only "
             "valid for a BYO client running on this same machine. For "
@@ -590,22 +678,30 @@ def run_destroy_compose(
     cfg: Config,
     *,
     yes: bool = False,
-    purge: bool = False,
+    keep_data: bool = False,
     workdir_root: Path | None = None,
 ) -> None:
     """Tear down a manual-provider compose stack.
 
-    Default behavior: `docker compose down` (preserves the Postgres
-    data volume and the working directory — re-deploying restores the
-    DB state).
+    Default behavior: wipes everything — `docker compose down --volumes`
+    (deletes the Postgres data volume: all registration history,
+    sessions, etc.) plus the working directory. A subsequent
+    `lablink deploy` with the same deployment_name then starts from a
+    genuinely empty database, matching what "destroy" means for every
+    other provider — previously the default silently preserved the old
+    volume, so a "fresh" redeploy kept showing every client registered
+    under a prior deployment.
 
-    With `purge=True`: also runs `--volumes` and removes the working
-    directory, wiping all registration history. Destructive.
+    With `keep_data=True`: only `docker compose down` (no `--volumes`),
+    and the working directory is left in place — re-deploying with the
+    same deployment_name restores the previous DB state instead of
+    starting fresh. Opt into this only if that's specifically what you
+    want (e.g. a deliberate maintenance restart, not a real teardown).
 
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
     """
-    target = (workdir_root or DEFAULT_COMPOSE_DIR) / (cfg.deployment_name or "lablink")
+    target = compose_workdir(cfg, workdir_root)
 
     if not target.exists():
         console.print(
@@ -614,10 +710,11 @@ def run_destroy_compose(
         return
 
     if not yes:
-        if purge:
+        if not keep_data:
             console.print(
-                "[red bold]--purge will DELETE the Postgres data volume "
-                "(all registration history, sessions, etc.).[/red bold]"
+                "[red bold]This will DELETE the Postgres data volume "
+                "(all registration history, sessions, etc.). Pass "
+                "--keep-data to preserve it instead.[/red bold]"
             )
         confirmation = typer.prompt(
             f"Type 'yes' to tear down compose stack at {target}",
@@ -629,7 +726,7 @@ def run_destroy_compose(
             raise SystemExit(1)
 
     cmd = ["docker", "compose", "down"]
-    if purge:
+    if not keep_data:
         cmd.append("--volumes")
 
     result = subprocess.run(cmd, cwd=target, check=False)
@@ -637,7 +734,7 @@ def run_destroy_compose(
         console.print("[red]docker compose down failed.[/red]")
         raise SystemExit(result.returncode or 1)
 
-    if purge:
+    if not keep_data:
         shutil.rmtree(target)
         console.print(f"[green]Removed {target}.[/green]")
     else:

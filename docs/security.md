@@ -224,6 +224,7 @@ Follow **principle of least privilege**.
         "ec2:DeleteSecurityGroup",
         "ec2:AuthorizeSecurityGroupIngress",
         "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
         "ec2:CreateKeyPair",
         "ec2:DeleteKeyPair",
         "ec2:DescribeKeyPairs",

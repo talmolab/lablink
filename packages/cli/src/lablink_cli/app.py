@@ -231,11 +231,12 @@ def destroy(
         "-v",
         help="Show the full Terraform output instead of a summary.",
     ),
-    purge: bool = typer.Option(
+    keep_data: bool = typer.Option(
         False,
-        "--purge",
-        help="Manual provider only: also delete the Postgres data volume. "
-        "Ignored for AWS.",
+        "--keep-data",
+        help="Manual provider only: preserve the Postgres data volume "
+        "instead of the default full wipe (registration history, "
+        "sessions, etc. survive a subsequent redeploy). Ignored for AWS.",
     ),
 ) -> None:
     """Tear down LabLink infrastructure."""
@@ -243,7 +244,7 @@ def destroy(
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
-        run_destroy_compose(cfg, yes=yes, purge=purge)
+        run_destroy_compose(cfg, yes=yes, keep_data=keep_data)
         return
 
     from lablink_cli.commands.deploy import run_destroy

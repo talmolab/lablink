@@ -491,17 +491,21 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
 # ManualConnectivityScreen
 # ---------------------------------------------------------------------------
 def _drive_connectivity_screen(
-    *, choose_mesh_overlay: bool, overlay_tailnet: str = ""
+    *,
+    choose_mesh_overlay: bool,
+    overlay_tailnet: str = "",
+    choose_funnel: bool = False,
 ):
     """Push ManualConnectivityScreen directly, drive it, return
-    (cfg.manual.connectivity, cfg.manual.overlay_tailnet, screen_stack_grew)."""
+    (cfg.manual.connectivity, cfg.manual.overlay_tailnet,
+    cfg.manual.participant_exposure, screen_stack_grew)."""
     import asyncio
     from textual.widgets import Input, RadioButton, RadioSet
 
     cfg, app = _build_cfg_and_app()
     cfg.provider = "manual"
 
-    async def _run() -> tuple[str, str, int]:
+    async def _run() -> tuple[str, str, str, int]:
         from lablink_cli.tui.wizard import ManualConnectivityScreen
 
         async with app.run_test() as pilot:
@@ -517,12 +521,24 @@ def _drive_connectivity_screen(
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
                 screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+            if choose_funnel:
+                exposure_set = screen.query_one(
+                    "#participant-exposure-select", RadioSet
+                )
+                for btn in exposure_set.query(RadioButton):
+                    if btn.id == "participant-exposure-funnel":
+                        btn.value = True
+                if not choose_mesh_overlay:
+                    screen.query_one(
+                        "#overlay-tailnet", Input
+                    ).value = overlay_tailnet
             await pilot.pause()
             screen._next()
             await pilot.pause()
             return (
                 cfg.manual.connectivity,
                 cfg.manual.overlay_tailnet,
+                cfg.manual.participant_exposure,
                 len(app.screen_stack) - stack_before,
             )
 
@@ -530,26 +546,131 @@ def _drive_connectivity_screen(
 
 
 def test_connectivity_screen_defaults_to_lan_direct():
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=False
     )
     assert connectivity == "lan_direct"
+    assert exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet="example.ts.net"
     )
     assert connectivity == "mesh_overlay"
     assert tailnet == "example.ts.net"
+    assert exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_blocks_next_when_tailnet_missing():
     """mesh_overlay chosen but no tailnet domain → validation error, no push."""
-    connectivity, tailnet, stack_delta = _drive_connectivity_screen(
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet=""
     )
     assert connectivity == "mesh_overlay"
     assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def _drive_startup_retry_fields(
+    max_attempts: str | None, base_delay: str | None, success_check: str | None
+):
+    """Push StartupScreen directly, optionally edit the retry fields, hit Next.
+
+    Passing None for an input leaves its pre-filled value untouched;
+    passing "" clears it (simulating a user deleting the field).
+    """
+    from lablink_cli.config.schema import Config
+    from lablink_cli.tui.wizard import ConfigWizard, StartupScreen
+
+    cfg = Config()
+    app = ConfigWizard(existing_config=cfg)
+
+    async def _run() -> None:
+        from textual.widgets import Input
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = StartupScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+
+            if max_attempts is not None:
+                screen.query_one("#max-attempts", Input).value = max_attempts
+            if base_delay is not None:
+                screen.query_one("#base-delay", Input).value = base_delay
+            if success_check is not None:
+                screen.query_one("#success-check", Input).value = success_check
+            await pilot.pause()
+
+            # Invoke the screen's Next handler directly — clicking via the
+            # pilot needs viewport coords that aren't reliable in headless
+            # tests, matching the pattern used for MonitoringScreen/
+            # ConnectivityScreen above.
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    return cfg.startup_script
+
+
+def test_startup_screen_writes_retry_fields():
+    result = _drive_startup_retry_fields(
+        max_attempts="5",
+        base_delay="45",
+        success_check="/home/client/.local/bin/sleap --version",
+    )
+    assert result.max_attempts == 5
+    assert result.base_delay_seconds == 45
+    assert result.success_check == "/home/client/.local/bin/sleap --version"
+
+
+def test_startup_screen_empty_numeric_fields_fall_back_to_defaults():
+    """Clearing max-attempts/base-delay must not crash int() on '' — falls
+    back to StartupConfig's own declared defaults (3, 30)."""
+    result = _drive_startup_retry_fields(
+        max_attempts="", base_delay="", success_check=None
+    )
+    assert result.max_attempts == 3
+    assert result.base_delay_seconds == 30
+
+
+def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity():
+    """participant_exposure is independent of connectivity — lan_direct
+    clients + tailscale_funnel exposure is a valid combination."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert connectivity == "lan_direct"
+    assert exposure == "tailscale_funnel"
+    assert tailnet == "example.ts.net"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_next_when_funnel_missing_tailnet():
+    """tailscale_funnel chosen but no tailnet domain → validation error,
+    no push — same requirement mesh_overlay already has, generalized."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False, choose_funnel=True, overlay_tailnet=""
+    )
+    assert exposure == "tailscale_funnel"
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
+    """The weak-admin-password gate is deferred to deploy time (the wizard
+    never collects app.admin_password) — choosing tailscale_funnel here
+    must not be spuriously blocked by that check."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False,
+        choose_funnel=True,
+        overlay_tailnet="example.ts.net",
+    )
+    assert exposure == "tailscale_funnel"
+    assert stack_delta == 1, (
+        "a real requirement (tailnet) blocks progression; an unset "
+        "admin_password (not yet collected at this wizard stage) must not"
+    )

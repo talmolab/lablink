@@ -15,6 +15,7 @@ from hydra.errors import ConfigCompositionException
 from omegaconf import DictConfig
 from omegaconf.errors import ConfigKeyError, ValidationError
 
+from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.get_config import get_config
 
 # Configure logging
@@ -141,7 +142,16 @@ def get_config_errors(cfg) -> list:
 
         if participant_exposure == "tailscale_funnel":
             admin_password = getattr(getattr(cfg, "app", None), "admin_password", "")
-            if is_weak_admin_password(admin_password):
+            # MISSING_SECRET is AppConfig.admin_password's dataclass default —
+            # the sentinel for "not yet resolved" (the wizard never collects
+            # it; resolve_admin_credentials fills it in at deploy time, and
+            # THAT resolved value is what deploy_compose.py's own preflight
+            # gate checks). Treating the sentinel as "weak" would block
+            # `lablink configure`'s ReviewScreen on every fresh config,
+            # before the operator has had any chance to set a real password.
+            if admin_password != MISSING_SECRET and is_weak_admin_password(
+                admin_password
+            ):
                 errors.append(
                     "manual.participant_exposure is 'tailscale_funnel' but "
                     "app.admin_password is empty, a known example value, or "

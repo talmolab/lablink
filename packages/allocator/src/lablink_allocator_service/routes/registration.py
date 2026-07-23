@@ -110,7 +110,6 @@ def register_client():
         allocator_url=allocator_url,
         client_image=client_image,
         register_token=token,
-        hostname_hint=hostname,
     )
 
     # Ship the custom startup script to the client. BYO clients (manual
@@ -157,6 +156,15 @@ def register_client():
         client_image=jm.client_image,
         startup_script_b64=startup_b64,
         startup_on_error=main.cfg.startup_script.on_error,
+        startup_max_attempts=main.cfg.startup_script.max_attempts,
+        startup_base_delay_seconds=main.cfg.startup_script.base_delay_seconds,
+        startup_success_check_b64=(
+            base64.b64encode(
+                main.cfg.startup_script.success_check.encode()
+            ).decode()
+            if main.cfg.startup_script.success_check
+            else ""
+        ),
         monitoring=monitoring,
     ), 200
 

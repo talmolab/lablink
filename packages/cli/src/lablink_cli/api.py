@@ -23,6 +23,42 @@ except Exception:  # pragma: no cover - package metadata unavailable
 # allocators, so every Request must identify itself with this instead.
 USER_AGENT = f"lablink-cli/{_CLI_VERSION}"
 
+
+def authenticated_json_request(
+    url: str,
+    admin_user: str,
+    admin_password: str,
+    *,
+    ssl_provider: str = "none",
+    timeout: int = 60,
+) -> dict:
+    """GET `url` with HTTP Basic auth and return the parsed JSON body.
+
+    Raises the underlying HTTPError/URLError/json.JSONDecodeError
+    unwrapped — stats/logs/export_metrics each need different
+    presentation for the same failures (a red console message here, a
+    TUI error dict there), so this only owns the request plumbing, not
+    the error translation.
+    """
+    credentials = base64.b64encode(
+        f"{admin_user}:{admin_password}".encode()
+    ).decode()
+
+    req = Request(url, method="GET")
+    req.add_header("User-Agent", USER_AGENT)
+    req.add_header("Authorization", f"Basic {credentials}")
+    req.add_header("Accept", "application/json")
+
+    ctx = ssl.create_default_context()
+    if ssl_provider == "self_signed":
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+    # S310: URL scheme is operator-supplied by design (allocator base
+    # URL from the CLI config); skipping the scheme allowlist check.
+    resp = urlopen(req, timeout=timeout, context=ctx)  # noqa: S310
+    return json.loads(resp.read().decode())
+
 # /destroy and /api/launch are async (they return a job id immediately;
 # the allocator runs Terraform on a background thread). Individual
 # requests (submit or poll) are fast, so a short per-request timeout

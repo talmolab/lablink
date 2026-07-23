@@ -108,6 +108,142 @@ class TestCleanupSecurityGroups:
 
         cleanup_security_groups(ec2, "mylab", "dev", dry_run=True)
         ec2.delete_security_group.assert_not_called()
+        ec2.revoke_security_group_ingress.assert_not_called()
+        ec2.revoke_security_group_egress.assert_not_called()
+
+    def test_revokes_rules_before_delete(self):
+        ec2 = MagicMock()
+        ingress = [{"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80}]
+        egress = [{"IpProtocol": "-1"}]
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {
+                        "GroupName": "mylab-allocator-sg-dev",
+                        "GroupId": "sg-aaa",
+                        "IpPermissions": ingress,
+                        "IpPermissionsEgress": egress,
+                    }
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.revoke_security_group_ingress.assert_called_once_with(
+            GroupId="sg-aaa", IpPermissions=ingress
+        )
+        ec2.revoke_security_group_egress.assert_called_once_with(
+            GroupId="sg-aaa", IpPermissions=egress
+        )
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
+    def test_dependency_violation_does_not_abort(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {
+                "SecurityGroups": [
+                    {"GroupName": "x-lablink-client-dev-sg", "GroupId": "sg-bbb"}
+                ]
+            },
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = [
+            ClientError(
+                {"Error": {"Code": "DependencyViolation", "Message": "x"}},
+                "DeleteSecurityGroup",
+            ),
+            None,
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        # Both SGs were attempted; second one succeeded.
+        assert ec2.delete_security_group.call_count == 2
+
+    def test_skips_revoke_when_no_rules(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.revoke_security_group_ingress.assert_not_called()
+        ec2.revoke_security_group_egress.assert_not_called()
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
+    def test_not_found_on_delete(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = ClientError(
+            {"Error": {"Code": "InvalidGroup.NotFound", "Message": "x"}},
+            "DeleteSecurityGroup",
+        )
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
+
+    def test_unexpected_error_on_delete_reraises(self):
+        ec2 = MagicMock()
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {"GroupName": "mylab-allocator-sg-dev", "GroupId": "sg-aaa"}
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.delete_security_group.side_effect = ClientError(
+            {"Error": {"Code": "UnauthorizedOperation", "Message": "x"}},
+            "DeleteSecurityGroup",
+        )
+
+        with pytest.raises(ClientError):
+            cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+
+    def test_revoke_failure_does_not_block_delete(self):
+        ec2 = MagicMock()
+        ingress = [{"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80}]
+        ec2.describe_security_groups.side_effect = [
+            {
+                "SecurityGroups": [
+                    {
+                        "GroupName": "mylab-allocator-sg-dev",
+                        "GroupId": "sg-aaa",
+                        "IpPermissions": ingress,
+                    }
+                ]
+            },
+            {"SecurityGroups": []},
+            {"SecurityGroups": []},
+        ]
+        ec2.revoke_security_group_ingress.side_effect = ClientError(
+            {"Error": {"Code": "AuthFailure", "Message": "x"}},
+            "RevokeSecurityGroupIngress",
+        )
+
+        cleanup_security_groups(ec2, "mylab", "dev", dry_run=False)
+        ec2.delete_security_group.assert_called_once_with(GroupId="sg-aaa")
 
 
 # ------------------------------------------------------------------
@@ -140,7 +276,7 @@ class TestCleanupElasticIps:
         ec2 = MagicMock()
         ec2.describe_addresses.return_value = {"Addresses": []}
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.release_address.assert_not_called()
 
     def test_release_ip(self):
@@ -151,7 +287,7 @@ class TestCleanupElasticIps:
             ]
         }
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.release_address.assert_called_once_with(AllocationId="eipalloc-123")
 
     def test_disassociate_before_release(self):
@@ -166,11 +302,42 @@ class TestCleanupElasticIps:
             ]
         }
 
-        cleanup_elastic_ips(ec2, "mylab", "dev", dry_run=False)
+        cleanup_elastic_ips(ec2, "mylab", "dev", "dynamic", dry_run=False)
         ec2.disassociate_address.assert_called_once_with(
             AssociationId="eipassoc-456"
         )
         ec2.release_address.assert_called_once()
+
+    def test_skips_release_when_persistent_strategy(self):
+        """The whole point of eip.strategy=persistent is reuse across
+        deployments — cleanup must never release it, regardless of
+        dry_run. Regression test for the incident where `lablink cleanup`
+        released a persistent, DNS-pointed production EIP."""
+        ec2 = MagicMock()
+        ec2.describe_addresses.return_value = {
+            "Addresses": [
+                {
+                    "AllocationId": "eipalloc-123",
+                    "PublicIp": "1.2.3.4",
+                    "AssociationId": "eipassoc-456",
+                }
+            ]
+        }
+
+        cleanup_elastic_ips(ec2, "mylab", "dev", "persistent", dry_run=False)
+        ec2.disassociate_address.assert_not_called()
+        ec2.release_address.assert_not_called()
+
+    def test_skips_release_when_persistent_strategy_even_in_dry_run(self):
+        ec2 = MagicMock()
+        ec2.describe_addresses.return_value = {
+            "Addresses": [
+                {"AllocationId": "eipalloc-123", "PublicIp": "1.2.3.4"}
+            ]
+        }
+
+        cleanup_elastic_ips(ec2, "mylab", "dev", "persistent", dry_run=True)
+        ec2.release_address.assert_not_called()
 
 
 # ------------------------------------------------------------------

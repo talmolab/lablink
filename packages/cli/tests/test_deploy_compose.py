@@ -467,6 +467,22 @@ class TestDeployComposeParticipantExposurePreflight:
         mock_up.assert_called_once()
 
 
+class TestComposeUp:
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_uses_remove_orphans(self, mock_run, tmp_path):
+        """Regression: without --remove-orphans, a sidecar that's no
+        longer declared in the rendered compose file (needs_sidecar
+        became False) is left running untouched forever, still serving
+        whatever it was serving before (e.g. Funnel) — see the P1
+        finding this guards against."""
+        from lablink_cli.commands.deploy_compose import _compose_up
+
+        mock_run.return_value = MagicMock(returncode=0)
+        _compose_up(tmp_path)
+        cmd = mock_run.call_args[0][0]
+        assert cmd == ["docker", "compose", "up", "-d", "--remove-orphans"]
+
+
 class TestEnableFunnel:
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
     def test_already_enabled_or_newly_enabled_returns_true(self, mock_run):
@@ -543,6 +559,50 @@ class TestEnableFunnel:
         assert mock_sleep.call_count == 2
 
 
+class TestDisableFunnel:
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_uses_correct_container_and_command(self, mock_run):
+        from lablink_cli.commands.deploy_compose import _disable_funnel
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        _disable_funnel()
+        cmd = mock_run.call_args[0][0]
+        assert cmd == [
+            "docker",
+            "exec",
+            "lablink-allocator-tailscale",
+            "tailscale",
+            "funnel",
+            "--https=443",
+            "off",
+        ]
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_prints_message_on_success(self, mock_run, capsys):
+        from lablink_cli.commands.deploy_compose import _disable_funnel
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        _disable_funnel()
+        assert "disabled" in capsys.readouterr().out.lower()
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_silent_and_no_exception_when_sidecar_missing(self, mock_run, capsys):
+        """Best-effort: a fresh deployment that never enabled Funnel has
+        no sidecar to disable it on — must not raise or print an error."""
+        from lablink_cli.commands.deploy_compose import _disable_funnel
+
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="Error response from daemon: No such container: "
+            "lablink-allocator-tailscale",
+        )
+        _disable_funnel()  # must not raise
+        out = capsys.readouterr().out
+        assert "disabled" not in out.lower()
+        assert "error" not in out.lower()
+
+
 class TestRunDeployComposeFunnelWiring:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -571,15 +631,107 @@ class TestRunDeployComposeFunnelWiring:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._disable_funnel")
     @patch("lablink_cli.commands.deploy_compose._enable_funnel")
     def test_does_not_call_enable_funnel_when_disabled(
-        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+        self, mock_funnel, mock_disable, mock_up, mock_poll, mock_summary, tmp_path
     ):
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
         run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
         mock_funnel.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._disable_funnel")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_calls_disable_funnel_when_participant_exposure_is_none(
+        self, mock_funnel, mock_disable, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Regression: participant_exposure going back to "none" must
+        actively turn Funnel off, not just stop re-enabling it — Funnel
+        persists in the sidecar's own state otherwise (P1 finding)."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+        run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        mock_disable.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._disable_funnel")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_calls_disable_funnel_when_connectivity_stays_mesh_overlay(
+        self, mock_funnel, mock_disable, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Regression: the sidecar staying alive for an unrelated reason
+        (connectivity=mesh_overlay) must not skip disabling Funnel — the
+        sidecar is still running the whole time, so its persisted Funnel
+        config would otherwise keep serving indefinitely."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="none",
+            overlay_tailnet="example.ts.net",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        mock_disable.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._disable_funnel")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_does_not_call_disable_funnel_when_funnel_active(
+        self, mock_funnel, mock_disable, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_funnel.return_value = True
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc",
+        )
+        mock_disable.assert_not_called()
+
+    def test_disable_funnel_runs_before_compose_up_could_remove_sidecar(
+        self, tmp_path
+    ):
+        """Ordering regression: _disable_funnel must run before
+        _compose_up, since --remove-orphans could delete the sidecar
+        container that _disable_funnel needs to `docker exec` into."""
+        from lablink_cli.commands import deploy_compose
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        call_order = []
+        with patch.object(
+            deploy_compose,
+            "_disable_funnel",
+            side_effect=lambda: call_order.append("disable"),
+        ), patch.object(
+            deploy_compose,
+            "_compose_up",
+            side_effect=lambda target: call_order.append("compose_up"),
+        ), patch.object(
+            deploy_compose, "_health_poll"
+        ), patch.object(
+            deploy_compose, "_print_summary"
+        ):
+            cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+
+        assert call_order == ["disable", "compose_up"]
 
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
@@ -780,7 +932,10 @@ class TestDeployComposePreflight:
 
 class TestDestroyCompose:
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_default_compose_down_no_volumes(self, mock_run, tmp_path):
+    def test_default_wipes_volumes_and_workdir(self, mock_run, tmp_path):
+        """Default behavior is now a full wipe — matches what "destroy"
+        means for every other provider, and what most operators expect
+        (a subsequent `lablink deploy` starts from an empty database)."""
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
@@ -789,18 +944,16 @@ class TestDestroyCompose:
         (workdir / "docker-compose.yml").write_text("")
         mock_run.return_value = MagicMock(returncode=0)
 
-        run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=tmp_path / "compose"
-        )
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
         mock_run.assert_called_once()
         cmd = mock_run.call_args[0][0]
         assert "down" in cmd
-        assert "--volumes" not in cmd
-        assert workdir.exists()  # NOT removed without --purge
+        assert "--volumes" in cmd
+        assert not workdir.exists()  # removed by default
 
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_purge_removes_volumes_and_workdir(self, mock_run, tmp_path):
+    def test_keep_data_preserves_volumes_and_workdir(self, mock_run, tmp_path):
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
@@ -810,22 +963,20 @@ class TestDestroyCompose:
         mock_run.return_value = MagicMock(returncode=0)
 
         run_destroy_compose(
-            cfg, yes=True, purge=True, workdir_root=tmp_path / "compose"
+            cfg, yes=True, keep_data=True, workdir_root=tmp_path / "compose"
         )
 
         cmd = mock_run.call_args[0][0]
         assert "down" in cmd
-        assert "--volumes" in cmd
-        assert not workdir.exists()  # removed on purge
+        assert "--volumes" not in cmd
+        assert workdir.exists()  # NOT removed with --keep-data
 
     def test_noop_when_workdir_missing(self, tmp_path):
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
         # No directory created — should just print a message and return.
-        run_destroy_compose(
-            cfg, yes=True, purge=False, workdir_root=tmp_path / "compose"
-        )
+        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
     def test_destroy_compose_prints_unregister_reminder_on_success(
         self, tmp_path, capsys, monkeypatch
@@ -843,10 +994,7 @@ class TestDestroyCompose:
         monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
 
         deploy_compose.run_destroy_compose(
-            cfg,
-            yes=True,
-            purge=False,
-            workdir_root=workdir_root,
+            cfg, yes=True, workdir_root=workdir_root,
         )
 
         out = capsys.readouterr().out
@@ -863,10 +1011,7 @@ class TestDestroyCompose:
         cfg = _manual_cfg()
 
         deploy_compose.run_destroy_compose(
-            cfg,
-            yes=True,
-            purge=False,
-            workdir_root=workdir_root,
+            cfg, yes=True, workdir_root=workdir_root,
         )
 
         out = capsys.readouterr().out
@@ -889,10 +1034,7 @@ class TestDestroyCompose:
 
         with pytest.raises(SystemExit):
             deploy_compose.run_destroy_compose(
-                cfg,
-                yes=True,
-                purge=False,
-                workdir_root=workdir_root,
+                cfg, yes=True, workdir_root=workdir_root,
             )
 
         out = capsys.readouterr().out
@@ -1019,6 +1161,131 @@ class TestPrintSummaryMeshOverlay:
         assert "--overlay-hostname" not in out
         assert "--tailscale-authkey" not in out
         assert "--no-run-locally" not in out
+
+
+class TestPrintSummaryFunnel:
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_mesh_overlay_register_hint_uses_public_url_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Regression: a mesh-overlay client (e.g. a Run:AI workload) is
+        never on the allocator's LAN, so the LAN IP was always the wrong
+        address for it — Funnel's public URL actually is reachable from
+        anywhere, so prefer it here once Funnel is live."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        expected_url = "https://lablink-allocator-testlab.example.ts.net/"
+        assert (
+            f"--allocator-url {expected_url} --register-token {token}" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_shows_public_url_line_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            "Allocator URL (public): "
+            "https://lablink-allocator-testlab.example.ts.net/"
+        ) in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_no_public_url_line_when_funnel_inactive(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Default funnel_active=False (participant_exposure: none, or
+        Funnel enable failed) — no public URL line, unchanged output."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(_manual_cfg(connectivity="mesh_overlay"))
+
+        out = capsys.readouterr().out
+        assert "Allocator URL (public)" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_no_localhost_warning_when_funnel_substituted(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """When no LAN IP is detected but Funnel supplies a real public
+        URL for the mesh-overlay hint, the 'only valid for same machine'
+        warning (which describes a localhost fallback that didn't
+        happen here) must not fire."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = None
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert "only" not in out.lower() or "same machine" not in out.lower()
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_register_hint_unaffected_by_funnel(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """lan_direct clients genuinely are on the LAN — funnel_active
+        must not redirect their register hint to the public URL, only
+        mesh_overlay's."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity="lan_direct",
+                overlay_tailnet="example.ts.net",
+            ),
+            funnel_active=True,
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            f"--allocator-url http://192.168.1.42 --register-token {token}" in out
+        )
 
 
 class TestDetectLanIp:

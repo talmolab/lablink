@@ -283,7 +283,7 @@ def test_register_response_omits_api_token(reg_client):
 
 def test_register_response_omits_startup_script_when_disabled(reg_client):
     """startup_script.enabled=false (default) → empty payload + the
-    config's on_error knob. BYO CLI uses the empty b64 as the signal
+    config's on_error/retry knobs. BYO CLI uses the empty b64 as the signal
     to skip the mount, so the field must be present and empty rather
     than missing."""
     client, fake_db = reg_client
@@ -296,6 +296,9 @@ def test_register_response_omits_startup_script_when_disabled(reg_client):
     body = r.get_json()
     assert body["startup_script_b64"] == ""
     assert body["startup_on_error"] == "continue"
+    assert body["startup_max_attempts"] == 3
+    assert body["startup_base_delay_seconds"] == 30
+    assert body["startup_success_check_b64"] == ""
 
 
 def test_register_response_includes_startup_script_when_enabled(
@@ -315,6 +318,15 @@ def test_register_response_includes_startup_script_when_enabled(
     monkeypatch.setattr(
         main.cfg.startup_script, "on_error", "fail", raising=False
     )
+    monkeypatch.setattr(
+        main.cfg.startup_script, "max_attempts", 5, raising=False
+    )
+    monkeypatch.setattr(
+        main.cfg.startup_script, "base_delay_seconds", 15, raising=False
+    )
+    monkeypatch.setattr(
+        main.cfg.startup_script, "success_check", "sleap --version", raising=False
+    )
 
     fake_content = b"#!/bin/bash\necho hi from custom startup\n"
     client, fake_db = reg_client
@@ -332,6 +344,9 @@ def test_register_response_includes_startup_script_when_enabled(
     body = r.get_json()
     assert body["startup_script_b64"] == base64.b64encode(fake_content).decode()
     assert body["startup_on_error"] == "fail"
+    assert body["startup_max_attempts"] == 5
+    assert body["startup_base_delay_seconds"] == 15
+    assert base64.b64decode(body["startup_success_check_b64"]) == b"sleap --version"
     # Round-trip back to bytes to guard against double-encoding regressions.
     assert base64.b64decode(body["startup_script_b64"]) == fake_content
 

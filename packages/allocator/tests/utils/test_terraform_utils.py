@@ -4,67 +4,11 @@ from unittest.mock import patch, mock_open
 import pytest
 
 from lablink_allocator_service.utils.terraform_utils import (
-    get_instance_ips,
     get_ssh_private_key,
     get_instance_names,
     get_instance_ids,
     get_instance_timings,
 )
-
-
-@patch("subprocess.run")
-def test_get_instance_ips_success(mock_run):
-    """Test getting instance IPs successfully."""
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-json", "vm_public_ips"],
-        returncode=0,
-        stdout=json.dumps(["1.2.3.4", "5.6.7.8"]),
-        stderr="",
-    )
-    ips = get_instance_ips("/fake/terraform/dir")
-    assert ips == ["1.2.3.4", "5.6.7.8"]
-    mock_run.assert_called_once()
-    args, kwargs = mock_run.call_args
-    assert args == (["terraform", "output", "-json", "vm_public_ips"],)
-    # Check path ends with directory name (works on Windows and Unix)
-    assert str(kwargs["cwd"]).replace("\\", "/").endswith("/fake/terraform/dir")
-    assert kwargs["capture_output"] is True
-    assert kwargs["text"] is True
-    assert kwargs["check"] is True
-
-
-@patch("subprocess.run")
-def test_get_instance_ips_nonzero_returncode(mock_run):
-    """Test handling non-zero return code when getting instance IPs."""
-    mock_run.side_effect = subprocess.CalledProcessError(
-        1, "terraform", stderr="error message"
-    )
-    with pytest.raises(
-        RuntimeError, match="Error running terraform output: error message"
-    ):
-        get_instance_ips("/fake/terraform/dir")
-
-
-@patch("subprocess.run")
-def test_get_instance_ips_invalid_json(mock_run):
-    """Test handling invalid JSON output when getting instance IPs."""
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=[], returncode=0, stdout="not-json", stderr=""
-    )
-    with pytest.raises(RuntimeError, match="Error decoding JSON output"):
-        get_instance_ips("/fake/terraform/dir")
-
-
-@patch("subprocess.run")
-def test_get_instance_ips_not_a_list(mock_run):
-    """Test handling unexpected output format when getting instance IPs."""
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=[], returncode=0, stdout=json.dumps({"ip": "1.2.3.4"}), stderr=""
-    )
-    with pytest.raises(
-        ValueError, match="Expected output to be a list of IP addresses"
-    ):
-        get_instance_ips("/fake/terraform/dir")
 
 
 @patch("os.chmod")

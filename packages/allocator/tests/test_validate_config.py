@@ -86,6 +86,39 @@ def test_validate_config_with_startup_script(valid_config_dict, write_config_fil
     assert "[PASS]" in message
 
 
+def test_startup_config_retry_defaults():
+    """New retry/success-check fields on StartupConfig must default to
+    safe values so existing deployments get retry protection without
+    touching their config."""
+    from lablink_allocator_service.conf.structured_config import StartupConfig
+
+    cfg = StartupConfig()
+    assert cfg.max_attempts == 3
+    assert cfg.base_delay_seconds == 30
+    assert cfg.success_check == ""
+
+
+def test_validate_config_with_startup_script_retry_options(
+    valid_config_dict, write_config_file
+):
+    """Test that the new retry/success-check fields are accepted in schema."""
+    config = valid_config_dict.copy()
+    config["startup_script"] = {
+        "enabled": True,
+        "path": "/path/to/script.sh",
+        "on_error": "fail",
+        "max_attempts": 5,
+        "base_delay_seconds": 15,
+        "success_check": "sleap --version",
+    }
+
+    config_path = write_config_file(config)
+    is_valid, message = validate_config(config_path)
+
+    assert is_valid is True
+    assert "[PASS]" in message
+
+
 def test_unknown_top_level_key_behavior(
     config_with_unknown_top_level_key, write_config_file
 ):
@@ -512,5 +545,28 @@ class TestParticipantExposureWeakPasswordGate:
         cfg.dns.domain = ""
         cfg.manual.participant_exposure = "none"
         cfg.app.admin_password = "123456"
+        errors = get_config_errors(cfg)
+        assert not any("admin_password" in e for e in errors)
+
+    def test_missing_secret_default_not_flagged_as_weak(self):
+        """AppConfig.admin_password defaults to the MISSING_SECRET sentinel
+        (`lablink configure`'s wizard never collects it — resolve_admin_
+        credentials fills it in at deploy time). Regression: this used to
+        block the wizard's ReviewScreen on every fresh config that chose
+        tailscale_funnel, since "MISSING" is short enough to look weak."""
+        from lablink_allocator_service.conf.structured_config import (
+            MISSING_SECRET,
+            Config,
+        )
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.manual.participant_exposure = "tailscale_funnel"
+        cfg.manual.overlay_tailnet = "example.ts.net"
+        assert cfg.app.admin_password == MISSING_SECRET
         errors = get_config_errors(cfg)
         assert not any("admin_password" in e for e in errors)

@@ -52,7 +52,6 @@ class MeshOverlayClientConnectivity:
         allocator_url: str,
         client_image: str,
         register_token: str,
-        hostname_hint: str | None = None,
     ) -> ClientJoinMaterial:
         return ClientJoinMaterial(
             register_token=register_token,
