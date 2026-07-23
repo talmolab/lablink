@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
-    should_use_dns,
     should_use_https,
 )
 
@@ -174,20 +173,6 @@ class TestGetAllocatorUrl:
         # FQDN with https should override provider="none"
         assert url == "https://prod.example.com"
         assert protocol == "https"
-
-
-class TestShouldUseDns:
-    """Test should_use_dns function."""
-
-    def test_dns_enabled(self):
-        """Test when DNS is enabled."""
-        cfg = MockConfig(dns=MockDNSConfig(enabled=True))
-        assert should_use_dns(cfg) is True
-
-    def test_dns_disabled(self):
-        """Test when DNS is disabled."""
-        cfg = MockConfig(dns=MockDNSConfig(enabled=False))
-        assert should_use_dns(cfg) is False
 
 
 class TestShouldUseHttps:

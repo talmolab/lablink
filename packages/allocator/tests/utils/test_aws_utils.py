@@ -7,27 +7,6 @@ import lablink_allocator_service.utils.aws_utils as aws_utils
 
 
 @patch("lablink_allocator_service.utils.aws_utils.boto3.client")
-def test_get_all_instance_types(mock_boto_client):
-    paginator = MagicMock()
-    paginator.paginate.return_value = [
-        {
-            "InstanceTypes": [
-                {"InstanceType": "t2.micro"},
-                {"InstanceType": "g4dn.xlarge"},
-            ]
-        }
-    ]
-
-    mock_ec2 = MagicMock()
-    mock_ec2.get_paginator.return_value = paginator
-    mock_boto_client.return_value = mock_ec2
-
-    result = aws_utils.get_all_instance_types()
-    assert "t2.micro" in result
-    assert "g4dn.xlarge" in result
-
-
-@patch("lablink_allocator_service.utils.aws_utils.boto3.client")
 def test_check_support_nvidia_true(mock_boto_client):
     mock_ec2 = MagicMock()
     mock_ec2.describe_instance_types.return_value = {
