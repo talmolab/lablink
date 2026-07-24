@@ -467,3 +467,27 @@ def test_view_instances_has_refresh_controls(mock_database, client, admin_header
     assert 'id="vm-refresh-spinner"' in html
     assert 'id="vm-last-updated"' in html
     assert "/admin/instances/fragment" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_has_operations_history_panel(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="operations-history"' in html
+    assert 'id="operations-history-summary"' in html
+    assert "/api/operations" in html
+    assert "function renderOperationsHistory(" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_operations_history_escapes_user_supplied_text(mock_database, client, admin_headers):
+    """Reuses the page's existing escapeHtml helper for op.error/op.created_by
+    before interpolating into innerHTML — matches the XSS-safety precedent
+    already set for the job banner's op.output/op.error."""
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "${escapeHtml(op.error)}" in html
+    assert "${escapeHtml(op.created_by" in html
