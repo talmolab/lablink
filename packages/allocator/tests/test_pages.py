@@ -354,3 +354,86 @@ def test_instances_fragment_shares_action_logic_with_full_page(
 
     assert "/admin/instances/vm-connect/connect" in full_html
     assert "/admin/instances/vm-connect/connect" in fragment_html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_renders_card_view_container(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-1", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="vm-card-container"' in html
+    assert 'class="vm-card"' in html
+    assert "vm-1" in html
+    assert "RUNNING" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_has_full_action_parity(mock_database, client, admin_headers):
+    """Card view must offer the same Connect action as the table for an
+    unclaimed running VM — full parity, not a read-only status board."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-connect", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    # Appears twice: once in the table's actions cell, once in the card's.
+    assert html.count("/admin/instances/vm-connect/connect") == 2
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_shows_summary_stats(mock_database, client, admin_headers):
+    """The retired dashboard template's most visually distinctive element —
+    a Running/Initializing/Errors/Total counts row above the card grid —
+    computed server-side from the same instances list, no new backend
+    call."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-running", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-error", useremail=None, inuse=False, healthy="Unhealthy",
+            status="error", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'class="vm-summary-row"' in html
+    assert "Running" in html
+    assert "Initializing" in html
+    assert "Errors" in html
+    assert "Total VMs" in html
+    # 1 running, 1 error, 1 other (provisioning -> counted as "initializing"
+    # bucket), 3 total.
+    assert '<div class="vm-summary-count vm-summary-running">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-error">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-initializing">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-total">3</div>' in html
+
+
+def test_view_instances_has_view_toggle_buttons(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert 'id="view-table-btn"' in html
+    assert 'id="view-card-btn"' in html
+    assert "localStorage" in html

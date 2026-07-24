@@ -126,6 +126,82 @@
         max-height: 300px;
         overflow-y: auto;
       }
+
+      .view-toggle {
+        text-align: center;
+        margin-bottom: 16px;
+      }
+      .view-toggle .btn-sm {
+        margin: 0 4px;
+      }
+      .view-container {
+        display: none;
+      }
+      .view-container.active {
+        display: block;
+      }
+      .vm-summary-row {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .vm-summary-stat {
+        text-align: center;
+      }
+      .vm-summary-count {
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      .vm-summary-count.vm-summary-running { color: #198754; }
+      .vm-summary-count.vm-summary-initializing { color: #ffc107; }
+      .vm-summary-count.vm-summary-error { color: #dc3545; }
+      .vm-summary-count.vm-summary-total { color: #007bff; }
+      .vm-summary-label {
+        font-size: 12px;
+        color: #6c757d;
+      }
+      .vm-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .vm-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        padding: 16px;
+      }
+      .vm-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .status-badge {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        color: white;
+      }
+      .status-badge.status-running { background: #198754; }
+      .status-badge.status-initializing,
+      .status-badge.status-provisioning { background: #ffc107; color: #333; }
+      .status-badge.status-error { background: #dc3545; }
+      .status-badge.status-unknown { background: #6c757d; }
+      .vm-card-body div {
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+      .vm-card-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
     </style>
   </head>
   <body>
@@ -157,7 +233,7 @@
     {% endmacro %}
 
     {% macro vm_list_content(instances) %}
-    <div id="vm-table-container">
+    <div id="vm-table-container" class="view-container">
       <table>
         <thead>
           <tr>
@@ -207,6 +283,46 @@
         </tbody>
       </table>
     </div>
+    <div id="vm-card-container" class="view-container">
+      <div class="vm-summary-row">
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-running">{{ instances | selectattr('status', 'equalto', 'running') | list | length }}</div>
+          <div class="vm-summary-label">Running</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-initializing">{{ instances | rejectattr('status', 'in', ['running', 'error']) | list | length }}</div>
+          <div class="vm-summary-label">Initializing</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-error">{{ instances | selectattr('status', 'equalto', 'error') | list | length }}</div>
+          <div class="vm-summary-label">Errors</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-total">{{ instances | length }}</div>
+          <div class="vm-summary-label">Total VMs</div>
+        </div>
+      </div>
+      <div class="vm-grid" id="vm-card-grid">
+        {% for vm in instances %}
+        <div class="vm-card">
+          <div class="vm-card-header">
+            <strong>{{ vm.hostname }}</strong>
+            <span class="status-badge status-{{ vm.status or 'unknown' }}">{{ (vm.status or "unknown") | upper }}</span>
+          </div>
+          <div class="vm-card-body">
+            <div>User: {{ vm.useremail or "—" }}</div>
+            <div>GPU Health: {{ vm.healthy or "—" }}</div>
+            <div>Container Startup: {{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</div>
+            <div>Total Startup: {{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</div>
+          </div>
+          <div class="vm-card-actions">
+            <a href="/admin/logs/{{ vm.hostname }}" class="btn-sm" target="_blank">View Logs</a>
+            {{ vm_actions(vm) }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
     {% endmacro %}
 
     {% if fragment %}{{ vm_list_content(instances) }}{% else %}
@@ -254,11 +370,27 @@
 
     <div id="operation-banner"></div>
 
+    <div class="view-toggle">
+      <button id="view-table-btn" class="btn-sm btn-sm-solid" type="button">Table View</button>
+      <button id="view-card-btn" class="btn-sm" type="button">Card View</button>
+    </div>
+
     <div id="vm-list-region">{{ vm_list_content(instances) }}</div>
     {% endif %}
 
     {% if not fragment %}
     <script>
+      function setView(view) {
+        document.getElementById('vm-table-container').classList.toggle('active', view === 'table');
+        document.getElementById('vm-card-container').classList.toggle('active', view === 'card');
+        document.getElementById('view-table-btn').classList.toggle('btn-sm-solid', view === 'table');
+        document.getElementById('view-card-btn').classList.toggle('btn-sm-solid', view === 'card');
+        localStorage.setItem('lablink_instances_view', view);
+      }
+      document.getElementById('view-table-btn').addEventListener('click', () => setView('table'));
+      document.getElementById('view-card-btn').addEventListener('click', () => setView('card'));
+      setView(localStorage.getItem('lablink_instances_view') || 'table');
+
       const initialJobId = "{{ request.args.get('job', '') }}";
 
       (function scrubErrorParamsFromUrl() {
