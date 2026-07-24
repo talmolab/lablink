@@ -549,3 +549,13 @@ def test_view_instances_progress_bar_guards_on_resources_total(client, admin_hea
     resp = client.get("/admin/instances", headers=admin_headers)
     html = resp.data.decode()
     assert "op.resources_total" in html
+
+
+def test_view_instances_progress_bar_hidden_when_operation_finished(client, admin_headers):
+    """Once an operation reaches a terminal status (succeeded/failed/
+    interrupted), the Recent Operations row stops showing a progress bar
+    — only queued/running operations are still "in progress" in any
+    meaningful sense."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op.status === 'queued' || op.status === 'running'" in html

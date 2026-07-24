@@ -534,7 +534,8 @@
           const errorBlock = op.error
             ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
             : '';
-          const progressBlock = op.resources_total
+          const isActive = op.status === 'queued' || op.status === 'running';
+          const progressBlock = (op.resources_total && isActive)
             ? `<div class="op-progress-bar"><div class="op-progress-bar-fill" style="width: ${(100 * (op.resources_completed || 0) / op.resources_total).toFixed(0)}%;"></div></div>
                <div class="op-progress-text">${op.resources_completed || 0}/${op.resources_total} resources</div>`
             : '';
