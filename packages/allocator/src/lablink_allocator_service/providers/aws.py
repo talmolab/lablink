@@ -41,8 +41,15 @@ _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 # streamed output (see _run_streamed below). Matched against an
 # ANSI-stripped copy of each line, since `terraform apply`/`destroy` (run
 # without -no-color) include color codes around resource names/durations.
-_CREATE_COMPLETE_RE = re.compile(r": Creation complete after \d+s")
-_DESTROY_COMPLETE_RE = re.compile(r": Destruction complete after \d+s")
+#
+# The duration Terraform prints is NOT always plain seconds: under a
+# minute it's "12s", but a minute or longer it's "5m2s", and past an hour
+# "1h2m3s" — found via a real destroy where 5 VMs each took 5-7 minutes,
+# so a \d+s-only pattern silently never matched their completion lines
+# (only the sub-minute supporting resources incremented the counter).
+_DURATION_RE = r"(?:\d+h)?(?:\d+m)?\d+s"
+_CREATE_COMPLETE_RE = re.compile(rf": Creation complete after {_DURATION_RE}")
+_DESTROY_COMPLETE_RE = re.compile(rf": Destruction complete after {_DURATION_RE}")
 
 
 def _run_streamed(

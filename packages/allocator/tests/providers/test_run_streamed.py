@@ -13,6 +13,7 @@ import pytest
 
 from lablink_allocator_service.providers.aws import (
     _CREATE_COMPLETE_RE,
+    _DESTROY_COMPLETE_RE,
     _run_streamed,
 )
 
@@ -132,6 +133,62 @@ def test_run_streamed_works_with_no_callback():
             resource_complete_re=_CREATE_COMPLETE_RE,
         )
     assert result.stdout == "line one\n"
+
+
+def test_run_streamed_matches_multi_minute_durations():
+    """Terraform formats durations under a minute as plain seconds
+    ('12s'), but a minute or longer as 'MmSs' (e.g. '5m2s'), and past an
+    hour as 'HhMmSs'. A regex anchored on \\d+s alone silently never
+    matches the longer forms — this is a real bug found via an actual
+    destroy of 5 VMs: the VMs each took 5-7 minutes to destroy, so their
+    "Destruction complete after 5m2s"-style lines never matched and the
+    progress counter never incremented for them, while the sub-minute
+    supporting resources (key pair, IAM role, etc. — "0s"/"1s") did,
+    producing a progress bar that looked stuck despite real progress."""
+    stdout_text = (
+        "aws_instance.lablink_vm[4]: Destruction complete after 5m2s\n"
+        "aws_instance.lablink_vm[3]: Destruction complete after 5m53s\n"
+        "aws_instance.lablink_vm[1]: Destruction complete after 6m43s\n"
+        "aws_instance.lablink_vm[0]: Destruction complete after 6m53s\n"
+        "aws_instance.lablink_vm[2]: Destruction complete after 7m3s\n"
+        "aws_key_pair.lablink_key_pair: Destruction complete after 0s\n"
+    )
+    calls = []
+    with patch(
+        "lablink_allocator_service.providers.aws.subprocess.Popen",
+        return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
+    ):
+        _run_streamed(
+            ["terraform", "apply"],
+            cwd="/tmp",
+            resource_complete_re=_DESTROY_COMPLETE_RE,
+            on_resource_complete=lambda: calls.append(1),
+        )
+    assert len(calls) == 6
+
+
+def test_run_streamed_matches_multi_minute_durations_for_create_too():
+    """Companion to the destroy-side multi-minute test above: the same
+    duration format applies to `terraform apply` (VM creation can also
+    exceed a minute), and _CREATE_COMPLETE_RE shares _DURATION_RE with
+    _DESTROY_COMPLETE_RE — this guards against a future edit that fixes
+    one pattern but not the other."""
+    stdout_text = (
+        "aws_instance.client[0]: Creation complete after 1m36s [id=i-1]\n"
+        "aws_instance.client[1]: Creation complete after 45s [id=i-2]\n"
+    )
+    calls = []
+    with patch(
+        "lablink_allocator_service.providers.aws.subprocess.Popen",
+        return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
+    ):
+        _run_streamed(
+            ["terraform", "apply"],
+            cwd="/tmp",
+            resource_complete_re=_CREATE_COMPLETE_RE,
+            on_resource_complete=lambda: calls.append(1),
+        )
+    assert len(calls) == 2
 
 
 def test_run_streamed_kills_process_and_still_cleans_up_when_callback_raises():
