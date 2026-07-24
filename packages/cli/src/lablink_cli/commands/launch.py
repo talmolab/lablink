@@ -6,6 +6,7 @@ import re
 import time
 
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from lablink_allocator_service.conf.structured_config import Config
 
@@ -77,11 +78,31 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
 
     started = time.monotonic()
     try:
-        with console.status(
-            f"[bold]Launching {num_vms} client VM(s)...[/bold]",
-            spinner="dots",
-        ):
-            result = api.launch_vms(num_vms)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(
+                f"[bold]Launching {num_vms} client VM(s)...[/bold]",
+                total=None,
+            )
+
+            def _on_progress(done, total):
+                if total:
+                    progress.update(
+                        task,
+                        completed=done,
+                        total=total,
+                        description=(
+                            f"[bold]Launching {num_vms} client VM(s)...[/bold] "
+                            f"({done}/{total} resources)"
+                        ),
+                    )
+
+            result = api.launch_vms(num_vms, on_progress=_on_progress)
         elapsed = time.monotonic() - started
 
         output = (result or {}).get("output", "")
