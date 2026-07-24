@@ -484,10 +484,10 @@ def test_view_instances_table_scrolls_horizontally_on_narrow_viewports(mock_data
     """Found via a 390px-viewport mockup review: with no overflow-x:auto
     container and no white-space:nowrap, narrow viewports wrapped cell text
     mid-word (e.g. "gpu-vm-01" split across two lines) instead of scrolling
-    the table. The table has 10 columns, several with long headers (GPU
-    Health Status, Container Startup Duration, Total Startup Duration), so
-    this isn't cosmetic — it's the table's normal-width behavior on anything
-    narrower than a small laptop."""
+    the table. The table has several columns with long headers (GPU Health
+    Status, Total Startup Duration), so this isn't cosmetic — it's the
+    table's normal-width behavior on anything narrower than a small
+    laptop."""
     mock_database.get_all_vms.return_value = []
     resp = client.get("/admin/instances", headers=admin_headers)
     html = resp.data.decode()

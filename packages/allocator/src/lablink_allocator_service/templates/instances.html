@@ -195,7 +195,7 @@
 
       .view-toggle {
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 20px;
@@ -381,7 +381,6 @@
             <th>In Use</th>
             <th>VM Status</th>
             <th>GPU Health Status</th>
-            <th>Container Startup Duration</th>
             <th>Total Startup Duration</th>
             <th>Logs</th>
             <th>Access</th>
@@ -396,7 +395,6 @@
             <td>{{ "Yes" if vm.inuse else "No" }}</td>
             <td>{{ vm.status or "Unknown" }}</td>
             <td>{{ vm.healthy or "—" }}</td>
-            <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
             <td>
               <strong
                 >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
