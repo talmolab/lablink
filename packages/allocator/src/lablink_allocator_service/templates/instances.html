@@ -257,6 +257,24 @@
       .history-row.status-succeeded {
         color: #14532d;
       }
+      .op-progress-bar {
+        margin-top: 6px;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .op-progress-bar-fill {
+        height: 100%;
+        background: #007bff;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .op-progress-text {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 2px;
+      }
     </style>
   </head>
   <body>
@@ -516,6 +534,10 @@
           const errorBlock = op.error
             ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
             : '';
+          const progressBlock = op.resources_total
+            ? `<div class="op-progress-bar"><div class="op-progress-bar-fill" style="width: ${(100 * (op.resources_completed || 0) / op.resources_total).toFixed(0)}%;"></div></div>
+               <div class="op-progress-text">${op.resources_completed || 0}/${op.resources_total} resources</div>`
+            : '';
           return `
             <div class="history-row status-${op.status}">
               <span>#${op.id}</span>
@@ -525,6 +547,7 @@
               <span>${op.created_at || '—'}</span>
               <span>${duration}</span>
             </div>
+            ${progressBlock}
             ${errorBlock}`;
         }).join('');
       }
@@ -572,8 +595,12 @@
 
         if (op.status === "queued" || op.status === "running") {
           banner.className = "state-active";
+          const progressBlock = op.resources_total
+            ? `<div class="op-progress-bar"><div class="op-progress-bar-fill" style="width: ${(100 * (op.resources_completed || 0) / op.resources_total).toFixed(0)}%;"></div></div>
+               <div class="op-progress-text">${op.resources_completed || 0}/${op.resources_total} resources</div>`
+            : '';
           banner.innerHTML =
-            `${label} job #${op.id}: ${op.status}…`;
+            `${label} job #${op.id}: ${op.status}…` + progressBlock;
         } else if (op.status === "succeeded") {
           banner.className = "state-succeeded";
           banner.innerHTML =

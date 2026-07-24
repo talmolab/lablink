@@ -533,3 +533,19 @@ def test_view_instances_card_view_styles_rebooting_status(mock_database, client,
 
     assert "status-badge status-rebooting" in html
     assert ".status-badge.status-rebooting" in html
+
+
+def test_view_instances_renders_progress_bar_markup(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op-progress-bar" in html
+    assert "op-progress-bar-fill" in html
+
+
+def test_view_instances_progress_bar_guards_on_resources_total(client, admin_headers):
+    """The progress bar block must be conditional on op.resources_total
+    being truthy — otherwise a job with no known total would render a
+    bar reading against `undefined`."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op.resources_total" in html
