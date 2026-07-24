@@ -469,6 +469,18 @@ def test_view_instances_has_refresh_controls(mock_database, client, admin_header
     assert "/admin/instances/fragment" in html
 
 
+def test_view_instances_groups_view_mode_and_refresh_controls(client, admin_headers):
+    """View-mode buttons (Table/Card) and refresh controls (Refresh Now/
+    Auto Refresh) are visually distinct groups, not one flat row of
+    same-looking buttons — found via user feedback that the flat layout
+    made unrelated actions look like they did the same thing."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'class="view-mode-group"' in html
+    assert 'class="refresh-controls-group"' in html
+
+
 @patch("lablink_allocator_service.main.database")
 def test_view_instances_has_operations_history_panel(mock_database, client, admin_headers):
     mock_database.get_all_vms.return_value = []
@@ -479,6 +491,16 @@ def test_view_instances_has_operations_history_panel(mock_database, client, admi
     assert 'id="operations-history-summary"' in html
     assert "/api/operations" in html
     assert "function renderOperationsHistory(" in html
+
+
+def test_operations_history_row_font_is_legible(client, admin_headers):
+    """The history row font (13px, per user feedback) was hard to read
+    against the rest of the page's default body text size — bumped to
+    15px, closer to the surrounding content."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    history_row_rule = html.split(".history-row {", 1)[1].split("}", 1)[0]
+    assert "font-size: 15px;" in history_row_rule
 
 
 @patch("lablink_allocator_service.main.database")
