@@ -491,3 +491,23 @@ def test_operations_history_escapes_user_supplied_text(mock_database, client, ad
     html = resp.data.decode()
     assert "${escapeHtml(op.error)}" in html
     assert "${escapeHtml(op.created_by" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_styles_rebooting_status(mock_database, client, admin_headers):
+    """The canonical VM status set (database.py) includes "rebooting" —
+    the card view's status badge must have a CSS rule for it, or it falls
+    back to the base .status-badge rule (white text, no background) and
+    renders unreadable on the white card background."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-rebooting", useremail=None, inuse=False, healthy=None,
+            status="rebooting", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "status-badge status-rebooting" in html
+    assert ".status-badge.status-rebooting" in html
