@@ -713,7 +713,7 @@ def destroy():
         error_msg = "Provider does not support host destruction."
         if _wants_json():
             return jsonify({"status": "error", "error": error_msg}), 405
-        return render_template("delete-dashboard.html", error=error_msg), 405
+        return redirect("/admin/instances?error=destroy_unsupported")
 
     def _run_destroy() -> str:
         """Runs on OperationsWorker's background thread, not the request
@@ -757,7 +757,9 @@ def destroy():
             return jsonify({
                 "status": "error", "error": error_msg, "job_id": exc.job_id,
             }), 409
-        return render_template("delete-dashboard.html", error=error_msg), 409
+        return redirect(
+            f"/admin/instances?error=already_in_progress&job_id={exc.job_id}"
+        )
 
     if _wants_json():
         return jsonify({"job_id": job_id, "status": "queued"}), 202
