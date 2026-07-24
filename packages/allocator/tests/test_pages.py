@@ -265,3 +265,41 @@ def test_instances_html_escapes_operation_output_and_error(
     assert "${escapeHtml(op.error)}" in html
     assert "${op.output}" not in html
     assert "${op.error}" not in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_shows_error_banner(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get(
+        "/admin/instances?error=num_vms_required", headers=admin_headers
+    )
+
+    assert b"Number of VMs is required." in resp.data
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_error_banner_includes_job_id(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get(
+        "/admin/instances?error=already_in_progress&job_id=7", headers=admin_headers
+    )
+
+    assert b"job #7" in resp.data
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_scrubs_error_params_from_url(mock_database, client, admin_headers):
+    """Both `error` and `vnc_error` are stripped from the address bar via
+    history.replaceState after being shown once, so a raw page refresh
+    does not keep re-displaying a stale message (a bug confirmed present
+    for vnc_error before this change)."""
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "history.replaceState" in html
+    assert "vnc_error" in html
+    assert "'error'" in html or '"error"' in html

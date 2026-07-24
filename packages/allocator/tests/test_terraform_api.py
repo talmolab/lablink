@@ -363,7 +363,7 @@ def test_launch_missing_allocator_outputs_returns_error(
     client, admin_headers, monkeypatch, tmp_path
 ):
     """Missing allocator outputs redirects to /admin/instances with an
-    error code instead of rendering dashboard.html inline."""
+    error code instead of rendering the old dashboard template inline."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
@@ -528,7 +528,7 @@ def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
 
 def test_launch_invalid_num_vms(client, admin_headers):
     """Invalid num_vms redirects to /admin/instances with an error code
-    instead of rendering dashboard.html inline."""
+    instead of rendering the old dashboard template inline."""
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "0"})
     assert resp.status_code == 302
     assert resp.headers["Location"] == "/admin/instances?error=num_vms_invalid"

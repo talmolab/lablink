@@ -150,6 +150,27 @@
     </div>
     {% endif %}
 
+    {% if request.args.get('error') %}
+    {% set op_error = request.args.get('error') %}
+    <div style="background:#ffe0e0;color:#900;padding:10px;margin-bottom:10px;border-radius:4px;">
+      {% if op_error == 'launch_unsupported' %}
+        Provider does not support host provisioning.
+      {% elif op_error == 'destroy_unsupported' %}
+        Provider does not support host destruction.
+      {% elif op_error == 'num_vms_required' %}
+        Number of VMs is required.
+      {% elif op_error == 'num_vms_invalid' %}
+        Invalid number of VMs. Please enter a valid positive integer.
+      {% elif op_error == 'allocator_outputs_missing' %}
+        Allocator outputs not found.
+      {% elif op_error == 'already_in_progress' %}
+        An operation is already in progress (job #{{ request.args.get('job_id', '?') }}).
+      {% else %}
+        An error occurred.
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div id="operation-banner"></div>
 
     <table>
@@ -225,6 +246,18 @@
 
     <script>
       const initialJobId = "{{ request.args.get('job', '') }}";
+
+      (function scrubErrorParamsFromUrl() {
+        if (!window.history.replaceState) return;
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('error') && !params.has('vnc_error')) return;
+        params.delete('error');
+        params.delete('job_id');
+        params.delete('vnc_error');
+        const qs = params.toString();
+        const cleanUrl = window.location.pathname + (qs ? '?' + qs : '');
+        window.history.replaceState(null, '', cleanUrl);
+      })();
 
       function escapeHtml(str) {
         const div = document.createElement("div");

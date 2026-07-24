@@ -414,7 +414,7 @@ def test_launch_redirects_with_error_code_when_provider_cannot_provision(
 ):
     """A browser (non-JSON) submit against a provider that can't provision
     hosts must get a plain redirect (no status-code override) so a real
-    browser actually follows it — not a 405 dashboard.html render."""
+    browser actually follows it — not a 405 inline-rendered error page."""
     from lablink_allocator_service import main
 
     fake_provider = type("FakeProvider", (), {
@@ -439,7 +439,7 @@ def test_launch_redirects_with_error_code_when_operation_in_progress(
 ):
     """A browser (non-JSON) submit that races an in-progress operation must
     get a plain redirect (no status-code override) so a real browser
-    actually follows it — not a 409 dashboard.html render."""
+    actually follows it — not a 409 inline-rendered error page."""
     from lablink_allocator_service.operations_db import OperationInProgress
 
     with patch(
