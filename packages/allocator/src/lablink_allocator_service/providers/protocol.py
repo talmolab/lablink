@@ -4,7 +4,7 @@ so routes/internal_proxy_auth.py and existing tests are unaffected."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Callable, Protocol, runtime_checkable
 
 from lablink_allocator_service.client_session import (  # single canonical type
     BrowserSessionTarget as BrowserSessionTarget,
@@ -84,8 +84,17 @@ class ComputeProvider(Protocol):
     can_destroy_hosts: bool
     can_recover_hosts: bool
 
-    def provision_hosts(self, count: int, spec: dict) -> ProvisionResult: ...
-    def destroy_hosts(self, handles: list[ClientHandle]) -> DestroyResult: ...
+    def provision_hosts(
+        self,
+        count: int,
+        spec: dict,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> ProvisionResult: ...
+    def destroy_hosts(
+        self,
+        handles: list[ClientHandle],
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> DestroyResult: ...
     # recover_hosts returns True iff every handle recycled OK
     def recover_hosts(self, handles: list[ClientHandle]) -> bool: ...
     def list_hosts(self) -> list[ClientHandle]: ...

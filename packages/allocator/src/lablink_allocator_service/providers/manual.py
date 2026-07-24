@@ -31,13 +31,13 @@ class ManualProvider:
             else LANDirectClientConnectivity()
         )
 
-    def provision_hosts(self, count, spec):
+    def provision_hosts(self, count, spec, progress_callback=None):
         raise ProvisioningNotSupported(
             "ManualProvider doesn't provision — instructor brings the "
             "machines. Use 'lablink launch' for the registration command."
         )
 
-    def destroy_hosts(self, handles):
+    def destroy_hosts(self, handles, progress_callback=None):
         raise ProvisioningNotSupported(
             "ManualProvider cannot destroy BYO machines."
         )
