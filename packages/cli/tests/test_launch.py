@@ -183,6 +183,41 @@ class TestRunLaunch:
         captured["on_progress"](None, None)
         mock_progress.update.assert_not_called()
 
+    @patch("lablink_cli.commands.launch.Progress")
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_progress_bar_not_updated_when_only_one_field_present(
+        self, mock_url, mock_creds, mock_api_cls, mock_progress_cls, mock_cfg,
+    ):
+        """resources_total and resources_completed are independent optional
+        fields — a response carrying one without the other (e.g. total=5,
+        completed=None) must not render a literal "None" into the
+        description."""
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_progress = MagicMock()
+        mock_progress.add_task.return_value = "task-id"
+        mock_progress_cls.return_value.__enter__.return_value = mock_progress
+
+        captured = {}
+
+        def fake_launch_vms(num_vms, on_progress=None):
+            captured["on_progress"] = on_progress
+            return {"status": "success", "output": ""}
+
+        mock_api = MagicMock()
+        mock_api.launch_vms.side_effect = fake_launch_vms
+        mock_api_cls.return_value = mock_api
+
+        run_launch(mock_cfg, num_vms=1)
+
+        captured["on_progress"](None, 5)
+        mock_progress.update.assert_not_called()
+
+        captured["on_progress"](3, None)
+        mock_progress.update.assert_not_called()
+
 
 class TestManualLaunchNoOp:
     def test_manual_provider_prints_explanation_and_exits_zero(

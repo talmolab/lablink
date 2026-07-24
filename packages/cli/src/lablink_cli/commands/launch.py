@@ -91,7 +91,7 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
             )
 
             def _on_progress(done, total):
-                if total:
+                if done is not None and total is not None:
                     progress.update(
                         task,
                         completed=done,

@@ -261,6 +261,40 @@ class TestDestroyClientVms:
         captured["on_progress"](None, None)
         mock_progress.update.assert_not_called()
 
+    @patch("lablink_cli.commands.deploy.Progress")
+    @patch("lablink_cli.commands.deploy.AllocatorAPI")
+    @patch(
+        "lablink_cli.commands.deploy.get_allocator_url",
+        return_value="https://allocator.example.com",
+    )
+    def test_progress_bar_not_updated_when_only_one_field_present(
+        self, mock_url, mock_api_cls, mock_progress_cls, mock_cfg,
+    ):
+        """resources_total and resources_completed are independent optional
+        fields — a response carrying one without the other must not render
+        a literal "None" into the description."""
+        mock_progress = MagicMock()
+        mock_progress.add_task.return_value = "task-id"
+        mock_progress_cls.return_value.__enter__.return_value = mock_progress
+
+        captured = {}
+
+        def fake_destroy_vms(on_progress=None):
+            captured["on_progress"] = on_progress
+            return {"status": "ok"}
+
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = fake_destroy_vms
+        mock_api_cls.return_value = mock_api
+
+        _destroy_client_vms(mock_cfg, "admin", "pass")
+
+        captured["on_progress"](None, 4)
+        mock_progress.update.assert_not_called()
+
+        captured["on_progress"](2, None)
+        mock_progress.update.assert_not_called()
+
 
 # ------------------------------------------------------------------
 # _terraform_destroy

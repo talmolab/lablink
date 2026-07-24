@@ -115,7 +115,7 @@ def test_submit_does_not_block_caller_on_slow_fn(worker, mock_database):
     mock_database.create_operation.return_value = 3
     started = time.monotonic()
 
-    def slow_fn():
+    def slow_fn(progress_callback):
         time.sleep(0.3)
         return "done"
 
@@ -143,3 +143,34 @@ def test_submit_passes_progress_callback_that_updates_database(
 
     assert _wait_until(lambda: mock_database.finish_operation.called)
     mock_database.update_operation_progress.assert_called_once_with(3, 2, 5)
+
+
+def test_progress_callback_write_failure_does_not_abort_operation(
+    worker, mock_database
+):
+    """A transient DB error (e.g. pool exhaustion) while recording progress
+    must not propagate into fn — that would kill a live terraform
+    apply/destroy subprocess (see _run_streamed's except BaseException:
+    proc.kill()) over a failure that has nothing to do with terraform
+    itself. The callback should swallow it and let fn keep running."""
+    mock_database.create_operation.return_value = 6
+    mock_database.update_operation_progress.side_effect = RuntimeError(
+        "pool exhausted"
+    )
+    captured = {}
+
+    def fn(progress_callback):
+        captured["callback"] = progress_callback
+        progress_callback(1, 5)  # must not raise
+        progress_callback(2, 5)  # still disabled, must not raise either
+        return "done"
+
+    worker.submit(op_type="apply", fn=fn, params=None, created_by="admin")
+
+    assert _wait_until(lambda: mock_database.finish_operation.called)
+    mock_database.finish_operation.assert_called_once_with(
+        6, status="succeeded", output="done"
+    )
+    # Only the first attempt is tried — once it fails, further progress
+    # writes for this operation are skipped rather than retried per call.
+    mock_database.update_operation_progress.assert_called_once_with(6, 1, 5)
