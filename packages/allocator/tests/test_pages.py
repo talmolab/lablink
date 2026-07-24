@@ -267,6 +267,46 @@ def test_instances_html_escapes_operation_output_and_error(
     assert "${op.error}" not in html
 
 
+def test_view_instances_banner_has_close_button(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "banner-close" in html
+    assert "function dismissOperationBanner(" in html
+    assert "onclick=\"dismissOperationBanner(" in html
+
+
+def test_view_instances_banner_font_size_increased(client, admin_headers):
+    """Banner text (14px originally) was too small — bumped to 16px,
+    matching the rest of the page's readable text sizes."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    banner_rule = html.split("#operation-banner {", 1)[1].split("}", 1)[0]
+    assert "font-size: 16px;" in banner_rule
+
+
+def test_view_instances_banner_shows_state_icons_and_labels(client, admin_headers):
+    """Each banner state (active/succeeded/failed/interrupted) gets its
+    own icon + bold uppercase label, not just a background color — a
+    color-only distinction is hard to scan at a glance and inaccessible
+    to colorblind users."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "banner-state-label" in html
+    assert "banner-icon" in html
+    assert '"SUCCEEDED"' in html
+    assert '"FAILED"' in html
+    assert '"INTERRUPTED"' in html
+    # interrupted must be visually distinguishable from failed, not just
+    # sharing the exact same CSS rule as before.
+    interrupted_rule = html.split(
+        "#operation-banner.state-interrupted {", 1
+    )[1].split("}", 1)[0]
+    failed_rule = html.split(
+        "#operation-banner.state-failed {", 1
+    )[1].split("}", 1)[0]
+    assert interrupted_rule != failed_rule
+
+
 @patch("lablink_allocator_service.main.database")
 def test_view_instances_shows_error_banner(mock_database, client, admin_headers):
     mock_database.get_all_vms.return_value = []
