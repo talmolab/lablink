@@ -1337,3 +1337,77 @@ def test_terraform_threads_agent_token_through_user_data():
     assert '-e AGENT_TOKEN="${agent_token}"' in user_data
     # After PR D4, api_token is retired from the bundled terraform template.
     assert '-e API_TOKEN="${api_token}"' not in user_data
+
+
+def test_run_launch_forwards_progress_callback_to_provider(
+    client, admin_headers, monkeypatch, tmp_path,
+):
+    from lablink_allocator_service import main
+
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(main, "TERRAFORM_DIR", terraform_dir)
+
+    fake_provider = MagicMock()
+    fake_provider.can_provision_hosts = True
+    fake_provider.provision_hosts.return_value = MagicMock(
+        timings={}, apply_stdout="ok",
+    )
+    monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", fake_provider)
+    monkeypatch.setattr(
+        main, "database",
+        MagicMock(get_row_count=MagicMock(return_value=0)),
+        raising=False,
+    )
+    monkeypatch.setattr(main, "allocator_ip", "1.2.3.4", raising=False)
+    monkeypatch.setattr(main, "key_name", "my-key", raising=False)
+    monkeypatch.setattr(main, "ENVIRONMENT", "test", raising=False)
+
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(
+            POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"}
+        )
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        sentinel_callback = MagicMock()
+        fn(sentinel_callback)
+
+    fake_provider.provision_hosts.assert_called_once()
+    assert (
+        fake_provider.provision_hosts.call_args.kwargs["progress_callback"]
+        is sentinel_callback
+    )
+
+
+def test_run_destroy_forwards_progress_callback_to_provider(
+    client, admin_headers, monkeypatch, tmp_path,
+):
+    from lablink_allocator_service import main
+
+    terraform_dir = tmp_path / "terraform"
+    terraform_dir.mkdir()
+    monkeypatch.setattr(main, "TERRAFORM_DIR", terraform_dir)
+
+    fake_provider = MagicMock()
+    fake_provider.can_destroy_hosts = True
+    fake_provider.destroy_hosts.return_value = MagicMock(stdout="ok")
+    monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", fake_provider)
+    fake_db = MagicMock()
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.return_value = 1
+        resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
+        assert resp.status_code == 302
+
+        fn = mock_worker.submit.call_args.kwargs["fn"]
+        sentinel_callback = MagicMock()
+        fn(sentinel_callback)
+
+    fake_provider.destroy_hosts.assert_called_once()
+    assert (
+        fake_provider.destroy_hosts.call_args.kwargs["progress_callback"]
+        is sentinel_callback
+    )

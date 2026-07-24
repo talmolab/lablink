@@ -510,7 +510,7 @@ def test_launch_closure_base64_encodes_success_check(
     class _FakeProvider:
         can_provision_hosts = True
 
-        def provision_hosts(self, count, spec):
+        def provision_hosts(self, count, spec, progress_callback=None):
             captured["spec"] = spec
             return ProvisionResult(handles=[], timings={}, apply_stdout="ok")
 
