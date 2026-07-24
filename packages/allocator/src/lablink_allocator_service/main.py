@@ -10,6 +10,7 @@ from datetime import datetime
 import re
 import atexit
 from functools import wraps
+from typing import Callable, Optional
 
 from flask import (
     Flask,
@@ -660,13 +661,17 @@ def launch():
         "deployment_name": getattr(cfg, "deployment_name", "lablink"),
     }
 
-    def _run_launch() -> str:
+    def _run_launch(
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> str:
         """Runs on OperationsWorker's background thread, not the request
         thread. Reformats known failure types into RuntimeError with the
         same user-facing text the old synchronous route used, so that
         text ends up in the operation's `error` column."""
         try:
-            result = provider.provision_hosts(count=total_vms, spec=spec)
+            result = provider.provision_hosts(
+                count=total_vms, spec=spec, progress_callback=progress_callback,
+            )
         except SGAuditFailure as exc:
             raise RuntimeError(
                 f"Security-group audit refused the plan: {exc}"
@@ -722,7 +727,9 @@ def destroy():
             return jsonify({"status": "error", "error": error_msg}), 405
         return redirect("/admin/instances?error=destroy_unsupported")
 
-    def _run_destroy() -> str:
+    def _run_destroy(
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> str:
         """Runs on OperationsWorker's background thread, not the request
         thread."""
         # Seal any open session-metrics rows before tearing down VMs, so the
@@ -738,7 +745,9 @@ def destroy():
         # destroy_hosts ignores the handles arg (terraform destroy operates
         # on the whole workspace); skip the list_hosts() call.
         try:
-            result = provider.destroy_hosts([])
+            result = provider.destroy_hosts(
+                [], progress_callback=progress_callback,
+            )
         except FileNotFoundError as e:
             # No terraform.runtime.tfvars → no client VMs were ever launched.
             raise RuntimeError(str(e)) from e

@@ -5,6 +5,21 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+class _FakeCompletedPopen:
+    """Minimal stand-in for subprocess.Popen matching _run_streamed's
+    expected surface — see providers/test_run_streamed.py for the
+    canonical version."""
+
+    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+        import io
+        self.stdout = io.StringIO(stdout_text)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self):
+        return self._returncode
+
+
 @pytest.fixture
 def destroy_setup(app, monkeypatch, tmp_path):
     """Wire fakes for the /destroy route so we can observe its calls.
@@ -60,9 +75,10 @@ def test_scheduled_destroy_seals_before_destroy():
     "lablink_allocator_service.providers.aws.current_instance_security_group",
     return_value="sg-allocator-test",
 )
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_admin_destroy_route_seals_before_destroy(
-    mock_run, mock_sg, mock_ids, mock_names,
+    mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
     """POST /destroy's closure must seal session-metrics rows before
@@ -80,14 +96,24 @@ def test_admin_destroy_route_seals_before_destroy(
         call_order.append("seal")
         return 5
 
-    def _run(*args, **kwargs):
-        call_order.append("destroy")
-        return MagicMock(
-            stdout="Destroy complete (mocked)", stderr="", returncode=0
-        )
+    def _run(cmd, **kwargs):
+        # Record "destroy" once, on the first subprocess.run call
+        # (`terraform plan -destroy ...`) — the start of the destroy
+        # sequence — so call_order still reflects a single seal-then-destroy
+        # ordering rather than one entry per plan/show call.
+        if not call_order or call_order[-1] != "destroy":
+            call_order.append("destroy")
+        result = MagicMock()
+        result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+        result.stderr = ""
+        result.returncode = 0
+        return result
 
     fake_db.bulk_seal_session_metrics.side_effect = _seal
     mock_run.side_effect = _run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="Destroy complete (mocked)\n", returncode=0,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -113,15 +139,25 @@ def test_admin_destroy_route_seals_before_destroy(
     "lablink_allocator_service.providers.aws.current_instance_security_group",
     return_value="sg-allocator-test",
 )
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_admin_destroy_route_continues_when_seal_fails(
-    mock_run, mock_sg, mock_ids, mock_names,
+    mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
     """If bulk_seal fails, the closure logs a warning and continues to
     destroy."""
-    mock_run.return_value = MagicMock(
-        stdout="Destroy complete (mocked)", stderr="", returncode=0
+
+    def _run(cmd, **kwargs):
+        result = MagicMock()
+        result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+        result.stderr = ""
+        result.returncode = 0
+        return result
+
+    mock_run.side_effect = _run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="Destroy complete (mocked)\n", returncode=0,
     )
     fake_db = destroy_setup["database"]
     fake_db.bulk_seal_session_metrics.side_effect = RuntimeError("db blew up")
@@ -138,3 +174,4 @@ def test_admin_destroy_route_continues_when_seal_fails(
     fake_db.bulk_seal_session_metrics.assert_called_once()
     # Destroy still ran despite the seal failure.
     assert mock_run.called
+    assert mock_popen.called

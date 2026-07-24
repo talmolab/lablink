@@ -66,7 +66,9 @@ CREATE TABLE IF NOT EXISTS operations (
     started_at TIMESTAMP,
     finished_at TIMESTAMP,
     output TEXT,
-    error TEXT
+    error TEXT,
+    resources_total INTEGER,
+    resources_completed INTEGER
 );
 
 CREATE INDEX idx_operations_created_at ON operations(created_at);

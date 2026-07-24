@@ -6,7 +6,7 @@ import base64
 import json
 import ssl
 import time
-from typing import NoReturn
+from typing import Callable, NoReturn
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -120,7 +120,10 @@ class AllocatorAPI:
             self._ssl_ctx.check_hostname = False
             self._ssl_ctx.verify_mode = ssl.CERT_NONE
 
-    def destroy_vms(self) -> dict | None:
+    def destroy_vms(
+        self,
+        on_progress: Callable[[int | None, int | None], None] | None = None,
+    ) -> dict | None:
         """POST /destroy to tear down client VMs, then poll until the
         job reaches a terminal status.
 
@@ -129,9 +132,15 @@ class AllocatorAPI:
         (same as the old synchronous contract), or
         AllocatorError/AllocatorOperationTimeout otherwise.
         """
-        return self._submit_and_poll("POST", "/destroy")
+        return self._submit_and_poll(
+            "POST", "/destroy", on_progress=on_progress,
+        )
 
-    def launch_vms(self, num_vms: int) -> dict | None:
+    def launch_vms(
+        self,
+        num_vms: int,
+        on_progress: Callable[[int | None, int | None], None] | None = None,
+    ) -> dict | None:
         """POST /api/launch to provision num_vms new client VMs, then
         poll until the job reaches a terminal status.
 
@@ -143,6 +152,7 @@ class AllocatorAPI:
             "/api/launch",
             data,
             content_type="application/x-www-form-urlencoded",
+            on_progress=on_progress,
         )
 
     def _submit_and_poll(
@@ -152,9 +162,16 @@ class AllocatorAPI:
         data: bytes | None = b"",
         *,
         content_type: str | None = None,
+        on_progress: Callable[[int | None, int | None], None] | None = None,
     ) -> dict | None:
         """Submit an async apply/destroy job and poll GET
-        /api/operations/<id> until it reaches a terminal status."""
+        /api/operations/<id> until it reaches a terminal status.
+
+        If on_progress is given, it's called once per poll tick with
+        (resources_completed, resources_total) read off the operation
+        response. Both are None if the allocator predates progress
+        reporting (the keys are simply absent from its response) —
+        callers must handle that, not assume real numbers."""
         submitted = self._request(
             method, path, data, content_type=content_type
         )
@@ -176,6 +193,11 @@ class AllocatorAPI:
                 op = None
 
             if op is not None:
+                if on_progress:
+                    on_progress(
+                        op.get("resources_completed"),
+                        op.get("resources_total"),
+                    )
                 status = op.get("status")
                 if status == "succeeded":
                     return {

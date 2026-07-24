@@ -93,29 +93,94 @@
 
       #operation-banner {
         display: none;
-        padding: 12px 16px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
         margin-bottom: 16px;
         border-radius: 6px;
-        font-size: 14px;
+        border-left: 4px solid transparent;
+        font-size: 16px;
+      }
+
+      #operation-banner.state-active,
+      #operation-banner.state-succeeded,
+      #operation-banner.state-failed,
+      #operation-banner.state-interrupted {
+        display: flex;
       }
 
       #operation-banner.state-active {
-        display: block;
         background: #e7f1ff;
         color: #004085;
+        border-left-color: #0d6efd;
       }
 
       #operation-banner.state-succeeded {
-        display: block;
         background: #e2f6e9;
         color: #14532d;
+        border-left-color: #198754;
       }
 
-      #operation-banner.state-failed,
-      #operation-banner.state-interrupted {
-        display: block;
+      #operation-banner.state-failed {
         background: #ffe0e0;
         color: #900;
+        border-left-color: #dc3545;
+      }
+
+      #operation-banner.state-interrupted {
+        background: #fff6e0;
+        color: #7a4a00;
+        border-left-color: #ffc107;
+      }
+
+      #operation-banner .banner-body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      #operation-banner .banner-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+
+      #operation-banner .banner-icon {
+        font-size: 1.15em;
+        line-height: 1;
+      }
+
+      #operation-banner .banner-icon-spin {
+        display: inline-block;
+        animation: vm-spin 1s linear infinite;
+      }
+
+      #operation-banner .banner-state-label {
+        font-size: 0.8em;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      #operation-banner .banner-message {
+        font-size: 1em;
+      }
+
+      #operation-banner .banner-close {
+        appearance: none;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font-size: 1.4em;
+        line-height: 1;
+        padding: 0 2px;
+        cursor: pointer;
+        opacity: 0.6;
+      }
+
+      #operation-banner .banner-close:hover {
+        opacity: 1;
       }
 
       #operation-banner details {
@@ -130,7 +195,7 @@
 
       .view-toggle {
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 20px;
@@ -257,6 +322,24 @@
       .history-row.status-succeeded {
         color: #14532d;
       }
+      .op-progress-bar {
+        margin-top: 6px;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .op-progress-bar-fill {
+        height: 100%;
+        background: #007bff;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .op-progress-text {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 2px;
+      }
     </style>
   </head>
   <body>
@@ -298,7 +381,6 @@
             <th>In Use</th>
             <th>VM Status</th>
             <th>GPU Health Status</th>
-            <th>Container Startup Duration</th>
             <th>Total Startup Duration</th>
             <th>Logs</th>
             <th>Access</th>
@@ -313,7 +395,6 @@
             <td>{{ "Yes" if vm.inuse else "No" }}</td>
             <td>{{ vm.status or "Unknown" }}</td>
             <td>{{ vm.healthy or "—" }}</td>
-            <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
             <td>
               <strong
                 >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
@@ -516,6 +597,11 @@
           const errorBlock = op.error
             ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
             : '';
+          const isActive = op.status === 'queued' || op.status === 'running';
+          const progressBlock = (op.resources_total && isActive)
+            ? `<div class="op-progress-bar"><div class="op-progress-bar-fill" style="width: ${(100 * (op.resources_completed || 0) / op.resources_total).toFixed(0)}%;"></div></div>
+               <div class="op-progress-text">${op.resources_completed || 0}/${op.resources_total} resources</div>`
+            : '';
           return `
             <div class="history-row status-${op.status}">
               <span>#${op.id}</span>
@@ -525,6 +611,7 @@
               <span>${op.created_at || '—'}</span>
               <span>${duration}</span>
             </div>
+            ${progressBlock}
             ${errorBlock}`;
         }).join('');
       }
@@ -560,40 +647,78 @@
         return div.innerHTML;
       }
 
+      let bannerDismissedJobId = null;
+
+      function _bannerHeader(icon, stateLabel, spinning) {
+        const spinClass = spinning ? " banner-icon-spin" : "";
+        return `<div class="banner-header">` +
+          `<span class="banner-icon${spinClass}">${icon}</span>` +
+          `<strong class="banner-state-label">${stateLabel}</strong>` +
+          `</div>`;
+      }
+
+      function dismissOperationBanner(jobId) {
+        bannerDismissedJobId = jobId;
+        const banner = document.getElementById("operation-banner");
+        banner.className = "";
+        banner.innerHTML = "";
+      }
+
       function renderOperationBanner(op) {
         const banner = document.getElementById("operation-banner");
-        if (!op) {
+        if (!op || op.id === bannerDismissedJobId) {
           banner.className = "";
           banner.innerHTML = "";
           return;
         }
 
         const label = op.op_type === "apply" ? "Launch" : "Destroy";
+        let stateClass;
+        let bodyHtml;
 
         if (op.status === "queued" || op.status === "running") {
-          banner.className = "state-active";
-          banner.innerHTML =
-            `${label} job #${op.id}: ${op.status}…`;
+          stateClass = "state-active";
+          const progressBlock = op.resources_total
+            ? `<div class="op-progress-bar"><div class="op-progress-bar-fill" style="width: ${(100 * (op.resources_completed || 0) / op.resources_total).toFixed(0)}%;"></div></div>
+               <div class="op-progress-text">${op.resources_completed || 0}/${op.resources_total} resources</div>`
+            : '';
+          bodyHtml =
+            _bannerHeader("&#8635;", op.status.toUpperCase(), true) +
+            `<div class="banner-message">${label} job #${op.id}: ${op.status}…</div>` +
+            progressBlock;
         } else if (op.status === "succeeded") {
-          banner.className = "state-succeeded";
-          banner.innerHTML =
-            `${label} job #${op.id}: succeeded` +
+          stateClass = "state-succeeded";
+          bodyHtml =
+            _bannerHeader("&#10003;", "SUCCEEDED", false) +
+            `<div class="banner-message">${label} job #${op.id} succeeded</div>` +
             (op.output
               ? `<details><summary>Show output</summary><pre>${escapeHtml(op.output)}</pre></details>`
               : "");
         } else if (op.status === "failed") {
-          banner.className = "state-failed";
-          banner.innerHTML =
-            `${label} job #${op.id}: failed` +
+          stateClass = "state-failed";
+          bodyHtml =
+            _bannerHeader("&#10007;", "FAILED", false) +
+            `<div class="banner-message">${label} job #${op.id} failed</div>` +
             (op.error
               ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
               : "");
         } else if (op.status === "interrupted") {
-          banner.className = "state-interrupted";
-          banner.innerHTML =
-            `${label} job #${op.id}: interrupted — the allocator ` +
-            `restarted mid-job. Check Terraform state manually.`;
+          stateClass = "state-interrupted";
+          bodyHtml =
+            _bannerHeader("&#9888;", "INTERRUPTED", false) +
+            `<div class="banner-message">${label} job #${op.id} interrupted — the allocator ` +
+            `restarted mid-job. Check Terraform state manually.</div>`;
+        } else {
+          banner.className = "";
+          banner.innerHTML = "";
+          return;
         }
+
+        banner.className = stateClass;
+        banner.innerHTML =
+          `<div class="banner-body">${bodyHtml}</div>` +
+          `<button type="button" class="banner-close" aria-label="Dismiss notification" ` +
+          `title="Dismiss" onclick="dismissOperationBanner(${op.id})">&times;</button>`;
       }
 
       function pollOperation(jobId) {

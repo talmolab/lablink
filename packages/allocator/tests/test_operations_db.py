@@ -182,24 +182,32 @@ def test_start_operation_updates_status_and_started_at(operations_db):
     assert args[1] == (4,)
 
 
+_FINISH_OPERATION_QUERY = """
+            UPDATE operations
+            SET status = %s, output = %s, error = %s, finished_at = NOW(),
+                resources_completed = CASE
+                    WHEN %s = 'succeeded' AND resources_total IS NOT NULL
+                    THEN resources_total
+                    ELSE resources_completed
+                END
+            WHERE id = %s;
+        """
+
+
 def test_finish_operation_succeeded(operations_db):
     operations_db.finish_operation(4, status="succeeded", output="terraform output")
 
     args = operations_db.cursor.execute.call_args[0]
-    expected_query = """
-            UPDATE operations
-            SET status = %s, output = %s, error = %s, finished_at = NOW()
-            WHERE id = %s;
-        """
-    assert "".join(args[0].split()) == "".join(expected_query.split())
-    assert args[1] == ("succeeded", "terraform output", None, 4)
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
+    assert args[1] == ("succeeded", "terraform output", None, "succeeded", 4)
 
 
 def test_finish_operation_failed(operations_db):
     operations_db.finish_operation(4, status="failed", error="terraform exploded")
 
     args = operations_db.cursor.execute.call_args[0]
-    assert args[1] == ("failed", None, "terraform exploded", 4)
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
+    assert args[1] == ("failed", None, "terraform exploded", "failed", 4)
 
 
 def test_sweep_interrupted_operations_returns_count(operations_db):
@@ -224,3 +232,53 @@ def test_sweep_interrupted_operations_returns_zero_when_none_in_progress(
     operations_db.cursor.fetchall.return_value = []
 
     assert operations_db.sweep_interrupted_operations() == 0
+
+
+def test_update_operation_progress_executes_expected_query(operations_db):
+    operations_db.update_operation_progress(7, completed=3, total=8)
+
+    args = operations_db.cursor.execute.call_args[0]
+    expected_query = """
+            UPDATE operations
+            SET resources_completed = %s, resources_total = %s
+            WHERE id = %s;
+        """
+    assert "".join(args[0].split()) == "".join(expected_query.split())
+    assert args[1] == (3, 8, 7)
+
+
+def test_finish_operation_succeeded_passes_status_twice_for_case_guard(operations_db):
+    """finish_operation's UPDATE uses a SQL CASE keyed on status to snap
+    resources_completed to resources_total only when status='succeeded' —
+    this test verifies the query shape and that `status` is bound both as
+    the SET value and as the CASE condition; the CASE branching itself is
+    SQL semantics, not something a mocked cursor can prove, matching this
+    file's existing style of asserting query shape + params."""
+    operations_db.finish_operation(7, status="succeeded", output="ok")
+
+    args = operations_db.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
+    assert args[1] == ("succeeded", "ok", None, "succeeded", 7)
+
+
+def test_finish_operation_failed_passes_status_twice_for_case_guard(operations_db):
+    operations_db.finish_operation(7, status="failed", error="boom")
+
+    args = operations_db.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
+    assert args[1] == ("failed", None, "boom", "failed", 7)
+
+
+def test_get_operation_includes_progress_columns(operations_db):
+    """A regression guard for _OPERATION_COLUMNS: get_operation's dict
+    construction (dict(zip(_OPERATION_COLUMNS, row))) must stay in sync
+    with the CREATE TABLE column order — this proves the two new columns
+    actually surface in the returned dict, not just that the SQL text
+    looks right."""
+    operations_db.cursor.fetchone.return_value = (
+        7, "apply", "running", None, "admin",
+        None, None, None, None, None, 8, 3,
+    )
+    operation = operations_db.get_operation(7)
+    assert operation["resources_total"] == 8
+    assert operation["resources_completed"] == 3

@@ -267,6 +267,46 @@ def test_instances_html_escapes_operation_output_and_error(
     assert "${op.error}" not in html
 
 
+def test_view_instances_banner_has_close_button(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "banner-close" in html
+    assert "function dismissOperationBanner(" in html
+    assert "onclick=\"dismissOperationBanner(" in html
+
+
+def test_view_instances_banner_font_size_increased(client, admin_headers):
+    """Banner text (14px originally) was too small — bumped to 16px,
+    matching the rest of the page's readable text sizes."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    banner_rule = html.split("#operation-banner {", 1)[1].split("}", 1)[0]
+    assert "font-size: 16px;" in banner_rule
+
+
+def test_view_instances_banner_shows_state_icons_and_labels(client, admin_headers):
+    """Each banner state (active/succeeded/failed/interrupted) gets its
+    own icon + bold uppercase label, not just a background color — a
+    color-only distinction is hard to scan at a glance and inaccessible
+    to colorblind users."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "banner-state-label" in html
+    assert "banner-icon" in html
+    assert '"SUCCEEDED"' in html
+    assert '"FAILED"' in html
+    assert '"INTERRUPTED"' in html
+    # interrupted must be visually distinguishable from failed, not just
+    # sharing the exact same CSS rule as before.
+    interrupted_rule = html.split(
+        "#operation-banner.state-interrupted {", 1
+    )[1].split("}", 1)[0]
+    failed_rule = html.split(
+        "#operation-banner.state-failed {", 1
+    )[1].split("}", 1)[0]
+    assert interrupted_rule != failed_rule
+
+
 @patch("lablink_allocator_service.main.database")
 def test_view_instances_shows_error_banner(mock_database, client, admin_headers):
     mock_database.get_all_vms.return_value = []
@@ -444,10 +484,10 @@ def test_view_instances_table_scrolls_horizontally_on_narrow_viewports(mock_data
     """Found via a 390px-viewport mockup review: with no overflow-x:auto
     container and no white-space:nowrap, narrow viewports wrapped cell text
     mid-word (e.g. "gpu-vm-01" split across two lines) instead of scrolling
-    the table. The table has 10 columns, several with long headers (GPU
-    Health Status, Container Startup Duration, Total Startup Duration), so
-    this isn't cosmetic — it's the table's normal-width behavior on anything
-    narrower than a small laptop."""
+    the table. The table has several columns with long headers (GPU Health
+    Status, Total Startup Duration), so this isn't cosmetic — it's the
+    table's normal-width behavior on anything narrower than a small
+    laptop."""
     mock_database.get_all_vms.return_value = []
     resp = client.get("/admin/instances", headers=admin_headers)
     html = resp.data.decode()
@@ -533,3 +573,29 @@ def test_view_instances_card_view_styles_rebooting_status(mock_database, client,
 
     assert "status-badge status-rebooting" in html
     assert ".status-badge.status-rebooting" in html
+
+
+def test_view_instances_renders_progress_bar_markup(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op-progress-bar" in html
+    assert "op-progress-bar-fill" in html
+
+
+def test_view_instances_progress_bar_guards_on_resources_total(client, admin_headers):
+    """The progress bar block must be conditional on op.resources_total
+    being truthy — otherwise a job with no known total would render a
+    bar reading against `undefined`."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op.resources_total" in html
+
+
+def test_view_instances_progress_bar_hidden_when_operation_finished(client, admin_headers):
+    """Once an operation reaches a terminal status (succeeded/failed/
+    interrupted), the Recent Operations row stops showing a progress bar
+    — only queued/running operations are still "in progress" in any
+    meaningful sense."""
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "op.status === 'queued' || op.status === 'running'" in html
