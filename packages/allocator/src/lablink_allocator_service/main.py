@@ -381,6 +381,13 @@ def view_instances():
     return render_template("instances.html", instances=instances, fragment=False)
 
 
+@app.route("/admin/instances/fragment")
+@auth.login_required
+def view_instances_fragment():
+    instances = database.get_all_vms()
+    return render_template("instances.html", instances=instances, fragment=True)
+
+
 def _sign_session_cookie_and_redirect(session_id, *, suffix: str = "") -> Response:
     """Sign ``session_id`` (optionally with a ``:suffix``) into the
     lablink_session cookie and redirect to /desktop.

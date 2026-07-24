@@ -303,3 +303,54 @@ def test_view_instances_scrubs_error_params_from_url(mock_database, client, admi
     assert "history.replaceState" in html
     assert "vnc_error" in html
     assert "'error'" in html or '"error"' in html
+
+
+def test_instances_fragment_requires_auth(client):
+    resp = client.get("/admin/instances/fragment")
+    assert resp.status_code == 401
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_fragment_renders_vm_rows(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-1", useremail="a@x.com", inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None, containerstartupdurationseconds=1.0,
+            totalstartupdurationseconds=2.0,
+        ),
+    ]
+
+    resp = client.get("/admin/instances/fragment", headers=admin_headers)
+
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert "vm-1" in html
+    assert "<!DOCTYPE html>" not in html
+    assert "Back to Admin Dashboard" not in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_fragment_shares_action_logic_with_full_page(
+    mock_database, client, admin_headers,
+):
+    """The fragment endpoint must produce the same Peek/Connect/Release
+    markup as the full page for the same VM state, proving both call the
+    same vm_actions macro instead of two independently maintained
+    conditionals."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-connect", useremail=None, inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None, containerstartupdurationseconds=0,
+            totalstartupdurationseconds=0,
+        ),
+    ]
+
+    full_html = client.get("/admin/instances", headers=admin_headers).data.decode()
+    fragment_html = client.get(
+        "/admin/instances/fragment", headers=admin_headers
+    ).data.decode()
+
+    assert "/admin/instances/vm-connect/connect" in full_html
+    assert "/admin/instances/vm-connect/connect" in fragment_html

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% if not fragment %}<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -129,6 +129,7 @@
     </style>
   </head>
   <body>
+  {% endif %}
     {% macro vm_actions(vm) %}
     {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
     <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
@@ -349,5 +350,5 @@
       });
     </script>
     {% endif %}
-  </body>
-</html>
+  {% if not fragment %}</body>
+</html>{% endif %}
