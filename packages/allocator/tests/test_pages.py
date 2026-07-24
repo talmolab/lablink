@@ -265,3 +265,249 @@ def test_instances_html_escapes_operation_output_and_error(
     assert "${escapeHtml(op.error)}" in html
     assert "${op.output}" not in html
     assert "${op.error}" not in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_shows_error_banner(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get(
+        "/admin/instances?error=num_vms_required", headers=admin_headers
+    )
+
+    assert b"Number of VMs is required." in resp.data
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_error_banner_includes_job_id(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get(
+        "/admin/instances?error=already_in_progress&job_id=7", headers=admin_headers
+    )
+
+    assert b"job #7" in resp.data
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_scrubs_error_params_from_url(mock_database, client, admin_headers):
+    """Both `error` and `vnc_error` are stripped from the address bar via
+    history.replaceState after being shown once, so a raw page refresh
+    does not keep re-displaying a stale message (a bug confirmed present
+    for vnc_error before this change)."""
+    mock_database.get_all_vms.return_value = []
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "history.replaceState" in html
+    assert "vnc_error" in html
+    assert "'error'" in html or '"error"' in html
+
+
+def test_instances_fragment_requires_auth(client):
+    resp = client.get("/admin/instances/fragment")
+    assert resp.status_code == 401
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_fragment_renders_vm_rows(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-1", useremail="a@x.com", inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None, containerstartupdurationseconds=1.0,
+            totalstartupdurationseconds=2.0,
+        ),
+    ]
+
+    resp = client.get("/admin/instances/fragment", headers=admin_headers)
+
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert "vm-1" in html
+    assert "<!DOCTYPE html>" not in html
+    assert "Back to Admin Dashboard" not in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_fragment_shares_action_logic_with_full_page(
+    mock_database, client, admin_headers,
+):
+    """The fragment endpoint must produce the same Peek/Connect/Release
+    markup as the full page for the same VM state, proving both call the
+    same vm_actions macro instead of two independently maintained
+    conditionals."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-connect", useremail=None, inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None, containerstartupdurationseconds=0,
+            totalstartupdurationseconds=0,
+        ),
+    ]
+
+    full_html = client.get("/admin/instances", headers=admin_headers).data.decode()
+    fragment_html = client.get(
+        "/admin/instances/fragment", headers=admin_headers
+    ).data.decode()
+
+    assert "/admin/instances/vm-connect/connect" in full_html
+    assert "/admin/instances/vm-connect/connect" in fragment_html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_renders_card_view_container(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-1", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="vm-card-container"' in html
+    assert 'class="vm-card"' in html
+    assert "vm-1" in html
+    assert "RUNNING" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_has_full_action_parity(mock_database, client, admin_headers):
+    """Card view must offer the same Connect action as the table for an
+    unclaimed running VM — full parity, not a read-only status board."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-connect", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    # Appears twice: once in the table's actions cell, once in the card's.
+    assert html.count("/admin/instances/vm-connect/connect") == 2
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_shows_summary_stats(mock_database, client, admin_headers):
+    """The retired dashboard template's most visually distinctive element —
+    a Running/Initializing/Errors/Total counts row above the card grid —
+    computed server-side from the same instances list, no new backend
+    call."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-running", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-error", useremail=None, inuse=False, healthy="Unhealthy",
+            status="error", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'class="vm-summary-row"' in html
+    assert "Running" in html
+    assert "Initializing" in html
+    assert "Errors" in html
+    assert "Total VMs" in html
+    # 1 running, 1 error, 1 other (provisioning -> counted as "initializing"
+    # bucket), 3 total.
+    assert '<div class="vm-summary-count vm-summary-running">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-error">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-initializing">1</div>' in html
+    assert '<div class="vm-summary-count vm-summary-total">3</div>' in html
+
+
+def test_view_instances_has_view_toggle_buttons(client, admin_headers):
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert 'id="view-table-btn"' in html
+    assert 'id="view-card-btn"' in html
+    assert "localStorage" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_table_scrolls_horizontally_on_narrow_viewports(mock_database, client, admin_headers):
+    """Found via a 390px-viewport mockup review: with no overflow-x:auto
+    container and no white-space:nowrap, narrow viewports wrapped cell text
+    mid-word (e.g. "gpu-vm-01" split across two lines) instead of scrolling
+    the table. The table has 10 columns, several with long headers (GPU
+    Health Status, Container Startup Duration, Total Startup Duration), so
+    this isn't cosmetic — it's the table's normal-width behavior on anything
+    narrower than a small laptop."""
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "#vm-table-container {" in html
+    assert "overflow-x: auto;" in html
+    assert "white-space: nowrap;" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_has_refresh_controls(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="vm-refresh-now-btn"' in html
+    assert 'id="vm-auto-refresh-btn"' in html
+    assert 'id="vm-refresh-spinner"' in html
+    assert 'id="vm-last-updated"' in html
+    assert "/admin/instances/fragment" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_has_operations_history_panel(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="operations-history"' in html
+    assert 'id="operations-history-summary"' in html
+    assert "/api/operations" in html
+    assert "function renderOperationsHistory(" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_operations_history_escapes_user_supplied_text(mock_database, client, admin_headers):
+    """Reuses the page's existing escapeHtml helper for op.error/op.created_by
+    before interpolating into innerHTML — matches the XSS-safety precedent
+    already set for the job banner's op.output/op.error."""
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+    assert "${escapeHtml(op.error)}" in html
+    assert "${escapeHtml(op.created_by" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_styles_rebooting_status(mock_database, client, admin_headers):
+    """The canonical VM status set (database.py) includes "rebooting" —
+    the card view's status badge must have a CSS rule for it, or it falls
+    back to the base .status-badge rule (white text, no background) and
+    renders unreadable on the white card background."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-rebooting", useremail=None, inuse=False, healthy=None,
+            status="rebooting", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "status-badge status-rebooting" in html
+    assert ".status-badge.status-rebooting" in html

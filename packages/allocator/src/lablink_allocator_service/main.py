@@ -378,7 +378,14 @@ def byo_onboarding():
 @auth.login_required
 def view_instances():
     instances = database.get_all_vms()
-    return render_template("instances.html", instances=instances)
+    return render_template("instances.html", instances=instances, fragment=False)
+
+
+@app.route("/admin/instances/fragment")
+@auth.login_required
+def view_instances_fragment():
+    instances = database.get_all_vms()
+    return render_template("instances.html", instances=instances, fragment=True)
 
 
 def _sign_session_cookie_and_redirect(session_id, *, suffix: str = "") -> Response:
@@ -587,34 +594,40 @@ def launch():
         error_msg = "Provider does not support host provisioning."
         if _wants_json():
             return jsonify({"status": "error", "error": error_msg}), 405
-        return render_template("dashboard.html", error=error_msg), 405
+        return redirect("/admin/instances?error=launch_unsupported")
 
     # Validate num_vms input (unchanged)
     try:
         num_vms_str = request.form.get("num_vms")
         if not num_vms_str:
-            error_msg = "Number of VMs is required."
             if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 400
-            return render_template("dashboard.html", error=error_msg)
+                return jsonify(
+                    {"status": "error", "error": "Number of VMs is required."}
+                ), 400
+            return redirect("/admin/instances?error=num_vms_required")
         num_vms = int(num_vms_str)
         if num_vms <= 0:
-            error_msg = "Number of VMs must be greater than 0."
             if _wants_json():
-                return jsonify({"status": "error", "error": error_msg}), 400
-            return render_template("dashboard.html", error=error_msg)
+                return jsonify({
+                    "status": "error",
+                    "error": "Number of VMs must be greater than 0.",
+                }), 400
+            return redirect("/admin/instances?error=num_vms_invalid")
     except ValueError:
-        error_msg = "Invalid number of VMs. Please enter a valid integer."
         if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 400
-        return render_template("dashboard.html", error=error_msg)
+            return jsonify({
+                "status": "error",
+                "error": "Invalid number of VMs. Please enter a valid integer.",
+            }), 400
+        return redirect("/admin/instances?error=num_vms_invalid")
 
     if not allocator_ip or not key_name:
         logger.error("Missing allocator outputs.")
-        error_msg = "Allocator outputs not found."
         if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 500
-        return render_template("dashboard.html", error=error_msg)
+            return jsonify(
+                {"status": "error", "error": "Allocator outputs not found."}
+            ), 500
+        return redirect("/admin/instances?error=allocator_outputs_missing")
 
     total_vms = num_vms + database.get_row_count()
     allocator_url, scheme = get_allocator_url(cfg, allocator_ip)
@@ -690,7 +703,9 @@ def launch():
             return jsonify({
                 "status": "error", "error": error_msg, "job_id": exc.job_id,
             }), 409
-        return render_template("dashboard.html", error=error_msg), 409
+        return redirect(
+            f"/admin/instances?error=already_in_progress&job_id={exc.job_id}"
+        )
 
     if _wants_json():
         return jsonify({"job_id": job_id, "status": "queued"}), 202
@@ -705,7 +720,7 @@ def destroy():
         error_msg = "Provider does not support host destruction."
         if _wants_json():
             return jsonify({"status": "error", "error": error_msg}), 405
-        return render_template("delete-dashboard.html", error=error_msg), 405
+        return redirect("/admin/instances?error=destroy_unsupported")
 
     def _run_destroy() -> str:
         """Runs on OperationsWorker's background thread, not the request
@@ -749,7 +764,9 @@ def destroy():
             return jsonify({
                 "status": "error", "error": error_msg, "job_id": exc.job_id,
             }), 409
-        return render_template("delete-dashboard.html", error=error_msg), 409
+        return redirect(
+            f"/admin/instances?error=already_in_progress&job_id={exc.job_id}"
+        )
 
     if _wants_json():
         return jsonify({"job_id": job_id, "status": "queued"}), 202

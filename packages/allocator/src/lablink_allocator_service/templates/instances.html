@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% if not fragment %}<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -28,6 +28,7 @@
         padding: 12px;
         text-align: left;
         border-bottom: 1px solid #ddd;
+        white-space: nowrap;
       }
 
       th {
@@ -126,9 +127,246 @@
         max-height: 300px;
         overflow-y: auto;
       }
+
+      .view-toggle {
+        text-align: center;
+        margin-bottom: 16px;
+      }
+      .view-toggle .btn-sm {
+        margin: 0 4px;
+      }
+      .view-container {
+        display: none;
+      }
+      .view-container.active {
+        display: block;
+      }
+      .vm-summary-row {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .vm-summary-stat {
+        text-align: center;
+      }
+      .vm-summary-count {
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      .vm-summary-count.vm-summary-running { color: #198754; }
+      .vm-summary-count.vm-summary-initializing { color: #ffc107; }
+      .vm-summary-count.vm-summary-error { color: #dc3545; }
+      .vm-summary-count.vm-summary-total { color: #007bff; }
+      .vm-summary-label {
+        font-size: 12px;
+        color: #6c757d;
+      }
+      .vm-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .vm-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        padding: 16px;
+      }
+      .vm-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .status-badge {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        color: white;
+      }
+      .status-badge.status-running { background: #198754; }
+      .status-badge.status-initializing,
+      .status-badge.status-rebooting { background: #ffc107; color: #333; }
+      .status-badge.status-error { background: #dc3545; }
+      .status-badge.status-unknown { background: #6c757d; }
+      .vm-card-body div {
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+      .vm-card-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      #vm-table-container {
+        overflow-x: auto;
+      }
+      .vm-refresh-spinner {
+        display: inline-block;
+        animation: vm-spin 1s linear infinite;
+        margin-left: 4px;
+      }
+      @keyframes vm-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .vm-last-updated {
+        font-size: 12px;
+        color: #6c757d;
+        margin-left: 8px;
+      }
+      #operations-history {
+        margin-top: 24px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        padding: 12px 16px;
+      }
+      .history-row {
+        display: grid;
+        grid-template-columns: 60px 80px 100px 1fr 1fr 80px;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+      }
+      .history-row.status-failed,
+      .history-row.status-interrupted {
+        color: #900;
+      }
+      .history-row.status-succeeded {
+        color: #14532d;
+      }
     </style>
   </head>
   <body>
+  {% endif %}
+    {% macro vm_actions(vm) %}
+    {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
+    <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
+      Peek (view-only)
+    </a>
+    {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
+    <form
+      method="POST"
+      action="/admin/instances/{{ vm.hostname }}/connect"
+      target="_blank"
+    >
+      <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
+    </form>
+    {% elif vm.adminreservedat %}
+    <span class="admin-session-label">Admin session active</span>
+    <form
+      method="POST"
+      action="/admin/instances/{{ vm.hostname }}/release"
+    >
+      <button type="submit" class="btn-sm">Release</button>
+    </form>
+    {% else %}
+    <span class="admin-session-label">—</span>
+    {% endif %}
+    {% endmacro %}
+
+    {% macro vm_list_content(instances) %}
+    <div id="vm-table-container" class="view-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Hostname</th>
+            <th>User Email</th>
+            <th>In Use</th>
+            <th>VM Status</th>
+            <th>GPU Health Status</th>
+            <th>Container Startup Duration</th>
+            <th>Total Startup Duration</th>
+            <th>Logs</th>
+            <th>Access</th>
+          </tr>
+        </thead>
+        <tbody id="vm-table-body">
+          {% for vm in instances %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ vm.hostname }}</td>
+            <td>{{ vm.useremail or "—" }}</td>
+            <td>{{ "Yes" if vm.inuse else "No" }}</td>
+            <td>{{ vm.status or "Unknown" }}</td>
+            <td>{{ vm.healthy or "—" }}</td>
+            <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
+            <td>
+              <strong
+                >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
+              >
+            </td>
+            <td>
+              <a
+                href="/admin/logs/{{ vm.hostname }}"
+                class="btn-sm"
+                target="_blank"
+              >
+                View Logs
+              </a>
+            </td>
+            <td>
+              <div class="actions-cell">
+              {{ vm_actions(vm) }}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id="vm-card-container" class="view-container">
+      <div class="vm-summary-row">
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-running">{{ instances | selectattr('status', 'equalto', 'running') | list | length }}</div>
+          <div class="vm-summary-label">Running</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-initializing">{{ instances | rejectattr('status', 'in', ['running', 'error']) | list | length }}</div>
+          <div class="vm-summary-label">Initializing</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-error">{{ instances | selectattr('status', 'equalto', 'error') | list | length }}</div>
+          <div class="vm-summary-label">Errors</div>
+        </div>
+        <div class="vm-summary-stat">
+          <div class="vm-summary-count vm-summary-total">{{ instances | length }}</div>
+          <div class="vm-summary-label">Total VMs</div>
+        </div>
+      </div>
+      <div class="vm-grid" id="vm-card-grid">
+        {% for vm in instances %}
+        <div class="vm-card">
+          <div class="vm-card-header">
+            <strong>{{ vm.hostname }}</strong>
+            <span class="status-badge status-{{ vm.status or 'unknown' }}">{{ (vm.status or "unknown") | upper }}</span>
+          </div>
+          <div class="vm-card-body">
+            <div>User: {{ vm.useremail or "—" }}</div>
+            <div>GPU Health: {{ vm.healthy or "—" }}</div>
+            <div>Container Startup: {{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</div>
+            <div>Total Startup: {{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</div>
+          </div>
+          <div class="vm-card-actions">
+            <a href="/admin/logs/{{ vm.hostname }}" class="btn-sm" target="_blank">View Logs</a>
+            {{ vm_actions(vm) }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endmacro %}
+
+    {% if fragment %}{{ vm_list_content(instances) }}{% else %}
     <a href="/admin" class="back-link">&larr; Back to Admin Dashboard</a>
 
     <h2>Existing VM Instances</h2>
@@ -150,81 +388,153 @@
     </div>
     {% endif %}
 
+    {% if request.args.get('error') %}
+    {% set op_error = request.args.get('error') %}
+    <div style="background:#ffe0e0;color:#900;padding:10px;margin-bottom:10px;border-radius:4px;">
+      {% if op_error == 'launch_unsupported' %}
+        Provider does not support host provisioning.
+      {% elif op_error == 'destroy_unsupported' %}
+        Provider does not support host destruction.
+      {% elif op_error == 'num_vms_required' %}
+        Number of VMs is required.
+      {% elif op_error == 'num_vms_invalid' %}
+        Invalid number of VMs. Please enter a valid positive integer.
+      {% elif op_error == 'allocator_outputs_missing' %}
+        Allocator outputs not found.
+      {% elif op_error == 'already_in_progress' %}
+        An operation is already in progress (job #{{ request.args.get('job_id', '?') }}).
+      {% else %}
+        An error occurred.
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div id="operation-banner"></div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>No.</th>
-          <th>Hostname</th>
-          <th>User Email</th>
-          <th>In Use</th>
-          <th>VM Status</th>
-          <th>GPU Health Status</th>
-          <th>Container Startup Duration</th>
-          <th>Total Startup Duration</th>
-          <th>Logs</th>
-          <th>Access</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for vm in instances %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ vm.hostname }}</td>
-          <td>{{ vm.useremail or "—" }}</td>
-          <td>{{ "Yes" if vm.inuse else "No" }}</td>
-          <td>{{ vm.status or "Unknown" }}</td>
-          <td>{{ vm.healthy or "—" }}</td>
-          <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
-          <td>
-            <strong
-              >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
-            >
-          </td>
-          <td>
-            <a
-              href="/admin/logs/{{ vm.hostname }}"
-              class="btn-sm"
-              target="_blank"
-            >
-              View Logs
-            </a>
-          </td>
-          <td>
-            <div class="actions-cell">
-            {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
-            <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
-              Peek (view-only)
-            </a>
-            {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
-            <form
-              method="POST"
-              action="/admin/instances/{{ vm.hostname }}/connect"
-              target="_blank"
-            >
-              <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
-            </form>
-            {% elif vm.adminreservedat %}
-            <span class="admin-session-label">Admin session active</span>
-            <form
-              method="POST"
-              action="/admin/instances/{{ vm.hostname }}/release"
-            >
-              <button type="submit" class="btn-sm">Release</button>
-            </form>
-            {% else %}
-            <span class="admin-session-label">—</span>
-            {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="view-toggle">
+      <button id="view-table-btn" class="btn-sm btn-sm-solid" type="button">Table View</button>
+      <button id="view-card-btn" class="btn-sm" type="button">Card View</button>
+      <button id="vm-refresh-now-btn" class="btn-sm" type="button">Refresh Now</button>
+      <button id="vm-auto-refresh-btn" class="btn-sm" type="button">Auto Refresh: OFF</button>
+      <span id="vm-refresh-spinner" class="vm-refresh-spinner" style="display:none;">&#8635;</span>
+      <span id="vm-last-updated" class="vm-last-updated"></span>
+    </div>
 
+    <div id="vm-list-region">{{ vm_list_content(instances) }}</div>
+
+    <details id="operations-history">
+      <summary id="operations-history-summary">Recent Operations (0)</summary>
+      <div id="operations-history-list"></div>
+    </details>
+    {% endif %}
+
+    {% if not fragment %}
     <script>
+      function setView(view) {
+        document.getElementById('vm-table-container').classList.toggle('active', view === 'table');
+        document.getElementById('vm-card-container').classList.toggle('active', view === 'card');
+        document.getElementById('view-table-btn').classList.toggle('btn-sm-solid', view === 'table');
+        document.getElementById('view-card-btn').classList.toggle('btn-sm-solid', view === 'card');
+        localStorage.setItem('lablink_instances_view', view);
+      }
+      document.getElementById('view-table-btn').addEventListener('click', () => setView('table'));
+      document.getElementById('view-card-btn').addEventListener('click', () => setView('card'));
+      setView(localStorage.getItem('lablink_instances_view') || 'table');
+
+      let vmAutoRefreshInterval = null;
+
+      function refreshVmList() {
+        document.getElementById('vm-refresh-spinner').style.display = 'inline-block';
+        fetch('/admin/instances/fragment')
+          .then((res) => (res.ok ? res.text() : null))
+          .then((html) => {
+            if (html === null) return;
+            document.getElementById('vm-list-region').innerHTML = html;
+            setView(localStorage.getItem('lablink_instances_view') || 'table');
+            document.getElementById('vm-last-updated').textContent =
+              'Last updated: ' + new Date().toLocaleTimeString();
+          })
+          .catch((err) => console.error('Error refreshing VM list:', err))
+          .finally(() => {
+            setTimeout(() => {
+              document.getElementById('vm-refresh-spinner').style.display = 'none';
+            }, 500);
+          });
+      }
+
+      function refreshAll() {
+        refreshVmList();
+        refreshOperationsHistory();
+      }
+
+      function toggleVmAutoRefresh() {
+        const btn = document.getElementById('vm-auto-refresh-btn');
+        if (vmAutoRefreshInterval) {
+          clearInterval(vmAutoRefreshInterval);
+          vmAutoRefreshInterval = null;
+          btn.textContent = 'Auto Refresh: OFF';
+        } else {
+          vmAutoRefreshInterval = setInterval(refreshAll, 5000);
+          btn.textContent = 'Auto Refresh: ON';
+          refreshAll();
+        }
+      }
+
+      function renderOperationsHistory(ops) {
+        const summary = document.getElementById('operations-history-summary');
+        summary.textContent = `Recent Operations (${ops.length})`;
+
+        const list = document.getElementById('operations-history-list');
+        if (ops.length === 0) {
+          list.innerHTML = '<p>No operations yet.</p>';
+          return;
+        }
+
+        list.innerHTML = ops.map((op) => {
+          const label = op.op_type === 'apply' ? 'Launch' : 'Destroy';
+          const duration = (op.finished_at && op.started_at)
+            ? `${((new Date(op.finished_at) - new Date(op.started_at)) / 1000).toFixed(1)}s`
+            : (op.started_at ? 'running…' : '—');
+          const errorBlock = op.error
+            ? `<details><summary>Show error</summary><pre>${escapeHtml(op.error)}</pre></details>`
+            : '';
+          return `
+            <div class="history-row status-${op.status}">
+              <span>#${op.id}</span>
+              <span>${label}</span>
+              <span>${op.status}</span>
+              <span>${escapeHtml(op.created_by || '—')}</span>
+              <span>${op.created_at || '—'}</span>
+              <span>${duration}</span>
+            </div>
+            ${errorBlock}`;
+        }).join('');
+      }
+
+      function refreshOperationsHistory() {
+        fetch('/api/operations')
+          .then((res) => (res.ok ? res.json() : []))
+          .then(renderOperationsHistory)
+          .catch((err) => console.error('Error loading operations history:', err));
+      }
+
+      document.getElementById('vm-refresh-now-btn').addEventListener('click', refreshAll);
+      document.getElementById('vm-auto-refresh-btn').addEventListener('click', toggleVmAutoRefresh);
+      document.addEventListener('DOMContentLoaded', refreshOperationsHistory);
+
       const initialJobId = "{{ request.args.get('job', '') }}";
+
+      (function scrubErrorParamsFromUrl() {
+        if (!window.history.replaceState) return;
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('error') && !params.has('vnc_error')) return;
+        params.delete('error');
+        params.delete('job_id');
+        params.delete('vnc_error');
+        const qs = params.toString();
+        const cleanUrl = window.location.pathname + (qs ? '?' + qs : '');
+        window.history.replaceState(null, '', cleanUrl);
+      })();
 
       function escapeHtml(str) {
         const div = document.createElement("div");
@@ -302,5 +612,6 @@
           );
       });
     </script>
-  </body>
-</html>
+    {% endif %}
+  {% if not fragment %}</body>
+</html>{% endif %}

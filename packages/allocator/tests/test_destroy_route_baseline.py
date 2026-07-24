@@ -240,3 +240,36 @@ def test_destroy_returns_405_when_provider_cannot_destroy(
     )
     assert r.status_code == 405, \
         f"expected 405 when provider can't destroy; got {r.status_code}"
+
+
+def test_destroy_redirects_with_error_code_when_provider_cannot_destroy(
+    monkeypatch, client, admin_headers,
+):
+    from lablink_allocator_service import main
+
+    fake_provider = type("FakeProvider", (), {
+        "can_provision_hosts": False,
+        "can_destroy_hosts": False,
+        "can_recover_hosts": False,
+        "name": "manual",
+    })()
+    main.app.config["LABLINK_PROVIDER"] = fake_provider
+
+    r = client.post("/destroy", headers=admin_headers)
+
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/admin/instances?error=destroy_unsupported"
+
+
+def test_destroy_redirects_with_error_code_when_operation_in_progress(
+    client, admin_headers,
+):
+    from unittest.mock import patch
+    from lablink_allocator_service.operations_db import OperationInProgress
+
+    with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
+        mock_worker.submit.side_effect = OperationInProgress(job_id=4)
+        r = client.post("/destroy", headers=admin_headers)
+
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/admin/instances?error=already_in_progress&job_id=4"
