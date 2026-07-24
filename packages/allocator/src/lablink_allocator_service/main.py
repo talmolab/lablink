@@ -378,7 +378,7 @@ def byo_onboarding():
 @auth.login_required
 def view_instances():
     instances = database.get_all_vms()
-    return render_template("instances.html", instances=instances)
+    return render_template("instances.html", instances=instances, fragment=False)
 
 
 def _sign_session_cookie_and_redirect(session_id, *, suffix: str = "") -> Response:

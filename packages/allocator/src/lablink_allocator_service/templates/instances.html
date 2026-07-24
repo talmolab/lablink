@@ -129,6 +129,86 @@
     </style>
   </head>
   <body>
+    {% macro vm_actions(vm) %}
+    {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
+    <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
+      Peek (view-only)
+    </a>
+    {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
+    <form
+      method="POST"
+      action="/admin/instances/{{ vm.hostname }}/connect"
+      target="_blank"
+    >
+      <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
+    </form>
+    {% elif vm.adminreservedat %}
+    <span class="admin-session-label">Admin session active</span>
+    <form
+      method="POST"
+      action="/admin/instances/{{ vm.hostname }}/release"
+    >
+      <button type="submit" class="btn-sm">Release</button>
+    </form>
+    {% else %}
+    <span class="admin-session-label">—</span>
+    {% endif %}
+    {% endmacro %}
+
+    {% macro vm_list_content(instances) %}
+    <div id="vm-table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Hostname</th>
+            <th>User Email</th>
+            <th>In Use</th>
+            <th>VM Status</th>
+            <th>GPU Health Status</th>
+            <th>Container Startup Duration</th>
+            <th>Total Startup Duration</th>
+            <th>Logs</th>
+            <th>Access</th>
+          </tr>
+        </thead>
+        <tbody id="vm-table-body">
+          {% for vm in instances %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ vm.hostname }}</td>
+            <td>{{ vm.useremail or "—" }}</td>
+            <td>{{ "Yes" if vm.inuse else "No" }}</td>
+            <td>{{ vm.status or "Unknown" }}</td>
+            <td>{{ vm.healthy or "—" }}</td>
+            <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
+            <td>
+              <strong
+                >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
+              >
+            </td>
+            <td>
+              <a
+                href="/admin/logs/{{ vm.hostname }}"
+                class="btn-sm"
+                target="_blank"
+              >
+                View Logs
+              </a>
+            </td>
+            <td>
+              <div class="actions-cell">
+              {{ vm_actions(vm) }}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endmacro %}
+
+    {% if fragment %}{{ vm_list_content(instances) }}{% else %}
     <a href="/admin" class="back-link">&larr; Back to Admin Dashboard</a>
 
     <h2>Existing VM Instances</h2>
@@ -173,77 +253,10 @@
 
     <div id="operation-banner"></div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>No.</th>
-          <th>Hostname</th>
-          <th>User Email</th>
-          <th>In Use</th>
-          <th>VM Status</th>
-          <th>GPU Health Status</th>
-          <th>Container Startup Duration</th>
-          <th>Total Startup Duration</th>
-          <th>Logs</th>
-          <th>Access</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for vm in instances %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ vm.hostname }}</td>
-          <td>{{ vm.useremail or "—" }}</td>
-          <td>{{ "Yes" if vm.inuse else "No" }}</td>
-          <td>{{ vm.status or "Unknown" }}</td>
-          <td>{{ vm.healthy or "—" }}</td>
-          <td>{{ "%.1f"|format(vm.containerstartupdurationseconds or 0) }}s</td>
-          <td>
-            <strong
-              >{{ "%.1f"|format(vm.totalstartupdurationseconds or 0) }}s</strong
-            >
-          </td>
-          <td>
-            <a
-              href="/admin/logs/{{ vm.hostname }}"
-              class="btn-sm"
-              target="_blank"
-            >
-              View Logs
-            </a>
-          </td>
-          <td>
-            <div class="actions-cell">
-            {% if vm.useremail and vm.status == 'running' and vm.sessionid %}
-            <a href="/admin/instances/{{ vm.hostname }}/peek" class="btn-sm" target="_blank">
-              Peek (view-only)
-            </a>
-            {% elif vm.status == 'running' and not vm.useremail and not vm.adminreservedat %}
-            <form
-              method="POST"
-              action="/admin/instances/{{ vm.hostname }}/connect"
-              target="_blank"
-            >
-              <button type="submit" class="btn-sm btn-sm-solid">Connect (VNC)</button>
-            </form>
-            {% elif vm.adminreservedat %}
-            <span class="admin-session-label">Admin session active</span>
-            <form
-              method="POST"
-              action="/admin/instances/{{ vm.hostname }}/release"
-            >
-              <button type="submit" class="btn-sm">Release</button>
-            </form>
-            {% else %}
-            <span class="admin-session-label">—</span>
-            {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div id="vm-list-region">{{ vm_list_content(instances) }}</div>
+    {% endif %}
 
+    {% if not fragment %}
     <script>
       const initialJobId = "{{ request.args.get('job', '') }}";
 
@@ -335,5 +348,6 @@
           );
       });
     </script>
+    {% endif %}
   </body>
 </html>
