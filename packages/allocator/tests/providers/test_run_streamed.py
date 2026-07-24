@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import io
 import subprocess
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
@@ -15,18 +17,43 @@ from lablink_allocator_service.providers.aws import (
 )
 
 
+class _DelayedReader:
+    """Wraps a StringIO's .read() with an optional sleep, so tests can
+    force the stderr-draining background thread to still be in-flight
+    when the main thread raises -- proving _run_streamed's
+    stderr_thread.join() in its finally block actually waits for it
+    rather than leaking a running thread."""
+
+    def __init__(self, text="", delay=0.0):
+        self._io = io.StringIO(text)
+        self._delay = delay
+
+    def read(self):
+        if self._delay:
+            time.sleep(self._delay)
+        return self._io.read()
+
+
 class _FakePopen:
     """Minimal stand-in for subprocess.Popen exposing just the surface
     _run_streamed uses: an iterable, closeable .stdout, a .stderr with
-    .read(), and .wait() returning a returncode."""
+    .read(), .wait() returning a returncode, and .kill()."""
 
-    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+    def __init__(
+        self, stdout_text="", stderr_text="", returncode=0, stderr_delay=0.0
+    ):
         self.stdout = io.StringIO(stdout_text)
-        self.stderr = io.StringIO(stderr_text)
+        self.stderr = _DelayedReader(stderr_text, delay=stderr_delay)
         self._returncode = returncode
+        self.killed = False
+        self.wait_called = False
 
     def wait(self):
+        self.wait_called = True
         return self._returncode
+
+    def kill(self):
+        self.killed = True
 
 
 def test_run_streamed_invokes_callback_per_matching_line():
@@ -105,3 +132,65 @@ def test_run_streamed_works_with_no_callback():
             resource_complete_re=_CREATE_COMPLETE_RE,
         )
     assert result.stdout == "line one\n"
+
+
+def test_run_streamed_kills_process_and_still_cleans_up_when_callback_raises():
+    """Mirrors subprocess.run's `with Popen(...): ... except: process.kill();
+    raise` contract: if on_resource_complete raises (e.g. a transient DB
+    write failure while recording progress during a long terraform apply),
+    the child process must be killed immediately rather than left running
+    to keep mutating real infrastructure, and cleanup (stdout close,
+    proc.wait(), stderr-thread join) must still happen so nothing is
+    leaked -- while the original exception propagates unchanged."""
+    stdout_text = (
+        "aws_instance.client[0]: Creation complete after 12s [id=i-1]\n"
+        "aws_instance.client[1]: Creation complete after 15s [id=i-2]\n"
+    )
+    # stderr_delay keeps the background drain thread asleep long enough
+    # that it is still alive when the callback raises, so joining it
+    # afterwards is a meaningful assertion rather than a no-op race.
+    fake_popen = _FakePopen(
+        stdout_text=stdout_text,
+        stderr_text="some stderr output",
+        returncode=0,
+        stderr_delay=0.05,
+    )
+
+    boom = RuntimeError("transient DB error")
+
+    def _on_complete():
+        raise boom
+
+    started_threads: list[threading.Thread] = []
+    real_thread = threading.Thread
+
+    def _spy_thread(*args, **kwargs):
+        t = real_thread(*args, **kwargs)
+        started_threads.append(t)
+        return t
+
+    with patch(
+        "lablink_allocator_service.providers.aws.subprocess.Popen",
+        return_value=fake_popen,
+    ), patch(
+        "lablink_allocator_service.providers.aws.threading.Thread",
+        side_effect=_spy_thread,
+    ):
+        with pytest.raises(RuntimeError) as exc_info:
+            _run_streamed(
+                ["terraform", "apply"],
+                cwd="/tmp",
+                resource_complete_re=_CREATE_COMPLETE_RE,
+                on_resource_complete=_on_complete,
+            )
+
+    # (a) the original exception propagates unchanged
+    assert exc_info.value is boom
+    # (b) the child process was killed rather than left running
+    assert fake_popen.killed is True
+    # (c) cleanup still happened: stdout closed, wait() called, and the
+    # stderr-draining thread was joined (not left running / leaked)
+    assert fake_popen.stdout.closed
+    assert fake_popen.wait_called is True
+    assert len(started_threads) == 1
+    assert not started_threads[0].is_alive()

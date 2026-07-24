@@ -78,16 +78,20 @@ def _run_streamed(
     stderr_thread.start()
 
     stdout_lines: list[str] = []
-    for line in proc.stdout:
-        stdout_lines.append(line)
-        if on_resource_complete and resource_complete_re.search(
-            _ANSI_ESCAPE.sub("", line)
-        ):
-            on_resource_complete()
-
-    proc.stdout.close()
-    returncode = proc.wait()
-    stderr_thread.join()
+    try:
+        for line in proc.stdout:
+            stdout_lines.append(line)
+            if on_resource_complete and resource_complete_re.search(
+                _ANSI_ESCAPE.sub("", line)
+            ):
+                on_resource_complete()
+    except BaseException:
+        proc.kill()
+        raise
+    finally:
+        proc.stdout.close()
+        returncode = proc.wait()
+        stderr_thread.join()
 
     stdout_text = "".join(stdout_lines)
     stderr_text = "".join(stderr_chunks)
