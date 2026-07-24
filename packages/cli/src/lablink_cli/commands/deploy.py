@@ -11,6 +11,7 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from lablink_allocator_service.conf.structured_config import Config
 
@@ -661,10 +662,30 @@ def _destroy_client_vms(
     )
     started = time.monotonic()
     try:
-        with console.status(
-            "  [bold]waiting for allocator...[/bold]", spinner="dots"
-        ):
-            result = api.destroy_vms()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(
+                "  [bold]waiting for allocator...[/bold]", total=None,
+            )
+
+            def _on_progress(done, total):
+                if total:
+                    progress.update(
+                        task,
+                        completed=done,
+                        total=total,
+                        description=(
+                            f"  [bold]waiting for allocator...[/bold] "
+                            f"({done}/{total} resources)"
+                        ),
+                    )
+
+            result = api.destroy_vms(on_progress=_on_progress)
         elapsed = time.monotonic() - started
         console.print(
             f"  [green]✓ client VMs destroyed[/green]  "
