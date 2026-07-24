@@ -4,7 +4,9 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import threading
 from pathlib import Path
+from typing import Callable, Optional
 
 from lablink_allocator_service.providers.connectivity.allocator_proxied import (
     AllocatorProxiedClientConnectivity,
@@ -34,6 +36,69 @@ from lablink_allocator_service.utils.terraform_utils import (
 # ANSI escape sequence stripper — moved from main.py to keep the
 # provider self-contained for SR-F1.
 _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+# Matches Terraform's per-resource completion lines in `apply`/`destroy`
+# streamed output (see _run_streamed below). Matched against an
+# ANSI-stripped copy of each line, since `terraform apply`/`destroy` (run
+# without -no-color) include color codes around resource names/durations.
+_CREATE_COMPLETE_RE = re.compile(r": Creation complete after \d+s")
+_DESTROY_COMPLETE_RE = re.compile(r": Destruction complete after \d+s")
+
+
+def _run_streamed(
+    cmd: list[str],
+    cwd: Path,
+    resource_complete_re: "re.Pattern[str]",
+    on_resource_complete: Optional[Callable[[], None]] = None,
+) -> subprocess.CompletedProcess:
+    """Run cmd via Popen, invoking on_resource_complete once for each
+    stdout line matching resource_complete_re (ANSI-stripped before
+    matching only — the returned CompletedProcess's stdout/stderr are
+    raw, unstripped, exactly like subprocess.run(capture_output=True,
+    text=True) would return, so callers' existing ANSI-stripping code
+    is unaffected).
+
+    Raises subprocess.CalledProcessError on nonzero exit, with .output
+    and .stderr populated — matching subprocess.run(..., check=True).
+    """
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    stderr_chunks: list[str] = []
+
+    def _drain_stderr() -> None:
+        stderr_chunks.append(proc.stderr.read())
+
+    stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+    stderr_thread.start()
+
+    stdout_lines: list[str] = []
+    for line in proc.stdout:
+        stdout_lines.append(line)
+        if on_resource_complete and resource_complete_re.search(
+            _ANSI_ESCAPE.sub("", line)
+        ):
+            on_resource_complete()
+
+    proc.stdout.close()
+    returncode = proc.wait()
+    stderr_thread.join()
+
+    stdout_text = "".join(stdout_lines)
+    stderr_text = "".join(stderr_chunks)
+
+    if returncode != 0:
+        raise subprocess.CalledProcessError(
+            returncode, cmd, output=stdout_text, stderr=stderr_text,
+        )
+    return subprocess.CompletedProcess(
+        cmd, returncode, stdout=stdout_text, stderr=stderr_text,
+    )
 
 
 class AWSProvider:
