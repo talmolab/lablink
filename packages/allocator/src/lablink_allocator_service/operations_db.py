@@ -32,6 +32,8 @@ _OPERATION_COLUMNS = (
     "finished_at",
     "output",
     "error",
+    "resources_total",
+    "resources_completed",
 )
 
 
@@ -163,6 +165,21 @@ class OperationsDatabase:
         with self._cursor as cursor:
             cursor.execute(query, (operation_id,))
 
+    def update_operation_progress(
+        self, operation_id: int, completed: int, total: int
+    ) -> None:
+        """Update an operation's incremental resource-completion progress.
+        Called from OperationsWorker as resources finish creating/
+        destroying during a launch/destroy job still in `running` status.
+        """
+        query = """
+            UPDATE operations
+            SET resources_completed = %s, resources_total = %s
+            WHERE id = %s;
+        """
+        with self._cursor as cursor:
+            cursor.execute(query, (completed, total, operation_id))
+
     def finish_operation(
         self,
         operation_id: int,
@@ -170,14 +187,24 @@ class OperationsDatabase:
         output: Optional[str] = None,
         error: Optional[str] = None,
     ) -> None:
-        """Mark an operation succeeded or failed."""
+        """Mark an operation succeeded or failed. A successful finish also
+        snaps resources_completed to resources_total (if a total was ever
+        recorded), so a completed job never displays a stale partial count
+        from a missed final progress update."""
         query = """
             UPDATE operations
-            SET status = %s, output = %s, error = %s, finished_at = NOW()
+            SET status = %s, output = %s, error = %s, finished_at = NOW(),
+                resources_completed = CASE
+                    WHEN %s = 'succeeded' AND resources_total IS NOT NULL
+                    THEN resources_total
+                    ELSE resources_completed
+                END
             WHERE id = %s;
         """
         with self._cursor as cursor:
-            cursor.execute(query, (status, output, error, operation_id))
+            cursor.execute(
+                query, (status, output, error, status, operation_id)
+            )
 
     def sweep_interrupted_operations(self) -> int:
         """Mark any queued/running operation as interrupted.
