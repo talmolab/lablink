@@ -182,13 +182,23 @@ def test_start_operation_updates_status_and_started_at(operations_db):
     assert args[1] == (4,)
 
 
+_FINISH_OPERATION_QUERY = """
+            UPDATE operations
+            SET status = %s, output = %s, error = %s, finished_at = NOW(),
+                resources_completed = CASE
+                    WHEN %s = 'succeeded' AND resources_total IS NOT NULL
+                    THEN resources_total
+                    ELSE resources_completed
+                END
+            WHERE id = %s;
+        """
+
+
 def test_finish_operation_succeeded(operations_db):
     operations_db.finish_operation(4, status="succeeded", output="terraform output")
 
     args = operations_db.cursor.execute.call_args[0]
-    # Query now includes CASE guard for resources_completed snapping on success
-    assert "CASE" in args[0]
-    assert "resources_completed" in args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
     assert args[1] == ("succeeded", "terraform output", None, "succeeded", 4)
 
 
@@ -196,6 +206,7 @@ def test_finish_operation_failed(operations_db):
     operations_db.finish_operation(4, status="failed", error="terraform exploded")
 
     args = operations_db.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
     assert args[1] == ("failed", None, "terraform exploded", "failed", 4)
 
 
@@ -246,8 +257,7 @@ def test_finish_operation_succeeded_passes_status_twice_for_case_guard(operation
     operations_db.finish_operation(7, status="succeeded", output="ok")
 
     args = operations_db.cursor.execute.call_args[0]
-    assert "CASE" in args[0]
-    assert "resources_completed" in args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
     assert args[1] == ("succeeded", "ok", None, "succeeded", 7)
 
 
@@ -255,6 +265,7 @@ def test_finish_operation_failed_passes_status_twice_for_case_guard(operations_d
     operations_db.finish_operation(7, status="failed", error="boom")
 
     args = operations_db.cursor.execute.call_args[0]
+    assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
     assert args[1] == ("failed", None, "boom", "failed", 7)
 
 
