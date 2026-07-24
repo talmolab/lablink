@@ -206,6 +206,20 @@
       #vm-table-container {
         overflow-x: auto;
       }
+      .vm-refresh-spinner {
+        display: inline-block;
+        animation: vm-spin 1s linear infinite;
+        margin-left: 4px;
+      }
+      @keyframes vm-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .vm-last-updated {
+        font-size: 12px;
+        color: #6c757d;
+        margin-left: 8px;
+      }
     </style>
   </head>
   <body>
@@ -377,6 +391,10 @@
     <div class="view-toggle">
       <button id="view-table-btn" class="btn-sm btn-sm-solid" type="button">Table View</button>
       <button id="view-card-btn" class="btn-sm" type="button">Card View</button>
+      <button id="vm-refresh-now-btn" class="btn-sm" type="button">Refresh Now</button>
+      <button id="vm-auto-refresh-btn" class="btn-sm" type="button">Auto Refresh: OFF</button>
+      <span id="vm-refresh-spinner" class="vm-refresh-spinner" style="display:none;">&#8635;</span>
+      <span id="vm-last-updated" class="vm-last-updated"></span>
     </div>
 
     <div id="vm-list-region">{{ vm_list_content(instances) }}</div>
@@ -394,6 +412,46 @@
       document.getElementById('view-table-btn').addEventListener('click', () => setView('table'));
       document.getElementById('view-card-btn').addEventListener('click', () => setView('card'));
       setView(localStorage.getItem('lablink_instances_view') || 'table');
+
+      let vmAutoRefreshInterval = null;
+
+      function refreshVmList() {
+        document.getElementById('vm-refresh-spinner').style.display = 'inline-block';
+        fetch('/admin/instances/fragment')
+          .then((res) => (res.ok ? res.text() : null))
+          .then((html) => {
+            if (html === null) return;
+            document.getElementById('vm-list-region').innerHTML = html;
+            // The fragment swap replaces vm-table-container/vm-card-container
+            // wholesale, losing the "active" class — reapply the user's
+            // chosen view immediately after every refresh.
+            setView(localStorage.getItem('lablink_instances_view') || 'table');
+            document.getElementById('vm-last-updated').textContent =
+              'Last updated: ' + new Date().toLocaleTimeString();
+          })
+          .catch((err) => console.error('Error refreshing VM list:', err))
+          .finally(() => {
+            setTimeout(() => {
+              document.getElementById('vm-refresh-spinner').style.display = 'none';
+            }, 500);
+          });
+      }
+
+      function toggleVmAutoRefresh() {
+        const btn = document.getElementById('vm-auto-refresh-btn');
+        if (vmAutoRefreshInterval) {
+          clearInterval(vmAutoRefreshInterval);
+          vmAutoRefreshInterval = null;
+          btn.textContent = 'Auto Refresh: OFF';
+        } else {
+          vmAutoRefreshInterval = setInterval(refreshVmList, 5000);
+          btn.textContent = 'Auto Refresh: ON';
+          refreshVmList();
+        }
+      }
+
+      document.getElementById('vm-refresh-now-btn').addEventListener('click', refreshVmList);
+      document.getElementById('vm-auto-refresh-btn').addEventListener('click', toggleVmAutoRefresh);
 
       const initialJobId = "{{ request.args.get('job', '') }}";
 

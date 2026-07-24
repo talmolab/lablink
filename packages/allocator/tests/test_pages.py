@@ -454,3 +454,16 @@ def test_view_instances_table_scrolls_horizontally_on_narrow_viewports(mock_data
     assert "#vm-table-container {" in html
     assert "overflow-x: auto;" in html
     assert "white-space: nowrap;" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_has_refresh_controls(mock_database, client, admin_headers):
+    mock_database.get_all_vms.return_value = []
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert 'id="vm-refresh-now-btn"' in html
+    assert 'id="vm-auto-refresh-btn"' in html
+    assert 'id="vm-refresh-spinner"' in html
+    assert 'id="vm-last-updated"' in html
+    assert "/admin/instances/fragment" in html
