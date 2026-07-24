@@ -42,7 +42,7 @@ class OperationsWorker:
     def submit(
         self,
         op_type: str,
-        fn: Callable[[], str],
+        fn: Callable[..., str],
         params: Optional[str] = None,
         created_by: Optional[str] = None,
     ) -> int:
@@ -63,10 +63,15 @@ class OperationsWorker:
         ).start()
         return operation_id
 
-    def _run(self, operation_id: int, fn: Callable[[], str]) -> None:
+    def _run(self, operation_id: int, fn: Callable[..., str]) -> None:
+        def _progress_callback(completed: int, total: int) -> None:
+            self.database.update_operation_progress(
+                operation_id, completed, total
+            )
+
         try:
             self.database.start_operation(operation_id)
-            output = fn()
+            output = fn(_progress_callback)
         except Exception as e:
             logger.error(
                 "Operation #%d failed: %s", operation_id, e, exc_info=True

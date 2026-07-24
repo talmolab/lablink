@@ -126,3 +126,20 @@ def test_submit_does_not_block_caller_on_slow_fn(worker, mock_database):
         f"submit() blocked for {elapsed:.2f}s waiting on fn() — "
         f"it must return immediately"
     )
+
+
+def test_submit_passes_progress_callback_that_updates_database(
+    worker, mock_database
+):
+    mock_database.create_operation.return_value = 3
+    captured = {}
+
+    def fn(progress_callback):
+        captured["callback"] = progress_callback
+        progress_callback(2, 5)
+        return "done"
+
+    worker.submit(op_type="apply", fn=fn, params=None, created_by="admin")
+
+    assert _wait_until(lambda: mock_database.finish_operation.called)
+    mock_database.update_operation_progress.assert_called_once_with(3, 2, 5)
