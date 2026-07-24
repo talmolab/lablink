@@ -409,6 +409,55 @@ def test_launch_returns_405_when_provider_cannot_provision(
         f"expected 405 when provider can't provision; got {r.status_code}"
 
 
+def test_launch_redirects_with_error_code_when_provider_cannot_provision(
+    launch_setup, client, admin_headers,
+):
+    """A browser (non-JSON) submit against a provider that can't provision
+    hosts must get a plain redirect (no status-code override) so a real
+    browser actually follows it — not a 405 dashboard.html render."""
+    from lablink_allocator_service import main
+
+    fake_provider = type("FakeProvider", (), {
+        "can_provision_hosts": False,
+        "can_destroy_hosts": True,
+        "can_recover_hosts": False,
+        "name": "manual",
+    })()
+    main.app.config["LABLINK_PROVIDER"] = fake_provider
+
+    r = client.post(
+        "/api/launch", headers=admin_headers, data={"num_vms": "1"},
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/admin/instances?error=launch_unsupported"
+
+
+def test_launch_redirects_with_error_code_when_operation_in_progress(
+    launch_setup, client, admin_headers,
+):
+    """A browser (non-JSON) submit that races an in-progress operation must
+    get a plain redirect (no status-code override) so a real browser
+    actually follows it — not a 409 dashboard.html render."""
+    from lablink_allocator_service.operations_db import OperationInProgress
+
+    with patch(
+        "lablink_allocator_service.main.operations_worker"
+    ) as mock_worker:
+        mock_worker.submit.side_effect = OperationInProgress(job_id=3)
+        r = client.post(
+            "/api/launch", headers=admin_headers, data={"num_vms": "1"},
+            follow_redirects=False,
+        )
+
+    assert r.status_code == 302
+    assert (
+        r.headers["Location"]
+        == "/admin/instances?error=already_in_progress&job_id=3"
+    )
+
+
 def test_launch_closure_base64_encodes_success_check(
     launch_setup, client, admin_headers, monkeypatch,
 ):
