@@ -66,6 +66,23 @@ CLEAN_PLAN_JSON = json.dumps({
 })
 
 
+class _FakeCompletedPopen:
+    """Minimal stand-in for subprocess.Popen matching _run_streamed's
+    expected surface — see providers/test_run_streamed.py for the
+    canonical version; duplicated here since this file already follows
+    a self-contained-fixtures convention rather than importing test
+    helpers across files."""
+
+    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+        import io
+        self.stdout = io.StringIO(stdout_text)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self):
+        return self._returncode
+
+
 @patch("lablink_allocator_service.providers.aws.upload_to_s3")
 @patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
 @patch("lablink_allocator_service.providers.aws.get_instance_timings",
@@ -74,9 +91,11 @@ CLEAN_PLAN_JSON = json.dumps({
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_success(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -120,8 +139,10 @@ def test_launch_vm_success(
     mock_run.side_effect = [
         R("OK"),                             # terraform plan -out (writes plan file)
         R(CLEAN_PLAN_JSON),                  # terraform show -json (feeds the SG audit)
-        R("\x1b[32mapply success\x1b[0m"),   # terraform apply <planfile>
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mapply success\x1b[0m\n", returncode=0,
+    )
 
     # Call route -- now async: it submits a job and returns immediately
     # instead of running terraform inline. Capture and invoke the closure
@@ -135,9 +156,9 @@ def test_launch_vm_success(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-    # Assert calls (plan + show -json + apply = 3; terraform output calls
-    # are handled by patched get_instance_* functions)
-    assert mock_run.call_count == 3
+    # Assert calls: plan + show -json via subprocess.run (2); apply via
+    # Popen (streamed, checked separately below).
+    assert mock_run.call_count == 2
 
     # Check plan call (must come first; writes the plan file)
     plan_args, plan_kwargs = mock_run.call_args_list[0]
@@ -155,11 +176,12 @@ def test_launch_vm_success(
     assert "-json" in show_cmd_list
     assert show_kwargs["cwd"] == terraform_dir
 
-    # Check apply call (applies the saved plan file; vars are baked in)
-    apply_args, apply_kwargs = mock_run.call_args_list[2]
+    # Check apply call (applies the saved plan file; vars are baked in;
+    # now streamed via Popen instead of subprocess.run)
+    mock_popen.assert_called_once()
+    apply_args, apply_kwargs = mock_popen.call_args
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
-    # apply consumes a saved plan file rather than fresh -var flags
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
     assert apply_kwargs["cwd"] == terraform_dir
 
@@ -199,9 +221,11 @@ def test_launch_vm_success(
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_appends_allocator_sg_id_var(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -244,8 +268,10 @@ def test_launch_vm_appends_allocator_sg_id_var(
     mock_run.side_effect = [
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
-        R("apply ok"),         # terraform apply <planfile>
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="apply ok\n", returncode=0,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -263,7 +289,7 @@ def test_launch_vm_appends_allocator_sg_id_var(
     assert "plan" in plan_cmd_list
     assert "-var=allocator_sg_id=sg-fake-allocator" in plan_cmd_list
 
-    apply_args, _ = mock_run.call_args_list[2]
+    apply_args, _ = mock_popen.call_args
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
@@ -281,9 +307,11 @@ def test_launch_vm_appends_allocator_sg_id_var(
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_vm_skips_sg_var_when_not_on_ec2(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -331,8 +359,10 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
     mock_run.side_effect = [
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
-        R("apply ok"),         # terraform apply <planfile>
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="apply ok\n", returncode=0,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -353,7 +383,7 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
         a.startswith("-var=allocator_sg_id=") for a in plan_cmd_list
     )
 
-    apply_args, _ = mock_run.call_args_list[2]
+    apply_args, _ = mock_popen.call_args
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
@@ -386,9 +416,11 @@ def test_launch_missing_allocator_outputs_returns_error(
 
 
 @patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_apply_failure(
-    mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
+    mock_run, mock_popen, mock_check_support_nvidia, client, admin_headers,
+    monkeypatch, tmp_path,
 ):
     """Test VM launch failure during apply."""
     # Create a fake terraform directory
@@ -422,6 +454,12 @@ def test_launch_apply_failure(
         raise subprocess.CalledProcessError(1, cmd, stderr="\x1b[31mboom\x1b[0m")
 
     mock_run.side_effect = side_effect
+    # apply now streams via Popen; simulate its failure the way
+    # _run_streamed detects one -- a nonzero return code, with stderr
+    # available on the (mocked) process's .stderr stream.
+    mock_popen.return_value = _FakeCompletedPopen(
+        stderr_text="\x1b[31mboom\x1b[0m", returncode=1,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -685,9 +723,11 @@ def test_destroy_no_tfvars_json(mock_ids, mock_names,
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_success(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -724,8 +764,10 @@ def test_launch_json_success(
     mock_run.side_effect = [
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
-        R("apply success"),    # terraform apply <planfile>
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="apply success", returncode=0,
+    )
 
     headers = {**admin_headers, **JSON_ACCEPT}
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -799,9 +841,11 @@ def test_launch_json_missing_allocator_outputs(
 
 
 @patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=False)
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_apply_failure(
-    mock_run, mock_check_support_nvidia, client, admin_headers, monkeypatch, tmp_path
+    mock_run, mock_popen, mock_check_support_nvidia, client, admin_headers,
+    monkeypatch, tmp_path,
 ):
     """Test Terraform apply failure returns JSON 500."""
     terraform_dir = tmp_path / "terraform"
@@ -832,6 +876,11 @@ def test_launch_json_apply_failure(
         )
 
     mock_run.side_effect = side_effect
+    # apply now streams via Popen; simulate its failure via a nonzero
+    # return code, with stderr available on the mocked process.
+    mock_popen.return_value = _FakeCompletedPopen(
+        stderr_text="Error: resource already exists", returncode=1,
+    )
 
     headers = {**admin_headers, **JSON_ACCEPT}
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -853,9 +902,11 @@ def test_launch_json_apply_failure(
 
 @patch("lablink_allocator_service.providers.aws.upload_to_s3")
 @patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=True)
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_json_unexpected_error(
     mock_run,
+    mock_popen,
     mock_check_support_nvidia,
     mock_upload_to_s3,
     client,
@@ -891,8 +942,10 @@ def test_launch_json_unexpected_error(
     mock_run.side_effect = [
         R("OK"),               # terraform plan -out
         R(CLEAN_PLAN_JSON),    # terraform show -json
-        R("apply success"),    # terraform apply <planfile>
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="apply success\n", returncode=0,
+    )
     mock_upload_to_s3.side_effect = Exception("AccessDenied: s3:PutObject")
 
     headers = {**admin_headers, **JSON_ACCEPT}
@@ -1092,9 +1145,11 @@ def test_launch_aborts_on_sg_audit_failure_html(
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_writes_register_token_to_tfvars(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -1138,8 +1193,10 @@ def test_launch_writes_register_token_to_tfvars(
     mock_run.side_effect = [
         R("OK"),
         R(CLEAN_PLAN_JSON),
-        R("\x1b[32mapply success\x1b[0m"),
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mapply success\x1b[0m\n", returncode=0,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -1162,9 +1219,11 @@ def test_launch_writes_register_token_to_tfvars(
                               "seconds": 60.0}})
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.get_instance_names", return_value=[])
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_launch_writes_agent_token_to_tfvars_additively(
     mock_run,
+    mock_popen,
     mock_get_names,
     mock_get_ids,
     mock_get_timings,
@@ -1209,8 +1268,10 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     mock_run.side_effect = [
         R("OK"),
         R(CLEAN_PLAN_JSON),
-        R("\x1b[32mapply success\x1b[0m"),
     ]
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mapply success\x1b[0m\n", returncode=0,
+    )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1

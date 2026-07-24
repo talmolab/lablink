@@ -2,6 +2,7 @@
 boto3/terraform calls /api/launch did, returning a ProvisionResult."""
 from __future__ import annotations
 
+import json
 from unittest.mock import patch, MagicMock
 import pytest
 from lablink_allocator_service.providers.aws import AWSProvider
@@ -39,6 +40,22 @@ def aws_provider(tmp_path):
     return AWSProvider(region="us-west-2", terraform_dir=tmp_path)
 
 
+class _FakeCompletedPopen:
+    """Minimal stand-in for subprocess.Popen, matching _run_streamed's
+    expected surface (see test_run_streamed.py for the canonical version;
+    duplicated here in full per this test file's existing convention of
+    being self-contained rather than sharing fixtures across files)."""
+
+    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+        import io
+        self.stdout = io.StringIO(stdout_text)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self):
+        return self._returncode
+
+
 @pytest.fixture
 def all_aws_mocks():
     """Patch every external dep AWSProvider.provision_hosts touches."""
@@ -52,10 +69,17 @@ def all_aws_mocks():
         result.returncode = 0
         return result
 
+    def fake_popen(cmd, **kwargs):
+        return _FakeCompletedPopen(stdout_text="Apply complete (mocked)\n")
+
     patches = {
         "subprocess_run": patch(
             "lablink_allocator_service.providers.aws.subprocess.run",
             side_effect=fake_subprocess,
+        ),
+        "subprocess_popen": patch(
+            "lablink_allocator_service.providers.aws.subprocess.Popen",
+            side_effect=fake_popen,
         ),
         "upload_to_s3": patch(
             "lablink_allocator_service.providers.aws.upload_to_s3"
@@ -121,16 +145,100 @@ def test_provision_hosts_runs_terraform_plan_show_apply(
     aws_provider, all_aws_mocks,
 ):
     aws_provider.provision_hosts(count=1, spec=_make_spec())
-    cmds = [list(c.args[0]) for c in all_aws_mocks["subprocess_run"].call_args_list
-            if c.args and isinstance(c.args[0], list)]
-    def find(verb):
+
+    def find(cmds, verb):
         for i, cmd in enumerate(cmds):
             if cmd and cmd[0] == "terraform" and verb in cmd:
                 return i
         return -1
-    plan_idx, show_idx, apply_idx = find("plan"), find("show"), find("apply")
-    assert -1 not in (plan_idx, show_idx, apply_idx)
-    assert plan_idx < show_idx < apply_idx
+
+    run_cmds = [
+        list(c.args[0])
+        for c in all_aws_mocks["subprocess_run"].call_args_list
+        if c.args and isinstance(c.args[0], list)
+    ]
+    plan_idx, show_idx = find(run_cmds, "plan"), find(run_cmds, "show")
+    assert -1 not in (plan_idx, show_idx)
+    assert plan_idx < show_idx
+
+    popen_cmds = [
+        list(c.args[0])
+        for c in all_aws_mocks["subprocess_popen"].call_args_list
+        if c.args and isinstance(c.args[0], list)
+    ]
+    assert find(popen_cmds, "apply") != -1
+
+
+def test_provision_hosts_reports_progress_via_callback(aws_provider):
+    plan_json = json.dumps({
+        "resource_changes": [
+            {"type": "aws_instance", "address": "aws_instance.client[0]",
+             "change": {"actions": ["create"]}},
+            {"type": "aws_instance", "address": "aws_instance.client[1]",
+             "change": {"actions": ["create"]}},
+        ]
+    })
+    apply_stdout = (
+        "aws_instance.client[0]: Creation complete after 12s [id=i-1]\n"
+        "aws_instance.client[1]: Creation complete after 15s [id=i-2]\n"
+    )
+
+    def fake_run(cmd, **kwargs):
+        result = MagicMock()
+        if "show" in cmd:
+            result.stdout = plan_json
+        else:
+            result.stdout = "OK"
+        result.stderr = ""
+        result.returncode = 0
+        return result
+
+    progress_calls = []
+
+    with patch(
+        "lablink_allocator_service.providers.aws.subprocess.run",
+        side_effect=fake_run,
+    ), patch(
+        "lablink_allocator_service.providers.aws.subprocess.Popen",
+        return_value=_FakeCompletedPopen(stdout_text=apply_stdout),
+    ), patch(
+        "lablink_allocator_service.providers.aws.upload_to_s3"
+    ), patch(
+        "lablink_allocator_service.providers.aws.current_instance_security_group",
+        return_value="sg-foo",
+    ), patch(
+        "lablink_allocator_service.providers.aws.check_support_nvidia",
+        return_value=True,
+    ), patch(
+        "lablink_allocator_service.providers.aws.get_instance_timings",
+        return_value={},
+    ), patch(
+        "lablink_allocator_service.providers.aws.get_instance_ids",
+        return_value=["i-1", "i-2"],
+    ), patch(
+        "lablink_allocator_service.providers.aws.get_instance_names",
+        return_value=["host-1", "host-2"],
+    ), patch(
+        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        return_value=None,
+    ):
+        aws_provider.provision_hosts(
+            count=2,
+            spec=_make_spec(),
+            progress_callback=lambda done, total: progress_calls.append(
+                (done, total)
+            ),
+        )
+
+    assert progress_calls[0] == (0, 2)
+    assert progress_calls[-1] == (2, 2)
+    assert len(progress_calls) == 3
+
+
+def test_provision_hosts_progress_callback_is_optional(aws_provider, all_aws_mocks):
+    """Omitting progress_callback (the pre-existing call shape) must not
+    raise — this is the backward-compatible default path."""
+    aws_provider.provision_hosts(count=1, spec=_make_spec())
 
 
 def test_provision_hosts_uploads_to_s3(aws_provider, all_aws_mocks):
@@ -169,6 +277,9 @@ def test_provision_hosts_skips_sg_id_off_ec2(aws_provider):
         "lablink_allocator_service.providers.aws.subprocess.run",
         side_effect=fake_subprocess,
     ) as run_mock, patch(
+        "lablink_allocator_service.providers.aws.subprocess.Popen",
+        return_value=_FakeCompletedPopen(stdout_text="Apply complete\n"),
+    ), patch(
         "lablink_allocator_service.providers.aws.upload_to_s3"
     ), patch(
         "lablink_allocator_service.providers.aws.current_instance_security_group",

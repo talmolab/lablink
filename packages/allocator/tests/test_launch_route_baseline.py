@@ -93,17 +93,32 @@ class _FakeResult:
         self.returncode = returncode
 
 
+class _FakeCompletedPopen:
+    """Minimal stand-in for subprocess.Popen, matching _run_streamed's
+    expected surface (see providers/test_run_streamed.py for the
+    canonical version). Post-Task-5, AWSProvider.provision_hosts's apply
+    step streams via subprocess.Popen instead of subprocess.run."""
+
+    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+        import io
+        self.stdout = io.StringIO(stdout_text)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self):
+        return self._returncode
+
+
 def _provider_subprocess_side_effects(plan_json=_CLEAN_PLAN_JSON):
     """Return FakeResult objects in the order AWSProvider.provision_hosts
     calls subprocess.run:
     1. terraform plan -no-color -out tfplan.binary ...
     2. terraform show -json tfplan.binary
-    3. terraform apply -auto-approve tfplan.binary
+    (apply now streams via subprocess.Popen — see _FakeCompletedPopen.)
     """
     return [
         _FakeResult("OK"),             # plan
         _FakeResult(plan_json),        # show -json → SG audit
-        _FakeResult("apply success"),  # apply
     ]
 
 
@@ -118,7 +133,8 @@ def _provider_happy_path_patches():
     - providers.aws.upload_to_s3
     - providers.aws.current_instance_security_group
     - providers.aws.check_support_nvidia
-    - providers.aws.subprocess.run  (plan/show/apply only)
+    - providers.aws.subprocess.run  (plan/show only)
+    - providers.aws.subprocess.Popen  (apply — streamed post-Task-5)
     - providers.aws.get_instance_timings
     - providers.aws.get_instance_ids
     - providers.aws.get_instance_names
@@ -133,6 +149,7 @@ def _provider_happy_path_patches():
              patch("lablink_allocator_service.providers.aws.check_support_nvidia",
                    return_value=True) as mnv, \
              patch("lablink_allocator_service.providers.aws.subprocess.run") as mrun, \
+             patch("lablink_allocator_service.providers.aws.subprocess.Popen") as mpopen, \
              patch("lablink_allocator_service.providers.aws.get_instance_timings",
                    return_value=_TIMING_DATA) as mtimings, \
              patch("lablink_allocator_service.providers.aws.get_instance_ids",
@@ -140,9 +157,10 @@ def _provider_happy_path_patches():
              patch("lablink_allocator_service.providers.aws.get_instance_names",
                    return_value=[]) as mnames:
             mrun.side_effect = _provider_subprocess_side_effects()
+            mpopen.return_value = _FakeCompletedPopen(stdout_text="apply success")
             yield {
                 "s3": ms3, "sg": msg, "nvidia": mnv,
-                "run": mrun, "timings": mtimings,
+                "run": mrun, "popen": mpopen, "timings": mtimings,
                 "ids": mids, "names": mnames,
             }
     return _stack()
@@ -286,24 +304,28 @@ def test_launch_closure_runs_plan_show_apply_in_order(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-        calls = mocks["run"].call_args_list
-        cmds = [
-            list(c.args[0])
-            for c in calls
-            if c.args and isinstance(c.args[0], (list, tuple))
-        ]
-
-        def index_of(verb):
+        def index_of(cmds, verb):
             for i, cmd in enumerate(cmds):
                 if cmd and cmd[0] == "terraform" and verb in cmd:
                     return i
             return -1
 
-        plan_idx, show_idx, apply_idx = (
-            index_of("plan"), index_of("show"), index_of("apply"),
-        )
-        assert plan_idx != -1 and show_idx != -1 and apply_idx != -1
-        assert plan_idx < show_idx < apply_idx
+        run_cmds = [
+            list(c.args[0])
+            for c in mocks["run"].call_args_list
+            if c.args and isinstance(c.args[0], (list, tuple))
+        ]
+        plan_idx, show_idx = index_of(run_cmds, "plan"), index_of(run_cmds, "show")
+        assert plan_idx != -1 and show_idx != -1
+        assert plan_idx < show_idx
+
+        # apply now streams via subprocess.Popen, checked separately.
+        popen_cmds = [
+            list(c.args[0])
+            for c in mocks["popen"].call_args_list
+            if c.args and isinstance(c.args[0], (list, tuple))
+        ]
+        assert index_of(popen_cmds, "apply") != -1
 
 
 def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_headers):

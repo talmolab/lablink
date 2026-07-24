@@ -161,7 +161,12 @@ class AWSProvider:
             for i, n in zip(ids, names)
         ]
 
-    def provision_hosts(self, count: int, spec: dict) -> ProvisionResult:
+    def provision_hosts(
+        self,
+        count: int,
+        spec: dict,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> ProvisionResult:
         """Run `terraform plan + audit + apply` for `count` new client hosts.
 
         Moves the inline logic that used to live in main.py's /api/launch
@@ -242,9 +247,28 @@ class AWSProvider:
             )
             plan_json = json.loads(show.stdout)
             audit_terraform_plan(plan_json)  # may raise SGAuditFailure
-            apply_result = subprocess.run(
+
+            resources_total = sum(
+                1
+                for rc in plan_json.get("resource_changes", [])
+                if "create" in (rc.get("change") or {}).get("actions", [])
+            )
+            if progress_callback:
+                progress_callback(0, resources_total)
+
+            completed = 0
+
+            def _on_resource_complete() -> None:
+                nonlocal completed
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, resources_total)
+
+            apply_result = _run_streamed(
                 ["terraform", "apply", "-auto-approve", plan_file],
-                cwd=terraform_dir, check=True, capture_output=True, text=True,
+                cwd=terraform_dir,
+                resource_complete_re=_CREATE_COMPLETE_RE,
+                on_resource_complete=_on_resource_complete,
             )
         finally:
             plan_file_path.unlink(missing_ok=True)
