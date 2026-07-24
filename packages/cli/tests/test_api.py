@@ -276,3 +276,67 @@ class TestLaunchVms:
         api = _make_api()
         with pytest.raises(AllocatorError, match="already in progress"):
             api.launch_vms(1)
+
+
+class TestSubmitAndPollProgress:
+    @patch("lablink_cli.api.time.sleep")
+    @patch("lablink_cli.api.urlopen")
+    def test_on_progress_called_with_fields_when_present(
+        self, mock_urlopen, mock_sleep,
+    ):
+        mock_urlopen.side_effect = [
+            _mock_response({"job_id": 7, "status": "queued"}),
+            _mock_response({
+                "id": 7, "status": "running",
+                "resources_completed": 1, "resources_total": 3,
+            }),
+            _mock_response({
+                "id": 7, "status": "succeeded", "output": "done",
+                "resources_completed": 3, "resources_total": 3,
+            }),
+        ]
+        calls = []
+        api = _make_api()
+        api.destroy_vms(
+            on_progress=lambda done, total: calls.append((done, total))
+        )
+
+        assert calls == [(1, 3), (3, 3)]
+
+    @patch("lablink_cli.api.time.sleep")
+    @patch("lablink_cli.api.urlopen")
+    def test_on_progress_called_with_none_when_fields_absent(
+        self, mock_urlopen, mock_sleep,
+    ):
+        """An allocator that predates progress reporting simply omits
+        these keys — on_progress must still be called, with (None, None),
+        not skipped or erroring."""
+        mock_urlopen.side_effect = [
+            _mock_response({"job_id": 7, "status": "queued"}),
+            _mock_response({"id": 7, "status": "succeeded", "output": "done"}),
+        ]
+        calls = []
+        api = _make_api()
+        api.destroy_vms(
+            on_progress=lambda done, total: calls.append((done, total))
+        )
+
+        assert calls == [(None, None)]
+
+    @patch("lablink_cli.api.time.sleep")
+    @patch("lablink_cli.api.urlopen")
+    def test_launch_vms_also_accepts_on_progress(self, mock_urlopen, mock_sleep):
+        mock_urlopen.side_effect = [
+            _mock_response({"job_id": 9, "status": "queued"}),
+            _mock_response({
+                "id": 9, "status": "succeeded", "output": "ok",
+                "resources_completed": 2, "resources_total": 2,
+            }),
+        ]
+        calls = []
+        api = _make_api()
+        api.launch_vms(
+            2, on_progress=lambda done, total: calls.append((done, total))
+        )
+
+        assert calls == [(2, 2)]
