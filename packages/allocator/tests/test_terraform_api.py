@@ -478,33 +478,33 @@ def test_launch_apply_failure(
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
-def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
+def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                          client, admin_headers, monkeypatch, tmp_path):
-    """Test successful VM destruction via terraform destroy."""
-    # Create a fake terraform directory with tfvars
+    """Test successful VM destruction via a plan+apply destroy sequence."""
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
     _wire_aws_provider(monkeypatch, terraform_dir)
 
-    # Mock subprocess.run
-    mock_run.return_value = type(
-        "R", (), {"stdout": "\x1b[32mresources destroyed\x1b[0m", "stderr": ""}
+    def fake_run(cmd, **kwargs):
+        result = MagicMock()
+        result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+        result.stderr = ""
+        return result
+
+    mock_run.side_effect = fake_run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mresources destroyed\x1b[0m\n", returncode=0,
     )
 
-    # Mock DB and attach to app module via string target
     fake_db = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.main.database", fake_db, raising=False
     )
 
-    # Call the destroy endpoint -- now async: it submits a job and returns
-    # immediately instead of running terraform inline. Capture and invoke
-    # the closure (still within the scope of the @patch decorators above)
-    # to exercise the same destroy_hosts call the background thread would
-    # make.
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
         resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
@@ -515,16 +515,21 @@ def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
 
     assert "resources destroyed" in output
 
-    # Correct terraform command called with cwd
-    mock_run.assert_called_once()
-    args, kwargs = mock_run.call_args
-    assert args[0][:2] == ["terraform", "destroy"]
-    assert "-auto-approve" in args[0]
-    assert "-var-file=terraform.runtime.tfvars" in args[0]
-    assert kwargs["cwd"] == terraform_dir
-    assert kwargs["check"] is True
-    assert kwargs["capture_output"] is True
-    assert kwargs["text"] is True
+    # plan -destroy, then show -json (2 subprocess.run calls)
+    assert mock_run.call_count == 2
+    plan_args, plan_kwargs = mock_run.call_args_list[0]
+    assert plan_args[0][:3] == ["terraform", "plan", "-destroy"]
+    assert "-var-file=terraform.runtime.tfvars" in plan_args[0]
+    assert plan_kwargs["cwd"] == terraform_dir
+
+    show_args, _ = mock_run.call_args_list[1]
+    assert show_args[0][1] == "show"
+
+    # apply (of the saved destroy plan) streams via Popen
+    mock_popen.assert_called_once()
+    popen_args, popen_kwargs = mock_popen.call_args
+    assert popen_args[0][:2] == ["terraform", "apply"]
+    assert popen_kwargs["cwd"] == terraform_dir
 
     # DB cleared exactly once
     fake_db.clear_database.assert_called_once()
@@ -534,23 +539,28 @@ def test_destroy_success(mock_run, mock_sg, mock_ids, mock_names,
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
-def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
+def test_destroy_failure(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                          client, admin_headers, monkeypatch, tmp_path):
-    # Create a fake terraform directory with tfvars
     terraform_dir = tmp_path / "terraform"
     terraform_dir.mkdir()
     (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
     _wire_aws_provider(monkeypatch, terraform_dir)
 
-    # Mock subprocess.run to raise an error
-    mock_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd=["terraform", "destroy"], stderr="\x1b[31merror\x1b[0m"
+    def fake_run(cmd, **kwargs):
+        result = MagicMock()
+        result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+        result.stderr = ""
+        return result
+
+    mock_run.side_effect = fake_run
+    # The apply-of-the-destroy-plan step fails.
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="", stderr_text="\x1b[31merror\x1b[0m", returncode=1,
     )
 
-    # Call the destroy endpoint -- submission succeeds immediately (job
-    # queued); the terraform failure only surfaces once the closure runs.
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
         resp = client.post(DESTROY_ENDPOINT, headers=admin_headers)
@@ -560,8 +570,7 @@ def test_destroy_failure(mock_run, mock_sg, mock_ids, mock_names,
         with pytest.raises(RuntimeError, match="error"):
             fn()
 
-    # Ensure run was called correctly
-    mock_run.assert_called_once()
+    mock_popen.assert_called_once()
 
 
 def test_launch_invalid_num_vms(client, admin_headers):
@@ -596,8 +605,9 @@ def test_launch_missing_num_vms(client, admin_headers):
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
-def test_destroy_json_success(mock_run, mock_sg, mock_ids, mock_names,
+def test_destroy_json_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                                client, admin_headers, monkeypatch, tmp_path):
     """Test successful destroy returns JSON when Accept header is set."""
     terraform_dir = tmp_path / "terraform"
@@ -606,8 +616,15 @@ def test_destroy_json_success(mock_run, mock_sg, mock_ids, mock_names,
     monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
     _wire_aws_provider(monkeypatch, terraform_dir)
 
-    mock_run.return_value = type(
-        "R", (), {"stdout": "\x1b[32mresources destroyed\x1b[0m", "stderr": ""}
+    def fake_run(cmd, **kwargs):
+        result = MagicMock()
+        result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+        result.stderr = ""
+        return result
+
+    mock_run.side_effect = fake_run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mresources destroyed\x1b[0m\n", returncode=0,
     )
 
     fake_db = MagicMock()

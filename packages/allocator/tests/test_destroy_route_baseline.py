@@ -4,22 +4,51 @@ Since the async rewrite (PR 2 of the async-terraform-worker roadmap), the
 route no longer runs terraform synchronously — it submits a job to
 OperationsWorker and returns immediately. These tests assert:
 - current_instance_security_group + NotOnEC2Error catch (in provider)
-- terraform destroy -auto-approve -var-file=terraform.runtime.tfvars
-  [-var=allocator_sg_id=<sg>] — via the captured closure, not the route directly
+- terraform plan -destroy -var-file=terraform.runtime.tfvars
+  [-var=allocator_sg_id=<sg>] (subprocess.run) + terraform show -json
+  (subprocess.run) + terraform apply -auto-approve <planfile> (streamed via
+  subprocess.Popen) — via the captured closure, not the route directly
 - ANSI-strip of output (in provider, DestroyResult.stdout is already clean)
 - database.clear_database() after success, inside the closure
 
-All AWS-specific calls (current_instance_security_group, subprocess.run for
-terraform destroy) execute inside AWSProvider.destroy_hosts — patch them in
-the providers.aws namespace, not the main namespace. list_hosts() calls
-get_instance_ids / get_instance_names (terraform output), which must also
-be patched to avoid real terraform invocations.
+All AWS-specific calls (current_instance_security_group, subprocess.run /
+subprocess.Popen for the destroy plan+apply sequence) execute inside
+AWSProvider.destroy_hosts — patch them in the providers.aws namespace, not
+the main namespace. list_hosts() calls get_instance_ids / get_instance_names
+(terraform output), which must also be patched to avoid real terraform
+invocations.
 """
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+class _FakeCompletedPopen:
+    """Minimal stand-in for subprocess.Popen matching _run_streamed's
+    expected surface — see providers/test_run_streamed.py for the
+    canonical version."""
+
+    def __init__(self, stdout_text="", stderr_text="", returncode=0):
+        import io
+        self.stdout = io.StringIO(stdout_text)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self):
+        return self._returncode
+
+
+def _fake_run(cmd, **kwargs):
+    """subprocess.run side_effect: valid plan JSON for `terraform show
+    -json ...`, generic "OK" stdout for any other call (e.g. `terraform
+    plan -destroy ...`)."""
+    result = MagicMock()
+    result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
+    result.stderr = ""
+    result.returncode = 0
+    return result
 
 
 @pytest.fixture
@@ -100,15 +129,17 @@ def test_destroy_redirects_browser_client_with_job_id(client, admin_headers):
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-allocator-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_destroy_closure_runs_terraform_destroy_and_clears_db(
-    mock_run, mock_sg, mock_ids, mock_names,
+    mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
     """Capture the closure and invoke it directly — this is what actually
     runs on the background thread."""
-    mock_run.return_value = MagicMock(
-        stdout="Destroy complete (mocked)", stderr="", returncode=0
+    mock_run.side_effect = _fake_run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="Destroy complete (mocked)\n", returncode=0,
     )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -118,17 +149,16 @@ def test_destroy_closure_runs_terraform_destroy_and_clears_db(
 
     assert "Destroy complete" in output
 
-    calls = mock_run.call_args_list
-    cmds = [
-        list(c.args[0]) for c in calls
-        if c.args and isinstance(c.args[0], (list, tuple))
-    ]
-    destroy_cmds = [c for c in cmds if c and c[0] == "terraform" and "destroy" in c]
-    assert destroy_cmds, f"terraform destroy not called; cmds: {cmds}"
-    cmd = destroy_cmds[0]
-    assert "-auto-approve" in cmd
-    assert "-var-file=terraform.runtime.tfvars" in cmd
-    assert any("allocator_sg_id" in arg for arg in cmd)
+    # plan -destroy carries the var-file and sg var.
+    plan_cmd = mock_run.call_args_list[0].args[0]
+    assert plan_cmd[:3] == ["terraform", "plan", "-destroy"]
+    assert "-var-file=terraform.runtime.tfvars" in plan_cmd
+    assert any("allocator_sg_id" in arg for arg in plan_cmd)
+
+    # apply (of the saved destroy plan) streams via Popen.
+    apply_cmd = mock_popen.call_args.args[0]
+    assert apply_cmd[:2] == ["terraform", "apply"]
+    assert "-auto-approve" in apply_cmd
 
     destroy_setup["database"].clear_database.assert_called_once()
 
@@ -137,13 +167,15 @@ def test_destroy_closure_runs_terraform_destroy_and_clears_db(
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-allocator-test")
+@patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_destroy_closure_strips_ansi_from_output(
-    mock_run, mock_sg, mock_ids, mock_names,
+    mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
-    mock_run.return_value = MagicMock(
-        stdout="\x1b[32mresources destroyed\x1b[0m", stderr="", returncode=0
+    mock_run.side_effect = _fake_run
+    mock_popen.return_value = _FakeCompletedPopen(
+        stdout_text="\x1b[32mresources destroyed\x1b[0m\n", returncode=0,
     )
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:

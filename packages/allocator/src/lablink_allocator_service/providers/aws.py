@@ -300,11 +300,18 @@ class AWSProvider:
             handles=handles, timings=timings, apply_stdout=clean_stdout,
         )
 
-    def destroy_hosts(self, handles: list[ClientHandle]) -> DestroyResult:
-        """Run `terraform destroy -auto-approve -var-file=...` for the entire
-        workspace. Terraform destroy operates against the state file as a
-        whole; `handles` is accepted for protocol consistency but not used
-        for per-handle filtering.
+    def destroy_hosts(
+        self,
+        handles: list[ClientHandle],
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> DestroyResult:
+        """Plan, then apply, a full-workspace destroy. `handles` is
+        accepted for protocol consistency but not used for per-handle
+        filtering — Terraform destroy operates against the whole state
+        file. Mirrors provision_hosts's plan+show+apply sequence (added
+        so resources_total can be computed exactly the same way
+        provision_hosts computes it for creates) instead of the single
+        `terraform destroy` call this method used before.
 
         Raises FileNotFoundError if no runtime tfvars exists (signals
         "no client VMs were ever launched" — route handler maps this to 404).
@@ -320,18 +327,50 @@ class AWSProvider:
                 "tfvars does not exist — no client VMs were launched"
             )
 
-        cmd = [
-            "terraform", "destroy", "-auto-approve",
-            "-var-file=terraform.runtime.tfvars",
-        ]
+        var_args = ["-var-file=terraform.runtime.tfvars"]
         try:
             sg_id = current_instance_security_group(region=self._region)
-            cmd.append(f"-var=allocator_sg_id={sg_id}")
+            var_args.append(f"-var=allocator_sg_id={sg_id}")
         except NotOnEC2Error:
             # Caller may log; we just skip the SG var.
             pass
 
-        result = subprocess.run(
-            cmd, cwd=terraform_dir, check=True, capture_output=True, text=True,
-        )
+        plan_file = "tfplan-destroy.binary"
+        plan_file_path = terraform_dir / plan_file
+        try:
+            subprocess.run(
+                ["terraform", "plan", "-destroy", "-no-color",
+                 "-out", plan_file, *var_args],
+                cwd=terraform_dir, check=True, capture_output=True, text=True,
+            )
+            show = subprocess.run(
+                ["terraform", "show", "-json", plan_file],
+                cwd=terraform_dir, check=True, capture_output=True, text=True,
+            )
+            plan_json = json.loads(show.stdout)
+            resources_total = sum(
+                1
+                for rc in plan_json.get("resource_changes", [])
+                if "delete" in (rc.get("change") or {}).get("actions", [])
+            )
+            if progress_callback:
+                progress_callback(0, resources_total)
+
+            completed = 0
+
+            def _on_resource_complete() -> None:
+                nonlocal completed
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, resources_total)
+
+            result = _run_streamed(
+                ["terraform", "apply", "-auto-approve", plan_file],
+                cwd=terraform_dir,
+                resource_complete_re=_DESTROY_COMPLETE_RE,
+                on_resource_complete=_on_resource_complete,
+            )
+        finally:
+            plan_file_path.unlink(missing_ok=True)
+
         return DestroyResult(stdout=_ANSI_ESCAPE.sub("", result.stdout))
