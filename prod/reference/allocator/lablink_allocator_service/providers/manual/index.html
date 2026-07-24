@@ -4358,7 +4358,7 @@ injected ClientConnectivity, never here.</p>
 
 
 <h6 id="lablink_allocator_service.providers.manual.ManualProvider.destroy_hosts" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">destroy_hosts</span><span class="p">(</span><span class="n">handles</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">destroy_hosts</span><span class="p">(</span><span class="n">handles</span><span class="p">,</span> <span class="n">progress_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.providers.manual.ManualProvider.destroy_hosts" class="headerlink" title="Permanent link">&para;</a></h6>
 
@@ -4371,7 +4371,7 @@ injected ClientConnectivity, never here.</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-40">40</a></span>
 <span class="normal"><a href="#__codelineno-0-41">41</a></span>
 <span class="normal"><a href="#__codelineno-0-42">42</a></span>
-<span class="normal"><a href="#__codelineno-0-43">43</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="k">def</span><span class="w"> </span><span class="nf">destroy_hosts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handles</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-43">43</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="k">def</span><span class="w"> </span><span class="nf">destroy_hosts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handles</span><span class="p">,</span> <span class="n">progress_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="k">raise</span> <span class="n">ProvisioningNotSupported</span><span class="p">(</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="s2">&quot;ManualProvider cannot destroy BYO machines.&quot;</span>
 <a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="p">)</span>
@@ -4443,7 +4443,7 @@ injected ClientConnectivity, never here.</p>
 
 
 <h6 id="lablink_allocator_service.providers.manual.ManualProvider.provision_hosts" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">provision_hosts</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">provision_hosts</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">progress_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.providers.manual.ManualProvider.provision_hosts" class="headerlink" title="Permanent link">&para;</a></h6>
 
@@ -4457,7 +4457,7 @@ injected ClientConnectivity, never here.</p>
 <span class="normal"><a href="#__codelineno-0-35">35</a></span>
 <span class="normal"><a href="#__codelineno-0-36">36</a></span>
 <span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="k">def</span><span class="w"> </span><span class="nf">provision_hosts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="k">def</span><span class="w"> </span><span class="nf">provision_hosts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">progress_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="k">raise</span> <span class="n">ProvisioningNotSupported</span><span class="p">(</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>        <span class="s2">&quot;ManualProvider doesn&#39;t provision — instructor brings the &quot;</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="s2">&quot;machines. Use &#39;lablink launch&#39; for the registration command.&quot;</span>
