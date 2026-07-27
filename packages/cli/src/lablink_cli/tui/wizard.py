@@ -1590,7 +1590,12 @@ class ConfigWizard(App):
     Screen {
         align: center middle;
     }
-    VerticalScroll {
+    /* Only the screen's own scroll viewport claims the available height.
+       Must stay scoped to a direct child of Screen: Textual's RadioSet is
+       itself a VerticalScroll subclass, and a bare `VerticalScroll` type
+       selector matches subclasses — that overrode every RadioSet's
+       `height: auto` with `1fr`, collapsing the radio boxes to 0 rows. */
+    Screen > VerticalScroll {
         height: 1fr;
     }
     #dns-guided, #dns-advanced {
@@ -1623,10 +1628,21 @@ class ConfigWizard(App):
     }
     RadioSet {
         margin: 0 2;
+        /* Redundant with Textual's default, stated explicitly so a future
+           container rule can't silently collapse the options again. */
+        height: auto;
     }
     TextArea {
         margin: 0 2;
-        height: 20;
+        /* Scale with the terminal instead of a hard 20 rows, which on a
+           short terminal was taller than the whole form viewport and buried
+           the fields below it. The percentage resolves against the scroll
+           viewport; `1fr` would not work here — like RadioSet above it only
+           gets the space fixed-size siblings leave over, which on the
+           startup-script form is nothing. */
+        height: 60%;
+        min-height: 6;
+        max-height: 24;
     }
     .nav-buttons {
         margin: 1 0;
