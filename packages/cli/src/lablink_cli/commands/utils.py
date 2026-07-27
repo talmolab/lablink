@@ -14,6 +14,150 @@ console = Console()
 
 
 # ------------------------------------------------------------------
+# AWS error reporting
+# ------------------------------------------------------------------
+class AwsQueryError(Exception):
+    """An AWS query could not be answered.
+
+    Two flags, at most one of which is set, because they have different
+    fixes and so must produce different advice:
+
+    ``is_auth``
+        Authentication — we cannot establish who the caller is (absent,
+        expired, or invalid credentials). Fixed by supplying credentials.
+    ``is_permission``
+        Authorization — the caller is known, but not allowed to make this
+        call. Fixed by an IAM policy change; re-authenticating with the
+        same identity changes nothing.
+
+    Neither set means something else went wrong (throttling, endpoint
+    trouble) and the error is reported verbatim with no advice, since
+    telling someone to run 'aws configure' over a throttling error just
+    wastes their time.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        is_auth: bool = False,
+        is_permission: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.is_auth = is_auth
+        self.is_permission = is_permission
+
+
+# "We cannot establish who you are" — the fix is new/refreshed credentials.
+_AUTHENTICATION_ERROR_CODES = frozenset({
+    "AuthFailure",
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "InvalidClientTokenId",
+    "RequestExpired",
+    "SignatureDoesNotMatch",
+    "UnrecognizedClientException",
+})
+
+# "We know who you are, and you may not do this" — the fix is an IAM
+# policy change. Kept separate from the codes above because the credential
+# remedies cannot resolve these, and offering them sends the operator in
+# circles re-authenticating an identity that was never the problem.
+_AUTHORIZATION_ERROR_CODES = frozenset({
+    "AccessDenied",
+    "AccessDeniedException",
+    "UnauthorizedOperation",
+})
+
+# Printed one per line: Rich wraps at the console width, and a hint
+# folded mid-command is a hint the operator can't copy-paste.
+AWS_CREDENTIALS_REMEDIES = (
+    "aws configure",
+    "export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...",
+    "aws sso login   (if this account uses SSO)",
+)
+
+# Deliberately does not name the credential commands, even to dismiss
+# them — a skimming operator would try them anyway.
+AWS_PERMISSION_REMEDY_LINES = (
+    "These credentials are valid but lack permission for this call.",
+    "Grant the calling identity the action named above (for example",
+    "ec2:DescribeInstances), or switch to a role or profile that has it.",
+)
+
+
+def _classify_aws_error(e: Exception) -> AwsQueryError:
+    """Translate a boto3/botocore exception into an AwsQueryError."""
+    from botocore.exceptions import (
+        ClientError,
+        NoCredentialsError,
+        PartialCredentialsError,
+        ProfileNotFound,
+        SSOTokenLoadError,
+        TokenRetrievalError,
+        UnauthorizedSSOTokenError,
+    )
+
+    if isinstance(e, (NoCredentialsError, PartialCredentialsError)):
+        return AwsQueryError(
+            f"No usable AWS credentials found ({e})", is_auth=True
+        )
+    if isinstance(
+        e, (TokenRetrievalError, UnauthorizedSSOTokenError, SSOTokenLoadError)
+    ):
+        return AwsQueryError(
+            f"AWS SSO session is not usable ({e})", is_auth=True
+        )
+    if isinstance(e, ProfileNotFound):
+        return AwsQueryError(f"AWS profile not found ({e})", is_auth=True)
+    if isinstance(e, ClientError):
+        err = (getattr(e, "response", None) or {}).get("Error", {}) or {}
+        code = err.get("Code", "") or "Unknown"
+        msg = err.get("Message", "") or str(e)
+        if code in _AUTHORIZATION_ERROR_CODES:
+            return AwsQueryError(
+                f"AWS denied the request: {code} — {msg}",
+                is_permission=True,
+            )
+        if code in _AUTHENTICATION_ERROR_CODES:
+            return AwsQueryError(
+                f"AWS rejected the request: {code} — {msg}", is_auth=True
+            )
+        return AwsQueryError(f"AWS API error: {code} — {msg}")
+    return AwsQueryError(f"AWS query failed: {e}")
+
+
+def aws_credentials_error(region: str) -> AwsQueryError | None:
+    """Probe STS for the caller identity. Return None if credentials work.
+
+    Deliberately silent, unlike ``setup.check_credentials``, which prints
+    a remediation block and raises SystemExit (which is why
+    ``doctor._check_aws_credentials`` has to catch SystemExit). Callers
+    render their own message so the probe can be used mid-report.
+    """
+    from lablink_cli.commands.setup import _get_session
+
+    try:
+        _get_session(region).client("sts").get_caller_identity()
+    except Exception as e:  # boto3 raises many types; classified below
+        return _classify_aws_error(e)
+    return None
+
+
+def print_aws_error(err: AwsQueryError, *, prefix: str | None = None) -> None:
+    """Print an AwsQueryError with advice matching the kind of failure."""
+    label = f"[red]{prefix}:[/red] " if prefix else "[red]✗[/red] "
+    console.print(f"  {label}{err}")
+    if err.is_auth:
+        console.print("  [dim]Authenticate with one of:[/dim]")
+        for remedy in AWS_CREDENTIALS_REMEDIES:
+            console.print(f"    [dim]{remedy}[/dim]")
+    elif err.is_permission:
+        for line in AWS_PERMISSION_REMEDY_LINES:
+            console.print(f"  [dim]{line}[/dim]")
+
+
+# ------------------------------------------------------------------
 # EC2 instance helpers
 # ------------------------------------------------------------------
 def _parse_instances(resp: dict) -> list[dict]:
@@ -52,7 +196,14 @@ def query_ec2_instances(
         states: Instance states to match. Defaults to ``["running"]``.
 
     Returns:
-        List of VM info dicts.
+        List of VM info dicts. Empty only when the query succeeded and
+        matched nothing.
+
+    Raises:
+        AwsQueryError: the query could not be answered. Callers must not
+            report this as "no instances" — that conflation is what made
+            ``lablink status`` print an empty inventory when the real
+            problem was an unauthenticated caller.
     """
     from lablink_cli.commands.setup import _get_session
 
@@ -60,26 +211,25 @@ def query_ec2_instances(
         states = ["running"]
 
     try:
-        session = _get_session(region)
-        ec2 = session.client("ec2")
-    except Exception:
-        return []
-
-    try:
+        ec2 = _get_session(region).client("ec2")
         resp = ec2.describe_instances(
             Filters=[
                 {"Name": "tag:Name", "Values": [tag_pattern]},
                 {"Name": "instance-state-name", "Values": states},
             ]
         )
-    except Exception:
-        return []
+    except Exception as e:  # boto3 raises many types; classified below
+        raise _classify_aws_error(e) from e
 
     return _parse_instances(resp)
 
 
 def get_allocator_vm(cfg: Config) -> dict | None:
-    """Find the allocator EC2 instance for this deployment."""
+    """Find the allocator EC2 instance for this deployment.
+
+    Propagates AwsQueryError from the underlying query — None means the
+    instance genuinely isn't there.
+    """
     tag = f"{cfg.deployment_name}-allocator-{cfg.environment}"
     vms = query_ec2_instances(cfg.app.region, tag)
     if vms:
@@ -89,7 +239,10 @@ def get_allocator_vm(cfg: Config) -> dict | None:
 
 
 def get_client_vms(cfg: Config) -> list[dict]:
-    """Query EC2 for LabLink client VMs."""
+    """Query EC2 for LabLink client VMs.
+
+    Propagates AwsQueryError — an empty list means no client VMs exist.
+    """
     tag = (
         f"{cfg.machine.software}-lablink-client-"
         f"{cfg.environment}-vm-*"
@@ -165,6 +318,23 @@ def get_allocator_url(cfg: Config) -> str:
 
 
 _MISSING = ("MISSING", "")
+
+# The places resolve_admin_credentials draws from, quoted back to the
+# operator when the allocator rejects what it produced — a bare "HTTP 401"
+# doesn't say which file to go edit. Pre-split into short lines: Rich
+# wraps at the console width but does not carry the indent onto
+# continuation lines, which looks ragged under an indented bullet.
+ADMIN_CREDENTIALS_HINT_LINES = (
+    "Check app.admin_user / app.admin_password in your config, or in",
+    "~/.lablink/deploy/<deployment>/<environment>/config/config.yaml",
+    "(saved at deploy time — a redeploy can change them).",
+)
+
+
+def print_admin_credentials_hint() -> None:
+    """Print where admin credentials come from, after a rejected login."""
+    for line in ADMIN_CREDENTIALS_HINT_LINES:
+        console.print(f"  [dim]{line}[/dim]")
 
 
 def _resolve_from_config(

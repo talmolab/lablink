@@ -305,13 +305,30 @@ class TestRenderTerraformState:
         mock_outputs.assert_not_called()
 
     @patch("lablink_cli.commands.status.get_terraform_outputs")
-    def test_empty_outputs(self, mock_outputs, tmp_path):
+    def test_empty_outputs(self, mock_outputs, tmp_path, capsys):
         mock_outputs.return_value = {}
         deploy_dir = tmp_path / "deploy"
         deploy_dir.mkdir()
 
         result = _render_terraform_state(deploy_dir)
         assert result == {}
+        assert "No Terraform state found" in capsys.readouterr().out
+
+    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    def test_empty_outputs_with_dead_credentials(
+        self, mock_outputs, tmp_path, capsys
+    ):
+        """An S3-backend read needs credentials, so "no state" would be a
+        guess when they're broken."""
+        mock_outputs.return_value = {}
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_terraform_state(deploy_dir, aws_unavailable=True)
+        assert result == {}
+        out = capsys.readouterr().out
+        assert "unreadable" in out
+        assert "No Terraform state found" not in out
 
 
 # ------------------------------------------------------------------
@@ -376,6 +393,64 @@ class TestRenderClientVms:
             },
         ]
         _render_client_vms(mock_cfg)
+
+    @patch("lablink_cli.commands.status.get_client_vms")
+    def test_auth_failure_is_not_reported_as_empty(
+        self, mock_vms, mock_cfg, capsys
+    ):
+        """A failed EC2 query must never read as "no VMs exist"."""
+        from lablink_cli.commands.utils import AwsQueryError
+
+        mock_vms.side_effect = AwsQueryError(
+            "No AWS credentials found", is_auth=True
+        )
+
+        _render_client_vms(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "No client VMs found" not in out
+        assert "No AWS credentials found" in out
+        # Auth failures get remediation; other API errors don't.
+        assert "aws configure" in out
+
+    @patch("lablink_cli.commands.status.get_client_vms")
+    def test_permission_failure_gets_iam_guidance(
+        self, mock_vms, mock_cfg, capsys
+    ):
+        """Valid credentials without ec2:DescribeInstances is the case the
+        upfront STS probe cannot catch, and 'aws configure' cannot fix."""
+        from lablink_cli.commands.utils import AwsQueryError
+
+        mock_vms.side_effect = AwsQueryError(
+            "AWS denied the request: UnauthorizedOperation — not "
+            "authorized to perform ec2:DescribeInstances",
+            is_permission=True,
+        )
+
+        _render_client_vms(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "No client VMs found" not in out
+        assert "ec2:DescribeInstances" in out
+        assert "lack permission" in out
+        assert "aws configure" not in out
+
+    @patch("lablink_cli.commands.status.get_client_vms")
+    def test_non_auth_query_failure_is_surfaced(
+        self, mock_vms, mock_cfg, capsys
+    ):
+        from lablink_cli.commands.utils import AwsQueryError
+
+        mock_vms.side_effect = AwsQueryError(
+            "ThrottlingException: slow down", is_auth=False
+        )
+
+        _render_client_vms(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "No client VMs found" not in out
+        assert "ThrottlingException" in out
+        assert "aws configure" not in out
 
 
 # ------------------------------------------------------------------

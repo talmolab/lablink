@@ -169,6 +169,75 @@ class TestRunExportMetrics:
         ):
             run_export_metrics(mock_cfg, output=str(output_path))
 
+    def test_401_names_the_rejected_admin_credentials(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        """A bare "HTTP 401: Unauthorized" doesn't say what to fix."""
+        error = HTTPError(
+            url="http://1.2.3.4/api/export-metrics",
+            code=401,
+            msg="Unauthorized",
+            hdrs={},
+            fp=BytesIO(b""),
+        )
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "wrong-pw"),
+            ),
+            patch(
+                "lablink_cli.api.urlopen",
+                side_effect=error,
+            ),
+            pytest.raises(SystemExit) as exc,
+        ):
+            run_export_metrics(mock_cfg, output=str(tmp_path / "m.csv"))
+
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "401" in out
+        assert "admin" in out
+        assert "admin_user" in out
+        assert "admin_password" in out
+
+    def test_non_401_http_error_stays_generic(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        error = HTTPError(
+            url="http://1.2.3.4/api/export-metrics",
+            code=500,
+            msg="Internal Server Error",
+            hdrs={},
+            fp=BytesIO(b""),
+        )
+
+        with (
+            patch(
+                "lablink_cli.commands.export_metrics.get_allocator_url",
+                return_value="http://1.2.3.4",
+            ),
+            patch(
+                "lablink_cli.commands.export_metrics.resolve_admin_credentials",
+                return_value=("admin", "secret"),
+            ),
+            patch(
+                "lablink_cli.api.urlopen",
+                side_effect=error,
+            ),
+            pytest.raises(SystemExit),
+        ):
+            run_export_metrics(mock_cfg, output=str(tmp_path / "m.csv"))
+
+        out = capsys.readouterr().out
+        assert "500" in out
+        # Credential guidance would be misleading here.
+        assert "admin_password" not in out
+
     def test_no_allocator_url(self, mock_cfg, tmp_path):
         """Test error when allocator URL can't be determined."""
         with (

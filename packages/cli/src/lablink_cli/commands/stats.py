@@ -16,6 +16,7 @@ from rich.table import Table
 from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     get_allocator_url,
+    print_admin_credentials_hint,
     resolve_admin_credentials,
 )
 
@@ -37,7 +38,19 @@ def _fetch(cfg) -> dict:
             admin_pw,
             ssl_provider=cfg.ssl.provider,
         )
-    except (HTTPError, URLError) as e:
+    # HTTPError first: it subclasses URLError, and a rejected login is not
+    # an unreachable allocator — we reached it and it said no.
+    except HTTPError as e:
+        if e.code == 401:
+            console.print(
+                f"[red]The allocator rejected admin user "
+                f"'{admin_user}' (HTTP 401).[/red]"
+            )
+            print_admin_credentials_hint()
+        else:
+            console.print(f"[red]Could not reach allocator: {e}[/red]")
+        raise SystemExit(1) from e
+    except URLError as e:
         console.print(f"[red]Could not reach allocator: {e}[/red]")
         raise SystemExit(1) from e
 
@@ -55,8 +68,8 @@ def run_stats(cfg) -> None:
     if not body.get("enabled", False):
         console.print(
             "[yellow]Session metrics collection is disabled for this "
-            "deployment. Set monitoring.enabled: true in lablink.yaml "
-            "to enable.[/yellow]"
+            "deployment. Set monitoring.enabled: true in "
+            "~/.lablink/config.yaml to enable.[/yellow]"
         )
         return
 

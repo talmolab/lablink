@@ -148,3 +148,84 @@ def test_stats_hits_summary_endpoint_not_export_metrics(mock_cfg):
 
     called_url = mock_urlopen.call_args[0][0].full_url
     assert called_url.endswith("/api/session-metrics/summary"), called_url
+
+
+def _http_error(code: int):
+    from email.message import Message
+    from urllib.error import HTTPError
+
+    return HTTPError(
+        "https://alloc.example/api/session-metrics/summary",
+        code,
+        "Unauthorized" if code == 401 else "Server Error",
+        Message(),
+        BytesIO(b""),
+    )
+
+
+def test_stats_401_names_the_rejected_admin_credentials(mock_cfg, capsys):
+    """A bare "HTTP Error 401: Unauthorized" doesn't say what to fix."""
+    from lablink_cli.commands.stats import run_stats
+
+    with patch(
+        "lablink_cli.commands.stats.get_allocator_url",
+        return_value="https://alloc.example",
+    ), patch(
+        "lablink_cli.commands.stats.resolve_admin_credentials",
+        return_value=("admin", "wrong-pw"),
+    ), patch(
+        "lablink_cli.api.urlopen", side_effect=_http_error(401)
+    ):
+        with pytest.raises(SystemExit) as exc:
+            run_stats(mock_cfg)
+
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert "401" in out
+    assert "admin" in out
+    assert "admin_user" in out
+    assert "admin_password" in out
+    # "Could not reach allocator" is wrong: we reached it, it said no.
+    assert "Could not reach allocator" not in out
+
+
+def test_stats_non_401_http_error_stays_generic(mock_cfg, capsys):
+    from lablink_cli.commands.stats import run_stats
+
+    with patch(
+        "lablink_cli.commands.stats.get_allocator_url",
+        return_value="https://alloc.example",
+    ), patch(
+        "lablink_cli.commands.stats.resolve_admin_credentials",
+        return_value=("admin", "pw"),
+    ), patch(
+        "lablink_cli.api.urlopen", side_effect=_http_error(500)
+    ):
+        with pytest.raises(SystemExit) as exc:
+            run_stats(mock_cfg)
+
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert "500" in out
+    # Credential guidance would be misleading here.
+    assert "admin_password" not in out
+
+
+def test_stats_connection_error_still_reported(mock_cfg, capsys):
+    from lablink_cli.commands.stats import run_stats
+    from urllib.error import URLError
+
+    with patch(
+        "lablink_cli.commands.stats.get_allocator_url",
+        return_value="https://alloc.example",
+    ), patch(
+        "lablink_cli.commands.stats.resolve_admin_credentials",
+        return_value=("admin", "pw"),
+    ), patch(
+        "lablink_cli.api.urlopen", side_effect=URLError("connection refused")
+    ):
+        with pytest.raises(SystemExit) as exc:
+            run_stats(mock_cfg)
+
+    assert exc.value.code == 1
+    assert "connection refused" in capsys.readouterr().out
