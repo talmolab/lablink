@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from lablink_cli.commands.status import (
     REGION_NAME_MAP,
     _get_ec2_price,
+    _render_aws_credentials_error,
     run_status,
 )
+from lablink_cli.commands.utils import AwsQueryError
 
 
 # ------------------------------------------------------------------
@@ -75,6 +78,18 @@ class TestRegionNameMap:
 # run_status (integration-level)
 # ------------------------------------------------------------------
 class TestRunStatus:
+    @pytest.fixture(autouse=True)
+    def _valid_aws_credentials(self):
+        """Keep run_status offline: the credential probe is a real STS call.
+
+        Tests that exercise the failure path patch over this.
+        """
+        with patch(
+            "lablink_cli.commands.status.aws_credentials_error",
+            return_value=None,
+        ):
+            yield
+
     @patch("lablink_cli.commands.status.estimate_costs")
     @patch("lablink_cli.commands.status.get_client_vms")
     @patch("lablink_cli.commands.status.get_terraform_outputs")
@@ -186,3 +201,128 @@ class TestRunStatus:
         ]
 
         run_status(mock_cfg)
+
+
+# ------------------------------------------------------------------
+# run_status when AWS credentials are missing / expired
+# ------------------------------------------------------------------
+class TestRunStatusAwsCredentialsFailure:
+    """The reported bug: status reported "No client VMs found" and a cost
+    table as if healthy, while the real problem was an unauthenticated
+    caller."""
+
+    def _run(self, mock_cfg, tmp_path, err):
+        with patch(
+            "lablink_cli.commands.status.aws_credentials_error",
+            return_value=err,
+        ), patch(
+            "lablink_cli.commands.status._get_deploy_dir",
+            return_value=tmp_path / "nonexistent",
+        ), patch(
+            "lablink_cli.commands.status.get_client_vms"
+        ) as mock_vms, patch(
+            "lablink_cli.commands.status.check_health_endpoint"
+        ) as mock_health, patch(
+            "lablink_cli.commands.status.estimate_costs"
+        ) as mock_costs:
+            mock_health.return_value = {
+                "healthy": True,
+                "status": "pass",
+                "detail": "ok",
+                "uptime_seconds": None,
+            }
+            mock_costs.return_value = [
+                {"resource": "EC2", "daily": 2.0, "note": "always on"}
+            ]
+            mock_cfg.dns.enabled = True
+            mock_cfg.dns.domain = "test.example.com"
+            mock_cfg.ssl.provider = "none"
+
+            with patch("lablink_cli.commands.status.check_dns") as mock_dns:
+                mock_dns.return_value = {
+                    "check": "DNS", "status": "pass", "detail": "ok",
+                }
+                run_status(mock_cfg)
+
+            return mock_vms, mock_health, mock_costs
+
+    def test_reports_credential_failure_instead_of_empty_inventory(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        err = AwsQueryError(
+            "AWS credentials are expired (ExpiredToken)", is_auth=True
+        )
+        mock_vms, _, _ = self._run(mock_cfg, tmp_path, err)
+
+        out = capsys.readouterr().out
+        assert "ExpiredToken" in out
+        assert "aws configure" in out
+        # The two lies from the bug report must be gone.
+        assert "No client VMs found" not in out
+        assert "No Terraform state found" not in out
+        # And we must not waste a doomed EC2 round-trip.
+        mock_vms.assert_not_called()
+
+    def test_still_runs_network_health_checks(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        """DNS/HTTP/SSL need no AWS credentials, so they stay useful."""
+        err = AwsQueryError("No AWS credentials found", is_auth=True)
+        _, mock_health, _ = self._run(mock_cfg, tmp_path, err)
+
+        mock_health.assert_called_once()
+        assert "Health Checks" in capsys.readouterr().out
+
+    def test_costs_marked_as_fallback(self, mock_cfg, tmp_path, capsys):
+        err = AwsQueryError("No AWS credentials found", is_auth=True)
+        _, _, mock_costs = self._run(mock_cfg, tmp_path, err)
+
+        out = capsys.readouterr().out
+        assert "fallback" in out.lower()
+        # Don't attempt the AWS Pricing API we know will fail.
+        assert mock_costs.call_args.kwargs.get("use_pricing_api") is False
+
+    def test_non_auth_probe_failure_omits_credential_remedy(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        err = AwsQueryError("Could not connect to STS endpoint", is_auth=False)
+        self._run(mock_cfg, tmp_path, err)
+
+        out = capsys.readouterr().out
+        assert "Could not connect to STS endpoint" in out
+        assert "aws configure" not in out
+
+
+# ------------------------------------------------------------------
+# _render_aws_credentials_error — which profile is being blamed
+# ------------------------------------------------------------------
+class TestRenderAwsCredentialsError:
+    def test_unset_profile_reads_as_default(self, monkeypatch, capsys):
+        monkeypatch.delenv("AWS_PROFILE", raising=False)
+        _render_aws_credentials_error(
+            AwsQueryError("No usable AWS credentials found", is_auth=True),
+            "us-west-2",
+        )
+        out = capsys.readouterr().out
+        assert "profile: default" in out
+        assert "us-west-2" in out
+
+    def test_named_profile_is_reported(self, monkeypatch, capsys):
+        monkeypatch.setenv("AWS_PROFILE", "salk-research")
+        _render_aws_credentials_error(
+            AwsQueryError("AWS SSO session is not usable", is_auth=True),
+            "us-east-1",
+        )
+        assert "profile: salk-research" in capsys.readouterr().out
+
+    def test_empty_profile_is_called_out(self, monkeypatch, capsys):
+        """An exported-but-empty AWS_PROFILE breaks every AWS call, so
+        reporting it as "default" would contradict the error above it."""
+        monkeypatch.setenv("AWS_PROFILE", "")
+        _render_aws_credentials_error(
+            AwsQueryError("AWS profile not found", is_auth=True),
+            "us-east-1",
+        )
+        out = capsys.readouterr().out
+        assert "set but empty" in out
+        assert "profile: default" not in out

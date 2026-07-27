@@ -332,3 +332,34 @@ class TestRunLogsManualTui:
 
         mock_deploy_dir.assert_not_called()
         mock_list_vms.assert_not_called()
+
+
+class TestRunLogsAwsQueryFailure:
+    def test_credential_failure_exits_cleanly(self, mock_cfg, tmp_path, capsys):
+        """list_all_vms now raises instead of returning [] — run_logs must
+        report it, not traceback."""
+        import pytest
+
+        from lablink_cli.commands.logs import run_logs
+        from lablink_cli.commands.utils import AwsQueryError
+
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        with patch(
+            "lablink_cli.commands.logs.get_deploy_dir",
+            return_value=deploy_dir,
+        ), patch(
+            "lablink_cli.commands.logs.list_all_vms",
+            side_effect=AwsQueryError(
+                "AWS credentials are expired (ExpiredToken)", is_auth=True
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc:
+                run_logs(mock_cfg)
+
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "ExpiredToken" in out
+        assert "aws configure" in out
+        assert "No running VMs found" not in out

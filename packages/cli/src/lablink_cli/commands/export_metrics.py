@@ -23,6 +23,7 @@ from rich.console import Console
 from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
     get_allocator_url,
+    print_admin_credentials_hint,
     resolve_admin_credentials,
 )
 from lablink_cli.deployment_metrics import load_all_metrics
@@ -65,7 +66,14 @@ def _export_client_metrics(
             url, admin_user, admin_pw, ssl_provider=cfg.ssl.provider
         )
     except HTTPError as e:
-        console.print(f"[red]HTTP {e.code}: {e.reason}[/red]")
+        if e.code == 401:
+            console.print(
+                f"[red]The allocator rejected admin user "
+                f"'{admin_user}' (HTTP 401).[/red]"
+            )
+            print_admin_credentials_hint()
+        else:
+            console.print(f"[red]HTTP {e.code}: {e.reason}[/red]")
         raise SystemExit(1) from e
     except URLError as e:
         console.print(f"[red]Connection error: {e.reason}[/red]")

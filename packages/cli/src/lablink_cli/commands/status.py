@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import socket
 import ssl
 import subprocess
@@ -22,9 +23,12 @@ from lablink_allocator_service.conf.structured_config import Config
 
 from lablink_cli.api import USER_AGENT
 from lablink_cli.commands.utils import (
+    AwsQueryError,
+    aws_credentials_error,
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
     get_terraform_outputs,
+    print_aws_error,
 )
 
 console = Console()
@@ -277,21 +281,31 @@ def _get_ec2_price(
     return None
 
 
-def estimate_costs(cfg: Config) -> list[dict]:
-    """Estimate daily costs for the deployment."""
+def estimate_costs(
+    cfg: Config, use_pricing_api: bool = True
+) -> list[dict]:
+    """Estimate daily costs for the deployment.
+
+    Pass ``use_pricing_api=False`` when AWS credentials are known to be
+    unusable, to skip Pricing API calls that can only fail and fall
+    straight through to FALLBACK_COSTS.
+    """
     region = cfg.app.region
     location = REGION_NAME_MAP.get(region, region)
     costs: list[dict] = []
 
     # Try AWS Pricing API (only available in us-east-1)
-    try:
-        pricing = boto3.client(
-            "pricing", region_name="us-east-1"
-        )
-        use_api = True
-    except Exception:
-        use_api = False
-        pricing = None
+    pricing = None
+    use_api = False
+    if use_pricing_api:
+        try:
+            pricing = boto3.client(
+                "pricing", region_name="us-east-1"
+            )
+            use_api = True
+        except Exception:
+            use_api = False
+            pricing = None
 
     # Allocator EC2 (always t3.large)
     alloc_type = "t3.large"
@@ -378,8 +392,14 @@ def estimate_costs(cfg: Config) -> list[dict]:
     return costs
 
 
-def _render_terraform_state(deploy_dir: Path) -> dict:
-    """Read and display Terraform outputs. Returns outputs dict."""
+def _render_terraform_state(
+    deploy_dir: Path, aws_unavailable: bool = False
+) -> dict:
+    """Read and display Terraform outputs. Returns outputs dict.
+
+    ``aws_unavailable`` changes only the empty-state wording: with dead
+    credentials an S3-backend read fails, so "no state" would be a guess.
+    """
     if not deploy_dir.exists():
         return {}
 
@@ -394,6 +414,11 @@ def _render_terraform_state(deploy_dir: Path) -> dict:
                 v = "(sensitive)"
             state_table.add_row(k, str(v))
         console.print(state_table)
+    elif aws_unavailable:
+        console.print(
+            "  [yellow]State unreadable — see AWS credentials "
+            "above[/yellow]"
+        )
     else:
         console.print(
             "  [yellow]No Terraform state found[/yellow]"
@@ -473,10 +498,28 @@ def _render_health_checks(cfg: Config, outputs: dict) -> None:
     console.print()
 
 
-def _render_client_vms(cfg: Config) -> None:
-    """Query and display client VM status."""
+def _render_client_vms(cfg: Config, aws_unavailable: bool = False) -> None:
+    """Query and display client VM status.
+
+    "No client VMs found" is reserved for a query that succeeded and
+    matched nothing. A failed query says so instead.
+    """
     console.print("[bold]Client VMs[/bold]")
-    vms = get_client_vms(cfg)
+    if aws_unavailable:
+        console.print(
+            "  [dim]Inventory unavailable — see AWS credentials "
+            "above[/dim]"
+        )
+        console.print()
+        return
+
+    try:
+        vms = get_client_vms(cfg)
+    except AwsQueryError as e:
+        print_aws_error(e, prefix="Could not query EC2")
+        console.print()
+        return
+
     if not vms:
         console.print(
             "  [dim]No client VMs found[/dim]"
@@ -541,10 +584,10 @@ def _render_client_vms(cfg: Config) -> None:
     console.print()
 
 
-def _render_cost_estimate(cfg: Config) -> None:
+def _render_cost_estimate(cfg: Config, live_pricing: bool = True) -> None:
     """Calculate and display cost estimate."""
     console.print("[bold]Cost Estimate (daily)[/bold]")
-    costs = estimate_costs(cfg)
+    costs = estimate_costs(cfg, use_pricing_api=live_pricing)
 
     cost_table = Table(show_header=True)
     cost_table.add_column("Resource")
@@ -572,10 +615,16 @@ def _render_cost_estimate(cfg: Config) -> None:
         "excl. client VMs",
     )
     console.print(cost_table)
-    console.print(
-        "  [dim]Prices are on-demand estimates. "
-        "Actual costs may vary.[/dim]"
-    )
+    if live_pricing:
+        console.print(
+            "  [dim]Prices are on-demand estimates. "
+            "Actual costs may vary.[/dim]"
+        )
+    else:
+        console.print(
+            "  [dim]Fallback prices (Feb 2025 on-demand) — live "
+            "pricing needs working AWS credentials.[/dim]"
+        )
 
 
 # ------------------------------------------------------------------
@@ -628,6 +677,16 @@ def _fetch_registered_clients(
         body = json.loads(resp.read().decode())
         return body.get("clients", []) or [], ""
     except HTTPError as e:
+        if e.code == 401:
+            # A bare "HTTP 401" reads like an allocator fault. It's the
+            # admin credentials, and they live in one of two files.
+            return None, (
+                f"the allocator rejected admin user '{admin_user}' "
+                "(HTTP 401). Check app.admin_user / app.admin_password "
+                "in your lablink.yaml or in the rendered "
+                "~/.lablink/compose/<deployment>/config.yaml — a "
+                "redeploy can change them."
+            )
         return None, f"HTTP {e.code} from {url}"
     except URLError as e:
         return None, f"{url} → {e.reason}"
@@ -754,6 +813,31 @@ def _run_status_manual(cfg: Config) -> None:
     )
 
 
+def _render_aws_credentials_error(
+    err: AwsQueryError, region: str
+) -> None:
+    """Report unusable AWS credentials and what it costs this report."""
+    console.print("[bold]AWS credentials[/bold]")
+    print_aws_error(err)
+    profile = os.environ.get("AWS_PROFILE")
+    if profile is None:
+        profile_desc = "default"
+    elif profile == "":
+        # An exported-but-empty AWS_PROFILE fails every AWS call; saying
+        # "default" here would contradict the error printed above.
+        profile_desc = "(AWS_PROFILE is set but empty)"
+    else:
+        profile_desc = profile
+    console.print(
+        f"  [dim]Region: {region}, profile: {profile_desc}[/dim]"
+    )
+    console.print(
+        "  [dim]Terraform state, VM inventory and live pricing are "
+        "unavailable until this is fixed.[/dim]"
+    )
+    console.print()
+
+
 def run_status(cfg: Config) -> None:
     """Run health checks and show cost estimate."""
     if getattr(cfg, "provider", "aws") == "manual":
@@ -773,7 +857,16 @@ def run_status(cfg: Config) -> None:
     )
     console.print()
 
-    outputs = _render_terraform_state(deploy_dir)
+    # Probed up front: every AWS-backed section below degrades to an
+    # empty result on a credential failure, which reads as "nothing is
+    # deployed". Reported once here instead of three times below.
+    aws_error = aws_credentials_error(cfg.app.region)
+    if aws_error is not None:
+        _render_aws_credentials_error(aws_error, cfg.app.region)
+
+    aws_down = aws_error is not None
+    outputs = _render_terraform_state(deploy_dir, aws_unavailable=aws_down)
+    # DNS/HTTP/SSL checks need no AWS credentials, so they still run.
     _render_health_checks(cfg, outputs)
-    _render_client_vms(cfg)
-    _render_cost_estimate(cfg)
+    _render_client_vms(cfg, aws_unavailable=aws_down)
+    _render_cost_estimate(cfg, live_pricing=not aws_down)

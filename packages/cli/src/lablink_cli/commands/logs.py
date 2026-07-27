@@ -14,10 +14,12 @@ from lablink_allocator_service.conf.structured_config import Config
 
 from lablink_cli.api import authenticated_json_request
 from lablink_cli.commands.utils import (
+    AwsQueryError,
     get_allocator_url,
     get_deploy_dir,
     get_terraform_outputs,
     list_all_vms,
+    print_aws_error,
     resolve_admin_credentials,
 )
 
@@ -402,7 +404,12 @@ def run_logs(cfg: Config) -> None:
         f"'{cfg.deployment_name}' ({cfg.environment})...[/dim]"
     )
 
-    vms = list_all_vms(cfg)
+    try:
+        vms = list_all_vms(cfg)
+    except AwsQueryError as e:
+        print_aws_error(e, prefix="Could not list VMs")
+        raise SystemExit(1) from e
+
     if not vms:
         console.print(
             f"[red]No running VMs found for deployment "

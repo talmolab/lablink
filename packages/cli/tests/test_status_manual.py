@@ -105,6 +105,30 @@ class TestFetchRegisteredClients:
         )
         assert clients is None
         assert "401" in err
+        # A bare "HTTP 401" leaves the operator guessing. Name the
+        # credentials that were rejected and where they come from.
+        assert "admin_user" in err
+        assert "admin_password" in err
+
+    @patch("lablink_cli.commands.status.urlopen")
+    def test_non_401_http_error_stays_generic(self, mock_urlopen):
+        from email.message import Message
+        from urllib.error import HTTPError
+
+        mock_urlopen.side_effect = HTTPError(
+            "http://localhost/api/v1/clients",
+            500,
+            "Server Error",
+            Message(),
+            io.BytesIO(b""),
+        )
+        clients, err = _fetch_registered_clients(
+            "http://localhost", "admin", "pw"
+        )
+        assert clients is None
+        assert "500" in err
+        # Credential guidance would be misleading here.
+        assert "admin_password" not in err
 
     @patch("lablink_cli.commands.status.urlopen")
     def test_returns_error_on_url_failure(self, mock_urlopen):
