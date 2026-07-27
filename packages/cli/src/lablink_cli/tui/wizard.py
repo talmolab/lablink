@@ -1634,7 +1634,15 @@ class ConfigWizard(App):
     }
     TextArea {
         margin: 0 2;
-        height: 20;
+        /* Scale with the terminal instead of a hard 20 rows, which on a
+           short terminal was taller than the whole form viewport and buried
+           the fields below it. The percentage resolves against the scroll
+           viewport; `1fr` would not work here — like RadioSet above it only
+           gets the space fixed-size siblings leave over, which on the
+           startup-script form is nothing. */
+        height: 60%;
+        min-height: 6;
+        max-height: 24;
     }
     .nav-buttons {
         margin: 1 0;
