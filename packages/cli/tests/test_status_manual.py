@@ -109,6 +109,11 @@ class TestFetchRegisteredClients:
         # credentials that were rejected and where they come from.
         assert "admin_user" in err
         assert "admin_password" in err
+        # Must name a file that actually exists: the config is
+        # ~/.lablink/config.yaml (app.DEFAULT_CONFIG). "lablink.yaml"
+        # appears nowhere in the project and sends people hunting.
+        assert "config.yaml" in err
+        assert "lablink.yaml" not in err
 
     @patch("lablink_cli.commands.status.urlopen")
     def test_non_401_http_error_stays_generic(self, mock_urlopen):

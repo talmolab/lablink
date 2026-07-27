@@ -683,7 +683,7 @@ def _fetch_registered_clients(
             return None, (
                 f"the allocator rejected admin user '{admin_user}' "
                 "(HTTP 401). Check app.admin_user / app.admin_password "
-                "in your lablink.yaml or in the rendered "
+                "in ~/.lablink/config.yaml or in the rendered "
                 "~/.lablink/compose/<deployment>/config.yaml — a "
                 "redeploy can change them."
             )
@@ -831,10 +831,17 @@ def _render_aws_credentials_error(
     console.print(
         f"  [dim]Region: {region}, profile: {profile_desc}[/dim]"
     )
-    console.print(
-        "  [dim]Terraform state, VM inventory and live pricing are "
-        "unavailable until this is fixed.[/dim]"
-    )
+    if err.is_auth:
+        console.print(
+            "  [dim]Terraform state, VM inventory and live pricing are "
+            "unavailable until this is fixed.[/dim]"
+        )
+    else:
+        # Not a credential problem, so the AWS-backed sections below may
+        # still work. Claiming they're unavailable would be a guess.
+        console.print(
+            "  [dim]Sections below may be incomplete.[/dim]"
+        )
     console.print()
 
 
@@ -864,7 +871,12 @@ def run_status(cfg: Config) -> None:
     if aws_error is not None:
         _render_aws_credentials_error(aws_error, cfg.app.region)
 
-    aws_down = aws_error is not None
+    # Only a *credential* failure dooms every AWS-backed section below. A
+    # non-auth probe failure (transient blip, or STS blocked by a proxy or
+    # VPC endpoint policy while EC2 answers fine) proves nothing about
+    # EC2, so let the real queries run and report for themselves —
+    # _render_client_vms already handles AwsQueryError.
+    aws_down = aws_error is not None and aws_error.is_auth
     outputs = _render_terraform_state(deploy_dir, aws_unavailable=aws_down)
     # DNS/HTTP/SSL checks need no AWS credentials, so they still run.
     _render_health_checks(cfg, outputs)

@@ -68,8 +68,8 @@ def run_stats(cfg) -> None:
     if not body.get("enabled", False):
         console.print(
             "[yellow]Session metrics collection is disabled for this "
-            "deployment. Set monitoring.enabled: true in lablink.yaml "
-            "to enable.[/yellow]"
+            "deployment. Set monitoring.enabled: true in "
+            "~/.lablink/config.yaml to enable.[/yellow]"
         )
         return
 

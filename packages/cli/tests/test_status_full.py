@@ -211,7 +211,7 @@ class TestRunStatusAwsCredentialsFailure:
     table as if healthy, while the real problem was an unauthenticated
     caller."""
 
-    def _run(self, mock_cfg, tmp_path, err):
+    def _run(self, mock_cfg, tmp_path, err, vms_side_effect=None):
         with patch(
             "lablink_cli.commands.status.aws_credentials_error",
             return_value=err,
@@ -225,6 +225,9 @@ class TestRunStatusAwsCredentialsFailure:
         ) as mock_health, patch(
             "lablink_cli.commands.status.estimate_costs"
         ) as mock_costs:
+            mock_vms.return_value = []
+            if vms_side_effect is not None:
+                mock_vms.side_effect = vms_side_effect
             mock_health.return_value = {
                 "healthy": True,
                 "status": "pass",
@@ -291,6 +294,48 @@ class TestRunStatusAwsCredentialsFailure:
         out = capsys.readouterr().out
         assert "Could not connect to STS endpoint" in out
         assert "aws configure" not in out
+
+    def test_non_auth_probe_failure_still_queries_ec2(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        """A failed STS probe does not prove EC2 is unreachable.
+
+        STS can be blocked by a proxy or VPC endpoint policy while EC2
+        answers fine, so a non-credential probe failure must not skip the
+        inventory the way an auth failure does.
+        """
+        err = AwsQueryError("Could not connect to STS endpoint", is_auth=False)
+        mock_vms, _, mock_costs = self._run(mock_cfg, tmp_path, err)
+
+        mock_vms.assert_called_once()
+        # Pricing is only doomed when credentials are the problem.
+        assert mock_costs.call_args.kwargs.get("use_pricing_api") is True
+        out = capsys.readouterr().out
+        assert "Inventory unavailable" not in out
+        # The query succeeded and matched nothing — say so honestly.
+        assert "No client VMs found" in out
+
+    def test_non_auth_probe_then_failing_ec2_query_reports_the_query_error(
+        self, mock_cfg, tmp_path, capsys
+    ):
+        """The _render_client_vms except branch must stay reachable.
+
+        Gating the skip on "any probe failure" made this path dead: the
+        inventory was skipped before the query could report for itself.
+        """
+        probe_err = AwsQueryError("STS endpoint unreachable", is_auth=False)
+        query_err = AwsQueryError(
+            "AWS rejected the request: AuthFailure — bad creds", is_auth=True
+        )
+        mock_vms, _, _ = self._run(
+            mock_cfg, tmp_path, probe_err, vms_side_effect=query_err
+        )
+
+        mock_vms.assert_called_once()
+        out = capsys.readouterr().out
+        assert "Could not query EC2" in out
+        assert "AuthFailure" in out
+        assert "No client VMs found" not in out
 
 
 # ------------------------------------------------------------------
