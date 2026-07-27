@@ -20,6 +20,7 @@ from lablink_cli.commands.utils import (
     _parse_instances,
     aws_credentials_error,
     get_terraform_outputs,
+    print_aws_error,
     query_ec2_instances,
     get_allocator_vm,
     get_client_vms,
@@ -233,9 +234,6 @@ class TestClassifyAwsError:
         "code",
         [
             "AuthFailure",
-            "UnauthorizedOperation",
-            "AccessDenied",
-            "AccessDeniedException",
             "ExpiredToken",
             "ExpiredTokenException",
             "RequestExpired",
@@ -244,19 +242,75 @@ class TestClassifyAwsError:
             "UnrecognizedClientException",
         ],
     )
-    def test_auth_client_error_codes(self, code):
+    def test_authentication_codes(self, code):
+        """Identity could not be established — new credentials fix it."""
         err = _classify_aws_error(_client_error(code))
         assert err.is_auth is True, code
+        assert err.is_permission is False, code
         assert code in str(err)
 
-    def test_unrelated_client_error_is_not_auth(self):
+    @pytest.mark.parametrize(
+        "code",
+        ["AccessDenied", "AccessDeniedException", "UnauthorizedOperation"],
+    )
+    def test_authorization_codes(self, code):
+        """Identity is fine but lacks permission — only IAM fixes it, so
+        these must not be lumped in with 'go re-authenticate'."""
+        err = _classify_aws_error(_client_error(code))
+        assert err.is_permission is True, code
+        assert err.is_auth is False, code
+        assert code in str(err)
+
+    def test_unrelated_client_error_is_neither(self):
         err = _classify_aws_error(_client_error("InvalidParameterValue"))
         assert err.is_auth is False
+        assert err.is_permission is False
 
-    def test_arbitrary_exception_is_not_auth(self):
+    def test_arbitrary_exception_is_neither(self):
         err = _classify_aws_error(RuntimeError("boom"))
         assert err.is_auth is False
+        assert err.is_permission is False
         assert "boom" in str(err)
+
+
+# ------------------------------------------------------------------
+# print_aws_error — the remedy must match the failure
+# ------------------------------------------------------------------
+class TestPrintAwsError:
+    def test_authentication_gets_credential_steps(self, capsys):
+        print_aws_error(AwsQueryError("expired", is_auth=True))
+        out = capsys.readouterr().out
+        assert "aws configure" in out
+        assert "lack permission" not in out
+
+    def test_authorization_gets_iam_guidance_not_credential_steps(
+        self, capsys
+    ):
+        """Telling someone to run 'aws configure' cannot fix a missing IAM
+        permission — their credentials are already valid."""
+        print_aws_error(
+            AwsQueryError(
+                "AWS denied the request: UnauthorizedOperation — "
+                "not authorized to perform ec2:DescribeInstances",
+                is_permission=True,
+            )
+        )
+        out = capsys.readouterr().out
+        assert "aws configure" not in out
+        assert "aws sso login" not in out
+        assert "lack permission" in out
+        assert "ec2:DescribeInstances" in out
+
+    def test_other_errors_get_no_remedy(self, capsys):
+        print_aws_error(AwsQueryError("ThrottlingException: slow down"))
+        out = capsys.readouterr().out
+        assert "ThrottlingException" in out
+        assert "aws configure" not in out
+        assert "lack permission" not in out
+
+    def test_prefix_is_used_when_given(self, capsys):
+        print_aws_error(AwsQueryError("boom"), prefix="Could not query EC2")
+        assert "Could not query EC2: boom" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------------

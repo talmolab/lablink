@@ -19,33 +19,54 @@ console = Console()
 class AwsQueryError(Exception):
     """An AWS query could not be answered.
 
-    ``is_auth`` marks the failures an operator fixes by authenticating —
-    missing/expired credentials, or an identity without the required IAM
-    permission. Those get remediation steps; anything else (throttling,
-    endpoint trouble) is reported verbatim, since telling someone to run
-    'aws configure' over a throttling error just wastes their time.
+    Two flags, at most one of which is set, because they have different
+    fixes and so must produce different advice:
+
+    ``is_auth``
+        Authentication — we cannot establish who the caller is (absent,
+        expired, or invalid credentials). Fixed by supplying credentials.
+    ``is_permission``
+        Authorization — the caller is known, but not allowed to make this
+        call. Fixed by an IAM policy change; re-authenticating with the
+        same identity changes nothing.
+
+    Neither set means something else went wrong (throttling, endpoint
+    trouble) and the error is reported verbatim with no advice, since
+    telling someone to run 'aws configure' over a throttling error just
+    wastes their time.
     """
 
-    def __init__(self, message: str, *, is_auth: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        is_auth: bool = False,
+        is_permission: bool = False,
+    ) -> None:
         super().__init__(message)
         self.is_auth = is_auth
+        self.is_permission = is_permission
 
 
-# ClientError codes meaning "who you are is the problem" — both
-# unauthenticated (expired/invalid keys) and unauthorized (valid identity,
-# missing IAM permission), because the operator's next step is the same
-# for both: fix the credentials or the role behind them.
-_AUTH_ERROR_CODES = frozenset({
-    "AccessDenied",
-    "AccessDeniedException",
+# "We cannot establish who you are" — the fix is new/refreshed credentials.
+_AUTHENTICATION_ERROR_CODES = frozenset({
     "AuthFailure",
     "ExpiredToken",
     "ExpiredTokenException",
     "InvalidClientTokenId",
     "RequestExpired",
     "SignatureDoesNotMatch",
-    "UnauthorizedOperation",
     "UnrecognizedClientException",
+})
+
+# "We know who you are, and you may not do this" — the fix is an IAM
+# policy change. Kept separate from the codes above because the credential
+# remedies cannot resolve these, and offering them sends the operator in
+# circles re-authenticating an identity that was never the problem.
+_AUTHORIZATION_ERROR_CODES = frozenset({
+    "AccessDenied",
+    "AccessDeniedException",
+    "UnauthorizedOperation",
 })
 
 # Printed one per line: Rich wraps at the console width, and a hint
@@ -54,6 +75,14 @@ AWS_CREDENTIALS_REMEDIES = (
     "aws configure",
     "export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...",
     "aws sso login   (if this account uses SSO)",
+)
+
+# Deliberately does not name the credential commands, even to dismiss
+# them — a skimming operator would try them anyway.
+AWS_PERMISSION_REMEDY_LINES = (
+    "These credentials are valid but lack permission for this call.",
+    "Grant the calling identity the action named above (for example",
+    "ec2:DescribeInstances), or switch to a role or profile that has it.",
 )
 
 
@@ -85,7 +114,12 @@ def _classify_aws_error(e: Exception) -> AwsQueryError:
         err = (getattr(e, "response", None) or {}).get("Error", {}) or {}
         code = err.get("Code", "") or "Unknown"
         msg = err.get("Message", "") or str(e)
-        if code in _AUTH_ERROR_CODES:
+        if code in _AUTHORIZATION_ERROR_CODES:
+            return AwsQueryError(
+                f"AWS denied the request: {code} — {msg}",
+                is_permission=True,
+            )
+        if code in _AUTHENTICATION_ERROR_CODES:
             return AwsQueryError(
                 f"AWS rejected the request: {code} — {msg}", is_auth=True
             )
@@ -111,13 +145,16 @@ def aws_credentials_error(region: str) -> AwsQueryError | None:
 
 
 def print_aws_error(err: AwsQueryError, *, prefix: str | None = None) -> None:
-    """Print an AwsQueryError, with authentication steps when relevant."""
+    """Print an AwsQueryError with advice matching the kind of failure."""
     label = f"[red]{prefix}:[/red] " if prefix else "[red]✗[/red] "
     console.print(f"  {label}{err}")
     if err.is_auth:
         console.print("  [dim]Authenticate with one of:[/dim]")
         for remedy in AWS_CREDENTIALS_REMEDIES:
             console.print(f"    [dim]{remedy}[/dim]")
+    elif err.is_permission:
+        for line in AWS_PERMISSION_REMEDY_LINES:
+            console.print(f"  [dim]{line}[/dim]")
 
 
 # ------------------------------------------------------------------

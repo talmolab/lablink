@@ -414,6 +414,28 @@ class TestRenderClientVms:
         assert "aws configure" in out
 
     @patch("lablink_cli.commands.status.get_client_vms")
+    def test_permission_failure_gets_iam_guidance(
+        self, mock_vms, mock_cfg, capsys
+    ):
+        """Valid credentials without ec2:DescribeInstances is the case the
+        upfront STS probe cannot catch, and 'aws configure' cannot fix."""
+        from lablink_cli.commands.utils import AwsQueryError
+
+        mock_vms.side_effect = AwsQueryError(
+            "AWS denied the request: UnauthorizedOperation — not "
+            "authorized to perform ec2:DescribeInstances",
+            is_permission=True,
+        )
+
+        _render_client_vms(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "No client VMs found" not in out
+        assert "ec2:DescribeInstances" in out
+        assert "lack permission" in out
+        assert "aws configure" not in out
+
+    @patch("lablink_cli.commands.status.get_client_vms")
     def test_non_auth_query_failure_is_surfaced(
         self, mock_vms, mock_cfg, capsys
     ):
