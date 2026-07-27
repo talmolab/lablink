@@ -1590,7 +1590,12 @@ class ConfigWizard(App):
     Screen {
         align: center middle;
     }
-    VerticalScroll {
+    /* Only the screen's own scroll viewport claims the available height.
+       Must stay scoped to a direct child of Screen: Textual's RadioSet is
+       itself a VerticalScroll subclass, and a bare `VerticalScroll` type
+       selector matches subclasses — that overrode every RadioSet's
+       `height: auto` with `1fr`, collapsing the radio boxes to 0 rows. */
+    Screen > VerticalScroll {
         height: 1fr;
     }
     #dns-guided, #dns-advanced {
@@ -1623,6 +1628,9 @@ class ConfigWizard(App):
     }
     RadioSet {
         margin: 0 2;
+        /* Redundant with Textual's default, stated explicitly so a future
+           container rule can't silently collapse the options again. */
+        height: auto;
     }
     TextArea {
         margin: 0 2;
