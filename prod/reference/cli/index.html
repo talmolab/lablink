@@ -4368,6 +4368,14 @@
 <li><strong>Client VMs</strong> — per-VM state and current hourly burn rate.</li>
 <li><strong>Cost Estimate</strong> — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.</li>
 </ol>
+<p>If your AWS credentials are missing or expired, an <strong>AWS credentials</strong>
+section is printed first with the reason and how to authenticate. The
+Terraform state and Client VM sections then say they're unavailable rather
+than showing an empty result, and costs fall back to the built-in price
+table.</p>
+<p>If the credentials are valid but lack a required IAM permission — or any
+other AWS error occurs — the affected section reports that error in place,
+with guidance to fix the policy rather than to re-authenticate.</p>
 <table>
 <thead>
 <tr>
