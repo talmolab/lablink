@@ -98,20 +98,20 @@ def test_admin_html_and_json_summary_are_identical(
     app_with_metrics, client, admin_headers
 ):
     """Locks /admin/session-metrics and /api/session-metrics/summary to one source."""
-    from lablink_allocator_service import main
+    from lablink_allocator_service.routes import metrics as metrics_mod
 
     captured: dict = {}
-    original = main.render_template
+    original = metrics_mod.render_template
 
     def _capturing_render(template, **context):
         captured["context"] = context
         return original(template, **context)
 
-    main.render_template = _capturing_render
+    metrics_mod.render_template = _capturing_render
     try:
         admin_resp = client.get("/admin/session-metrics", headers=admin_headers)
     finally:
-        main.render_template = original
+        metrics_mod.render_template = original
 
     assert admin_resp.status_code == 200
     api_resp = client.get(

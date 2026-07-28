@@ -228,7 +228,7 @@ def test_request_vm_success(client, monkeypatch):
         lambda **kw: None,
     )
     monkeypatch.setattr(
-        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        "lablink_allocator_service.routes.session_cookie.get_or_create_cookie_secret",
         lambda conn: "test-secret",
     )
 
@@ -270,7 +270,7 @@ def test_request_vm_fresh_assignment_uses_returned_hostname(client, monkeypatch)
         _prepare,
     )
     monkeypatch.setattr(
-        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        "lablink_allocator_service.routes.session_cookie.get_or_create_cookie_secret",
         lambda conn: "test-secret",
     )
 

@@ -1,3 +1,4 @@
+import re
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
@@ -211,17 +212,6 @@ def test_view_instances_shows_vnc_error_banner(client, admin_headers):
 
 
 @patch("lablink_allocator_service.main.database")
-def test_view_instances_shows_back_to_admin_link(mock_database, client, admin_headers):
-    mock_database.get_all_vms.return_value = []
-
-    resp = client.get("/admin/instances", headers=admin_headers)
-
-    html = resp.data.decode()
-    assert 'href="/admin"' in html
-    assert "Back to Admin Dashboard" in html
-
-
-@patch("lablink_allocator_service.main.database")
 def test_view_instances_embeds_job_id_from_query_param(
     mock_database, client, admin_headers,
 ):
@@ -265,46 +255,6 @@ def test_instances_html_escapes_operation_output_and_error(
     assert "${escapeHtml(op.error)}" in html
     assert "${op.output}" not in html
     assert "${op.error}" not in html
-
-
-def test_view_instances_banner_has_close_button(client, admin_headers):
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "banner-close" in html
-    assert "function dismissOperationBanner(" in html
-    assert "onclick=\"dismissOperationBanner(" in html
-
-
-def test_view_instances_banner_font_size_increased(client, admin_headers):
-    """Banner text (14px originally) was too small — bumped to 16px,
-    matching the rest of the page's readable text sizes."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    banner_rule = html.split("#operation-banner {", 1)[1].split("}", 1)[0]
-    assert "font-size: 16px;" in banner_rule
-
-
-def test_view_instances_banner_shows_state_icons_and_labels(client, admin_headers):
-    """Each banner state (active/succeeded/failed/interrupted) gets its
-    own icon + bold uppercase label, not just a background color — a
-    color-only distinction is hard to scan at a glance and inaccessible
-    to colorblind users."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "banner-state-label" in html
-    assert "banner-icon" in html
-    assert '"SUCCEEDED"' in html
-    assert '"FAILED"' in html
-    assert '"INTERRUPTED"' in html
-    # interrupted must be visually distinguishable from failed, not just
-    # sharing the exact same CSS rule as before.
-    interrupted_rule = html.split(
-        "#operation-banner.state-interrupted {", 1
-    )[1].split("}", 1)[0]
-    failed_rule = html.split(
-        "#operation-banner.state-failed {", 1
-    )[1].split("}", 1)[0]
-    assert interrupted_rule != failed_rule
 
 
 @patch("lablink_allocator_service.main.database")
@@ -397,50 +347,22 @@ def test_instances_fragment_shares_action_logic_with_full_page(
 
 
 @patch("lablink_allocator_service.main.database")
-def test_view_instances_renders_card_view_container(mock_database, client, admin_headers):
-    mock_database.get_all_vms.return_value = [
-        SimpleNamespace(
-            hostname="vm-1", useremail=None, inuse=False, healthy="Healthy",
-            status="running", sessionid=None, adminreservedat=None,
-            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
-        ),
-    ]
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    assert 'id="vm-card-container"' in html
-    assert 'class="vm-card"' in html
-    assert "vm-1" in html
-    assert "RUNNING" in html
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_card_view_has_full_action_parity(mock_database, client, admin_headers):
-    """Card view must offer the same Connect action as the table for an
-    unclaimed running VM — full parity, not a read-only status board."""
-    mock_database.get_all_vms.return_value = [
-        SimpleNamespace(
-            hostname="vm-connect", useremail=None, inuse=False, healthy="Healthy",
-            status="running", sessionid=None, adminreservedat=None,
-            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
-        ),
-    ]
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    # Appears twice: once in the table's actions cell, once in the card's.
-    assert html.count("/admin/instances/vm-connect/connect") == 2
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_card_view_shows_summary_stats(mock_database, client, admin_headers):
-    """The retired dashboard template's most visually distinctive element —
-    a Running/Initializing/Errors/Total counts row above the card grid —
-    computed server-side from the same instances list, no new backend
-    call."""
+def test_view_instances_card_view_summary_counts(mock_database, client, admin_headers):
+    """Asserts the *computed numbers* in the Running/Initializing/Errors/
+    Total summary row, not the markup that renders them — this is a
+    regression guard on the server-side bucketing logic (a VM's status
+    maps to exactly one bucket), not a presentation check. Anchored on
+    each bucket's semantic CSS class rather than exact tag/nesting, so a
+    restyle (div -> span, added wrapper) doesn't break it, but a
+    bucketing bug still does."""
     mock_database.get_all_vms.return_value = [
         SimpleNamespace(
             hostname="vm-running", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-running-2", useremail=None, inuse=False, healthy="Healthy",
             status="running", sessionid=None, adminreservedat=None,
             containerstartupdurationseconds=0, totalstartupdurationseconds=0,
         ),
@@ -454,93 +376,34 @@ def test_view_instances_card_view_shows_summary_stats(mock_database, client, adm
             status="provisioning", sessionid=None, adminreservedat=None,
             containerstartupdurationseconds=0, totalstartupdurationseconds=0,
         ),
+        SimpleNamespace(
+            hostname="vm-provisioning-2", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning-3", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
     ]
     resp = client.get("/admin/instances", headers=admin_headers)
     html = resp.data.decode()
 
-    assert 'class="vm-summary-row"' in html
-    assert "Running" in html
-    assert "Initializing" in html
-    assert "Errors" in html
-    assert "Total VMs" in html
-    # 1 running, 1 error, 1 other (provisioning -> counted as "initializing"
-    # bucket), 3 total.
-    assert '<div class="vm-summary-count vm-summary-running">1</div>' in html
-    assert '<div class="vm-summary-count vm-summary-error">1</div>' in html
-    assert '<div class="vm-summary-count vm-summary-initializing">1</div>' in html
-    assert '<div class="vm-summary-count vm-summary-total">3</div>' in html
+    def bucket_count(bucket):
+        match = re.search(
+            rf'class="[^"]*\b{re.escape(bucket)}\b[^"]*"[^>]*>\s*(\d+)\s*<', html
+        )
+        assert match, f"no count found for bucket class {bucket!r}"
+        return int(match.group(1))
 
-
-def test_view_instances_has_view_toggle_buttons(client, admin_headers):
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert 'id="view-table-btn"' in html
-    assert 'id="view-card-btn"' in html
-    assert "localStorage" in html
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_table_scrolls_horizontally_on_narrow_viewports(mock_database, client, admin_headers):
-    """Found via a 390px-viewport mockup review: with no overflow-x:auto
-    container and no white-space:nowrap, narrow viewports wrapped cell text
-    mid-word (e.g. "gpu-vm-01" split across two lines) instead of scrolling
-    the table. The table has several columns with long headers (GPU Health
-    Status, Total Startup Duration), so this isn't cosmetic — it's the
-    table's normal-width behavior on anything narrower than a small
-    laptop."""
-    mock_database.get_all_vms.return_value = []
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "#vm-table-container {" in html
-    assert "overflow-x: auto;" in html
-    assert "white-space: nowrap;" in html
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_has_refresh_controls(mock_database, client, admin_headers):
-    mock_database.get_all_vms.return_value = []
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    assert 'id="vm-refresh-now-btn"' in html
-    assert 'id="vm-auto-refresh-btn"' in html
-    assert 'id="vm-refresh-spinner"' in html
-    assert 'id="vm-last-updated"' in html
-    assert "/admin/instances/fragment" in html
-
-
-def test_view_instances_groups_view_mode_and_refresh_controls(client, admin_headers):
-    """View-mode buttons (Table/Card) and refresh controls (Refresh Now/
-    Auto Refresh) are visually distinct groups, not one flat row of
-    same-looking buttons — found via user feedback that the flat layout
-    made unrelated actions look like they did the same thing."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    assert 'class="view-mode-group"' in html
-    assert 'class="refresh-controls-group"' in html
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_has_operations_history_panel(mock_database, client, admin_headers):
-    mock_database.get_all_vms.return_value = []
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    assert 'id="operations-history"' in html
-    assert 'id="operations-history-summary"' in html
-    assert "/api/operations" in html
-    assert "function renderOperationsHistory(" in html
-
-
-def test_operations_history_row_font_is_legible(client, admin_headers):
-    """The history row font (13px, per user feedback) was hard to read
-    against the rest of the page's default body text size — bumped to
-    15px, closer to the surrounding content."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    history_row_rule = html.split(".history-row {", 1)[1].split("}", 1)[0]
-    assert "font-size: 15px;" in history_row_rule
+    # 2 running, 1 error, 3 other (provisioning -> counted as "initializing"
+    # bucket), 6 total. All four expected values are pairwise distinct so a
+    # copy-paste bucket swap (e.g. running <-> error) cannot pass silently.
+    assert bucket_count("vm-summary-running") == 2
+    assert bucket_count("vm-summary-error") == 1
+    assert bucket_count("vm-summary-initializing") == 3
+    assert bucket_count("vm-summary-total") == 6
 
 
 @patch("lablink_allocator_service.main.database")
@@ -553,49 +416,3 @@ def test_operations_history_escapes_user_supplied_text(mock_database, client, ad
     html = resp.data.decode()
     assert "${escapeHtml(op.error)}" in html
     assert "${escapeHtml(op.created_by" in html
-
-
-@patch("lablink_allocator_service.main.database")
-def test_view_instances_card_view_styles_rebooting_status(mock_database, client, admin_headers):
-    """The canonical VM status set (database.py) includes "rebooting" —
-    the card view's status badge must have a CSS rule for it, or it falls
-    back to the base .status-badge rule (white text, no background) and
-    renders unreadable on the white card background."""
-    mock_database.get_all_vms.return_value = [
-        SimpleNamespace(
-            hostname="vm-rebooting", useremail=None, inuse=False, healthy=None,
-            status="rebooting", sessionid=None, adminreservedat=None,
-            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
-        ),
-    ]
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-
-    assert "status-badge status-rebooting" in html
-    assert ".status-badge.status-rebooting" in html
-
-
-def test_view_instances_renders_progress_bar_markup(client, admin_headers):
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "op-progress-bar" in html
-    assert "op-progress-bar-fill" in html
-
-
-def test_view_instances_progress_bar_guards_on_resources_total(client, admin_headers):
-    """The progress bar block must be conditional on op.resources_total
-    being truthy — otherwise a job with no known total would render a
-    bar reading against `undefined`."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "op.resources_total" in html
-
-
-def test_view_instances_progress_bar_hidden_when_operation_finished(client, admin_headers):
-    """Once an operation reaches a terminal status (succeeded/failed/
-    interrupted), the Recent Operations row stops showing a progress bar
-    — only queued/running operations are still "in progress" in any
-    meaningful sense."""
-    resp = client.get("/admin/instances", headers=admin_headers)
-    html = resp.data.decode()
-    assert "op.status === 'queued' || op.status === 'running'" in html

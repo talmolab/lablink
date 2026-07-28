@@ -13,6 +13,8 @@ import secrets
 
 from flask import Blueprint, current_app, jsonify, request
 
+from lablink_allocator_service.auth import auth
+from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import (
     REGISTER_TOKEN_SUBJECT,
     hash_secret,
@@ -47,7 +49,7 @@ def register_client():
     provider = body.get("provider", "aws")
     provider_metadata = body.get("provider_metadata") or {}
 
-    prov = current_app.config.get("LABLINK_PROVIDER") or main.get_provider(
+    prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
         main.cfg.get("provider", None),
         region=main.cfg.app.region,
         terraform_dir=str(main.TERRAFORM_DIR),
@@ -214,35 +216,30 @@ def unregister_client(client_id):
 
 
 @bp.route("/api/v1/clients", methods=["GET"])
+@auth.login_required
 def list_clients():
     """List registered clients for operator status views.
 
     Auth: admin HTTP Basic — same gate as ``/admin/instances``.
     Returns only operator-safe columns (no secrets, no log blobs).
     """
-    # Lazy import + manual decorator application: `main.auth` is only
-    # created when main.py imports this blueprint, so we can't decorate
-    # at module load time.
     from lablink_allocator_service import main
 
-    def _handler():
-        rows = main.database.list_registered_clients()
-        clients = []
-        for row in rows:
-            last_seen = row.get("last_seen_at")
-            if isinstance(last_seen, datetime):
-                last_seen = last_seen.isoformat()
-            clients.append({
-                "hostname": row.get("hostname"),
-                "provider": row.get("provider"),
-                "endpoint_url": row.get("endpoint_url"),
-                "inuse": row.get("inuse"),
-                "status": row.get("status"),
-                "healthy": row.get("healthy"),
-                "gpu_present": row.get("gpu_present"),
-                "gpu_model": row.get("gpu_model"),
-                "last_seen_at": last_seen,
-            })
-        return jsonify(clients=clients), 200
-
-    return main.auth.login_required(_handler)()
+    rows = main.database.list_registered_clients()
+    clients = []
+    for row in rows:
+        last_seen = row.get("last_seen_at")
+        if isinstance(last_seen, datetime):
+            last_seen = last_seen.isoformat()
+        clients.append({
+            "hostname": row.get("hostname"),
+            "provider": row.get("provider"),
+            "endpoint_url": row.get("endpoint_url"),
+            "inuse": row.get("inuse"),
+            "status": row.get("status"),
+            "healthy": row.get("healthy"),
+            "gpu_present": row.get("gpu_present"),
+            "gpu_model": row.get("gpu_model"),
+            "last_seen_at": last_seen,
+        })
+    return jsonify(clients=clients), 200

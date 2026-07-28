@@ -33,12 +33,13 @@ def test_init_database_upserts_register_token_hash(monkeypatch, omega_config):
 def _decorated(monkeypatch, secret_hash_value, header):
     from lablink_allocator_service import main
     from flask import jsonify
+    from lablink_allocator_service.auth import require_client_secret
 
     fake_db = MagicMock()
     fake_db.get_client_secret_hash.return_value = secret_hash_value
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
-    @main.require_client_secret
+    @require_client_secret
     def view():
         return jsonify(ok=True), 200
 
@@ -646,7 +647,7 @@ def test_register_fallback_provider_construction_includes_connectivity(
     reg_client, monkeypatch,
 ):
     """When LABLINK_PROVIDER isn't already cached in app.config, the
-    fallback ``main.get_provider(...)`` call in this view must still pass
+    fallback ``get_provider(...)`` call in this view must still pass
     ``connectivity=main.cfg.manual.connectivity`` through -- otherwise it
     silently defaults to lan_direct regardless of the deployment's actual
     configured connectivity, which would make the mismatched-metadata
