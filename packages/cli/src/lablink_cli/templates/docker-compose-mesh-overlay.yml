@@ -37,6 +37,13 @@ services:
       # response — matching the AWS path where Terraform/user_data
       # delivers the same file to the client container.
       - ./custom-startup.sh:/config/custom-startup.sh:ro
+      # The allocator's real public URL, written by `lablink deploy` after it
+      # confirms Funnel is live. Behind Funnel the allocator can't derive this
+      # from the request (no X-Forwarded-Proto, and ssl.provider=none keeps the
+      # header-trust gate shut), so it would otherwise hand clients an http://
+      # URL that only 302-redirects. Always present, empty when not
+      # Funnel-exposed; the allocator falls back to the request host then.
+      - ./allocator-url:/config/allocator-url:ro
       - allocator_pgdata:/var/lib/postgresql
     ports:
       # The container's nginx listens on :5000 (see lablink-nginx.conf in

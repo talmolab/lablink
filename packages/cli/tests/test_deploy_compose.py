@@ -1743,3 +1743,264 @@ class TestExtractRegisterToken:
 
         mock_run.return_value = MagicMock(returncode=0, stdout="nothing relevant\n")
         assert _extract_register_token() is None
+
+
+class TestCanonicalUrlFile:
+    """The allocator-url file (issue #396): the out-of-band channel carrying
+    the allocator's real public URL, since behind Funnel it can't derive one
+    from the request (no X-Forwarded-Proto, and ssl.provider=none keeps the
+    header-trust gate shut), and would otherwise hand clients an http:// URL
+    that only 302-redirects — downgrading their POSTs to GET."""
+
+    def test_filename_matches_allocator_constant(self):
+        """The name is duplicated rather than imported, because each package's
+        CI job installs only its own dependencies. Parse the allocator source
+        with `ast` instead of importing it, so this check works in that
+        isolated env too."""
+        import ast
+
+        from lablink_cli.commands.deploy_compose import CANONICAL_URL_FILENAME
+
+        helpers = (
+            Path(__file__).resolve().parents[2]
+            / "allocator"
+            / "src"
+            / "lablink_allocator_service"
+            / "utils"
+            / "config_helpers.py"
+        )
+        assert helpers.exists(), helpers
+        tree = ast.parse(helpers.read_text())
+        found = {
+            t.id: node.value.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+            for t in node.targets
+            if isinstance(t, ast.Name)
+        }
+        assert found.get("CANONICAL_URL_FILENAME") == CANONICAL_URL_FILENAME
+
+    def test_file_materialized_empty_when_exposure_off(self, tmp_path):
+        """Always created so the compose bind mount resolves; empty means the
+        allocator falls back to the request host, which is right here."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        path = target / CANONICAL_URL_FILENAME
+        assert path.exists()
+        assert path.read_text() == ""
+
+    def test_file_materialized_when_funnel_enabled(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        assert (target / CANONICAL_URL_FILENAME).exists()
+
+    def test_redeploy_preserves_url_while_funnel_stays_on(self, tmp_path):
+        """Otherwise the window between container start and _enable_funnel
+        would serve a fallback http:// URL to any client registering then."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            _write_canonical_url,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+        _write_canonical_url(target, "https://lablink-allocator-testlab.example.ts.net")
+
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+        content = (target / CANONICAL_URL_FILENAME).read_text()
+        assert "https://lablink-allocator-testlab.example.ts.net" in content
+
+    def test_turning_exposure_off_clears_the_url(self, tmp_path):
+        """A stale public URL must not keep being handed to clients after the
+        operator sets participant_exposure back to none."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            _write_canonical_url,
+            render_compose_dir,
+        )
+
+        target = tmp_path / "compose"
+        funnel_cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+        )
+        render_compose_dir(funnel_cfg, target, tailscale_authkey="tskey-abc")
+        _write_canonical_url(target, "https://old.example.ts.net")
+
+        off_cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="none",
+            overlay_tailnet="example.ts.net",
+        )
+        render_compose_dir(off_cfg, target, tailscale_authkey="tskey-abc")
+        assert (target / CANONICAL_URL_FILENAME).read_text() == ""
+
+    def test_write_strips_trailing_slash(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            _write_canonical_url,
+        )
+
+        target = tmp_path / "compose"
+        target.mkdir()
+        _write_canonical_url(target, "https://foo.example.ts.net/")
+        assert (target / CANONICAL_URL_FILENAME).read_text() == (
+            "https://foo.example.ts.net\n"
+        )
+
+    def test_write_is_in_place_not_a_rename(self, tmp_path):
+        """docker bind-mounts a single file by inode: replacing the file via
+        temp+rename would leave the running container reading the old one
+        forever. Pin the inode so nobody 'improves' this into a rename."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            _write_canonical_url,
+        )
+
+        target = tmp_path / "compose"
+        target.mkdir()
+        path = target / CANONICAL_URL_FILENAME
+        path.write_text("")
+        before = path.stat().st_ino
+
+        _write_canonical_url(target, "https://foo.example.ts.net")
+        assert path.stat().st_ino == before
+
+    @pytest.mark.parametrize(
+        "connectivity,exposure",
+        [
+            ("lan_direct", "none"),
+            ("mesh_overlay", "none"),
+        ],
+    )
+    def test_every_non_funnel_topology_leaves_the_file_empty(
+        self, connectivity, exposure, tmp_path
+    ):
+        """Blast-radius guard. The valid deployment topologies are: aws (which
+        never renders a compose dir at all), manual+lan_direct+none,
+        manual+mesh_overlay+none, and manual+mesh_overlay+tailscale_funnel
+        (lan_direct+funnel is rejected by validate_config). Only the last one
+        may ever get a URL here — every other manual topology must leave the
+        file empty so the allocator falls back to request.host_url exactly as
+        it did before this feature existed."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(
+            connectivity=connectivity,
+            participant_exposure=exposure,
+            overlay_tailnet="example.ts.net" if connectivity == "mesh_overlay" else "",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+        assert (target / CANONICAL_URL_FILENAME).read_text() == ""
+
+    @pytest.mark.parametrize(
+        "template", ["docker-compose.yml", "docker-compose-mesh-overlay.yml"]
+    )
+    def test_both_templates_mount_the_file(self, template):
+        """Both variants mount it so the allocator sees an identical /config
+        layout regardless of which stack is running."""
+        from importlib import resources
+
+        content = (
+            resources.files("lablink_cli.templates").joinpath(template).read_text()
+        )
+        assert "./allocator-url:/config/allocator-url:ro" in content
+
+    def test_rendered_compose_mount_resolves(self, tmp_path):
+        """The mount source must exist after render, or docker refuses the
+        run — the same trap custom-startup.sh's always-materialize avoids."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(connectivity="lan_direct", participant_exposure="none")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose = (target / "docker-compose.yml").read_text()
+        assert "./allocator-url:/config/allocator-url:ro" in compose
+        assert (target / "allocator-url").exists()
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_deploy_writes_url_reported_by_funnel_status(
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """The written value comes from `tailscale funnel status`, not from the
+        configured hostname — that's what picks up the numeric suffixes (-2,
+        -3, ...) a name collision with an offline prior-deploy node produces."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_funnel.return_value = (True, "https://lablink-allocator-testlab-3.example.ts.net")
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc"
+        )
+
+        written = (tmp_path / "testlab" / "allocator-url").read_text()
+        assert written == "https://lablink-allocator-testlab-3.example.ts.net\n"
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._enable_funnel")
+    def test_deploy_leaves_file_alone_when_status_url_unknown(
+        self, mock_funnel, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Funnel enabled but the URL couldn't be parsed: keep the last known
+        value rather than clearing it, since an empty file falls back to the
+        known-broken http:// host URL."""
+        from lablink_cli.commands.deploy_compose import (
+            _write_canonical_url,
+            run_deploy_compose,
+        )
+
+        mock_funnel.return_value = (True, None)
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            participant_exposure="tailscale_funnel",
+            overlay_tailnet="example.ts.net",
+            admin_password="a-strong-enough-password",
+        )
+        target = tmp_path / "testlab"
+        target.mkdir(parents=True)
+        _write_canonical_url(target, "https://known.example.ts.net")
+
+        run_deploy_compose(
+            cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc"
+        )
+        assert "https://known.example.ts.net" in (target / "allocator-url").read_text()

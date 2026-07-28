@@ -48,6 +48,13 @@ ALLOCATOR_INTERNAL_PORT = 5000
 FUNNEL_ACL_NOT_GRANTED_MARKER = "Funnel is not enabled on your tailnet"
 FUNNEL_ENABLE_MAX_ATTEMPTS = 5
 FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
+# Name of the file carrying the allocator's real public URL, staged next to
+# config.yaml and bind-mounted to /config/<name>. Must stay in sync with
+# config_helpers.CANONICAL_URL_FILENAME in the allocator package — duplicated
+# rather than imported because each package's CI job installs only its own
+# dependencies, so a cross-package import would fail there. Guarded by
+# test_deploy_compose.py::TestCanonicalUrlFile::test_filename_matches_allocator.
+CANONICAL_URL_FILENAME = "allocator-url"
 
 console = Console()
 
@@ -185,6 +192,24 @@ def render_compose_dir(
     #    allocator's registration handler only forwards it to clients
     #    when cfg.startup_script.enabled is true AND the file is non-
     #    empty.
+    # 4b. Stage the canonical-URL file. Always materialized (empty when the
+    #     deployment isn't Funnel-exposed) so the compose bind mount resolves
+    #     on every deploy — same reason custom-startup.sh below always exists.
+    #     _enable_funnel fills it in after `compose up`, since Funnel can only
+    #     be turned on once the sidecar is running. An existing value is
+    #     preserved across a redeploy that stays Funnel-exposed, so the window
+    #     between container start and _enable_funnel doesn't fall back to
+    #     request.host_url; a deployment that turns exposure off is cleared,
+    #     which is what stops a stale public URL being handed to clients.
+    canonical_target = target / CANONICAL_URL_FILENAME
+    if cfg.manual.participant_exposure == "tailscale_funnel":
+        previous_url = (
+            canonical_target.read_text() if canonical_target.exists() else ""
+        )
+        canonical_target.write_text(previous_url)
+    else:
+        canonical_target.write_text("")
+
     startup_target = target / "custom-startup.sh"
     if cfg.startup_script.enabled and cfg.startup_script.path:
         user_script = Path.home() / ".lablink" / "custom-startup.sh"
@@ -390,6 +415,8 @@ def run_deploy_compose(
     funnel_url = None
     if cfg.manual.participant_exposure == "tailscale_funnel":
         funnel_ok, funnel_url = _enable_funnel()
+        if funnel_url:
+            _write_canonical_url(target, funnel_url)
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
     _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
@@ -416,6 +443,28 @@ def _compose_up(target: Path) -> None:
     if result.returncode != 0:
         console.print("[red]docker compose up failed.[/red]")
         raise SystemExit(result.returncode or 1)
+
+
+def _write_canonical_url(target: Path, url: str) -> None:
+    """Publish the allocator's real public URL to the bind-mounted file the
+    allocator reads (see config_helpers.canonical_base_url).
+
+    Behind Funnel the allocator cannot work its own public URL out from the
+    request: Funnel injects no X-Forwarded-Proto, and manual deployments run
+    ssl.provider=none so the header-trust gate is shut anyway. It therefore
+    reports http://, which clients can only follow via a 302 that downgrades
+    their POSTs to GET. This file is the out-of-band channel that fixes that,
+    carrying the address `tailscale funnel status` actually reported — which
+    also picks up the numeric hostname suffixes (-2, -3, ...) that a name
+    collision with an offline node from a prior deploy produces.
+
+    Written IN PLACE, never via a temp file + rename: docker bind-mounts a
+    single file by inode, so a rename would leave the running container
+    reading the old file forever.
+    """
+    path = target / CANONICAL_URL_FILENAME
+    with path.open("w") as f:
+        f.write(f"{url.rstrip('/')}\n")
 
 
 FUNNEL_STATUS_URL_RE = re.compile(r"(https://\S+)\s*\(Funnel on\)")

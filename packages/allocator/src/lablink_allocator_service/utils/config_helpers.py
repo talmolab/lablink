@@ -84,6 +84,55 @@ def should_use_https(cfg) -> bool:
     return hasattr(cfg, "ssl") and cfg.ssl.provider != "none"
 
 
+# Written by the CLI (`lablink deploy`) once it has confirmed the real public
+# URL via `tailscale funnel status`. Lives alongside config.yaml in the
+# allocator's mounted config dir; absent on every deployment that isn't
+# Funnel-exposed.
+CANONICAL_URL_FILENAME = "allocator-url"
+
+
+def canonical_base_url(request) -> str:
+    """Return the allocator's public base URL, without a trailing slash.
+
+    Prefers the operator-supplied canonical URL file over ``request.host_url``.
+    Behind Tailscale Funnel, ``host_url`` reports ``http://`` even for requests
+    that arrived over Funnel's HTTPS: manual-provider deployments only support
+    ``ssl.provider: none``, so :func:`should_use_https` is false and the
+    ``X-Forwarded-Proto`` gate stays shut — and Funnel does not inject that
+    header anyway, so there is no in-request signal to detect it. Clients that
+    take the resulting ``http://`` URL at face value only get a 302 from
+    Funnel, which downgrades their POSTs to GET and surfaces as 405s.
+
+    The file is read per request rather than cached, because the CLI writes it
+    *after* `docker compose up` (Funnel can only be enabled once the container
+    is running), and the allocator must pick it up without a restart.
+
+    Falls back to ``request.host_url`` when the file is missing, empty, or does
+    not contain an http(s) URL — so the AWS/nginx topology, where ProxyFix
+    already yields the right scheme, is completely unaffected.
+    """
+    config_dir = os.getenv("CONFIG_DIR", "/config")
+    path = os.path.join(config_dir, CANONICAL_URL_FILENAME)
+    try:
+        with open(path) as f:
+            candidate = f.read().strip()
+    except (FileNotFoundError, NotADirectoryError, IsADirectoryError, PermissionError):
+        candidate = ""
+    except OSError as exc:  # pragma: no cover - defensive
+        logger.warning("Could not read %s: %s", path, exc)
+        candidate = ""
+
+    if candidate.startswith(("http://", "https://")):
+        return candidate.rstrip("/")
+    if candidate:
+        logger.warning(
+            "Ignoring %s: %r is not an http(s) URL; falling back to request host",
+            path,
+            candidate,
+        )
+    return request.host_url.rstrip("/")
+
+
 def is_self_signed_ssl(cfg) -> bool:
     """Check if the deployment uses a self-signed TLS cert.
 
