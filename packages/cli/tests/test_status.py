@@ -556,3 +556,110 @@ class TestManualStatus:
         # Health URL should use https scheme for self_signed.
         called_url = mock_health.call_args[0][0]
         assert called_url.startswith("https://")
+
+
+class TestManualStatusPublicUrl:
+    """`lablink status` must surface the participant-facing URL, not just the
+    localhost liveness probe — on a Funnel deployment localhost is not an
+    address any participant or BYO client can use."""
+
+    @staticmethod
+    def _workdir(tmp_path, url=None):
+        wd = tmp_path / ".lablink" / "compose" / "testlab"
+        wd.mkdir(parents=True)
+        if url is not None:
+            (wd / "allocator-url").write_text(url)
+        return wd
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_shows_funnel_url_and_checks_it(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        mock_cfg.manual.participant_exposure = "tailscale_funnel"
+        self._workdir(tmp_path, "https://lablink-allocator-testlab.example.ts.net\n")
+        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_health.return_value = {"healthy": True, "detail": ""}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "https://lablink-allocator-testlab.example.ts.net" in out
+        assert "Tailscale Funnel" in out
+        # Probed in addition to localhost, not instead of it.
+        probed = [c.args[0] for c in mock_health.call_args_list]
+        assert "https://lablink-allocator-testlab.example.ts.net" in probed
+        assert any("localhost" in p for p in probed)
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_reports_unreachable_funnel_url(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        """A dead Funnel is invisible to a localhost probe — the whole reason
+        to check the public URL separately."""
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        mock_cfg.manual.participant_exposure = "tailscale_funnel"
+        self._workdir(tmp_path, "https://lablink-allocator-testlab.example.ts.net")
+        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_health.side_effect = [
+            {"healthy": True, "detail": ""},                      # localhost
+            {"healthy": False, "detail": "connection refused"},   # funnel
+        ]
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        out = capsys.readouterr().out
+        assert "Not reachable" in out
+        assert "connection refused" in out
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_no_public_url_line_when_not_exposed(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        """Non-Funnel deployments stage the file empty; nothing extra printed
+        and no second probe fired."""
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        mock_cfg.manual.participant_exposure = "none"
+        self._workdir(tmp_path, "")
+        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_health.return_value = {"healthy": True, "detail": ""}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        assert "Public URL" not in capsys.readouterr().out
+        assert mock_health.call_count == 1
+
+    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.check_health_endpoint")
+    def test_missing_file_is_not_an_error(
+        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+    ):
+        """A deployment dir rendered by an older CLI has no such file."""
+        from lablink_cli.commands.status import run_status
+
+        mock_cfg.provider = "manual"
+        mock_cfg.deployment_name = "testlab"
+        mock_cfg.manual.participant_exposure = "none"
+        self._workdir(tmp_path, None)
+        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_health.return_value = {"healthy": True, "detail": ""}
+
+        with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
+            run_status(mock_cfg)
+
+        assert "Public URL" not in capsys.readouterr().out
