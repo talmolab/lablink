@@ -51,6 +51,7 @@ from lablink_allocator_service.routes.health import bp as health_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
 )
+from lablink_allocator_service.routes.public import bp as public_bp
 from lablink_allocator_service.routes.registration import bp as registration_bp
 from lablink_allocator_service.routes.session_cookie import (
     sign_session_cookie_and_redirect,
@@ -102,6 +103,7 @@ app.wsgi_app = _ProxyFixWhenTrusted(
 app.register_blueprint(desktop_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(internal_proxy_auth_bp)
+app.register_blueprint(public_bp)
 app.register_blueprint(registration_bp)
 
 # Define the terraform directory relative to this file (now inside the package)
@@ -250,11 +252,6 @@ def notify_participants():
     conn.commit()
 
 
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-
 @app.route("/admin/create")
 @auth.login_required
 def create_instances():
@@ -394,77 +391,6 @@ def admin_release_vm(hostname):
 @auth.login_required
 def delete_instances():
     return render_template("delete-instances.html")
-
-
-@app.route("/api/request_vm", methods=["POST"])
-def submit_vm_details():
-    import uuid
-
-    try:
-        email = (request.form.get("email") or "").strip().lower()
-        if not email:
-            return render_template("index.html", error="Email is required.")
-
-        # Idempotent rejoin: if this email already owns a running seat,
-        # keep them on it and continue to prep a fresh browser session.
-        existing = database.get_assigned_vm_for_email(email=email)
-        if existing is not None and existing["status"] == "running":
-            hostname = existing["hostname"]
-        else:
-            # Fresh assignment. assign_vm atomically claims a seat and
-            # returns its hostname, or raises ValueError if the pool is
-            # empty; we treat that as 503 (no seats). Because the claim is
-            # atomic (FOR UPDATE SKIP LOCKED), there's no separate lookup
-            # to race against.
-            try:
-                hostname = database.assign_vm(email=email)
-            except ValueError:
-                logger.warning("Pool empty when '%s' asked for a seat", email)
-                return render_template("no_seats.html"), 503
-
-        # Mint per-session identifiers and rotate the VNC password on the
-        # assigned client. RotationFailed → mark unhealthy and ask the
-        # student to retry; the failed-VM recovery loop will pick it up.
-        session_id = uuid.uuid4()
-        browser_token = secrets.token_urlsafe(16)
-        try:
-            provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-                cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
-                connectivity=cfg.manual.connectivity,
-            )
-            provider.client_connectivity.prepare_browser_session(
-                database=database,
-                hostname=hostname,
-                session_id=session_id,
-                browser_token=browser_token,
-                agent_token=AGENT_TOKEN,
-            )
-        except RotationFailed as exc:
-            logger.warning(
-                "Password rotation failed for '%s' on '%s': %s",
-                email, hostname, exc,
-            )
-            # Release the seat so the student isn't permanently wedged
-            # on the rotation_failed page: without this, the rejoin
-            # branch at the top of this handler keeps matching the
-            # same row (status is still 'running') and re-enters
-            # prepare_browser_session, which keeps failing.
-            try:
-                database.update_health(hostname=hostname, healthy="Unhealthy")
-                database.release_seat(hostname=hostname)
-            except Exception:
-                logger.exception("Could not mark '%s' unhealthy", hostname)
-            return render_template("rotation_failed.html"), 503
-
-        return sign_session_cookie_and_redirect(session_id)
-
-    except Exception as e:
-        logger.error("Error in submit_vm_details: %s", e, exc_info=True)
-        return render_template(
-            "index.html",
-            error="An unexpected error occurred while processing your request. "
-            "Please ask your instructor for help.",
-        )
 
 
 def _wants_json():
@@ -665,13 +591,6 @@ def destroy():
     if _wants_json():
         return jsonify({"job_id": job_id, "status": "queued"}), 202
     return redirect(f"/admin/instances?job={job_id}")
-
-
-@app.route("/api/unassigned_vms_count", methods=["GET"])
-def get_unassigned_instance_counts():
-    """Get the counts of all instance types."""
-    instance_counts = len(database.get_unassigned_vms())
-    return jsonify(count=instance_counts), 200
 
 
 @app.route("/api/update_inuse_status", methods=["POST"])
