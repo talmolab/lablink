@@ -206,8 +206,26 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+# The basicConfig() above cannot be relied on to set the level: it is a no-op
+# when root already has a handler, and by this point it always does —
+# `utils/aws_utils` calls basicConfig(level=INFO) at import time, and the
+# providers.registry import near the top of this module pulls it in. Root is
+# therefore pinned at INFO before we get here.
+#
+# That matters because every module under this package logs through its own
+# `logging.getLogger(__name__)` with no explicit level, so it inherits root.
+# Without the line below, all seven logger.debug() calls in routes/ are
+# silently dropped in dev/test/ci-test — the environments where you actually
+# want them. Setting the level once on the package logger fixes it for every
+# submodule, whoever won the basicConfig race.
+#
+# Set this on the package, NOT on `logger` below: an explicit level on
+# main's own logger alone is what hid this for so long, since main kept
+# logging at _log_level while the eleven route modules went quiet.
+logging.getLogger("lablink_allocator_service").setLevel(_log_level)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(_log_level)
 
 # For deployments where the allocator can't provision hosts (BYO / manual
 # provider), surface the register-token in the container logs so
