@@ -136,6 +136,45 @@ def test_register_client_image_is_machine_image_only(reg_client):
     assert r.get_json()["client_image"] == main.cfg.machine.image
 
 
+def test_register_ships_repository_and_subject_software(reg_client):
+    """The register response is the manual/BYO path's only channel for
+    cfg.machine settings that the AWS path delivers via user_data.sh's
+    `docker run -e` flags. Without `repository` here, the BYO client's
+    start.sh sees an unset TUTORIAL_REPO_TO_CLONE and logs "Skipping
+    clone step" (lablink#405); without `subject_software` it launches
+    update_inuse_status with an empty client.software, which matches no
+    process at all."""
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    from lablink_allocator_service import main
+    body = r.get_json()
+    assert body["repository"] == main.cfg.machine.repository
+    assert body["subject_software"] == main.cfg.machine.software
+
+
+def test_register_repository_absent_returns_empty_string(reg_client, monkeypatch):
+    """cfg.machine.repository is Optional and defaults to None. jsonify
+    would emit a JSON null, which the CLI would then write into the env
+    file as the literal string "None" and start.sh would happily `git
+    clone None`. Normalize to "" so the CLI's falsy check skips the var
+    entirely."""
+    from lablink_allocator_service import main
+    monkeypatch.setattr(main.cfg.machine, "repository", None, raising=False)
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    assert r.get_json()["repository"] == ""
+
+
 def test_status_requires_client_secret(reg_client):
     client, fake_db = reg_client
     fake_db.get_client_secret_hash.return_value = None

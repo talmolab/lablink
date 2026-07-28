@@ -361,6 +361,99 @@ class TestOverlayHostnamePath:
         assert not tmp_env_file.exists()
 
 
+class TestRepositoryAndSoftwareEnv:
+    """lablink#405 — the BYO client container never cloned the configured
+    repository because `~/.lablink/client.env` carried no
+    TUTORIAL_REPO_TO_CLONE. start.sh gates the clone on that var, and the
+    env file is the only way it reaches a manual/BYO box (the AWS path
+    uses user_data.sh's `docker run -e` flags instead)."""
+
+    @staticmethod
+    def _register(tmp_env_file, resp, mock_detect, mock_client_cls,
+                  mock_which, mock_subproc_run):
+        from lablink_cli.commands.register import run_register
+
+        mock_detect.detect_hostname.return_value = "byo-01"
+        mock_detect.detect_lan_ip.return_value = "192.168.1.42"
+        mock_detect.resolve_machine_identity.return_value = "mid-abc"
+        mock_detect.detect_gpu.return_value = (False, None)
+
+        mock_client = MagicMock()
+        mock_client.register.return_value = resp
+        mock_client_cls.return_value = mock_client
+        mock_which.return_value = "/usr/bin/docker"
+        mock_subproc_run.return_value = MagicMock(
+            returncode=0, stdout="cgroupfs\n"
+        )
+
+        run_register(**_kwargs(tmp_env_file))
+        return tmp_env_file.read_text()
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_env_file_carries_repository_and_software(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        resp = dict(
+            successful_response,
+            repository="https://github.com/talmolab/sleap-tutorial-data.git",
+            subject_software="sleap",
+        )
+        content = self._register(
+            tmp_env_file, resp, mock_detect, mock_client_cls,
+            mock_which, mock_subproc_run,
+        )
+        assert (
+            "TUTORIAL_REPO_TO_CLONE="
+            "https://github.com/talmolab/sleap-tutorial-data.git"
+        ) in content
+        assert "SUBJECT_SOFTWARE=sleap" in content
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_env_file_omits_empty_repository_and_software(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        """An unset cfg.machine.repository must leave the var out entirely
+        rather than emit a bare `TUTORIAL_REPO_TO_CLONE=`. Both are
+        equivalent to start.sh's `-n` check, but an absent line keeps the
+        --no-run-locally paste-into-Run:AI printout free of noise."""
+        resp = dict(successful_response, repository="", subject_software="")
+        content = self._register(
+            tmp_env_file, resp, mock_detect, mock_client_cls,
+            mock_which, mock_subproc_run,
+        )
+        assert "TUTORIAL_REPO_TO_CLONE" not in content
+        assert "SUBJECT_SOFTWARE" not in content
+
+    @patch("lablink_cli.commands.register.subprocess.Popen")
+    @patch("lablink_cli.commands.register.subprocess.run")
+    @patch("lablink_cli.commands.register.shutil.which")
+    @patch("lablink_cli.commands.register.RegistrationClient")
+    @patch("lablink_cli.commands.register.byo_detect")
+    def test_env_file_omits_vars_when_allocator_predates_fix(
+        self, mock_detect, mock_client_cls, mock_which, mock_subproc_run,
+        mock_popen, tmp_env_file, successful_response,
+    ):
+        """A newer CLI against an older allocator gets a response with
+        neither key. That must not raise — just fall back to today's
+        (repo-less) behaviour."""
+        content = self._register(
+            tmp_env_file, dict(successful_response), mock_detect,
+            mock_client_cls, mock_which, mock_subproc_run,
+        )
+        assert "TUTORIAL_REPO_TO_CLONE" not in content
+        assert "SUBJECT_SOFTWARE" not in content
+
+
 class TestSuccessFlow:
     @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")

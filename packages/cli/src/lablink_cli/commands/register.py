@@ -378,6 +378,20 @@ def _write_env_file(
         f"CLIENT_IMAGE={resp['client_image']}",
         f"REGISTER_RESPONSE={register_response_json}",
     ]
+    # cfg.machine.repository / cfg.machine.software, shipped by the
+    # allocator's register response. These reach an AWS client through
+    # user_data.sh's `docker run -e TUTORIAL_REPO_TO_CLONE=... -e
+    # SUBJECT_SOFTWARE=...`; on a BYO box this env file is the only
+    # channel, and without them start.sh logs "TUTORIAL_REPO_TO_CLONE not
+    # set. Skipping clone step." and launches update_inuse_status with an
+    # empty client.software (lablink#405). Omitted entirely when unset so
+    # the --no-run-locally paste-into-Run:AI printout stays clean; a bare
+    # `VAR=` would be equivalent to start.sh's `-n` check either way.
+    # Absent keys (older allocator, newer CLI) behave the same as unset.
+    if resp.get("repository"):
+        lines.append(f"TUTORIAL_REPO_TO_CLONE={resp['repository']}")
+    if resp.get("subject_software"):
+        lines.append(f"SUBJECT_SOFTWARE={resp['subject_software']}")
     if overlay_hostname is not None:
         # Written so a nested `docker run --env-file` (the run_locally
         # path) carries these into the container automatically —
