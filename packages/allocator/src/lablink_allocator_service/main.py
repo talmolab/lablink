@@ -3,12 +3,8 @@ import logging
 import secrets
 import subprocess
 import time
-import json
-import base64
 from pathlib import Path
-from datetime import datetime
 import atexit
-from typing import Callable, Optional
 
 from flask import (
     Flask,
@@ -16,7 +12,6 @@ from flask import (
     request,
     jsonify,
     render_template,
-    redirect,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
@@ -28,19 +23,12 @@ from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.db.vms import VmDatabase
 from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
-from lablink_allocator_service.utils.config_helpers import (
-    get_allocator_url,
-    should_use_https,
-)
-from lablink_allocator_service.utils.sg_audit import SGAuditFailure
+from lablink_allocator_service.utils.config_helpers import should_use_https
 from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
 from lablink_allocator_service.operations import OperationsWorker
-from lablink_allocator_service.db.operations import (
-    OperationInProgress,
-    OperationsDatabase,
-)
+from lablink_allocator_service.db.operations import OperationsDatabase
 from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import hash_secret
 from lablink_allocator_service.routes.admin_pages import bp as admin_pages_bp
@@ -51,6 +39,9 @@ from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.health import bp as health_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
+)
+from lablink_allocator_service.routes.provisioning import (
+    bp as provisioning_bp,
 )
 from lablink_allocator_service.routes.public import bp as public_bp
 from lablink_allocator_service.routes.registration import bp as registration_bp
@@ -64,7 +55,6 @@ from lablink_allocator_service.auth import (
     require_client_secret,
     verify_password,  # noqa: F401
 )
-from lablink_allocator_service.utils.ansi import ANSI_ESCAPE
 
 app = Flask(__name__)
 
@@ -104,6 +94,7 @@ app.register_blueprint(admin_sessions_bp)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(internal_proxy_auth_bp)
+app.register_blueprint(provisioning_bp)
 app.register_blueprint(public_bp)
 app.register_blueprint(registration_bp)
 app.register_blueprint(vm_telemetry_bp)
@@ -252,206 +243,6 @@ def notify_participants():
     cursor = conn.cursor()
     cursor.execute("LISTEN vm_updates;")
     conn.commit()
-
-
-def _wants_json():
-    """Return True if the client prefers a JSON response."""
-    return request.accept_mimetypes.best == "application/json"
-
-
-@app.route("/api/launch", methods=["POST"])
-@auth.login_required
-def launch():
-    provider = app.config["LABLINK_PROVIDER"]
-    if not provider.can_provision_hosts:
-        error_msg = "Provider does not support host provisioning."
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 405
-        return redirect("/admin/instances?error=launch_unsupported")
-
-    # Validate num_vms input (unchanged)
-    try:
-        num_vms_str = request.form.get("num_vms")
-        if not num_vms_str:
-            if _wants_json():
-                return jsonify(
-                    {"status": "error", "error": "Number of VMs is required."}
-                ), 400
-            return redirect("/admin/instances?error=num_vms_required")
-        num_vms = int(num_vms_str)
-        if num_vms <= 0:
-            if _wants_json():
-                return jsonify({
-                    "status": "error",
-                    "error": "Number of VMs must be greater than 0.",
-                }), 400
-            return redirect("/admin/instances?error=num_vms_invalid")
-    except ValueError:
-        if _wants_json():
-            return jsonify({
-                "status": "error",
-                "error": "Invalid number of VMs. Please enter a valid integer.",
-            }), 400
-        return redirect("/admin/instances?error=num_vms_invalid")
-
-    if not allocator_ip or not key_name:
-        logger.error("Missing allocator outputs.")
-        if _wants_json():
-            return jsonify(
-                {"status": "error", "error": "Allocator outputs not found."}
-            ), 500
-        return redirect("/admin/instances?error=allocator_outputs_missing")
-
-    total_vms = num_vms + database.get_row_count()
-    allocator_url, scheme = get_allocator_url(cfg, allocator_ip)
-    logger.info(f"Using allocator URL: {allocator_url} (protocol: {scheme})")
-
-    spec = {
-        "allocator_ip": allocator_ip,
-        "allocator_url": allocator_url,
-        "machine_type": cfg.machine.machine_type,
-        "image_name": cfg.machine.image,
-        "repository": cfg.machine.repository,
-        "client_ami_id": cfg.machine.ami_id,
-        "subject_software": cfg.machine.software,
-        "resource_prefix": (
-            f"{cfg.machine.software}-lablink-client-{ENVIRONMENT}"
-        ),
-        "cloud_init_output_log_group": cloud_init_output_log_group,
-        "startup_on_error": cfg.startup_script.on_error,
-        "startup_max_attempts": cfg.startup_script.max_attempts,
-        "startup_base_delay_seconds": cfg.startup_script.base_delay_seconds,
-        "startup_success_check_b64": (
-            base64.b64encode(cfg.startup_script.success_check.encode()).decode()
-            if cfg.startup_script.success_check
-            else ""
-        ),
-        "agent_token": AGENT_TOKEN,
-        "register_token": REGISTER_TOKEN,
-        "environment": ENVIRONMENT,
-        "bucket_name": cfg.bucket_name,
-        "deployment_name": getattr(cfg, "deployment_name", "lablink"),
-    }
-
-    def _run_launch(
-        progress_callback: Optional[Callable[[int, int], None]] = None,
-    ) -> str:
-        """Runs on OperationsWorker's background thread, not the request
-        thread. Reformats known failure types into RuntimeError with the
-        same user-facing text the old synchronous route used, so that
-        text ends up in the operation's `error` column."""
-        try:
-            result = provider.provision_hosts(
-                count=total_vms, spec=spec, progress_callback=progress_callback,
-            )
-        except SGAuditFailure as exc:
-            raise RuntimeError(
-                f"Security-group audit refused the plan: {exc}"
-            ) from exc
-        except subprocess.CalledProcessError as e:
-            clean_err = ANSI_ESCAPE.sub("", (e.stderr or "")).strip()
-            raise RuntimeError(f"Terraform failed: {clean_err}") from e
-
-        for hostname, times in result.timings.items():
-            start_time = datetime.fromisoformat(
-                times["start_time"].replace("Z", "+00:00")
-            )
-            end_time = datetime.fromisoformat(
-                times["end_time"].replace("Z", "+00:00")
-            )
-            database.update_terraform_timing(
-                hostname=hostname,
-                per_instance_seconds=float(times["seconds"]),
-                per_instance_start_time=start_time,
-                per_instance_end_time=end_time,
-            )
-        return result.apply_stdout
-
-    try:
-        job_id = operations_worker.submit(
-            op_type="apply",
-            fn=_run_launch,
-            params=json.dumps({"num_vms": num_vms}),
-            created_by=auth.current_user(),
-        )
-    except OperationInProgress as exc:
-        error_msg = f"An operation is already in progress (job #{exc.job_id})"
-        if _wants_json():
-            return jsonify({
-                "status": "error", "error": error_msg, "job_id": exc.job_id,
-            }), 409
-        return redirect(
-            f"/admin/instances?error=already_in_progress&job_id={exc.job_id}"
-        )
-
-    if _wants_json():
-        return jsonify({"job_id": job_id, "status": "queued"}), 202
-    return redirect(f"/admin/instances?job={job_id}")
-
-
-@app.route("/destroy", methods=["POST"])
-@auth.login_required
-def destroy():
-    provider = app.config["LABLINK_PROVIDER"]
-    if not provider.can_destroy_hosts:
-        error_msg = "Provider does not support host destruction."
-        if _wants_json():
-            return jsonify({"status": "error", "error": error_msg}), 405
-        return redirect("/admin/instances?error=destroy_unsupported")
-
-    def _run_destroy(
-        progress_callback: Optional[Callable[[int, int], None]] = None,
-    ) -> str:
-        """Runs on OperationsWorker's background thread, not the request
-        thread."""
-        # Seal any open session-metrics rows before tearing down VMs, so the
-        # final sessions get a duration even though the client agents are
-        # about to be killed. Best-effort: never block destroy on a seal
-        # failure.
-        try:
-            sealed = metrics_db.bulk_seal_session_metrics()
-            logger.info("Sealed %d session-metrics rows before destroy", sealed)
-        except Exception as e:
-            logger.warning("Could not bulk-seal session metrics: %s", e)
-
-        # destroy_hosts ignores the handles arg (terraform destroy operates
-        # on the whole workspace); skip the list_hosts() call.
-        try:
-            result = provider.destroy_hosts(
-                [], progress_callback=progress_callback,
-            )
-        except FileNotFoundError as e:
-            # No terraform.runtime.tfvars → no client VMs were ever launched.
-            raise RuntimeError(str(e)) from e
-        except subprocess.CalledProcessError as e:
-            error_output = ANSI_ESCAPE.sub("", e.stderr or e.stdout or "")
-            raise RuntimeError(error_output) from e
-
-        logger.debug("Clearing the database...")
-        database.clear_database()
-        logger.debug("Database cleared successfully.")
-        return result.stdout
-
-    try:
-        job_id = operations_worker.submit(
-            op_type="destroy",
-            fn=_run_destroy,
-            params=None,
-            created_by=auth.current_user(),
-        )
-    except OperationInProgress as exc:
-        error_msg = f"An operation is already in progress (job #{exc.job_id})"
-        if _wants_json():
-            return jsonify({
-                "status": "error", "error": error_msg, "job_id": exc.job_id,
-            }), 409
-        return redirect(
-            f"/admin/instances?error=already_in_progress&job_id={exc.job_id}"
-        )
-
-    if _wants_json():
-        return jsonify({"job_id": job_id, "status": "queued"}), 202
-    return redirect(f"/admin/instances?job={job_id}")
 
 
 @app.route("/api/session-metrics/<hostname>", methods=["POST"])
@@ -759,23 +550,6 @@ def cancel_scheduled_destruction(schedule_id: int):
     except Exception as e:
         logger.error(f"Failed to cancel scheduled destruction: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/operations", methods=["GET"])
-@auth.login_required
-def list_operations():
-    if request.args.get("status") == "in_progress":
-        return jsonify(operations_db.get_in_progress_operation())
-    return jsonify(operations_db.list_operations(limit=50))
-
-
-@app.route("/api/operations/<int:operation_id>", methods=["GET"])
-@auth.login_required
-def get_operation(operation_id):
-    operation = operations_db.get_operation(operation_id)
-    if operation is None:
-        return jsonify({"error": "Operation not found"}), 404
-    return jsonify(operation)
 
 
 def main():
