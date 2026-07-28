@@ -7,9 +7,7 @@ import json
 import base64
 from pathlib import Path
 from datetime import datetime
-import re
 import atexit
-from functools import wraps
 from typing import Callable, Optional
 
 from flask import (
@@ -20,9 +18,8 @@ from flask import (
     render_template,
     redirect,
 )
-from flask_httpauth import HTTPBasicAuth
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 
 import psycopg2
 
@@ -52,12 +49,22 @@ from lablink_allocator_service.signed_cookie import (
     get_or_create_cookie_secret,
 )
 from lablink_allocator_service.providers.registry import get_provider
-from lablink_allocator_service.secret_hash import hash_secret, verify_secret_cached
+from lablink_allocator_service.secret_hash import hash_secret
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
 )
 from lablink_allocator_service.routes.registration import bp as registration_bp
+
+# Re-exported for back-compat: `main.auth` and `main.require_client_secret`
+# are referenced by routes/registration.py and the test suite. `main.users`
+# (below) stays here; auth.verify_password reads it lazily.
+from lablink_allocator_service.auth import (
+    auth,
+    require_client_secret,
+    verify_password,  # noqa: F401
+)
+from lablink_allocator_service.utils.ansi import ANSI_ESCAPE
 
 app = Flask(__name__)
 
@@ -95,7 +102,6 @@ app.wsgi_app = _ProxyFixWhenTrusted(
 app.register_blueprint(desktop_bp)
 app.register_blueprint(internal_proxy_auth_bp)
 app.register_blueprint(registration_bp)
-auth = HTTPBasicAuth()
 
 # Define the terraform directory relative to this file (now inside the package)
 TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
@@ -130,7 +136,6 @@ if _missing:
 
 # Initialize variables
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
-ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 allocator_ip = os.getenv("ALLOCATOR_PUBLIC_IP")
 key_name = os.getenv("ALLOCATOR_KEY_NAME")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
@@ -234,50 +239,6 @@ logger.setLevel(_log_level)
 # Don't change the format without updating the extractor.
 if not app.config["LABLINK_PROVIDER"].can_provision_hosts:
     logger.info("REGISTER_TOKEN=%s", REGISTER_TOKEN)
-
-
-@auth.verify_password
-def verify_password(username, password):
-    """Verify the username and password against the stored users.
-    Args:
-        username (str): The username to verify.
-        password (str): The password to verify.
-    Returns:
-        str: The username if the credentials are valid, None otherwise.
-    """
-    if username in users and check_password_hash(users.get(username), password):
-        return username
-
-
-
-def require_client_secret(f):
-    """Require a valid per-client secret Bearer token. The client row is
-    resolved from the request's hostname field (`vm_id` for heartbeat,
-    else `hostname`; falls back to a `hostname` route kwarg)."""
-
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Missing or invalid Authorization header."}), 401
-        token = auth_header[7:]
-
-        body = request.get_json(silent=True) or {}
-        hostname = (
-            body.get("vm_id")
-            or body.get("hostname")
-            or kwargs.get("hostname")
-            or kwargs.get("client_id")
-        )
-        if not hostname:
-            return jsonify({"error": "client identity required."}), 401
-
-        stored = database.get_client_secret_hash(hostname)
-        if not stored or not verify_secret_cached(hostname, token, stored):
-            return jsonify({"error": "Invalid client secret."}), 401
-        return f(*args, **kwargs)
-
-    return decorated
 
 
 def notify_participants():
