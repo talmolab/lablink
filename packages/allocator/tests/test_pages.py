@@ -1,3 +1,4 @@
+import re
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
@@ -343,6 +344,50 @@ def test_instances_fragment_shares_action_logic_with_full_page(
 
     assert "/admin/instances/vm-connect/connect" in full_html
     assert "/admin/instances/vm-connect/connect" in fragment_html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_view_instances_card_view_summary_counts(mock_database, client, admin_headers):
+    """Asserts the *computed numbers* in the Running/Initializing/Errors/
+    Total summary row, not the markup that renders them — this is a
+    regression guard on the server-side bucketing logic (a VM's status
+    maps to exactly one bucket), not a presentation check. Anchored on
+    each bucket's semantic CSS class rather than exact tag/nesting, so a
+    restyle (div -> span, added wrapper) doesn't break it, but a
+    bucketing bug still does."""
+    mock_database.get_all_vms.return_value = [
+        SimpleNamespace(
+            hostname="vm-running", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-error", useremail=None, inuse=False, healthy="Unhealthy",
+            status="error", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+    ]
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    def bucket_count(bucket):
+        match = re.search(
+            rf'class="[^"]*\b{re.escape(bucket)}\b[^"]*"[^>]*>\s*(\d+)\s*<', html
+        )
+        assert match, f"no count found for bucket class {bucket!r}"
+        return int(match.group(1))
+
+    # 1 running, 1 error, 1 other (provisioning -> counted as "initializing"
+    # bucket), 3 total.
+    assert bucket_count("vm-summary-running") == 1
+    assert bucket_count("vm-summary-error") == 1
+    assert bucket_count("vm-summary-initializing") == 1
+    assert bucket_count("vm-summary-total") == 3
 
 
 @patch("lablink_allocator_service.main.database")
