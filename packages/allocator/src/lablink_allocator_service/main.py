@@ -44,10 +44,6 @@ from lablink_allocator_service.db.operations import (
     OperationsDatabase,
 )
 from lablink_allocator_service.client_session import RotationFailed
-from lablink_allocator_service.signed_cookie import (
-    sign,
-    get_or_create_cookie_secret,
-)
 from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import hash_secret
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
@@ -55,6 +51,9 @@ from lablink_allocator_service.routes.internal_proxy_auth import (
     bp as internal_proxy_auth_bp,
 )
 from lablink_allocator_service.routes.registration import bp as registration_bp
+from lablink_allocator_service.routes.session_cookie import (
+    sign_session_cookie_and_redirect,
+)
 
 # Re-exported for back-compat: `main.auth` and `main.require_client_secret`
 # are referenced by routes/registration.py and the test suite. `main.users`
@@ -363,39 +362,6 @@ def view_instances_fragment():
     return render_template("instances.html", instances=instances, fragment=True)
 
 
-def _sign_session_cookie_and_redirect(session_id, *, suffix: str = "") -> Response:
-    """Sign ``session_id`` (optionally with a ``:suffix``) into the
-    lablink_session cookie and redirect to /desktop.
-
-    Shared by /api/request_vm and the admin peek/connect routes so the
-    cookie-hardening flags (httponly, samesite, secure) can't drift
-    apart across call sites.
-
-    Args:
-        session_id: The session identifier to sign (str or UUID).
-        suffix: Optional payload suffix (e.g. "view_only", "admin_session").
-            Omitted entirely for a bare student session.
-    """
-    conn = database._pool.getconn()
-    try:
-        secret = get_or_create_cookie_secret(conn)
-    finally:
-        database._pool.putconn(conn)
-
-    payload = f"{session_id}:{suffix}" if suffix else str(session_id)
-    signed = sign(payload, secret=secret)
-    resp = redirect("/desktop", code=303)
-    # Secure flag is decided by whether the inbound request was https —
-    # front door (ALB/Caddy/Cloudflare) sets X-Forwarded-Proto.
-    is_https = request.headers.get("X-Forwarded-Proto") == "https"
-    resp.set_cookie(
-        "lablink_session", signed,
-        httponly=True, samesite="Strict",
-        secure=is_https, path="/",
-    )
-    return resp
-
-
 @app.route("/admin/instances/<hostname>/peek")
 @auth.login_required
 def admin_peek_vm(hostname):
@@ -406,7 +372,7 @@ def admin_peek_vm(hostname):
     if session is None:
         return redirect("/admin/instances?vnc_error=peek_unavailable")
 
-    return _sign_session_cookie_and_redirect(
+    return sign_session_cookie_and_redirect(
         session["sessionid"], suffix="view_only"
     )
 
@@ -450,7 +416,7 @@ def admin_connect_vm(hostname):
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return redirect("/admin/instances?vnc_error=rotation_failed")
 
-        return _sign_session_cookie_and_redirect(
+        return sign_session_cookie_and_redirect(
             session_id, suffix="admin_session"
         )
     except Exception:
@@ -545,7 +511,7 @@ def submit_vm_details():
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return render_template("rotation_failed.html"), 503
 
-        return _sign_session_cookie_and_redirect(session_id)
+        return sign_session_cookie_and_redirect(session_id)
 
     except Exception as e:
         logger.error("Error in submit_vm_details: %s", e, exc_info=True)

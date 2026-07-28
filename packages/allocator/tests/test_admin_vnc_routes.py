@@ -25,7 +25,7 @@ def test_peek_redirects_to_desktop_with_view_only_cookie(
         "lablink_allocator_service.main.database", fake_db, raising=True
     )
     monkeypatch.setattr(
-        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        "lablink_allocator_service.routes.session_cookie.get_or_create_cookie_secret",
         lambda conn: "test-secret",
     )
 
@@ -77,7 +77,7 @@ def test_connect_success_redirects_with_admin_session_cookie(
         lambda **kw: None,
     )
     monkeypatch.setattr(
-        "lablink_allocator_service.main.get_or_create_cookie_secret",
+        "lablink_allocator_service.routes.session_cookie.get_or_create_cookie_secret",
         lambda conn: "test-secret",
     )
 
