@@ -4,7 +4,6 @@
 the allocator — it claims a seat by email. Rejoin is idempotent: an email
 that already owns a running seat keeps it rather than consuming a second.
 """
-
 import logging
 import secrets
 

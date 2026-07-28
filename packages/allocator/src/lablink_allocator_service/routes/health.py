@@ -4,7 +4,6 @@ Reports per-dependency readiness rather than a bare 200 so a deployment
 stuck mid-startup is distinguishable from a healthy one: 200 + "healthy"
 only once every check passes, 503 + "starting" otherwise.
 """
-
 import subprocess
 import time
 
