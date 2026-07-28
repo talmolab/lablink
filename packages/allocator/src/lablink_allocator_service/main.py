@@ -30,8 +30,6 @@ from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
-    canonical_base_url,
-    is_self_signed_ssl,
     should_use_https,
 )
 from lablink_allocator_service.utils.sg_audit import SGAuditFailure
@@ -46,6 +44,7 @@ from lablink_allocator_service.db.operations import (
 from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import hash_secret
+from lablink_allocator_service.routes.admin_pages import bp as admin_pages_bp
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.health import bp as health_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
@@ -100,6 +99,7 @@ class _ProxyFixWhenTrusted:
 app.wsgi_app = _ProxyFixWhenTrusted(
     app.wsgi_app, trust_headers=lambda: should_use_https(cfg)
 )
+app.register_blueprint(admin_pages_bp)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(internal_proxy_auth_bp)
@@ -252,58 +252,6 @@ def notify_participants():
     conn.commit()
 
 
-@app.route("/admin/create")
-@auth.login_required
-def create_instances():
-    return render_template("create-instances.html")
-
-
-@app.route("/admin")
-@auth.login_required
-def admin():
-    provider = app.config["LABLINK_PROVIDER"]
-    monitoring_enabled = bool(
-        getattr(cfg, "monitoring", None) and cfg.monitoring.enabled
-    )
-    return render_template(
-        "admin.html",
-        can_provision_hosts=provider.can_provision_hosts,
-        can_destroy_hosts=provider.can_destroy_hosts,
-        monitoring_enabled=monitoring_enabled,
-    )
-
-
-@app.route("/admin/byo-onboarding")
-@auth.login_required
-def byo_onboarding():
-    """Render the ready-to-copy `lablink client register` command for BYO clients.
-
-    The register token rotates on each allocator restart, so this page is
-    dynamic — re-render to get the current token. Behind admin Basic auth
-    (same gate as the rest of /admin); no new privilege boundary.
-    """
-    return render_template(
-        "byo-onboarding.html",
-        allocator_url=canonical_base_url(request),
-        register_token=REGISTER_TOKEN,
-        show_insecure=is_self_signed_ssl(cfg),
-    )
-
-
-@app.route("/admin/instances")
-@auth.login_required
-def view_instances():
-    instances = database.get_all_vms()
-    return render_template("instances.html", instances=instances, fragment=False)
-
-
-@app.route("/admin/instances/fragment")
-@auth.login_required
-def view_instances_fragment():
-    instances = database.get_all_vms()
-    return render_template("instances.html", instances=instances, fragment=True)
-
-
 @app.route("/admin/instances/<hostname>/peek")
 @auth.login_required
 def admin_peek_vm(hostname):
@@ -385,12 +333,6 @@ def admin_release_vm(hostname):
     button and the /desktop wrapper page's Release form."""
     database.release_seat(hostname=hostname)
     return redirect("/admin/instances")
-
-
-@app.route("/admin/instances/delete")
-@auth.login_required
-def delete_instances():
-    return render_template("delete-instances.html")
 
 
 def _wants_json():
@@ -771,23 +713,6 @@ def get_vm_logs_by_hostname(hostname):
         return jsonify({"error": "Failed to get VM logs."}), 500
 
 
-@app.route("/admin/logs/<hostname>", methods=["GET"])
-@auth.login_required
-def get_vm_logs(hostname):
-    """Get the logs for a specific VM."""
-    logger.debug(f"Fetching logs for VM: {hostname}")
-    if not database.vm_exists(hostname=hostname):
-        logger.error(f"VM with hostname {hostname} not found.")
-        return jsonify({"error": "VM not found."}), 404
-    # Non-AWS providers (manual/BYO) have no cloud-init concept; the
-    # template hides that section when provider != "aws".
-    return render_template(
-        "instance-logs.html",
-        hostname=hostname,
-        provider=cfg.provider,
-    )
-
-
 @app.route("/api/vm-metrics/<hostname>", methods=["POST"])
 @require_client_secret
 def receive_vm_metrics(hostname):
@@ -1117,13 +1042,6 @@ def cancel_scheduled_destruction(schedule_id: int):
     except Exception as e:
         logger.error(f"Failed to cancel scheduled destruction: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/admin/scheduled-destruction", methods=["GET"])
-@auth.login_required
-def scheduled_destruction_page():
-    """Render scheduled destruction management page."""
-    return render_template("scheduled-destruction.html")
 
 
 @app.route("/api/operations", methods=["GET"])
