@@ -744,6 +744,26 @@ def _render_manual_clients_table(clients: list[dict]) -> None:
     console.print(table)
 
 
+def _public_url(workdir: Path) -> str | None:
+    """The participant-facing URL `lablink deploy` published for this stack.
+
+    Read from the canonical-URL file staged in the deployment dir (the same
+    file bind-mounted into the allocator, written from `tailscale funnel
+    status`). Empty on every deployment that isn't Funnel-exposed, in which
+    case there is no public URL to show and this returns None.
+    """
+    # Imported inside the function: deploy_compose imports
+    # check_health_endpoint from this module, so a module-level import here
+    # would close an import cycle.
+    from lablink_cli.commands.deploy_compose import CANONICAL_URL_FILENAME
+
+    try:
+        candidate = (workdir / CANONICAL_URL_FILENAME).read_text().strip()
+    except OSError:
+        return None
+    return candidate if candidate.startswith(("http://", "https://")) else None
+
+
 def _run_status_manual(cfg: Config) -> None:
     """Report compose stack health, allocator HTTP health, and BYO clients."""
     workdir = Path.home() / ".lablink" / "compose" / (
@@ -783,6 +803,28 @@ def _run_status_manual(cfg: Config) -> None:
             f"[yellow]Allocator not healthy at {base_url}/api/health[/yellow]"
         )
 
+    # localhost above is the local liveness probe; it is not the address
+    # participants (or BYO clients) use. When the stack is Funnel-exposed,
+    # surface the public URL too — and check it, since Funnel being off or
+    # the tailnet being down is invisible from a localhost probe.
+    public_url = _public_url(workdir)
+    if public_url:
+        label = (
+            "Tailscale Funnel"
+            if cfg.manual.participant_exposure == "tailscale_funnel"
+            else "public"
+        )
+        console.print(f"[bold]Public URL ({label}):[/bold] {public_url}")
+        public_health = check_health_endpoint(public_url)
+        if public_health.get("healthy"):
+            console.print(f"[green]Reachable at {public_url}/api/health[/green]")
+        else:
+            detail = public_health.get("detail") or public_health.get("status", "")
+            console.print(
+                f"[yellow]Not reachable at {public_url}/api/health"
+                f"{f' — {detail}' if detail else ''}[/yellow]"
+            )
+
     console.print()
     console.print("[bold]Registered Clients[/bold]")
     creds = _resolve_manual_admin_credentials(cfg, workdir)
@@ -790,7 +832,7 @@ def _run_status_manual(cfg: Config) -> None:
         console.print(
             "[yellow]Admin credentials not found in config — "
             "cannot list clients. Open the admin dashboard at "
-            f"{scheme}://localhost instead.[/yellow]"
+            f"{public_url or f'{scheme}://localhost'} instead.[/yellow]"
         )
         return
 

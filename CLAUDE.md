@@ -108,8 +108,14 @@ cd packages/cli       && PYTHONPATH=src uv run pytest  # integration: pytest -m 
 # Lint
 ruff check packages/allocator packages/client packages/cli
 
-# Build Docker (dev)
-docker build -t lablink-allocator:dev -f packages/allocator/Dockerfile.dev .
+# Build Docker (dev) — context MUST be the package dir, not the repo root:
+# Dockerfile.dev's COPY paths (start.sh, lablink-nginx.conf, pg_hba.conf) are
+# relative to packages/allocator/, so building from the root fails with
+# `"/start.sh": not found`. On Apple Silicon --platform is required too: the
+# image pulls an amd64-only kasmvncserver .deb, which aborts a native arm64
+# build with apt exit code 100.
+cd packages/allocator && docker build --platform linux/amd64 \
+  -t lablink-allocator:dev -f Dockerfile.dev .
 ```
 
 Two things about the allocator test command:

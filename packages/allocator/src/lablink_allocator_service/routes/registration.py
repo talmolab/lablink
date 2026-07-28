@@ -18,6 +18,7 @@ from lablink_allocator_service.secret_hash import (
     hash_secret,
     verify_secret_cached,
 )
+from lablink_allocator_service.utils.config_helpers import canonical_base_url
 
 bp = Blueprint("registration", __name__)
 
@@ -99,7 +100,7 @@ def register_client():
     if client_id is None:
         return jsonify({"error": "registration conflict"}), 409
 
-    allocator_url = request.host_url.rstrip("/")
+    allocator_url = canonical_base_url(request)
     # cfg.machine.repository is the tutorial-repo-to-clone URL (shipped to
     # the AWS path as spec["repository"] -> TUTORIAL_REPO_TO_CLONE in
     # client/start.sh) — unrelated to the docker image reference. The AWS

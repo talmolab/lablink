@@ -1,5 +1,4 @@
 """Tests for the registration API + register-token at-rest hashing."""
-import pytest
 from unittest.mock import MagicMock
 
 
@@ -73,27 +72,6 @@ def test_require_client_secret_rejects_missing_header(monkeypatch):
 def test_require_client_secret_rejects_null_hash(monkeypatch):
     resp = _decorated(monkeypatch, None, "Bearer sek")
     assert resp[1] == 401
-
-
-@pytest.fixture
-def reg_client(app, monkeypatch):
-    from lablink_allocator_service import main
-    from lablink_allocator_service.secret_hash import hash_secret
-    from lablink_allocator_service.providers.connectivity.allocator_proxied import (
-        AllocatorProxiedClientConnectivity,
-    )
-
-    class _StubProvider:
-        client_connectivity = AllocatorProxiedClientConnectivity()
-
-    app.config["LABLINK_PROVIDER"] = _StubProvider()
-
-    fake_db = MagicMock()
-    fake_db.register_client.return_value = "vm-1"
-    monkeypatch.setattr(main, "database", fake_db, raising=False)
-    monkeypatch.setattr(main, "REGISTER_TOKEN", "tk_test_register", raising=False)
-    fake_db.get_setting.return_value = hash_secret("tk_test_register")
-    return app.test_client(), fake_db
 
 
 def test_register_rejects_bad_token(reg_client):

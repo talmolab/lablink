@@ -33,6 +33,7 @@ from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
+    canonical_base_url,
     is_self_signed_ssl,
     should_use_https,
 )
@@ -381,7 +382,7 @@ def byo_onboarding():
     """
     return render_template(
         "byo-onboarding.html",
-        allocator_url=request.host_url.rstrip("/"),
+        allocator_url=canonical_base_url(request),
         register_token=REGISTER_TOKEN,
         show_insecure=is_self_signed_ssl(cfg),
     )

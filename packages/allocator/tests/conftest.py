@@ -140,6 +140,35 @@ def client(app):
 
 
 @pytest.fixture
+def reg_client(app, monkeypatch):
+    """Flask client wired for /api/v1/clients/register, with a stub provider,
+    a MagicMock database, and a known register token.
+
+    Returns (test_client, fake_db). Shared by test_registration_api.py and
+    test_canonical_url.py.
+    """
+    from unittest.mock import MagicMock
+
+    from lablink_allocator_service import main
+    from lablink_allocator_service.secret_hash import hash_secret
+    from lablink_allocator_service.providers.connectivity.allocator_proxied import (
+        AllocatorProxiedClientConnectivity,
+    )
+
+    class _StubProvider:
+        client_connectivity = AllocatorProxiedClientConnectivity()
+
+    app.config["LABLINK_PROVIDER"] = _StubProvider()
+
+    fake_db = MagicMock()
+    fake_db.register_client.return_value = "vm-1"
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "REGISTER_TOKEN", "tk_test_register", raising=False)
+    fake_db.get_setting.return_value = hash_secret("tk_test_register")
+    return app.test_client(), fake_db
+
+
+@pytest.fixture
 def admin_headers(omega_config):
     """Convenience Basic-Auth header using cfg credentials."""
 
