@@ -15,10 +15,10 @@ class TestTailscaleStatus:
     would misreport as "ok"."""
 
     def test_ok_when_ipv4_address_present(self, monkeypatch):
-        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         monkeypatch.setattr(
-            main_mod.subprocess,
+            health_mod.subprocess,
             "run",
             lambda *a, **k: MagicMock(
                 returncode=0,
@@ -26,50 +26,50 @@ class TestTailscaleStatus:
             ),
         )
 
-        assert main_mod._tailscale_status() == "ok"
+        assert health_mod._tailscale_status() == "ok"
 
     def test_not_joined_when_only_ipv6_link_local(self, monkeypatch):
         """The false-positive case found live: interface up, no IPv4."""
-        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         monkeypatch.setattr(
-            main_mod.subprocess,
+            health_mod.subprocess,
             "run",
             lambda *a, **k: MagicMock(returncode=0, stdout=""),
         )
 
-        assert main_mod._tailscale_status() == "not joined"
+        assert health_mod._tailscale_status() == "not joined"
 
     def test_not_joined_when_interface_absent(self, monkeypatch):
-        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         monkeypatch.setattr(
-            main_mod.subprocess,
+            health_mod.subprocess,
             "run",
             lambda *a, **k: MagicMock(returncode=1, stdout=""),
         )
 
-        assert main_mod._tailscale_status() == "not joined"
+        assert health_mod._tailscale_status() == "not joined"
 
     def test_not_joined_when_ip_binary_missing(self, monkeypatch):
-        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         def _raise(*a, **k):
             raise OSError("ip: command not found")
 
-        monkeypatch.setattr(main_mod.subprocess, "run", _raise)
+        monkeypatch.setattr(health_mod.subprocess, "run", _raise)
 
-        assert main_mod._tailscale_status() == "not joined"
+        assert health_mod._tailscale_status() == "not joined"
 
     def test_not_joined_on_timeout(self, monkeypatch):
-        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         def _raise(*a, **k):
             raise subprocess.TimeoutExpired(cmd="ip", timeout=5)
 
-        monkeypatch.setattr(main_mod.subprocess, "run", _raise)
+        monkeypatch.setattr(health_mod.subprocess, "run", _raise)
 
-        assert main_mod._tailscale_status() == "not joined"
+        assert health_mod._tailscale_status() == "not joined"
 
 
 class TestHealthEndpoint:
@@ -157,6 +157,7 @@ class TestHealthEndpoint:
 
     def test_tailscale_check_ok_when_joined(self, client, monkeypatch):
         import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         monkeypatch.setattr(main_mod, "database", MagicMock())
         monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
@@ -166,7 +167,7 @@ class TestHealthEndpoint:
             "requires_tailscale_check",
             True,
         )
-        monkeypatch.setattr(main_mod, "_tailscale_status", lambda: "ok")
+        monkeypatch.setattr(health_mod, "_tailscale_status", lambda: "ok")
 
         resp = client.get("/api/health")
         assert resp.status_code == 200
@@ -174,6 +175,7 @@ class TestHealthEndpoint:
 
     def test_tailscale_check_not_joined_marks_unhealthy(self, client, monkeypatch):
         import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
 
         monkeypatch.setattr(main_mod, "database", MagicMock())
         monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
@@ -183,7 +185,7 @@ class TestHealthEndpoint:
             "requires_tailscale_check",
             True,
         )
-        monkeypatch.setattr(main_mod, "_tailscale_status", lambda: "not joined")
+        monkeypatch.setattr(health_mod, "_tailscale_status", lambda: "not joined")
 
         resp = client.get("/api/health")
         assert resp.status_code == 503
