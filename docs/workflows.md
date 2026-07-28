@@ -134,7 +134,7 @@ PR opened → ci.yml triggered
      ├─ Entry points importable: main(), generate_init_sql.main() ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
      ├─ Dev dependencies: pytest 8.4.2, ruff, coverage 7.10.7 ✓
-     ├─ Package imports: main.main, database.PostgresqlDatabase, get_config ✓
+     ├─ Package imports: main.main, db.* classes, get_config ✓
      └─ Installation: Package installed via uv sync ✓
 ```
 
@@ -639,7 +639,7 @@ Runs after successful build, pulls and tests the allocator image:
 - **Virtual Environment**: Activates venv at `/app/.venv`
 - **Entry Points**: Verifies `main()` and `generate_init_sql.main()` are importable and callable
 - **Console Scripts**: Verifies `lablink-allocator` and `generate-init-sql` exist and execute
-- **Package Imports**: Tests importing `main`, `database.PostgresqlDatabase`, `get_config`
+- **Package Imports**: Tests importing `main`, every `db/` module (`db.pool`, `db.vms.VmDatabase`, `db.schedules.ScheduleDatabase`, `db.metrics.MetricsDatabase`, `db.operations.OperationsDatabase`), and `get_config`. Importing each `db/` submodule explicitly is what catches a subpackage that failed to ship in the wheel
 - **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
 
 #### 3. Verify Client Job
@@ -667,7 +667,7 @@ PR opened → lablink-images.yml triggered
      ├─ Venv activated: /app/.venv ✓
      ├─ Entry points callable: main(), generate_init_sql.main() ✓
      ├─ Console scripts: lablink-allocator, generate-init-sql ✓
-     ├─ Imports: main.main, database.PostgresqlDatabase, get_config ✓
+     ├─ Imports: main.main, db.* classes, get_config ✓
      └─ Dev deps: pytest 8.4.2, ruff ✓
   └─ Verify Client Job
      ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-abc1234-test
