@@ -362,12 +362,27 @@ def test_view_instances_card_view_summary_counts(mock_database, client, admin_he
             containerstartupdurationseconds=0, totalstartupdurationseconds=0,
         ),
         SimpleNamespace(
+            hostname="vm-running-2", useremail=None, inuse=False, healthy="Healthy",
+            status="running", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
             hostname="vm-error", useremail=None, inuse=False, healthy="Unhealthy",
             status="error", sessionid=None, adminreservedat=None,
             containerstartupdurationseconds=0, totalstartupdurationseconds=0,
         ),
         SimpleNamespace(
             hostname="vm-provisioning", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning-2", useremail=None, inuse=False, healthy=None,
+            status="provisioning", sessionid=None, adminreservedat=None,
+            containerstartupdurationseconds=0, totalstartupdurationseconds=0,
+        ),
+        SimpleNamespace(
+            hostname="vm-provisioning-3", useremail=None, inuse=False, healthy=None,
             status="provisioning", sessionid=None, adminreservedat=None,
             containerstartupdurationseconds=0, totalstartupdurationseconds=0,
         ),
@@ -382,12 +397,13 @@ def test_view_instances_card_view_summary_counts(mock_database, client, admin_he
         assert match, f"no count found for bucket class {bucket!r}"
         return int(match.group(1))
 
-    # 1 running, 1 error, 1 other (provisioning -> counted as "initializing"
-    # bucket), 3 total.
-    assert bucket_count("vm-summary-running") == 1
+    # 2 running, 1 error, 3 other (provisioning -> counted as "initializing"
+    # bucket), 6 total. All four expected values are pairwise distinct so a
+    # copy-paste bucket swap (e.g. running <-> error) cannot pass silently.
+    assert bucket_count("vm-summary-running") == 2
     assert bucket_count("vm-summary-error") == 1
-    assert bucket_count("vm-summary-initializing") == 1
-    assert bucket_count("vm-summary-total") == 3
+    assert bucket_count("vm-summary-initializing") == 3
+    assert bucket_count("vm-summary-total") == 6
 
 
 @patch("lablink_allocator_service.main.database")

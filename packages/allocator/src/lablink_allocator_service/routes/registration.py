@@ -14,6 +14,7 @@ import secrets
 from flask import Blueprint, current_app, jsonify, request
 
 from lablink_allocator_service.auth import auth
+from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import (
     REGISTER_TOKEN_SUBJECT,
     hash_secret,
@@ -48,7 +49,7 @@ def register_client():
     provider = body.get("provider", "aws")
     provider_metadata = body.get("provider_metadata") or {}
 
-    prov = current_app.config.get("LABLINK_PROVIDER") or main.get_provider(
+    prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
         main.cfg.get("provider", None),
         region=main.cfg.app.region,
         terraform_dir=str(main.TERRAFORM_DIR),

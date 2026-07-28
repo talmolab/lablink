@@ -41,14 +41,6 @@ from lablink_allocator_service.routes.registration import bp as registration_bp
 from lablink_allocator_service.routes.schedules import bp as schedules_bp
 from lablink_allocator_service.routes.vm_telemetry import bp as vm_telemetry_bp
 
-# Re-exported for back-compat: tests/test_registration_api.py decorates a
-# test-local view function with `@main.require_client_secret`, so this name
-# must stay importable from `main` even though no route in this module
-# calls it directly anymore. `auth` and `verify_password` have no such
-# consumer (routes/registration.py imports `auth` directly from
-# lablink_allocator_service.auth) and were dropped.
-from lablink_allocator_service.auth import require_client_secret  # noqa: F401
-
 app = Flask(__name__)
 
 
