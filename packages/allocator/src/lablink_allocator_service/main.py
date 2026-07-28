@@ -10,8 +10,6 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
 
-import psycopg2
-
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.db.vms import VmDatabase
@@ -43,17 +41,13 @@ from lablink_allocator_service.routes.registration import bp as registration_bp
 from lablink_allocator_service.routes.schedules import bp as schedules_bp
 from lablink_allocator_service.routes.vm_telemetry import bp as vm_telemetry_bp
 
-# Re-exported for back-compat: `main.auth` and `main.require_client_secret`
-# are referenced by routes/registration.py and the test suite. `main.users`
-# (below) stays here; auth.verify_password reads it lazily. As of the
-# metrics.py route move, no route in this module calls `auth` or
-# `require_client_secret` directly anymore — both are kept solely as
-# re-exports for external/test consumers.
-from lablink_allocator_service.auth import (
-    auth,  # noqa: F401
-    require_client_secret,  # noqa: F401
-    verify_password,  # noqa: F401
-)
+# Re-exported for back-compat: tests/test_registration_api.py decorates a
+# test-local view function with `@main.require_client_secret`, so this name
+# must stay importable from `main` even though no route in this module
+# calls it directly anymore. `auth` and `verify_password` have no such
+# consumer (routes/registration.py imports `auth` directly from
+# lablink_allocator_service.auth) and were dropped.
+from lablink_allocator_service.auth import require_client_secret  # noqa: F401
 
 app = Flask(__name__)
 
@@ -236,14 +230,6 @@ logger.setLevel(_log_level)
 # Don't change the format without updating the extractor.
 if not app.config["LABLINK_PROVIDER"].can_provision_hosts:
     logger.info("REGISTER_TOKEN=%s", REGISTER_TOKEN)
-
-
-def notify_participants():
-    """Trigger function to notify participant VMs."""
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-    cursor = conn.cursor()
-    cursor.execute("LISTEN vm_updates;")
-    conn.commit()
 
 
 def main():
