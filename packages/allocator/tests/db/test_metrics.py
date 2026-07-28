@@ -7,20 +7,20 @@ import pytest
 
 @pytest.fixture
 def fake_db():
-    """Return a PostgresqlDatabase instance with mocked cursor."""
-    from lablink_allocator_service.database import PostgresqlDatabase
+    """Return a MetricsDatabase instance with a mocked cursor."""
+    from lablink_allocator_service.db.metrics import MetricsDatabase
 
-    db = PostgresqlDatabase.__new__(PostgresqlDatabase)
+    db = MetricsDatabase.__new__(MetricsDatabase)
     db.table_name = "vms"
     db._cursor_mock = MagicMock()
     cursor_ctx = MagicMock(
         __enter__=MagicMock(return_value=db._cursor_mock),
         __exit__=MagicMock(return_value=False),
     )
-    # _cursor is a property on PostgresqlDatabase; override it at the
-    # class level for the duration of each test.
+    # _cursor is a property on MetricsDatabase; override it at the class
+    # level for the duration of each test.
     patcher = patch.object(
-        PostgresqlDatabase,
+        MetricsDatabase,
         "_cursor",
         new_callable=PropertyMock,
         return_value=cursor_ctx,
@@ -78,13 +78,6 @@ def test_update_session_metrics_lookup_error_when_host_unknown(fake_db):
     payload = {"session_started_at": "x", "counters": {}}
     with pytest.raises(LookupError, match="not found"):
         fake_db.update_session_metrics("vm-missing", payload)
-
-
-def test_seal_session_metrics_sets_sealed_at(fake_db):
-    fake_db.seal_session_metrics("vm-1")
-    sql = fake_db._cursor_mock.execute.call_args.args[0]
-    assert "SessionMetricsSealedAt" in sql
-    assert "vm-1" in str(fake_db._cursor_mock.execute.call_args.args[1])
 
 
 def test_bulk_seal_session_metrics_targets_all_unsealed(fake_db):

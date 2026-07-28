@@ -271,8 +271,16 @@ jobs:
           print(\"Importing allocator packages:\")
           from lablink_allocator_service.main import main
           print(\"  - main.main imported\")
-          from lablink_allocator_service.database import PostgresqlDatabase
-          print(\"  - database.PostgresqlDatabase imported\")
+          from lablink_allocator_service.db.pool import PooledCursor, make_pool
+          print(\"  - db.pool imported\")
+          from lablink_allocator_service.db.vms import VmDatabase
+          print(\"  - db.vms.VmDatabase imported\")
+          from lablink_allocator_service.db.schedules import ScheduleDatabase
+          print(\"  - db.schedules.ScheduleDatabase imported\")
+          from lablink_allocator_service.db.metrics import MetricsDatabase
+          print(\"  - db.metrics.MetricsDatabase imported\")
+          from lablink_allocator_service.db.operations import OperationsDatabase
+          print(\"  - db.operations.OperationsDatabase imported\")
           from lablink_allocator_service.get_config import get_config
           print(\"  - get_config.get_config imported\")
           print(\"Allocator imports verified\")

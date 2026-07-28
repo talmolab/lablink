@@ -11,7 +11,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
-    from lablink_allocator_service.operations_db import OperationsDatabase
+    from lablink_allocator_service.db.operations import OperationsDatabase
 
 logger = logging.getLogger(__name__)
 

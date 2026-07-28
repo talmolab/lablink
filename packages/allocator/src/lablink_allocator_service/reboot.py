@@ -16,7 +16,7 @@ import subprocess
 from datetime import datetime, timezone
 from threading import Thread, Event
 
-from lablink_allocator_service.database import PostgresqlDatabase
+from lablink_allocator_service.db.vms import VmDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class AutoRebootService:
     """Background service that monitors for failed VMs and reboots them.
 
     Args:
-        database: PostgresqlDatabase instance for querying/updating VM state.
+        database: VmDatabase instance for querying/updating VM state.
         region: AWS region where VMs are deployed.
         terraform_dir: Path to the Terraform directory (for SSH key retrieval).
         max_attempts: Maximum reboot attempts per VM before giving up.
@@ -35,7 +35,7 @@ class AutoRebootService:
 
     def __init__(
         self,
-        database: PostgresqlDatabase,
+        database: VmDatabase,
         region: str = "us-west-2",
         terraform_dir: str = "",
         max_attempts: int = 3,

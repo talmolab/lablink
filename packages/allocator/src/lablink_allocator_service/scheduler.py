@@ -10,15 +10,16 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
 from dateutil import rrule
 
-from lablink_allocator_service.database import PostgresqlDatabase
+from lablink_allocator_service.db.schedules import ScheduleDatabase
+from lablink_allocator_service.db.metrics import MetricsDatabase
 
 logger = logging.getLogger(__name__)
 
 
-def run_scheduled_destroy(handles: list, database, provider) -> None:
+def run_scheduled_destroy(handles: list, metrics_db, provider) -> None:
     """Seal session-metrics rows, then tear down the VMs."""
     logger.info("Bulk-sealing session metrics before destroy")
-    sealed = database.bulk_seal_session_metrics()
+    sealed = metrics_db.bulk_seal_session_metrics()
     logger.info("Sealed %d session-metrics rows", sealed)
     logger.info("Running provider.destroy_hosts via scheduled job")
     result = provider.destroy_hosts(handles)
@@ -47,49 +48,60 @@ def execute_scheduled_destruction_job(
         schedule_id: ID of the scheduled destruction
         terraform_dir: Path to Terraform directory
     """
-    from lablink_allocator_service.database import PostgresqlDatabase
+    from lablink_allocator_service.db.pool import make_pool
+    from lablink_allocator_service.db.vms import VmDatabase
     from lablink_allocator_service.get_config import get_config
     from lablink_allocator_service.providers.registry import get_provider
 
     # Load config at runtime to get credentials (avoids storing passwords in job store)
     cfg = get_config()
 
-    # Create a fresh database connection for this job
-    database = PostgresqlDatabase(
-        dbname=cfg.db.dbname,
-        user=cfg.db.user,
-        password=cfg.db.password,
-        host=cfg.db.host,
-        port=cfg.db.port,
-        table_name=cfg.db.table_name,
-    )
-
-    # Instantiate the provider from config (same as main.py at startup)
-    provider = get_provider(
-        cfg.provider,
-        region=cfg.app.region,
-        terraform_dir=terraform_dir,
-    )
-
-    logger.info(f"Executing scheduled destruction ID: {schedule_id}")
+    # Build a single pool for the whole job and derive every handle from
+    # it — including the VmDatabase kept around for
+    # clear_database() at the end of the job — instead of opening a
+    # second pool internally. VmDatabase does not take ownership
+    # of an injected pool (see its __init__ docstring), so `pool` remains
+    # the sole owner and `finally` below is the only place that closes it.
+    pool = make_pool(cfg.db)
 
     try:
+        schedule_db = ScheduleDatabase(pool=pool)
+        metrics_db = MetricsDatabase(pool=pool, table_name=cfg.db.table_name)
+        database = VmDatabase(
+            dbname=cfg.db.dbname,
+            user=cfg.db.user,
+            password=cfg.db.password,
+            host=cfg.db.host,
+            port=cfg.db.port,
+            table_name=cfg.db.table_name,
+            pool=pool,
+        )
+
+        # Instantiate the provider from config (same as main.py at startup)
+        provider = get_provider(
+            cfg.provider,
+            region=cfg.app.region,
+            terraform_dir=terraform_dir,
+        )
+
+        logger.info(f"Executing scheduled destruction ID: {schedule_id}")
+
         # Mark as executing
-        database.update_scheduled_destruction_status(
+        schedule_db.update_scheduled_destruction_status(
             schedule_id=schedule_id,
             status="executing",
         )
 
-        from lablink_allocator_service.operations_db import OperationsDatabase
+        from lablink_allocator_service.db.operations import OperationsDatabase
 
-        operations_db = OperationsDatabase(pool=database.pool)
+        operations_db = OperationsDatabase(pool=pool)
         if operations_db.get_in_progress_operation() is not None:
             logger.info(
                 "Scheduled destruction %s skipped — an on-demand operation "
                 "is in progress",
                 schedule_id,
             )
-            database.update_scheduled_destruction_status(
+            schedule_db.update_scheduled_destruction_status(
                 schedule_id=schedule_id,
                 status="failed",
                 execution_result=(
@@ -108,14 +120,14 @@ def execute_scheduled_destruction_job(
             # by way of run_scheduled_destroy, which also seals any open
             # session-metrics rows so they don't survive the tear-down.
             handles = provider.list_hosts()
-            run_scheduled_destroy(handles, database, provider)
+            run_scheduled_destroy(handles, metrics_db, provider)
 
         # Clear database
         logger.info("Clearing all VMs from database")
         database.clear_database()
 
         # Mark as completed
-        database.update_scheduled_destruction_status(
+        schedule_db.update_scheduled_destruction_status(
             schedule_id=schedule_id,
             status="completed",
             execution_result="All VMs destroyed successfully",
@@ -127,7 +139,7 @@ def execute_scheduled_destruction_job(
         error_msg = f"Terraform destroy failed: {e.stderr}"
         logger.error(error_msg)
 
-        database.update_scheduled_destruction_status(
+        schedule_db.update_scheduled_destruction_status(
             schedule_id=schedule_id,
             status="failed",
             execution_result=error_msg,
@@ -137,36 +149,32 @@ def execute_scheduled_destruction_job(
         error_msg = f"Destruction failed: {str(e)}"
         logger.error(error_msg)
 
-        database.update_scheduled_destruction_status(
+        schedule_db.update_scheduled_destruction_status(
             schedule_id=schedule_id,
             status="failed",
             execution_result=error_msg,
         )
 
     finally:
-        # Close the database connection manually
-        if hasattr(database, "cursor") and database.cursor:
-            database.cursor.close()
-        if hasattr(database, "conn") and database.conn:
-            database.conn.close()
-        logger.debug("Database connection closed.")
+        pool.closeall()
+        logger.debug("Scheduled-job connection pool closed.")
 
 
 class ScheduledDestructionService:
     def __init__(
         self,
-        database: PostgresqlDatabase,
+        schedule_db: ScheduleDatabase,
         db_url: str,
         terraform_dir: Optional[str] = None,
     ):
         """Initialize the scheduler service.
 
         Args:
-            database: PostgresqlDatabase instance
+            schedule_db: ScheduleDatabase instance
             db_url: PostgreSQL connection URL for APScheduler job store
             terraform_dir: Path to Terraform directory (optional, auto-detected if None)
         """
-        self.database: PostgresqlDatabase = database
+        self.schedule_db: ScheduleDatabase = schedule_db
         self.db_url = db_url
 
         self.terraform_dir = terraform_dir or os.path.join(
@@ -229,7 +237,7 @@ class ScheduledDestructionService:
         # Create database record
         # This will raise ValueError for duplicate names or RuntimeError for
         # other DB errors
-        schedule_id = self.database.create_scheduled_destruction(
+        schedule_id = self.schedule_db.create_scheduled_destruction(
             schedule_name=schedule_name,
             destruction_time=destruction_time,
             recurrence_rule=recurrence_rule,
@@ -260,7 +268,7 @@ class ScheduledDestructionService:
             self.scheduler.remove_job(job_id)
 
         # Update database
-        self.database.cancel_scheduled_destruction(schedule_id)
+        self.schedule_db.cancel_scheduled_destruction(schedule_id)
 
         logger.info(f"Cancelled scheduled destruction ID: {schedule_id}")
 
@@ -352,7 +360,7 @@ class ScheduledDestructionService:
     def _load_scheduled_destructions(self) -> None:
         """Load existing scheduled destructions from database on startup."""
 
-        pending_schedules = self.database.get_all_scheduled_destructions(
+        pending_schedules = self.schedule_db.get_all_scheduled_destructions(
             status="scheduled"
         )
 

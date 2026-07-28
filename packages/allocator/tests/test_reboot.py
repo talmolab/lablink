@@ -1,24 +1,17 @@
 """Tests for the automated VM reboot system."""
 
+import psycopg2
 import pytest
 from unittest.mock import MagicMock, patch, ANY
 from datetime import datetime, timezone, timedelta
 
-# Mock psycopg2 before importing modules
-mock_psycopg2 = MagicMock()
-mock_psycopg2.IntegrityError = type("IntegrityError", (Exception,), {})
-
-with patch.dict(
-    "sys.modules",
-    {
-        "psycopg2": mock_psycopg2,
-        "psycopg2.extensions": MagicMock(),
-        "psycopg2.pool": mock_psycopg2.pool,
-    },
-):
-    from lablink_allocator_service.database import PostgresqlDatabase
-    import lablink_allocator_service.reboot as reboot_mod
-    AutoRebootService = reboot_mod.AutoRebootService
+# No psycopg2 mocking: VmDatabase(..., pool=...) lets db_instance
+# inject a MagicMock pool directly, so db.vms/db.pool import normally, once,
+# real-bound, like any other module. See db_instance below and its
+# regression-test neighbor for why this replaced a sys.modules-based mock.
+from lablink_allocator_service.db.vms import VmDatabase
+import lablink_allocator_service.reboot as reboot_mod
+AutoRebootService = reboot_mod.AutoRebootService
 
 
 @pytest.fixture
@@ -31,27 +24,59 @@ def mock_db_connection():
 
     mock_pool = MagicMock()
     mock_pool.getconn.return_value = mock_conn
-    mock_psycopg2.pool.ThreadedConnectionPool.return_value = mock_pool
 
     return mock_conn, mock_cursor, mock_pool
 
 
 @pytest.fixture
 def db_instance(mock_db_connection):
-    """Fixture returning a PostgresqlDatabase wired to a mocked pool."""
+    """Fixture returning a VmDatabase wired to a mocked pool."""
     mock_conn, mock_cursor, mock_pool = mock_db_connection
-    db = PostgresqlDatabase(
+    db = VmDatabase(
         dbname="testdb",
         user="testuser",
         password="testpassword",
         host="localhost",
         port=5432,
         table_name="vms",
+        pool=mock_pool,
     )
     db.conn = mock_conn
     db.cursor = mock_cursor
-    db._pool = mock_pool
     return db
+
+
+def test_cursor_sets_autocommit_using_real_psycopg2_constant(db_instance):
+    """REGRESSION (two-db.pool-instances bug): PooledCursor.__enter__ must
+    apply the *same* ISOLATION_LEVEL_AUTOCOMMIT constant that db.vms's own
+    PooledCursor actually reads — not a stale value captured by some other
+    module's now-orphaned copy of db.pool.
+
+    Before dependency injection, this file mocked `sys.modules["psycopg2"]`
+    and relied on db.vms's own `import psycopg2` capturing that mock —
+    but VmDatabase._cursor's PooledCursor came from db.pool, a
+    *different* module, whose own psycopg2 binding depended on which test
+    file happened to import it first (tests/db/test_operations.py's real,
+    unmocked psycopg2 import, if collected first, would "win", poisoning
+    db.pool for every consumer collected afterward — including this file).
+    Every other test in this file drove _cursor without ever checking
+    which constant was actually used, so that divergence passed unnoticed.
+
+    Now that construction is injected (no psycopg2 mocking anywhere in
+    this file), db.vms/db.pool import normally exactly once, real-bound,
+    for the whole session — so this asserts against the real
+    psycopg2.extensions constant, and passes regardless of collection
+    order. Confirmed this fails on the pre-fix code (mocked sys.modules +
+    real db.pool.ThreadedConnectionPool construction) when run as
+    `pytest tests/db/test_operations.py tests/test_reboot.py -q`.
+    """
+    mock_conn = db_instance.conn
+    mock_conn.set_isolation_level.reset_mock()
+    with db_instance._cursor:
+        pass
+    mock_conn.set_isolation_level.assert_called_once_with(
+        psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+    )
 
 
 # --- Database method tests ---

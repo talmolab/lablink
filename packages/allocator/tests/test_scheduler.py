@@ -46,8 +46,8 @@ from lablink_allocator_service.scheduler import ScheduledDestructionService  # n
 
 
 @pytest.fixture
-def mock_database():
-    """Fixture to create a mock database instance."""
+def mock_schedule_db():
+    """Fixture to create a mock schedule_db instance."""
     return MagicMock()
 
 
@@ -60,13 +60,13 @@ def mock_scheduler():
 
 
 @pytest.fixture
-def scheduler_service(mock_database, mock_scheduler):
+def scheduler_service(mock_schedule_db, mock_scheduler):
     """Fixture to create a ScheduledDestructionService instance."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"
     terraform_dir = "/tmp/terraform"
 
     service = ScheduledDestructionService(
-        database=mock_database,
+        schedule_db=mock_schedule_db,
         db_url=db_url,
         terraform_dir=terraform_dir,
     )
@@ -77,17 +77,17 @@ def scheduler_service(mock_database, mock_scheduler):
     return service
 
 
-def test_init_creates_scheduler(mock_database):
+def test_init_creates_scheduler(mock_schedule_db):
     """Test that __init__ properly configures the APScheduler."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"
 
     service = ScheduledDestructionService(
-        database=mock_database,
+        schedule_db=mock_schedule_db,
         db_url=db_url,
     )
 
     # Verify the service was created with correct attributes
-    assert service.database == mock_database
+    assert service.schedule_db == mock_schedule_db
     assert service.scheduler is not None
 
     # Only check mocks if they were actually used (when APScheduler wasn't pre-imported)
@@ -100,13 +100,13 @@ def test_init_creates_scheduler(mock_database):
         mock_background_scheduler.assert_called()
 
 
-def test_init_custom_terraform_dir(mock_database):
+def test_init_custom_terraform_dir(mock_schedule_db):
     """Test that custom terraform_dir is used when provided."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"
     custom_dir = "/custom/terraform/path"
 
     service = ScheduledDestructionService(
-        database=mock_database,
+        schedule_db=mock_schedule_db,
         db_url=db_url,
         terraform_dir=custom_dir,
     )
@@ -114,9 +114,9 @@ def test_init_custom_terraform_dir(mock_database):
     assert service.terraform_dir == custom_dir
 
 
-def test_start_loads_scheduled_destructions(scheduler_service, mock_database):
+def test_start_loads_scheduled_destructions(scheduler_service, mock_schedule_db):
     """Test that start() initializes scheduler and loads existing schedules."""
-    mock_database.get_all_scheduled_destructions.return_value = [
+    mock_schedule_db.get_all_scheduled_destructions.return_value = [
         {
             "id": 1,
             "destruction_time": datetime(2025, 12, 6, 18, 0, 0),
@@ -135,7 +135,7 @@ def test_start_loads_scheduled_destructions(scheduler_service, mock_database):
     scheduler_service.scheduler.start.assert_called_once()
 
     # Verify schedules were loaded from database
-    mock_database.get_all_scheduled_destructions.assert_called_once_with(
+    mock_schedule_db.get_all_scheduled_destructions.assert_called_once_with(
         status="scheduled"
     )
 
@@ -143,13 +143,13 @@ def test_start_loads_scheduled_destructions(scheduler_service, mock_database):
     assert scheduler_service.scheduler.add_job.call_count == 2
 
 
-def test_schedule_destruction_one_time(scheduler_service, mock_database):
+def test_schedule_destruction_one_time(scheduler_service, mock_schedule_db):
     """Test scheduling a one-time destruction."""
     schedule_name = "End of Tutorial"
     destruction_time = datetime(2025, 12, 6, 18, 0, 0, tzinfo=timezone.utc)
     created_by = "admin@example.com"
 
-    mock_database.create_scheduled_destruction.return_value = 42
+    mock_schedule_db.create_scheduled_destruction.return_value = 42
 
     schedule_id = scheduler_service.schedule_destruction(
         schedule_name=schedule_name,
@@ -161,7 +161,7 @@ def test_schedule_destruction_one_time(scheduler_service, mock_database):
     )
 
     # Verify database record was created
-    mock_database.create_scheduled_destruction.assert_called_once_with(
+    mock_schedule_db.create_scheduled_destruction.assert_called_once_with(
         schedule_name=schedule_name,
         destruction_time=destruction_time,
         recurrence_rule=None,
@@ -181,13 +181,13 @@ def test_schedule_destruction_one_time(scheduler_service, mock_database):
     assert schedule_id == 42
 
 
-def test_schedule_destruction_recurring(scheduler_service, mock_database):
+def test_schedule_destruction_recurring(scheduler_service, mock_schedule_db):
     """Test scheduling a recurring destruction."""
     schedule_name = "Weekly Cleanup"
     destruction_time = datetime(2025, 12, 6, 17, 30, 0, tzinfo=timezone.utc)
     recurrence_rule = "FREQ=WEEKLY;BYDAY=FR"
 
-    mock_database.create_scheduled_destruction.return_value = 99
+    mock_schedule_db.create_scheduled_destruction.return_value = 99
 
     schedule_id = scheduler_service.schedule_destruction(
         schedule_name=schedule_name,
@@ -199,8 +199,8 @@ def test_schedule_destruction_recurring(scheduler_service, mock_database):
     )
 
     # Verify database record was created with recurrence
-    mock_database.create_scheduled_destruction.assert_called_once()
-    call_args = mock_database.create_scheduled_destruction.call_args[1]
+    mock_schedule_db.create_scheduled_destruction.assert_called_once()
+    call_args = mock_schedule_db.create_scheduled_destruction.call_args[1]
     assert call_args["recurrence_rule"] == recurrence_rule
 
     # Verify job was added to scheduler
@@ -208,7 +208,7 @@ def test_schedule_destruction_recurring(scheduler_service, mock_database):
     assert schedule_id == 99
 
 
-def test_cancel_scheduled_destruction(scheduler_service, mock_database):
+def test_cancel_scheduled_destruction(scheduler_service, mock_schedule_db):
     """Test cancelling a scheduled destruction."""
     schedule_id = 42
     mock_job = MagicMock()
@@ -221,10 +221,10 @@ def test_cancel_scheduled_destruction(scheduler_service, mock_database):
     scheduler_service.scheduler.remove_job.assert_called_once_with("destruction_42")
 
     # Verify database was updated
-    mock_database.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
+    mock_schedule_db.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
 
 
-def test_cancel_scheduled_destruction_job_not_found(scheduler_service, mock_database):
+def test_cancel_scheduled_destruction_job_not_found(scheduler_service, mock_schedule_db):
     """Test cancelling when job doesn't exist in scheduler."""
     schedule_id = 42
     scheduler_service.scheduler.get_job.return_value = None
@@ -235,7 +235,7 @@ def test_cancel_scheduled_destruction_job_not_found(scheduler_service, mock_data
     scheduler_service.scheduler.remove_job.assert_not_called()
 
     # Should still update database
-    mock_database.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
+    mock_schedule_db.cancel_scheduled_destruction.assert_called_once_with(schedule_id)
 
 
 def test_parse_rrule_to_cron_weekly(scheduler_service):
@@ -295,7 +295,7 @@ def _make_mock_config(provider_name="aws"):
 
 
 def test_execute_scheduled_destruction_success(
-    scheduler_service, mock_database, tmp_path
+    scheduler_service, mock_schedule_db, tmp_path
 ):
     """Test successful execution of scheduled destruction via standalone function.
 
@@ -315,10 +315,20 @@ def test_execute_scheduled_destruction_success(
 
     fake_operations_db = MagicMock()
     fake_operations_db.get_in_progress_operation.return_value = None
+    fake_pool = MagicMock()
+    fake_vm_db = MagicMock()
 
+    # The standalone job builds one pool (make_pool) and derives its
+    # VmDatabase and ScheduleDatabase from it. Patch each database class to
+    # its own distinct double — fake_vm_db for VmDatabase, mock_schedule_db
+    # for ScheduleDatabase — so an assertion against the wrong owner (e.g.
+    # a regression that calls update_scheduled_destruction_status on the VM
+    # database) would fail loudly instead of silently passing.
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
-         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
-         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+         patch("lablink_allocator_service.db.pool.make_pool", return_value=fake_pool), \
+         patch("lablink_allocator_service.db.vms.VmDatabase", return_value=fake_vm_db), \
+         patch("lablink_allocator_service.scheduler.ScheduleDatabase", return_value=mock_schedule_db), \
+         patch("lablink_allocator_service.db.operations.OperationsDatabase",
                return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
@@ -329,9 +339,12 @@ def test_execute_scheduled_destruction_success(
             terraform_dir=terraform_dir,
         )
 
+    # Verify the job's pool was closed exactly once, in the finally block
+    fake_pool.closeall.assert_called_once()
+
     # Verify status updated to executing first
-    assert mock_database.update_scheduled_destruction_status.call_count >= 2
-    first_call = mock_database.update_scheduled_destruction_status.call_args_list[0]
+    assert mock_schedule_db.update_scheduled_destruction_status.call_count >= 2
+    first_call = mock_schedule_db.update_scheduled_destruction_status.call_args_list[0]
     assert first_call[1]["schedule_id"] == schedule_id
     assert first_call[1]["status"] == "executing"
 
@@ -339,16 +352,16 @@ def test_execute_scheduled_destruction_success(
     fake_provider.destroy_hosts.assert_called_once()
 
     # Verify database was cleared
-    mock_database.clear_database.assert_called_once()
+    fake_vm_db.clear_database.assert_called_once()
 
     # Verify status updated to completed
-    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    last_call = mock_schedule_db.update_scheduled_destruction_status.call_args_list[-1]
     assert last_call[1]["status"] == "completed"
     assert "successfully" in last_call[1]["execution_result"]
 
 
 def test_execute_scheduled_destruction_provider_cannot_destroy(
-    scheduler_service, mock_database, tmp_path
+    scheduler_service, mock_schedule_db, tmp_path
 ):
     """Test that job skips destroy and still clears DB when provider lacks capability."""
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
@@ -361,10 +374,13 @@ def test_execute_scheduled_destruction_provider_cannot_destroy(
 
     fake_operations_db = MagicMock()
     fake_operations_db.get_in_progress_operation.return_value = None
+    fake_vm_db = MagicMock()
 
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
-         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
-         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+         patch("lablink_allocator_service.db.pool.make_pool", return_value=MagicMock()), \
+         patch("lablink_allocator_service.db.vms.VmDatabase", return_value=fake_vm_db), \
+         patch("lablink_allocator_service.scheduler.ScheduleDatabase", return_value=mock_schedule_db), \
+         patch("lablink_allocator_service.db.operations.OperationsDatabase",
                return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
@@ -379,13 +395,13 @@ def test_execute_scheduled_destruction_provider_cannot_destroy(
     fake_provider.destroy_hosts.assert_not_called()
 
     # DB should still be cleared and status set to completed
-    mock_database.clear_database.assert_called_once()
-    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    fake_vm_db.clear_database.assert_called_once()
+    last_call = mock_schedule_db.update_scheduled_destruction_status.call_args_list[-1]
     assert last_call[1]["status"] == "completed"
 
 
 def test_execute_scheduled_destruction_destroy_failure(
-    scheduler_service, mock_database, tmp_path
+    scheduler_service, mock_schedule_db, tmp_path
 ):
     """Test handling of provider.destroy_hosts failure (CalledProcessError)."""
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
@@ -404,10 +420,13 @@ def test_execute_scheduled_destruction_destroy_failure(
 
     fake_operations_db = MagicMock()
     fake_operations_db.get_in_progress_operation.return_value = None
+    fake_vm_db = MagicMock()
 
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
-         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
-         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+         patch("lablink_allocator_service.db.pool.make_pool", return_value=MagicMock()), \
+         patch("lablink_allocator_service.db.vms.VmDatabase", return_value=fake_vm_db), \
+         patch("lablink_allocator_service.scheduler.ScheduleDatabase", return_value=mock_schedule_db), \
+         patch("lablink_allocator_service.db.operations.OperationsDatabase",
                return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
@@ -419,17 +438,17 @@ def test_execute_scheduled_destruction_destroy_failure(
         )
 
     # Verify status was updated to failed
-    calls = mock_database.update_scheduled_destruction_status.call_args_list
+    calls = mock_schedule_db.update_scheduled_destruction_status.call_args_list
     failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
     assert failed_call[1]["schedule_id"] == schedule_id
     assert "Terraform destroy failed" in failed_call[1]["execution_result"]
 
     # DB should NOT be cleared on failure
-    mock_database.clear_database.assert_not_called()
+    fake_vm_db.clear_database.assert_not_called()
 
 
 def test_execute_scheduled_destruction_skips_when_operation_in_progress(
-    scheduler_service, mock_database, tmp_path
+    scheduler_service, mock_schedule_db, tmp_path
 ):
     """A scheduled destruction must not run while an on-demand operation
     (submitted via /destroy or /api/launch) is queued/running — it would
@@ -446,10 +465,13 @@ def test_execute_scheduled_destruction_skips_when_operation_in_progress(
     fake_operations_db.get_in_progress_operation.return_value = {
         "id": 17, "op_type": "apply", "status": "running",
     }
+    fake_vm_db = MagicMock()
 
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
-         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
-         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+         patch("lablink_allocator_service.db.pool.make_pool", return_value=MagicMock()), \
+         patch("lablink_allocator_service.db.vms.VmDatabase", return_value=fake_vm_db), \
+         patch("lablink_allocator_service.scheduler.ScheduleDatabase", return_value=mock_schedule_db), \
+         patch("lablink_allocator_service.db.operations.OperationsDatabase",
                return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
@@ -465,16 +487,16 @@ def test_execute_scheduled_destruction_skips_when_operation_in_progress(
     fake_provider.destroy_hosts.assert_not_called()
 
     # DB must NOT be cleared either — nothing was actually destroyed.
-    mock_database.clear_database.assert_not_called()
+    fake_vm_db.clear_database.assert_not_called()
 
-    calls = mock_database.update_scheduled_destruction_status.call_args_list
+    calls = mock_schedule_db.update_scheduled_destruction_status.call_args_list
     failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
     assert failed_call[1]["schedule_id"] == schedule_id
     assert "operation was in progress" in failed_call[1]["execution_result"]
 
 
 def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
-    scheduler_service, mock_database, tmp_path
+    scheduler_service, mock_schedule_db, tmp_path
 ):
     """Baseline unchanged: with no on-demand operation running, the
     scheduled destruction proceeds exactly as before."""
@@ -491,10 +513,13 @@ def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
 
     fake_operations_db = MagicMock()
     fake_operations_db.get_in_progress_operation.return_value = None
+    fake_vm_db = MagicMock()
 
     with patch("lablink_allocator_service.get_config.get_config") as mock_get_config, \
-         patch("lablink_allocator_service.database.PostgresqlDatabase", return_value=mock_database), \
-         patch("lablink_allocator_service.operations_db.OperationsDatabase",
+         patch("lablink_allocator_service.db.pool.make_pool", return_value=MagicMock()), \
+         patch("lablink_allocator_service.db.vms.VmDatabase", return_value=fake_vm_db), \
+         patch("lablink_allocator_service.scheduler.ScheduleDatabase", return_value=mock_schedule_db), \
+         patch("lablink_allocator_service.db.operations.OperationsDatabase",
                return_value=fake_operations_db), \
          patch("lablink_allocator_service.providers.registry.get_provider", return_value=fake_provider):
 
@@ -506,8 +531,8 @@ def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
         )
 
     fake_provider.destroy_hosts.assert_called_once()
-    mock_database.clear_database.assert_called_once()
-    last_call = mock_database.update_scheduled_destruction_status.call_args_list[-1]
+    fake_vm_db.clear_database.assert_called_once()
+    last_call = mock_schedule_db.update_scheduled_destruction_status.call_args_list[-1]
     assert last_call[1]["status"] == "completed"
 
 
@@ -515,7 +540,7 @@ def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
 # and would need to be implemented differently if needed in the future
 
 
-def test_load_scheduled_destructions(scheduler_service, mock_database):
+def test_load_scheduled_destructions(scheduler_service, mock_schedule_db):
     """Test loading schedules from database on startup."""
     mock_schedules = [
         {
@@ -535,12 +560,12 @@ def test_load_scheduled_destructions(scheduler_service, mock_database):
         },
     ]
 
-    mock_database.get_all_scheduled_destructions.return_value = mock_schedules
+    mock_schedule_db.get_all_scheduled_destructions.return_value = mock_schedules
 
     scheduler_service._load_scheduled_destructions()
 
     # Verify correct status filter was used
-    mock_database.get_all_scheduled_destructions.assert_called_once_with(
+    mock_schedule_db.get_all_scheduled_destructions.assert_called_once_with(
         status="scheduled"
     )
 
@@ -548,9 +573,9 @@ def test_load_scheduled_destructions(scheduler_service, mock_database):
     assert scheduler_service.scheduler.add_job.call_count == 3
 
 
-def test_load_scheduled_destructions_empty(scheduler_service, mock_database):
+def test_load_scheduled_destructions_empty(scheduler_service, mock_schedule_db):
     """Test loading when no schedules exist."""
-    mock_database.get_all_scheduled_destructions.return_value = []
+    mock_schedule_db.get_all_scheduled_destructions.return_value = []
 
     scheduler_service._load_scheduled_destructions()
 

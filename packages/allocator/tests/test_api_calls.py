@@ -1148,7 +1148,7 @@ def test_get_scheduled_destruction_success(client, admin_headers, monkeypatch):
     }
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123", headers=admin_headers)
@@ -1168,7 +1168,7 @@ def test_get_scheduled_destruction_not_found(client, admin_headers, monkeypatch)
     fake_db.get_scheduled_destruction.return_value = None
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/999", headers=admin_headers)
@@ -1183,7 +1183,7 @@ def test_get_scheduled_destruction_requires_auth(client, monkeypatch):
     fake_db = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/123")
@@ -1209,7 +1209,7 @@ def test_list_scheduled_destructions_success(client, admin_headers, monkeypatch)
     ]
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(SCHEDULE_DESTRUCTION_ENDPOINT, headers=admin_headers)
@@ -1234,7 +1234,7 @@ def test_list_scheduled_destructions_with_filter(client, admin_headers, monkeypa
     ]
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(
@@ -1254,7 +1254,7 @@ def test_list_scheduled_destructions_invalid_status(client, admin_headers, monke
     fake_db = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(
@@ -1272,7 +1272,7 @@ def test_list_scheduled_destructions_requires_auth(client, monkeypatch):
     fake_db = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.get(SCHEDULE_DESTRUCTION_ENDPOINT)
@@ -1293,7 +1293,7 @@ def test_cancel_scheduled_destruction_success(client, admin_headers, monkeypatch
     fake_scheduler = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service",
@@ -1316,7 +1316,7 @@ def test_cancel_scheduled_destruction_not_found(client, admin_headers, monkeypat
     fake_db.get_scheduled_destruction.return_value = None
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
 
     resp = client.delete(f"{SCHEDULE_DESTRUCTION_ENDPOINT}/999", headers=admin_headers)
@@ -1340,7 +1340,7 @@ def test_cancel_scheduled_destruction_already_completed(
     fake_scheduler = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service",
@@ -1370,7 +1370,7 @@ def test_cancel_scheduled_destruction_already_cancelled(
     fake_scheduler = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service",
@@ -1398,7 +1398,7 @@ def test_cancel_scheduled_destruction_scheduler_unavailable(
     }
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service", None, raising=False
@@ -1428,7 +1428,7 @@ def test_cancel_scheduled_destruction_scheduler_error(
     )
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service",
@@ -1450,7 +1450,7 @@ def test_cancel_scheduled_destruction_requires_auth(client, monkeypatch):
     fake_scheduler = MagicMock()
 
     monkeypatch.setattr(
-        "lablink_allocator_service.main.database", fake_db, raising=False
+        "lablink_allocator_service.main.schedule_db", fake_db, raising=False
     )
     monkeypatch.setattr(
         "lablink_allocator_service.main.scheduler_service",

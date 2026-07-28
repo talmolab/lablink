@@ -38,7 +38,7 @@ def _ensure_session_columns(real_db):
 
 @pytest.fixture
 def client_with_db(real_db, monkeypatch):
-    """Flask test client wired to the real_db PostgresqlDatabase."""
+    """Flask test client wired to the real_db VmDatabase."""
     _ensure_session_columns(real_db)
     import lablink_allocator_service.main as main_module
     monkeypatch.setattr(main_module, "database", real_db, raising=True)

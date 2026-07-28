@@ -6,6 +6,7 @@ import pytest
 from lablink_allocator_service import secret_hash
 from lablink_allocator_service.secret_hash import (
     REGISTER_TOKEN_SUBJECT,
+    SecretHashCache,
     _VerifyResultCache,
     _token_fingerprint,
     clear_verify_cache,
@@ -249,3 +250,117 @@ def test_token_fingerprint_does_not_include_plaintext():
     depth against memory inspection of the cache's keys)."""
     fp = _token_fingerprint("totally_secret_token_value")
     assert "totally_secret_token_value" not in fp
+
+
+# ── SecretHashCache: TTL, invalidate-race, LRU ─────────────────────────
+
+
+def test_secret_hash_cache_ttl_expiry_re_queries():
+    """Direct test of the cache primitive: after expiry, the next get is
+    a miss and the caller must re-query."""
+    cache = SecretHashCache(
+        positive_ttl_seconds=0.05, negative_ttl_seconds=0.05
+    )
+    assert cache.put("vm-1", "$h", expected_version=0) is True
+    hit, val, _ = cache.get("vm-1")
+    assert hit is True and val == "$h"
+
+    import time as _time
+    _time.sleep(0.08)
+
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_negative_entry_returns_hit_with_none():
+    """A cached None must read back as (hit=True, value=None) so the
+    caller short-circuits the DB query."""
+    cache = SecretHashCache()
+    assert cache.put("nope", None, expected_version=0) is True
+    hit, val, _ = cache.get("nope")
+    assert hit is True and val is None
+
+
+def test_secret_hash_cache_invalidate_clears_entry():
+    cache = SecretHashCache()
+    cache.put("vm-1", "$h", expected_version=0)
+    cache.invalidate("vm-1")
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_put_rejected_when_invalidate_races():
+    """Simulate the rotate-race: reader gets a version, mid-flight
+    invalidate (concurrent re-register) bumps it, reader's put must
+    not commit the stale value."""
+    cache = SecretHashCache()
+    # Reader observes the version before the DB SELECT.
+    hit, _, version = cache.get("vm-1")
+    assert hit is False
+
+    # Concurrent register_client rotates the secret and invalidates.
+    cache.invalidate("vm-1")
+
+    # Reader's SELECT returned the now-stale hash; put must be rejected.
+    accepted = cache.put("vm-1", "$stale", expected_version=version)
+    assert accepted is False
+
+    # Cache stays empty so the next caller re-fetches and gets the
+    # rotated value from the DB.
+    hit, val, _ = cache.get("vm-1")
+    assert hit is False and val is None
+
+
+def test_secret_hash_cache_put_accepted_when_no_race():
+    """Sanity check: with no intervening invalidate, put commits."""
+    cache = SecretHashCache()
+    hit, _, version = cache.get("vm-1")
+    assert hit is False
+    assert cache.put("vm-1", "$h", expected_version=version) is True
+    hit, val, _ = cache.get("vm-1")
+    assert hit is True and val == "$h"
+
+
+def test_secret_hash_cache_version_bumped_per_hostname_only():
+    """Invalidating vm-1 must not affect vm-2's version: a concurrent
+    put for vm-2 must still succeed."""
+    cache = SecretHashCache()
+    _, _, v1 = cache.get("vm-1")
+    _, _, v2 = cache.get("vm-2")
+    cache.invalidate("vm-1")
+    assert cache.put("vm-2", "$h2", expected_version=v2) is True
+    assert cache.put("vm-1", "$h1", expected_version=v1) is False
+
+
+def test_secret_hash_cache_lru_eviction_at_max_size():
+    """When the cache is full, inserting a new entry evicts the LRU
+    one. Bounds memory under unique-key floods."""
+    cache = SecretHashCache(max_size=2)
+    assert cache.put("a", "$a", expected_version=0) is True
+    assert cache.put("b", "$b", expected_version=0) is True
+    # Touch "a" so "b" becomes LRU.
+    hit, _, _ = cache.get("a")
+    assert hit is True
+    # Inserting "c" should evict "b", not "a".
+    assert cache.put("c", "$c", expected_version=0) is True
+    assert cache.get("a")[0] is True
+    assert cache.get("b")[0] is False
+    assert cache.get("c")[0] is True
+
+
+def test_secret_hash_cache_rejects_invalid_max_size():
+    with pytest.raises(ValueError, match="Invalid cache max_size"):
+        SecretHashCache(max_size=0)
+
+
+def test_secret_hash_cache_clear_resets_versions():
+    """clear() wipes entries and versions so a subsequent put against
+    the old version is still accepted (no zombie versions)."""
+    cache = SecretHashCache()
+    cache.put("vm-1", "$h", expected_version=0)
+    cache.invalidate("vm-1")  # bumps version to 1
+    cache.clear()
+    # After clear, version is back to 0 for any hostname.
+    _, _, version = cache.get("vm-1")
+    assert version == 0
+    assert cache.put("vm-1", "$h2", expected_version=0) is True

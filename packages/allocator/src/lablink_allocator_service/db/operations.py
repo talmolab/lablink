@@ -1,13 +1,13 @@
 """Persistence for the operations table (on-demand apply/destroy jobs).
 
-A standalone class rather than more methods on PostgresqlDatabase: the
+A standalone class rather than more methods on VmDatabase: the
 operations table has no foreign-key or column coupling to the vms table
-(unlike scheduled_destructions or the AdminReservedAt admin-reservation
-columns, which reach directly into VM rows), so there's no reason for it
-to share PostgresqlDatabase's god-class surface. It shares the same
-connection pool (see PostgresqlDatabase.pool) rather than opening a
-second one, since POOL_MAX_SIZE is already tuned for this allocator's
-total connection budget.
+(unlike the AdminReservedAt admin-reservation columns, which reach
+directly into VM rows), so there's no reason for it to share
+VmDatabase's god-class surface. It shares the same connection
+pool (see VmDatabase.pool) rather than opening a second one,
+since POOL_MAX_SIZE is already tuned for this allocator's total
+connection budget.
 """
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ import logging
 from typing import List, Optional
 
 import psycopg2
+
+from lablink_allocator_service.db.pool import PooledCursor
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +55,8 @@ class OperationsDatabase:
     """Persistence for the operations table.
 
     Args:
-        pool: A psycopg2 connection pool, shared with PostgresqlDatabase
-            (see PostgresqlDatabase.pool) rather than owned here.
+        pool: A psycopg2 connection pool, shared with VmDatabase
+            (see VmDatabase.pool) rather than owned here.
     """
 
     def __init__(self, pool):
@@ -63,22 +65,8 @@ class OperationsDatabase:
     @property
     def _cursor(self):
         """Return a context manager that checks out a pooled connection
-        and yields a cursor. See database._PooledCursor.
-
-        Imported lazily (not at module level): database.py does a real,
-        unmocked `import psycopg2` at its own top level, and several test
-        files (test_database.py, test_reboot.py) guard against that by
-        patching sys.modules before their own first import of database.py.
-        An eager module-level import here would race those files during
-        pytest collection — whichever import runs first wins, and a real
-        psycopg2 import poisons the cached database module for every test
-        file collected afterward. Deferring the import to first use (well
-        after collection, when those guards have already run) avoids the
-        race entirely.
-        """
-        from lablink_allocator_service.database import _PooledCursor
-
-        return _PooledCursor(self._pool)
+        and yields a cursor. See db.pool.PooledCursor."""
+        return PooledCursor(self._pool)
 
     def create_operation(
         self,

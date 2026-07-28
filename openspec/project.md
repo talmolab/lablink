@@ -70,7 +70,7 @@ packages/
 ├── allocator/           # Allocator service package
 │   ├── src/lablink_allocator_service/
 │   │   ├── main.py      # Flask application
-│   │   ├── database.py  # Database operations
+│   │   ├── db/          # Database layer (see below)
 │   │   ├── get_config.py # Config loader
 │   │   ├── validate_config.py # Config validation CLI
 │   │   ├── scheduler.py # Task scheduling
@@ -93,6 +93,35 @@ packages/
     ├── Dockerfile        # Production image (from PyPI)
     └── Dockerfile.dev    # Development image (local code)
 ```
+
+#### Allocator Database Layer
+
+All allocator persistence lives in `src/lablink_allocator_service/db/`. Each
+class owns one concern and they share a single connection pool rather than each
+opening their own — `POOL_MAX_SIZE` is tuned for the service's total connection
+budget, so a second pool would silently double it.
+
+```
+db/
+├── __init__.py     # Deliberately EMPTY — read its docstring before adding re-exports
+├── pool.py         # PooledCursor, make_pool, validate_pool_sizes, POOL_* sizing
+├── vms.py          # VmDatabase — VM rows, registration/auth, seats, logs, health
+├── schedules.py    # ScheduleDatabase — scheduled_destructions table
+├── metrics.py      # MetricsDatabase — session-metrics columns on the VM table
+└── operations.py   # OperationsDatabase — operations table (async apply/destroy jobs)
+```
+
+Two conventions worth knowing before changing anything here:
+
+- **`db/__init__.py` stays empty.** Re-exporting the classes would mean importing
+  any submodule executes `db/vms.py` and its top-level `import psycopg2`, which
+  couples every consumer to the heaviest module in the package.
+- **A class that constructs a pool must do so in its own module.** `VmDatabase`
+  builds its pool inline rather than calling `make_pool`, so that its own
+  `import psycopg2` binding is the one used. `make_pool` is for callers that need
+  only a bare pool (e.g. the APScheduler job in `scheduler.py`). `VmDatabase` also
+  accepts an injected `pool=` and tracks ownership, so it will not close a pool
+  it was handed.
 
 #### Configuration Management
 - **Hydra-based** structured configs (`conf/structured_config.py`)

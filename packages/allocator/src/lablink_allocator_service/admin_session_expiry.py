@@ -16,7 +16,7 @@ from threading import Event, Thread
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lablink_allocator_service.database import PostgresqlDatabase
+    from lablink_allocator_service.db.vms import VmDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class AdminSessionExpiryService:
     """Background service that releases expired admin VM reservations.
 
     Args:
-        database: PostgresqlDatabase instance for querying/updating VM state.
+        database: VmDatabase instance for querying/updating VM state.
         timeout_minutes: Age, in minutes, past which a reservation is
             considered expired and force-released.
         check_interval_seconds: How often to sweep for expired reservations.
@@ -33,7 +33,7 @@ class AdminSessionExpiryService:
 
     def __init__(
         self,
-        database: PostgresqlDatabase,
+        database: VmDatabase,
         timeout_minutes: int = 30,
         check_interval_seconds: int = 300,
     ):

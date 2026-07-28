@@ -28,7 +28,9 @@ import psycopg2
 
 from lablink_allocator_service.get_config import get_config
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
-from lablink_allocator_service.database import PostgresqlDatabase
+from lablink_allocator_service.db.vms import VmDatabase
+from lablink_allocator_service.db.schedules import ScheduleDatabase
+from lablink_allocator_service.db.metrics import MetricsDatabase
 from lablink_allocator_service.utils.config_helpers import (
     get_allocator_url,
     is_self_signed_ssl,
@@ -39,7 +41,7 @@ from lablink_allocator_service.scheduler import ScheduledDestructionService
 from lablink_allocator_service.reboot import AutoRebootService
 from lablink_allocator_service.admin_session_expiry import AdminSessionExpiryService
 from lablink_allocator_service.operations import OperationsWorker
-from lablink_allocator_service.operations_db import (
+from lablink_allocator_service.db.operations import (
     OperationInProgress,
     OperationsDatabase,
 )
@@ -146,6 +148,12 @@ AGENT_TOKEN = secrets.token_urlsafe(32)
 # Initialize the database connection
 database = None
 
+# Scheduled-destructions query layer (initialized in init_database()).
+schedule_db = None
+
+# Session-metrics query layer (initialized in init_database()).
+metrics_db = None
+
 # Scheduler service (initialized in main())
 scheduler_service = None
 
@@ -176,7 +184,7 @@ _startup_time: float | None = None
 def init_database():
     """Initialize the database connection."""
     global database
-    database = PostgresqlDatabase(
+    database = VmDatabase(
         dbname=cfg.db.dbname,
         user=cfg.db.user,
         password=cfg.db.password,
@@ -184,9 +192,13 @@ def init_database():
         port=cfg.db.port,
         table_name=cfg.db.table_name,
     )
+    global schedule_db
+    schedule_db = ScheduleDatabase(pool=database.pool)
+    global metrics_db
+    metrics_db = MetricsDatabase(pool=database.pool, table_name=cfg.db.table_name)
     # Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,
     # /internal/proxy_auth) that need a raw connection for the signed-cookie
-    # helpers, without coupling them to the PostgresqlDatabase wrapper.
+    # helpers, without coupling them to the VmDatabase wrapper.
     app.config["DB_POOL"] = database._pool
     app.config["VM_TABLE_NAME"] = cfg.db.table_name
     # Persist the deployment register-token as an argon2 hash at rest
@@ -737,7 +749,7 @@ def destroy():
         # about to be killed. Best-effort: never block destroy on a seal
         # failure.
         try:
-            sealed = database.bulk_seal_session_metrics()
+            sealed = metrics_db.bulk_seal_session_metrics()
             logger.info("Sealed %d session-metrics rows before destroy", sealed)
         except Exception as e:
             logger.warning("Could not bulk-seal session metrics: %s", e)
@@ -1016,7 +1028,7 @@ def post_session_metrics(hostname):
         data = request.get_json(silent=True) or {}
         if "counters" not in data:
             return jsonify({"error": "Missing 'counters' in payload."}), 400
-        database.update_session_metrics(hostname=hostname, payload=data)
+        metrics_db.update_session_metrics(hostname=hostname, payload=data)
         return jsonify({"message": "Session metrics updated."}), 200
     except LookupError:
         return jsonify({"error": "VM not found."}), 404
@@ -1052,7 +1064,7 @@ def _session_metrics_view_model() -> dict:
         or "subject"
     )
     summary = (
-        database.get_session_metrics_summary() if monitoring_enabled else None
+        metrics_db.get_session_metrics_summary() if monitoring_enabled else None
     )
     return {
         "enabled": monitoring_enabled,
@@ -1234,7 +1246,7 @@ def create_scheduled_destruction() -> Response | tuple[Response, int]:
 def get_scheduled_destruction(schedule_id: int):
     """Get details of a scheduled destruction."""
 
-    schedule = database.get_scheduled_destruction(schedule_id)
+    schedule = schedule_db.get_scheduled_destruction(schedule_id)
 
     if not schedule:
         return jsonify({"success": False, "message": "Schedule not found"}), 404
@@ -1269,7 +1281,7 @@ def list_scheduled_destructions() -> Response | tuple[Response, int]:
             {"success": False, "message": f"Invalid status filter: {status_filter}"}
         ), 400
 
-    schedules = database.get_all_scheduled_destructions(status=status_filter)
+    schedules = schedule_db.get_all_scheduled_destructions(status=status_filter)
 
     return jsonify({"success": True, "schedules": schedules, "count": len(schedules)})
 
@@ -1280,7 +1292,7 @@ def cancel_scheduled_destruction(schedule_id: int):
     """Cancel a scheduled destruction."""
 
     # Check if schedule exists
-    schedule = database.get_scheduled_destruction(schedule_id)
+    schedule = schedule_db.get_scheduled_destruction(schedule_id)
     if not schedule:
         return jsonify({"success": False, "message": "Schedule not found"}), 404
 
@@ -1357,7 +1369,7 @@ def main():
             f"@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
         )
         scheduler_service = ScheduledDestructionService(
-            database=database,
+            schedule_db=schedule_db,
             db_url=db_url,
         )
         scheduler_service.start()

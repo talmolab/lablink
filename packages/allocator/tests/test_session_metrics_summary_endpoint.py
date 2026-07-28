@@ -20,11 +20,19 @@ _FIXTURE_SUMMARY = {
 def app_with_metrics(monkeypatch, app):
     from lablink_allocator_service import main
 
+    # database is still used by /admin/session-metrics for
+    # get_all_vms_for_export; get_session_metrics_summary lives on
+    # metrics_db. Keep these as two distinct MagicMocks so a call landing
+    # on the wrong object would fail the test instead of passing silently.
     fake_db = MagicMock()
-    fake_db.get_session_metrics_summary.return_value = _FIXTURE_SUMMARY
     monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    fake_metrics_db = MagicMock()
+    fake_metrics_db.get_session_metrics_summary.return_value = _FIXTURE_SUMMARY
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
+
     main.cfg.monitoring.enabled = True
-    return main.app, fake_db
+    return main.app, fake_metrics_db
 
 
 def test_returns_summary_when_enabled(app_with_metrics, client, admin_headers):
@@ -125,7 +133,7 @@ def test_zero_rows_returns_zeroed_summary(
 ):
     from lablink_allocator_service import main
 
-    main.database.get_session_metrics_summary.return_value = {
+    main.metrics_db.get_session_metrics_summary.return_value = {
         "total_vms": 0,
         "funnel": {"started": 0, "labeled": 0, "trained": 0, "tracked": 0},
         "pct_reached_training": 0.0,

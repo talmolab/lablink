@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 import psycopg2
 import pytest
 
-from lablink_allocator_service.operations_db import (
+from lablink_allocator_service.db.operations import (
     OperationInProgress,
     OperationsDatabase,
 )

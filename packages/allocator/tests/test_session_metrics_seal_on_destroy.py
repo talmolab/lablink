@@ -41,14 +41,17 @@ def destroy_setup(app, monkeypatch, tmp_path):
     fake_db = MagicMock()
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
-    return {"tmp_path": tmp_path, "database": fake_db}
+    fake_metrics_db = MagicMock()
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
+
+    return {"tmp_path": tmp_path, "database": fake_db, "metrics_db": fake_metrics_db}
 
 
 def test_scheduled_destroy_seals_before_destroy():
     """run_scheduled_destroy must call bulk_seal_session_metrics, then destroy_hosts."""
     from lablink_allocator_service.scheduler import run_scheduled_destroy
 
-    fake_db = MagicMock()
+    fake_metrics_db = MagicMock()
     fake_provider = MagicMock()
     call_order: list[str] = []
 
@@ -60,10 +63,10 @@ def test_scheduled_destroy_seals_before_destroy():
         call_order.append("destroy")
         return MagicMock(stdout="ok")
 
-    fake_db.bulk_seal_session_metrics.side_effect = _seal
+    fake_metrics_db.bulk_seal_session_metrics.side_effect = _seal
     fake_provider.destroy_hosts.side_effect = _destroy
 
-    run_scheduled_destroy(["h1", "h2", "h3"], fake_db, fake_provider)
+    run_scheduled_destroy(["h1", "h2", "h3"], fake_metrics_db, fake_provider)
 
     assert call_order == ["seal", "destroy"]
     fake_provider.destroy_hosts.assert_called_once_with(["h1", "h2", "h3"])
@@ -89,7 +92,7 @@ def test_admin_destroy_route_seals_before_destroy(
     on OperationsWorker's background thread, so we capture and invoke
     that closure directly.
     """
-    fake_db = destroy_setup["database"]
+    fake_metrics_db = destroy_setup["metrics_db"]
     call_order: list[str] = []
 
     def _seal():
@@ -109,7 +112,7 @@ def test_admin_destroy_route_seals_before_destroy(
         result.returncode = 0
         return result
 
-    fake_db.bulk_seal_session_metrics.side_effect = _seal
+    fake_metrics_db.bulk_seal_session_metrics.side_effect = _seal
     mock_run.side_effect = _run
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="Destroy complete (mocked)\n", returncode=0,
@@ -127,7 +130,7 @@ def test_admin_destroy_route_seals_before_destroy(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-    fake_db.bulk_seal_session_metrics.assert_called_once()
+    fake_metrics_db.bulk_seal_session_metrics.assert_called_once()
     assert call_order == ["seal", "destroy"], (
         f"Expected seal before destroy, got {call_order}"
     )
@@ -159,8 +162,8 @@ def test_admin_destroy_route_continues_when_seal_fails(
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="Destroy complete (mocked)\n", returncode=0,
     )
-    fake_db = destroy_setup["database"]
-    fake_db.bulk_seal_session_metrics.side_effect = RuntimeError("db blew up")
+    fake_metrics_db = destroy_setup["metrics_db"]
+    fake_metrics_db.bulk_seal_session_metrics.side_effect = RuntimeError("db blew up")
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -171,7 +174,7 @@ def test_admin_destroy_route_continues_when_seal_fails(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-    fake_db.bulk_seal_session_metrics.assert_called_once()
+    fake_metrics_db.bulk_seal_session_metrics.assert_called_once()
     # Destroy still ran despite the seal failure.
     assert mock_run.called
     assert mock_popen.called
