@@ -78,11 +78,32 @@ Before implementing changes, present a plan and get user approval. Do not start 
 
 ## Quick Reference
 
+### Environment setup
+
+This repo is a **uv workspace** — the root `pyproject.toml` declares
+`[tool.uv.workspace]` with `packages/allocator`, `packages/client`, and
+`packages/cli` as members. There is ONE venv, at the repo root, shared by all
+three packages. Always sync from the repo root:
+
+```bash
+uv sync --all-packages --extra dev
+```
+
+Both flags matter. Without `--all-packages` you get only the docs-only root
+project — no pytest, and the member packages are *uninstalled* from the venv,
+which breaks entry-point tests like
+`tests/providers/test_registry.py::test_aws_entry_point_is_registered`.
+Without `--extra dev` you get no pytest/ruff. Running a bare `uv sync` from
+inside `packages/<name>` does not fix this; it re-resolves the same root venv.
+
+**In a fresh git worktree you must run this before anything else** — a new
+worktree has no venv, and the first `uv run` will create a wrong one.
+
 ```bash
 # Run tests
-cd packages/allocator && PYTHONPATH=. pytest
-cd packages/client && PYTHONPATH=. pytest
-cd packages/cli && PYTHONPATH=src pytest  # integration tests: pytest -m integration
+cd packages/allocator && PYTHONPATH=src uv run pytest --ignore=tests/terraform
+cd packages/client    && PYTHONPATH=src uv run pytest
+cd packages/cli       && PYTHONPATH=src uv run pytest  # integration: pytest -m integration
 
 # Lint
 ruff check packages/allocator packages/client packages/cli
@@ -90,6 +111,16 @@ ruff check packages/allocator packages/client packages/cli
 # Build Docker (dev)
 docker build -t lablink-allocator:dev -f packages/allocator/Dockerfile.dev .
 ```
+
+Two things about the allocator test command:
+
+- **`PYTHONPATH=src`, never `PYTHONPATH=.`** — inside a worktree, `.` can
+  resolve to the *other* checkout's code, so you silently test the wrong tree.
+- **`--ignore=tests/terraform`** — those tests shell out to the `terraform`
+  binary and need AWS credentials, so they fail locally (3 failures + 8 errors)
+  regardless of your changes. They are not a regression signal. CI runs the
+  full `tests` directory, so the 90% coverage gate is CI-only; a local run with
+  this flag caps around 86%.
 
 ## CLI Architecture
 
