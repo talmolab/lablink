@@ -39,7 +39,7 @@ def _ensure_session_columns(real_db):
 
 @pytest.fixture
 def client_with_db(real_db, monkeypatch):
-    """A Flask test client where `database` is the real_db PostgresqlDatabase
+    """A Flask test client where `database` is the real_db VmDatabase
     and `app.config['DB_POOL']` points at its pool, so the desktop route can
     read the signing secret."""
     _ensure_session_columns(real_db)

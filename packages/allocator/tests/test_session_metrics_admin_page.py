@@ -10,7 +10,11 @@ def app_with_summary(monkeypatch, app):
     from lablink_allocator_service import main
 
     fake_db = MagicMock()
-    fake_db.get_session_metrics_summary.return_value = {
+    # get_session_metrics_summary now lives on metrics_db, not database.
+    # Use a separate MagicMock so an assertion here can't pass because a
+    # call actually landed on `fake_db` instead.
+    fake_metrics_db = MagicMock()
+    fake_metrics_db.get_session_metrics_summary.return_value = {
         "total_vms": 3,
         "funnel": {"started": 3, "labeled": 3, "trained": 2, "tracked": 1},
         "pct_reached_training": 66.7,
@@ -19,6 +23,7 @@ def app_with_summary(monkeypatch, app):
         "median_labeled_frames": 320,
         "median_epochs_completed": 20,
     }
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
     # Postgres folds unquoted identifiers to lowercase, so the dict that
     # psycopg2 hands back from get_all_vms_for_export() has lowercase keys
     # — mirror that here so the template's vm.hostname / vm.useremail

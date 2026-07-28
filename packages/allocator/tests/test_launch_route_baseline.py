@@ -391,7 +391,7 @@ def test_launch_returns_409_when_operation_in_progress(
     launch_setup, client, admin_headers,
 ):
     from unittest.mock import patch
-    from lablink_allocator_service.operations_db import OperationInProgress
+    from lablink_allocator_service.db.operations import OperationInProgress
 
     with patch(
         "lablink_allocator_service.main.operations_worker"
@@ -462,7 +462,7 @@ def test_launch_redirects_with_error_code_when_operation_in_progress(
     """A browser (non-JSON) submit that races an in-progress operation must
     get a plain redirect (no status-code override) so a real browser
     actually follows it — not a 409 inline-rendered error page."""
-    from lablink_allocator_service.operations_db import OperationInProgress
+    from lablink_allocator_service.db.operations import OperationInProgress
 
     with patch(
         "lablink_allocator_service.main.operations_worker"

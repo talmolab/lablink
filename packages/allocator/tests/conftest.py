@@ -315,7 +315,7 @@ def write_config_file(tmp_path):
 
 @pytest.fixture
 def real_db():
-    """Yield a PostgresqlDatabase connected to a real Postgres.
+    """Yield a VmDatabase connected to a real Postgres.
 
     Used by the concurrency test that asserts pool checkouts actually
     overlap in wall-clock time. If Postgres is unreachable (typical for
@@ -332,7 +332,7 @@ def real_db():
     except ImportError:
         pytest.skip("psycopg2 not installed")
 
-    from lablink_allocator_service.database import PostgresqlDatabase
+    from lablink_allocator_service.db.vms import VmDatabase
 
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = int(os.getenv("POSTGRES_PORT", "5432"))
@@ -364,7 +364,7 @@ def real_db():
         )
     setup.close()
 
-    db = PostgresqlDatabase(
+    db = VmDatabase(
         dbname=dbname,
         user=user,
         password=password,

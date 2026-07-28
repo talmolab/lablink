@@ -15,8 +15,15 @@ def app(monkeypatch):
     # argon2 hash of "letmein" — matches the verify_secret() the decorator uses.
     fake_db.get_client_secret_hash.return_value = hash_secret("letmein")
     monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    # update_session_metrics now lives on metrics_db, not database. Use a
+    # separate MagicMock so an assertion here can't pass because a call
+    # actually landed on `fake_db` instead.
+    fake_metrics_db = MagicMock()
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
+
     main.app.config["TESTING"] = True
-    yield main.app, fake_db
+    yield main.app, fake_metrics_db
 
 
 def _payload():

@@ -19,7 +19,7 @@ def test_init_database_upserts_register_token_hash(monkeypatch, omega_config):
 
     fake_db = MagicMock()
     monkeypatch.setattr(
-        "lablink_allocator_service.main.PostgresqlDatabase",
+        "lablink_allocator_service.main.VmDatabase",
         lambda **kw: fake_db, raising=True,
     )
     main.init_database()

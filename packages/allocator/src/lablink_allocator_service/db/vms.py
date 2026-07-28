@@ -1,279 +1,32 @@
-from collections import OrderedDict
+from __future__ import annotations
+
 from datetime import datetime, timezone
 import json
 import logging
-import os
-import threading
-import time
 from typing import List, Optional
 from urllib.parse import urlsplit
 
 import psycopg2
 import psycopg2.pool
 
-from lablink_allocator_service.secret_hash import invalidate_verify
+from lablink_allocator_service.db.pool import (
+    POOL_MAX_SIZE,
+    POOL_MIN_SIZE,
+    PooledCursor,
+    validate_pool_sizes,
+)
+from lablink_allocator_service.secret_hash import SecretHashCache, invalidate_verify
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-def _pool_max_size_from_env(default: int) -> int:
-    """LABLINK_DB_POOL_MAX_SIZE override, clamped to >= POOL_MIN_SIZE.
-    Invalid/missing values fall through to the default."""
-    raw = os.environ.get("LABLINK_DB_POOL_MAX_SIZE")
-    if not raw:
-        return default
-    try:
-        parsed = int(raw)
-    except ValueError:
-        logger.warning(
-            "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE=%r; using %d", raw, default
-        )
-        return default
-    if parsed < 1:
-        logger.warning(
-            "Ignoring LABLINK_DB_POOL_MAX_SIZE=%d (<1); using %d", parsed, default
-        )
-        return default
-    return parsed
+class VmDatabase:
+    """Persistence for the VM table: rows, client registration and auth,
+    seat assignment, logs, health and heartbeat, and the settings table.
 
-
-# Pool sizing. Default sized for ~100 client VMs polling concurrently
-# plus the admin UI; start.sh raises Postgres max_connections in lockstep.
-# Override at deploy time with LABLINK_DB_POOL_MAX_SIZE without rebuilding
-# the image (keep it below max_connections minus autovacuum/admin headroom).
-POOL_MIN_SIZE = 2
-POOL_MAX_SIZE = _pool_max_size_from_env(default=200)
-
-
-# Secret-hash cache sizing. Every authed allocator endpoint reads the
-# argon2 hash before letting the request through. With ~30 client VMs
-# polling on tight loops the lookup alone can starve the pool during
-# bursts. The cache is invalidated by register_client and
-# unregister_client; TTLs are a safety net for any unexpected writer.
-# Positive TTL is short (60 s) so that any path that updates the hash
-# without going through invalidate (e.g. direct SQL, future code) only
-# leaves stale auth state for ~1 minute. With ~30 VMs polling at ~1 Hz
-# this still cuts steady-state DB load by ~60×.
-_SECRET_HASH_POSITIVE_TTL_S = 60.0
-_SECRET_HASH_NEGATIVE_TTL_S = 30.0
-# Working set is the number of registered VMs (tens). Cap well above
-# that so legitimate workloads never evict; the cap bounds memory under
-# unique-key floods.
-_SECRET_HASH_CACHE_MAX_SIZE = 1024
-
-
-class _SecretHashCache:
-    """Thread-safe per-hostname TTL+LRU cache for client_secret_hash.
-
-    Caches both real hashes (positive_ttl) and absent-hostname None
-    results (negative_ttl). The shorter negative TTL keeps freshly
-    registered hosts auth-able within seconds without a register-time
-    invalidate, and limits how long a repeatedly probed unknown
-    hostname sits in memory.
-
-    Race-against-rotation: ``get`` returns a per-hostname version token
-    that ``put`` re-checks under lock. If ``invalidate`` ran between
-    ``get`` and ``put`` — i.e. a concurrent ``register_client`` rotated
-    the secret while a stale SELECT was in flight — the version
-    mismatch rejects the stale write, so the next call re-queries the
-    DB and picks up the new hash.
-
-    Bounded size: the underlying store is an ``OrderedDict`` with LRU
-    eviction on insert beyond ``max_size``. Both ``get`` and ``put``
-    move the entry to the most-recently-used end. This bounds memory
-    even if a misbehaving caller iterates through unique fake
-    hostnames.
-    """
-
-    def __init__(
-        self,
-        *,
-        positive_ttl_seconds: float = _SECRET_HASH_POSITIVE_TTL_S,
-        negative_ttl_seconds: float = _SECRET_HASH_NEGATIVE_TTL_S,
-        max_size: int = _SECRET_HASH_CACHE_MAX_SIZE,
-    ):
-        if max_size < 1:
-            raise ValueError(f"Invalid cache max_size: {max_size}")
-        self._positive_ttl = positive_ttl_seconds
-        self._negative_ttl = negative_ttl_seconds
-        self._max_size = max_size
-        self._lock = threading.RLock()
-        # hostname -> (value, expires_at)
-        self._entries: OrderedDict = OrderedDict()
-        # hostname -> int. Bumped only by invalidate(); never reset by
-        # TTL expiry or LRU eviction (those aren't "the hash changed"
-        # events). put() rejects stores whose observed version is stale.
-        self._versions: dict = {}
-
-    def get(self, hostname: str):
-        """Return ``(hit, value, version)``.
-
-        ``hit=False`` means the caller must query the DB; pass
-        ``version`` back to :meth:`put` so a concurrent invalidate
-        between get and put rejects the stale write.
-        """
-        with self._lock:
-            version = self._versions.get(hostname, 0)
-            entry = self._entries.get(hostname)
-            if entry is None:
-                return False, None, version
-            value, expires_at = entry
-            if time.monotonic() >= expires_at:
-                del self._entries[hostname]
-                return False, None, version
-            # LRU touch
-            self._entries.move_to_end(hostname)
-            return True, value, version
-
-    def put(self, hostname: str, value, expected_version: int) -> bool:
-        """Store ``value`` for ``hostname`` if no invalidate raced.
-
-        Returns ``True`` if the entry was written, ``False`` if a
-        concurrent ``invalidate`` bumped the version between the
-        caller's ``get`` and this ``put``.
-        """
-        ttl = self._positive_ttl if value is not None else self._negative_ttl
-        with self._lock:
-            if self._versions.get(hostname, 0) != expected_version:
-                return False
-            self._entries[hostname] = (value, time.monotonic() + ttl)
-            self._entries.move_to_end(hostname)
-            # Evict LRU entries beyond cap. Bound is a soft DoS guard,
-            # not a working-set sizing knob.
-            while len(self._entries) > self._max_size:
-                self._entries.popitem(last=False)
-            return True
-
-    def invalidate(self, hostname: str) -> None:
-        with self._lock:
-            self._versions[hostname] = self._versions.get(hostname, 0) + 1
-            self._entries.pop(hostname, None)
-
-    def clear(self) -> None:
-        with self._lock:
-            self._entries.clear()
-            self._versions.clear()
-
-
-class _PooledCursor:
-    """Checks out an autocommit connection from the pool, opens a cursor,
-    and returns both to the pool/closes on exit. Preserves the per-call
-    context-manager API previously provided by _LockedCursor.
-    """
-
-    def __init__(self, pool):
-        self._pool = pool
-        self._conn = None
-        self._cur = None
-
-    def __enter__(self):
-        self._conn = self._pool.getconn()
-        try:
-            # Mirror pre-refactor behavior: every connection runs in
-            # autocommit. Applied per checkout — cheap, and defensive
-            # against anything that ever flips isolation levels on a
-            # pooled conn.
-            self._conn.set_isolation_level(
-                psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-            )
-            self._cur = self._conn.cursor()
-            return self._cur
-        except Exception:
-            self._pool.putconn(self._conn)
-            self._conn = None
-            raise
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            if self._cur is not None:
-                self._cur.close()
-        finally:
-            if self._conn is not None:
-                # On exception, discard the conn so a bad connection doesn't
-                # re-enter the pool. Happy path: return it for reuse.
-                self._pool.putconn(
-                    self._conn, close=(exc_type is not None)
-                )
-        return False  # don't swallow exceptions
-
-
-def _median(values: list):
-    """Median of a list, ignoring None. Returns None when the list is empty.
-
-    Uses floor division for the even-length case because every column
-    fed in here is INTEGER in the schema; `960` reads more cleanly in
-    the rendered admin tile than `960.0`. If a future caller passes a
-    DOUBLE PRECISION column, switch this site to true division.
-    """
-    values = sorted(v for v in values if v is not None)
-    if not values:
-        return None
-    n = len(values)
-    mid = n // 2
-    if n % 2 == 1:
-        return values[mid]
-    return (values[mid - 1] + values[mid]) // 2
-
-
-# Named-key contract for rows returned by get_session_metrics_summary's
-# SELECT. The SELECT statement MUST emit these columns in this order;
-# both sides reference this tuple so column renames/reorderings stay
-# in lockstep. Reordering the SELECT without updating this list is the
-# kind of silent-wrong-numbers bug an earlier review flagged.
-_SUMMARY_COLUMNS = (
-    "host_name",
-    "session_metrics_started_at",
-    "seconds_to_first_sleap_label",
-    "seconds_to_first_sleap_train",
-    "seconds_to_first_sleap_track",
-    "seconds_in_subject_software",
-    "gpu_active_seconds",
-    "max_labeled_frames",
-    "training_epochs_completed",
-)
-
-
-def _build_summary(rows: list) -> dict:
-    """Build the session-metrics cohort summary from a row iterable.
-
-    Rows are positional tuples from psycopg2; we zip them against
-    `_SUMMARY_COLUMNS` so the rest of this function reads by name.
-    Test fixtures that pass fewer trailing fields produce dicts with
-    those keys missing — `.get(...)` returns None for those, which is
-    the same behavior callers see for a NULL column.
-    """
-    keyed = [dict(zip(_SUMMARY_COLUMNS, r)) for r in rows]
-    total = len(keyed)
-    started = sum(1 for r in keyed if r.get("session_metrics_started_at") is not None)
-    labeled = sum(1 for r in keyed if r.get("seconds_to_first_sleap_label") is not None)
-    trained = sum(1 for r in keyed if r.get("seconds_to_first_sleap_train") is not None)
-    tracked = sum(1 for r in keyed if r.get("seconds_to_first_sleap_track") is not None)
-    secs_in_subject = [r.get("seconds_in_subject_software") for r in keyed]
-    first_train = [r.get("seconds_to_first_sleap_train") for r in keyed]
-    frames = [r.get("max_labeled_frames") for r in keyed]
-    epochs = [r.get("training_epochs_completed") for r in keyed]
-    pct_train = (trained / total * 100.0) if total else 0.0
-    return {
-        "total_vms": total,
-        "funnel": {
-            "started": started,
-            "labeled": labeled,
-            "trained": trained,
-            "tracked": tracked,
-        },
-        "pct_reached_training": pct_train,
-        "median_seconds_in_subject_software": _median(secs_in_subject),
-        "median_seconds_to_first_train": _median(first_train),
-        "median_labeled_frames": _median(frames),
-        "median_epochs_completed": _median(epochs),
-    }
-
-
-class PostgresqlDatabase:
-    """Class to interact with a PostgreSQL database.
-    This class provides methods to connect to the database, insert data,
-    retrieve data, and listen for notifications.
+    Shares its connection pool with the other classes in this package via
+    the `pool` property, rather than each opening its own.
     """
 
     def __init__(
@@ -286,6 +39,7 @@ class PostgresqlDatabase:
         table_name: str,
         pool_min_size: int = POOL_MIN_SIZE,
         pool_max_size: int = POOL_MAX_SIZE,
+        pool=None,
     ):
         """Initialize the database connection pool.
 
@@ -297,19 +51,30 @@ class PostgresqlDatabase:
             port (int): The port number for the database connection.
             table_name (str): The name of the table to interact with.
             pool_min_size (int): Minimum pooled connections. Defaults to
-                POOL_MIN_SIZE. Override in tests only.
+                POOL_MIN_SIZE. Ignored when `pool` is provided.
             pool_max_size (int): Maximum pooled connections. Defaults to
                 POOL_MAX_SIZE (which honors LABLINK_DB_POOL_MAX_SIZE).
-                Override in tests only.
+                Ignored when `pool` is provided.
+            pool: A pre-built connection pool to use instead of
+                constructing a new `ThreadedConnectionPool`. Callers that
+                need only a pool-shaped object — tests supplying a
+                `MagicMock`, or code sharing an existing pool — pass this
+                instead of `pool_min_size`/`pool_max_size`. When provided,
+                no psycopg2 connection is attempted here and pool sizing
+                is not validated (the caller already built the pool).
+                Ownership contract: this instance does NOT take ownership
+                of an injected pool. `__del__` only calls `closeall()` on
+                a pool this `__init__` constructed itself; a pool you pass
+                in remains yours to close (e.g. once every handle sharing
+                it is done). This matters for callers like `make_pool`
+                consumers that share one pool across several instances —
+                without this, garbage-collecting any one of them would
+                close the pool out from under the others.
 
         Raises:
-            ValueError: If pool sizing is invalid.
+            ValueError: If pool sizing is invalid and `pool` was not
+                provided.
         """
-        if pool_min_size < 1 or pool_max_size < pool_min_size:
-            raise ValueError(
-                f"Invalid pool sizes: min={pool_min_size}, max={pool_max_size}"
-            )
-
         self.dbname = dbname
         self.user = user
         self.password = password
@@ -317,16 +82,22 @@ class PostgresqlDatabase:
         self.port = port
         self.table_name = table_name
 
-        self._pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=pool_min_size,
-            maxconn=pool_max_size,
-            dbname=dbname,
-            user=user,
-            password=password,
-            host=host,
-            port=port,
-        )
-        self._secret_hash_cache = _SecretHashCache()
+        if pool is not None:
+            self._pool = pool
+            self._owns_pool = False
+        else:
+            validate_pool_sizes(pool_min_size, pool_max_size)
+            self._pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=pool_min_size,
+                maxconn=pool_max_size,
+                dbname=dbname,
+                user=user,
+                password=password,
+                host=host,
+                port=port,
+            )
+            self._owns_pool = True
+        self._secret_hash_cache = SecretHashCache()
 
     @property
     def _cursor(self):
@@ -337,7 +108,7 @@ class PostgresqlDatabase:
             with self._cursor as cursor:
                 cursor.execute(...)
         """
-        return _PooledCursor(self._pool)
+        return PooledCursor(self._pool)
 
     @property
     def pool(self):
@@ -419,55 +190,10 @@ class PostgresqlDatabase:
             )
             return [row[0] for row in cursor.fetchall()]
 
-    def insert_vm(self, hostname) -> None:
-        """Insert a new row into the table.
-
-        Args:
-            hostname (str): The hostname of the VM.
-        """
-        column_names = self.get_column_names()
-
-        values = []
-
-        for col in column_names:
-            # Find the column that corresponds to the hostname and set its value
-            if col == "hostname":
-                values.append(hostname)
-            elif col == "inuse":
-                values.append(False)
-            else:
-                values.append(None)
-
-        # Construct the SQL query
-        columns = ", ".join(column_names)
-        placeholders = ", ".join(["%s" for _ in column_names])
-
-        with self._cursor as cursor:
-            try:
-                sql = (
-                    f"INSERT INTO {self.table_name} "
-                    f"({columns}) VALUES ({placeholders});"
-                )
-                cursor.execute(sql, values)
-            except Exception as e:
-                logger.error(f"Failed to insert VM '{hostname}': {e}")
-                raise
-
-    def get_vm_by_machine_identity(self, machine_identity: str):
-        """Return the hostname of the row with this machine_identity, or None."""
-        with self._cursor as cursor:
-            cursor.execute(
-                f"SELECT hostname FROM {self.table_name} "
-                f"WHERE machine_identity = %s;",
-                (machine_identity,),
-            )
-            row = cursor.fetchone()
-        return row[0] if row else None
-
     def get_client_secret_hash(self, hostname: str):
         """Return the argon2 client_secret_hash for a hostname, or None.
 
-        Cached per-hostname (see ``_SecretHashCache``). The version token
+        Cached per-hostname (see ``SecretHashCache``). The version token
         captured before the SELECT is re-checked on put — a concurrent
         ``register_client`` or ``unregister_client`` that bumps the
         version mid-flight rejects the stale write, so the next call
@@ -931,32 +657,6 @@ class PostgresqlDatabase:
                 )
                 raise
 
-    def get_gpu_health(self, hostname: str) -> str:
-        """Get the GPU health status of a VM.
-
-        Args:
-            hostname (str): The hostname of the VM.
-
-        Returns:
-            str: The health status of the GPU for the specified VM
-                or None if not found.
-        """
-        query = (
-            f"SELECT healthy FROM {self.table_name} "
-            f"WHERE hostname = %s;"
-        )
-        try:
-            with self._cursor as cursor:
-                cursor.execute(query, (hostname,))
-                result = cursor.fetchone()
-            return result[0] if result else None
-        except Exception as e:
-            logger.error(
-                f"Failed to retrieve GPU health "
-                f"for VM '{hostname}': {e}"
-            )
-            return None
-
     def get_status_by_hostname(self, hostname: str) -> str:
         """Get the status of a VM by its hostname.
 
@@ -1028,34 +728,6 @@ class PostgresqlDatabase:
                 f"for VM '{hostname}': {e}"
             )
             return None
-
-    def save_logs_by_hostname(
-        self, hostname: str, logs: str, log_type: str = "cloud_init"
-    ) -> None:
-        """Save logs for a VM by its hostname.
-
-        Args:
-            hostname (str): The hostname of the VM.
-            logs (str): The logs to save for the VM.
-            log_type (str): "cloud_init" or "docker".
-        """
-        column = (
-            "cloudinitlogs" if log_type == "cloud_init"
-            else "dockerlogs"
-        )
-        query = (
-            f"UPDATE {self.table_name} "
-            f"SET {column} = %s WHERE hostname = %s;"
-        )
-        with self._cursor as cursor:
-            try:
-                cursor.execute(query, (logs, hostname))
-            except Exception as e:
-                logger.error(
-                    f"Failed to save {log_type} logs "
-                    f"for VM '{hostname}': {e}"
-                )
-                raise
 
     def append_logs_by_hostname(
         self,
@@ -1166,34 +838,6 @@ class PostgresqlDatabase:
                     f"Failed to update status "
                     f"for VM '{hostname}': {e}"
                 )
-
-    @classmethod
-    def load_database(
-        cls,
-        dbname,
-        user,
-        password,
-        host,
-        port,
-        table_name,
-        pool_min_size: int = POOL_MIN_SIZE,
-        pool_max_size: int = POOL_MAX_SIZE,
-    ) -> "PostgresqlDatabase":
-        """Loads an existing database from PostgreSQL.
-
-        Args match __init__. Provided for callers that prefer the
-        classmethod style.
-        """
-        return cls(
-            dbname,
-            user,
-            password,
-            host,
-            port,
-            table_name,
-            pool_min_size=pool_min_size,
-            pool_max_size=pool_max_size,
-        )
 
     @staticmethod
     def _naive_utc(dt: datetime) -> datetime:
@@ -1335,171 +979,6 @@ class PostgresqlDatabase:
                     f"Failed to update metrics for VM '{hostname}': {e}"
                 )
                 raise
-
-    def create_scheduled_destruction(
-        self,
-        schedule_name: str,
-        destruction_time: datetime,
-        recurrence_rule: str = None,
-        created_by: str = None,
-        notification_enabled: bool = True,
-        notification_hours_before: int = 1,
-    ) -> int:
-        """Create a scheduled destruction entry and return its ID.
-
-        Raises:
-            ValueError: If a schedule with the same name already exists
-            RuntimeError: If database operation fails
-        """
-        query = """
-            INSERT INTO scheduled_destructions
-            (schedule_name, destruction_time, recurrence_rule, created_by,
-            notification_enabled, notification_hours_before, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
-            RETURNING id;
-        """
-        with self._cursor as cursor:
-            try:
-                cursor.execute(
-                    query,
-                    (
-                        schedule_name,
-                        self._naive_utc(destruction_time),
-                        recurrence_rule,
-                        created_by,
-                        notification_enabled,
-                        notification_hours_before,
-                    ),
-                )
-                destruction_id = cursor.fetchone()[0]
-                logger.info(
-                    f"Created scheduled destruction "
-                    f"'{schedule_name}' "
-                    f"(ID: {destruction_id})"
-                )
-                return destruction_id
-
-            except psycopg2.IntegrityError as e:
-                if (
-                    'schedule_name' in str(e)
-                    or 'unique constraint' in str(e).lower()
-                ):
-                    error_msg = (
-                        f"Schedule '{schedule_name}' already exists"
-                    )
-                    logger.warning(error_msg)
-                    raise ValueError(error_msg) from e
-                else:
-                    logger.error(
-                        f"Database integrity error "
-                        f"creating schedule: {e}"
-                    )
-                    raise RuntimeError(
-                        f"Database integrity error: {e}"
-                    ) from e
-
-            except Exception as e:
-                logger.error(
-                    f"Failed to create scheduled destruction "
-                    f"'{schedule_name}': {e}"
-                )
-                raise RuntimeError(
-                    f"Failed to create scheduled destruction: {e}"
-                ) from e
-
-    def get_scheduled_destruction(self, schedule_id: int) -> Optional[dict]:
-        """Get scheduled destruction by ID."""
-        query = "SELECT * FROM scheduled_destructions WHERE id = %s;"
-        with self._cursor as cursor:
-            cursor.execute(query, (schedule_id,))
-            row = cursor.fetchone()
-        if row:
-            columns = [
-                "id",
-                "schedule_name",
-                "destruction_time",
-                "recurrence_rule",
-                "created_by",
-                "status",
-                "execution_count",
-                "last_execution_time",
-                "last_execution_result",
-                "notification_enabled",
-                "notification_hours_before",
-                "created_at",
-                "updated_at",
-            ]
-            return dict(zip(columns, row))
-        return None
-
-    def get_all_scheduled_destructions(
-        self, status: Optional[str] = None
-    ) -> List[dict]:
-        """Get all scheduled destructions, optionally filtered by status."""
-        columns = [
-            "id",
-            "schedule_name",
-            "destruction_time",
-            "recurrence_rule",
-            "created_by",
-            "status",
-            "execution_count",
-            "last_execution_time",
-            "last_execution_result",
-            "notification_enabled",
-            "notification_hours_before",
-            "created_at",
-            "updated_at",
-        ]
-
-        with self._cursor as cursor:
-            if status:
-                query = (
-                    "SELECT * FROM scheduled_destructions "
-                    "WHERE status = %s "
-                    "ORDER BY destruction_time;"
-                )
-                cursor.execute(query, (status,))
-            else:
-                query = (
-                    "SELECT * FROM scheduled_destructions "
-                    "ORDER BY destruction_time;"
-                )
-                cursor.execute(query)
-
-            return [
-                dict(zip(columns, row))
-                for row in cursor.fetchall()
-            ]
-
-    def update_scheduled_destruction_status(
-        self,
-        schedule_id: int,
-        status: str,
-        execution_result: Optional[str] = None,
-    ) -> None:
-        """Update destruction execution status."""
-        query = """
-            UPDATE scheduled_destructions
-            SET status = %s,
-                execution_count = execution_count + 1,
-                last_execution_time = NOW(),
-                last_execution_result = %s
-            WHERE id = %s;
-        """
-        with self._cursor as cursor:
-            cursor.execute(
-                query, (status, execution_result, schedule_id)
-            )
-
-    def cancel_scheduled_destruction(self, schedule_id: int) -> None:
-        """Cancel a scheduled destruction."""
-        query = (
-            "UPDATE scheduled_destructions "
-            "SET status = 'cancelled' WHERE id = %s;"
-        )
-        with self._cursor as cursor:
-            cursor.execute(query, (schedule_id,))
 
     def ensure_reboot_columns(self) -> None:
         """Add reboot tracking columns to vm_table if they don't exist."""
@@ -1761,130 +1240,17 @@ class PostgresqlDatabase:
                 )
                 raise
 
-    def update_session_metrics(self, hostname: str, payload: dict) -> None:
-        """Last-write-wins UPDATE of session-metrics columns.
-
-        Atomic with respect to seal: the sealed-row check is folded into
-        the UPDATE's WHERE clause, so a concurrent ``bulk_seal_session_metrics``
-        cannot land between a separate SELECT and a separate UPDATE.
-        When the UPDATE affects zero rows, a follow-up existence SELECT
-        classifies the failure as ``LookupError`` (no such row) or
-        ``ValueError`` (row exists but is sealed).
-
-        Raises:
-            LookupError: if hostname unknown.
-            ValueError: if the row is already sealed.
-        """
-        # Lazy import: the legacy test_database.py module-level mock of
-        # sys.modules does not stub psycopg2.extras, so importing Json
-        # at module scope would break that suite.
-        from psycopg2.extras import Json
-
-        counters = payload.get("counters", {})
-        with self._cursor as cursor:
-            cursor.execute(
-                f"""
-                UPDATE {self.table_name} SET
-                  SessionMetricsStartedAt      = COALESCE(SessionMetricsStartedAt, %s),
-                  SessionMetricsLastReportedAt = NOW(),
-                  SecondsInSubjectSoftware     = %s,
-                  SecondsInTerminal            = %s,
-                  SecondsInBrowser             = %s,
-                  SecondsInOther               = %s,
-                  GpuActiveSeconds             = %s,
-                  GpuUtilPeak                  = %s,
-                  VramUsedPeakMb               = %s,
-                  SecondsToFirstSleapLabel     = %s,
-                  SecondsToFirstSleapTrain     = %s,
-                  SecondsToFirstSleapTrack     = %s,
-                  MaxLabeledFrames             = %s,
-                  TrainingEpochsCompleted      = %s,
-                  TrainingFinalLoss            = %s,
-                  SessionMetricsRaw            = %s
-                WHERE HostName = %s AND SessionMetricsSealedAt IS NULL
-                """,
-                (
-                    payload.get("session_started_at"),
-                    counters.get("seconds_in_subject_software"),
-                    counters.get("seconds_in_terminal"),
-                    counters.get("seconds_in_browser"),
-                    counters.get("seconds_in_other"),
-                    counters.get("gpu_active_seconds"),
-                    counters.get("gpu_util_peak"),
-                    counters.get("vram_used_peak_mb"),
-                    counters.get("seconds_to_first_sleap_label"),
-                    counters.get("seconds_to_first_sleap_train"),
-                    counters.get("seconds_to_first_sleap_track"),
-                    counters.get("max_labeled_frames"),
-                    counters.get("training_epochs_completed"),
-                    counters.get("training_final_loss"),
-                    Json(counters),
-                    hostname,
-                ),
-            )
-            if cursor.rowcount >= 1:
-                return
-
-            # UPDATE matched zero rows — classify so the route can return
-            # 404 vs 409. HostName is PRIMARY KEY on vms, so this SELECT
-            # can return at most one row.
-            cursor.execute(
-                f"SELECT 1 FROM {self.table_name} WHERE HostName = %s",
-                (hostname,),
-            )
-            if cursor.fetchone() is None:
-                raise LookupError(f"VM {hostname} not found")
-            raise ValueError(f"VM {hostname} session is sealed")
-
-    def seal_session_metrics(self, hostname: str) -> None:
-        """Mark a single VM's session-metrics row as sealed (final)."""
-        with self._cursor as cursor:
-            cursor.execute(
-                f"UPDATE {self.table_name} SET SessionMetricsSealedAt = NOW() "
-                "WHERE HostName = %s AND SessionMetricsSealedAt IS NULL",
-                (hostname,),
-            )
-
-    def bulk_seal_session_metrics(self) -> int:
-        """Seal every unsealed VM (called from the destroy paths).
-
-        Returns:
-            int: number of rows sealed.
-        """
-        with self._cursor as cursor:
-            cursor.execute(
-                f"UPDATE {self.table_name} SET SessionMetricsSealedAt = NOW() "
-                "WHERE SessionMetricsSealedAt IS NULL"
-            )
-            return cursor.rowcount or 0
-
-    def get_session_metrics_summary(self) -> dict:
-        """Aggregate the cohort summary for the admin page.
-
-        The SELECT column order MUST match `_SUMMARY_COLUMNS` at module
-        top — `_build_summary` zips them together to access rows by name.
-        """
-        with self._cursor as cursor:
-            cursor.execute(
-                f"""
-                SELECT HostName,
-                       SessionMetricsStartedAt,
-                       SecondsToFirstSleapLabel,
-                       SecondsToFirstSleapTrain,
-                       SecondsToFirstSleapTrack,
-                       SecondsInSubjectSoftware,
-                       GpuActiveSeconds,
-                       MaxLabeledFrames,
-                       TrainingEpochsCompleted
-                FROM {self.table_name}
-                """
-            )
-            rows = cursor.fetchall()
-        return _build_summary(rows)
-
     def __del__(self):
-        """Close all pooled connections when the object is deleted."""
-        if hasattr(self, "_pool") and self._pool is not None:
+        """Close all pooled connections when the object is deleted.
+
+        Only closes a pool this instance built itself (see `__init__`'s
+        `pool` parameter). An injected pool is owned by whoever built it
+        and stays open — it may still be in use by other holders.
+        """
+        if (
+            getattr(self, "_owns_pool", False)
+            and getattr(self, "_pool", None) is not None
+        ):
             try:
                 self._pool.closeall()
             except Exception:

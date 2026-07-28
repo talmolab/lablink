@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lablink_allocator_service.operations import OperationsWorker
-from lablink_allocator_service.operations_db import OperationInProgress
+from lablink_allocator_service.db.operations import OperationInProgress
 
 
 @pytest.fixture

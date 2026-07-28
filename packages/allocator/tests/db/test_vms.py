@@ -1,79 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch, ANY
 
-# Mock psycopg2 before importing the database module
-# This allows us to avoid the real psycopg2 import raising an error if it's not installed
-# in the test environment, and to control its behavior for all tests in this file.
-mock_psycopg2 = MagicMock()
-
-# Create proper exception classes for psycopg2
-class MockIntegrityError(Exception):
-    """Mock psycopg2.IntegrityError for testing."""
-    pass
-
-mock_psycopg2.IntegrityError = MockIntegrityError
-
-with patch.dict(
-    "sys.modules",
-    {
-        "psycopg2": mock_psycopg2,
-        "psycopg2.extensions": MagicMock(),
-        "psycopg2.pool": mock_psycopg2.pool,
-    },
-):
-    from lablink_allocator_service.database import PostgresqlDatabase
-
-
-@pytest.fixture
-def mock_db_connection():
-    """Fixture returning (mock_conn, mock_cursor, mock_pool).
-
-    The connection-pool mock is wired so that:
-      - PostgresqlDatabase.__init__ receives a mock pool (via the patched
-        psycopg2.pool.ThreadedConnectionPool factory) instead of opening
-        a real pool.
-      - mock_pool.getconn() returns mock_conn.
-      - mock_conn.cursor() returns mock_cursor directly.
-
-    Tests that previously reassigned db.conn and db.cursor after
-    instantiation continue to work via the convenience aliases set in
-    db_instance below.
-    """
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-
-    # conn.cursor() returns the cursor directly (real psycopg2 behavior).
-    # _PooledCursor calls conn.cursor() and uses the result as the cursor.
-    mock_conn.cursor.return_value = mock_cursor
-
-    mock_pool = MagicMock()
-    mock_pool.getconn.return_value = mock_conn
-
-    # PostgresqlDatabase.__init__ calls psycopg2.pool.ThreadedConnectionPool(...).
-    # Route that through the mock so no real connection is attempted.
-    mock_psycopg2.pool.ThreadedConnectionPool.return_value = mock_pool
-
-    return mock_conn, mock_cursor, mock_pool
-
-
-@pytest.fixture
-def db_instance(mock_db_connection):
-    """Fixture returning a PostgresqlDatabase wired to a mocked pool."""
-    mock_conn, mock_cursor, mock_pool = mock_db_connection
-    db = PostgresqlDatabase(
-        dbname="testdb",
-        user="testuser",
-        password="testpassword",
-        host="localhost",
-        port=5432,
-        table_name="vms",
-    )
-    # Convenience aliases so test bodies can keep using db_instance.cursor
-    # and db_instance.conn without knowing about pool internals.
-    db.conn = mock_conn
-    db.cursor = mock_cursor
-    db._pool = mock_pool
-    return db
+# mock_db_connection/db_instance fixtures live in tests/db/conftest.py —
+# both this module and test_pool.py need them. VmDatabase no longer
+# needs any psycopg2 mocking to construct (db_instance injects a mock pool
+# via VmDatabase(..., pool=...)), so this is a plain, ordinary
+# import — no sys.modules patching, no collection-order sensitivity.
+from lablink_allocator_service.db.vms import VmDatabase
 
 
 def test_get_row_count(db_instance):
@@ -104,31 +37,6 @@ def test_get_column_names(db_instance):
         ("vms",),
     )
     assert columns == expected_columns
-
-
-def test_insert_vm(db_instance):
-    """Test inserting a new VM into the database."""
-    hostname = "test-vm-01"
-    # Mock the get_column_names method to return a specific set of columns
-    db_instance.get_column_names = MagicMock(
-        return_value=[
-            "hostname",
-            "inuse",
-            "status",
-            "email",
-            "pin",
-            "crdcommand",
-            "healthy",
-            "cloudinitlogs",
-            "dockerlogs",
-        ]
-    )
-    db_instance.insert_vm(hostname)
-
-    expected_sql = "INSERT INTO vms (hostname, inuse, status, email, pin, crdcommand, healthy, cloudinitlogs, dockerlogs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
-    # The values should correspond to the mocked column names
-    expected_values = [hostname, False, None, None, None, None, None, None, None]
-    db_instance.cursor.execute.assert_called_with(expected_sql, expected_values)
 
 
 def test_get_unassigned_vms(db_instance):
@@ -214,20 +122,6 @@ def test_update_health(db_instance):
     )
 
 
-def test_get_gpu_health(db_instance):
-    """Test getting the GPU health of a VM."""
-    hostname = "gpu-vm-01"
-    health_status = "fail"
-    db_instance.cursor.fetchone.return_value = (health_status,)
-
-    result = db_instance.get_gpu_health(hostname)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT healthy FROM vms WHERE hostname = %s;", (hostname,)
-    )
-    assert result == health_status
-
-
 def test_get_status_by_hostname(db_instance):
     """Test getting the status of a VM by its hostname."""
     hostname = "status-vm-01"
@@ -278,26 +172,6 @@ def test_get_vm_logs_by_type(db_instance):
         "SELECT dockerlogs FROM vms WHERE hostname = %s;", (hostname,)
     )
     assert result == {"docker_logs": "docker data"}
-
-
-def test_save_logs_by_hostname(db_instance):
-    """Test saving cloud_init logs for a specific VM."""
-    hostname = "log-vm-02"
-    logs = "new log data to save"
-    db_instance.save_logs_by_hostname(hostname, logs, log_type="cloud_init")
-    db_instance.cursor.execute.assert_called_with(
-        "UPDATE vms SET cloudinitlogs = %s WHERE hostname = %s;", (logs, hostname)
-    )
-
-
-def test_save_docker_logs_by_hostname(db_instance):
-    """Test saving docker logs for a specific VM."""
-    hostname = "log-vm-03"
-    logs = "docker log data"
-    db_instance.save_logs_by_hostname(hostname, logs, log_type="docker")
-    db_instance.cursor.execute.assert_called_with(
-        "UPDATE vms SET dockerlogs = %s WHERE hostname = %s;", (logs, hostname)
-    )
 
 
 def test_append_logs_by_hostname(db_instance):
@@ -357,7 +231,7 @@ def test_old_read_modify_write_race_condition():
     The old code did:
         1. existing = db.get_vm_logs(hostname)  # READ
         2. vm_log = existing + new_logs          # MODIFY
-        3. db.save_logs_by_hostname(vm_log)      # WRITE
+        3. db.<the old whole-column write>(vm_log)   # WRITE
 
     With concurrent requests for the same VM, two requests could read
     the same snapshot, append their own data, and overwrite each other:
@@ -570,42 +444,18 @@ def test_update_vm_status_invalid(db_instance, caplog):
     assert "Invalid VM status 'invalid_status'" in caplog.text
 
 
-def test_load_database():
-    """Test the class method for loading a database instance.
-
-    Derives the expected pool sizes from the module constants so this
-    test doesn't lock in a specific default (the max is also configurable
-    via LABLINK_DB_POOL_MAX_SIZE — see _pool_max_size_from_env)."""
-    from lablink_allocator_service.database import (
-        POOL_MAX_SIZE,
-        POOL_MIN_SIZE,
-    )
-
-    with patch.object(
-        PostgresqlDatabase,
-        "__init__",
-        return_value=None,
-    ) as mock_init:
-        inst = PostgresqlDatabase.load_database(
-            "db", "user", "pass", "host", 5432, "table"
-        )
-
-    mock_init.assert_called_once_with(
-        "db", "user", "pass", "host", 5432, "table",
-        pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZE,
-    )
-
-    assert isinstance(inst, PostgresqlDatabase)
-
-
 def test_del(db_instance):
-    """Test that the destructor closes all pooled connections."""
+    """db_instance injects its pool (pool=mock_pool, not owned/constructed
+    by this instance), so __del__ must NOT close it — closing a pool you
+    don't own could yank it out from under other holders. See
+    test_del_closes_pool (owned pool -> closed) and
+    test_del_does_not_close_injected_pool for the full picture."""
     pool = db_instance._pool
 
     # Call __del__ directly for predictable testing, as garbage collection is not guaranteed
     db_instance.__del__()
 
-    pool.closeall.assert_called_once()
+    pool.closeall.assert_not_called()
 
 
 def test_get_unassigned_vms_error(db_instance, caplog):
@@ -622,14 +472,6 @@ def test_assign_vm_db_error(db_instance, caplog):
     with pytest.raises(Exception, match="DB error"):
         db_instance.assign_vm("user@example.com")
     assert "Failed to assign VM" in caplog.text
-
-
-def test_get_gpu_health_not_found(db_instance):
-    """Test getting GPU health for a non-existent VM."""
-    hostname = "non-existent-vm"
-    db_instance.cursor.fetchone.return_value = None
-    result = db_instance.get_gpu_health(hostname)
-    assert result is None
 
 
 def test_get_status_by_hostname_not_found(db_instance):
@@ -832,13 +674,13 @@ def test_naive_utc():
 
     # Test with timezone-aware datetime
     aware_dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
-    naive_utc_dt = PostgresqlDatabase._naive_utc(aware_dt)
+    naive_utc_dt = VmDatabase._naive_utc(aware_dt)
     assert naive_utc_dt.tzinfo is None
     assert naive_utc_dt == datetime(2023, 1, 1, 17, 0, 0)
 
     # Test with naive datetime
     naive_dt = datetime(2023, 1, 1, 12, 0, 0)
-    naive_utc_dt = PostgresqlDatabase._naive_utc(naive_dt)
+    naive_utc_dt = VmDatabase._naive_utc(naive_dt)
     assert naive_utc_dt.tzinfo is None
     assert naive_utc_dt == naive_dt
 
@@ -898,261 +740,6 @@ def test_update_vm_metrics_atomic_container_only(db_instance):
     assert values == (1609459300, 1609459360, 60.0, 60.0, hostname)
 
 
-def test_create_scheduled_destruction(db_instance):
-    """Test creating a new scheduled destruction."""
-    from datetime import datetime, timezone
-
-    schedule_name = "Friday Tutorial End"
-    destruction_time = datetime(2025, 12, 5, 17, 30, 0, tzinfo=timezone.utc)
-    recurrence_rule = "FREQ=WEEKLY;BYDAY=FR"
-    created_by = "admin@example.com"
-
-    db_instance.cursor.fetchone.return_value = (1,)
-
-    schedule_id = db_instance.create_scheduled_destruction(
-        schedule_name=schedule_name,
-        destruction_time=destruction_time,
-        recurrence_rule=recurrence_rule,
-        created_by=created_by,
-        notification_enabled=True,
-        notification_hours_before=1,
-    )
-
-    expected_query = """
-            INSERT INTO scheduled_destructions
-            (schedule_name, destruction_time, recurrence_rule, created_by,
-            notification_enabled, notification_hours_before, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'scheduled')
-            RETURNING id;
-        """
-
-    # Convert to naive UTC for comparison
-    naive_destruction_time = destruction_time.replace(tzinfo=None)
-
-    db_instance.cursor.execute.assert_called_once()
-    args = db_instance.cursor.execute.call_args[0]
-    assert "".join(args[0].split()) == "".join(expected_query.split())
-    assert args[1] == (
-        schedule_name,
-        naive_destruction_time,
-        recurrence_rule,
-        created_by,
-        True,
-        1,
-    )
-    assert schedule_id == 1
-
-
-def test_create_scheduled_destruction_one_time(db_instance):
-    """Test creating a one-time scheduled destruction (no recurrence)."""
-    from datetime import datetime, timezone
-
-    schedule_name = "One-Time Cleanup"
-    destruction_time = datetime(2025, 12, 6, 18, 0, 0, tzinfo=timezone.utc)
-
-    db_instance.cursor.fetchone.return_value = (2,)
-
-    schedule_id = db_instance.create_scheduled_destruction(
-        schedule_name=schedule_name,
-        destruction_time=destruction_time,
-        recurrence_rule=None,
-        created_by=None,
-        notification_enabled=False,
-        notification_hours_before=0,
-    )
-
-    naive_destruction_time = destruction_time.replace(tzinfo=None)
-
-    db_instance.cursor.execute.assert_called_once()
-    args = db_instance.cursor.execute.call_args[0]
-    assert args[1] == (
-        schedule_name,
-        naive_destruction_time,
-        None,
-        None,
-        False,
-        0,
-    )
-    assert schedule_id == 2
-
-
-def test_create_scheduled_destruction_error(db_instance, caplog):
-    """Test error handling in create_scheduled_destruction."""
-    from datetime import datetime, timezone
-    import pytest
-
-    db_instance.cursor.execute.side_effect = Exception("DB error")
-
-    # Should raise RuntimeError instead of returning None
-    with pytest.raises(RuntimeError, match="Failed to create scheduled destruction"):
-        db_instance.create_scheduled_destruction(
-            schedule_name="Test",
-            destruction_time=datetime.now(timezone.utc),
-        )
-
-    assert "Failed to create scheduled destruction" in caplog.text
-
-
-def test_get_scheduled_destruction(db_instance):
-    """Test getting a scheduled destruction by ID."""
-    schedule_id = 1
-
-    # Mock cursor.fetchone to return a tuple (as real PostgreSQL cursor does)
-    # Column order matches: id, schedule_name, destruction_time, recurrence_rule,
-    # created_by, status, execution_count, last_execution_time, last_execution_result,
-    # notification_enabled, notification_hours_before, created_at, updated_at
-    schedule_tuple = (
-        1,  # id
-        "Friday Tutorial End",  # schedule_name
-        "2025-12-05 17:30:00",  # destruction_time
-        "FREQ=WEEKLY;BYDAY=FR",  # recurrence_rule
-        "admin@example.com",  # created_by
-        "scheduled",  # status
-        0,  # execution_count
-        None,  # last_execution_time
-        None,  # last_execution_result
-        True,  # notification_enabled
-        1,  # notification_hours_before
-        None,  # created_at
-        None,  # updated_at
-    )
-
-    db_instance.cursor.fetchone.return_value = schedule_tuple
-
-    result = db_instance.get_scheduled_destruction(schedule_id)
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM scheduled_destructions WHERE id = %s;", (schedule_id,)
-    )
-
-    # Verify the result is a dict with expected values
-    assert result["id"] == 1
-    assert result["schedule_name"] == "Friday Tutorial End"
-    assert result["destruction_time"] == "2025-12-05 17:30:00"
-    assert result["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=FR"
-    assert result["created_by"] == "admin@example.com"
-    assert result["status"] == "scheduled"
-    assert result["execution_count"] == 0
-
-
-def test_get_scheduled_destruction_not_found(db_instance):
-    """Test getting a scheduled destruction that doesn't exist."""
-    schedule_id = 999
-    db_instance.cursor.fetchone.return_value = None
-
-    result = db_instance.get_scheduled_destruction(schedule_id)
-
-    assert result is None
-
-
-def test_get_all_scheduled_destructions(db_instance):
-    """Test getting all scheduled destructions."""
-    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
-    schedules_tuples = [
-        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-        (2, "Schedule 2", None, None, None, "completed", 0, None, None, True, 1, None, None),
-        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-    ]
-
-    db_instance.cursor.fetchall.return_value = schedules_tuples
-
-    result = db_instance.get_all_scheduled_destructions()
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM scheduled_destructions ORDER BY destruction_time;"
-    )
-    assert len(result) == 3
-    assert result[0]["id"] == 1
-    assert result[0]["schedule_name"] == "Schedule 1"
-    assert result[0]["status"] == "scheduled"
-    assert result[1]["id"] == 2
-    assert result[1]["schedule_name"] == "Schedule 2"
-    assert result[1]["status"] == "completed"
-    assert result[2]["id"] == 3
-    assert result[2]["schedule_name"] == "Schedule 3"
-    assert result[2]["status"] == "scheduled"
-
-
-def test_get_all_scheduled_destructions_with_status_filter(db_instance):
-    """Test getting scheduled destructions filtered by status."""
-    # Mock cursor.fetchall to return tuples (as real PostgreSQL cursor does)
-    scheduled_tuples = [
-        (1, "Schedule 1", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-        (3, "Schedule 3", None, None, None, "scheduled", 0, None, None, True, 1, None, None),
-    ]
-
-    db_instance.cursor.fetchall.return_value = scheduled_tuples
-
-    result = db_instance.get_all_scheduled_destructions(status="scheduled")
-
-    db_instance.cursor.execute.assert_called_with(
-        "SELECT * FROM scheduled_destructions WHERE status = %s ORDER BY destruction_time;",
-        ("scheduled",),
-    )
-    assert len(result) == 2
-    assert result[0]["id"] == 1
-    assert result[0]["schedule_name"] == "Schedule 1"
-    assert result[0]["status"] == "scheduled"
-    assert result[1]["id"] == 3
-    assert result[1]["schedule_name"] == "Schedule 3"
-    assert result[1]["status"] == "scheduled"
-
-
-def test_update_scheduled_destruction_status(db_instance):
-    """Test updating the status of a scheduled destruction."""
-    schedule_id = 1
-    status = "completed"
-    execution_result = "All VMs destroyed successfully"
-
-    db_instance.update_scheduled_destruction_status(
-        schedule_id=schedule_id,
-        status=status,
-        execution_result=execution_result,
-    )
-
-    expected_query = """
-            UPDATE scheduled_destructions
-            SET status = %s,
-                execution_count = execution_count + 1,
-                last_execution_time = NOW(),
-                last_execution_result = %s
-            WHERE id = %s;
-        """
-
-    db_instance.cursor.execute.assert_called_once()
-    args = db_instance.cursor.execute.call_args[0]
-    assert "".join(args[0].split()) == "".join(expected_query.split())
-    assert args[1] == (status, execution_result, schedule_id)
-
-
-def test_update_scheduled_destruction_status_failed(db_instance):
-    """Test updating status to failed with error message."""
-    schedule_id = 2
-    status = "failed"
-    execution_result = "Terraform destroy failed: timeout"
-
-    db_instance.update_scheduled_destruction_status(
-        schedule_id=schedule_id,
-        status=status,
-        execution_result=execution_result,
-    )
-
-    args = db_instance.cursor.execute.call_args[0]
-    assert args[1] == (status, execution_result, schedule_id)
-
-
-def test_cancel_scheduled_destruction(db_instance):
-    """Test cancelling a scheduled destruction."""
-    schedule_id = 1
-
-    db_instance.cancel_scheduled_destruction(schedule_id)
-
-    db_instance.cursor.execute.assert_called_with(
-        "UPDATE scheduled_destructions SET status = 'cancelled' WHERE id = %s;",
-        (schedule_id,),
-    )
-
-
 def test_get_assigned_vm_for_email_found(db_instance):
     """Test looking up an email that already owns a VM."""
     db_instance.cursor.fetchone.return_value = ("vm-7", "running", 0)
@@ -1193,121 +780,47 @@ def test_get_assigned_vm_for_email_error(db_instance, caplog):
     assert "Failed to look up assigned VM" in caplog.text
 
 
-def test_pool_size_validation_rejects_min_zero():
-    """pool_min_size must be >= 1."""
-    with pytest.raises(ValueError, match="Invalid pool sizes"):
-        PostgresqlDatabase(
-            dbname="testdb",
-            user="testuser",
-            password="testpassword",
-            host="localhost",
-            port=5432,
-            table_name="vms",
-            pool_min_size=0,
-            pool_max_size=5,
-        )
-
-
-def test_pool_size_validation_rejects_max_below_min():
-    """pool_max_size must be >= pool_min_size."""
-    with pytest.raises(ValueError, match="Invalid pool sizes"):
-        PostgresqlDatabase(
-            dbname="testdb",
-            user="testuser",
-            password="testpassword",
-            host="localhost",
-            port=5432,
-            table_name="vms",
-            pool_min_size=5,
-            pool_max_size=2,
-        )
-
-
-def test_pool_max_size_env_override_parses_int(monkeypatch):
-    from lablink_allocator_service.database import _pool_max_size_from_env
-
-    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "120")
-    assert _pool_max_size_from_env(default=60) == 120
-
-
-def test_pool_max_size_env_override_unset_returns_default(monkeypatch):
-    from lablink_allocator_service.database import _pool_max_size_from_env
-
-    monkeypatch.delenv("LABLINK_DB_POOL_MAX_SIZE", raising=False)
-    assert _pool_max_size_from_env(default=60) == 60
-
-
-def test_pool_max_size_env_override_invalid_falls_back(monkeypatch, caplog):
-    from lablink_allocator_service.database import _pool_max_size_from_env
-
-    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "not-a-number")
-    with caplog.at_level("WARNING"):
-        assert _pool_max_size_from_env(default=60) == 60
-    assert "Ignoring invalid LABLINK_DB_POOL_MAX_SIZE" in caplog.text
-
-
-def test_pool_max_size_env_override_nonpositive_falls_back(monkeypatch, caplog):
-    from lablink_allocator_service.database import _pool_max_size_from_env
-
-    monkeypatch.setenv("LABLINK_DB_POOL_MAX_SIZE", "0")
-    with caplog.at_level("WARNING"):
-        assert _pool_max_size_from_env(default=60) == 60
-    assert "Ignoring LABLINK_DB_POOL_MAX_SIZE=0" in caplog.text
-
-
-def test_cursor_returns_connection_on_success(db_instance):
-    """After a successful `with self._cursor` block, the pool's
-    putconn is called once with close=False."""
-    mock_pool = db_instance._pool
-    with db_instance._cursor as cur:
-        cur.execute("SELECT 1;")
-    mock_pool.putconn.assert_called_once()
-    # close defaults to False on success; verify via kwargs or positional
-    _, kwargs = mock_pool.putconn.call_args
-    assert kwargs.get("close", False) is False
-
-
-def test_cursor_discards_connection_on_exception(db_instance):
-    """If a query raises, putconn is called with close=True so the bad
-    connection is evicted from the pool."""
-    mock_pool = db_instance._pool
-    db_instance.cursor.execute.side_effect = RuntimeError("boom")
-    with pytest.raises(RuntimeError):
-        with db_instance._cursor as cur:
-            cur.execute("SELECT 1;")
-    mock_pool.putconn.assert_called_once()
-    _, kwargs = mock_pool.putconn.call_args
-    assert kwargs.get("close") is True
-
-
-def test_cursor_sets_autocommit_per_checkout(db_instance):
-    """Every checkout applies ISOLATION_LEVEL_AUTOCOMMIT, preserving
-    the pre-refactor per-statement-transaction behavior."""
-    # mock_psycopg2 is the module-level mock installed in sys.modules before
-    # database.py was imported; the production code's psycopg2.extensions
-    # resolves to mock_psycopg2.extensions, so reference the same sentinel here.
-    mock_conn = db_instance.conn
-    mock_conn.set_isolation_level.reset_mock()
-    with db_instance._cursor:
-        pass
-    mock_conn.set_isolation_level.assert_called_once_with(
-        mock_psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-    )
-
-
 def test_del_closes_pool(mock_db_connection):
-    """__del__ closes the pool (releases all connections)."""
+    """__del__ closes the pool it built itself (owned pool, no `pool=`
+    kwarg — the default construction path). Patches
+    psycopg2.pool.ThreadedConnectionPool locally (scoped to this test
+    only, not a session-wide mock) so no real connection is attempted."""
     mock_conn, mock_cursor, mock_pool = mock_db_connection
-    db = PostgresqlDatabase(
+    with patch(
+        "psycopg2.pool.ThreadedConnectionPool", return_value=mock_pool
+    ):
+        db = VmDatabase(
+            dbname="testdb",
+            user="testuser",
+            password="testpassword",
+            host="localhost",
+            port=5432,
+            table_name="vms",
+        )
+    db.__del__()
+    mock_pool.closeall.assert_called_once()
+
+
+def test_del_does_not_close_injected_pool(mock_db_connection):
+    """__del__ must NOT close a pool the caller injected via `pool=` —
+    that pool may be shared with other holders (e.g. an OperationsDatabase
+    using the same pool, or multiple VmDatabase handles sharing one
+    pool via make_pool), and only the pool's own builder is responsible for
+    closing it. This is the regression case for the ownership-tracking fix:
+    before it, __del__ closed *any* pool unconditionally, which would have
+    closed this injected pool out from under other holders."""
+    mock_conn, mock_cursor, mock_pool = mock_db_connection
+    db = VmDatabase(
         dbname="testdb",
         user="testuser",
         password="testpassword",
         host="localhost",
         port=5432,
         table_name="vms",
+        pool=mock_pool,
     )
     db.__del__()
-    mock_pool.closeall.assert_called_once()
+    mock_pool.closeall.assert_not_called()
 
 
 def test_concurrent_queries_do_not_serialize(real_db):
@@ -1636,21 +1149,6 @@ def test_get_setting_missing_returns_none(db_instance, mock_db_connection):
     assert db_instance.get_setting("nope") is None
 
 
-def test_get_vm_by_machine_identity_found(db_instance, mock_db_connection):
-    _, mock_cursor, _ = mock_db_connection
-    mock_cursor.fetchone.return_value = ("vm-1",)
-    assert db_instance.get_vm_by_machine_identity("i-abc") == "vm-1"
-    sql = mock_cursor.execute.call_args[0][0]
-    assert "WHERE machine_identity = %s" in sql
-    assert mock_cursor.execute.call_args[0][1] == ("i-abc",)
-
-
-def test_get_vm_by_machine_identity_missing(db_instance, mock_db_connection):
-    _, mock_cursor, _ = mock_db_connection
-    mock_cursor.fetchone.return_value = None
-    assert db_instance.get_vm_by_machine_identity("i-none") is None
-
-
 def test_get_client_secret_hash(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchone.return_value = ("$argon2id$h",)
@@ -1788,135 +1286,6 @@ def test_unregister_client_noop_does_not_invalidate(
     # Cache still serves the original value.
     assert db_instance.get_client_secret_hash("vm-1") == "$h"
     assert mock_cursor.execute.call_count == 2  # 1 seed + 1 unregister
-
-
-def test_secret_hash_cache_ttl_expiry_re_queries():
-    """Direct test of the cache primitive: after expiry, the next get is
-    a miss and the caller must re-query."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache(
-        positive_ttl_seconds=0.05, negative_ttl_seconds=0.05
-    )
-    assert cache.put("vm-1", "$h", expected_version=0) is True
-    hit, val, _ = cache.get("vm-1")
-    assert hit is True and val == "$h"
-
-    import time as _time
-    _time.sleep(0.08)
-
-    hit, val, _ = cache.get("vm-1")
-    assert hit is False and val is None
-
-
-def test_secret_hash_cache_negative_entry_returns_hit_with_none():
-    """A cached None must read back as (hit=True, value=None) so the
-    caller short-circuits the DB query."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    assert cache.put("nope", None, expected_version=0) is True
-    hit, val, _ = cache.get("nope")
-    assert hit is True and val is None
-
-
-def test_secret_hash_cache_invalidate_clears_entry():
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    cache.put("vm-1", "$h", expected_version=0)
-    cache.invalidate("vm-1")
-    hit, val, _ = cache.get("vm-1")
-    assert hit is False and val is None
-
-
-def test_secret_hash_cache_put_rejected_when_invalidate_races():
-    """Simulate the rotate-race: reader gets a version, mid-flight
-    invalidate (concurrent re-register) bumps it, reader's put must
-    not commit the stale value."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    # Reader observes the version before the DB SELECT.
-    hit, _, version = cache.get("vm-1")
-    assert hit is False
-
-    # Concurrent register_client rotates the secret and invalidates.
-    cache.invalidate("vm-1")
-
-    # Reader's SELECT returned the now-stale hash; put must be rejected.
-    accepted = cache.put("vm-1", "$stale", expected_version=version)
-    assert accepted is False
-
-    # Cache stays empty so the next caller re-fetches and gets the
-    # rotated value from the DB.
-    hit, val, _ = cache.get("vm-1")
-    assert hit is False and val is None
-
-
-def test_secret_hash_cache_put_accepted_when_no_race():
-    """Sanity check: with no intervening invalidate, put commits."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    hit, _, version = cache.get("vm-1")
-    assert hit is False
-    assert cache.put("vm-1", "$h", expected_version=version) is True
-    hit, val, _ = cache.get("vm-1")
-    assert hit is True and val == "$h"
-
-
-def test_secret_hash_cache_version_bumped_per_hostname_only():
-    """Invalidating vm-1 must not affect vm-2's version: a concurrent
-    put for vm-2 must still succeed."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    _, _, v1 = cache.get("vm-1")
-    _, _, v2 = cache.get("vm-2")
-    cache.invalidate("vm-1")
-    assert cache.put("vm-2", "$h2", expected_version=v2) is True
-    assert cache.put("vm-1", "$h1", expected_version=v1) is False
-
-
-def test_secret_hash_cache_lru_eviction_at_max_size():
-    """When the cache is full, inserting a new entry evicts the LRU
-    one. Bounds memory under unique-key floods."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache(max_size=2)
-    assert cache.put("a", "$a", expected_version=0) is True
-    assert cache.put("b", "$b", expected_version=0) is True
-    # Touch "a" so "b" becomes LRU.
-    hit, _, _ = cache.get("a")
-    assert hit is True
-    # Inserting "c" should evict "b", not "a".
-    assert cache.put("c", "$c", expected_version=0) is True
-    assert cache.get("a")[0] is True
-    assert cache.get("b")[0] is False
-    assert cache.get("c")[0] is True
-
-
-def test_secret_hash_cache_rejects_invalid_max_size():
-    from lablink_allocator_service.database import _SecretHashCache
-
-    with pytest.raises(ValueError, match="Invalid cache max_size"):
-        _SecretHashCache(max_size=0)
-
-
-def test_secret_hash_cache_clear_resets_versions():
-    """clear() wipes entries and versions so a subsequent put against
-    the old version is still accepted (no zombie versions)."""
-    from lablink_allocator_service.database import _SecretHashCache
-
-    cache = _SecretHashCache()
-    cache.put("vm-1", "$h", expected_version=0)
-    cache.invalidate("vm-1")  # bumps version to 1
-    cache.clear()
-    # After clear, version is back to 0 for any hostname.
-    _, _, version = cache.get("vm-1")
-    assert version == 0
-    assert cache.put("vm-1", "$h2", expected_version=0) is True
 
 
 def test_register_client_upsert_returns_hostname(db_instance, mock_db_connection):

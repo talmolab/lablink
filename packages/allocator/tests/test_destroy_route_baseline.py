@@ -66,10 +66,16 @@ def destroy_setup(app, monkeypatch, tmp_path):
 
     fake_db = MagicMock()
     fake_db.clear_database = MagicMock()
-    fake_db.bulk_seal_session_metrics = MagicMock(return_value=0)
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
-    return {"tmp_path": tmp_path, "database": fake_db}
+    # bulk_seal_session_metrics lives on metrics_db, not database. Use a
+    # separate MagicMock so an assertion here can't pass because a call
+    # actually landed on `fake_db` instead.
+    fake_metrics_db = MagicMock()
+    fake_metrics_db.bulk_seal_session_metrics = MagicMock(return_value=0)
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
+
+    return {"tmp_path": tmp_path, "database": fake_db, "metrics_db": fake_metrics_db}
 
 
 def _capture_closure(client, admin_headers, mock_worker):
@@ -199,8 +205,11 @@ def test_destroy_closure_fails_when_no_runtime_tfvars(
     provider = AWSProvider(region="us-west-2", terraform_dir=str(tmp_path))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
     fake_db = MagicMock()
-    fake_db.bulk_seal_session_metrics = MagicMock(return_value=0)
     monkeypatch.setattr(main, "database", fake_db, raising=False)
+
+    fake_metrics_db = MagicMock()
+    fake_metrics_db.bulk_seal_session_metrics = MagicMock(return_value=0)
+    monkeypatch.setattr(main, "metrics_db", fake_metrics_db, raising=False)
 
     with patch("lablink_allocator_service.providers.aws.get_instance_ids",
                return_value=[]), \
@@ -237,7 +246,7 @@ def test_destroy_closure_wraps_terraform_failure(
 
 
 def test_destroy_returns_409_when_operation_in_progress(client, admin_headers):
-    from lablink_allocator_service.operations_db import OperationInProgress
+    from lablink_allocator_service.db.operations import OperationInProgress
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.side_effect = OperationInProgress(job_id=4)
@@ -297,7 +306,7 @@ def test_destroy_redirects_with_error_code_when_operation_in_progress(
     client, admin_headers,
 ):
     from unittest.mock import patch
-    from lablink_allocator_service.operations_db import OperationInProgress
+    from lablink_allocator_service.db.operations import OperationInProgress
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.side_effect = OperationInProgress(job_id=4)
