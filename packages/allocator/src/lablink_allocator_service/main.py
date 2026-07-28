@@ -41,10 +41,12 @@ from lablink_allocator_service.db.operations import (
     OperationInProgress,
     OperationsDatabase,
 )
-from lablink_allocator_service.client_session import RotationFailed
 from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import hash_secret
 from lablink_allocator_service.routes.admin_pages import bp as admin_pages_bp
+from lablink_allocator_service.routes.admin_sessions import (
+    bp as admin_sessions_bp,
+)
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.health import bp as health_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
@@ -52,9 +54,6 @@ from lablink_allocator_service.routes.internal_proxy_auth import (
 )
 from lablink_allocator_service.routes.public import bp as public_bp
 from lablink_allocator_service.routes.registration import bp as registration_bp
-from lablink_allocator_service.routes.session_cookie import (
-    sign_session_cookie_and_redirect,
-)
 
 # Re-exported for back-compat: `main.auth` and `main.require_client_secret`
 # are referenced by routes/registration.py and the test suite. `main.users`
@@ -100,6 +99,7 @@ app.wsgi_app = _ProxyFixWhenTrusted(
     app.wsgi_app, trust_headers=lambda: should_use_https(cfg)
 )
 app.register_blueprint(admin_pages_bp)
+app.register_blueprint(admin_sessions_bp)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(internal_proxy_auth_bp)
@@ -250,89 +250,6 @@ def notify_participants():
     cursor = conn.cursor()
     cursor.execute("LISTEN vm_updates;")
     conn.commit()
-
-
-@app.route("/admin/instances/<hostname>/peek")
-@auth.login_required
-def admin_peek_vm(hostname):
-    """View (read-only) a VM already assigned to a participant, without
-    touching useremail or rotating credentials — opens a second WS
-    viewer onto the same live KasmVNC session."""
-    session = database.get_session_for_peek(hostname)
-    if session is None:
-        return redirect("/admin/instances?vnc_error=peek_unavailable")
-
-    return sign_session_cookie_and_redirect(
-        session["sessionid"], suffix="view_only"
-    )
-
-
-@app.route("/admin/instances/<hostname>/connect", methods=["POST"])
-@auth.login_required
-def admin_connect_vm(hostname):
-    """Connect (full control) to a VM not currently assigned to anyone,
-    for admin troubleshooting. Reserves the VM out of the assignable
-    pool (AdminReservedAt) and mints a real session via the same
-    prepare_browser_session path /api/request_vm uses — but never sets
-    useremail."""
-    import uuid
-
-    if not database.admin_reserve_vm(hostname):
-        return redirect("/admin/instances?vnc_error=connect_raced")
-
-    try:
-        session_id = uuid.uuid4()
-        browser_token = secrets.token_urlsafe(16)
-        provider = app.config.get("LABLINK_PROVIDER") or get_provider(
-            cfg.provider, region=cfg.app.region, terraform_dir=str(TERRAFORM_DIR),
-            connectivity=cfg.manual.connectivity,
-        )
-        try:
-            provider.client_connectivity.prepare_browser_session(
-                database=database,
-                hostname=hostname,
-                session_id=session_id,
-                browser_token=browser_token,
-                agent_token=AGENT_TOKEN,
-            )
-        except RotationFailed as exc:
-            logger.warning(
-                "Admin connect rotation failed for '%s': %s", hostname, exc
-            )
-            try:
-                database.update_health(hostname=hostname, healthy="Unhealthy")
-                database.release_seat(hostname=hostname)
-            except Exception:
-                logger.exception("Could not mark '%s' unhealthy", hostname)
-            return redirect("/admin/instances?vnc_error=rotation_failed")
-
-        return sign_session_cookie_and_redirect(
-            session_id, suffix="admin_session"
-        )
-    except Exception:
-        # Anything unexpected here (provider lookup, cookie signing, etc.)
-        # would otherwise leave AdminReservedAt set with no page ever
-        # telling the admin to release it. Release now rather than rely
-        # solely on the dashboard row / 30-minute sweep to recover it.
-        logger.exception(
-            "Unexpected error setting up admin connect session for '%s'; "
-            "releasing reservation", hostname,
-        )
-        try:
-            database.release_seat(hostname=hostname)
-        except Exception:
-            logger.exception("Could not release seat for '%s'", hostname)
-        return redirect("/admin/instances?vnc_error=connect_failed")
-
-
-@app.route("/admin/instances/<hostname>/release", methods=["POST"])
-@auth.login_required
-def admin_release_vm(hostname):
-    """End an admin troubleshooting session, returning the VM to the
-    assignable pool. Posted to by both the dashboard row's Release
-    button and the /desktop wrapper page's Release form."""
-    database.release_seat(hostname=hostname)
-    return redirect("/admin/instances")
 
 
 def _wants_json():
