@@ -23,10 +23,22 @@ echo "TUTORIAL_REPO_TO_CLONE: $TUTORIAL_REPO_TO_CLONE"
 echo "SUBJECT_SOFTWARE: $SUBJECT_SOFTWARE"
 echo "CLOUD_INIT_LOG_GROUP: $CLOUD_INIT_LOG_GROUP"
 
+# Touched once a status later than 'initializing' has been reported, so the
+# background retrier below stops instead of racing a newer state back to a
+# stale value.
+STATUS_SUPERSEDED_FILE="${STATUS_SUPERSEDED_FILE:-/tmp/lablink-status-superseded}"
+STATUS_RETRY_INTERVAL="${STATUS_RETRY_INTERVAL_SECONDS:-15}"
+STATUS_RETRY_MAX_ATTEMPTS="${STATUS_RETRY_MAX_ATTEMPTS:-40}"
+# Per-run state: clear any sentinel a previous run of this container left
+# behind. `docker restart` (or the `unless-stopped` policy after a crash)
+# re-runs this script against the SAME filesystem, so /tmp is not empty — and
+# a stale sentinel would make the retrier below exit immediately on every
+# subsequent boot, silently disabling it exactly where it is needed most.
+rm -f "$STATUS_SUPERSEDED_FILE"
+
 # Helper to POST VM status to the allocator. Mirrors the send_status
-# pattern in user_data.sh. Best-effort — a failed POST does not abort
-# the container, since the allocator's stale-initializing timer will
-# eventually trigger a reboot if we never reach "running".
+# pattern in user_data.sh. Returns curl's exit status so callers can react
+# to a permanent failure; it does not abort the container on its own.
 send_status() {
   local status="$1"
   echo ">> Reporting status='$status' to allocator..."
@@ -42,16 +54,68 @@ send_status() {
     -H "Authorization: Bearer $CLIENT_SECRET" \
     -H "Content-Type: application/json" \
     -d "{\"hostname\":\"$VM_NAME\",\"status\":\"$status\"}" \
-    --max-time 5 --retry 5 --retry-delay 2 --retry-all-errors \
-    || echo ">> WARNING: failed to report status=$status (continuing)"
+    --max-time 5 --retry 5 --retry-delay 2 --retry-all-errors
 }
 
-# Report 'initializing' as soon as the container's start.sh begins. On cold
+# Join the Tailscale overlay when this client was registered with an
+# overlay hostname (mesh-overlay connectivity — MeshOverlayClientConnectivity
+# on the allocator side). Gated purely on TAILSCALE_AUTHKEY's presence;
+# lan_direct/allocator_proxied clients never set it, so this is a no-op
+# for every existing deployment.
+#
+# This runs FIRST, ahead of every allocator call and ahead of the custom
+# startup script, because on a mesh-overlay deployment the tailnet may be
+# the only route to the allocator at all — every pre-join POST would fail
+# outright, not merely race. Joining first also costs far less than it
+# saves: a join is seconds, while the startup script can run for minutes
+# (and is retried), and a container killed mid-script previously never
+# joined the overlay at all.
+if [ -n "$TAILSCALE_AUTHKEY" ]; then
+  echo "Starting tailscaled..."
+  sudo tailscaled >/tmp/tailscaled.log 2>&1 &
+  # Wait for tailscaled's local socket to come up before calling `tailscale up` —
+  # `tailscale status` exits 0 once the daemon is reachable, whether or not
+  # it's logged in yet, so this loop is purely "wait for the socket", not
+  # "wait for join".
+  for i in $(seq 1 30); do
+    sudo tailscale status >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  echo "Joining Tailscale as $OVERLAY_HOSTNAME..."
+  sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="$OVERLAY_HOSTNAME"
+  if [ $? -ne 0 ]; then
+    echo "Failed to join Tailscale overlay" >&2
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  fi
+fi
+
+# Report 'initializing' as soon as the overlay (if any) is up. On cold
 # reboot this is redundant with user_data.sh's earlier post, but on warm
 # reboot user_data.sh's guard may exit before reaching its send_status —
 # this call guarantees the transition rebooting → initializing → running
 # regardless of which path brought the container up.
-send_status "initializing"
+#
+# If the immediate attempt exhausts its 10s budget, keep retrying in the
+# background rather than giving up: the container's outbound network can be
+# unusable for the first few seconds of its life (observed on Docker
+# Desktop/WSL2, where a freshly created container's first connects fail
+# while the host's NAT path settles). Without this, one lost 10s window
+# leaves the allocator staring at a stale status for the entire duration of
+# the custom startup script — which can run for minutes.
+if ! send_status "initializing"; then
+  echo ">> WARNING: failed to report status=initializing; retrying in background"
+  (
+    for _ in $(seq 1 "$STATUS_RETRY_MAX_ATTEMPTS"); do
+      sleep "$STATUS_RETRY_INTERVAL"
+      # A later status already won; anything we post now would be stale.
+      [ -f "$STATUS_SUPERSEDED_FILE" ] && exit 0
+      send_status "initializing" && exit 0
+    done
+    echo ">> WARNING: gave up reporting status=initializing"
+  ) &
+fi
 
 # Clone the tutorial repository if specified
 if [ -n "$TUTORIAL_REPO_TO_CLONE" ]; then
@@ -116,37 +180,13 @@ if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-st
   if [ $rc -ne 0 ]; then
     echo "Warning: custom startup script did not succeed after $MAX_ATTEMPTS attempt(s) (exit $rc)"
     if [ "${STARTUP_ON_ERROR}" = "fail" ]; then
-      send_status "error"
+      touch "$STATUS_SUPERSEDED_FILE"
+      send_status "error" || echo ">> WARNING: failed to report status=error"
       exit $rc
     fi
   fi
 else
   echo "No custom startup script found. Skipping."
-fi
-
-# Join the Tailscale overlay when this client was registered with an
-# overlay hostname (mesh-overlay connectivity — MeshOverlayClientConnectivity
-# on the allocator side). Gated purely on TAILSCALE_AUTHKEY's presence;
-# lan_direct/allocator_proxied clients never set it, so this is a no-op
-# for every existing deployment.
-if [ -n "$TAILSCALE_AUTHKEY" ]; then
-  echo "Starting tailscaled..."
-  sudo tailscaled >/tmp/tailscaled.log 2>&1 &
-  # Wait for tailscaled's local socket to come up before calling `tailscale up` —
-  # `tailscale status` exits 0 once the daemon is reachable, whether or not
-  # it's logged in yet, so this loop is purely "wait for the socket", not
-  # "wait for join".
-  for i in $(seq 1 30); do
-    sudo tailscale status >/dev/null 2>&1 && break
-    sleep 0.5
-  done
-  echo "Joining Tailscale as $OVERLAY_HOSTNAME..."
-  sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="$OVERLAY_HOSTNAME"
-  if [ $? -ne 0 ]; then
-    echo "Failed to join Tailscale overlay" >&2
-    send_status "error"
-    exit 1
-  fi
 fi
 
 # kasmvncserver wraps xauth, which expects ~/.Xauthority to exist; missing
@@ -310,8 +350,11 @@ stdbuf -oL -eL env DISPLAY=:1 /home/client/.vnc/xstartup \
 # from the allocator. Bearer-authenticated via REGISTER_TOKEN env var.
 agent 2>&1 | sed -u 's/^/[agent] /' >&5 &
 
-# Flip VM status to 'running' now that client services are launching.
-send_status "running"
+# Flip VM status to 'running' now that client services are launching. Mark
+# 'initializing' superseded first so a background retrier that is still
+# mid-sleep exits instead of posting the older status after this one lands.
+touch "$STATUS_SUPERSEDED_FILE"
+send_status "running" || echo ">> WARNING: failed to report status=running (continuing)"
 
 # Existing health/heartbeat/in-use workers
 update_inuse_status \
