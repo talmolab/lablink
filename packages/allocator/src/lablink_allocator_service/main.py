@@ -41,6 +41,16 @@ from lablink_allocator_service.routes.registration import bp as registration_bp
 from lablink_allocator_service.routes.schedules import bp as schedules_bp
 from lablink_allocator_service.routes.vm_telemetry import bp as vm_telemetry_bp
 
+# Install the root handler before anything at module scope logs — get_config()
+# below reports which config file it loaded. Root stays at INFO as the floor for
+# third-party loggers (botocore, paramiko, urllib3); this package's own level
+# needs cfg and is set further down.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 app = Flask(__name__)
 
 
@@ -195,17 +205,10 @@ def init_database():
     database.set_setting("register_token_hash", hash_secret(REGISTER_TOKEN))
 
 
-# Set up logging. Root stays at INFO as the floor for third-party loggers
-# (botocore, paramiko, urllib3); only this package follows _log_level.
 _log_level = (
     logging.DEBUG
     if cfg.environment in ("dev", "test", "ci-test")
     else logging.INFO
-)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("lablink_allocator_service").setLevel(_log_level)
 
