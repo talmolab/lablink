@@ -16,6 +16,7 @@ from lablink_allocator_service.providers.protocol import ClientJoinMaterial
 class LANDirectClientConnectivity:
     name = "lan_direct"
     requires_tailscale_check = False
+    requires_frp_check = False
 
     def make_join_material(
         self, *, allocator_url: str, client_image: str,

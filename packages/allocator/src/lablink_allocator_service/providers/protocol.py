@@ -70,6 +70,7 @@ class ClientConnectivity(Protocol):
 
     name: str
     requires_tailscale_check: bool
+    requires_frp_check: bool
 
     def prepare_browser_session(self, **kwargs) -> BrowserSessionTarget: ...
 

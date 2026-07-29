@@ -43,6 +43,19 @@ def _tailscale_status() -> str:
     return "ok" if result.returncode == 0 and "inet " in result.stdout else "not joined"
 
 
+def _frp_status() -> str:
+    """Thin wrapper around relay_manager.frp_status(), kept as its own
+    module-level function (rather than calling relay_manager directly from
+    health_check) so tests can monkeypatch it the same way
+    _tailscale_status is monkeypatched.
+
+    Imported lazily to keep this blueprint importable without pulling in
+    get_config at module scope."""
+    from lablink_allocator_service import relay_manager
+
+    return relay_manager.frp_status()
+
+
 @bp.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -61,6 +74,10 @@ def health_check():
         "LABLINK_PROVIDER"
     ].client_connectivity.requires_tailscale_check:
         checks["tailscale"] = _tailscale_status()
+    if current_app.config[
+        "LABLINK_PROVIDER"
+    ].client_connectivity.requires_frp_check:
+        checks["frp"] = _frp_status()
 
     all_ready = all(v == "ok" for v in checks.values())
     status = "healthy" if all_ready else "starting"

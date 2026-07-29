@@ -1388,6 +1388,53 @@ def test_get_overlay_hostname_none_when_row_absent(db_instance, mock_db_connecti
     assert db_instance.get_overlay_hostname("nope") is None
 
 
+def test_get_relay_alias_present(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("12",)
+    assert db_instance.get_relay_alias("vm-1") == 12
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'relay_alias_octet'" in sql
+    assert "WHERE hostname = %s" in sql
+
+
+def test_get_relay_alias_none_when_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.get_relay_alias("vm-1") is None
+
+
+def test_get_relay_alias_none_when_row_absent(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.get_relay_alias("nope") is None
+
+
+def test_allocate_relay_alias_octet_starts_at_base_when_none_exist(
+    db_instance, mock_db_connection,
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.allocate_relay_alias_octet() == 10
+
+
+def test_allocate_relay_alias_octet_increments_past_highest(
+    db_instance, mock_db_connection,
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (17,)
+    assert db_instance.allocate_relay_alias_octet() == 18
+
+
+def test_allocate_relay_alias_octet_starts_at_base_when_table_empty(
+    db_instance, mock_db_connection,
+):
+    """MAX() over zero rows returns a row containing NULL, not no row --
+    but guard the no-row shape too, since both mean "nothing allocated"."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = None
+    assert db_instance.allocate_relay_alias_octet() == 10
+
+
 def test_list_hosts_by_provider(db_instance, mock_db_connection):
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchall.return_value = [("vm-1",), ("vm-2",)]

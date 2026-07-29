@@ -85,6 +85,40 @@ def register_client():
                     "here; omit it and let --lan-ip auto-detect."
                 )
             }), 400
+        expects_relay = prov.client_connectivity.name == "relay"
+        has_relay = provider_metadata.get("relay") is True
+        if expects_relay and not has_relay:
+            return jsonify({
+                "error": (
+                    "This allocator is configured for relay connectivity "
+                    "-- register with provider_metadata={'relay': True}."
+                )
+            }), 400
+        if not expects_relay and has_relay:
+            return jsonify({
+                "error": (
+                    "This allocator is not configured for relay "
+                    "connectivity -- provider_metadata['relay'] is not "
+                    "applicable here."
+                )
+            }), 400
+
+    # Relay clients need two allocator-owned values minted before the row
+    # is written: a loopback alias octet (the address nginx will dial) and
+    # the symmetric STCP secret both sides of the frp tunnel must present.
+    # The secret is stored in plaintext deliberately -- the allocator's own
+    # frpc visitor has to reproduce it verbatim, so a one-way hash would
+    # leave it unable to configure its own side (design spec Decision 9).
+    relay_secret_key = None
+    relay_alias_octet = None
+    if provider == "manual" and provider_metadata.get("relay") is True:
+        relay_alias_octet = main.database.allocate_relay_alias_octet()
+        relay_secret_key = secrets.token_urlsafe(24)
+        provider_metadata = {
+            **provider_metadata,
+            "relay_alias_octet": relay_alias_octet,
+            "relay_secret_key": relay_secret_key,
+        }
 
     client_secret = secrets.token_urlsafe(32)
 
@@ -103,6 +137,16 @@ def register_client():
         return jsonify({"error": "registration conflict"}), 409
     if client_id is None:
         return jsonify({"error": "registration conflict"}), 409
+
+    if relay_secret_key is not None:
+        from lablink_allocator_service import relay_manager
+
+        server_addr, _, server_port = main.cfg.manual.relay_server_addr.rpartition(":")
+        relay_manager.start_visitor(
+            client_id=client_id, alias_octet=relay_alias_octet,
+            secret_key=relay_secret_key,
+            server_addr=server_addr, server_port=int(server_port),
+        )
 
     allocator_url = canonical_base_url(request)
     # cfg.machine.repository is the tutorial-repo-to-clone URL (shipped to
@@ -162,7 +206,7 @@ def register_client():
     repository = main.cfg.machine.repository or ""
     subject_software = main.cfg.machine.software or ""
 
-    return jsonify(
+    response_body = dict(
         client_id=client_id,
         client_secret=client_secret,
         agent_token=main.AGENT_TOKEN,
@@ -184,7 +228,19 @@ def register_client():
             else ""
         ),
         monitoring=monitoring,
-    ), 200
+    )
+    # Relay's three allocator-owned values, returned once here so Plan 2's
+    # `--relay` can be a valueless flag (design spec Decision 6). Added
+    # conditionally so every non-relay deployment's response stays
+    # byte-identical. What returning frps_auth_token does and does not buy
+    # is Decision 12 -- it is a scanner filter, not an independent trust
+    # layer.
+    if relay_secret_key is not None:
+        response_body["relay_secret_key"] = relay_secret_key
+        response_body["relay_server_addr"] = main.cfg.manual.relay_server_addr
+        response_body["frps_auth_token"] = main.cfg.manual.frps_auth_token
+
+    return jsonify(**response_body), 200
 
 
 @bp.route("/api/v1/clients/<client_id>/status", methods=["GET"])
@@ -226,6 +282,14 @@ def unregister_client(client_id):
     deleted = main.database.unregister_client(client_id)
     if not deleted:
         return jsonify({"error": "Client not found."}), 404
+
+    # Optional, feature-detected hook: connectivity strategies that mint
+    # per-client server-side state (relay's frpc-visitor subprocess) tear
+    # it down here. lan_direct/mesh_overlay/allocator_proxied don't
+    # implement it and stay no-ops.
+    connectivity = current_app.config["LABLINK_PROVIDER"].client_connectivity
+    if hasattr(connectivity, "cleanup_client_identity"):
+        connectivity.cleanup_client_identity(hostname=client_id)
 
     return jsonify(client_id=client_id, status="unregistered"), 200
 

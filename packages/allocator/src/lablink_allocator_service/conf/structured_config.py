@@ -192,6 +192,10 @@ class ManualConfig:
               path through its own nginx, same as the AWS path. For
               clients that aren't on the allocator's LAN (e.g. a
               Run:AI-hosted workload).
+            - "relay": the client dials out to the allocator through an
+              frp tunnel instead of joining any overlay. The fallback of
+              last resort when a client's network won't carry Tailscale
+              at all.
         overlay_tailnet (str): The Tailscale tailnet's MagicDNS domain
             suffix (e.g. "example.ts.net"), used to resolve a registered
             client's overlay hostname, and/or the allocator's own
@@ -207,11 +211,28 @@ class ManualConfig:
               public internet via the tailnet named by overlay_tailnet,
               using the same tailscale sidecar connectivity="mesh_overlay"
               already provisions (reused, not a second sidecar).
+        relay_server_addr (str): The host:port relay clients' `frpc` dial
+            to reach this allocator's `frps` (its control port). Required
+            when connectivity is "relay"; ignored otherwise. How this
+            address is made reachable from a relay client's network
+            (Tailscale Funnel, a public port-forward, etc.) is the
+            operator's choice, not automated by this config.
+        frps_bind_port (int): The local port `frps` binds on inside the
+            allocator's own container. Usually matches the port half of
+            relay_server_addr, but may differ if the operator's exposure
+            mechanism does port translation (e.g. Funnel).
+        frps_auth_token (str): Deployment-wide token protecting the
+            frpc<->frps control connection itself (frp's own `auth.token`
+            setting) -- distinct from the per-client STCP `secretKey`
+            minted at registration time for each relay client's tunnel.
     """
 
     connectivity: str = field(default="lan_direct")
     overlay_tailnet: str = field(default="")
     participant_exposure: str = field(default="none")
+    relay_server_addr: str = field(default="")
+    frps_bind_port: int = field(default=7000)
+    frps_auth_token: str = field(default="")
 
 
 @dataclass

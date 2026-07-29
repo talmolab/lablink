@@ -643,3 +643,101 @@ class TestParticipantExposureWeakPasswordGate:
         assert cfg.app.admin_password == MISSING_SECRET
         errors = get_config_errors(cfg)
         assert not any("admin_password" in e for e in errors)
+
+
+class TestRelayConnectivityValidation:
+    """connectivity='relay' must be an accepted value (it is a registered
+    entry in _CONNECTIVITY_BUILTIN) and must require the two fields the
+    registration route and frps startup cannot function without."""
+
+    def _make_cfg(
+        self,
+        connectivity="relay",
+        relay_server_addr="allocator.example.com:7000",
+        frps_auth_token="a-long-enough-frps-token",
+        overlay_tailnet="",
+        participant_exposure="none",
+    ):
+        from lablink_allocator_service.conf.structured_config import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+        cfg.dns.domain = ""
+        cfg.app.admin_password = "a-strong-enough-password"
+        cfg.manual.connectivity = connectivity
+        cfg.manual.relay_server_addr = relay_server_addr
+        cfg.manual.frps_auth_token = frps_auth_token
+        cfg.manual.overlay_tailnet = overlay_tailnet
+        cfg.manual.participant_exposure = participant_exposure
+        return cfg
+
+    def test_relay_is_a_valid_connectivity_value(self):
+        from lablink_allocator_service.validate_config import VALID_CONNECTIVITY
+
+        assert "relay" in VALID_CONNECTIVITY
+
+    def test_relay_accepted_with_addr_and_strong_token(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg())
+        assert not [e for e in errors if "relay" in e or "frps" in e]
+
+    def test_relay_without_server_addr_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr=""))
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_with_empty_token_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(frps_auth_token=""))
+        assert any("frps_auth_token" in e for e in errors)
+
+    def test_relay_with_weak_token_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(frps_auth_token="changeme"))
+        assert any("frps_auth_token" in e for e in errors)
+
+    def test_relay_with_short_token_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(frps_auth_token="short"))
+        assert any("frps_auth_token" in e for e in errors)
+
+    def test_relay_fields_ignored_when_not_relay(self):
+        """An operator who leaves the relay fields empty in a lan_direct
+        config must not be blocked by them."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(
+            self._make_cfg(
+                connectivity="lan_direct", relay_server_addr="", frps_auth_token=""
+            )
+        )
+        assert not [e for e in errors if "relay" in e or "frps" in e]
+
+    def test_relay_does_not_require_tailnet(self):
+        """relay reaches clients over its own tunnel, not a tailnet --
+        overlay_tailnet must stay optional unless Funnel is in play."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(overlay_tailnet=""))
+        assert not any("overlay_tailnet" in e for e in errors)
+
+    def test_relay_with_funnel_is_accepted(self):
+        """relay proxies sessions through the allocator's own nginx, same
+        as mesh_overlay, so the lan_direct mixed-content rejection must
+        NOT fire for relay."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(
+            self._make_cfg(
+                participant_exposure="tailscale_funnel",
+                overlay_tailnet="example.ts.net",
+            )
+        )
+        assert not any("mixed content" in e for e in errors)

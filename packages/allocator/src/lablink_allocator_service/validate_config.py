@@ -28,8 +28,10 @@ VALID_PROVIDERS = ("aws", "manual")
 
 # manual.connectivity — must stay in sync with the connectivity registry
 # (_CONNECTIVITY_BUILTIN in providers/registry.py). "mesh_overlay" reaches
-# clients that aren't on the allocator's own LAN over a Tailscale tailnet.
-VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
+# clients that aren't on the allocator's own LAN over a Tailscale tailnet;
+# "relay" reaches them over an frp tunnel the client dials out through,
+# for networks that won't carry Tailscale at all.
+VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay", "relay")
 
 # manual.participant_exposure — how participants (not clients) reach the
 # allocator when it isn't on their LAN. Independent of connectivity above;
@@ -62,6 +64,30 @@ def is_weak_admin_password(password: str) -> bool:
     if password.lower() in WEAK_ADMIN_PASSWORDS:
         return True
     return len(password) < MIN_ADMIN_PASSWORD_LENGTH
+
+
+# frps's control port is reachable from client networks by construction
+# (that is the whole point of relay connectivity), so it is exposed to the
+# same CT-log-driven scanning as a Funnel-published admin panel. The design
+# spec's Error Handling section is explicit: don't ship this with a weak
+# default. Kept separate from WEAK_ADMIN_PASSWORDS because an frp control
+# token is machine-generated and can afford a longer minimum than a
+# human-typed password.
+WEAK_FRPS_TOKENS = frozenset(
+    {"", "token", "secret", "changeme", "password", "frp", "frps", "lablink", "test"}
+)
+MIN_FRPS_TOKEN_LENGTH = 16
+
+
+def is_weak_frps_token(token: str) -> bool:
+    """True if *token* is empty, a known example/default value, or shorter
+    than the minimum length required of a token guarding a port that is
+    reachable from outside the allocator's own network."""
+    if not token:
+        return True
+    if token.lower() in WEAK_FRPS_TOKENS:
+        return True
+    return len(token) < MIN_FRPS_TOKEN_LENGTH
 
 
 def validate_domain_format(domain: str) -> Tuple[bool, str]:
@@ -158,6 +184,29 @@ def get_config_errors(cfg) -> list:
                 "is 'mesh_overlay' or manual.participant_exposure is "
                 "'tailscale_funnel' (e.g. 'example.ts.net')"
             )
+
+        # relay's two load-bearing config values. Checked at validation
+        # time rather than at first registration: without relay_server_addr,
+        # register_client's rpartition(":") yields an empty host and
+        # int("") raises, turning a misconfiguration into a 500 on the
+        # first client to register instead of a startup error message.
+        if connectivity == "relay":
+            if not getattr(manual_cfg, "relay_server_addr", ""):
+                errors.append(
+                    "manual.relay_server_addr is required when "
+                    "manual.connectivity is 'relay' — relay clients' frpc "
+                    "dial this host:port to reach the allocator's frps "
+                    "(e.g. 'allocator.example.com:7000')"
+                )
+            if is_weak_frps_token(getattr(manual_cfg, "frps_auth_token", "")):
+                errors.append(
+                    "manual.connectivity is 'relay' but "
+                    "manual.frps_auth_token is empty, a known example "
+                    "value, or shorter than "
+                    f"{MIN_FRPS_TOKEN_LENGTH} characters — frps's control "
+                    "port is reachable from client networks and is scanned "
+                    "by bots within minutes of exposure; set a strong token"
+                )
 
         if participant_exposure == "tailscale_funnel":
             admin_password = getattr(getattr(cfg, "app", None), "admin_password", "")

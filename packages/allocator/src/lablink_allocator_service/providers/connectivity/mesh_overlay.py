@@ -41,6 +41,7 @@ def _resolve_overlay_host(hostname: str) -> str:
 class MeshOverlayClientConnectivity:
     name = "mesh_overlay"
     requires_tailscale_check = True
+    requires_frp_check = False
 
     def prepare_browser_session(self, **kwargs) -> BrowserSessionTarget:
         kwargs.setdefault("fallback_fn", _resolve_overlay_host)

@@ -1,6 +1,22 @@
 import uuid
 
 
+def test_satisfies_protocol_and_name():
+    """lan_direct was the one registered connectivity with no protocol
+    conformance test, so a newly-required ClientConnectivity attribute
+    could be omitted here and only surface at runtime."""
+    from lablink_allocator_service.providers.protocol import ClientConnectivity
+    from lablink_allocator_service.providers.connectivity.lan_direct import (
+        LANDirectClientConnectivity,
+    )
+
+    conn = LANDirectClientConnectivity()
+    assert isinstance(conn, ClientConnectivity)
+    assert conn.name == "lan_direct"
+    assert conn.requires_tailscale_check is False
+    assert conn.requires_frp_check is False
+
+
 def test_make_join_material_lan_direct():
     from lablink_allocator_service.providers.connectivity.lan_direct import (
         LANDirectClientConnectivity,

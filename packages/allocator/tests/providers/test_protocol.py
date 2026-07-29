@@ -28,6 +28,7 @@ def test_protocols_are_runtime_checkable():
     class GoodConn:
         name = "allocator_proxied"
         requires_tailscale_check = False
+        requires_frp_check = False
 
         def prepare_browser_session(self, **kwargs):
             return BrowserSessionTarget(ws_url="proxy/tok", browser_credential=None)
@@ -83,6 +84,7 @@ def test_client_connectivity_protocol_requires_make_join_material():
     class Complete:
         name = "x"
         requires_tailscale_check = False
+        requires_frp_check = False
 
         def prepare_browser_session(self, **kwargs):
             ...
@@ -92,3 +94,25 @@ def test_client_connectivity_protocol_requires_make_join_material():
 
     assert not isinstance(Missing(), ClientConnectivity)
     assert isinstance(Complete(), ClientConnectivity)
+
+
+def test_client_connectivity_protocol_requires_frp_check():
+    from lablink_allocator_service.providers.protocol import ClientConnectivity
+
+    class MissingFrpCheck:
+        name = "x"
+        requires_tailscale_check = False
+
+        def prepare_browser_session(self, **kwargs): ...
+        def make_join_material(self, **kwargs): ...
+
+    class CompleteWithFrpCheck:
+        name = "x"
+        requires_tailscale_check = False
+        requires_frp_check = False
+
+        def prepare_browser_session(self, **kwargs): ...
+        def make_join_material(self, **kwargs): ...
+
+    assert not isinstance(MissingFrpCheck(), ClientConnectivity)
+    assert isinstance(CompleteWithFrpCheck(), ClientConnectivity)

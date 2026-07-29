@@ -251,6 +251,49 @@ class VmDatabase:
             return None
         return row[0]
 
+    def get_relay_alias(self, hostname: str):
+        """Loopback alias octet for a relay client:
+        provider_metadata->>'relay_alias_octet'. None if absent.
+
+        Returned as an int (the column is JSONB text) so callers can
+        format it straight into an address without re-parsing."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'relay_alias_octet' "
+                f"FROM {self.table_name} WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        if not row or row[0] is None:
+            return None
+        return int(row[0])
+
+    # First octet handed out. Starts above 1 so a relay alias is never
+    # confused with plain 127.0.0.1 in logs or upstream strings.
+    _RELAY_ALIAS_BASE = 10
+
+    def allocate_relay_alias_octet(self) -> int:
+        """Return the next unused loopback-alias octet for a new relay
+        client. Never recycled -- see the design spec's Decision 11: the
+        thing that actually revokes a departed client's reachability is
+        killing its visitor subprocess, not reclaiming the integer, and a
+        dedicated allocation-pool table would need the DB migration
+        machinery this codebase deliberately avoids.
+
+        Only the final octet varies, so this tops out at ~245 concurrent
+        relay clients (base 10 through 254) -- far beyond any deployment
+        size this product targets, and deployments are ephemeral with a
+        fresh DB each time.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT MAX((provider_metadata->>'relay_alias_octet')::int) "
+                f"FROM {self.table_name};"
+            )
+            row = cursor.fetchone()
+        highest = row[0] if row else None
+        return highest + 1 if highest is not None else self._RELAY_ALIAS_BASE
+
     def set_overlay_hostname(
         self, *, hostname: str, overlay_hostname: str
     ) -> bool:

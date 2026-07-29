@@ -17,6 +17,24 @@ class TestManualConfig:
         assert config.connectivity == "mesh_overlay"
         assert config.overlay_tailnet == "example.ts.net"
 
+    def test_manual_config_relay_defaults(self):
+        config = ManualConfig()
+        assert config.relay_server_addr == ""
+        assert config.frps_bind_port == 7000
+        assert config.frps_auth_token == ""
+
+    def test_manual_config_relay(self):
+        config = ManualConfig(
+            connectivity="relay",
+            relay_server_addr="allocator.example.com:7000",
+            frps_bind_port=7001,
+            frps_auth_token="tok123",
+        )
+        assert config.connectivity == "relay"
+        assert config.relay_server_addr == "allocator.example.com:7000"
+        assert config.frps_bind_port == 7001
+        assert config.frps_auth_token == "tok123"
+
     def test_config_has_manual_field(self):
         cfg = Config()
         assert isinstance(cfg.manual, ManualConfig)

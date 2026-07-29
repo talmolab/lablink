@@ -63,6 +63,20 @@ fi
 
 echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 
+# Start frps (relay connectivity's tunnel server) if this deployment is
+# configured for it. Gated purely on FRPS_AUTH_TOKEN's presence,
+# mirroring the client image's TAILSCALE_AUTHKEY gate -- lan_direct/
+# mesh_overlay deployments never set this env var, so this is a no-op
+# for them.
+if [ -n "$FRPS_AUTH_TOKEN" ]; then
+  echo "Starting frps on :${FRPS_BIND_PORT:-7000}..."
+  cat > /tmp/frps.toml <<EOF
+bindPort = ${FRPS_BIND_PORT:-7000}
+auth.token = "$FRPS_AUTH_TOKEN"
+EOF
+  frps -c /tmp/frps.toml &
+fi
+
 # Start Flask in the background (binds 127.0.0.1:8000).
 echo "Starting Flask app on 127.0.0.1:8000..."
 lablink-allocator &

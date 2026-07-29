@@ -192,3 +192,74 @@ class TestHealthEndpoint:
         data = resp.get_json()
         assert data["status"] == "starting"
         assert data["checks"]["tailscale"] == "not joined"
+
+    def test_frp_check_absent_when_not_relay(self, client, monkeypatch):
+        """A connectivity strategy that doesn't require an frp check
+        (lan_direct/mesh_overlay/allocator_proxied) must not add an frp
+        key -- byte-identical health payload for every existing
+        deployment."""
+        import lablink_allocator_service.main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_frp_check",
+            False,
+        )
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert "frp" not in resp.get_json()["checks"]
+
+    def test_frp_check_ok_when_frps_running(self, client, monkeypatch):
+        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_frp_check",
+            True,
+        )
+        monkeypatch.setattr(health_mod, "_frp_status", lambda: "ok")
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.get_json()["checks"]["frp"] == "ok"
+
+    def test_frp_check_not_running_marks_unhealthy(self, client, monkeypatch):
+        import lablink_allocator_service.main as main_mod
+        import lablink_allocator_service.routes.health as health_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+        monkeypatch.setattr(
+            main_mod.app.config["LABLINK_PROVIDER"].client_connectivity,
+            "requires_frp_check",
+            True,
+        )
+        monkeypatch.setattr(health_mod, "_frp_status", lambda: "not running")
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 503
+        data = resp.get_json()
+        assert data["status"] == "starting"
+        assert data["checks"]["frp"] == "not running"
+
+
+class TestFrpStatus:
+    """_frp_status() is a thin delegation to relay_manager.frp_status(),
+    kept as its own module-level function so the endpoint tests can
+    monkeypatch it the way _tailscale_status is monkeypatched."""
+
+    def test_delegates_to_relay_manager(self, monkeypatch):
+        import lablink_allocator_service.routes.health as health_mod
+        from lablink_allocator_service import relay_manager
+
+        monkeypatch.setattr(relay_manager, "frp_status", lambda: "ok")
+        assert health_mod._frp_status() == "ok"

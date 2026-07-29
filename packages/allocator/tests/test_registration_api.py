@@ -544,6 +544,64 @@ def test_unregister_success(reg_client):
     fake_db.unregister_client.assert_called_once_with("vm-1")
 
 
+def test_unregister_calls_cleanup_client_identity_when_supported(reg_client):
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+
+    connectivity = client.application.config[
+        "LABLINK_PROVIDER"
+    ].client_connectivity
+    connectivity.cleanup_client_identity = MagicMock()
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 200
+    connectivity.cleanup_client_identity.assert_called_once_with(hostname="vm-1")
+
+
+def test_unregister_skips_cleanup_when_connectivity_lacks_hook(reg_client):
+    """AllocatorProxiedClientConnectivity (reg_client's default stub) has
+    no cleanup_client_identity method -- must not raise AttributeError."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 200
+
+
+def test_unregister_skips_cleanup_when_delete_found_nothing(reg_client):
+    """cleanup must not run for a client that wasn't actually deleted --
+    it would tear down a live visitor on a 404."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = False
+
+    connectivity = client.application.config[
+        "LABLINK_PROVIDER"
+    ].client_connectivity
+    connectivity.cleanup_client_identity = MagicMock()
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+    assert r.status_code == 404
+    connectivity.cleanup_client_identity.assert_not_called()
+
+
 # ---- GET /api/v1/clients (list endpoint) ---------------------------------
 
 def test_list_clients_rejects_missing_auth(reg_client):
@@ -714,6 +772,141 @@ def test_register_fallback_provider_construction_includes_connectivity(
     )
     assert r.status_code == 200
     fake_db.register_client.assert_called_once()
+
+
+def test_register_rejects_relay_sentinel_against_non_relay_allocator(reg_client):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"relay": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "relay" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_missing_relay_sentinel_against_relay_allocator(reg_client):
+    from lablink_allocator_service.providers.connectivity.relay import (
+        RelayClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        RelayClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"lan_ip": "1.2.3.4"},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "relay" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_relay_allocates_alias_and_spawns_visitor(reg_client, monkeypatch):
+    from lablink_allocator_service.providers.connectivity.relay import (
+        RelayClientConnectivity,
+    )
+    from lablink_allocator_service import main
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        RelayClientConnectivity()
+    )
+    fake_db.allocate_relay_alias_octet.return_value = 12
+    monkeypatch.setattr(
+        main.cfg.manual, "relay_server_addr", "allocator.example.com:7000",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        main.cfg.manual, "frps_auth_token", "a-long-enough-frps-token",
+        raising=False,
+    )
+    mock_start_visitor = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.relay_manager.start_visitor",
+        mock_start_visitor,
+    )
+
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"relay": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["relay_secret_key"]
+    assert body["relay_server_addr"] == "allocator.example.com:7000"
+    assert body["frps_auth_token"] == "a-long-enough-frps-token"
+
+    kw = fake_db.register_client.call_args.kwargs
+    assert kw["provider_metadata"]["relay_alias_octet"] == 12
+    assert kw["provider_metadata"]["relay_secret_key"] == body["relay_secret_key"]
+
+    mock_start_visitor.assert_called_once_with(
+        client_id="vm-1", alias_octet=12,
+        secret_key=body["relay_secret_key"],
+        server_addr="allocator.example.com", server_port=7000,
+    )
+
+
+def test_register_response_omits_relay_fields_when_not_relay(reg_client):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert "relay_secret_key" not in body
+    assert "relay_server_addr" not in body
+    assert "frps_auth_token" not in body
+
+
+def test_register_response_preserves_all_non_relay_fields(reg_client):
+    """Regression guard for the relay refactor of this response: the
+    Task 9 change rebuilds the jsonify() call as a dict, and an earlier
+    draft of this plan enumerated a stale 10-field subset that would have
+    silently dropped the five fields added after 2026-07-22. Pin the full
+    contract so any future rebuild of this response fails loudly."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    for key in (
+        "client_id",
+        "client_secret",
+        "agent_token",
+        "repository",
+        "subject_software",
+        "register_token",
+        "allocator_url",
+        "connectivity",
+        "client_image",
+        "startup_script_b64",
+        "startup_on_error",
+        "startup_max_attempts",
+        "startup_base_delay_seconds",
+        "startup_success_check_b64",
+        "monitoring",
+    ):
+        assert key in body, f"register response lost the {key!r} field"
 
 
 def test_list_clients_returns_safe_fields(reg_client, admin_headers):

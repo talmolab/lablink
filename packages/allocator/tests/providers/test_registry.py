@@ -74,6 +74,16 @@ def test_get_provider_manual_mesh_overlay_connectivity():
     assert isinstance(p.client_connectivity, MeshOverlayClientConnectivity)
 
 
+def test_get_provider_manual_relay_connectivity():
+    from lablink_allocator_service.providers.connectivity.relay import (
+        RelayClientConnectivity,
+    )
+    p = get_provider(
+        "manual", region=None, terraform_dir=None, connectivity="relay",
+    )
+    assert isinstance(p.client_connectivity, RelayClientConnectivity)
+
+
 def test_get_provider_manual_unknown_connectivity_raises():
     with pytest.raises(ValueError, match="unknown connectivity 'bogus'"):
         get_provider(
