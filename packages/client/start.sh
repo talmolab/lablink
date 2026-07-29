@@ -234,6 +234,13 @@ if [ "$CONNECTIVITY" = "relay" ]; then
 serverAddr = "$RELAY_HOST"
 serverPort = $RELAY_PORT
 auth.token = "$FRPS_AUTH_TOKEN"
+# frpc's default dialServerTimeout is 10s -- longer than the 3s liveness
+# window below. On a blackholed egress path (packets silently dropped,
+# no TCP RST) frpc would still be alive at the 3s check and only die
+# around 10s, i.e. AFTER startup already reported status=running. That
+# is exactly the hostile-network case this feature exists to catch, so
+# shorten the dial timeout well inside the liveness window instead.
+transport.dialServerTimeout = 2
 
 [[proxies]]
 name = "$VM_NAME-kasmvnc"
@@ -260,7 +267,9 @@ EOF
 
   # frpc exits within milliseconds of a rejected login and, with
   # loginFailExit defaulting on, does not retry. Catch that here rather
-  # than leaving an unreachable client reporting itself healthy.
+  # than leaving an unreachable client reporting itself healthy. This
+  # also catches a blackholed egress path, but only because
+  # transport.dialServerTimeout above is set well under this sleep.
   sleep 3
   if ! kill -0 "$FRPC_PID" 2>/dev/null; then
     echo "frpc exited immediately -- see [frpc] output above" >&2

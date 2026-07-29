@@ -454,6 +454,77 @@ def test_relay_registration_sends_relay_to_the_api(
     assert mock_register.call_args.kwargs["relay"] is True
 
 
+def test_relay_handoff_omits_tailscale_persistence_advice(
+    tmp_env_file, successful_response, monkeypatch, capsys
+):
+    """A relay client joins no tailnet, so the /var/lib/tailscale
+    persistent-storage advice printed for overlay hand-off (see
+    TestOverlayHostnamePath.test_success_skips_docker_and_prints_env,
+    which pins that it's still present there) is a wasted volume request
+    and a confusing instruction for relay hand-off."""
+    from lablink_cli.commands.register import run_register
+    from lablink_cli.api import RegistrationClient
+
+    resp = dict(successful_response)
+    resp["connectivity"] = "relay"
+    resp["relay_secret_key"] = "sek"
+    resp["relay_server_addr"] = "allocator.example.com:7000"
+    resp["frps_auth_token"] = "ctl-token"
+
+    mock_register = MagicMock(return_value=resp)
+    monkeypatch.setattr(RegistrationClient, "register", mock_register)
+
+    run_register(**_kwargs(
+        tmp_env_file, relay=True, run_locally=False,
+        hostname="byo-1", machine_identity="i-1",
+    ))
+
+    out = capsys.readouterr().out
+    assert "/var/lib/tailscale" not in out
+    # The rest of the hand-off printout is unaffected.
+    assert "CLIENT_SECRET=s" in out
+    assert "RELAY_SERVER_ADDR=allocator.example.com:7000" in out
+
+
+def test_relay_mismatch_from_stale_allocator_aborts(
+    tmp_env_file, successful_response, monkeypatch
+):
+    """Current allocators 400 on a --relay request they don't recognize
+    (an AllocatorError would already have exited above this check). But
+    one too old to know the "relay" provider_metadata key may silently
+    ignore it and register some other connectivity instead. Left
+    unchecked, the docker run already skips --publish (driven by the
+    LOCAL `relay` flag) while start.sh never starts frpc (driven by
+    CONNECTIVITY, taken from this same response) — unreachable by
+    neither path, while still reporting itself healthy. Must abort
+    instead of proceeding."""
+    from lablink_cli.commands.register import run_register
+    from lablink_cli.api import RegistrationClient
+
+    resp = dict(successful_response)
+    resp["connectivity"] = "lan_direct"  # allocator ignored --relay
+
+    mock_register = MagicMock(return_value=resp)
+    monkeypatch.setattr(RegistrationClient, "register", mock_register)
+    mock_exec = MagicMock()
+    monkeypatch.setattr(
+        "lablink_cli.commands.register._exec_docker", mock_exec
+    )
+    monkeypatch.setattr(
+        "lablink_cli.commands.register._detect_gpu",
+        MagicMock(return_value=(False, None)),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_register(**_kwargs(
+            tmp_env_file, relay=True, hostname="byo-1",
+            machine_identity="i-1",
+        ))
+
+    assert exc_info.value.code == 1
+    mock_exec.assert_not_called()
+
+
 class TestRepositoryAndSoftwareEnv:
     """lablink#405 — the BYO client container never cloned the configured
     repository because `~/.lablink/client.env` carried no
@@ -1750,9 +1821,9 @@ def test_relay_docker_run_adds_no_tailscale_privileges(
 ):
     """Design Decision 9: frp needs no elevated capabilities, unlike
     tailscaled (which needs NET_ADMIN/NET_RAW and /dev/net/tun to open a
-    TUN device, plus a state volume). Those are gated on
-    overlay_hostname, which is None for relay -- so _build_docker_run
-    needs NO change. Pin that, so nobody "fixes" relay by copying the
+    TUN device, plus a state volume). Those are gated on overlay_hostname,
+    which is None for relay, so this path (relay defaulted False here)
+    adds none of them. Pin that, so nobody "fixes" relay by copying the
     overlay branch wholesale.
     """
     from lablink_cli.commands.register import _build_docker_run

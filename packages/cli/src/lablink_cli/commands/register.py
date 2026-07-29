@@ -290,21 +290,44 @@ def run_register(
             if line.startswith("#"):
                 continue
             print(line)
-        # There is no docker run for us to add `-v` to on this path, so the
-        # operator has to arrange persistence themselves. Without it every
-        # workload restart joins the tailnet as a brand-new node and
-        # Tailscale suffixes the name (-1, -2, ...); the client reports its
-        # real name back regardless (see start.sh), so this is an
-        # optimization rather than a correctness requirement. See
-        # TAILSCALE_STATE_VOLUME for the run-locally equivalent.
-        console.print(
-            "\n[dim]Also give the workload persistent storage mounted at "
-            "/var/lib/tailscale. Without it, each restart rejoins the "
-            "tailnet as a new node and Tailscale appends a numeric suffix "
-            "to its name. The client reports its actual name back either "
-            "way, so this is an optimization, not a requirement.[/dim]"
-        )
+        if overlay_hostname is not None:
+            # There is no docker run for us to add `-v` to on this path, so
+            # the operator has to arrange persistence themselves. Without it
+            # every workload restart joins the tailnet as a brand-new node
+            # and Tailscale suffixes the name (-1, -2, ...); the client
+            # reports its real name back regardless (see start.sh), so this
+            # is an optimization rather than a correctness requirement. See
+            # TAILSCALE_STATE_VOLUME for the run-locally equivalent. Relay
+            # joins no tailnet, so this advice does not apply there — it
+            # would just be a wasted volume request and a confusing
+            # instruction.
+            console.print(
+                "\n[dim]Also give the workload persistent storage mounted at "
+                "/var/lib/tailscale. Without it, each restart rejoins the "
+                "tailnet as a new node and Tailscale appends a numeric "
+                "suffix to its name. The client reports its actual name "
+                "back either way, so this is an optimization, not a "
+                "requirement.[/dim]"
+            )
         return
+
+    # A current allocator 400s on a --relay request it doesn't understand
+    # (an AllocatorError above would already have exited), but an
+    # allocator too old to recognize the "relay" key in provider_metadata
+    # may silently ignore it and register some other connectivity instead.
+    # Left unchecked that's the worst of both worlds here: this docker run
+    # already skips --publish because the LOCAL `relay` flag says so, and
+    # start.sh never launches frpc because CONNECTIVITY (taken from this
+    # same response) says otherwise -- unreachable by neither path, while
+    # still reporting itself healthy. Fail loudly instead.
+    if relay and response.get("connectivity") != "relay":
+        console.print(
+            "[red]--relay was requested but the allocator registered this "
+            f"client as connectivity={response.get('connectivity')!r} "
+            "instead of relay. The allocator likely predates relay "
+            "support and silently ignored --relay.[/red]"
+        )
+        raise SystemExit(1)
 
     # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
     if resolved_gpu_present:

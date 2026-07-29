@@ -97,6 +97,33 @@ def test_verifies_frpc_survived_login(relay_block):
     assert 'kill -0 "$FRPC_PID"' in relay_block
 
 
+def test_dial_timeout_is_shorter_than_the_liveness_sleep(relay_block):
+    """frpc's transport.dialServerTimeout defaults to 10s. The liveness
+    check below only waits 3s (`sleep 3` then `kill -0`), so a blackholed
+    egress path (packets silently dropped, no rejection, no RST) would
+    leave frpc alive at the 3s mark and only kill it around 10s -- well
+    after startup already reported status=running. The two numbers are
+    only correct relative to each other: this pins that the rendered
+    config's dial timeout is set strictly below the sleep duration, so a
+    blackholed dial fails inside the liveness window instead of after it.
+    """
+    import re
+
+    assert "transport.dialServerTimeout" in relay_block
+
+    dial_match = re.search(
+        r"transport\.dialServerTimeout\s*=\s*(\d+)", relay_block
+    )
+    assert dial_match, "transport.dialServerTimeout not found with a value"
+    dial_timeout = int(dial_match.group(1))
+
+    sleep_match = re.search(r"^\s*sleep\s+(\d+)\s*$", relay_block, re.MULTILINE)
+    assert sleep_match, "liveness sleep not found"
+    liveness_sleep = int(sleep_match.group(1))
+
+    assert dial_timeout < liveness_sleep
+
+
 def test_relay_block_precedes_the_custom_startup_script(script_text):
     """frpc must be up before a session can be assigned, and the custom
     startup script can run for minutes."""
