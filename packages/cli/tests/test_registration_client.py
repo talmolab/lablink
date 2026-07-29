@@ -156,6 +156,45 @@ class TestRegister:
         assert body["provider_metadata"] == {"lan_ip": "192.168.1.42"}
         assert body["endpoint_url"] == "http://192.168.1.42:7070"
 
+    def test_register_relay_sends_the_relay_sentinel(self):
+        """The allocator's relay path is selected by
+        provider_metadata={"relay": True} -- see Plan 1's register route."""
+        from lablink_cli.api import RegistrationClient
+
+        client = RegistrationClient("https://a.example.com", "tok")
+        with patch.object(RegistrationClient, "_post", return_value={}) as mock_post:
+            client.register(
+                hostname="byo-1",
+                machine_identity="i-1",
+                gpu_present=False,
+                gpu_model=None,
+                relay=True,
+            )
+        path, body = mock_post.call_args[0]
+        assert path == "/api/v1/clients/register"
+        assert body["provider_metadata"] == {"relay": True}
+        assert body["endpoint_url"] is None
+        assert body["provider"] == "manual"
+
+    def test_register_relay_and_overlay_are_not_combined(self):
+        """relay wins nothing by silently overriding overlay_hostname --
+        run_register rejects the combination before we get here, so just pin
+        that relay's branch is chosen on its own."""
+        from lablink_cli.api import RegistrationClient
+
+        client = RegistrationClient("https://a.example.com", "tok")
+        with patch.object(RegistrationClient, "_post", return_value={}) as mock_post:
+            client.register(
+                hostname="byo-1",
+                machine_identity="i-1",
+                gpu_present=False,
+                gpu_model=None,
+                lan_ip=None,
+                relay=True,
+            )
+        _, body = mock_post.call_args[0]
+        assert "lan_ip" not in body["provider_metadata"]
+
 
 class TestSslProvider:
     def test_default_strict_tls(self):

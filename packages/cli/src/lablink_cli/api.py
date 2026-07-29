@@ -320,19 +320,27 @@ class RegistrationClient:
         gpu_model: str | None,
         lan_ip: str | None = None,
         overlay_hostname: str | None = None,
+        relay: bool = False,
     ) -> dict:
         """POST /api/v1/clients/register; return parsed JSON.
 
-        Exactly one of ``lan_ip`` (real BYO box, LAN-direct connectivity)
-        or ``overlay_hostname`` (mesh-overlay connectivity, e.g. a
-        Run:AI-hosted workload) is expected — enforced by the caller
-        (``run_register``), not here.
+        Exactly one of ``lan_ip`` (real BYO box, LAN-direct
+        connectivity), ``overlay_hostname`` (mesh-overlay connectivity),
+        or ``relay`` (client dials out through a tunnel) is expected —
+        enforced by the caller (``run_register``), not here.
 
         Raises AllocatorAuthError on 401, AllocatorConflictError on 409,
         AllocatorUnavailableError on connection failure, AllocatorError
         on other HTTP error codes / malformed response.
         """
-        if overlay_hostname is not None:
+        if relay:
+            # The sentinel the allocator's register route validates
+            # against its configured connectivity. No endpoint_url: a
+            # relay client has no address the allocator can dial: the
+            # tunnel is the path.
+            provider_metadata = {"relay": True}
+            endpoint_url = None
+        elif overlay_hostname is not None:
             provider_metadata = {"overlay_hostname": overlay_hostname}
             endpoint_url = None
         else:
