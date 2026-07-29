@@ -251,6 +251,44 @@ class VmDatabase:
             return None
         return row[0]
 
+    def set_overlay_hostname(
+        self, *, hostname: str, overlay_hostname: str
+    ) -> bool:
+        """Reconcile a mesh-overlay client's recorded overlay hostname with
+        the name Tailscale actually assigned it.
+
+        `tailscale up --hostname=X` does NOT guarantee the node is named X:
+        if an earlier (possibly offline) node still holds X, Tailscale
+        appends a numeric suffix and still exits 0. The name we recorded at
+        registration is therefore only a *request*, and after any
+        re-registration it can point at a dead node — every allocator ->
+        client dial then black-holes (lablink#404). The client reports the
+        real name after joining; this persists it.
+
+        Guarded on the key already existing so this can only ever correct a
+        mesh-overlay client: a lan_direct or AWS client cannot have an
+        `overlay_hostname` injected into its provider_metadata. Returns True
+        when a row was updated, False for an unknown or non-overlay host.
+        """
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET provider_metadata = jsonb_set("
+            f"    COALESCE(provider_metadata, '{{}}'::jsonb), "
+            f"    '{{overlay_hostname}}', to_jsonb(%s::text), true) "
+            f"WHERE hostname = %s "
+            f"  AND provider_metadata ? 'overlay_hostname';"
+        )
+        with self._cursor as cursor:
+            try:
+                cursor.execute(query, (overlay_hostname, hostname))
+                return cursor.rowcount > 0
+            except Exception as e:
+                logger.error(
+                    f"Failed to set overlay hostname for VM "
+                    f"'{hostname}': {e}"
+                )
+                raise
+
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:
             cursor.execute(
