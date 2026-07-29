@@ -195,6 +195,82 @@ else
   echo "TUTORIAL_REPO_TO_CLONE not set. Skipping clone step."
 fi
 
+# Relay connectivity: dial OUT to the allocator's frps and expose this
+# container's KasmVNC (:6080) and agent (:7070) as STCP proxies, which
+# the allocator's per-client frpc visitor pulls down to a loopback alias.
+#
+# Gated on CONNECTIVITY rather than on a secret's presence: an absent or
+# misspelled secret must be a loud failure, not a silent no-tunnel. Relay
+# Plan 1 shipped broken in exactly that shape -- the allocator's visitor
+# omitted auth.token, so it died instantly while registration returned
+# 200 and /api/health reported frp: ok.
+#
+# Unlike the tailscale join above this does NOT need to run first: the
+# tunnel is inbound-only (allocator -> client) and this container reaches
+# the allocator's HTTP API directly regardless. It does need to be up
+# before a session is assigned, hence ahead of the custom startup script.
+if [ "$CONNECTIVITY" = "relay" ]; then
+  for v in RELAY_SERVER_ADDR RELAY_SECRET_KEY FRPS_AUTH_TOKEN; do
+    # ${!v} indirect expansion, not eval -- this script is #!/bin/bash.
+    if [ -z "${!v}" ]; then
+      echo "CONNECTIVITY=relay but $v is unset" >&2
+      touch "$STATUS_SUPERSEDED_FILE"
+      send_status "error" || echo ">> WARNING: failed to report status=error"
+      exit 1
+    fi
+  done
+
+  # host:port split. This pair also handles bracketed IPv6
+  # ("[::1]:7000" -> "[::1]" + "7000") the same way the allocator's
+  # rpartition(":") does.
+  RELAY_HOST="${RELAY_SERVER_ADDR%:*}"
+  RELAY_PORT="${RELAY_SERVER_ADDR##*:}"
+
+  echo "Starting frpc proxy to $RELAY_SERVER_ADDR..."
+  # umask in a subshell so frpc.toml is 0600 from the outset (it holds
+  # both the per-client secretKey and the deployment auth.token) without
+  # the tightened umask leaking into the rest of startup.
+  ( umask 077; cat > /tmp/frpc.toml <<EOF
+serverAddr = "$RELAY_HOST"
+serverPort = $RELAY_PORT
+auth.token = "$FRPS_AUTH_TOKEN"
+
+[[proxies]]
+name = "$VM_NAME-kasmvnc"
+type = "stcp"
+secretKey = "$RELAY_SECRET_KEY"
+localIP = "127.0.0.1"
+localPort = 6080
+
+[[proxies]]
+name = "$VM_NAME-agent"
+type = "stcp"
+secretKey = "$RELAY_SECRET_KEY"
+localIP = "127.0.0.1"
+localPort = 7070
+EOF
+  )
+
+  # Process substitution, NOT the `| sed ... >&5 &` pipeline the sibling
+  # services use: after a pipeline `$!` is the PID of the last stage
+  # (sed), which stays alive whether or not frpc did, making the liveness
+  # check below vacuous.
+  frpc -c /tmp/frpc.toml > >(sed -u 's/^/[frpc] /' >&5) 2>&1 &
+  FRPC_PID=$!
+
+  # frpc exits within milliseconds of a rejected login and, with
+  # loginFailExit defaulting on, does not retry. Catch that here rather
+  # than leaving an unreachable client reporting itself healthy.
+  sleep 3
+  if ! kill -0 "$FRPC_PID" 2>/dev/null; then
+    echo "frpc exited immediately -- see [frpc] output above" >&2
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  fi
+  echo "frpc proxy running (pid $FRPC_PID)"
+fi
+
 # Run the custom startup script if it exists and is non-empty, retrying
 # with exponential backoff on failure — startup scripts frequently call
 # `uv`/pip, which is prone to transient PyPI timeouts when many VMs boot
