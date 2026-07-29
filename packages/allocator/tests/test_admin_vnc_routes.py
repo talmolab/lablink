@@ -200,3 +200,99 @@ def test_release_clears_seat_and_redirects(client, admin_headers, monkeypatch):
     assert resp.status_code == 302
     assert resp.headers["Location"].endswith("/admin/instances")
     fake_db.release_seat.assert_called_once_with(hostname="host1")
+
+
+def test_admin_connect_success_clears_unhealthy(
+    client, admin_headers, monkeypatch
+):
+    """A successful rotation proves allocator -> client reachability -- the
+    exact direction whose failure set the flag -- so the client goes back in
+    the pool without an operator touching SQL (lablink#404)."""
+    fake_db = MagicMock()
+    fake_db.admin_reserve_vm.return_value = True
+    fake_conn = MagicMock()
+    fake_db._pool.getconn.return_value = fake_conn
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=True
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.providers.connectivity.allocator_proxied."
+        "prepare_browser_session",
+        lambda **kw: None,
+    )
+    monkeypatch.setattr(
+        "lablink_allocator_service.routes.session_cookie."
+        "get_or_create_cookie_secret",
+        lambda conn: "test-secret",
+    )
+
+    resp = client.post(
+        "/admin/instances/host1/connect",
+        headers=admin_headers,
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    fake_db.clear_unhealthy.assert_called_once_with(hostname="host1")
+
+
+def test_admin_connect_rotation_failure_does_not_clear_unhealthy(
+    client, admin_headers, monkeypatch
+):
+    """The mirror image: a failed rotation must still mark the VM Unhealthy
+    and must NOT clear it -- otherwise the flag would be pointless."""
+    from lablink_allocator_service.client_session import RotationFailed
+
+    fake_db = MagicMock()
+    fake_db.admin_reserve_vm.return_value = True
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=True
+    )
+
+    def boom(**kw):
+        raise RotationFailed("connect timeout")
+
+    monkeypatch.setattr(
+        "lablink_allocator_service.providers.connectivity.allocator_proxied."
+        "prepare_browser_session",
+        boom,
+    )
+
+    resp = client.post(
+        "/admin/instances/host1/connect",
+        headers=admin_headers,
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 302
+    assert "vnc_error=rotation_failed" in resp.headers["Location"]
+    fake_db.update_health.assert_called_once_with(
+        hostname="host1", healthy="Unhealthy"
+    )
+    fake_db.clear_unhealthy.assert_not_called()
+
+
+def test_clear_unhealthy_route_clears_and_redirects(
+    client, admin_headers, monkeypatch
+):
+    """The only non-SQL escape when the box is known-good but Admin Connect
+    is not wanted (lablink#404)."""
+    fake_db = MagicMock()
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.database", fake_db, raising=True
+    )
+
+    resp = client.post(
+        "/admin/instances/host1/clear-unhealthy",
+        headers=admin_headers,
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/admin/instances")
+    fake_db.clear_unhealthy.assert_called_once_with(hostname="host1")
+
+
+def test_clear_unhealthy_requires_auth(client):
+    resp = client.post("/admin/instances/host1/clear-unhealthy")
+    assert resp.status_code == 401

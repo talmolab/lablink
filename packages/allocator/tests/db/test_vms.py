@@ -1511,3 +1511,15 @@ def test_set_overlay_hostname_false_when_no_row_matched(db_instance):
     assert db_instance.set_overlay_hostname(
         hostname="aws-vm-1", overlay_hostname="whatever",
     ) is False
+
+
+def test_clear_unhealthy_only_clears_the_allocator_set_flag(db_instance):
+    """Resets to NULL (unknown), not 'Healthy' -- the allocator has no idea
+    what the GPU is doing, and 'N/A' (no nvidia-smi) is a legitimate
+    client-reported value we must not overwrite with a lie."""
+    db_instance.clear_unhealthy(hostname="LAPTOP-M8NLMMGL")
+
+    sql, params = db_instance.cursor.execute.call_args[0]
+    assert "healthy = NULL" in sql
+    assert "healthy = 'Unhealthy'" in sql  # the WHERE guard
+    assert params == ("LAPTOP-M8NLMMGL",)

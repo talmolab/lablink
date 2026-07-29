@@ -416,3 +416,41 @@ def test_operations_history_escapes_user_supplied_text(mock_database, client, ad
     html = resp.data.decode()
     assert "${escapeHtml(op.error)}" in html
     assert "${escapeHtml(op.created_by" in html
+
+
+@patch("lablink_allocator_service.main.database")
+def test_instances_shows_clear_unhealthy_only_for_unhealthy_rows(
+    mock_database, client, admin_headers,
+):
+    """The escape hatch has to be visible exactly where it applies: an
+    Unhealthy row is skipped by assign_vm and the client cannot clear the
+    flag itself, so without this button raw SQL is the only way out
+    (lablink#404). Healthy/N-A rows must not show it."""
+    rows = [
+        SimpleNamespace(
+            hostname="vm-unhealthy", useremail=None, inuse=False,
+            healthy="Unhealthy", status="running", sessionid=None,
+            adminreservedat=None,
+        ),
+        SimpleNamespace(
+            hostname="vm-ok", useremail=None, inuse=False,
+            healthy="Healthy", status="running", sessionid=None,
+            adminreservedat=None,
+        ),
+        SimpleNamespace(
+            hostname="vm-na", useremail=None, inuse=False,
+            healthy="N/A", status="running", sessionid=None,
+            adminreservedat=None,
+        ),
+    ]
+    mock_database.get_all_vms.return_value = rows
+
+    resp = client.get("/admin/instances", headers=admin_headers)
+    html = resp.data.decode()
+
+    assert "/admin/instances/vm-unhealthy/clear-unhealthy" in html
+    assert "/admin/instances/vm-ok/clear-unhealthy" not in html
+    assert "/admin/instances/vm-na/clear-unhealthy" not in html
+    # Connect must still be offered on the unhealthy row — a successful
+    # Admin Connect is the other, automatic way the flag gets cleared.
+    assert "/admin/instances/vm-unhealthy/connect" in html

@@ -88,6 +88,18 @@ def submit_vm_details():
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return render_template("rotation_failed.html"), 503
 
+        # Rotation succeeded, so the client is reachable — clear any
+        # Unhealthy flag a previous transient failure left behind. Reachable
+        # here via the rejoin branch above, which matches on status='running'
+        # rather than going through assign_vm and so can land on a row still
+        # marked Unhealthy (lablink#404).
+        try:
+            main.database.clear_unhealthy(hostname=hostname)
+        except Exception:
+            logger.exception(
+                "Could not clear unhealthy flag for '%s'", hostname
+            )
+
         return sign_session_cookie_and_redirect(session_id)
 
     except Exception as e:
