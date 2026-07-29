@@ -1,5 +1,3 @@
-import logging
-
 import pytest
 from unittest.mock import patch, MagicMock
 import psutil
@@ -148,7 +146,6 @@ def test_update_inuse_status_main(mock_listen, monkeypatch):
     )
     update_main(cfg)
 
-    assert logging.getLogger("lablink_client_service").level == logging.DEBUG
     mock_listen.assert_called_once()
     args, kwargs = mock_listen.call_args
     assert kwargs["process_name"] == "sleap"

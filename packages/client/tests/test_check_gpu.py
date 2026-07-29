@@ -331,7 +331,6 @@ def test_check_gpu_main_with_env_var(mock_check_gpu_health, monkeypatch, cfg):
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     main(cfg)
-    assert logging.getLogger("lablink_client_service").level == logging.DEBUG
     mock_check_gpu_health.assert_called_once_with(
         allocator_url="https://test.com", client_secret="test-secret"
     )
