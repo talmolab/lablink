@@ -5220,17 +5220,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-173">173</a></span>
-<span class="normal"><a href="#__codelineno-0-174">174</a></span>
-<span class="normal"><a href="#__codelineno-0-175">175</a></span>
-<span class="normal"><a href="#__codelineno-0-176">176</a></span>
-<span class="normal"><a href="#__codelineno-0-177">177</a></span>
-<span class="normal"><a href="#__codelineno-0-178">178</a></span>
-<span class="normal"><a href="#__codelineno-0-179">179</a></span>
-<span class="normal"><a href="#__codelineno-0-180">180</a></span>
-<span class="normal"><a href="#__codelineno-0-181">181</a></span>
-<span class="normal"><a href="#__codelineno-0-182">182</a></span>
-<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-183">183</a></span>
 <span class="normal"><a href="#__codelineno-0-184">184</a></span>
 <span class="normal"><a href="#__codelineno-0-185">185</a></span>
 <span class="normal"><a href="#__codelineno-0-186">186</a></span>
@@ -5242,29 +5232,39 @@
 <span class="normal"><a href="#__codelineno-0-192">192</a></span>
 <span class="normal"><a href="#__codelineno-0-193">193</a></span>
 <span class="normal"><a href="#__codelineno-0-194">194</a></span>
-<span class="normal"><a href="#__codelineno-0-195">195</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="k">def</span><span class="w"> </span><span class="nf">init_database</span><span class="p">():</span>
-<a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize the database connection.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-175" name="__codelineno-0-175"></a>    <span class="k">global</span> <span class="n">database</span>
-<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="n">database</span> <span class="o">=</span> <span class="n">VmDatabase</span><span class="p">(</span>
-<a id="__codelineno-0-177" name="__codelineno-0-177"></a>        <span class="n">dbname</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dbname</span><span class="p">,</span>
-<a id="__codelineno-0-178" name="__codelineno-0-178"></a>        <span class="n">user</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
-<a id="__codelineno-0-179" name="__codelineno-0-179"></a>        <span class="n">password</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
-<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="n">host</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
-<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="n">port</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
-<a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="n">table_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
-<a id="__codelineno-0-183" name="__codelineno-0-183"></a>    <span class="p">)</span>
-<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="k">global</span> <span class="n">schedule_db</span>
-<a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="n">schedule_db</span> <span class="o">=</span> <span class="n">ScheduleDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span>
-<a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="k">global</span> <span class="n">metrics_db</span>
-<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="n">metrics_db</span> <span class="o">=</span> <span class="n">MetricsDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">,</span> <span class="n">table_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
-<a id="__codelineno-0-188" name="__codelineno-0-188"></a>    <span class="c1"># Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,</span>
-<a id="__codelineno-0-189" name="__codelineno-0-189"></a>    <span class="c1"># /internal/proxy_auth) that need a raw connection for the signed-cookie</span>
-<a id="__codelineno-0-190" name="__codelineno-0-190"></a>    <span class="c1"># helpers, without coupling them to the VmDatabase wrapper.</span>
-<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;DB_POOL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">_pool</span>
-<a id="__codelineno-0-192" name="__codelineno-0-192"></a>    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;VM_TABLE_NAME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span>
-<a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="c1"># Persist the deployment register-token as an argon2 hash at rest</span>
-<a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="c1"># (SR-F14). Validation reads this back via settings (Option A).</span>
-<a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="n">database</span><span class="o">.</span><span class="n">set_setting</span><span class="p">(</span><span class="s2">&quot;register_token_hash&quot;</span><span class="p">,</span> <span class="n">hash_secret</span><span class="p">(</span><span class="n">REGISTER_TOKEN</span><span class="p">))</span>
+<span class="normal"><a href="#__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#__codelineno-0-205">205</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-183" name="__codelineno-0-183"></a><span class="k">def</span><span class="w"> </span><span class="nf">init_database</span><span class="p">():</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize the database connection.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="k">global</span> <span class="n">database</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="n">database</span> <span class="o">=</span> <span class="n">VmDatabase</span><span class="p">(</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="n">dbname</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dbname</span><span class="p">,</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a>        <span class="n">user</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="n">password</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="n">host</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>        <span class="n">port</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>        <span class="n">table_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="p">)</span>
+<a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="k">global</span> <span class="n">schedule_db</span>
+<a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="n">schedule_db</span> <span class="o">=</span> <span class="n">ScheduleDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="k">global</span> <span class="n">metrics_db</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="n">metrics_db</span> <span class="o">=</span> <span class="n">MetricsDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">,</span> <span class="n">table_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
+<a id="__codelineno-0-198" name="__codelineno-0-198"></a>    <span class="c1"># Expose the underlying psycopg2 pool to blueprints (e.g. /desktop,</span>
+<a id="__codelineno-0-199" name="__codelineno-0-199"></a>    <span class="c1"># /internal/proxy_auth) that need a raw connection for the signed-cookie</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="c1"># helpers, without coupling them to the VmDatabase wrapper.</span>
+<a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;DB_POOL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">_pool</span>
+<a id="__codelineno-0-202" name="__codelineno-0-202"></a>    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;VM_TABLE_NAME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">table_name</span>
+<a id="__codelineno-0-203" name="__codelineno-0-203"></a>    <span class="c1"># Persist the deployment register-token as an argon2 hash at rest</span>
+<a id="__codelineno-0-204" name="__codelineno-0-204"></a>    <span class="c1"># (SR-F14). Validation reads this back via settings (Option A).</span>
+<a id="__codelineno-0-205" name="__codelineno-0-205"></a>    <span class="n">database</span><span class="o">.</span><span class="n">set_setting</span><span class="p">(</span><span class="s2">&quot;register_token_hash&quot;</span><span class="p">,</span> <span class="n">hash_secret</span><span class="p">(</span><span class="n">REGISTER_TOKEN</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5287,7 +5287,20 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-245">245</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#__codelineno-0-245">245</a></span>
 <span class="normal"><a href="#__codelineno-0-246">246</a></span>
 <span class="normal"><a href="#__codelineno-0-247">247</a></span>
 <span class="normal"><a href="#__codelineno-0-248">248</a></span>
@@ -5420,166 +5433,153 @@
 <span class="normal"><a href="#__codelineno-0-375">375</a></span>
 <span class="normal"><a href="#__codelineno-0-376">376</a></span>
 <span class="normal"><a href="#__codelineno-0-377">377</a></span>
-<span class="normal"><a href="#__codelineno-0-378">378</a></span>
-<span class="normal"><a href="#__codelineno-0-379">379</a></span>
-<span class="normal"><a href="#__codelineno-0-380">380</a></span>
-<span class="normal"><a href="#__codelineno-0-381">381</a></span>
-<span class="normal"><a href="#__codelineno-0-382">382</a></span>
-<span class="normal"><a href="#__codelineno-0-383">383</a></span>
-<span class="normal"><a href="#__codelineno-0-384">384</a></span>
-<span class="normal"><a href="#__codelineno-0-385">385</a></span>
-<span class="normal"><a href="#__codelineno-0-386">386</a></span>
-<span class="normal"><a href="#__codelineno-0-387">387</a></span>
-<span class="normal"><a href="#__codelineno-0-388">388</a></span>
-<span class="normal"><a href="#__codelineno-0-389">389</a></span>
-<span class="normal"><a href="#__codelineno-0-390">390</a></span>
-<span class="normal"><a href="#__codelineno-0-391">391</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-245" name="__codelineno-0-245"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-0-246" name="__codelineno-0-246"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Main entry point for the allocator service.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-247" name="__codelineno-0-247"></a>    <span class="k">global</span> <span class="n">scheduler_service</span><span class="p">,</span> <span class="n">reboot_service</span><span class="p">,</span> <span class="n">admin_session_expiry_service</span>
-<a id="__codelineno-0-248" name="__codelineno-0-248"></a>    <span class="k">global</span> <span class="n">operations_worker</span><span class="p">,</span> <span class="n">operations_db</span>
-<a id="__codelineno-0-249" name="__codelineno-0-249"></a>    <span class="k">global</span> <span class="n">_startup_time</span>
-<a id="__codelineno-0-250" name="__codelineno-0-250"></a>
-<a id="__codelineno-0-251" name="__codelineno-0-251"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-252" name="__codelineno-0-252"></a>        <span class="n">_startup_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
-<a id="__codelineno-0-253" name="__codelineno-0-253"></a>        <span class="k">with</span> <span class="n">app</span><span class="o">.</span><span class="n">app_context</span><span class="p">():</span>
-<a id="__codelineno-0-254" name="__codelineno-0-254"></a>            <span class="n">init_database</span><span class="p">()</span>
-<a id="__codelineno-0-255" name="__codelineno-0-255"></a>
-<a id="__codelineno-0-256" name="__codelineno-0-256"></a>        <span class="c1"># Initialize scheduler service</span>
-<a id="__codelineno-0-257" name="__codelineno-0-257"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing scheduler service...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-258" name="__codelineno-0-258"></a>        <span class="n">db_url</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-259" name="__codelineno-0-259"></a>            <span class="sa">f</span><span class="s2">&quot;postgresql://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">user</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">password</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-260" name="__codelineno-0-260"></a>            <span class="sa">f</span><span class="s2">&quot;@</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dbname</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-261" name="__codelineno-0-261"></a>        <span class="p">)</span>
-<a id="__codelineno-0-262" name="__codelineno-0-262"></a>        <span class="n">scheduler_service</span> <span class="o">=</span> <span class="n">ScheduledDestructionService</span><span class="p">(</span>
-<a id="__codelineno-0-263" name="__codelineno-0-263"></a>            <span class="n">schedule_db</span><span class="o">=</span><span class="n">schedule_db</span><span class="p">,</span>
-<a id="__codelineno-0-264" name="__codelineno-0-264"></a>            <span class="n">db_url</span><span class="o">=</span><span class="n">db_url</span><span class="p">,</span>
-<a id="__codelineno-0-265" name="__codelineno-0-265"></a>        <span class="p">)</span>
-<a id="__codelineno-0-266" name="__codelineno-0-266"></a>        <span class="n">scheduler_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<a id="__codelineno-0-267" name="__codelineno-0-267"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scheduler_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
-<a id="__codelineno-0-268" name="__codelineno-0-268"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Scheduler service started successfully&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-269" name="__codelineno-0-269"></a>
-<a id="__codelineno-0-270" name="__codelineno-0-270"></a>        <span class="c1"># Initialize auto-reboot service</span>
-<a id="__codelineno-0-271" name="__codelineno-0-271"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing auto-reboot service...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-272" name="__codelineno-0-272"></a>        <span class="n">reboot_service</span> <span class="o">=</span> <span class="n">AutoRebootService</span><span class="p">(</span>
-<a id="__codelineno-0-273" name="__codelineno-0-273"></a>            <span class="n">database</span><span class="o">=</span><span class="n">database</span><span class="p">,</span>
-<a id="__codelineno-0-274" name="__codelineno-0-274"></a>            <span class="n">region</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
-<a id="__codelineno-0-275" name="__codelineno-0-275"></a>            <span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">TERRAFORM_DIR</span><span class="p">),</span>
-<a id="__codelineno-0-276" name="__codelineno-0-276"></a>            <span class="n">provider</span><span class="o">=</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">),</span>
-<a id="__codelineno-0-277" name="__codelineno-0-277"></a>        <span class="p">)</span>
-<a id="__codelineno-0-278" name="__codelineno-0-278"></a>        <span class="n">reboot_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<a id="__codelineno-0-279" name="__codelineno-0-279"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">reboot_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
-<a id="__codelineno-0-280" name="__codelineno-0-280"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-reboot service started successfully&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-281" name="__codelineno-0-281"></a>
-<a id="__codelineno-0-282" name="__codelineno-0-282"></a>        <span class="c1"># Initialize admin-session expiry sweep</span>
-<a id="__codelineno-0-283" name="__codelineno-0-283"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing admin-session expiry service...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-284" name="__codelineno-0-284"></a>        <span class="n">admin_session_expiry_service</span> <span class="o">=</span> <span class="n">AdminSessionExpiryService</span><span class="p">(</span>
-<a id="__codelineno-0-285" name="__codelineno-0-285"></a>            <span class="n">database</span><span class="o">=</span><span class="n">database</span><span class="p">,</span>
-<a id="__codelineno-0-286" name="__codelineno-0-286"></a>            <span class="n">timeout_minutes</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">admin_session_timeout_minutes</span><span class="p">,</span>
-<a id="__codelineno-0-287" name="__codelineno-0-287"></a>        <span class="p">)</span>
-<a id="__codelineno-0-288" name="__codelineno-0-288"></a>        <span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<a id="__codelineno-0-289" name="__codelineno-0-289"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
-<a id="__codelineno-0-290" name="__codelineno-0-290"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Admin-session expiry service started successfully&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-291" name="__codelineno-0-291"></a>
-<a id="__codelineno-0-292" name="__codelineno-0-292"></a>        <span class="c1"># Initialize operations worker (on-demand apply/destroy jobs).</span>
-<a id="__codelineno-0-293" name="__codelineno-0-293"></a>        <span class="c1"># No atexit registration: see the module-level comment on</span>
-<a id="__codelineno-0-294" name="__codelineno-0-294"></a>        <span class="c1"># operations_worker — there&#39;s no background loop to stop.</span>
-<a id="__codelineno-0-295" name="__codelineno-0-295"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing operations worker...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-296" name="__codelineno-0-296"></a>        <span class="n">operations_db</span> <span class="o">=</span> <span class="n">OperationsDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span>
-<a id="__codelineno-0-297" name="__codelineno-0-297"></a>        <span class="n">operations_worker</span> <span class="o">=</span> <span class="n">OperationsWorker</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="n">operations_db</span><span class="p">)</span>
-<a id="__codelineno-0-298" name="__codelineno-0-298"></a>        <span class="n">operations_worker</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-<a id="__codelineno-0-299" name="__codelineno-0-299"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Operations worker started successfully&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-300" name="__codelineno-0-300"></a>
-<a id="__codelineno-0-301" name="__codelineno-0-301"></a>        <span class="c1"># Terraform initialization — gated on the provider&#39;s capability flag</span>
-<a id="__codelineno-0-302" name="__codelineno-0-302"></a>        <span class="c1"># (mirrors the policy at module top: branch on capability, not type).</span>
-<a id="__codelineno-0-303" name="__codelineno-0-303"></a>        <span class="c1"># Manual/BYO providers don&#39;t provision hosts, so `terraform init` is</span>
-<a id="__codelineno-0-304" name="__codelineno-0-304"></a>        <span class="c1"># irrelevant and the binary may not even be present in the image.</span>
-<a id="__codelineno-0-305" name="__codelineno-0-305"></a>        <span class="n">provider</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-306" name="__codelineno-0-306"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">provider</span><span class="o">.</span><span class="n">can_provision_hosts</span><span class="p">:</span>
-<a id="__codelineno-0-307" name="__codelineno-0-307"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-308" name="__codelineno-0-308"></a>                <span class="s2">&quot;Skipping terraform init: provider </span><span class="si">%s</span><span class="s2"> does not provision hosts.&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-309" name="__codelineno-0-309"></a>                <span class="nb">getattr</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span>
-<a id="__codelineno-0-310" name="__codelineno-0-310"></a>            <span class="p">)</span>
-<a id="__codelineno-0-311" name="__codelineno-0-311"></a>        <span class="k">elif</span> <span class="ow">not</span> <span class="p">(</span><span class="n">TERRAFORM_DIR</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-<a id="__codelineno-0-312" name="__codelineno-0-312"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing Terraform...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-313" name="__codelineno-0-313"></a>            <span class="k">if</span> <span class="n">ENVIRONMENT</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;prod&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;ci-test&quot;</span><span class="p">]:</span>
-<a id="__codelineno-0-314" name="__codelineno-0-314"></a>                <span class="p">(</span><span class="n">TERRAFORM_DIR</span> <span class="o">/</span> <span class="s2">&quot;backend.tf&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-315" name="__codelineno-0-315"></a>                <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-316" name="__codelineno-0-316"></a>                    <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;init&quot;</span><span class="p">],</span>
-<a id="__codelineno-0-317" name="__codelineno-0-317"></a>                    <span class="n">cwd</span><span class="o">=</span><span class="n">TERRAFORM_DIR</span><span class="p">,</span>
-<a id="__codelineno-0-318" name="__codelineno-0-318"></a>                    <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-319" name="__codelineno-0-319"></a>                <span class="p">)</span>
-<a id="__codelineno-0-320" name="__codelineno-0-320"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-321" name="__codelineno-0-321"></a>                <span class="c1"># Use bucket_name from config for client VM terraform state</span>
-<a id="__codelineno-0-322" name="__codelineno-0-322"></a>                <span class="n">default_bucket</span> <span class="o">=</span> <span class="s2">&quot;tf-state-lablink-allocator-bucket&quot;</span>
-<a id="__codelineno-0-323" name="__codelineno-0-323"></a>                <span class="n">bucket_name</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-324" name="__codelineno-0-324"></a>                    <span class="n">cfg</span><span class="o">.</span><span class="n">bucket_name</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;bucket_name&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">default_bucket</span>
-<a id="__codelineno-0-325" name="__codelineno-0-325"></a>                <span class="p">)</span>
-<a id="__codelineno-0-326" name="__codelineno-0-326"></a>                <span class="c1"># Derive deployment_name for state key scoping</span>
-<a id="__codelineno-0-327" name="__codelineno-0-327"></a>                <span class="n">deployment_name</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-328" name="__codelineno-0-328"></a>                    <span class="n">cfg</span><span class="o">.</span><span class="n">deployment_name</span>
-<a id="__codelineno-0-329" name="__codelineno-0-329"></a>                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;deployment_name&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">deployment_name</span>
-<a id="__codelineno-0-330" name="__codelineno-0-330"></a>                    <span class="k">else</span> <span class="s2">&quot;lablink&quot;</span>
-<a id="__codelineno-0-331" name="__codelineno-0-331"></a>                <span class="p">)</span>
-<a id="__codelineno-0-332" name="__codelineno-0-332"></a>                <span class="n">state_key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">deployment_name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ENVIRONMENT</span><span class="si">}</span><span class="s2">/client/terraform.tfstate&quot;</span>
-<a id="__codelineno-0-333" name="__codelineno-0-333"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-334" name="__codelineno-0-334"></a>                    <span class="sa">f</span><span class="s2">&quot;Initializing Terraform with S3 backend: </span><span class="si">{</span><span class="n">bucket_name</span><span class="si">}</span><span class="s2"> &quot;</span>
-<a id="__codelineno-0-335" name="__codelineno-0-335"></a>                    <span class="sa">f</span><span class="s2">&quot;(key: </span><span class="si">{</span><span class="n">state_key</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-336" name="__codelineno-0-336"></a>                <span class="p">)</span>
-<a id="__codelineno-0-337" name="__codelineno-0-337"></a>                <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-338" name="__codelineno-0-338"></a>                    <span class="p">[</span>
-<a id="__codelineno-0-339" name="__codelineno-0-339"></a>                        <span class="s2">&quot;terraform&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-340" name="__codelineno-0-340"></a>                        <span class="s2">&quot;init&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-341" name="__codelineno-0-341"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=backend-client-</span><span class="si">{</span><span class="n">ENVIRONMENT</span><span class="si">}</span><span class="s2">.hcl&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-342" name="__codelineno-0-342"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=key=</span><span class="si">{</span><span class="n">state_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-343" name="__codelineno-0-343"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=bucket=</span><span class="si">{</span><span class="n">bucket_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-344" name="__codelineno-0-344"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=region=</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-345" name="__codelineno-0-345"></a>                    <span class="p">],</span>
-<a id="__codelineno-0-346" name="__codelineno-0-346"></a>                    <span class="n">cwd</span><span class="o">=</span><span class="n">TERRAFORM_DIR</span><span class="p">,</span>
-<a id="__codelineno-0-347" name="__codelineno-0-347"></a>                    <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-348" name="__codelineno-0-348"></a>                <span class="p">)</span>
-<a id="__codelineno-0-349" name="__codelineno-0-349"></a>
-<a id="__codelineno-0-350" name="__codelineno-0-350"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-generated API token for machine-to-machine auth&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-351" name="__codelineno-0-351"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting Flask application...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-352" name="__codelineno-0-352"></a>        <span class="n">flask_host</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;FLASK_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-353" name="__codelineno-0-353"></a>        <span class="n">flask_port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;FLASK_PORT&quot;</span><span class="p">,</span> <span class="s2">&quot;8000&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-354" name="__codelineno-0-354"></a>        <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">flask_host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">flask_port</span><span class="p">,</span> <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-378">378</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-232" name="__codelineno-0-232"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-0-233" name="__codelineno-0-233"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Main entry point for the allocator service.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-234" name="__codelineno-0-234"></a>    <span class="k">global</span> <span class="n">scheduler_service</span><span class="p">,</span> <span class="n">reboot_service</span><span class="p">,</span> <span class="n">admin_session_expiry_service</span>
+<a id="__codelineno-0-235" name="__codelineno-0-235"></a>    <span class="k">global</span> <span class="n">operations_worker</span><span class="p">,</span> <span class="n">operations_db</span>
+<a id="__codelineno-0-236" name="__codelineno-0-236"></a>    <span class="k">global</span> <span class="n">_startup_time</span>
+<a id="__codelineno-0-237" name="__codelineno-0-237"></a>
+<a id="__codelineno-0-238" name="__codelineno-0-238"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-239" name="__codelineno-0-239"></a>        <span class="n">_startup_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+<a id="__codelineno-0-240" name="__codelineno-0-240"></a>        <span class="k">with</span> <span class="n">app</span><span class="o">.</span><span class="n">app_context</span><span class="p">():</span>
+<a id="__codelineno-0-241" name="__codelineno-0-241"></a>            <span class="n">init_database</span><span class="p">()</span>
+<a id="__codelineno-0-242" name="__codelineno-0-242"></a>
+<a id="__codelineno-0-243" name="__codelineno-0-243"></a>        <span class="c1"># Initialize scheduler service</span>
+<a id="__codelineno-0-244" name="__codelineno-0-244"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing scheduler service...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-245" name="__codelineno-0-245"></a>        <span class="n">db_url</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-246" name="__codelineno-0-246"></a>            <span class="sa">f</span><span class="s2">&quot;postgresql://</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">user</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">password</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-247" name="__codelineno-0-247"></a>            <span class="sa">f</span><span class="s2">&quot;@</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dbname</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-248" name="__codelineno-0-248"></a>        <span class="p">)</span>
+<a id="__codelineno-0-249" name="__codelineno-0-249"></a>        <span class="n">scheduler_service</span> <span class="o">=</span> <span class="n">ScheduledDestructionService</span><span class="p">(</span>
+<a id="__codelineno-0-250" name="__codelineno-0-250"></a>            <span class="n">schedule_db</span><span class="o">=</span><span class="n">schedule_db</span><span class="p">,</span>
+<a id="__codelineno-0-251" name="__codelineno-0-251"></a>            <span class="n">db_url</span><span class="o">=</span><span class="n">db_url</span><span class="p">,</span>
+<a id="__codelineno-0-252" name="__codelineno-0-252"></a>        <span class="p">)</span>
+<a id="__codelineno-0-253" name="__codelineno-0-253"></a>        <span class="n">scheduler_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-0-254" name="__codelineno-0-254"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scheduler_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+<a id="__codelineno-0-255" name="__codelineno-0-255"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Scheduler service started successfully&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-256" name="__codelineno-0-256"></a>
+<a id="__codelineno-0-257" name="__codelineno-0-257"></a>        <span class="c1"># Initialize auto-reboot service</span>
+<a id="__codelineno-0-258" name="__codelineno-0-258"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing auto-reboot service...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-259" name="__codelineno-0-259"></a>        <span class="n">reboot_service</span> <span class="o">=</span> <span class="n">AutoRebootService</span><span class="p">(</span>
+<a id="__codelineno-0-260" name="__codelineno-0-260"></a>            <span class="n">database</span><span class="o">=</span><span class="n">database</span><span class="p">,</span>
+<a id="__codelineno-0-261" name="__codelineno-0-261"></a>            <span class="n">region</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
+<a id="__codelineno-0-262" name="__codelineno-0-262"></a>            <span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">TERRAFORM_DIR</span><span class="p">),</span>
+<a id="__codelineno-0-263" name="__codelineno-0-263"></a>            <span class="n">provider</span><span class="o">=</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-264" name="__codelineno-0-264"></a>        <span class="p">)</span>
+<a id="__codelineno-0-265" name="__codelineno-0-265"></a>        <span class="n">reboot_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-0-266" name="__codelineno-0-266"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">reboot_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+<a id="__codelineno-0-267" name="__codelineno-0-267"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-reboot service started successfully&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-268" name="__codelineno-0-268"></a>
+<a id="__codelineno-0-269" name="__codelineno-0-269"></a>        <span class="c1"># Initialize admin-session expiry sweep</span>
+<a id="__codelineno-0-270" name="__codelineno-0-270"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing admin-session expiry service...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-271" name="__codelineno-0-271"></a>        <span class="n">admin_session_expiry_service</span> <span class="o">=</span> <span class="n">AdminSessionExpiryService</span><span class="p">(</span>
+<a id="__codelineno-0-272" name="__codelineno-0-272"></a>            <span class="n">database</span><span class="o">=</span><span class="n">database</span><span class="p">,</span>
+<a id="__codelineno-0-273" name="__codelineno-0-273"></a>            <span class="n">timeout_minutes</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">admin_session_timeout_minutes</span><span class="p">,</span>
+<a id="__codelineno-0-274" name="__codelineno-0-274"></a>        <span class="p">)</span>
+<a id="__codelineno-0-275" name="__codelineno-0-275"></a>        <span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-0-276" name="__codelineno-0-276"></a>        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+<a id="__codelineno-0-277" name="__codelineno-0-277"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Admin-session expiry service started successfully&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-278" name="__codelineno-0-278"></a>
+<a id="__codelineno-0-279" name="__codelineno-0-279"></a>        <span class="c1"># Initialize operations worker (on-demand apply/destroy jobs).</span>
+<a id="__codelineno-0-280" name="__codelineno-0-280"></a>        <span class="c1"># No atexit registration: see the module-level comment on</span>
+<a id="__codelineno-0-281" name="__codelineno-0-281"></a>        <span class="c1"># operations_worker — there&#39;s no background loop to stop.</span>
+<a id="__codelineno-0-282" name="__codelineno-0-282"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing operations worker...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-283" name="__codelineno-0-283"></a>        <span class="n">operations_db</span> <span class="o">=</span> <span class="n">OperationsDatabase</span><span class="p">(</span><span class="n">pool</span><span class="o">=</span><span class="n">database</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span>
+<a id="__codelineno-0-284" name="__codelineno-0-284"></a>        <span class="n">operations_worker</span> <span class="o">=</span> <span class="n">OperationsWorker</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="n">operations_db</span><span class="p">)</span>
+<a id="__codelineno-0-285" name="__codelineno-0-285"></a>        <span class="n">operations_worker</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-0-286" name="__codelineno-0-286"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Operations worker started successfully&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-287" name="__codelineno-0-287"></a>
+<a id="__codelineno-0-288" name="__codelineno-0-288"></a>        <span class="c1"># Terraform initialization — gated on the provider&#39;s capability flag</span>
+<a id="__codelineno-0-289" name="__codelineno-0-289"></a>        <span class="c1"># (mirrors the policy at module top: branch on capability, not type).</span>
+<a id="__codelineno-0-290" name="__codelineno-0-290"></a>        <span class="c1"># Manual/BYO providers don&#39;t provision hosts, so `terraform init` is</span>
+<a id="__codelineno-0-291" name="__codelineno-0-291"></a>        <span class="c1"># irrelevant and the binary may not even be present in the image.</span>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>        <span class="n">provider</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">provider</span><span class="o">.</span><span class="n">can_provision_hosts</span><span class="p">:</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-295" name="__codelineno-0-295"></a>                <span class="s2">&quot;Skipping terraform init: provider </span><span class="si">%s</span><span class="s2"> does not provision hosts.&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-296" name="__codelineno-0-296"></a>                <span class="nb">getattr</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span>
+<a id="__codelineno-0-297" name="__codelineno-0-297"></a>            <span class="p">)</span>
+<a id="__codelineno-0-298" name="__codelineno-0-298"></a>        <span class="k">elif</span> <span class="ow">not</span> <span class="p">(</span><span class="n">TERRAFORM_DIR</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing Terraform...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-300" name="__codelineno-0-300"></a>            <span class="k">if</span> <span class="n">ENVIRONMENT</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;prod&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;ci-test&quot;</span><span class="p">]:</span>
+<a id="__codelineno-0-301" name="__codelineno-0-301"></a>                <span class="p">(</span><span class="n">TERRAFORM_DIR</span> <span class="o">/</span> <span class="s2">&quot;backend.tf&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-302" name="__codelineno-0-302"></a>                <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-0-303" name="__codelineno-0-303"></a>                    <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;init&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-304" name="__codelineno-0-304"></a>                    <span class="n">cwd</span><span class="o">=</span><span class="n">TERRAFORM_DIR</span><span class="p">,</span>
+<a id="__codelineno-0-305" name="__codelineno-0-305"></a>                    <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-306" name="__codelineno-0-306"></a>                <span class="p">)</span>
+<a id="__codelineno-0-307" name="__codelineno-0-307"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-308" name="__codelineno-0-308"></a>                <span class="c1"># Use bucket_name from config for client VM terraform state</span>
+<a id="__codelineno-0-309" name="__codelineno-0-309"></a>                <span class="n">default_bucket</span> <span class="o">=</span> <span class="s2">&quot;tf-state-lablink-allocator-bucket&quot;</span>
+<a id="__codelineno-0-310" name="__codelineno-0-310"></a>                <span class="n">bucket_name</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-311" name="__codelineno-0-311"></a>                    <span class="n">cfg</span><span class="o">.</span><span class="n">bucket_name</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;bucket_name&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">default_bucket</span>
+<a id="__codelineno-0-312" name="__codelineno-0-312"></a>                <span class="p">)</span>
+<a id="__codelineno-0-313" name="__codelineno-0-313"></a>                <span class="c1"># Derive deployment_name for state key scoping</span>
+<a id="__codelineno-0-314" name="__codelineno-0-314"></a>                <span class="n">deployment_name</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-315" name="__codelineno-0-315"></a>                    <span class="n">cfg</span><span class="o">.</span><span class="n">deployment_name</span>
+<a id="__codelineno-0-316" name="__codelineno-0-316"></a>                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;deployment_name&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">deployment_name</span>
+<a id="__codelineno-0-317" name="__codelineno-0-317"></a>                    <span class="k">else</span> <span class="s2">&quot;lablink&quot;</span>
+<a id="__codelineno-0-318" name="__codelineno-0-318"></a>                <span class="p">)</span>
+<a id="__codelineno-0-319" name="__codelineno-0-319"></a>                <span class="n">state_key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">deployment_name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ENVIRONMENT</span><span class="si">}</span><span class="s2">/client/terraform.tfstate&quot;</span>
+<a id="__codelineno-0-320" name="__codelineno-0-320"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-321" name="__codelineno-0-321"></a>                    <span class="sa">f</span><span class="s2">&quot;Initializing Terraform with S3 backend: </span><span class="si">{</span><span class="n">bucket_name</span><span class="si">}</span><span class="s2"> &quot;</span>
+<a id="__codelineno-0-322" name="__codelineno-0-322"></a>                    <span class="sa">f</span><span class="s2">&quot;(key: </span><span class="si">{</span><span class="n">state_key</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-323" name="__codelineno-0-323"></a>                <span class="p">)</span>
+<a id="__codelineno-0-324" name="__codelineno-0-324"></a>                <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-0-325" name="__codelineno-0-325"></a>                    <span class="p">[</span>
+<a id="__codelineno-0-326" name="__codelineno-0-326"></a>                        <span class="s2">&quot;terraform&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-327" name="__codelineno-0-327"></a>                        <span class="s2">&quot;init&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-328" name="__codelineno-0-328"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=backend-client-</span><span class="si">{</span><span class="n">ENVIRONMENT</span><span class="si">}</span><span class="s2">.hcl&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-329" name="__codelineno-0-329"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=key=</span><span class="si">{</span><span class="n">state_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-330" name="__codelineno-0-330"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=bucket=</span><span class="si">{</span><span class="n">bucket_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-331" name="__codelineno-0-331"></a>                        <span class="sa">f</span><span class="s2">&quot;-backend-config=region=</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-332" name="__codelineno-0-332"></a>                    <span class="p">],</span>
+<a id="__codelineno-0-333" name="__codelineno-0-333"></a>                    <span class="n">cwd</span><span class="o">=</span><span class="n">TERRAFORM_DIR</span><span class="p">,</span>
+<a id="__codelineno-0-334" name="__codelineno-0-334"></a>                    <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-335" name="__codelineno-0-335"></a>                <span class="p">)</span>
+<a id="__codelineno-0-336" name="__codelineno-0-336"></a>
+<a id="__codelineno-0-337" name="__codelineno-0-337"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Auto-generated API token for machine-to-machine auth&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-338" name="__codelineno-0-338"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting Flask application...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-339" name="__codelineno-0-339"></a>        <span class="n">flask_host</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;FLASK_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-340" name="__codelineno-0-340"></a>        <span class="n">flask_port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;FLASK_PORT&quot;</span><span class="p">,</span> <span class="s2">&quot;8000&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-341" name="__codelineno-0-341"></a>        <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">flask_host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">flask_port</span><span class="p">,</span> <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-342" name="__codelineno-0-342"></a>
+<a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-344" name="__codelineno-0-344"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to start allocator service: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-345" name="__codelineno-0-345"></a>
+<a id="__codelineno-0-346" name="__codelineno-0-346"></a>        <span class="c1"># Clean up services if they were initialized</span>
+<a id="__codelineno-0-347" name="__codelineno-0-347"></a>        <span class="k">if</span> <span class="n">reboot_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-348" name="__codelineno-0-348"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-349" name="__codelineno-0-349"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stopping auto-reboot service due to startup failure...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-350" name="__codelineno-0-350"></a>                <span class="n">reboot_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+<a id="__codelineno-0-351" name="__codelineno-0-351"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+<a id="__codelineno-0-352" name="__codelineno-0-352"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-353" name="__codelineno-0-353"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping reboot service during cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-354" name="__codelineno-0-354"></a>                <span class="p">)</span>
 <a id="__codelineno-0-355" name="__codelineno-0-355"></a>
-<a id="__codelineno-0-356" name="__codelineno-0-356"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-357" name="__codelineno-0-357"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to start allocator service: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-358" name="__codelineno-0-358"></a>
-<a id="__codelineno-0-359" name="__codelineno-0-359"></a>        <span class="c1"># Clean up services if they were initialized</span>
-<a id="__codelineno-0-360" name="__codelineno-0-360"></a>        <span class="k">if</span> <span class="n">reboot_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-361" name="__codelineno-0-361"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-362" name="__codelineno-0-362"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stopping auto-reboot service due to startup failure...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-363" name="__codelineno-0-363"></a>                <span class="n">reboot_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
-<a id="__codelineno-0-364" name="__codelineno-0-364"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
-<a id="__codelineno-0-365" name="__codelineno-0-365"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-366" name="__codelineno-0-366"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping reboot service during cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-367" name="__codelineno-0-367"></a>                <span class="p">)</span>
-<a id="__codelineno-0-368" name="__codelineno-0-368"></a>
-<a id="__codelineno-0-369" name="__codelineno-0-369"></a>        <span class="k">if</span> <span class="n">scheduler_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-370" name="__codelineno-0-370"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-371" name="__codelineno-0-371"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stopping scheduler service due to startup failure...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-372" name="__codelineno-0-372"></a>                <span class="n">scheduler_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
-<a id="__codelineno-0-373" name="__codelineno-0-373"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
-<a id="__codelineno-0-374" name="__codelineno-0-374"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-375" name="__codelineno-0-375"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping scheduler during cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-376" name="__codelineno-0-376"></a>                <span class="p">)</span>
-<a id="__codelineno-0-377" name="__codelineno-0-377"></a>
-<a id="__codelineno-0-378" name="__codelineno-0-378"></a>        <span class="k">if</span> <span class="n">admin_session_expiry_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-379" name="__codelineno-0-379"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-380" name="__codelineno-0-380"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-381" name="__codelineno-0-381"></a>                    <span class="s2">&quot;Stopping admin-session expiry service due to startup failure...&quot;</span>
-<a id="__codelineno-0-382" name="__codelineno-0-382"></a>                <span class="p">)</span>
-<a id="__codelineno-0-383" name="__codelineno-0-383"></a>                <span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
-<a id="__codelineno-0-384" name="__codelineno-0-384"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
-<a id="__codelineno-0-385" name="__codelineno-0-385"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-386" name="__codelineno-0-386"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping admin-session expiry service during &quot;</span>
-<a id="__codelineno-0-387" name="__codelineno-0-387"></a>                    <span class="sa">f</span><span class="s2">&quot;cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-388" name="__codelineno-0-388"></a>                <span class="p">)</span>
-<a id="__codelineno-0-389" name="__codelineno-0-389"></a>
-<a id="__codelineno-0-390" name="__codelineno-0-390"></a>        <span class="c1"># Re-raise the exception to exit with error code</span>
-<a id="__codelineno-0-391" name="__codelineno-0-391"></a>        <span class="k">raise</span>
+<a id="__codelineno-0-356" name="__codelineno-0-356"></a>        <span class="k">if</span> <span class="n">scheduler_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-357" name="__codelineno-0-357"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-358" name="__codelineno-0-358"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stopping scheduler service due to startup failure...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-359" name="__codelineno-0-359"></a>                <span class="n">scheduler_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+<a id="__codelineno-0-360" name="__codelineno-0-360"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+<a id="__codelineno-0-361" name="__codelineno-0-361"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-362" name="__codelineno-0-362"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping scheduler during cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-363" name="__codelineno-0-363"></a>                <span class="p">)</span>
+<a id="__codelineno-0-364" name="__codelineno-0-364"></a>
+<a id="__codelineno-0-365" name="__codelineno-0-365"></a>        <span class="k">if</span> <span class="n">admin_session_expiry_service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-366" name="__codelineno-0-366"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-367" name="__codelineno-0-367"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-368" name="__codelineno-0-368"></a>                    <span class="s2">&quot;Stopping admin-session expiry service due to startup failure...&quot;</span>
+<a id="__codelineno-0-369" name="__codelineno-0-369"></a>                <span class="p">)</span>
+<a id="__codelineno-0-370" name="__codelineno-0-370"></a>                <span class="n">admin_session_expiry_service</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+<a id="__codelineno-0-371" name="__codelineno-0-371"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">cleanup_error</span><span class="p">:</span>
+<a id="__codelineno-0-372" name="__codelineno-0-372"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+<a id="__codelineno-0-373" name="__codelineno-0-373"></a>                    <span class="sa">f</span><span class="s2">&quot;Error stopping admin-session expiry service during &quot;</span>
+<a id="__codelineno-0-374" name="__codelineno-0-374"></a>                    <span class="sa">f</span><span class="s2">&quot;cleanup: </span><span class="si">{</span><span class="n">cleanup_error</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-375" name="__codelineno-0-375"></a>                <span class="p">)</span>
+<a id="__codelineno-0-376" name="__codelineno-0-376"></a>
+<a id="__codelineno-0-377" name="__codelineno-0-377"></a>        <span class="c1"># Re-raise the exception to exit with error code</span>
+<a id="__codelineno-0-378" name="__codelineno-0-378"></a>        <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
