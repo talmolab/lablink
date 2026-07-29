@@ -326,30 +326,23 @@ def test_gpu_report_retry_logic(
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")
-@patch("lablink_client_service.check_gpu.configure_service_logging")
-def test_check_gpu_main_with_env_var(
-    mock_configure_logging, mock_check_gpu_health, monkeypatch, cfg
-):
+def test_check_gpu_main_with_env_var(mock_check_gpu_health, monkeypatch, cfg):
     """Test main function with ALLOCATOR_URL environment variable."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     main(cfg)
-    mock_configure_logging.assert_called_once()
+    assert logging.getLogger("lablink_client_service").level == logging.DEBUG
     mock_check_gpu_health.assert_called_once_with(
         allocator_url="https://test.com", client_secret="test-secret"
     )
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")
-@patch("lablink_client_service.check_gpu.configure_service_logging")
-def test_check_gpu_main_without_env_var(
-    mock_configure_logging, mock_check_gpu_health, monkeypatch, cfg
-):
+def test_check_gpu_main_without_env_var(mock_check_gpu_health, monkeypatch, cfg):
     """Test main function without ALLOCATOR_URL environment variable."""
     monkeypatch.delenv("ALLOCATOR_URL", raising=False)
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     main(cfg)
-    mock_configure_logging.assert_called_once()
     mock_check_gpu_health.assert_called_once_with(
         allocator_url="http://localhost:80", client_secret="test-secret"
     )

@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from unittest.mock import patch, MagicMock
 import psutil
@@ -134,8 +136,7 @@ def test_api_callback(mock_call_api):
 
 
 @patch("lablink_client_service.update_inuse_status.listen_for_process")
-@patch("lablink_client_service.update_inuse_status.configure_service_logging")
-def test_update_inuse_status_main(mock_configure_logging, mock_listen, monkeypatch):
+def test_update_inuse_status_main(mock_listen, monkeypatch):
     """Test the main function of the update_inuse_status module."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
@@ -147,7 +148,7 @@ def test_update_inuse_status_main(mock_configure_logging, mock_listen, monkeypat
     )
     update_main(cfg)
 
-    mock_configure_logging.assert_called_once()
+    assert logging.getLogger("lablink_client_service").level == logging.DEBUG
     mock_listen.assert_called_once()
     args, kwargs = mock_listen.call_args
     assert kwargs["process_name"] == "sleap"

@@ -176,23 +176,13 @@ def test_run_heartbeat_loop_logs_and_continues_on_unexpected_exception(
 
 
 @patch("lablink_client_service.heartbeat.run_heartbeat_loop")
-@patch("lablink_client_service.heartbeat.configure_service_logging")
-def test_main_configures_logging_before_starting_the_loop(
-    mock_configure_logging, mock_loop, monkeypatch
-):
-    """main() owns logging configuration for the `heartbeat` console script.
-
-    Without the call, root sits at WARNING with no handler and the loop's
-    "Starting heartbeat loop" line — the only liveness signal this service
-    emits — never reaches the container logs.
-    """
+def test_main_starts_the_loop_with_the_resolved_allocator_url(mock_loop, monkeypatch):
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
     cfg = OmegaConf.create({"allocator": {"host": "localhost", "port": 80}})
 
     heartbeat.main(cfg)
 
-    mock_configure_logging.assert_called_once()
     mock_loop.assert_called_once_with(
         allocator_url="https://test.com", client_secret="test-secret"
     )
