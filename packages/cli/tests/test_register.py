@@ -366,6 +366,94 @@ class TestOverlayHostnamePath:
         assert not tmp_env_file.exists()
 
 
+def test_relay_and_overlay_hostname_are_mutually_exclusive(tmp_env_file):
+    from lablink_cli.commands.register import run_register
+
+    with pytest.raises(SystemExit):
+        run_register(**_kwargs(
+            tmp_env_file, relay=True, overlay_hostname="classroom-1",
+            tailscale_authkey="tskey-x",
+        ))
+
+
+def test_relay_rejects_tailscale_authkey(tmp_env_file):
+    """A relay client joins no tailnet, so an authkey is a sign the
+    operator meant --overlay-hostname."""
+    from lablink_cli.commands.register import run_register
+
+    with pytest.raises(SystemExit):
+        run_register(**_kwargs(
+            tmp_env_file, relay=True, tailscale_authkey="tskey-x",
+        ))
+
+
+def test_relay_handoff_requires_hostname(tmp_env_file):
+    """Auto-detection would report the OPERATOR's hostname. For relay
+    that hostname also determines the frpc proxy names, so a wrong one
+    silently prevents the tunnel from ever pairing."""
+    from lablink_cli.commands.register import run_register
+
+    with pytest.raises(SystemExit):
+        run_register(**_kwargs(
+            tmp_env_file, relay=True, run_locally=False,
+            hostname=None, machine_identity="i-1",
+        ))
+
+
+def test_relay_handoff_requires_machine_identity(tmp_env_file):
+    from lablink_cli.commands.register import run_register
+
+    with pytest.raises(SystemExit):
+        run_register(**_kwargs(
+            tmp_env_file, relay=True, run_locally=False,
+            hostname="byo-1", machine_identity=None,
+        ))
+
+
+def test_no_run_locally_without_relay_or_overlay_is_rejected(tmp_env_file):
+    from lablink_cli.commands.register import run_register
+
+    with pytest.raises(SystemExit):
+        run_register(**_kwargs(tmp_env_file, run_locally=False))
+
+
+def test_relay_registration_sends_relay_to_the_api(
+    tmp_env_file, successful_response, monkeypatch
+):
+    from lablink_cli.commands.register import run_register
+    from lablink_cli.api import RegistrationClient
+
+    resp = dict(successful_response)
+    resp["connectivity"] = "relay"
+    resp["relay_secret_key"] = "sek"
+    resp["relay_server_addr"] = "allocator.example.com:7000"
+    resp["frps_auth_token"] = "ctl-token"
+
+    mock_register = MagicMock(return_value=resp)
+    monkeypatch.setattr(RegistrationClient, "register", mock_register)
+    monkeypatch.setattr(
+        "lablink_cli.commands.register._exec_docker", MagicMock()
+    )
+    monkeypatch.setattr(
+        "lablink_cli.commands.register._detect_gpu",
+        MagicMock(return_value=(False, None)),
+    )
+    # Prevent a real background process: unlike _exec_docker (mocked
+    # above), the brief's original test left _start_log_shipper
+    # unmocked, which would Popen a real `python -m
+    # lablink_cli.log_shipper` process against the developer's actual
+    # ~/.lablink directory. Mocked at the same granularity as
+    # _exec_docker to keep this test hermetic.
+    monkeypatch.setattr(
+        "lablink_cli.commands.register._start_log_shipper", MagicMock()
+    )
+
+    run_register(**_kwargs(tmp_env_file, relay=True, hostname="byo-1",
+                           machine_identity="i-1"))
+
+    assert mock_register.call_args.kwargs["relay"] is True
+
+
 class TestRepositoryAndSoftwareEnv:
     """lablink#405 — the BYO client container never cloned the configured
     repository because `~/.lablink/client.env` carried no

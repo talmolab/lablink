@@ -92,10 +92,11 @@ def run_register(
     overlay_hostname: str | None = None,
     tailscale_authkey: str | None = None,
     run_locally: bool = True,
+    relay: bool = False,
 ) -> None:
     """Orchestrate registration. Exits non-zero on any user-facing error.
 
-    Three shapes:
+    Four shapes:
     - Real BYO box (default): auto-detects hostname/LAN IP/machine
       identity/GPU, then docker-runs the client container after
       persisting secrets.
@@ -111,19 +112,38 @@ def run_register(
       machine's own facts); ``--hostname``/``--machine-identity`` are
       required. No docker run — instead prints the secrets for the
       admin to paste into their own workload submission.
+    - Relay (``relay`` true): the client dials OUT to the allocator
+      through a tunnel instead of being dialled. Supports both
+      run-locally and hand-off, exactly like mesh-overlay. Needs no
+      operator-supplied secret — the allocator mints and returns all
+      three tunnel values.
     """
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
-    if overlay_hostname is None:
+    if relay and overlay_hostname is not None:
+        console.print(
+            "[red]--relay and --overlay-hostname are different "
+            "connectivity modes; pass only one.[/red]"
+        )
+        raise SystemExit(1)
+    if relay and tailscale_authkey:
+        console.print(
+            "[red]--tailscale-authkey does not apply with --relay[/red] "
+            "— a relay client joins no tailnet. Did you mean "
+            "--overlay-hostname?"
+        )
+        raise SystemExit(1)
+
+    if overlay_hostname is None and not relay:
         if not run_locally:
             console.print(
                 "[red]--no-run-locally only applies with "
-                "--overlay-hostname.[/red]"
+                "--overlay-hostname or --relay.[/red]"
             )
             raise SystemExit(1)
     else:
-        if not tailscale_authkey:
+        if overlay_hostname is not None and not tailscale_authkey:
             console.print(
                 "[red]--tailscale-authkey is required with "
                 "--overlay-hostname.[/red]"
@@ -132,34 +152,40 @@ def run_register(
         if not run_locally:
             if not hostname:
                 console.print(
-                    "[red]--hostname is required with --overlay-hostname "
-                    "--no-run-locally.[/red] Auto-detection would report "
-                    "this machine's own hostname, not the future "
-                    "client's — the client doesn't exist yet."
+                    "[red]--hostname is required with "
+                    "--overlay-hostname/--relay --no-run-locally.[/red] "
+                    "Auto-detection would report this machine's own "
+                    "hostname, not the future client's — the client "
+                    "doesn't exist yet. For relay it would also break the "
+                    "tunnel silently: the hostname determines the frpc "
+                    "proxy names the allocator's visitor pairs with."
                 )
                 raise SystemExit(1)
             if not machine_identity:
                 console.print(
                     "[red]--machine-identity is required with "
-                    "--overlay-hostname --no-run-locally.[/red] "
+                    "--overlay-hostname/--relay --no-run-locally.[/red] "
                     "Auto-detection would report this machine's own "
                     "identity, not the future client's."
                 )
                 raise SystemExit(1)
 
-    # Step 1: idempotency / resume. Skipped only for the mesh-overlay
-    # hand-off case (overlay_hostname set, run_locally false) — that
-    # case has no local container/env-file lifecycle to resume.
+    # Step 1: idempotency / resume. Skipped only for the mesh-overlay/relay
+    # hand-off case (overlay_hostname set or relay, run_locally false) —
+    # that case has no local container/env-file lifecycle to resume.
     if (
-        (overlay_hostname is None or run_locally)
+        ((overlay_hostname is None and not relay) or run_locally)
         and env_file.exists()
         and not force
     ):
         _resume(env_file, console)
         return
 
-    if overlay_hostname is not None:
-        console.print(f"Registering overlay hostname: {overlay_hostname}")
+    if overlay_hostname is not None or relay:
+        if overlay_hostname is not None:
+            console.print(f"Registering overlay hostname: {overlay_hostname}")
+        else:
+            console.print("Registering a relay client (dials out via tunnel)")
         if run_locally:
             resolved_hostname = _detect_hostname(hostname, console)
             resolved_machine_identity = _detect_machine_identity(
@@ -200,7 +226,15 @@ def run_register(
     )
     console.print(f"Registering with {allocator_url} …")
     try:
-        if overlay_hostname is not None:
+        if relay:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                relay=True,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
+        elif overlay_hostname is not None:
             response = client.register(
                 hostname=resolved_hostname,
                 machine_identity=resolved_machine_identity,
@@ -241,7 +275,7 @@ def run_register(
         f"[green]Secrets saved to {env_file} (mode 0600)[/green]"
     )
 
-    if overlay_hostname is not None and not run_locally:
+    if (overlay_hostname is not None or relay) and not run_locally:
         # No host for the CLI to act on — the Run:AI workload doesn't
         # exist yet. Print everything the admin needs to paste into
         # their own workload submission instead of docker-running
