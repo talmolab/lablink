@@ -149,10 +149,23 @@ def register_client():
         "push_interval_seconds": main.cfg.monitoring.push_interval_seconds,
     }
 
+    # cfg.machine settings the AWS path delivers as `docker run -e` flags
+    # in terraform/user_data.sh. The register response is the manual/BYO
+    # path's only equivalent channel, so ship them here and let the CLI
+    # write them into the client's env file under the same names
+    # client/start.sh already reads (lablink#405). `repository` is
+    # Optional and normalized to "" — a JSON null would round-trip through
+    # the CLI's env file as the literal string "None" and start.sh's `-n`
+    # check would pass, making it `git clone None`.
+    repository = main.cfg.machine.repository or ""
+    subject_software = main.cfg.machine.software or ""
+
     return jsonify(
         client_id=client_id,
         client_secret=client_secret,
         agent_token=main.AGENT_TOKEN,
+        repository=repository,
+        subject_software=subject_software,
         register_token=jm.register_token,
         allocator_url=jm.allocator_url,
         connectivity=jm.connectivity,
