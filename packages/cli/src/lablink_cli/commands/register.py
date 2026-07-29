@@ -33,6 +33,16 @@ DEFAULT_ENV_FILE = Path.home() / ".lablink" / "client.env"
 # local override.
 DEFAULT_STARTUP_SCRIPT = Path.home() / ".lablink" / "client-custom-startup.sh"
 PID_FILE = Path.home() / ".lablink" / "log_shipper.pid"
+# tailscaled's node identity (its state dir). Persisted in a named volume so
+# recreating the container reuses the SAME tailnet node instead of minting a
+# new one — a new node cannot claim a MagicDNS name that an existing (even
+# offline) node still holds, so Tailscale appends a numeric suffix (-1, -2,
+# ...) and the allocator's recorded overlay hostname ends up pointing at the
+# dead node (lablink#404). The allocator's own sidecar has done this from the
+# start (the `tailscale_state` volume in docker-compose-mesh-overlay.yml);
+# the client side never got the equivalent. Fixed name, like the fixed
+# `--name lablink-client` below: one box runs one client container.
+TAILSCALE_STATE_VOLUME = "lablink-client-tailscale"
 
 
 def _detect_hostname(hostname: str | None, console: Console) -> str:
@@ -246,6 +256,20 @@ def run_register(
             if line.startswith("#"):
                 continue
             print(line)
+        # There is no docker run for us to add `-v` to on this path, so the
+        # operator has to arrange persistence themselves. Without it every
+        # workload restart joins the tailnet as a brand-new node and
+        # Tailscale suffixes the name (-1, -2, ...); the client reports its
+        # real name back regardless (see start.sh), so this is an
+        # optimization rather than a correctness requirement. See
+        # TAILSCALE_STATE_VOLUME for the run-locally equivalent.
+        console.print(
+            "\n[dim]Also give the workload persistent storage mounted at "
+            "/var/lib/tailscale. Without it, each restart rejoins the "
+            "tailnet as a new node and Tailscale appends a numeric suffix "
+            "to its name. The client reports its actual name back either "
+            "way, so this is an optimization, not a requirement.[/dim]"
+        )
         return
 
     # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
@@ -456,6 +480,11 @@ def _build_docker_run(
             "--cap-add", "NET_ADMIN",
             "--cap-add", "NET_RAW",
             "--device", "/dev/net/tun",
+            # Persist the tailnet node identity; see TAILSCALE_STATE_VOLUME.
+            # Re-registering with a *different* --overlay-hostname is still
+            # fine: renaming a node you already own is allowed and yields the
+            # unsuffixed name, which is exactly what we want.
+            "-v", f"{TAILSCALE_STATE_VOLUME}:/var/lib/tailscale",
         ]
     # Mount path mirrors the AWS terraform/user_data mount so the client
     # start.sh finds the script at /docker_scripts/custom-startup.sh

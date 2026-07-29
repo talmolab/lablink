@@ -129,3 +129,33 @@ def test_unregister_prompt_aborted(env_file, capsys, monkeypatch):
     assert env_file.exists()
     out = capsys.readouterr().out
     assert "Aborted" in out
+
+
+def test_unregister_preserves_tailscale_state_volume(monkeypatch):
+    """Unregister must NOT drop the overlay node identity.
+
+    Deleting the volume would not remove the node from the tailnet — the
+    coordination server keeps its record and the offline machine goes on
+    holding its MagicDNS name — so the next `register` would mint a fresh
+    node and be handed a suffixed name, which is the lablink#404 failure
+    itself. Preserving it keeps unregister/register on the same node.
+    `lablink client reset-overlay` is the opt-in way to discard it.
+    """
+    import subprocess
+
+    from lablink_cli.commands import unregister as unreg
+    from rich.console import Console
+
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(unreg.subprocess, "run", fake_run)
+    unreg._exec_docker_rm(Console())
+
+    assert ["docker", "rm", "-f", "lablink-client"] in calls
+    assert not any(
+        "volume" in c for c in calls
+    ), f"unregister must not touch docker volumes; got {calls}"
