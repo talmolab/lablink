@@ -20,6 +20,7 @@ def test_start_visitor_writes_config_and_spawns_frpc(tmp_path, monkeypatch):
         relay_manager.start_visitor(
             client_id="vm-1", alias_octet=12, secret_key="sek",
             server_addr="allocator.example.com", server_port=7000,
+            auth_token="ctl-token",
         )
 
     config_path = tmp_path / "vm-1.toml"
@@ -48,7 +49,7 @@ def test_start_visitor_is_idempotent_when_already_running(tmp_path, monkeypatch)
     ) as mock_popen:
         relay_manager.start_visitor(
             client_id="vm-1", alias_octet=12, secret_key="sek",
-            server_addr="a", server_port=7000,
+            server_addr="a", server_port=7000, auth_token="ctl-token",
         )
     mock_popen.assert_not_called()
 
@@ -72,7 +73,7 @@ def test_start_visitor_respawns_when_tracked_process_is_dead(tmp_path, monkeypat
     ) as mock_popen:
         relay_manager.start_visitor(
             client_id="vm-1", alias_octet=12, secret_key="sek",
-            server_addr="a", server_port=7000,
+            server_addr="a", server_port=7000, auth_token="ctl-token",
         )
     mock_popen.assert_called_once()
     assert relay_manager._visitors["vm-1"] is new_proc
@@ -159,7 +160,7 @@ def test_start_visitor_rejects_unsafe_client_id(bad, tmp_path, monkeypatch):
         with pytest.raises(ValueError):
             relay_manager.start_visitor(
                 client_id=bad, alias_octet=12, secret_key="sek",
-                server_addr="h", server_port=7000,
+                server_addr="h", server_port=7000, auth_token="ctl-token",
             )
     mock_popen.assert_not_called()
     assert list(tmp_path.iterdir()) == []
@@ -202,7 +203,7 @@ def test_start_visitor_config_is_owner_readable_only(tmp_path, monkeypatch):
     ):
         relay_manager.start_visitor(
             client_id="vm-1", alias_octet=12, secret_key="sek",
-            server_addr="h", server_port=7000,
+            server_addr="h", server_port=7000, auth_token="ctl-token",
         )
 
     assert (conf_dir / "vm-1.toml").stat().st_mode & 0o777 == 0o600
@@ -221,7 +222,7 @@ def test_visitor_config_escapes_string_values():
     injected = 'vm"\nbindPort = 22'
     toml = relay_manager._visitor_config_toml(
         client_id="vm-1", alias_octet=12, secret_key='se"k',
-        server_addr=injected, server_port=7000,
+        server_addr=injected, server_port=7000, auth_token="ctl-token",
     )
 
     # The quote is backslash-escaped, and the newline is the two-character
@@ -235,9 +236,9 @@ def test_visitor_config_escapes_string_values():
         line.strip().startswith("bindPort = 22") for line in toml.splitlines()
     )
 
-    # Structure is fixed regardless of input: 2 header lines + 2 blocks of
-    # 7 keys each, separated by blank lines.
-    assert len(toml.splitlines()) == 18
+    # Structure is fixed regardless of input: 3 header lines (serverAddr,
+    # serverPort, auth.token) + 2 blocks of 7 keys each, separated by blanks.
+    assert len(toml.splitlines()) == 19
 
 
 def test_visitor_config_shape_for_normal_input():
@@ -248,6 +249,7 @@ def test_visitor_config_shape_for_normal_input():
     toml = relay_manager._visitor_config_toml(
         client_id="classroom-gpu-3", alias_octet=10, secret_key="s3cret",
         server_addr="allocator.example.com", server_port=7000,
+            auth_token="ctl-token",
     )
 
     assert 'serverName = "classroom-gpu-3-kasmvnc"' in toml
@@ -259,3 +261,41 @@ def test_visitor_config_shape_for_normal_input():
 
     for line in (ln for ln in toml.splitlines() if ln.strip()):
         assert line == "[[visitors]]" or " = " in line, f"malformed line: {line!r}"
+
+
+def test_visitor_config_carries_the_control_plane_auth_token():
+    """Regression guard for a showstopper found only by hand-testing: the
+    allocator's own visitor is an frpc client, so it must present the
+    deployment's auth.token. Without it frps rejects the login with "token
+    in login doesn't match token from configuration" and frpc exits at
+    once (loginFailExit defaults on), leaving every relay client
+    unreachable while registration still returns a healthy 200. Mocked
+    Popen means no unit test can observe the exit -- so assert the config
+    key directly."""
+    from lablink_allocator_service import relay_manager
+
+    toml = relay_manager._visitor_config_toml(
+        client_id="vm-1", alias_octet=12, secret_key="sek",
+        server_addr="h", server_port=7000, auth_token="ctl-token",
+    )
+    assert 'auth.token = "ctl-token"' in toml
+
+
+def test_visitor_config_escapes_the_auth_token():
+    from lablink_allocator_service import relay_manager
+
+    toml = relay_manager._visitor_config_toml(
+        client_id="vm-1", alias_octet=12, secret_key="sek",
+        server_addr="h", server_port=7000, auth_token='tok"en',
+    )
+    assert 'auth.token = "tok\\"en"' in toml
+
+
+def test_start_visitor_requires_an_auth_token_argument():
+    """Keyword is required, not defaulted: a default would let a caller
+    silently omit it and reproduce the original outage."""
+    import inspect
+    from lablink_allocator_service import relay_manager
+
+    param = inspect.signature(relay_manager.start_visitor).parameters["auth_token"]
+    assert param.default is inspect.Parameter.empty

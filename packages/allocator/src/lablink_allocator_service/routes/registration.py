@@ -163,6 +163,7 @@ def register_client():
             client_id=client_id, alias_octet=relay_alias_octet,
             secret_key=relay_secret_key,
             server_addr=server_addr, server_port=int(server_port),
+            auth_token=main.cfg.manual.frps_auth_token,
         )
 
     allocator_url = canonical_base_url(request)

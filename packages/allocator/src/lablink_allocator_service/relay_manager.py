@@ -68,12 +68,20 @@ def _visitor_config_path(client_id: str) -> Path:
 
 def _visitor_config_toml(
     *, client_id: str, alias_octet: int, secret_key: str,
-    server_addr: str, server_port: int,
+    server_addr: str, server_port: int, auth_token: str,
 ) -> str:
     alias = f"127.0.0.{alias_octet}"
     return (
         f"serverAddr = {_toml_str(server_addr)}\n"
         f"serverPort = {int(server_port)}\n"
+        # The allocator's own visitor is an frpc client too, so it must
+        # present the deployment's control-plane token exactly like a relay
+        # client's proxy-side frpc does. Without it frps rejects the login
+        # ("token in login doesn't match token from configuration") and
+        # frpc exits immediately -- with loginFailExit on by default it
+        # does not even retry -- so every relay client is unreachable while
+        # registration still returns a healthy 200.
+        f"auth.token = {_toml_str(auth_token)}\n"
         "\n"
         "[[visitors]]\n"
         f"name = {_toml_str(f'{client_id}-kasmvnc-visitor')}\n"
@@ -95,7 +103,7 @@ def _visitor_config_toml(
 
 def start_visitor(
     *, client_id: str, alias_octet: int, secret_key: str,
-    server_addr: str, server_port: int,
+    server_addr: str, server_port: int, auth_token: str,
 ) -> None:
     """Spawn this client's dedicated frpc-visitor subprocess.
 
@@ -128,7 +136,7 @@ def start_visitor(
         handle.write(_visitor_config_toml(
             client_id=client_id, alias_octet=alias_octet,
             secret_key=secret_key, server_addr=server_addr,
-            server_port=server_port,
+            server_port=server_port, auth_token=auth_token,
         ))
     os.chmod(config_path, 0o600)
     _visitors[client_id] = subprocess.Popen(["frpc", "-c", str(config_path)])

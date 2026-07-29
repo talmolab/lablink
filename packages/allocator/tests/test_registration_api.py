@@ -893,10 +893,13 @@ def test_register_relay_allocates_alias_and_spawns_visitor(reg_client, monkeypat
     assert kw["provider_metadata"]["relay_alias_octet"] == 12
     assert kw["provider_metadata"]["relay_secret_key"] == body["relay_secret_key"]
 
+    # auth_token is load-bearing: without it the spawned frpc is rejected by
+    # frps and exits immediately, so pin that the route passes it through.
     mock_start_visitor.assert_called_once_with(
         client_id="vm-1", alias_octet=12,
         secret_key=body["relay_secret_key"],
         server_addr="allocator.example.com", server_port=7000,
+        auth_token="a-long-enough-frps-token",
     )
 
 
