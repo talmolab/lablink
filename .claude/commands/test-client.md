@@ -26,27 +26,29 @@ uv run pytest tests/test_subscribe.py
 ## Description
 
 Runs the client service test suite, which includes:
-- Subscription service tests (`test_subscribe.py`)
+- Client agent tests (`test_agent_api.py`, `test_agent_kasmvnc.py`)
 - GPU health check tests (`test_check_gpu.py`)
+- Liveness heartbeat tests (`test_heartbeat.py`)
 - Status update tests (`test_update_inuse.py`)
-- Logger configuration tests (`test_logger_config.py`, `test_logger_utils.py`)
-- CRD connection tests (`test_connect_crd.py`)
+- HTTP helper tests (`test_http_utils.py`)
+- Logging configuration tests (`test_logging_setup.py`)
+- Monitoring agent tests (`test_monitoring_config.py`, `tests/monitoring/`)
+- Startup script tests (`test_start_sh_status.py`)
 - Import validation tests (`test_imports.py`)
 
 ## Expected Output
 
 ```
 ============================= test session starts ==============================
-collected 28 items
+collected 139 items
 
-tests/test_subscribe.py ......                                           [ 21%]
-tests/test_check_gpu.py .......                                          [ 46%]
-tests/test_update_inuse.py .....                                        [ 64%]
-tests/test_logger_config.py ..                                          [ 71%]
-tests/test_logger_utils.py .....                                        [ 89%]
-tests/test_connect_crd.py ...                                           [100%]
-
-============================== 28 passed in 3.8s ===============================
+tests/test_agent_api.py ...........                                      [  7%]
+tests/test_check_gpu.py ..............                                   [ 17%]
+tests/test_heartbeat.py .............                                    [ 27%]
+tests/test_logging_setup.py ......                                       [ 31%]
+tests/test_update_inuse.py .........                                     [ 38%]
+...
+============================== 139 passed in 0.9s ==============================
 ```
 
 ## Common Test Options

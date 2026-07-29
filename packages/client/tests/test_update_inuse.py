@@ -134,8 +134,7 @@ def test_api_callback(mock_call_api):
 
 
 @patch("lablink_client_service.update_inuse_status.listen_for_process")
-@patch("lablink_client_service.update_inuse_status.CloudAndConsoleLogger")
-def test_update_inuse_status_main(mock_logger, mock_listen, monkeypatch):
+def test_update_inuse_status_main(mock_listen, monkeypatch):
     """Test the main function of the update_inuse_status module."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")

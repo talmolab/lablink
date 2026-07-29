@@ -326,10 +326,7 @@ def test_gpu_report_retry_logic(
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")
-@patch("lablink_client_service.check_gpu.CloudAndConsoleLogger")
-def test_check_gpu_main_with_env_var(
-    mock_logger, mock_check_gpu_health, monkeypatch, cfg
-):
+def test_check_gpu_main_with_env_var(mock_check_gpu_health, monkeypatch, cfg):
     """Test main function with ALLOCATOR_URL environment variable."""
     monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")
@@ -340,10 +337,7 @@ def test_check_gpu_main_with_env_var(
 
 
 @patch("lablink_client_service.check_gpu.check_gpu_health")
-@patch("lablink_client_service.check_gpu.CloudAndConsoleLogger")
-def test_check_gpu_main_without_env_var(
-    mock_logger, mock_check_gpu_health, monkeypatch, cfg
-):
+def test_check_gpu_main_without_env_var(mock_check_gpu_health, monkeypatch, cfg):
     """Test main function without ALLOCATOR_URL environment variable."""
     monkeypatch.delenv("ALLOCATOR_URL", raising=False)
     monkeypatch.setenv("CLIENT_SECRET", "test-secret")

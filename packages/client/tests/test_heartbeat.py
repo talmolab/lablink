@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open
 
 import pytest
 import requests
+from omegaconf import OmegaConf
 
 from lablink_client_service import heartbeat
 
@@ -172,3 +173,16 @@ def test_run_heartbeat_loop_logs_and_continues_on_unexpected_exception(
 
     assert call_count["n"] == 2  # continued past the raising iteration
     assert "simulated sampler failure" in caplog.text
+
+
+@patch("lablink_client_service.heartbeat.run_heartbeat_loop")
+def test_main_starts_the_loop_with_the_resolved_allocator_url(mock_loop, monkeypatch):
+    monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
+    cfg = OmegaConf.create({"allocator": {"host": "localhost", "port": 80}})
+
+    heartbeat.main(cfg)
+
+    mock_loop.assert_called_once_with(
+        allocator_url="https://test.com", client_secret="test-secret"
+    )

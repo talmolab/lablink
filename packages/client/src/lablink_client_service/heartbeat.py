@@ -21,7 +21,6 @@ from lablink_client_service.http_utils import (
     get_client_env,
     sanitize_url,
 )
-from lablink_client_service.logger_utils import CloudAndConsoleLogger
 
 
 logger = logging.getLogger(__name__)
@@ -124,8 +123,13 @@ def run_heartbeat_loop(
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
-    global logger
-    logger = CloudAndConsoleLogger(module_name="heartbeat")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logging.getLogger("lablink_client_service").setLevel(logging.DEBUG)
+
     base_url, client_secret, _ = get_client_env(cfg)
     run_heartbeat_loop(allocator_url=base_url, client_secret=client_secret)
 
