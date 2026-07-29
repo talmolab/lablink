@@ -690,6 +690,51 @@ class TestRelayConnectivityValidation:
         errors = get_config_errors(self._make_cfg(relay_server_addr=""))
         assert any("relay_server_addr" in e for e in errors)
 
+    def test_relay_server_addr_without_port_rejected(self):
+        """The likeliest misconfiguration: host with no ':port'. Must be
+        caught here -- register_client does relay_server_addr.rpartition(":")
+        then int() on the port half, so a colonless value raises ValueError
+        and 500s the first relay registration instead of failing at
+        startup."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(
+            self._make_cfg(relay_server_addr="allocator.example.com")
+        )
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_server_addr_with_empty_port_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr="host:"))
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_server_addr_with_non_numeric_port_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr="host:abc"))
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_server_addr_with_out_of_range_port_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr="host:70000"))
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_server_addr_with_missing_host_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr=":7000"))
+        assert any("relay_server_addr" in e for e in errors)
+
+    def test_relay_server_addr_accepts_bracketed_ipv6(self):
+        """rpartition(':') handles '[::1]:7000' correctly, so the stricter
+        check must not reject it."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._make_cfg(relay_server_addr="[::1]:7000"))
+        assert not any("relay_server_addr" in e for e in errors)
+
     def test_relay_with_empty_token_rejected(self):
         from lablink_allocator_service.validate_config import get_config_errors
 

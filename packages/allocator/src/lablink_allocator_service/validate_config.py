@@ -191,13 +191,29 @@ def get_config_errors(cfg) -> list:
         # int("") raises, turning a misconfiguration into a 500 on the
         # first client to register instead of a startup error message.
         if connectivity == "relay":
-            if not getattr(manual_cfg, "relay_server_addr", ""):
+            relay_addr = getattr(manual_cfg, "relay_server_addr", "")
+            if not relay_addr:
                 errors.append(
                     "manual.relay_server_addr is required when "
                     "manual.connectivity is 'relay' — relay clients' frpc "
                     "dial this host:port to reach the allocator's frps "
                     "(e.g. 'allocator.example.com:7000')"
                 )
+            else:
+                # Must be parseable by register_client's
+                # `relay_server_addr.rpartition(":")` + `int(port)`, or the
+                # first relay registration 500s instead of failing here.
+                # rpartition (not partition) is what makes bracketed IPv6
+                # like "[::1]:7000" split correctly.
+                host, sep, port = relay_addr.rpartition(":")
+                if not sep or not host or not port.isdigit() or not (
+                    1 <= int(port) <= 65535
+                ):
+                    errors.append(
+                        "manual.relay_server_addr must be 'host:port' with a "
+                        "numeric port in 1-65535 (e.g. "
+                        f"'allocator.example.com:7000'); got '{relay_addr}'"
+                    )
             if is_weak_frps_token(getattr(manual_cfg, "frps_auth_token", "")):
                 errors.append(
                     "manual.connectivity is 'relay' but "
