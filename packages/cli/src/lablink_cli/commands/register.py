@@ -457,6 +457,19 @@ def _write_env_file(
         # joins the tailnet with no client-image changes needed.
         lines.append(f"OVERLAY_HOSTNAME={overlay_hostname}")
         lines.append(f"TAILSCALE_AUTHKEY={tailscale_authkey}")
+    # Relay's three allocator-minted values, detected from the response
+    # rather than a parameter: all three are response fields, so there is
+    # nothing for the caller to thread through. CONNECTIVITY=relay is
+    # already written above from resp["connectivity"], and that — not the
+    # presence of these secrets — is what start.sh gates on, so a missing
+    # value fails loudly there instead of silently skipping the tunnel.
+    if resp.get("relay_secret_key"):
+        lines.append(f"RELAY_SERVER_ADDR={resp['relay_server_addr']}")
+        lines.append(f"RELAY_SECRET_KEY={resp['relay_secret_key']}")
+        lines.append(f"FRPS_AUTH_TOKEN={resp['frps_auth_token']}")
+        # frpc dials localhost inside the container, so keep KasmVNC off
+        # the client's own LAN — see the design spec's Decision 3.
+        lines.append("KASMVNC_LISTEN=127.0.0.1")
     env_file.write_text("\n".join(lines) + "\n")
     env_file.chmod(0o600)
 

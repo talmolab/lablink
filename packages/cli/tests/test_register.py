@@ -1686,3 +1686,89 @@ def test_non_overlay_run_has_no_tailscale_volume():
     cmd = _build_docker_run(Path("/tmp/env"), resp, False, None, None)
 
     assert not any("/var/lib/tailscale" in part for part in cmd)
+
+
+def _relay_response(successful_response):
+    resp = dict(successful_response)
+    resp["connectivity"] = "relay"
+    resp["relay_secret_key"] = "sek"
+    resp["relay_server_addr"] = "allocator.example.com:7000"
+    resp["frps_auth_token"] = "ctl-token"
+    return resp
+
+
+def test_env_file_carries_the_relay_values(tmp_env_file, successful_response):
+    from lablink_cli.commands.register import _write_env_file
+
+    _write_env_file(
+        tmp_env_file, "https://a.example.com", _relay_response(successful_response)
+    )
+    text = tmp_env_file.read_text()
+    assert "CONNECTIVITY=relay" in text
+    assert "RELAY_SERVER_ADDR=allocator.example.com:7000" in text
+    assert "RELAY_SECRET_KEY=sek" in text
+    assert "FRPS_AUTH_TOKEN=ctl-token" in text
+
+
+def test_env_file_pins_kasmvnc_to_loopback_for_relay(
+    tmp_env_file, successful_response
+):
+    """Design Decision 3: frpc dials 127.0.0.1, so a relay client never
+    needs :6080 reachable from its own LAN — and that LAN is by
+    definition one we chose not to trust."""
+    from lablink_cli.commands.register import _write_env_file
+
+    _write_env_file(
+        tmp_env_file, "https://a.example.com", _relay_response(successful_response)
+    )
+    assert "KASMVNC_LISTEN=127.0.0.1" in tmp_env_file.read_text()
+
+
+def test_env_file_omits_relay_values_for_non_relay(
+    tmp_env_file, successful_response
+):
+    from lablink_cli.commands.register import _write_env_file
+
+    _write_env_file(tmp_env_file, "https://a.example.com", successful_response)
+    text = tmp_env_file.read_text()
+    for key in ("RELAY_SERVER_ADDR", "RELAY_SECRET_KEY", "FRPS_AUTH_TOKEN",
+                "KASMVNC_LISTEN"):
+        assert key not in text
+
+
+def test_env_file_still_mode_0600_for_relay(tmp_env_file, successful_response):
+    from lablink_cli.commands.register import _write_env_file
+
+    _write_env_file(
+        tmp_env_file, "https://a.example.com", _relay_response(successful_response)
+    )
+    assert stat.S_IMODE(tmp_env_file.stat().st_mode) == 0o600
+
+
+def test_relay_docker_run_adds_no_tailscale_privileges(
+    tmp_env_file, successful_response
+):
+    """Design Decision 9: frp needs no elevated capabilities, unlike
+    tailscaled (which needs NET_ADMIN/NET_RAW and /dev/net/tun to open a
+    TUN device, plus a state volume). Those are gated on
+    overlay_hostname, which is None for relay -- so _build_docker_run
+    needs NO change. Pin that, so nobody "fixes" relay by copying the
+    overlay branch wholesale.
+    """
+    from lablink_cli.commands.register import _build_docker_run
+
+    cmd = _build_docker_run(
+        tmp_env_file,
+        _relay_response(successful_response),
+        False,
+        None,
+        None,
+    )
+    joined = " ".join(cmd)
+    assert "NET_ADMIN" not in joined
+    assert "NET_RAW" not in joined
+    assert "/dev/net/tun" not in joined
+    assert "tailscale" not in joined
+    # The env file is still how the relay values reach the container.
+    assert "--env-file" in cmd
+    assert str(tmp_env_file) in cmd
