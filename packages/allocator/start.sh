@@ -70,10 +70,16 @@ echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 # for them.
 if [ -n "$FRPS_AUTH_TOKEN" ]; then
   echo "Starting frps on :${FRPS_BIND_PORT:-7000}..."
-  cat > /tmp/frps.toml <<EOF
+  # Subshell + umask so the file is created 0600 from the outset -- it holds
+  # auth.token in plaintext -- and so the tightened umask doesn't leak into
+  # the Flask/nginx startup that follows.
+  (
+    umask 077
+    cat > /tmp/frps.toml <<EOF
 bindPort = ${FRPS_BIND_PORT:-7000}
 auth.token = "$FRPS_AUTH_TOKEN"
 EOF
+  )
   frps -c /tmp/frps.toml &
 fi
 

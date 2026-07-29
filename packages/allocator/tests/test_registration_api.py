@@ -774,6 +774,45 @@ def test_register_fallback_provider_construction_includes_connectivity(
     fake_db.register_client.assert_called_once()
 
 
+def test_register_rejects_hostname_outside_charset(reg_client):
+    """hostname is the client_id, and relay connectivity interpolates it
+    into a filesystem path and a TOML config. Constrain it at the API
+    boundary so traversal ('../..') and TOML-breaking characters (quote,
+    newline) can never reach relay_manager."""
+    client, fake_db = reg_client
+    for bad in (
+        "../../etc/passwd",
+        "a/b",
+        "/abs",
+        "..",
+        'x"y',
+        "x\ny",
+        "-leading-dash",
+        "has space",
+        "x" * 300,
+    ):
+        r = client.post(
+            "/api/v1/clients/register",
+            json={"hostname": bad, "machine_identity": "i-1"},
+            headers={"Authorization": "Bearer tk_test_register"},
+        )
+        assert r.status_code == 400, f"{bad!r} should have been rejected"
+        assert "hostname" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_accepts_ordinary_hostnames(reg_client):
+    """The charset must not break the names real deployments already use."""
+    client, fake_db = reg_client
+    for good in ("vm-1", "classroom-gpu-3", "host.example.com", "A1_b-2", "byo1"):
+        r = client.post(
+            "/api/v1/clients/register",
+            json={"hostname": good, "machine_identity": "i-1"},
+            headers={"Authorization": "Bearer tk_test_register"},
+        )
+        assert r.status_code == 200, f"{good!r} should have been accepted"
+
+
 def test_register_rejects_relay_sentinel_against_non_relay_allocator(reg_client):
     client, fake_db = reg_client
     r = client.post(

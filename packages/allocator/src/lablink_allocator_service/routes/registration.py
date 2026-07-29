@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 from datetime import datetime
 import psycopg2
+import re
 import secrets
 
 from flask import Blueprint, current_app, jsonify, request
@@ -25,6 +26,14 @@ from lablink_allocator_service.secret_hash import (
 from lablink_allocator_service.utils.config_helpers import canonical_base_url
 
 bp = Blueprint("registration", __name__)
+
+# A registering client's self-declared hostname becomes its client_id, which
+# is the DB primary key AND (under relay connectivity) is interpolated into a
+# visitor config's filesystem path and TOML body. Constrain it to a
+# hostname-ish charset at the boundary so "../.." can't escape the config
+# directory and a quote/newline can't break out of a TOML string.
+# relay_manager re-checks the same shape as defense in depth.
+_VALID_HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
 
 
 @bp.route("/api/v1/clients/register", methods=["POST"])
@@ -47,6 +56,14 @@ def register_client():
     machine_identity = body.get("machine_identity")
     if not hostname or not machine_identity:
         return jsonify({"error": "hostname and machine_identity required."}), 400
+    if not _VALID_HOSTNAME.fullmatch(hostname):
+        return jsonify({
+            "error": (
+                "hostname must start with a letter or digit and contain only "
+                "letters, digits, dots, dashes and underscores (max 253 "
+                "characters)."
+            )
+        }), 400
 
     provider = body.get("provider", "aws")
     provider_metadata = body.get("provider_metadata") or {}
