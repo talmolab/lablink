@@ -58,6 +58,21 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
             || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
     done
 
+# frp (Fast Reverse Proxy) -- relay connectivity's tunnel server (frps)
+# and the per-client frpc-visitor subprocess that pulls tunneled ports
+# down to loopback aliases nginx can dial. Must stay in lockstep with the
+# identical block in Dockerfile: this is the image built from local source,
+# so it is the ONLY one that can exercise unreleased relay code (the prod
+# Dockerfile installs lablink-allocator-service from PyPI). Harmless when
+# unused -- start.sh gates frps on FRPS_AUTH_TOKEN's presence.
+ARG FRP_VERSION=0.60.0
+RUN curl -L -o /tmp/frp.tar.gz \
+      "https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz" && \
+    tar -xzf /tmp/frp.tar.gz -C /tmp && \
+    mv "/tmp/frp_${FRP_VERSION}_linux_amd64/frps" /usr/local/bin/frps && \
+    mv "/tmp/frp_${FRP_VERSION}_linux_amd64/frpc" /usr/local/bin/frpc && \
+    rm -rf /tmp/frp.tar.gz "/tmp/frp_${FRP_VERSION}_linux_amd64"
+
 COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf
 
 # Disable nginx's default site so it doesn't compete with lablink-nginx.conf.
