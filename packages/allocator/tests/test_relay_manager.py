@@ -1,6 +1,5 @@
 """Unit tests for relay_manager: per-client frpc-visitor subprocess
 lifecycle + frps liveness check."""
-import tomllib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -211,30 +210,52 @@ def test_start_visitor_config_is_owner_readable_only(tmp_path, monkeypatch):
 
 
 def test_visitor_config_escapes_string_values():
-    """Every interpolated string must be emitted as a properly escaped
-    TOML basic string, so a stray quote in operator-supplied config can't
-    corrupt the file."""
+    """Every interpolated string must be emitted as an escaped TOML basic
+    string, so a stray quote or newline in operator-supplied config can't
+    terminate the string and inject a key.
+
+    Asserted on the rendered text rather than via a TOML parser: tomllib is
+    3.11+, and this package supports Python 3.10 (CI runs 3.10)."""
     from lablink_allocator_service import relay_manager
 
+    injected = 'vm"\nbindPort = 22'
     toml = relay_manager._visitor_config_toml(
         client_id="vm-1", alias_octet=12, secret_key='se"k',
-        server_addr='ho"st', server_port=7000,
+        server_addr=injected, server_port=7000,
     )
-    parsed = tomllib.loads(toml)
-    assert parsed["serverAddr"] == 'ho"st'
-    assert parsed["serverPort"] == 7000
-    assert parsed["visitors"][0]["secretKey"] == 'se"k'
-    assert parsed["visitors"][0]["bindAddr"] == "127.0.0.12"
-    assert [v["bindPort"] for v in parsed["visitors"]] == [6080, 7070]
+
+    # The quote is backslash-escaped, and the newline is the two-character
+    # escape rather than a real line break.
+    assert 'secretKey = "se\\"k"' in toml
+    assert "\\n" in toml
+    assert injected not in toml
+
+    # The decisive property: the injected text cannot become a key.
+    assert not any(
+        line.strip().startswith("bindPort = 22") for line in toml.splitlines()
+    )
+
+    # Structure is fixed regardless of input: 2 header lines + 2 blocks of
+    # 7 keys each, separated by blank lines.
+    assert len(toml.splitlines()) == 18
 
 
-def test_visitor_config_is_valid_toml_for_normal_input():
+def test_visitor_config_shape_for_normal_input():
+    """Structural check without a TOML parser (see the note above): every
+    non-blank line is either a table header or a single key = value."""
     from lablink_allocator_service import relay_manager
 
     toml = relay_manager._visitor_config_toml(
         client_id="classroom-gpu-3", alias_octet=10, secret_key="s3cret",
         server_addr="allocator.example.com", server_port=7000,
     )
-    parsed = tomllib.loads(toml)
-    assert parsed["visitors"][0]["serverName"] == "classroom-gpu-3-kasmvnc"
-    assert parsed["visitors"][1]["serverName"] == "classroom-gpu-3-agent"
+
+    assert 'serverName = "classroom-gpu-3-kasmvnc"' in toml
+    assert 'serverName = "classroom-gpu-3-agent"' in toml
+    assert 'serverAddr = "allocator.example.com"' in toml
+    assert "serverPort = 7000" in toml
+    assert 'bindAddr = "127.0.0.10"' in toml
+    assert toml.count("[[visitors]]") == 2
+
+    for line in (ln for ln in toml.splitlines() if ln.strip()):
+        assert line == "[[visitors]]" or " = " in line, f"malformed line: {line!r}"
