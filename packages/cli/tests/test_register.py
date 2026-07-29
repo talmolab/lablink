@@ -279,6 +279,11 @@ class TestOverlayHostnamePath:
         assert "TAILSCALE_AUTHKEY=tskey-abc" in out
         assert "CLIENT_SECRET=s" in out
 
+        # We cannot mount anything on this path, so the operator must be
+        # told to persist tailscaled's state themselves — otherwise every
+        # workload restart mints a new tailnet node (lablink#404).
+        assert "/var/lib/tailscale" in out
+
     @patch("lablink_cli.commands.register.subprocess.Popen")
     @patch("lablink_cli.commands.register.subprocess.run")
     @patch("lablink_cli.commands.register.shutil.which")
@@ -1559,3 +1564,37 @@ class TestWriteEnvFile:
 
         content = tmp_env_file.read_text()
         assert "ALLOCATOR_URL=https://lablink.example.com" in content
+
+
+def test_overlay_run_mounts_tailscale_state_volume():
+    """tailscaled's node identity lives in /var/lib/tailscale. Unmounted, it
+    is ephemeral, so every container recreate mints a NEW tailnet node and
+    Tailscale suffixes the MagicDNS name (-1, -2, ...), stranding the
+    allocator on the dead one (lablink#404). Mirrors the allocator's own
+    tailscale_state volume in docker-compose-mesh-overlay.yml."""
+    from pathlib import Path
+
+    from lablink_cli.commands.register import (
+        TAILSCALE_STATE_VOLUME,
+        _build_docker_run,
+    )
+
+    resp = {"client_id": "1", "client_image": "ghcr.io/talmolab/c:latest"}
+    cmd = _build_docker_run(
+        Path("/tmp/env"), resp, False, None, "classroom-gpu-3",
+    )
+
+    assert "-v" in cmd
+    assert f"{TAILSCALE_STATE_VOLUME}:/var/lib/tailscale" in cmd
+
+
+def test_non_overlay_run_has_no_tailscale_volume():
+    """lan_direct/AWS clients never run `tailscale up`; no volume for them."""
+    from pathlib import Path
+
+    from lablink_cli.commands.register import _build_docker_run
+
+    resp = {"client_id": "1", "client_image": "ghcr.io/talmolab/c:latest"}
+    cmd = _build_docker_run(Path("/tmp/env"), resp, False, None, None)
+
+    assert not any("/var/lib/tailscale" in part for part in cmd)

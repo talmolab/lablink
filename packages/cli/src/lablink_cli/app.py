@@ -512,6 +512,33 @@ def unregister(
     run_unregister(env_file=env_file, insecure=insecure, yes=yes)
 
 
+@client_app.command("reset-overlay")
+def reset_overlay(
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip the confirmation prompt.",
+    ),
+) -> None:
+    """Discard this box's persisted mesh-overlay node identity.
+
+    Only relevant to a mesh-overlay client. `unregister` deliberately
+    keeps the identity so that re-registering lands back on the same
+    tailnet node under the same name; run this when you want the next
+    `register` to join as a brand-new node instead.
+
+    Note that this does not remove the old machine from your tailnet — it
+    goes offline still holding its name, so the new node is given a
+    numeric suffix until you delete the stale machine in the Tailscale
+    admin console. Requires the `lablink-client` container to be gone
+    already (docker will not remove an attached volume).
+    """
+    from lablink_cli.commands.reset_overlay import run_reset_overlay
+
+    run_reset_overlay(yes=yes)
+
+
 @app.command("show-config", rich_help_panel="Maintenance")
 def show_config(
     config: str = typer.Option(
