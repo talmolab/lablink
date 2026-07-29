@@ -433,6 +433,18 @@ def register(
         "workload submission — for registering ahead of time, from "
         "somewhere other than the workload itself.",
     ),
+    relay: bool = typer.Option(
+        False,
+        "--relay/--no-relay",
+        help="Register a relay client: instead of the allocator dialling "
+        "this box, the box dials OUT to the allocator through a tunnel. "
+        "For networks that won't carry Tailscale at all. Takes no "
+        "arguments — the allocator mints and returns every value needed. "
+        "Like --overlay-hostname, defaults to docker-running the client "
+        "here; pass --no-run-locally to print secrets for a separate "
+        "workload submission instead (which then requires --hostname and "
+        "--machine-identity).",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -454,11 +466,12 @@ def register(
     """Register this BYO box as a manual client and run the client container.
 
     Docker-runs the client container after registering — for a real BYO
-    box, or for a mesh-overlay client (--overlay-hostname) with the
-    default --run-locally. Pass --overlay-hostname --no-run-locally to
-    instead print secrets for a separate Run:AI workload submission. If
-    docker is missing, the env file is preserved so the user can install
-    docker and re-run with --force.
+    box, or for a mesh-overlay client (--overlay-hostname) or relay
+    client (--relay) with the default --run-locally. Pass --no-run-locally
+    (with --overlay-hostname or --relay) to instead print secrets for a
+    separate Run:AI workload submission. If docker is missing, the env
+    file is preserved so the user can install docker and re-run with
+    --force.
     """
     from lablink_cli.commands.register import run_register
 
@@ -476,6 +489,7 @@ def register(
         overlay_hostname=overlay_hostname,
         tailscale_authkey=tailscale_authkey,
         run_locally=run_locally,
+        relay=relay,
     )
 
 

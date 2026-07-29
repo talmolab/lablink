@@ -534,3 +534,33 @@ class TestClientRegisterCommand:
         kwargs = mock_run.call_args.kwargs
         assert kwargs["overlay_hostname"] == "classroom-gpu-3"
         assert kwargs["tailscale_authkey"] == "tskey-abc"
+
+    def test_cli_exposes_relay_flag_and_forwards_it(self):
+        """The flag is valueless (all three tunnel values are
+        allocator-minted) and must reach run_register."""
+        import inspect
+
+        from lablink_cli.commands.register import run_register
+
+        assert "relay" in inspect.signature(run_register).parameters
+
+        result = CliRunner().invoke(app, ["client", "register", "--help"])
+        assert result.exit_code == 0
+        assert "--relay" in result.output
+
+    def test_passes_relay_flag_through(self):
+        runner = CliRunner()
+        with patch("lablink_cli.commands.register.run_register") as mock_run:
+            result = runner.invoke(
+                app,
+                [
+                    "client", "register",
+                    "--allocator-url", "https://a.example.com",
+                    "--register-token", "rtok",
+                    "--relay",
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["relay"] is True
