@@ -122,3 +122,44 @@ class TestStartupOrdering:
         block = block[: block.index("\nfi\n")]
         assert 'send_status "error"' in block
         assert "exit 1" in block
+
+
+def test_overlay_hostname_read_back_after_join(script_text):
+    """`tailscale up --hostname=X` exits 0 even when Tailscale renamed the
+    node to X-1, so the assigned name must be read back from the daemon,
+    not assumed (lablink#404)."""
+    assert "tailscale status --json" in script_text
+    assert "Self" in script_text and "DNSName" in script_text
+
+
+def test_overlay_hostname_reported_to_dedicated_endpoint(script_text):
+    """Must NOT ride on /api/vm-status — that endpoint and send_status are
+    shared with the AWS path, where a lost status POST is unrecoverable."""
+    assert "/api/overlay-hostname" in script_text
+    send_status_body = _extract(script_text, "send_status() {", "}")
+    # Comments are stripped first: send_status's own comment legitimately
+    # discusses mesh-overlay clients (it explains why it needs --retry).
+    # What must not appear is overlay *code* — a second endpoint or an
+    # extra payload field on the AWS-shared status POST.
+    code = "\n".join(
+        ln for ln in send_status_body.splitlines()
+        if not ln.strip().startswith("#")
+    )
+    assert "overlay" not in code.lower()
+
+
+def test_overlay_report_is_inside_the_tailscale_gate(script_text):
+    """All of it sits inside `if [ -n "$TAILSCALE_AUTHKEY" ]`, so an AWS or
+    lan_direct client executes none of it."""
+    gate = _line_of(script_text, 'if [ -n "$TAILSCALE_AUTHKEY" ]')
+    report = _line_of(script_text, "/api/overlay-hostname")
+    initializing = _line_of(script_text, 'send_status "initializing"')
+    assert gate < report < initializing
+
+
+def test_overlay_report_retries(script_text):
+    """A lost report strands the allocator on the old name, so the immediate
+    attempt must be retried rather than abandoned."""
+    report = _line_of(script_text, "/api/overlay-hostname")
+    window = "\n".join(script_text.splitlines()[report - 6 : report + 12])
+    assert "--retry" in window

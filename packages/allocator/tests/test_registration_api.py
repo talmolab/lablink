@@ -762,3 +762,75 @@ def test_list_clients_returns_safe_fields(reg_client, admin_headers):
         assert "machine_identity" not in c
         assert "cloudinitlogs" not in c
         assert "dockerlogs" not in c
+
+
+OVERLAY_HOSTNAME_ENDPOINT = "/api/overlay-hostname"
+_OVERLAY_SECRET = "overlay-client-secret"
+
+
+def _overlay_db(monkeypatch, *, updated=True):
+    from lablink_allocator_service import main
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    fake_db = MagicMock()
+    fake_db.get_client_secret_hash.return_value = hash_secret(_OVERLAY_SECRET)
+    fake_db.set_overlay_hostname.return_value = updated
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    return fake_db
+
+
+def test_overlay_hostname_persists_reported_name(client, monkeypatch):
+    """The client's reported name replaces the one it merely requested."""
+    fake_db = _overlay_db(monkeypatch)
+
+    resp = client.post(
+        OVERLAY_HOSTNAME_ENDPOINT,
+        json={
+            "hostname": "LAPTOP-M8NLMMGL",
+            "overlay_hostname": "lablink-client-local-gpu-1-1",
+        },
+        headers={"Authorization": f"Bearer {_OVERLAY_SECRET}"},
+    )
+
+    assert resp.status_code == 200
+    fake_db.set_overlay_hostname.assert_called_once_with(
+        hostname="LAPTOP-M8NLMMGL",
+        overlay_hostname="lablink-client-local-gpu-1-1",
+    )
+
+
+def test_overlay_hostname_requires_client_secret(client, monkeypatch):
+    _overlay_db(monkeypatch)
+
+    resp = client.post(
+        OVERLAY_HOSTNAME_ENDPOINT,
+        json={"hostname": "LAPTOP-M8NLMMGL", "overlay_hostname": "x-1"},
+    )
+
+    assert resp.status_code == 401
+
+
+def test_overlay_hostname_rejects_missing_field(client, monkeypatch):
+    fake_db = _overlay_db(monkeypatch)
+
+    resp = client.post(
+        OVERLAY_HOSTNAME_ENDPOINT,
+        json={"hostname": "LAPTOP-M8NLMMGL"},
+        headers={"Authorization": f"Bearer {_OVERLAY_SECRET}"},
+    )
+
+    assert resp.status_code == 400
+    fake_db.set_overlay_hostname.assert_not_called()
+
+
+def test_overlay_hostname_404_when_not_an_overlay_client(client, monkeypatch):
+    """A lan_direct/AWS row has no overlay_hostname key to correct."""
+    _overlay_db(monkeypatch, updated=False)
+
+    resp = client.post(
+        OVERLAY_HOSTNAME_ENDPOINT,
+        json={"hostname": "aws-vm-1", "overlay_hostname": "sneaky-1"},
+        headers={"Authorization": f"Bearer {_OVERLAY_SECRET}"},
+    )
+
+    assert resp.status_code == 404

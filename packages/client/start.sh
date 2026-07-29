@@ -89,6 +89,69 @@ if [ -n "$TAILSCALE_AUTHKEY" ]; then
     send_status "error" || echo ">> WARNING: failed to report status=error"
     exit 1
   fi
+
+  # Tailscale assigns the node's name and it is NOT necessarily the one we
+  # asked for: when an existing (possibly offline) node from a prior
+  # registration still holds "$OVERLAY_HOSTNAME", MagicDNS appends a numeric
+  # suffix -- lablink-client-local-gpu-1 becomes lablink-client-local-gpu-1-1
+  # -- and `tailscale up` STILL EXITS 0, so nothing above notices. The
+  # allocator dials the name it recorded at registration, so an unreconciled
+  # rename black-holes every allocator -> client call and the client is
+  # marked Unhealthy forever, while its own logs look perfectly healthy
+  # (lablink#404). Read the real name back from the daemon and report it.
+  # Same readback the allocator already does for its own node via
+  # `tailscale funnel status` (see the CLI's _funnel_status_url).
+  #
+  # python3 rather than jq: the venv sourced at the top of this script
+  # guarantees python3, jq is not installed in this image. DNSName is
+  # fully-qualified with a trailing dot ("name.tailnet.ts.net."), and the
+  # allocator stores the bare first label and appends the tailnet itself.
+  ACTUAL_OVERLAY_HOSTNAME=$(sudo tailscale status --json 2>/dev/null \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].split(".")[0])' \
+    2>/dev/null)
+
+  if [ -z "$ACTUAL_OVERLAY_HOSTNAME" ]; then
+    echo ">> WARNING: could not read assigned Tailscale hostname back;" \
+         "allocator keeps the requested name '$OVERLAY_HOSTNAME'"
+  else
+    if [ "$ACTUAL_OVERLAY_HOSTNAME" != "$OVERLAY_HOSTNAME" ]; then
+      echo ">> NOTE: Tailscale renamed this node:" \
+           "requested '$OVERLAY_HOSTNAME', assigned" \
+           "'$ACTUAL_OVERLAY_HOSTNAME' (a prior node still holds the" \
+           "requested name). Reporting the assigned name to the allocator."
+    else
+      echo "Joined Tailscale as $ACTUAL_OVERLAY_HOSTNAME (name as requested)."
+    fi
+
+    # Reported unconditionally, not only on mismatch, so a row left stale by
+    # a previous life of this container is repaired too. Idempotent server-side.
+    report_overlay_hostname() {
+      curl -sS -X POST "$ALLOCATOR_URL/api/overlay-hostname" \
+        -H "Authorization: Bearer $CLIENT_SECRET" \
+        -H "Content-Type: application/json" \
+        -d "{\"hostname\":\"$VM_NAME\",\"overlay_hostname\":\"$ACTUAL_OVERLAY_HOSTNAME\"}" \
+        --max-time 5 --retry 5 --retry-delay 2 --retry-all-errors
+    }
+
+    # Keep retrying in the background if the immediate attempt's budget is
+    # exhausted. The tailnet route (especially over a DERP relay fallback)
+    # isn't reliably usable for a few seconds after `tailscale up` returns,
+    # and losing this report permanently strands the allocator on the old
+    # name -- the exact failure this whole block exists to prevent. Mirrors
+    # the status retrier below.
+    if ! report_overlay_hostname; then
+      echo ">> WARNING: failed to report overlay hostname; retrying in background"
+      (
+        for _ in $(seq 1 "$STATUS_RETRY_MAX_ATTEMPTS"); do
+          sleep "$STATUS_RETRY_INTERVAL"
+          report_overlay_hostname && exit 0
+        done
+        echo ">> WARNING: gave up reporting overlay hostname" \
+             "'$ACTUAL_OVERLAY_HOSTNAME'; the allocator may be dialing a" \
+             "dead node -- see lablink#404"
+      ) &
+    fi
+  fi
 fi
 
 # Report 'initializing' as soon as the overlay (if any) is up. On cold

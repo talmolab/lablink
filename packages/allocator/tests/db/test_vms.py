@@ -1483,3 +1483,31 @@ def test_release_expired_admin_sessions_releases_old_and_keeps_recent(real_db):
 
 def test_pool_property_returns_underlying_pool(db_instance):
     assert db_instance.pool is db_instance._pool
+
+
+def test_set_overlay_hostname_updates_jsonb_key(db_instance):
+    """Writes through jsonb_set so the rest of provider_metadata survives."""
+    db_instance.cursor.rowcount = 1
+
+    assert db_instance.set_overlay_hostname(
+        hostname="LAPTOP-M8NLMMGL",
+        overlay_hostname="lablink-client-local-gpu-1-1",
+    ) is True
+
+    sql, params = db_instance.cursor.execute.call_args[0]
+    assert "jsonb_set" in sql
+    # to_jsonb(%s::text), never a hand-quoted JSON literal.
+    assert "to_jsonb" in sql
+    # Only mesh-overlay rows may be touched, so a lan_direct/AWS client
+    # can never have an overlay_hostname injected into its metadata.
+    assert "provider_metadata ? 'overlay_hostname'" in sql
+    assert params == ("lablink-client-local-gpu-1-1", "LAPTOP-M8NLMMGL")
+
+
+def test_set_overlay_hostname_false_when_no_row_matched(db_instance):
+    """Unknown host, or a client with no overlay_hostname key, is a no-op."""
+    db_instance.cursor.rowcount = 0
+
+    assert db_instance.set_overlay_hostname(
+        hostname="aws-vm-1", overlay_hostname="whatever",
+    ) is False

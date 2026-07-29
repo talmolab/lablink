@@ -1,4 +1,6 @@
-"""POST /api/v1/clients/register and GET /api/v1/clients/<id>/status.
+"""POST /api/v1/clients/register, GET /api/v1/clients/<id>/status, and
+POST /api/overlay-hostname (a mesh-overlay client correcting the overlay
+hostname it was recorded under — see report_overlay_hostname).
 
 Lazy-imports `main` inside views to avoid the module-load import cycle
 (main imports this blueprint at startup). Mirrors the rationale behind
@@ -13,7 +15,7 @@ import secrets
 
 from flask import Blueprint, current_app, jsonify, request
 
-from lablink_allocator_service.auth import auth
+from lablink_allocator_service.auth import auth, require_client_secret
 from lablink_allocator_service.providers.registry import get_provider
 from lablink_allocator_service.secret_hash import (
     REGISTER_TOKEN_SUBJECT,
@@ -256,3 +258,59 @@ def list_clients():
             "last_seen_at": last_seen,
         })
     return jsonify(clients=clients), 200
+
+
+@bp.route("/api/overlay-hostname", methods=["POST"])
+@require_client_secret
+def report_overlay_hostname():
+    """Record the overlay hostname Tailscale actually assigned this client.
+
+    The name captured at registration is only what the client *asked* for.
+    ``tailscale up --hostname=X`` exits 0 even when an existing (possibly
+    offline) node already holds X, in which case Tailscale appends a numeric
+    suffix instead. The allocator dials the recorded name, so an
+    unreconciled rename sends every call to a dead node and the client is
+    marked Unhealthy forever (lablink#404).
+
+    Deliberately its own endpoint rather than a field on ``/api/vm-status``:
+    that handler and the client's ``send_status`` are shared with the AWS
+    path, where a lost status POST is unrecoverable (see start.sh's own
+    comment and assign_vm's status='running' requirement). Nothing here runs
+    for an AWS or lan_direct client — start.sh only calls it inside its
+    ``TAILSCALE_AUTHKEY`` gate.
+
+    Lives in this module rather than vm_telemetry because this is where the
+    ``overlay_hostname`` contract is already enforced (see register_client's
+    expects_overlay check). Flat ``/api/`` prefix to match the sibling
+    client-VM writes (``/api/vm-status``, ``/api/gpu_health``,
+    ``/api/heartbeat``) and to stay out of ``/api/v1/clients/<client_id>``'s
+    path space.
+    """
+    from lablink_allocator_service import main
+
+    body = request.get_json(silent=True) or {}
+    hostname = body.get("hostname")
+    overlay_hostname = body.get("overlay_hostname")
+    if not hostname or not overlay_hostname:
+        return jsonify({
+            "error": "hostname and overlay_hostname required."
+        }), 400
+
+    try:
+        updated = main.database.set_overlay_hostname(
+            hostname=hostname, overlay_hostname=overlay_hostname
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Failed to record overlay hostname for '%s'", hostname
+        )
+        return jsonify({"error": "Failed to record overlay hostname."}), 500
+
+    if not updated:
+        return jsonify({"error": "Not a mesh-overlay client."}), 404
+
+    current_app.logger.info(
+        "Client '%s' reported overlay hostname '%s'",
+        hostname, overlay_hostname,
+    )
+    return jsonify({"ok": True}), 200
