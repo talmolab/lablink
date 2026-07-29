@@ -8,7 +8,6 @@ import requests
 from botocore.exceptions import ClientError
 from requests.exceptions import RequestException as _RequestException
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

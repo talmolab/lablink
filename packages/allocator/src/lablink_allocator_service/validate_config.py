@@ -18,11 +18,6 @@ from omegaconf.errors import ConfigKeyError, ValidationError
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.get_config import get_config
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(message)s",
-)
 logger = logging.getLogger(__name__)
 
 # Top-level provider field — must stay in sync with the providers registry
@@ -324,6 +319,11 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
 
 def main():
     """Main entry point for the config validation CLI."""
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(message)s",
+    )
+
     parser = argparse.ArgumentParser(
         description="Validate LabLink allocator configuration file against schema",
         formatter_class=argparse.RawDescriptionHelpFormatter,

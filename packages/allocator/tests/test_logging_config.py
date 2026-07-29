@@ -1,19 +1,4 @@
-"""The package logger must carry the configured level explicitly.
-
-Regression guard for a bug introduced when main.py's route handlers were
-split into routes/ blueprints. Each new module logs through its own
-``logging.getLogger(__name__)`` with no explicit level, so it inherits the
-package logger — and root cannot be relied on, because
-``utils/aws_utils`` calls ``logging.basicConfig(level=INFO)`` at import time
-and the ``providers.registry`` import at the top of main.py pulls it in.
-That makes main.py's own ``basicConfig(level=_log_level)`` a no-op with root
-pinned at INFO.
-
-Before the split every ``logger.debug()`` lived in main.py and rode main's
-own explicitly-levelled logger, so the pinned root was harmless. After it,
-seven ``logger.debug()`` calls across routes/ were silently dropped in
-dev/test/ci-test until the package logger was levelled explicitly.
-"""
+"""The package logger must carry the configured level explicitly (#406)."""
 
 import logging
 
@@ -40,9 +25,9 @@ def test_package_logger_carries_configured_level():
     pkg = logging.getLogger("lablink_allocator_service")
     assert pkg.level == main._log_level, (
         f"package logger level is {logging.getLevelName(pkg.level)}, expected "
-        f"{logging.getLevelName(main._log_level)}. Root cannot be relied on "
-        "here — utils/aws_utils calls basicConfig() first, so main.py's own "
-        "basicConfig() is a no-op."
+        f"{logging.getLevelName(main._log_level)}. The level must be set on the "
+        "package explicitly — root is shared with third-party libraries and is "
+        "deliberately held at INFO."
     )
 
 

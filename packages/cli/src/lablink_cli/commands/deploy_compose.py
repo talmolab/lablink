@@ -804,8 +804,8 @@ def _detect_lan_ip() -> str | None:
 def _extract_register_token() -> str | None:
     """Parse the register_token from the allocator's startup logs.
 
-    The allocator logs `REGISTER_TOKEN=<token>` at startup (see
-    `packages/allocator/src/lablink_allocator_service/main.py` ~line 213).
+    The allocator logs `REGISTER_TOKEN=<token>` at startup (grep for
+    `REGISTER_TOKEN=%s` in `lablink_allocator_service/main.py`).
     Also tolerate the `register_token = "..."` form just in case.
 
     Python's `logging.basicConfig` writes to stderr, and `docker logs`
