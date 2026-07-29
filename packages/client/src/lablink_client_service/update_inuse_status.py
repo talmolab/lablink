@@ -9,7 +9,7 @@ import hydra
 
 from lablink_client_service.conf.structured_config import Config
 from lablink_client_service.http_utils import get_auth_headers, get_client_env
-from lablink_client_service.logger_utils import CloudAndConsoleLogger
+from lablink_client_service.logging_setup import configure_service_logging
 
 # Default logger setup
 logger = logging.getLogger(__name__)
@@ -123,9 +123,7 @@ def api_callback(process_name: str, url: str, client_secret: str = ""):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
-    # Configure the logger
-    global logger
-    logger = CloudAndConsoleLogger(module_name="update_inuse_status")
+    configure_service_logging()
     logger.info("Starting in-use status monitoring service")
 
     base_url, client_secret, _ = get_client_env(cfg)

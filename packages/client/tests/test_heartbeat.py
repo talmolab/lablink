@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open
 
 import pytest
 import requests
+from omegaconf import OmegaConf
 
 from lablink_client_service import heartbeat
 
@@ -172,3 +173,26 @@ def test_run_heartbeat_loop_logs_and_continues_on_unexpected_exception(
 
     assert call_count["n"] == 2  # continued past the raising iteration
     assert "simulated sampler failure" in caplog.text
+
+
+@patch("lablink_client_service.heartbeat.run_heartbeat_loop")
+@patch("lablink_client_service.heartbeat.configure_service_logging")
+def test_main_configures_logging_before_starting_the_loop(
+    mock_configure_logging, mock_loop, monkeypatch
+):
+    """main() owns logging configuration for the `heartbeat` console script.
+
+    Without the call, root sits at WARNING with no handler and the loop's
+    "Starting heartbeat loop" line — the only liveness signal this service
+    emits — never reaches the container logs.
+    """
+    monkeypatch.setenv("ALLOCATOR_URL", "https://test.com")
+    monkeypatch.setenv("CLIENT_SECRET", "test-secret")
+    cfg = OmegaConf.create({"allocator": {"host": "localhost", "port": 80}})
+
+    heartbeat.main(cfg)
+
+    mock_configure_logging.assert_called_once()
+    mock_loop.assert_called_once_with(
+        allocator_url="https://test.com", client_secret="test-secret"
+    )

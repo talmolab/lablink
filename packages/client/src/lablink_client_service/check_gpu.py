@@ -13,7 +13,7 @@ from lablink_client_service.http_utils import (
     get_client_env,
     sanitize_url,
 )
-from lablink_client_service.logger_utils import CloudAndConsoleLogger
+from lablink_client_service.logging_setup import configure_service_logging
 
 
 logger = logging.getLogger(__name__)
@@ -123,10 +123,7 @@ def check_gpu_health(allocator_url: str, interval: int = 20, client_secret: str 
 
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: Config) -> None:
-    global logger
-    logger = CloudAndConsoleLogger(
-        module_name="check_gpu",
-    )
+    configure_service_logging()
     # Check GPU health
     base_url, client_secret, _ = get_client_env(cfg)
     check_gpu_health(allocator_url=base_url, client_secret=client_secret)
