@@ -695,6 +695,37 @@ class VmDatabase:
                 )
                 raise
 
+    def clear_unhealthy(self, *, hostname: str) -> None:
+        """Clear an allocator-set Unhealthy flag, returning the VM to the
+        assignable pool.
+
+        Sets NULL rather than 'Healthy': the allocator marks a client
+        Unhealthy when it cannot *reach* it, which says nothing about the
+        GPU, and 'N/A' (no nvidia-smi, the normal case on a BYO box) is a
+        legitimate client-reported value we must not overwrite with a lie.
+        assign_vm treats NULL as assignable ("healthy IS NULL OR healthy <>
+        'Unhealthy'").
+
+        Needed because the flag is otherwise permanent: check_gpu only POSTs
+        on *change*, and on a GPU-less box it reports 'N/A' once and exits
+        its loop entirely, so the client can never overwrite the allocator's
+        write. Before this, raw SQL was the only way out (lablink#404).
+        """
+        query = (
+            f"UPDATE {self.table_name} "
+            f"SET healthy = NULL "
+            f"WHERE hostname = %s AND healthy = 'Unhealthy';"
+        )
+        with self._cursor as cursor:
+            try:
+                cursor.execute(query, (hostname,))
+            except Exception as e:
+                logger.error(
+                    f"Failed to clear unhealthy flag "
+                    f"for VM '{hostname}': {e}"
+                )
+                raise
+
     def get_status_by_hostname(self, hostname: str) -> str:
         """Get the status of a VM by its hostname.
 

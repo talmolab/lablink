@@ -368,6 +368,27 @@
     {% else %}
     <span class="admin-session-label">—</span>
     {% endif %}
+    {# Deliberately outside the chain above, not another elif: an Unhealthy
+       VM should still offer Connect, since a *successful* Admin Connect is
+       the automatic way the flag gets cleared. This is the manual escape
+       hatch for when the box is known good but connecting isn't wanted —
+       assign_vm skips Unhealthy rows and the client can't clear the flag
+       itself (check_gpu only reports on change), so without this raw SQL
+       was the only way out (lablink#404). #}
+    {% if vm.healthy == 'Unhealthy' %}
+    <form
+      method="POST"
+      action="/admin/instances/{{ vm.hostname }}/clear-unhealthy"
+    >
+      <button
+        type="submit"
+        class="btn-sm"
+        title="Return this VM to the assignable pool after a failed password rotation. Does not re-check the GPU."
+      >
+        Clear Unhealthy
+      </button>
+    </form>
+    {% endif %}
     {% endmacro %}
 
     {% macro vm_list_content(instances) %}

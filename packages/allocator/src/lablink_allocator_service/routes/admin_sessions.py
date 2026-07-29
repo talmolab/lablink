@@ -85,6 +85,19 @@ def admin_connect_vm(hostname):
                 logger.exception("Could not mark '%s' unhealthy", hostname)
             return redirect("/admin/instances?vnc_error=rotation_failed")
 
+        # Reaching here means the rotation POST to the client's agent
+        # succeeded, which proves allocator -> client reachability — the
+        # very direction whose failure set Unhealthy above. Clearing it here
+        # is what makes Admin Connect the recovery path for a client wedged
+        # out of the assignable pool by a transient timeout, instead of
+        # leaving raw SQL as the only way out (lablink#404).
+        try:
+            main.database.clear_unhealthy(hostname=hostname)
+        except Exception:
+            logger.exception(
+                "Could not clear unhealthy flag for '%s'", hostname
+            )
+
         return sign_session_cookie_and_redirect(
             session_id, suffix="admin_session"
         )
@@ -113,4 +126,25 @@ def admin_release_vm(hostname):
     from lablink_allocator_service import main
 
     main.database.release_seat(hostname=hostname)
+    return redirect("/admin/instances")
+
+
+@bp.route("/admin/instances/<hostname>/clear-unhealthy", methods=["POST"])
+@auth.login_required
+def admin_clear_unhealthy(hostname):
+    """Clear an allocator-set Unhealthy flag by hand.
+
+    A rotation timeout marks a client Unhealthy and assign_vm skips those
+    rows, so the pool can read as empty while the client is perfectly fine.
+    The client cannot clear it itself: check_gpu only reports on *change*,
+    and on a GPU-less box it posts 'N/A' once and then exits its loop
+    entirely. A successful Admin Connect clears it automatically (see
+    admin_connect_vm); this is the escape hatch for when the box is known
+    good but connecting to it isn't wanted. Before either existed, raw SQL
+    was the only way out (lablink#404).
+    """
+    from lablink_allocator_service import main
+
+    main.database.clear_unhealthy(hostname=hostname)
+    logger.info("Admin cleared the unhealthy flag for '%s'", hostname)
     return redirect("/admin/instances")
