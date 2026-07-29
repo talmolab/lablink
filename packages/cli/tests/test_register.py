@@ -1772,3 +1772,47 @@ def test_relay_docker_run_adds_no_tailscale_privileges(
     # The env file is still how the relay values reach the container.
     assert "--env-file" in cmd
     assert str(tmp_env_file) in cmd
+
+
+def test_relay_docker_run_publishes_no_host_ports(
+    tmp_env_file, successful_response
+):
+    """Design Decision 10: the allocator reaches a relay client through
+    the tunnel, and frpc dials 127.0.0.1 inside the container, so
+    publishing 6080/7070 on the host exposes ports on a network we chose
+    not to trust -- and with KASMVNC_LISTEN=127.0.0.1 the published 6080
+    is a dead port that accepts a connection and then fails."""
+    from lablink_cli.commands.register import _build_docker_run
+
+    cmd = _build_docker_run(
+        tmp_env_file,
+        _relay_response(successful_response),
+        gpu_present=False,
+        startup_script=None,
+        overlay_hostname=None,
+        relay=True,
+    )
+    assert "--publish" not in cmd
+    assert "6080:6080" not in cmd
+    assert "7070:7070" not in cmd
+    # The env file is still the channel for every relay value.
+    assert "--env-file" in cmd
+
+
+def test_non_relay_docker_run_still_publishes_both_ports(
+    tmp_env_file, successful_response
+):
+    """Regression guard: lan_direct needs 6080 reachable from the LAN for
+    the participant's browser, and 7070 for the allocator's rotation
+    call. Skipping the publishes for relay must not touch that path."""
+    from lablink_cli.commands.register import _build_docker_run
+
+    cmd = _build_docker_run(
+        tmp_env_file,
+        successful_response,
+        gpu_present=False,
+        startup_script=None,
+        overlay_hostname=None,
+    )
+    assert "6080:6080" in cmd
+    assert "7070:7070" in cmd

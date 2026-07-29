@@ -314,7 +314,7 @@ def run_register(
     startup_script_path = _write_startup_script(response)
     cmd = _build_docker_run(
         env_file, response, resolved_gpu_present, startup_script_path,
-        overlay_hostname,
+        overlay_hostname, relay=relay,
     )
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
@@ -500,6 +500,7 @@ def _build_docker_run(
     gpu_present: bool,
     startup_script: Path | None,
     overlay_hostname: str | None,
+    relay: bool = False,
 ) -> list[str]:
     cmd = [
         "docker", "run", "-d",
@@ -567,9 +568,19 @@ def _build_docker_run(
     # host's, leaving the ports unreachable from the LAN — the
     # allocator's password rotation just times out at the container's
     # :7070. Explicit `--publish` behaves the same on every platform.
+    #
+    # Skipped entirely for relay: the allocator arrives through the
+    # tunnel, and frpc dials 127.0.0.1 inside this container, so there is
+    # nothing for a host port to serve. Publishing anyway would expose
+    # them on the very LAN relay was chosen to avoid trusting, and with
+    # KASMVNC_LISTEN=127.0.0.1 the published 6080 would accept a
+    # connection and then fail to reach anything.
+    if not relay:
+        cmd += [
+            "--publish", "7070:7070",
+            "--publish", "6080:6080",
+        ]
     cmd += [
-        "--publish", "7070:7070",
-        "--publish", "6080:6080",
         "--env-file", str(env_file),
         resp["client_image"],
     ]
