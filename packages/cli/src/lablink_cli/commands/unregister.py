@@ -166,6 +166,14 @@ def _exec_docker_rm(console: Console) -> bool:
     `docker rm -f` exits 0 in both cases — the only non-zero exits
     are for daemon-level failures (docker daemon down, permissions,
     etc.), which we surface as a yellow warning and continue.
+
+    Deliberately leaves the TAILSCALE_STATE_VOLUME in place. Deleting it
+    would NOT remove the node from the tailnet (the coordination server
+    keeps its own record, and the offline machine goes on holding its
+    MagicDNS name), so the next `register` would mint a fresh node and get a
+    suffixed name — the exact lablink#404 failure. Preserving it means
+    unregister/register reuses the same node and keeps the unsuffixed name.
+    `lablink client reset-overlay` is the opt-in path for discarding it.
     """
     try:
         result = subprocess.run(
