@@ -18,11 +18,11 @@ from omegaconf.errors import ConfigKeyError, ValidationError
 from lablink_allocator_service.conf.structured_config import MISSING_SECRET
 from lablink_allocator_service.get_config import get_config
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(message)s",
-)
+# getLogger() only at module scope. This module is a legitimate entry point
+# (`lablink-validate-config`), so it does configure logging — but from main(),
+# not as an import side effect: tests and other callers import validate_config()
+# as a library, and a module-scope basicConfig() would reconfigure root for
+# whatever process happened to import us first.
 logger = logging.getLogger(__name__)
 
 # Top-level provider field — must stay in sync with the providers registry
@@ -324,6 +324,15 @@ def validate_config(config_path: str) -> Tuple[bool, str]:
 
 def main():
     """Main entry point for the config validation CLI."""
+    # Configure logging here rather than at module scope: this is where the
+    # process is actually ours to configure. Quiet by default and bare-message
+    # formatted, because the CLI's real output is the report printed below —
+    # log records are only for the unexpected-exception path.
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(message)s",
+    )
+
     parser = argparse.ArgumentParser(
         description="Validate LabLink allocator configuration file against schema",
         formatter_class=argparse.RawDescriptionHelpFormatter,

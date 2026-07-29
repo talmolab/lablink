@@ -8,7 +8,10 @@ import requests
 from botocore.exceptions import ClientError
 from requests.exceptions import RequestException as _RequestException
 
-logging.basicConfig(level=logging.INFO)
+# Library module: getLogger() only. Configuring handlers, levels or formats
+# here would mutate global logging state for whatever process imports us —
+# and basicConfig() is a no-op once root has a handler, so the winner would
+# be decided by import order. Entry points own that (see main.py).
 logger = logging.getLogger(__name__)
 
 

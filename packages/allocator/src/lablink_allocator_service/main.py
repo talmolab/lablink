@@ -195,33 +195,39 @@ def init_database():
     database.set_setting("register_token_hash", hash_secret(REGISTER_TOKEN))
 
 
-# Set up logging
+# Set up logging. This is the allocator's entry point, so it is the one place
+# in the package allowed to configure global logging state — every other module
+# calls getLogger() and nothing else. It has to happen at module scope, not
+# inside main(): the REGISTER_TOKEN line below is emitted at import time and
+# `lablink deploy` scrapes it out of the container logs.
 _log_level = (
     logging.DEBUG
     if cfg.environment in ("dev", "test", "ci-test")
     else logging.INFO
 )
+
+# Two levels, set deliberately.
+#
+# Root gets the process's single stderr handler and format, pinned at INFO.
+# Root's level is the floor for *third-party* loggers — botocore, paramiko,
+# urllib3, werkzeug — and at DEBUG botocore alone logs every API request and
+# parsed response, which buries the output we actually came for. This mutes
+# nothing of ours: a record that its own logger admits still reaches root's
+# handler regardless of root's level.
 logging.basicConfig(
-    level=_log_level,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-# The basicConfig() above cannot be relied on to set the level: it is a no-op
-# when root already has a handler, and by this point it always does —
-# `utils/aws_utils` calls basicConfig(level=INFO) at import time, and the
-# providers.registry import near the top of this module pulls it in. Root is
-# therefore pinned at INFO before we get here.
-#
-# That matters because every module under this package logs through its own
-# `logging.getLogger(__name__)` with no explicit level, so it inherits root.
-# Without the line below, all seven logger.debug() calls in routes/ are
-# silently dropped in dev/test/ci-test — the environments where you actually
-# want them. Setting the level once on the package logger fixes it for every
-# submodule, whoever won the basicConfig race.
+# The package logger carries the configured level. Every module under this
+# package logs through its own `logging.getLogger(__name__)` with no explicit
+# level, so setting it once here reaches all of them — including the routes/
+# blueprints, whose seven logger.debug() calls were silently dropped in
+# dev/test/ci-test before this line existed (#406).
 #
 # Set this on the package, NOT on `logger` below: an explicit level on
-# main's own logger alone is what hid this for so long, since main kept
+# main's own logger alone is what hid that for so long, since main kept
 # logging at _log_level while the eleven route modules went quiet.
 logging.getLogger("lablink_allocator_service").setLevel(_log_level)
 
