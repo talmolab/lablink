@@ -1,11 +1,4 @@
-"""The package logger must carry the configured level explicitly.
-
-Regression guard for #406: when main.py's route handlers were split into
-routes/ blueprints, each new module logged through its own
-``logging.getLogger(__name__)`` with no explicit level. Setting the level once
-on the package logger is what keeps the seven ``logger.debug()`` calls across
-routes/ alive in dev/test/ci-test.
-"""
+"""The package logger must carry the configured level explicitly (#406)."""
 
 import logging
 

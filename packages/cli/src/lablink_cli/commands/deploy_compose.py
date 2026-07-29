@@ -808,9 +808,6 @@ def _extract_register_token() -> str | None:
     `REGISTER_TOKEN=%s` in `lablink_allocator_service/main.py`).
     Also tolerate the `register_token = "..."` form just in case.
 
-    Both patterns are searched unanchored, so the allocator's log format is
-    not part of this contract — only the `KEY=value` token itself is.
-
     Python's `logging.basicConfig` writes to stderr, and `docker logs`
     preserves the container's stdout/stderr split — so we MUST merge
     both streams here (via `stderr=subprocess.STDOUT`), otherwise the
