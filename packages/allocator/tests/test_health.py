@@ -5,6 +5,35 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock
 
+import pytest
+
+
+@pytest.fixture
+def health_client(app, monkeypatch):
+    """HTTP client wired for reverse-tunnel health checks: a stub provider
+    whose client_connectivity requires the tunnel check (the real
+    ReverseTunnelClientConnectivity, which sets requires_tunnel_check =
+    True), and a fake db standing in for main.database.
+
+    Returns (test_client, fake_db).
+    """
+    from lablink_allocator_service import main
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    class _StubProvider:
+        client_connectivity = ReverseTunnelClientConnectivity()
+
+    app.config["LABLINK_PROVIDER"] = _StubProvider()
+
+    fake_db = MagicMock()
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "scheduler_service", MagicMock(), raising=False)
+    monkeypatch.setattr(main, "reboot_service", MagicMock(), raising=False)
+
+    return app.test_client(), fake_db
+
 
 class TestTailscaleStatus:
     """Unit tests for _tailscale_status(), which shells out to `ip` to
@@ -192,3 +221,57 @@ class TestHealthEndpoint:
         data = resp.get_json()
         assert data["status"] == "starting"
         assert data["checks"]["tailscale"] == "not joined"
+
+
+class TestTunnelStatus:
+    """Health for reverse_tunnel must report *attachment*, not liveness: a
+    bound loopback listener survives for the idle timeout after its client
+    disconnects, and connections to that orphan hang rather than fail, so
+    the shared tunnel server being up says nothing about any one client."""
+
+    def test_health_reports_unattached_clients(self, health_client, monkeypatch):
+        """A bound port is not evidence of an attached client: wstunnel keeps
+        the listener for its idle timeout after the client leaves, and
+        connections to an orphan hang instead of failing."""
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10})
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = [10, 11]
+
+        body = client.get("/api/health").get_json()
+        assert body["checks"]["tunnel"] == "1 client(s) not attached"
+
+    def test_health_ok_when_every_client_is_attached(self, health_client, monkeypatch):
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10, 11})
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = [10, 11]
+
+        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "ok"
+
+    def test_health_reports_server_down(self, health_client, monkeypatch):
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "not running")
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = []
+        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "not running"
+
+    def test_tunnel_check_absent_when_not_reverse_tunnel(self, client, monkeypatch):
+        """A connectivity strategy that doesn't require a tunnel check
+        (e.g. lan_direct/allocator_proxied/mesh_overlay) must not add a
+        tunnel key — byte-identical health payload to today for every
+        existing deployment."""
+        from lablink_allocator_service import main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert "tunnel" not in resp.get_json()["checks"]

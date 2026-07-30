@@ -43,6 +43,24 @@ def _tailscale_status() -> str:
     return "ok" if result.returncode == 0 and "inet " in result.stdout else "not joined"
 
 
+def _tunnel_status() -> str:
+    """Tunnel health as a *pairing* property, not a process one.
+
+    tunnel_manager.tunnel_status() only says the shared server is up. A
+    client whose tunnel died leaves its alias bound for the idle timeout,
+    and connections to that orphan hang rather than fail -- so a registered
+    client with no listening alias is the condition worth reporting.
+    """
+    from lablink_allocator_service import main, tunnel_manager
+
+    server = tunnel_manager.tunnel_status()
+    if server != "ok":
+        return server
+    expected = set(main.database.list_tunnel_aliases())
+    missing = expected - tunnel_manager.attached_aliases()
+    return f"{len(missing)} client(s) not attached" if missing else "ok"
+
+
 @bp.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -57,10 +75,11 @@ def health_check():
             "ok" if main.reboot_service is not None else "not initialized"
         ),
     }
-    if current_app.config[
-        "LABLINK_PROVIDER"
-    ].client_connectivity.requires_tailscale_check:
+    connectivity = current_app.config["LABLINK_PROVIDER"].client_connectivity
+    if connectivity.requires_tailscale_check:
         checks["tailscale"] = _tailscale_status()
+    if getattr(connectivity, "requires_tunnel_check", False):
+        checks["tunnel"] = _tunnel_status()
 
     all_ready = all(v == "ok" for v in checks.values())
     status = "healthy" if all_ready else "starting"

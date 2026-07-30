@@ -356,6 +356,23 @@ class VmDatabase:
             return None
         return int(row[0])
 
+    def list_tunnel_aliases(self) -> list[int]:
+        """Alias octets of every registered reverse-tunnel client.
+
+        Used by health to compare *registered* clients against the set of
+        aliases with a socket actually attached right now (see
+        routes/health.py's tunnel check) -- a registered client isn't
+        necessarily a connected one.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'tunnel_alias_octet' "
+                f"FROM {self.table_name} "
+                f"WHERE provider_metadata->>'tunnel_alias_octet' IS NOT NULL;"
+            )
+            rows = cursor.fetchall()
+        return [int(r[0]) for r in rows]
+
     def get_tunnel_path_prefix(self, prefix: str):
         """(client_id, prefix) for the client owning this tunnel path
         prefix, or None. The prefix is stored at registration rather than

@@ -1618,3 +1618,21 @@ def test_get_tunnel_alias_missing_is_none(db_instance, mock_db_connection):
     assert "provider_metadata->>'tunnel_alias_octet'" in sql
     assert "WHERE hostname = %s" in sql
     assert params == ("vm-1",)
+
+
+def test_list_tunnel_aliases_returns_ints(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [("10",), ("11",)]
+    assert db_instance.list_tunnel_aliases() == [10, 11]
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT provider_metadata->>'tunnel_alias_octet' FROM vms "
+        "WHERE provider_metadata->>'tunnel_alias_octet' IS NOT NULL;"
+    )
+
+
+def test_list_tunnel_aliases_empty_when_none_registered(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    assert db_instance.list_tunnel_aliases() == []
