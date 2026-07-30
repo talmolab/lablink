@@ -154,6 +154,69 @@ if [ -n "$TAILSCALE_AUTHKEY" ]; then
   fi
 fi
 
+# Reverse-tunnel connectivity: dial OUT to the allocator and hold one
+# WebSocket open, asking it to expose this container's KasmVNC (:6080) and
+# agent (:7070) on the loopback alias it assigned us. Gated on CONNECTIVITY
+# rather than on a secret's presence: an absent or misspelled value must be a
+# loud failure, not a silent no-tunnel.
+#
+# Unlike the tailscale join this does NOT need to run first -- the tunnel is
+# inbound-only (allocator -> client) and this container reaches the
+# allocator's HTTP API directly regardless. It does need to be up before a
+# session is assigned, hence ahead of the custom startup script.
+if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
+  for v in TUNNEL_URL TUNNEL_PATH_PREFIX TUNNEL_BIND_ADDR CLIENT_SECRET; do
+    # ${!v} indirect expansion, not eval -- this script is #!/bin/bash.
+    if [ -z "${!v}" ]; then
+      echo "CONNECTIVITY=reverse_tunnel but $v is unset" >&2
+      touch "$STATUS_SUPERSEDED_FILE"
+      send_status "error" || echo ">> WARNING: failed to report status=error"
+      exit 1
+    fi
+  done
+
+  echo "Opening tunnel to $TUNNEL_URL..."
+  # Tee to a file as well as the log stream: the liveness check below has to
+  # READ this output, because a rejected upgrade does not kill the process.
+  TUNNEL_LOG=/tmp/lablink-tunnel-client.log
+  # Process substitution, NOT a `| sed ... &` pipeline: after a pipeline $!
+  # is the PID of the last stage (sed), which stays alive whether or not the
+  # tunnel did, making the liveness check below vacuous.
+  # -P is mandatory: without it the client ignores the URL's path entirely
+  # and requests /v1/events, which no tunnel location matches (measured).
+  wstunnel client \
+    -P "$TUNNEL_PATH_PREFIX" \
+    -H "Authorization: Bearer $CLIENT_SECRET" \
+    -R tcp://$TUNNEL_BIND_ADDR:6080:127.0.0.1:6080 \
+    -R tcp://$TUNNEL_BIND_ADDR:7070:127.0.0.1:7070 \
+    "$TUNNEL_URL" > >(sed -u 's/^/[tunnel] /' | tee -a "$TUNNEL_LOG" >&5) 2>&1 &
+  TUNNEL_PID=$!
+
+  # Two distinct failures, and only the first kills the process:
+  #  - process died (bad binary, bad flag)
+  #  - handshake rejected (wrong secret, wrong URL, allocator not configured
+  #    for this mode). wstunnel logs "Invalid status code: 401" and RETRIES
+  #    FOREVER, so a kill -0 check alone would report healthy while the
+  #    client is unreachable -- the exact failure this feature has shipped
+  #    three times before. Verified in a spike: nginx returns 401 at the
+  #    upgrade and the client loops.
+  sleep 5
+  if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
+    echo "tunnel process exited -- see [tunnel] output above" >&2
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  fi
+  if grep -qE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG"; then
+    echo "tunnel handshake rejected by the allocator -- see [tunnel] output" >&2
+    kill "$TUNNEL_PID" 2>/dev/null
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  fi
+  echo "Tunnel process running (pid $TUNNEL_PID)"
+fi
+
 # Report 'initializing' as soon as the overlay (if any) is up. On cold
 # reboot this is redundant with user_data.sh's earlier post, but on warm
 # reboot user_data.sh's guard may exit before reaching its send_status —
