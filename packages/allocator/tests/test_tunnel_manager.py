@@ -1,6 +1,7 @@
 """Tests for the reverse-tunnel connectivity mode's server-side bookkeeping:
 the per-client restrictions file and the attached-client check."""
 import pytest
+import yaml
 
 
 @pytest.fixture
@@ -50,6 +51,49 @@ def test_revoke_removes_only_that_client(tm):
 
 def test_revoke_unknown_client_is_a_noop(tm):
     tm.revoke_client("never-registered")  # must not raise
+
+
+def test_authorize_rejects_unsafe_client_id(tm):
+    # client_id is the DB hostname: attacker-controlled via registration,
+    # not validated upstream. A newline would let it forge a second
+    # top-level YAML restriction (see the module docstring) if it ever
+    # reached the renderer -- authorize_client must refuse it outright.
+    with pytest.raises(ValueError):
+        tm.authorize_client(
+            client_id="vm-evil\nrestrictions:\n  - name: pwn",
+            alias_octet=10,
+            prefix="vm-evil-abc",
+        )
+    assert not tm.RESTRICTIONS_PATH.exists()
+
+
+def test_authorize_rejects_unsafe_prefix(tm):
+    with pytest.raises(ValueError):
+        tm.authorize_client(
+            client_id="vm-1", alias_octet=10, prefix="vm-1\nrestrictions:"
+        )
+    assert not tm.RESTRICTIONS_PATH.exists()
+
+
+def test_authorize_rejects_out_of_range_alias_octet(tm):
+    with pytest.raises(ValueError):
+        tm.authorize_client(client_id="vm-1", alias_octet=255, prefix="vm-1-abc")
+    with pytest.raises(ValueError):
+        tm.authorize_client(client_id="vm-1", alias_octet=0, prefix="vm-1-abc")
+    assert not tm.RESTRICTIONS_PATH.exists()
+
+
+def test_render_cannot_be_forced_into_a_second_top_level_entry(tm):
+    # Defense in depth, independent of authorize_client's validation: even
+    # if a malicious value reached the module-level dict directly, the
+    # yaml.safe_dump-based renderer must not let it forge extra YAML
+    # structure. Pokes the private dict the same way the `tm` fixture does.
+    evil_client_id = "vm-evil\nrestrictions:\n  - name: pwn\n    match: [!Any]"
+    tm._restrictions[evil_client_id] = (10, "whatever")
+    tm._write()
+    parsed = yaml.safe_load(tm.RESTRICTIONS_PATH.read_text())
+    assert len(parsed["restrictions"]) == 1
+    assert parsed["restrictions"][0]["name"] == evil_client_id
 
 
 def test_restrictions_file_is_owner_only(tm):

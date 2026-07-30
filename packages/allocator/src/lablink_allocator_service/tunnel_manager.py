@@ -36,13 +36,27 @@ port-number strings, each parsed as a single-port range:
 Confirmed via `--log-lvl DEBUG`, which echoes the parsed rule back as
 `port: [6080..=6080, 7070..=7070]`. Re-verify when bumping the pinned
 version.
+
+Security note: `client_id` is the DB `hostname`, which reaches this module
+from client-controlled registration input -- it is NOT validated upstream
+beyond truthiness. Every function that renders it into the restrictions
+file therefore validates it here (see `_is_safe_client_id`) rather than
+trusting the caller, and rendering itself goes through `yaml.safe_dump`
+(not f-string/string-building) so a value that somehow slipped past
+validation still can't forge YAML structure. Both are load-bearing: the
+charset check is what stops a multi-line hostname from ever reaching the
+renderer, and safe_dump is what stops any single-line-but-still-special
+YAML character (quotes, colons, `#`, etc.) from doing so.
 """
 from __future__ import annotations
 
 import hashlib
 import os
+import re
 import socket
 from pathlib import Path
+
+import yaml
 
 TUNNEL_DIR = Path("/tmp/lablink-tunnel")
 RESTRICTIONS_PATH = TUNNEL_DIR / "restrictions.yaml"
@@ -50,9 +64,64 @@ TUNNEL_PORTS = (6080, 7070)
 # Where the tunnel server listens inside the container; nginx proxies to it.
 TUNNEL_SERVER_PORT = 8080
 
+# client_id is the DB hostname: registration only checks it's truthy (see
+# routes/registration.py), so this module can't trust it arrived sane.
+# Reject anything outside a conservative charset rather than trying to
+# escape it -- it ends up as a YAML mapping key/value AND a path segment
+# (via path_prefix), so "sanitize" would need to satisfy both consumers.
+_CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
+# path_prefix() = "<client_id>-<digest>" (digest is 16 hex chars), so the
+# same charset applies with a little headroom for that suffix.
+_PREFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,299}$")
+
+# A rendered restriction is one octet in a 127.0.0.0/8 /32 CIDR. 0 and 255
+# are excluded as the conventional network/broadcast-shaped ends of a
+# /24-sized block, even though loopback doesn't strictly enforce that.
+_MIN_ALIAS_OCTET = 1
+_MAX_ALIAS_OCTET = 254
+
+
+def _is_safe_client_id(client_id: str) -> bool:
+    return bool(_CLIENT_ID_RE.match(client_id))
+
+
+def _is_safe_prefix(prefix: str) -> bool:
+    return bool(_PREFIX_RE.match(prefix))
+
+
 # client_id -> (alias_octet, prefix). Module-level, like secret_hash's
 # cache: one allocator process per deployment.
 _restrictions: dict[str, tuple[int, str]] = {}
+
+
+class _PathPrefix(str):
+    """Marker type so the dumper below emits `!PathPrefix "value"`."""
+
+
+class _ReverseTunnelRule(dict):
+    """Marker type so the dumper below emits `!ReverseTunnel {...}`."""
+
+
+def _represent_path_prefix(dumper: yaml.Dumper, data: "_PathPrefix"):
+    return dumper.represent_scalar("!PathPrefix", str(data))
+
+
+def _represent_reverse_tunnel(dumper: yaml.Dumper, data: "_ReverseTunnelRule"):
+    return dumper.represent_mapping("!ReverseTunnel", dict(data))
+
+
+yaml.SafeDumper.add_representer(_PathPrefix, _represent_path_prefix)
+yaml.SafeDumper.add_representer(_ReverseTunnelRule, _represent_reverse_tunnel)
+
+# So _render()'s self-check (below) can round-trip its own output: SafeLoader
+# has no constructor for our custom tags by default and would otherwise
+# raise before the check ever ran.
+yaml.SafeLoader.add_constructor(
+    "!PathPrefix", lambda loader, node: loader.construct_scalar(node)
+)
+yaml.SafeLoader.add_constructor(
+    "!ReverseTunnel", lambda loader, node: loader.construct_mapping(node)
+)
 
 
 def path_prefix(client_id: str, secret: str) -> str:
@@ -67,19 +136,32 @@ def path_prefix(client_id: str, secret: str) -> str:
 
 
 def _render() -> str:
-    lines = ["restrictions:"]
-    for client_id, (octet, prefix) in sorted(_restrictions.items()):
-        ports = ", ".join(f'"{p}"' for p in TUNNEL_PORTS)
-        lines += [
-            f"  - name: {client_id}",
-            "    match:",
-            f'      - !PathPrefix "tunnel/{prefix}"',
-            "    allow:",
-            "      - !ReverseTunnel",
-            f"        port: [{ports}]",
-            f'        cidr: ["127.0.0.{octet}/32"]',
+    doc = {
+        "restrictions": [
+            {
+                "name": client_id,
+                "match": [_PathPrefix(f"tunnel/{prefix}")],
+                "allow": [
+                    _ReverseTunnelRule(
+                        {
+                            "port": [str(p) for p in TUNNEL_PORTS],
+                            "cidr": [f"127.0.0.{octet}/32"],
+                        }
+                    )
+                ],
+            }
+            for client_id, (octet, prefix) in sorted(_restrictions.items())
         ]
-    return "\n".join(lines) + "\n"
+    }
+    text = yaml.safe_dump(doc, default_flow_style=False, sort_keys=False)
+    # Belt and braces: authorize_client already rejects an unsafe client_id
+    # before it ever reaches here, and safe_dump can't be tricked into
+    # emitting extra YAML structure from a string value. This re-parses the
+    # output and checks the entry count so a future regression (e.g. someone
+    # reverting to f-string rendering) fails loudly here instead of quietly
+    # widening a client's access.
+    assert len(yaml.safe_load(text)["restrictions"]) == len(_restrictions)
+    return text
 
 
 def _write() -> None:
@@ -94,13 +176,36 @@ def _write() -> None:
 
 
 def authorize_client(*, client_id: str, alias_octet: int, prefix: str) -> None:
-    """Permit exactly this client to bind exactly its own alias."""
+    """Permit exactly this client to bind exactly its own alias.
+
+    Raises ValueError -- before any file work -- if client_id/prefix carry
+    characters this module can't safely render, or if alias_octet is
+    outside the range a /32 loopback rule can express. This is the trust
+    boundary: client_id is attacker-controlled (see the module docstring),
+    so it's validated here rather than assumed clean by callers.
+    """
+    if not _is_safe_client_id(client_id):
+        raise ValueError(f"unsafe client_id for tunnel restrictions: {client_id!r}")
+    if not _is_safe_prefix(prefix):
+        raise ValueError(f"unsafe prefix for tunnel restrictions: {prefix!r}")
+    if not (_MIN_ALIAS_OCTET <= alias_octet <= _MAX_ALIAS_OCTET):
+        raise ValueError(
+            f"alias_octet {alias_octet!r} out of range "
+            f"[{_MIN_ALIAS_OCTET}, {_MAX_ALIAS_OCTET}]"
+        )
     _restrictions[client_id] = (alias_octet, prefix)
     _write()
 
 
 def revoke_client(client_id: str) -> None:
-    """Drop this client's permission. No-op if it was never a tunnel client."""
+    """Drop this client's permission. No-op if it was never a tunnel client.
+
+    No client_id validation here: an unsafe id can never have made it into
+    _restrictions in the first place (authorize_client rejects it before
+    writing), so the plain dict.pop miss already gives the right no-op
+    behavior. This also has to stay a no-op, not raise -- it runs on every
+    client unregister.
+    """
     if _restrictions.pop(client_id, None) is None:
         return
     _write()
