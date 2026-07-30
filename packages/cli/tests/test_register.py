@@ -1470,8 +1470,9 @@ class TestWriteEnvFile:
         from lablink_cli.commands.register import _write_env_file
 
         _write_env_file(
-            tmp_env_file, "https://lablink.example.com",
+            tmp_env_file,
             self._resp_with_monitoring(),
+            allocator_url="https://lablink.example.com",
         )
 
         text = tmp_env_file.read_text()
@@ -1494,8 +1495,9 @@ class TestWriteEnvFile:
         from lablink_cli.commands.register import _write_env_file
 
         _write_env_file(
-            tmp_env_file, "https://lablink.example.com",
+            tmp_env_file,
             self._resp_with_monitoring(),
+            allocator_url="https://lablink.example.com",
         )
         text = tmp_env_file.read_text()
         assert "CLIENT_SECRET=s3cret" in text
@@ -1506,8 +1508,9 @@ class TestWriteEnvFile:
         from lablink_cli.commands.register import _write_env_file
 
         _write_env_file(
-            tmp_env_file, "https://lablink.example.com",
+            tmp_env_file,
             self._resp_with_monitoring(),
+            allocator_url="https://lablink.example.com",
             overlay_hostname="classroom-gpu-3",
             tailscale_authkey="tskey-abc",
         )
@@ -1520,8 +1523,9 @@ class TestWriteEnvFile:
         from lablink_cli.commands.register import _write_env_file
 
         _write_env_file(
-            tmp_env_file, "https://lablink.example.com",
+            tmp_env_file,
             self._resp_with_monitoring(),
+            allocator_url="https://lablink.example.com",
         )
 
         content = tmp_env_file.read_text()
@@ -1545,8 +1549,8 @@ class TestWriteEnvFile:
 
         _write_env_file(
             tmp_env_file,
-            "https://lablink-allocator.example.ts.net",
             resp,
+            allocator_url="https://lablink-allocator.example.ts.net",
         )
 
         content = tmp_env_file.read_text()
@@ -1559,7 +1563,7 @@ class TestWriteEnvFile:
         from lablink_cli.commands.register import _write_env_file
 
         _write_env_file(
-            tmp_env_file, "", self._resp_with_monitoring(),
+            tmp_env_file, self._resp_with_monitoring(), allocator_url="",
         )
 
         content = tmp_env_file.read_text()
@@ -1598,3 +1602,89 @@ def test_non_overlay_run_has_no_tailscale_volume():
     cmd = _build_docker_run(Path("/tmp/env"), resp, False, None, None)
 
     assert not any("/var/lib/tailscale" in part for part in cmd)
+
+
+class TestReverseTunnelRegister:
+    def test_env_file_carries_tunnel_values(self, tmp_path):
+        from lablink_cli.commands.register import _write_env_file
+
+        env = tmp_path / "client.env"
+        _write_env_file(
+            env,
+            {
+                "client_id": "vm-1", "client_secret": "cs", "agent_token": "at",
+                "register_token": "rt", "connectivity": "reverse_tunnel",
+                "client_image": "img", "allocator_url": "https://a.example.com",
+                "tunnel_url": "https://a.example.com",
+                "tunnel_path_prefix": "tun-vm-1-abc",
+                "tunnel_bind_addr": "127.0.0.12",
+            },
+            allocator_url="https://a.example.com",
+            overlay_hostname=None, tailscale_authkey=None,
+        )
+        text = env.read_text()
+        assert "TUNNEL_URL=wss://a.example.com" in text
+        assert "TUNNEL_PATH_PREFIX=tun-vm-1-abc" in text
+        assert "TUNNEL_BIND_ADDR=127.0.0.12" in text
+        # frpc dialed localhost inside the container; so does wstunnel, so
+        # keep KasmVNC off the client's own LAN.
+        assert "KASMVNC_LISTEN=127.0.0.1" in text
+        assert env.stat().st_mode & 0o777 == 0o600
+
+    def test_docker_run_publishes_no_host_ports(self):
+        from lablink_cli.commands.register import _build_docker_run
+        from pathlib import Path
+
+        cmd = _build_docker_run(
+            Path("/tmp/client.env"),
+            {"client_image": "img"}, False, None, None, reverse_tunnel=True,
+        )
+        assert "--publish" not in cmd
+
+    def test_docker_run_pins_amd64(self):
+        from lablink_cli.commands.register import _build_docker_run
+        from pathlib import Path
+
+        cmd = _build_docker_run(
+            Path("/tmp/client.env"),
+            {"client_image": "img"}, False, None, None, reverse_tunnel=True,
+        )
+        assert "--platform" in cmd and "linux/amd64" in cmd
+
+    def test_tunnel_and_overlay_hostname_are_mutually_exclusive(self, tmp_path):
+        from lablink_cli.commands.register import run_register
+        import pytest
+
+        with pytest.raises(SystemExit):
+            run_register(
+                allocator_url="https://a", register_token="t", hostname=None,
+                lan_ip=None, machine_identity=None, gpu_present=None,
+                gpu_model=None, force=True, env_file=tmp_path / "e",
+                insecure=False, overlay_hostname="host", reverse_tunnel=True,
+            )
+
+    def test_version_skew_is_caught(self, tmp_path, monkeypatch, capsys):
+        """An allocator too old to know the sentinel may ignore it and
+        register some other connectivity. This docker run already omits
+        --publish because the LOCAL flag says tunnel, and start.sh would
+        never open one because CONNECTIVITY says otherwise -- unreachable by
+        both paths while reporting healthy. Fail loudly instead."""
+        import pytest
+        from lablink_cli.commands import register as reg
+
+        monkeypatch.setattr(
+            reg.RegistrationClient, "register",
+            lambda self, **kw: {
+                "client_id": "vm-1", "client_secret": "cs", "agent_token": "at",
+                "register_token": "rt", "connectivity": "lan_direct",
+                "client_image": "img",
+            },
+        )
+        with pytest.raises(SystemExit):
+            reg.run_register(
+                allocator_url="https://a", register_token="t", hostname="h",
+                lan_ip=None, machine_identity="m", gpu_present=False,
+                gpu_model=None, force=True, env_file=tmp_path / "e",
+                insecure=False, reverse_tunnel=True,
+            )
+        assert "reverse_tunnel" in capsys.readouterr().out
