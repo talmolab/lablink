@@ -83,17 +83,27 @@ def tunnel_auth():
 
     The path prefix identifies which client is attaching; the bearer token
     is what authenticates it. Both must agree, so a client cannot attach
-    under another client's prefix even with a valid secret of its own --
-    and tunnel_manager's restrictions then stop it binding another
-    client's alias even if it somehow did.
+    under another client's prefix even holding a valid secret of its own.
+
+    This check is the ONLY binding between a secret and an identity.
+    tunnel_manager's restrictions are keyed by path prefix, so they grant
+    whatever alias the presented path claims -- they constrain a client to
+    one alias, they do not prove who the client is. Do not describe them as
+    a second authentication layer.
     """
     from lablink_allocator_service import main
     from lablink_allocator_service.secret_hash import verify_secret_cached
 
-    uri = request.headers.get("X-Original-URI", "")
-    token = (request.headers.get("X-Tunnel-Auth") or "").removeprefix("Bearer ").strip()
-    prefix = uri.rstrip("/").rpartition("/")[2]
-    if not prefix or not token:
+    # nginx captured the prefix from the FIRST path segment and passed it
+    # here; do not re-derive it from the URI. The client's request path is
+    # /<prefix>/events, so last-segment extraction yields "events" and 401s
+    # every legitimate attach (measured against the real client).
+    prefix = (request.headers.get("X-Tunnel-Prefix") or "").strip()
+    auth = request.headers.get("X-Tunnel-Auth") or ""
+    if not prefix or not auth.startswith("Bearer "):
+        return _unauth()
+    token = auth[len("Bearer "):].strip()
+    if not token:
         return _unauth()
 
     found = main.database.get_tunnel_path_prefix(prefix)
