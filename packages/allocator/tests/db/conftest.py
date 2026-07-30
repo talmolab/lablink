@@ -68,14 +68,6 @@ def db_instance(mock_db_connection):
 
 
 @pytest.fixture
-def db_with_mock_cursor(db_instance, mock_db_connection):
-    """(VmDatabase, mock cursor) tuple for tests that destructure both at
-    once instead of pulling mock_cursor out of mock_db_connection."""
-    _, mock_cursor, _ = mock_db_connection
-    return db_instance, mock_cursor
-
-
-@pytest.fixture
 def schedule_db_instance(mock_db_connection):
     """A ScheduleDatabase over the same mocked pool as db_instance."""
     mock_conn, mock_cursor, mock_pool = mock_db_connection

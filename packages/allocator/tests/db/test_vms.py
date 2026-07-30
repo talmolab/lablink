@@ -1525,23 +1525,43 @@ def test_clear_unhealthy_only_clears_the_allocator_set_flag(db_instance):
     assert params == ("LAPTOP-M8NLMMGL",)
 
 
-class TestTunnelAlias:
-    def test_first_allocation_returns_base(self, db_with_mock_cursor):
-        db, cursor = db_with_mock_cursor
-        cursor.fetchone.return_value = (None,)
-        assert db.allocate_tunnel_alias_octet() == 10
+def test_allocate_tunnel_alias_octet_returns_base_when_empty(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.allocate_tunnel_alias_octet() == 10
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "MAX(" in sql
 
-    def test_next_allocation_increments(self, db_with_mock_cursor):
-        db, cursor = db_with_mock_cursor
-        cursor.fetchone.return_value = (11,)
-        assert db.allocate_tunnel_alias_octet() == 12
 
-    def test_get_tunnel_alias_returns_int(self, db_with_mock_cursor):
-        db, cursor = db_with_mock_cursor
-        cursor.fetchone.return_value = ("10",)
-        assert db.get_tunnel_alias("vm-1") == 10
+def test_allocate_tunnel_alias_octet_increments_from_max(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (11,)
+    assert db_instance.allocate_tunnel_alias_octet() == 12
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "MAX(" in sql
 
-    def test_get_tunnel_alias_missing_is_none(self, db_with_mock_cursor):
-        db, cursor = db_with_mock_cursor
-        cursor.fetchone.return_value = (None,)
-        assert db.get_tunnel_alias("vm-1") is None
+
+def test_get_tunnel_alias_returns_int(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("10",)
+    assert db_instance.get_tunnel_alias("vm-1") == 10
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "WHERE hostname = %s" in sql
+    assert params == ("vm-1",)
+
+
+def test_get_tunnel_alias_missing_is_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.get_tunnel_alias("vm-1") is None
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "WHERE hostname = %s" in sql
+    assert params == ("vm-1",)
