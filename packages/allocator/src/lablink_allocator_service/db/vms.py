@@ -289,6 +289,41 @@ class VmDatabase:
                 )
                 raise
 
+    _TUNNEL_ALIAS_BASE = 10
+
+    def allocate_tunnel_alias_octet(self) -> int:
+        """Next unused loopback-alias octet for a reverse-tunnel client.
+
+        Never recycled: what actually revokes a departed client's
+        reachability is dropping its tunnel restriction (see
+        tunnel_manager.revoke_client), not reclaiming the integer, and a
+        pool table would need the migration machinery this codebase
+        deliberately avoids. Only the final octet varies, so this tops out
+        near 245 concurrent clients — far past any deployment this product
+        targets, and deployments are ephemeral with a fresh DB each time.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT MAX((provider_metadata->>'tunnel_alias_octet')::int) "
+                f"FROM {self.table_name};"
+            )
+            row = cursor.fetchone()
+        highest = row[0] if row else None
+        return highest + 1 if highest is not None else self._TUNNEL_ALIAS_BASE
+
+    def get_tunnel_alias(self, hostname: str):
+        """Loopback-alias octet for a reverse-tunnel client, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'tunnel_alias_octet' "
+                f"FROM {self.table_name} WHERE hostname = %s;",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        if not row or row[0] is None:
+            return None
+        return int(row[0])
+
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:
             cursor.execute(

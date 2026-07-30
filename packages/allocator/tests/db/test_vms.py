@@ -1523,3 +1523,25 @@ def test_clear_unhealthy_only_clears_the_allocator_set_flag(db_instance):
     assert "healthy = NULL" in sql
     assert "healthy = 'Unhealthy'" in sql  # the WHERE guard
     assert params == ("LAPTOP-M8NLMMGL",)
+
+
+class TestTunnelAlias:
+    def test_first_allocation_returns_base(self, db_with_mock_cursor):
+        db, cursor = db_with_mock_cursor
+        cursor.fetchone.return_value = (None,)
+        assert db.allocate_tunnel_alias_octet() == 10
+
+    def test_next_allocation_increments(self, db_with_mock_cursor):
+        db, cursor = db_with_mock_cursor
+        cursor.fetchone.return_value = (11,)
+        assert db.allocate_tunnel_alias_octet() == 12
+
+    def test_get_tunnel_alias_returns_int(self, db_with_mock_cursor):
+        db, cursor = db_with_mock_cursor
+        cursor.fetchone.return_value = ("10",)
+        assert db.get_tunnel_alias("vm-1") == 10
+
+    def test_get_tunnel_alias_missing_is_none(self, db_with_mock_cursor):
+        db, cursor = db_with_mock_cursor
+        cursor.fetchone.return_value = (None,)
+        assert db.get_tunnel_alias("vm-1") is None
