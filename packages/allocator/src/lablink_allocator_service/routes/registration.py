@@ -55,7 +55,7 @@ def register_client():
     machine_identity = body.get("machine_identity")
     if not hostname or not machine_identity:
         return jsonify({"error": "hostname and machine_identity required."}), 400
-    if not _VALID_HOSTNAME.fullmatch(hostname):
+    if not isinstance(hostname, str) or not _VALID_HOSTNAME.fullmatch(hostname):
         return jsonify({
             "error": (
                 "hostname must start with a letter or digit and contain only "
@@ -134,6 +134,18 @@ def register_client():
         from lablink_allocator_service import tunnel_manager
 
         tunnel_alias_octet = main.database.allocate_tunnel_alias_octet()
+        # Range-check BEFORE writing the row: allocate_tunnel_alias_octet
+        # never recycles, so a deployment can exhaust it (see its
+        # docstring), and authorize_client would raise ValueError on an
+        # out-of-range octet -- but only after register_client already
+        # inserted the row, which would surface as an unhandled 500.
+        if not tunnel_manager.is_valid_alias_octet(tunnel_alias_octet):
+            return jsonify({
+                "error": (
+                    "This deployment has run out of reverse-tunnel "
+                    "loopback aliases; no more clients can register."
+                )
+            }), 503
         tunnel_prefix = tunnel_manager.path_prefix(hostname, client_secret)
         provider_metadata = {
             **provider_metadata,

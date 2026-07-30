@@ -95,11 +95,27 @@ _MAX_ALIAS_OCTET = 254
 
 
 def _is_safe_client_id(client_id: str) -> bool:
-    return bool(_CLIENT_ID_RE.match(client_id))
+    # fullmatch, not match: `match` + a `$`-anchored pattern still accepts
+    # a single trailing newline ("vm-1\n"), since Python's `$` matches just
+    # before a trailing newline as well as end-of-string. safe_dump blocks
+    # the actual YAML-injection exploit either way, but this boundary
+    # check is what the module docstring claims stops a trailing newline
+    # at all, so it must actually do that.
+    return bool(_CLIENT_ID_RE.fullmatch(client_id))
 
 
 def _is_safe_prefix(prefix: str) -> bool:
-    return bool(_PREFIX_RE.match(prefix))
+    return bool(_PREFIX_RE.fullmatch(prefix))
+
+
+def is_valid_alias_octet(octet: int) -> bool:
+    """True iff *octet* is in the range a /32 loopback rule can express.
+
+    Exposed so callers (routes/registration.py) can reject an
+    out-of-range allocation with a clean error response before writing a
+    client row, instead of finding out only when authorize_client raises.
+    """
+    return _MIN_ALIAS_OCTET <= octet <= _MAX_ALIAS_OCTET
 
 
 # client_id -> (alias_octet, prefix). Module-level, like secret_hash's
@@ -212,7 +228,7 @@ def authorize_client(*, client_id: str, alias_octet: int, prefix: str) -> None:
         raise ValueError(f"unsafe client_id for tunnel restrictions: {client_id!r}")
     if not _is_safe_prefix(prefix):
         raise ValueError(f"unsafe prefix for tunnel restrictions: {prefix!r}")
-    if not (_MIN_ALIAS_OCTET <= alias_octet <= _MAX_ALIAS_OCTET):
+    if not is_valid_alias_octet(alias_octet):
         raise ValueError(
             f"alias_octet {alias_octet!r} out of range "
             f"[{_MIN_ALIAS_OCTET}, {_MAX_ALIAS_OCTET}]"

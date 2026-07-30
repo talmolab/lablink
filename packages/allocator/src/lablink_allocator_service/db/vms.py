@@ -313,13 +313,23 @@ class VmDatabase:
         concurrent threads against a real Postgres in
         test_allocate_tunnel_alias_octet_concurrent_returns_distinct_octets).
 
-        Never recycled: what actually revokes a departed client's
-        reachability is dropping its tunnel restriction (see
-        tunnel_manager.revoke_client), not reclaiming the integer, and a
-        pool table would need the migration machinery this codebase
-        deliberately avoids. Only the final octet varies, so this tops out
-        near 245 concurrent clients — far past any deployment this product
-        targets, and deployments are ephemeral with a fresh DB each time.
+        Monotonic and never recycled -- and, unlike the old MAX-based
+        read, now consumed by every *allocation attempt*, not just every
+        distinct live client: a registration that later 409s (hijack
+        conflict) or IntegrityErrors, and every legitimate
+        re-registration of the same client, each burn one more integer,
+        since the counter is claimed before ``register_client`` is ever
+        called. A pool table would let a value be reclaimed when its
+        client leaves, but needs the migration machinery this codebase
+        deliberately avoids, so this tops out at 254 allocation attempts
+        *ever* for the deployment's lifetime -- not 245 concurrent
+        clients. Callers MUST range-check the return value before using
+        it (see routes/registration.py, which returns 503 rather than
+        calling tunnel_manager.authorize_client with an out-of-range
+        octet) -- deployments are ephemeral with a fresh DB each time, so
+        this ceiling resets on redeploy, but a long-lived deployment with
+        enough registration churn can still exhaust it well before 254
+        distinct clients were ever simultaneously live.
         """
         with self._cursor as cursor:
             cursor.execute(

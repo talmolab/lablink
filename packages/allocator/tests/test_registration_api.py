@@ -949,3 +949,44 @@ def test_register_rejects_a_malformed_hostname(reg_client, bad):
     )
     assert r.status_code == 400
     fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_a_non_string_hostname(reg_client):
+    """A non-string hostname (e.g. a bare JSON int) must 400, not 500 --
+    _VALID_HOSTNAME.fullmatch(hostname) raises TypeError on anything that
+    isn't str/bytes-like."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": 12345, "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_when_tunnel_alias_octets_are_exhausted(reg_client):
+    """allocate_tunnel_alias_octet() never recycles (see its docstring),
+    so a long-lived deployment can exhaust the 1-254 range. That must
+    surface as a clean 503 before the row is written -- not an unhandled
+    500 from authorize_client raising on an out-of-range octet after
+    register_client already inserted the row."""
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.allocate_tunnel_alias_octet.return_value = 255
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 503
+    fake_db.register_client.assert_not_called()

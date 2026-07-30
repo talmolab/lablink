@@ -96,6 +96,24 @@ def test_authorize_rejects_out_of_range_alias_octet(tm):
     assert not tm.RESTRICTIONS_PATH.exists()
 
 
+def test_authorize_rejects_a_trailing_newline_client_id(tm):
+    # `.match()` + a `$`-anchored pattern still accepts a single trailing
+    # newline (Python's `$` matches just before a trailing newline, not
+    # only end-of-string) -- fullmatch is what actually closes this.
+    # safe_dump blocks the real YAML-injection exploit either way, but
+    # the module docstring claims this check stops a trailing newline,
+    # so it must.
+    with pytest.raises(ValueError):
+        tm.authorize_client(client_id="vm-1\n", alias_octet=10, prefix="tun-vm-1-abc")
+    assert not tm.RESTRICTIONS_PATH.exists()
+
+
+def test_authorize_rejects_a_trailing_newline_prefix(tm):
+    with pytest.raises(ValueError):
+        tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc\n")
+    assert not tm.RESTRICTIONS_PATH.exists()
+
+
 def test_render_cannot_be_forced_into_a_second_top_level_entry(tm):
     # Defense in depth, independent of authorize_client's validation: even
     # if a malicious value reached the module-level dict directly, the
