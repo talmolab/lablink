@@ -292,7 +292,26 @@ class VmDatabase:
     _TUNNEL_ALIAS_BASE = 10
 
     def allocate_tunnel_alias_octet(self) -> int:
-        """Next unused loopback-alias octet for a reverse-tunnel client.
+        """Atomically claim the next unused loopback-alias octet for a
+        reverse-tunnel client.
+
+        Used to be a bare ``SELECT MAX((provider_metadata->>...)::int)``
+        over client rows -- a pure read with no claim, so two concurrent
+        registrations could observe the same "current max" before either
+        one's INSERT was even issued and mint the same octet. A classroom
+        registering many clients at once is the normal case, and this
+        repo already has a documented VM-assignment race of exactly this
+        shape (see assign_vm).
+
+        Fixed with a counter row in the existing ``settings`` table
+        (still no schema change): ``INSERT ... ON CONFLICT DO UPDATE`` is
+        a single statement that self-initializes the counter on first use
+        and otherwise increments it, both atomically. Postgres re-checks
+        the UPDATE arm's SET expression against the row's just-committed
+        value for any caller that was blocked waiting on it, so two
+        interleaved calls can never return the same value (verified with
+        concurrent threads against a real Postgres in
+        test_allocate_tunnel_alias_octet_concurrent_returns_distinct_octets).
 
         Never recycled: what actually revokes a departed client's
         reachability is dropping its tunnel restriction (see
@@ -304,12 +323,15 @@ class VmDatabase:
         """
         with self._cursor as cursor:
             cursor.execute(
-                f"SELECT MAX((provider_metadata->>'tunnel_alias_octet')::int) "
-                f"FROM {self.table_name};"
+                "INSERT INTO settings (key, value) "
+                "VALUES ('tunnel_alias_next_octet', %s) "
+                "ON CONFLICT (key) DO UPDATE "
+                "SET value = (settings.value::int + 1)::text "
+                "RETURNING value::int;",
+                (str(self._TUNNEL_ALIAS_BASE),),
             )
             row = cursor.fetchone()
-        highest = row[0] if row else None
-        return highest + 1 if highest is not None else self._TUNNEL_ALIAS_BASE
+        return row[0]
 
     def get_tunnel_alias(self, hostname: str):
         """Loopback-alias octet for a reverse-tunnel client, or None."""

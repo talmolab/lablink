@@ -1528,23 +1528,76 @@ def test_clear_unhealthy_only_clears_the_allocator_set_flag(db_instance):
 def test_allocate_tunnel_alias_octet_returns_base_when_empty(
     db_instance, mock_db_connection
 ):
+    """First-ever allocation self-initializes the settings counter at
+    _TUNNEL_ALIAS_BASE via the INSERT arm of the upsert."""
     _, mock_cursor, _ = mock_db_connection
-    mock_cursor.fetchone.return_value = (None,)
+    mock_cursor.fetchone.return_value = (10,)
     assert db_instance.allocate_tunnel_alias_octet() == 10
-    sql = mock_cursor.execute.call_args[0][0]
-    assert "provider_metadata->>'tunnel_alias_octet'" in sql
-    assert "MAX(" in sql
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "settings" in sql
+    assert "ON CONFLICT" in sql
+    assert params == ("10",)
 
 
 def test_allocate_tunnel_alias_octet_increments_from_max(
     db_instance, mock_db_connection
 ):
+    """A subsequent allocation takes the ON CONFLICT DO UPDATE arm,
+    atomically incrementing the existing counter row."""
     _, mock_cursor, _ = mock_db_connection
-    mock_cursor.fetchone.return_value = (11,)
+    mock_cursor.fetchone.return_value = (12,)
     assert db_instance.allocate_tunnel_alias_octet() == 12
-    sql = mock_cursor.execute.call_args[0][0]
-    assert "provider_metadata->>'tunnel_alias_octet'" in sql
-    assert "MAX(" in sql
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "settings" in sql
+    assert "ON CONFLICT" in sql
+    assert "value::int + 1" in sql
+    assert params == ("10",)
+
+
+def test_allocate_tunnel_alias_octet_concurrent_returns_distinct_octets(real_db):
+    """Two interleaved allocations must never return the same octet.
+
+    allocate_tunnel_alias_octet() used to be a bare SELECT MAX(...): two
+    concurrent registrations could read the same "current max" before
+    either wrote anything and mint the same octet -- this repo's own
+    documented VM-assignment race (see assign_vm), just with a read that
+    never claims anything. The fix is a single atomic UPSERT against a
+    counter row in `settings`, verified here with real interleaved
+    threads against a real Postgres."""
+    import threading
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS settings ("
+            "key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        cur.execute("DELETE FROM settings WHERE key = 'tunnel_alias_next_octet'")
+
+    n = 8
+    barrier = threading.Barrier(n)
+    results: list = []
+    errors: list[BaseException] = []
+    lock = threading.Lock()
+
+    def allocate():
+        try:
+            barrier.wait(timeout=5)
+            octet = real_db.allocate_tunnel_alias_octet()
+            with lock:
+                results.append(octet)
+        except BaseException as e:  # noqa: BLE001
+            with lock:
+                errors.append(e)
+
+    threads = [threading.Thread(target=allocate) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Thread errors: {errors}"
+    assert len(results) == n
+    assert len(set(results)) == n, f"Duplicate octets allocated: {results}"
 
 
 def test_get_tunnel_alias_returns_int(db_instance, mock_db_connection):

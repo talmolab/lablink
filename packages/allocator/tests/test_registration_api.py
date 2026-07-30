@@ -1,6 +1,8 @@
 """Tests for the registration API + register-token at-rest hashing."""
 from unittest.mock import MagicMock
 
+import pytest
+
 
 def test_register_token_global_exists():
     from lablink_allocator_service import main
@@ -834,3 +836,116 @@ def test_overlay_hostname_404_when_not_an_overlay_client(client, monkeypatch):
     )
 
     assert resp.status_code == 404
+
+
+# ---- reverse_tunnel registration ------------------------------------------
+
+def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypatch):
+    from lablink_allocator_service import main
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.allocate_tunnel_alias_octet.return_value = 12
+    authorized = {}
+    monkeypatch.setattr(
+        "lablink_allocator_service.tunnel_manager.authorize_client",
+        lambda **kw: authorized.update(kw),
+    )
+    # canonical_base_url only echoes the public https scheme/host once
+    # ssl.provider != "none" opens the ProxyFix gate (see
+    # test_register_response_honors_x_forwarded_proto) -- otherwise the
+    # Flask test client's default request.host_url ("http://localhost/")
+    # would be used instead.
+    monkeypatch.setattr(main.cfg.ssl, "provider", "letsencrypt", raising=False)
+
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={
+            "Authorization": "Bearer tk_test_register",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "allocator.example.com",
+        },
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["tunnel_bind_addr"] == "127.0.0.12"
+    assert body["tunnel_path_prefix"].startswith("tun-vm-1-")
+    # The URL is the allocator's BASE address; the prefix travels separately
+    # because the client passes it with -P and ignores the URL's path.
+    assert "/tunnel/" not in body["tunnel_url"]
+    assert body["tunnel_url"].rstrip("/") == "https://allocator.example.com"
+
+    kw = fake_db.register_client.call_args.kwargs
+    assert kw["provider_metadata"]["tunnel_alias_octet"] == 12
+    assert kw["provider_metadata"]["tunnel_path_prefix"] == body["tunnel_path_prefix"]
+    # The client may bind only its own alias.
+    assert authorized == {
+        "client_id": "vm-1", "alias_octet": 12,
+        "prefix": body["tunnel_path_prefix"],
+    }
+
+
+def test_plain_registration_against_a_tunnel_allocator_is_rejected(reg_client):
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1", "provider": "manual"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "reverse_tunnel" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_tunnel_sentinel_against_a_lan_direct_allocator_is_rejected(reg_client):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
+
+
+def test_response_omits_tunnel_fields_when_not_a_tunnel_client(reg_client):
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert "tunnel_url" not in r.get_json()
+
+
+@pytest.mark.parametrize("bad", [
+    "vm-1\nrestrictions:", "../../etc/passwd", "vm 1", "-leading-dash", "",
+])
+def test_register_rejects_a_malformed_hostname(reg_client, bad):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": bad, "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
