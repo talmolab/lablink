@@ -55,6 +55,9 @@ FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 # dependencies, so a cross-package import would fail there. Guarded by
 # test_deploy_compose.py::TestCanonicalUrlFile::test_filename_matches_allocator.
 CANONICAL_URL_FILENAME = "allocator-url"
+# Compose's own conventional override filename — auto-loaded from the project
+# directory with no `-f` needed. Only written when connectivity is "relay".
+RELAY_OVERRIDE_FILENAME = "docker-compose.override.yml"
 
 console = Console()
 
@@ -157,6 +160,19 @@ def render_compose_dir(
     template = resources.files("lablink_cli.templates").joinpath(template_name)
     (target / "docker-compose.yml").write_text(template.read_text())
 
+    # 1b. Relay adds an override rather than a third base template (see the
+    #     override file's own header). Deleted when connectivity isn't relay,
+    #     so a redeploy that switches away stops publishing frps's port —
+    #     `docker compose up` would otherwise keep honouring a stale override.
+    override_path = target / RELAY_OVERRIDE_FILENAME
+    if cfg.manual.connectivity == "relay":
+        override_template = resources.files("lablink_cli.templates").joinpath(
+            "docker-compose-relay-override.yml"
+        )
+        override_path.write_text(override_template.read_text())
+    else:
+        override_path.unlink(missing_ok=True)
+
     # 2. Render .env — only the values the compose template substitutes.
     #    No DB or admin creds here: they're inside config.yaml. Read the
     #    OLD .env (if any) before overwriting it, so a redeploy that
@@ -176,6 +192,14 @@ def render_compose_dir(
         env_lines.append(
             f"TAILSCALE_HOSTNAME=lablink-allocator-{cfg.deployment_name or 'lablink'}"
         )
+    if cfg.manual.connectivity == "relay":
+        # Both are substituted by the relay override; the token also has to
+        # reach the container's start.sh, which gates `frps` on it. Unlike
+        # TS_AUTHKEY there is no carry-forward-from-previous-.env dance —
+        # this value lives in config.yaml (minted by `lablink configure`),
+        # so every render already has it.
+        env_lines.append(f"FRPS_AUTH_TOKEN={cfg.manual.frps_auth_token}")
+        env_lines.append(f"FRPS_BIND_PORT={cfg.manual.frps_bind_port}")
     env_path.write_text("\n".join(env_lines) + "\n")
     env_path.chmod(0o600)
 
@@ -331,6 +355,43 @@ def run_deploy_compose(
             "allocator."
         )
         raise SystemExit(1)
+
+    # Preflight: relay's two load-bearing config values. get_config_errors()
+    # rejects both as well (so the wizard/`show-config`/`doctor` catch them),
+    # but `lablink deploy` never calls that validator for the manual provider
+    # and the allocator doesn't validate its config at startup either — this
+    # is the only gate a hand-edited config.yaml passes through. Without it,
+    # a missing token deploys an allocator whose start.sh silently skips frps
+    # (leaving every relay client dialling a port nothing listens on), and a
+    # malformed relay_server_addr turns into a 500 on the first relay
+    # registration rather than an error here.
+    if cfg.manual.connectivity == "relay":
+        from lablink_allocator_service.validate_config import (
+            MIN_FRPS_TOKEN_LENGTH,
+            is_weak_frps_token,
+        )
+
+        if not cfg.manual.relay_server_addr:
+            console.print(
+                "[red]manual.connectivity is 'relay' but "
+                "manual.relay_server_addr is empty.[/red]\n"
+                "Relay clients' frpc dial this host:port to reach the "
+                "allocator's frps — set it to an address reachable from the "
+                f"clients' network (e.g. 'allocator.example.com:"
+                f"{cfg.manual.frps_bind_port}')."
+            )
+            raise SystemExit(1)
+        if is_weak_frps_token(cfg.manual.frps_auth_token):
+            console.print(
+                "[red]manual.connectivity is 'relay' but "
+                "manual.frps_auth_token is empty, a known example value, or "
+                f"shorter than {MIN_FRPS_TOKEN_LENGTH} characters.[/red]\n"
+                "frps's control port is reachable from client networks by "
+                "construction and gets scanned within minutes of exposure — "
+                "set a strong token (`lablink configure` generates one) "
+                "before deploying."
+            )
+            raise SystemExit(1)
 
     # Preflight: docker on PATH.
     if shutil.which("docker") is None:
@@ -716,21 +777,24 @@ def _print_summary(
     # insert a hard newline mid-command — that would break the
     # operator's copy-paste.
     mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    relay = cfg.manual.connectivity == "relay"
+    # Neither kind of off-LAN client can use the LAN URL above: a
+    # mesh-overlay client reaches the allocator over the tailnet, a relay
+    # client dials out to it from a network that won't carry Tailscale at
+    # all. Both need whatever address is actually routable from their side.
+    off_lan = mesh_overlay or relay
     # Only substitute when we actually have the real URL — funnel_active
     # can be True while funnel_url is None (enable succeeded but the
     # status lookup didn't match), and a guessed fallback here would be
     # exactly the wrong URL this function used to print.
-    funnel_url_used = mesh_overlay and funnel_active and bool(funnel_url)
+    funnel_url_used = off_lan and funnel_active and bool(funnel_url)
+    if funnel_url_used:
+        # When Funnel is live its public URL IS reachable from anywhere
+        # with internet access, so prefer it for the off-LAN hints
+        # specifically — lan_direct clients genuinely are on the LAN, so
+        # their own hint below keeps using register_url as-is.
+        register_url = funnel_url
     if mesh_overlay:
-        # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
-        # the allocator's LAN at all — the LAN URL above is unreachable
-        # from it regardless of whether we detected one. When Funnel is
-        # live, its public URL actually IS reachable from anywhere with
-        # internet access, so prefer it here specifically — but only for
-        # this mesh-overlay hint; lan_direct clients genuinely are on the
-        # LAN, so their own hint below keeps using register_url as-is.
-        if funnel_url_used:
-            register_url = funnel_url
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "
@@ -742,6 +806,18 @@ def _print_summary(
             f"--register-token {register_token or '<token>'} "
             "--overlay-hostname <name> --tailscale-authkey <key>"
         )
+    elif relay:
+        console.print(
+            "\n[bold]Next step:[/bold] for each relay client (a box or "
+            "workload whose network won't carry Tailscale), open a terminal "
+            "inside it and run (hostname/machine-identity/GPU are "
+            "auto-detected; the tunnel's secrets are minted by the "
+            "allocator, so --relay takes no arguments):"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'} --relay"
+        )
     else:
         console.print("\n[bold]Next step:[/bold] on each BYO box on the same LAN, run")
         register_cmd = (
@@ -749,12 +825,26 @@ def _print_summary(
             f"--register-token {register_token or '<token>'}"
         )
     console.print(register_cmd, soft_wrap=True, highlight=False)
-    if mesh_overlay:
+    if off_lan:
         console.print(
             "  [dim]Registering ahead of time from elsewhere instead? "
             "Add --no-run-locally to print secrets for your own "
             "workload submission instead of running here, along with "
             "--hostname/--machine-identity.[/dim]"
+        )
+    if relay:
+        # The stack publishes frps's port on this host, but getting the
+        # address clients are told to dial (manual.relay_server_addr) to
+        # land on it is outside what compose can do — and Funnel is not an
+        # option for it, since Funnel only carries HTTPS, not raw TCP.
+        console.print(
+            f"  [dim]frps is published on this host at port "
+            f"{cfg.manual.frps_bind_port}; clients dial "
+            f"{cfg.manual.relay_server_addr}. Make sure that address routes "
+            "here (port-forward, VPN, public IP) — Tailscale Funnel can't "
+            "carry it.[/dim]",
+            soft_wrap=True,
+            highlight=False,
         )
     if not lan_url and not funnel_url_used:
         # If we fell back to localhost, the printed command only works

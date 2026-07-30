@@ -1,0 +1,29 @@
+# Rendered by `lablink deploy` (manual provider, connectivity: relay) — DO
+# NOT edit by hand. Re-run `lablink deploy` to regenerate after config
+# changes.
+#
+# An override rather than a third base template: `docker-compose.yml` already
+# forks on whether a Tailscale sidecar is needed, and relay is independent of
+# that fork — a base-template variant per combination would be four files.
+# Compose auto-loads `docker-compose.override.yml` from the project directory
+# (which is what `docker compose up` runs in) and *concatenates* `ports` with
+# the base file's, so this publishes frps's control port without touching
+# either base template. render_compose_dir deletes this file when connectivity
+# is no longer relay, which is what un-publishes that port on the next deploy.
+#
+# FRPS_AUTH_TOKEN is what the allocator image's start.sh gates its `frps`
+# launch on — no token, no tunnel server. It is referenced from `.env` rather
+# than inlined here so every deployment secret stays in the one file
+# render_compose_dir already chmods to 0600.
+services:
+  allocator:
+    environment:
+      - FRPS_AUTH_TOKEN=${FRPS_AUTH_TOKEN}
+      - FRPS_BIND_PORT=${FRPS_BIND_PORT}
+    ports:
+      # Relay clients' frpc dial this port from outside the operator's host,
+      # so unlike the allocator's HTTP port it is published host:container
+      # 1:1 — manual.relay_server_addr is what the clients are told to dial,
+      # and making that address land here (port-forward, VPN, public IP) is
+      # the operator's job, not this stack's.
+      - "${FRPS_BIND_PORT}:${FRPS_BIND_PORT}"

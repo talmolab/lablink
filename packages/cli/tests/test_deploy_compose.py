@@ -19,6 +19,9 @@ def _manual_cfg(
     connectivity="lan_direct",
     overlay_tailnet="",
     participant_exposure="none",
+    relay_server_addr="",
+    frps_auth_token="",
+    frps_bind_port=7000,
 ):
     cfg = Config()
     cfg.provider = "manual"
@@ -30,7 +33,19 @@ def _manual_cfg(
     cfg.manual.connectivity = connectivity
     cfg.manual.overlay_tailnet = overlay_tailnet
     cfg.manual.participant_exposure = participant_exposure
+    cfg.manual.relay_server_addr = relay_server_addr
+    cfg.manual.frps_auth_token = frps_auth_token
+    cfg.manual.frps_bind_port = frps_bind_port
     return cfg
+
+
+def _relay_cfg(**kwargs):
+    """A relay config that passes every preflight, so a test overriding one
+    value is testing that value and not a missing prerequisite."""
+    kwargs.setdefault("connectivity", "relay")
+    kwargs.setdefault("relay_server_addr", "allocator.example.com:7000")
+    kwargs.setdefault("frps_auth_token", "a-strong-enough-frps-token")
+    return _manual_cfg(**kwargs)
 
 
 class TestRenderComposeDir:
@@ -144,6 +159,80 @@ class TestRenderComposeDir:
             "ALLOCATOR_IMAGE=ghcr.io/talmolab/lablink-allocator-image:v1.2.3"
             in env_content
         )
+
+
+class TestRenderComposeDirRelay:
+    def test_env_carries_token_and_bind_port(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _relay_cfg(frps_bind_port=7100)
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        env_content = (target / ".env").read_text()
+        assert "FRPS_AUTH_TOKEN=a-strong-enough-frps-token" in env_content
+        assert "FRPS_BIND_PORT=7100" in env_content
+        # The token is a deployment secret; it may only ever land in the
+        # file render_compose_dir chmods to 0600.
+        assert (target / ".env").stat().st_mode & 0o777 == 0o600
+        assert "a-strong-enough-frps-token" not in (
+            target / "docker-compose.override.yml"
+        ).read_text()
+
+    def test_override_publishes_port_and_sets_container_env(self, tmp_path):
+        """The allocator image's start.sh gates `frps` on FRPS_AUTH_TOKEN
+        reaching the *container*, and relay clients dial the published port
+        from outside this host — both come from the override file."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _relay_cfg()
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        override = (target / "docker-compose.override.yml").read_text()
+        assert "FRPS_AUTH_TOKEN=${FRPS_AUTH_TOKEN}" in override
+        assert "FRPS_BIND_PORT=${FRPS_BIND_PORT}" in override
+        assert '"${FRPS_BIND_PORT}:${FRPS_BIND_PORT}"' in override
+        # Must attach to the allocator service — anything else and compose
+        # would declare a second service instead of merging into it.
+        assert "allocator:" in override
+
+    def test_non_relay_writes_no_override_or_env(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(connectivity="lan_direct")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        assert not (target / "docker-compose.override.yml").exists()
+        assert "FRPS" not in (target / ".env").read_text()
+
+    def test_switching_away_from_relay_removes_stale_override(self, tmp_path):
+        """Regression: compose auto-loads docker-compose.override.yml from
+        the project directory, so a leftover file would keep publishing
+        frps's port on every later deploy of a non-relay config."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        target = tmp_path / "compose"
+        render_compose_dir(_relay_cfg(), target)
+        assert (target / "docker-compose.override.yml").exists()
+
+        render_compose_dir(_manual_cfg(connectivity="lan_direct"), target)
+        assert not (target / "docker-compose.override.yml").exists()
+
+    def test_relay_uses_plain_base_template_no_sidecar(self, tmp_path):
+        """relay needs no Tailscale at all — that's the entire point of it.
+        The base template must stay the sidecar-free one, with the override
+        supplying the only relay-specific bits."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _relay_cfg()
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "tailscale/tailscale" not in compose_yaml
+        assert "TS_AUTHKEY" not in (target / ".env").read_text()
 
 
 class TestRenderComposeDirMeshOverlay:
@@ -538,6 +627,49 @@ class TestLanDirectFunnelRejectedAtDeploy:
         assert "'tailscale_funnel'" in out
         assert "'lan_direct'" in out
         assert "mesh_overlay" in out
+
+
+class TestRelayPreflight:
+    """`get_config_errors` rejects both of these too, but `lablink deploy`
+    never calls that validator for the manual provider and the allocator
+    doesn't validate its config at startup — this is the only gate a
+    hand-edited config.yaml passes through."""
+
+    def test_missing_relay_server_addr_is_rejected(self, tmp_path, capsys):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _relay_cfg(relay_server_addr="")
+        with pytest.raises(SystemExit):
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        assert "relay_server_addr" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("token", ["", "lablink", "short"])
+    def test_weak_frps_token_is_rejected(self, token, tmp_path, capsys):
+        """An empty token silently disables frps inside the container (start.sh
+        gates on it), and a guessable one is exposed to the same scanning as a
+        Funnel-published admin panel — frps's port is reachable from client
+        networks by construction."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _relay_cfg(frps_auth_token=token)
+        with pytest.raises(SystemExit):
+            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+        assert "frps_auth_token" in capsys.readouterr().out
+
+    def test_relay_needs_no_tailscale_authkey(self, tmp_path):
+        """Regression guard: relay exists for networks that can't run
+        Tailscale, so it must not be caught by the sidecar authkey gate.
+        Reaching the docker-on-PATH preflight (or beyond) is enough — the
+        authkey check runs before it and would have exited first."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with (
+            patch(
+                "lablink_cli.commands.deploy_compose.shutil.which", return_value=None
+            ),
+            pytest.raises(SystemExit),
+        ):
+            run_deploy_compose(_relay_cfg(), yes=True, workdir_root=tmp_path)
 
 
 class TestComposeUp:
@@ -1459,6 +1591,75 @@ class TestPrintSummaryMeshOverlay:
         assert "--overlay-hostname" not in out
         assert "--tailscale-authkey" not in out
         assert "--no-run-locally" not in out
+
+
+class TestPrintSummaryRelay:
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_next_step_shows_valueless_relay_flag(self, mock_extract, mock_lan, capsys):
+        """--relay takes no arguments (every tunnel value is minted by the
+        allocator), and a relay client is not on the LAN — so neither the
+        lan_direct wording nor mesh_overlay's flags belong here."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(_relay_cfg())
+
+        out = capsys.readouterr().out
+        assert f"--register-token {token} --relay" in out
+        assert "on the same LAN" not in out
+        assert "--overlay-hostname" not in out
+        assert "--tailscale-authkey" not in out
+        # Same off-LAN opt-out hint mesh_overlay gets.
+        assert "--no-run-locally" in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_reports_published_port_and_dialled_address(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Publishing the port is all compose can do; making
+        relay_server_addr route to it is the operator's job, so say both."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _relay_cfg(relay_server_addr="relay.example.com:7100", frps_bind_port=7100)
+        )
+
+        out = capsys.readouterr().out
+        assert "7100" in out
+        assert "relay.example.com:7100" in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_register_hint_uses_public_url_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """A relay client is off-LAN by definition, so the LAN IP is the
+        wrong address to hand it — prefer the Funnel URL when one is live,
+        exactly as the mesh-overlay hint does."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _relay_cfg(participant_exposure="tailscale_funnel"),
+            funnel_active=True,
+            funnel_url="https://lablink-allocator-testlab.example.ts.net",
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            "--allocator-url https://lablink-allocator-testlab.example.ts.net" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
 
 
 class TestPrintSummaryFunnel:
