@@ -869,6 +869,7 @@ def test_register_relay_allocates_alias_and_spawns_visitor(reg_client, monkeypat
         main.cfg.manual, "frps_auth_token", "a-long-enough-frps-token",
         raising=False,
     )
+    monkeypatch.setattr(main.cfg.manual, "frps_bind_port", 7000, raising=False)
     mock_start_visitor = MagicMock()
     monkeypatch.setattr(
         "lablink_allocator_service.relay_manager.start_visitor",
@@ -893,14 +894,21 @@ def test_register_relay_allocates_alias_and_spawns_visitor(reg_client, monkeypat
     assert kw["provider_metadata"]["relay_alias_octet"] == 12
     assert kw["provider_metadata"]["relay_secret_key"] == body["relay_secret_key"]
 
-    # auth_token is load-bearing: without it the spawned frpc is rejected by
-    # frps and exits immediately, so pin that the route passes it through.
+    # Two things pinned here:
+    # - auth_token is load-bearing: without it the spawned frpc is rejected
+    #   by frps and exits immediately.
+    # - the visitor dials frps over LOOPBACK, not the public
+    #   relay_server_addr clients use. Using the public address sent every
+    #   desktop byte out to the internet and back to a service in this same
+    #   container: measured 58-350ms vs 4-5ms, ~90% of the tunnel's latency.
     mock_start_visitor.assert_called_once_with(
         client_id="vm-1", alias_octet=12,
         secret_key=body["relay_secret_key"],
-        server_addr="allocator.example.com", server_port=7000,
+        server_addr="127.0.0.1", server_port=7000,
         auth_token="a-long-enough-frps-token",
     )
+    # The public address still goes to the CLIENT, which is what dials it.
+    assert body["relay_server_addr"] == "allocator.example.com:7000"
 
 
 def test_register_response_omits_relay_fields_when_not_relay(reg_client):

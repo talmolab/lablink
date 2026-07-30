@@ -158,11 +158,22 @@ def register_client():
     if relay_secret_key is not None:
         from lablink_allocator_service import relay_manager
 
-        server_addr, _, server_port = main.cfg.manual.relay_server_addr.rpartition(":")
+        # Dial frps over loopback, NOT via manual.relay_server_addr. That
+        # config value is the address *clients* dial, so it has to be
+        # publicly reachable -- and using it here sent every byte of every
+        # desktop session out to that public address and back to a service
+        # running in this very container. Measured on a cross-LAN test
+        # (2026-07-30): 58-350ms per connect via the public address vs 4-5ms
+        # over loopback, which was ~90% of a 0.69-1.42s tunnel round trip.
+        # Assumes frps is the one start.sh launches in this container, the
+        # only shape supported today -- relay_manager.frp_status() probes
+        # 127.0.0.1 on the same assumption. Both must gain a config knob
+        # together if frps is ever allowed to run off-box.
         relay_manager.start_visitor(
             client_id=client_id, alias_octet=relay_alias_octet,
             secret_key=relay_secret_key,
-            server_addr=server_addr, server_port=int(server_port),
+            server_addr="127.0.0.1",
+            server_port=main.cfg.manual.frps_bind_port,
             auth_token=main.cfg.manual.frps_auth_token,
         )
 

@@ -37,9 +37,16 @@ def test_start_visitor_writes_config_and_spawns_frpc(tmp_path, monkeypatch):
 
 
 def test_start_visitor_is_idempotent_when_already_running(tmp_path, monkeypatch):
+    """A live visitor whose on-disk config already matches is left alone."""
     from lablink_allocator_service import relay_manager
 
     monkeypatch.setattr(relay_manager, "VISITOR_CONFIG_DIR", tmp_path)
+    args = dict(
+        client_id="vm-1", alias_octet=12, secret_key="sek",
+        server_addr="a", server_port=7000, auth_token="ctl-token",
+    )
+    # The config a previous call would have written for these exact args.
+    (tmp_path / "vm-1.toml").write_text(relay_manager._visitor_config_toml(**args))
     running_proc = MagicMock()
     running_proc.poll.return_value = None  # still running
     monkeypatch.setattr(relay_manager, "_visitors", {"vm-1": running_proc})
@@ -47,11 +54,43 @@ def test_start_visitor_is_idempotent_when_already_running(tmp_path, monkeypatch)
     with patch(
         "lablink_allocator_service.relay_manager.subprocess.Popen"
     ) as mock_popen:
-        relay_manager.start_visitor(
-            client_id="vm-1", alias_octet=12, secret_key="sek",
-            server_addr="a", server_port=7000, auth_token="ctl-token",
-        )
+        relay_manager.start_visitor(**args)
     mock_popen.assert_not_called()
+
+
+def test_start_visitor_replaces_live_visitor_when_secret_changed(
+    tmp_path, monkeypatch
+):
+    """Re-registration mints a NEW secret and alias octet (see
+    register_client), so a live visitor holding the previous pairing must be
+    replaced, not kept. Observed live 2026-07-30: the stale visitor kept
+    listening on the old alias with the old secret, frps answered
+    `visitor connection ... auth failed`, and every health signal still
+    reported the client as fine."""
+    from lablink_allocator_service import relay_manager
+
+    monkeypatch.setattr(relay_manager, "VISITOR_CONFIG_DIR", tmp_path)
+    old = dict(
+        client_id="vm-1", alias_octet=10, secret_key="old-secret",
+        server_addr="a", server_port=7000, auth_token="ctl-token",
+    )
+    (tmp_path / "vm-1.toml").write_text(relay_manager._visitor_config_toml(**old))
+    running_proc = MagicMock()
+    running_proc.poll.return_value = None  # still running
+    monkeypatch.setattr(relay_manager, "_visitors", {"vm-1": running_proc})
+
+    with patch(
+        "lablink_allocator_service.relay_manager.subprocess.Popen"
+    ) as mock_popen:
+        relay_manager.start_visitor(**{**old, "alias_octet": 11,
+                                      "secret_key": "new-secret"})
+
+    mock_popen.assert_called_once()
+    running_proc.terminate.assert_called_once()
+    content = (tmp_path / "vm-1.toml").read_text()
+    assert 'secretKey = "new-secret"' in content
+    assert 'bindAddr = "127.0.0.11"' in content
+    assert "old-secret" not in content
 
 
 def test_start_visitor_respawns_when_tracked_process_is_dead(tmp_path, monkeypatch):

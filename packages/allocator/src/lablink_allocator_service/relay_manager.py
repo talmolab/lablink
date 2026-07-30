@@ -107,10 +107,19 @@ def start_visitor(
 ) -> None:
     """Spawn this client's dedicated frpc-visitor subprocess.
 
-    Idempotent for a *live* visitor: an already-running visitor for this
-    client_id is left alone (re-registration is expected to reuse the same
-    alias/secret rather than churn the subprocess). A tracked-but-dead
-    visitor is replaced.
+    Idempotent only for a live visitor whose rendered config is *identical*
+    to what this call wants. A live visitor with a different config is
+    replaced, because re-registration does NOT reuse the previous
+    alias/secret: `register_client` mints a fresh `secrets.token_urlsafe(24)`
+    and allocates a new alias octet every time. The earlier
+    leave-a-live-visitor-alone rule assumed otherwise, and stranded the old
+    pairing -- observed live 2026-07-30, where the DB recorded alias .11 /
+    secret 8pJLHl... while the running visitor still listened on .10 with
+    secret A3Oc9h..., so frps logged `visitor connection ... auth failed`
+    and nginx dialled an alias nothing was bound to. Every other signal
+    (frps logins, the client's "start proxy success", /api/health) reported
+    healthy, and the trigger was the most ordinary operator action there
+    is: retrying a failed registration.
 
     Raises ValueError for a client_id outside the hostname charset, before
     any filesystem or subprocess work happens.
@@ -119,9 +128,19 @@ def start_visitor(
         raise ValueError(
             f"unsafe client_id for a relay visitor config: {client_id!r}"
         )
+    desired = _visitor_config_toml(
+        client_id=client_id, alias_octet=alias_octet,
+        secret_key=secret_key, server_addr=server_addr,
+        server_port=server_port, auth_token=auth_token,
+    )
     running = _visitors.get(client_id)
     if running is not None and running.poll() is None:
-        return
+        config_path = _visitor_config_path(client_id)
+        if config_path.exists() and config_path.read_text() == desired:
+            return
+        # Config changed under a live visitor: tear it down so the write
+        # below and the fresh Popen carry the new pairing.
+        stop_visitor(client_id)
     VISITOR_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     # mkdir(mode=) is masked by umask and is a no-op when the directory
     # already exists, so set the mode explicitly.
