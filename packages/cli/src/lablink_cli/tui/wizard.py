@@ -307,13 +307,12 @@ class ManualConnectivityScreen(Screen):
                 "Client connectivity",
                 classes="step-title",
             )
+            # Kept to two lines on purpose: the radio labels below already
+            # name each mode, and every extra line of prose here pushes the
+            # address field further past the fold of a 24-row terminal —
+            # where nothing scrolls it back into view (Tab doesn't, measured).
             yield Label(
-                "How the student's browser reaches a client's KasmVNC desktop.\n"
-                "lan_direct: the client is on the allocator's own LAN (default).\n"
-                "mesh_overlay: the client isn't on the allocator's LAN (e.g. a\n"
-                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.\n"
-                "relay: the client dials out to the allocator through an frp\n"
-                "tunnel — for networks that won't carry Tailscale at all.",
+                "How the student's browser reaches a client's KasmVNC desktop.",
                 classes="step-description",
             )
 
@@ -335,34 +334,36 @@ class ManualConnectivityScreen(Screen):
                     id="connectivity-relay",
                 )
 
-            yield Label(
-                "Tailscale tailnet domain (used by mesh_overlay and/or "
-                "participant exposure below, e.g. example.ts.net)",
-                classes="field-label",
-            )
-            yield Input(
-                value=cfg.manual.overlay_tailnet or "",
-                placeholder="example.ts.net",
-                id="overlay-tailnet",
-            )
+            # Both mode-specific fields live in their own container so
+            # _sync_mode_fields can hide the one this deployment doesn't
+            # use. Every label line stays under ~70 columns: a single long
+            # line widens the whole VerticalScroll past an 80-column
+            # terminal, which clips *every* label on the screen
+            # horizontally, and the wizard has no other line-wrapping.
+            with Container(id="overlay-tailnet-field"):
+                yield Label(
+                    "Tailscale tailnet domain — mesh_overlay and/or Funnel",
+                    classes="field-label",
+                )
+                yield Input(
+                    value=cfg.manual.overlay_tailnet or "",
+                    placeholder="example.ts.net",
+                    id="overlay-tailnet",
+                )
 
-            # Shown unconditionally, same as the tailnet field above — the
-            # validator below is what enforces "required for relay", so the
-            # screen needs no show/hide wiring. The matching frps_auth_token
-            # is generated on Next rather than collected: the allocator hands
-            # it to each client in the registration response, so the operator
-            # never types it anywhere.
-            yield Label(
-                "Relay server address (used by relay, the host:port clients' "
-                "frpc dial to reach this allocator, e.g. "
-                "allocator.example.com:7000)",
-                classes="field-label",
-            )
-            yield Input(
-                value=cfg.manual.relay_server_addr or "",
-                placeholder="allocator.example.com:7000",
-                id="relay-server-addr",
-            )
+            # The matching frps_auth_token is generated on Next rather than
+            # collected: the allocator hands it to each client in the
+            # registration response, so the operator never types it.
+            with Container(id="relay-server-addr-field"):
+                yield Label(
+                    "Relay server address — host:port the clients' frpc dial",
+                    classes="field-label",
+                )
+                yield Input(
+                    value=cfg.manual.relay_server_addr or "",
+                    placeholder="allocator.example.com:7000",
+                    id="relay-server-addr",
+                )
 
             yield Label(
                 "Participant exposure",
@@ -370,13 +371,8 @@ class ManualConnectivityScreen(Screen):
             )
             yield Label(
                 "How participants (not clients) reach the allocator when it\n"
-                "isn't on their LAN. Independent of connectivity above — you\n"
-                "can combine either connectivity option with either exposure\n"
-                "option.\n"
-                "none: allocator stays LAN-only, as today (default).\n"
-                "tailscale_funnel: publish the allocator itself to\n"
-                "participants over the public internet via Tailscale Funnel —\n"
-                "no Tailscale install needed on their side.",
+                "isn't on their LAN. Independent of connectivity above — any\n"
+                "combination of the two is allowed.",
                 classes="step-description",
             )
             with RadioSet(id="participant-exposure-select"):
@@ -401,6 +397,38 @@ class ManualConnectivityScreen(Screen):
 
     def on_mount(self) -> None:
         self.query_one("#connectivity-error").display = False
+        self._sync_mode_fields()
+
+    def _pressed(self, selector: str) -> str:
+        rb = self.query_one(selector, RadioSet)
+        return (rb.pressed_button.id or "") if rb.pressed_button else ""
+
+    @on(RadioSet.Changed)
+    def _on_mode_changed(self, event: RadioSet.Changed) -> None:
+        self._sync_mode_fields()
+
+    def _sync_mode_fields(self) -> None:
+        """Show only the address field the chosen mode actually needs.
+
+        Driven by BOTH radio sets, not just connectivity: the tailnet
+        domain is required by mesh_overlay *and* by tailscale_funnel
+        exposure, so a relay deployment that also publishes itself via
+        Funnel still needs it. Hiding the unused one keeps this screen
+        inside a 24-row terminal — with both fields always rendered, the
+        relay input landed below the fold and was reachable only by
+        tabbing blind.
+        """
+        connectivity = self._pressed("#connectivity-select")
+        funnel = (
+            self._pressed("#participant-exposure-select")
+            == "participant-exposure-funnel"
+        )
+        self.query_one("#relay-server-addr-field").display = (
+            connectivity == "connectivity-relay"
+        )
+        self.query_one("#overlay-tailnet-field").display = (
+            connectivity == "connectivity-mesh-overlay" or funnel
+        )
 
     @on(Button.Pressed, "#back")
     def _back(self) -> None:
@@ -409,12 +437,10 @@ class ManualConnectivityScreen(Screen):
     @on(Button.Pressed, "#next")
     def _next(self) -> None:
         cfg = self.app.config
-        rb = self.query_one("#connectivity-select", RadioSet)
-        pressed = rb.pressed_button.id if rb.pressed_button else ""
         chosen = {
             "connectivity-mesh-overlay": "mesh_overlay",
             "connectivity-relay": "relay",
-        }.get(pressed, "lan_direct")
+        }.get(self._pressed("#connectivity-select"), "lan_direct")
         cfg.manual.connectivity = chosen
         cfg.manual.overlay_tailnet = self.query_one(
             "#overlay-tailnet", Input
@@ -435,14 +461,12 @@ class ManualConnectivityScreen(Screen):
         if chosen == "relay" and is_weak_frps_token(cfg.manual.frps_auth_token):
             cfg.manual.frps_auth_token = secrets.token_urlsafe(32)
 
-        rb_exposure = self.query_one("#participant-exposure-select", RadioSet)
-        chosen_exposure = "none"
-        if (
-            rb_exposure.pressed_button
-            and rb_exposure.pressed_button.id == "participant-exposure-funnel"
-        ):
-            chosen_exposure = "tailscale_funnel"
-        cfg.manual.participant_exposure = chosen_exposure
+        cfg.manual.participant_exposure = (
+            "tailscale_funnel"
+            if self._pressed("#participant-exposure-select")
+            == "participant-exposure-funnel"
+            else "none"
+        )
 
         errors = [
             e for e in validate_config(cfg)
