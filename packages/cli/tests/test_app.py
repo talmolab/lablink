@@ -546,7 +546,18 @@ class TestClientRegisterCommand:
 
         result = CliRunner().invoke(app, ["client", "register", "--help"])
         assert result.exit_code == 0
-        assert "--relay" in result.output
+        # _plain, not result.output: Typer renders help through Rich, and
+        # when colour is enabled (as it is in CI) the flag name is broken up
+        # by ANSI escapes, so the raw string does not contain "--relay" at
+        # all. Every other output assertion in this file already uses
+        # _plain for exactly this reason.
+        plain = _plain(result.output)
+        # Assert on --no-relay as well: it appears only in the options
+        # panel, whereas "--relay" also occurs in the command's prose
+        # description — so a --relay-only check would still pass if the
+        # option were deleted but the docstring left behind.
+        assert "--relay" in plain
+        assert "--no-relay" in plain
 
     def test_passes_relay_flag_through(self):
         runner = CliRunner()
