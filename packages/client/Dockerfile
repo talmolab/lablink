@@ -152,17 +152,16 @@ RUN for bin in google-chrome google-chrome-stable; do \
         chmod +x /usr/bin/$bin; \
     done
 
-# frp (Fast Reverse Proxy) -- relay connectivity's client side. frpc runs
-# in PROXY mode here, dialling OUT to the allocator's frps and exposing
-# this container's local KasmVNC (:6080) and agent (:7070) as STCP
-# proxies. Must stay in lockstep with Dockerfile.dev and with both
-# allocator Dockerfiles. Harmless when unused -- start.sh only launches
-# frpc when CONNECTIVITY=relay.
+# frp (Fast Reverse Proxy) -- relay connectivity's client side. Only frpc
+# is installed: it runs in PROXY mode here, dialling OUT to the allocator's
+# frps and exposing this container's local KasmVNC (:6080) and agent
+# (:7070) as STCP proxies. frps itself is the allocator image's business,
+# never run here. Must stay in lockstep with Dockerfile.dev. Harmless when
+# unused -- start.sh only launches frpc when CONNECTIVITY=relay.
 ARG FRP_VERSION=0.60.0
 RUN curl -L -o /tmp/frp.tar.gz \
       "https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz" && \
     tar -xzf /tmp/frp.tar.gz -C /tmp && \
-    mv "/tmp/frp_${FRP_VERSION}_linux_amd64/frps" /usr/local/bin/frps && \
     mv "/tmp/frp_${FRP_VERSION}_linux_amd64/frpc" /usr/local/bin/frpc && \
     rm -rf /tmp/frp.tar.gz "/tmp/frp_${FRP_VERSION}_linux_amd64"
 

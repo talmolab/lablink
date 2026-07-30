@@ -36,10 +36,6 @@ def relay_block(script_text) -> str:
     return "\n".join(lines[start:end + 1])
 
 
-def test_relay_block_exists(relay_block):
-    assert "frpc" in relay_block
-
-
 def test_gated_on_connectivity_not_on_secret_presence(script_text):
     """Design Decision 2: gating on FRPS_AUTH_TOKEN's presence would make
     a missing secret a silent no-tunnel. Gate on CONNECTIVITY instead."""
@@ -48,8 +44,13 @@ def test_gated_on_connectivity_not_on_secret_presence(script_text):
 
 
 def test_requires_all_three_secrets(relay_block):
-    for var in ("RELAY_SERVER_ADDR", "RELAY_SECRET_KEY", "FRPS_AUTH_TOKEN"):
-        assert var in relay_block
+    """Assert on the validation loop itself, not on the three names: they
+    also appear in the frpc.toml heredoc below, so a name-presence check
+    would still pass with the loop deleted."""
+    assert (
+        "for v in RELAY_SERVER_ADDR RELAY_SECRET_KEY FRPS_AUTH_TOKEN"
+        in relay_block
+    )
 
 
 def test_missing_secret_reports_error_status(relay_block):
