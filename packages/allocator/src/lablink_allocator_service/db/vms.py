@@ -324,6 +324,20 @@ class VmDatabase:
             return None
         return int(row[0])
 
+    def get_tunnel_path_prefix(self, prefix: str):
+        """(client_id, prefix) for the client owning this tunnel path
+        prefix, or None. The prefix is stored at registration rather than
+        recomputed here so this stays a single indexed-ish lookup."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname, provider_metadata->>'tunnel_path_prefix' "
+                f"FROM {self.table_name} "
+                f"WHERE provider_metadata->>'tunnel_path_prefix' = %s;",
+                (prefix,),
+            )
+            row = cursor.fetchone()
+        return (row[0], row[1]) if row else None
+
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:
             cursor.execute(
