@@ -58,6 +58,18 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
             || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
     done
 
+# wstunnel -- reverse-tunnel connectivity's server side. A single static Go/Rust
+# binary; harmless when unused, since start.sh only launches it when
+# CONNECTIVITY_MODE=reverse_tunnel. Must stay in lockstep with Dockerfile.dev
+# and with the client images.
+ARG WSTUNNEL_VERSION=10.6.2
+RUN curl -L -o /tmp/wstunnel.tar.gz \
+      "https://github.com/erebe/wstunnel/releases/download/v${WSTUNNEL_VERSION}/wstunnel_${WSTUNNEL_VERSION}_linux_amd64.tar.gz" && \
+    tar -xzf /tmp/wstunnel.tar.gz -C /tmp && \
+    mv /tmp/wstunnel /usr/local/bin/wstunnel && \
+    chmod +x /usr/local/bin/wstunnel && \
+    rm -f /tmp/wstunnel.tar.gz
+
 COPY lablink-nginx.conf /etc/nginx/conf.d/lablink.conf
 
 # Disable nginx's default site so it doesn't compete with lablink-nginx.conf.

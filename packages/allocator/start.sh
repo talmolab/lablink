@@ -63,6 +63,31 @@ fi
 
 echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 
+# Which connectivity mode this deployment runs. Read from the mounted config
+# rather than an env var: the reverse-tunnel mode deliberately adds nothing to
+# the compose stack (no env, no port), so the config file is the only source.
+# Empty on any failure -- a missing/unparseable config means the tunnel server
+# simply does not start, and Flask's own config loading will report the real
+# problem.
+CONNECTIVITY_MODE=$(python3 -c "import yaml; print((yaml.safe_load(open('/config/config.yaml')) or {}).get('manual', {}).get('connectivity', ''))" 2>/dev/null || echo "")
+
+# Reverse-tunnel connectivity: run the shared tunnel server clients attach
+# to. Bound to loopback only -- nginx is the sole way in, so the WebSocket
+# upgrade always passes through auth_request. Gated on the configured mode so
+# lan_direct/mesh_overlay deployments never start it.
+if [ "$CONNECTIVITY_MODE" = "reverse_tunnel" ]; then
+  echo "Starting tunnel server on 127.0.0.1:8080..."
+  mkdir -p /tmp/lablink-tunnel && chmod 700 /tmp/lablink-tunnel
+  # Seed an empty document: wstunnel will not start if --restrict-config
+  # points at a missing file, and the first client registers later.
+  [ -f /tmp/lablink-tunnel/restrictions.yaml ] || \
+    printf 'restrictions:\n' > /tmp/lablink-tunnel/restrictions.yaml
+  chmod 600 /tmp/lablink-tunnel/restrictions.yaml
+  wstunnel server ws://127.0.0.1:8080 \
+    --restrict-config /tmp/lablink-tunnel/restrictions.yaml \
+    --remote-to-local-server-idle-timeout 20s &
+fi
+
 # Start Flask in the background (binds 127.0.0.1:8000).
 echo "Starting Flask app on 127.0.0.1:8000..."
 lablink-allocator &
