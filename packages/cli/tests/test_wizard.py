@@ -492,20 +492,27 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
 # ---------------------------------------------------------------------------
 def _drive_connectivity_screen(
     *,
-    choose_mesh_overlay: bool,
+    choose_mesh_overlay: bool = False,
+    choose_relay: bool = False,
     overlay_tailnet: str = "",
+    relay_server_addr: str = "",
+    existing_frps_token: str = "",
     choose_funnel: bool = False,
 ):
     """Push ManualConnectivityScreen directly, drive it, return
-    (cfg.manual.connectivity, cfg.manual.overlay_tailnet,
-    cfg.manual.participant_exposure, screen_stack_grew)."""
+    (cfg.manual, screen_stack_grew).
+
+    `existing_frps_token` seeds cfg.manual.frps_auth_token, so tests can
+    check both halves of the generate-only-if-weak rule.
+    """
     import asyncio
     from textual.widgets import Input, RadioButton, RadioSet
 
     cfg, app = _build_cfg_and_app()
     cfg.provider = "manual"
+    cfg.manual.frps_auth_token = existing_frps_token
 
-    async def _run() -> tuple[str, str, str, int]:
+    async def _run():
         from lablink_cli.tui.wizard import ManualConnectivityScreen
 
         async with app.run_test() as pilot:
@@ -521,6 +528,14 @@ def _drive_connectivity_screen(
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
                 screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+            if choose_relay:
+                radio_set = screen.query_one("#connectivity-select", RadioSet)
+                for btn in radio_set.query(RadioButton):
+                    if btn.id == "connectivity-relay":
+                        btn.value = True
+                screen.query_one(
+                    "#relay-server-addr", Input
+                ).value = relay_server_addr
             if choose_funnel:
                 exposure_set = screen.query_one(
                     "#participant-exposure-select", RadioSet
@@ -535,42 +550,102 @@ def _drive_connectivity_screen(
             await pilot.pause()
             screen._next()
             await pilot.pause()
-            return (
-                cfg.manual.connectivity,
-                cfg.manual.overlay_tailnet,
-                cfg.manual.participant_exposure,
-                len(app.screen_stack) - stack_before,
-            )
+            return cfg.manual, len(app.screen_stack) - stack_before
 
     return asyncio.run(_run())
 
 
 def test_connectivity_screen_defaults_to_lan_direct():
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
-        choose_mesh_overlay=False
-    )
-    assert connectivity == "lan_direct"
-    assert exposure == "none"
+    manual, stack_delta = _drive_connectivity_screen(choose_mesh_overlay=False)
+    assert manual.connectivity == "lan_direct"
+    assert manual.participant_exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet="example.ts.net"
     )
-    assert connectivity == "mesh_overlay"
-    assert tailnet == "example.ts.net"
-    assert exposure == "none"
+    assert manual.connectivity == "mesh_overlay"
+    assert manual.overlay_tailnet == "example.ts.net"
+    assert manual.participant_exposure == "none"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
 def test_connectivity_screen_blocks_next_when_tailnet_missing():
     """mesh_overlay chosen but no tailnet domain → validation error, no push."""
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True, overlay_tailnet=""
     )
-    assert connectivity == "mesh_overlay"
+    assert manual.connectivity == "mesh_overlay"
     assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_writes_relay_and_generates_strong_token():
+    """relay's frps_auth_token is machine-to-machine (the allocator returns
+    it to each client at registration), so the wizard mints it rather than
+    asking — without that, the validator's weak-token rule would block the
+    screen on a field the operator has no way to fill in usefully."""
+    from lablink_allocator_service.validate_config import is_weak_frps_token
+
+    manual, stack_delta = _drive_connectivity_screen(
+        choose_relay=True, relay_server_addr="allocator.example.com:7000"
+    )
+    assert manual.connectivity == "relay"
+    assert manual.relay_server_addr == "allocator.example.com:7000"
+    assert not is_weak_frps_token(manual.frps_auth_token)
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_next_when_relay_server_addr_missing():
+    manual, stack_delta = _drive_connectivity_screen(
+        choose_relay=True, relay_server_addr=""
+    )
+    assert manual.connectivity == "relay"
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_blocks_next_when_relay_server_addr_malformed():
+    """The validator's host:port check has to reach the error label — it is
+    filtered by substring, so a mismatch there would silently let a config
+    through that 500s the first relay registration."""
+    manual, stack_delta = _drive_connectivity_screen(
+        choose_relay=True, relay_server_addr="allocator.example.com"
+    )
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_preserves_existing_strong_frps_token():
+    """Regenerating on every `lablink configure` run would break every
+    already-registered client, whose frpc still holds the old token."""
+    existing = "an-already-strong-frps-token"
+    manual, stack_delta = _drive_connectivity_screen(
+        choose_relay=True,
+        relay_server_addr="allocator.example.com:7000",
+        existing_frps_token=existing,
+    )
+    assert manual.frps_auth_token == existing
+    assert stack_delta == 1
+
+
+def test_connectivity_screen_replaces_weak_frps_token():
+    from lablink_allocator_service.validate_config import is_weak_frps_token
+
+    manual, stack_delta = _drive_connectivity_screen(
+        choose_relay=True,
+        relay_server_addr="allocator.example.com:7000",
+        existing_frps_token="lablink",
+    )
+    assert manual.frps_auth_token != "lablink"
+    assert not is_weak_frps_token(manual.frps_auth_token)
+    assert stack_delta == 1
+
+
+def test_connectivity_screen_mints_no_frps_token_for_other_connectivity():
+    """A token is only meaningful for relay; minting one for lan_direct
+    would put an unused secret in every config.yaml."""
+    manual, _ = _drive_connectivity_screen(choose_mesh_overlay=False)
+    assert manual.frps_auth_token == ""
 
 
 def _drive_startup_retry_fields(
@@ -643,14 +718,14 @@ def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity
     since lan_direct sends participants straight to a client's LAN IP,
     bypassing the allocator Funnel exposes. mesh_overlay + funnel is the
     valid combination."""
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True,
         choose_funnel=True,
         overlay_tailnet="example.ts.net",
     )
-    assert connectivity == "mesh_overlay"
-    assert exposure == "tailscale_funnel"
-    assert tailnet == "example.ts.net"
+    assert manual.connectivity == "mesh_overlay"
+    assert manual.participant_exposure == "tailscale_funnel"
+    assert manual.overlay_tailnet == "example.ts.net"
     assert stack_delta == 1, "valid submission should push DnsScreen"
 
 
@@ -659,23 +734,23 @@ def test_connectivity_screen_blocks_lan_direct_with_funnel():
     LAN IP, bypassing the allocator — unreachable off-LAN and blocked as
     mixed content once the allocator itself is Funnel-exposed. Rejected
     even with a tailnet domain supplied, unlike the missing-tailnet case."""
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=False,
         choose_funnel=True,
         overlay_tailnet="example.ts.net",
     )
-    assert connectivity == "lan_direct"
-    assert exposure == "tailscale_funnel"
+    assert manual.connectivity == "lan_direct"
+    assert manual.participant_exposure == "tailscale_funnel"
     assert stack_delta == 0, "invalid combination must not push DnsScreen"
 
 
 def test_connectivity_screen_blocks_next_when_funnel_missing_tailnet():
     """tailscale_funnel chosen but no tailnet domain → validation error,
     no push — same requirement mesh_overlay already has, generalized."""
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=False, choose_funnel=True, overlay_tailnet=""
     )
-    assert exposure == "tailscale_funnel"
+    assert manual.participant_exposure == "tailscale_funnel"
     assert stack_delta == 0, "invalid submission must not push DnsScreen"
 
 
@@ -683,12 +758,12 @@ def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
     """The weak-admin-password gate is deferred to deploy time (the wizard
     never collects app.admin_password) — choosing tailscale_funnel here
     must not be spuriously blocked by that check."""
-    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+    manual, stack_delta = _drive_connectivity_screen(
         choose_mesh_overlay=True,
         choose_funnel=True,
         overlay_tailnet="example.ts.net",
     )
-    assert exposure == "tailscale_funnel"
+    assert manual.participant_exposure == "tailscale_funnel"
     assert stack_delta == 1, (
         "a real requirement (tailnet) blocks progression; an unset "
         "admin_password (not yet collected at this wizard stage) must not"

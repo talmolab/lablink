@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
 from textual import on
@@ -22,6 +23,7 @@ from textual.widgets import (
 )
 from textual.widgets.option_list import Option
 
+from lablink_allocator_service.validate_config import is_weak_frps_token
 from lablink_cli.config.schema import (
     AMI_MAP,
     AWS_REGIONS,
@@ -309,7 +311,9 @@ class ManualConnectivityScreen(Screen):
                 "How the student's browser reaches a client's KasmVNC desktop.\n"
                 "lan_direct: the client is on the allocator's own LAN (default).\n"
                 "mesh_overlay: the client isn't on the allocator's LAN (e.g. a\n"
-                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.",
+                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.\n"
+                "relay: the client dials out to the allocator through an frp\n"
+                "tunnel — for networks that won't carry Tailscale at all.",
                 classes="step-description",
             )
 
@@ -325,6 +329,11 @@ class ManualConnectivityScreen(Screen):
                     value=(current == "mesh_overlay"),
                     id="connectivity-mesh-overlay",
                 )
+                yield RadioButton(
+                    "relay — client dials out through an frp tunnel",
+                    value=(current == "relay"),
+                    id="connectivity-relay",
+                )
 
             yield Label(
                 "Tailscale tailnet domain (used by mesh_overlay and/or "
@@ -335,6 +344,24 @@ class ManualConnectivityScreen(Screen):
                 value=cfg.manual.overlay_tailnet or "",
                 placeholder="example.ts.net",
                 id="overlay-tailnet",
+            )
+
+            # Shown unconditionally, same as the tailnet field above — the
+            # validator below is what enforces "required for relay", so the
+            # screen needs no show/hide wiring. The matching frps_auth_token
+            # is generated on Next rather than collected: the allocator hands
+            # it to each client in the registration response, so the operator
+            # never types it anywhere.
+            yield Label(
+                "Relay server address (used by relay, the host:port clients' "
+                "frpc dial to reach this allocator, e.g. "
+                "allocator.example.com:7000)",
+                classes="field-label",
+            )
+            yield Input(
+                value=cfg.manual.relay_server_addr or "",
+                placeholder="allocator.example.com:7000",
+                id="relay-server-addr",
             )
 
             yield Label(
@@ -386,10 +413,27 @@ class ManualConnectivityScreen(Screen):
         chosen = "lan_direct"
         if rb.pressed_button and rb.pressed_button.id == "connectivity-mesh-overlay":
             chosen = "mesh_overlay"
+        elif rb.pressed_button and rb.pressed_button.id == "connectivity-relay":
+            chosen = "relay"
         cfg.manual.connectivity = chosen
         cfg.manual.overlay_tailnet = self.query_one(
             "#overlay-tailnet", Input
         ).value.strip()
+        cfg.manual.relay_server_addr = self.query_one(
+            "#relay-server-addr", Input
+        ).value.strip()
+
+        # Mint the frp control token instead of asking for it. It is
+        # machine-to-machine only (the allocator returns it to each client in
+        # the registration response), and the validator below rejects weak or
+        # empty ones — so without this, choosing relay would deadlock the
+        # wizard on a field the operator has no way to fill in usefully. Only
+        # generated when what's on record wouldn't pass that check, so a
+        # deliberately-set strong token survives re-running `lablink
+        # configure` (regenerating would silently break every already-
+        # registered client, whose frpc still holds the old value).
+        if chosen == "relay" and is_weak_frps_token(cfg.manual.frps_auth_token):
+            cfg.manual.frps_auth_token = secrets.token_urlsafe(32)
 
         rb_exposure = self.query_one("#participant-exposure-select", RadioSet)
         chosen_exposure = "none"
@@ -406,6 +450,8 @@ class ManualConnectivityScreen(Screen):
                 "connectivity" in e
                 or "overlay_tailnet" in e
                 or "participant_exposure" in e
+                or "relay_server_addr" in e
+                or "frps_auth_token" in e
             )
             # admin_password isn't collected until deploy time (resolve_admin_
             # credentials runs in deploy_compose.py, not the wizard) — the
