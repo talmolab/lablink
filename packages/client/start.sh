@@ -192,28 +192,62 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
     "$TUNNEL_URL" > >(sed -u 's/^/[tunnel] /' | tee -a "$TUNNEL_LOG" >&5) 2>&1 &
   TUNNEL_PID=$!
 
-  # Two distinct failures, and only the first kills the process:
-  #  - process died (bad binary, bad flag)
-  #  - handshake rejected (wrong secret, wrong URL, allocator not configured
-  #    for this mode). wstunnel logs "Invalid status code: 401" and RETRIES
-  #    FOREVER, so a kill -0 check alone would report healthy while the
-  #    client is unreachable -- the exact failure this feature has shipped
-  #    three times before. Verified in a spike: nginx returns 401 at the
-  #    upgrade and the client loops.
-  sleep 5
-  if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
-    echo "tunnel process exited -- see [tunnel] output above" >&2
-    touch "$STATUS_SUPERSEDED_FILE"
-    send_status "error" || echo ">> WARNING: failed to report status=error"
-    exit 1
-  fi
-  if grep -qE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG"; then
-    echo "tunnel handshake rejected by the allocator -- see [tunnel] output" >&2
+  # Kills the tunnel and reports status=error. Shared by every failure
+  # branch below so each one stays a one-liner.
+  tunnel_fail() {
+    echo "$1" >&2
     kill "$TUNNEL_PID" 2>/dev/null
     touch "$STATUS_SUPERSEDED_FILE"
     send_status "error" || echo ">> WARNING: failed to report status=error"
     exit 1
+  }
+
+  # Distinct failures, and only the first kills the process on its own:
+  #  - process died (bad binary, bad flag)
+  #  - handshake rejected. wstunnel does NOT exit on this -- it logs
+  #    "Invalid status code: NNN" and RETRIES FOREVER, so a kill -0 check
+  #    alone would report healthy while the client is unreachable -- the
+  #    exact failure this feature has shipped three times before. Verified
+  #    in a spike: nginx returns 401 at the upgrade and the client loops.
+  sleep 5
+  if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
+    tunnel_fail "tunnel process exited -- see [tunnel] output above"
   fi
+
+  # 401/403 mean the allocator rejected our credentials/URL outright --
+  # retrying can never fix that -- so fail immediately rather than waiting
+  # out the grace window below, which exists for errors that CAN self-heal.
+  if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
+    tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
+  fi
+
+  # Any OTHER non-101 upgrade response (e.g. a 503 while the allocator's
+  # proxy is still warming up) or a generic handshake-failure line is not
+  # necessarily permanent: wstunnel's own backoff can succeed on the very
+  # next attempt, inside the same window we just waited out. A single
+  # point-in-time grep can't tell a permanent failure from one that already
+  # recovered, so check whether failures are STILL accumulating rather than
+  # whether one ever appeared: snapshot the count, wait a short second
+  # window, and only fail if it grew (or the process died in the meantime).
+  # ponytail: fixed 3s window -- if wstunnel's backoff ever exceeds this
+  # between attempts, a persistently-failing non-401 tunnel could take an
+  # extra cycle to be caught. Widen this (or read wstunnel's own backoff
+  # config) if that's ever observed in practice.
+  FAILURES=$(grep -cE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG")
+  if [ "$FAILURES" -gt 0 ]; then
+    sleep 3
+    if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
+      tunnel_fail "tunnel process exited -- see [tunnel] output above"
+    fi
+    if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
+      tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
+    fi
+    FAILURES_AFTER=$(grep -cE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG")
+    if [ "$FAILURES_AFTER" -gt "$FAILURES" ]; then
+      tunnel_fail "tunnel handshake still failing after the grace window -- see [tunnel] output"
+    fi
+  fi
+
   echo "Tunnel process running (pid $TUNNEL_PID)"
 fi
 
