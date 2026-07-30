@@ -261,6 +261,54 @@ class TestTunnelStatus:
         fake_db.list_tunnel_aliases.return_value = []
         assert client.get("/api/health").get_json()["checks"]["tunnel"] == "not running"
 
+    def test_health_ok_when_no_clients_registered(self, health_client, monkeypatch):
+        """Shared server up, zero registered tunnel clients: the empty
+        set has nothing missing from it, so this is the logically safe
+        'ok' case, not a degenerate one."""
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10})
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = []
+
+        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "ok"
+
+    def test_health_degrades_when_db_query_fails(self, health_client, monkeypatch):
+        """A transient Postgres problem (pool exhaustion, a brief restart)
+        while the tunnel server is up must degrade this one check's value,
+        not raise out of the route and 500 the whole endpoint -- the same
+        contract _tailscale_status keeps for its own external call."""
+        import psycopg2
+
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.side_effect = psycopg2.OperationalError(
+            "connection pool exhausted"
+        )
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 503
+        assert resp.get_json()["checks"]["tunnel"] == "client list unavailable"
+
+    def test_health_tunnel_not_initialized_when_db_absent(
+        self, health_client, monkeypatch
+    ):
+        """main.database can in principle be None (mirrors the top-level
+        `database` check's own guard); _tunnel_status must report that
+        rather than raise AttributeError reaching for list_tunnel_aliases."""
+        from lablink_allocator_service import main
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        client, _fake_db = health_client
+        monkeypatch.setattr(main, "database", None)
+
+        resp = client.get("/api/health")
+        assert resp.get_json()["checks"]["tunnel"] == "not initialized"
+
     def test_tunnel_check_absent_when_not_reverse_tunnel(self, client, monkeypatch):
         """A connectivity strategy that doesn't require a tunnel check
         (e.g. lan_direct/allocator_proxied/mesh_overlay) must not add a

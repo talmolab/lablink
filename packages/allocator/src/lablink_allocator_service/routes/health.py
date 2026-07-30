@@ -7,6 +7,7 @@ only once every check passes, 503 + "starting" otherwise.
 import subprocess
 import time
 
+import psycopg2
 from flask import Blueprint, current_app, jsonify
 
 bp = Blueprint("health", __name__)
@@ -50,13 +51,25 @@ def _tunnel_status() -> str:
     client whose tunnel died leaves its alias bound for the idle timeout,
     and connections to that orphan hang rather than fail -- so a registered
     client with no listening alias is the condition worth reporting.
+
+    Guards the same "not initialized" window the top-level `database`
+    check already names, and catches psycopg2.Error the same way
+    `_tailscale_status` catches its own external call's (OSError,
+    TimeoutExpired) -- so a transient Postgres problem (pool exhaustion,
+    a brief restart) degrades this one check's value instead of raising
+    out of the route and 500ing the whole endpoint.
     """
     from lablink_allocator_service import main, tunnel_manager
 
     server = tunnel_manager.tunnel_status()
     if server != "ok":
         return server
-    expected = set(main.database.list_tunnel_aliases())
+    if main.database is None:
+        return "not initialized"
+    try:
+        expected = set(main.database.list_tunnel_aliases())
+    except psycopg2.Error:
+        return "client list unavailable"
     missing = expected - tunnel_manager.attached_aliases()
     return f"{len(missing)} client(s) not attached" if missing else "ok"
 
