@@ -27,7 +27,7 @@ port-number strings, each parsed as a single-port range:
     restrictions:
       - name: vm-1
         match:
-          - !PathPrefix "tunnel/vm-1-abc123"
+          - !PathPrefix "tun-vm-1-abc123"
         allow:
           - !ReverseTunnel
             port: ["6080", "7070"]
@@ -36,6 +36,19 @@ port-number strings, each parsed as a single-port range:
 Confirmed via `--log-lvl DEBUG`, which echoes the parsed rule back as
 `port: [6080..=6080, 7070..=7070]`. Re-verify when bumping the pinned
 version.
+
+`!PathPrefix` matches ONLY the client's first path segment (also verified
+against 10.6.2): a match value of `tunnel/<prefix>` can never fire against
+a client dialing in on `-P tunnel/<prefix>`, because wstunnel only ever
+compares that first segment to the match string. The only way this rule
+can both match AND stay per-client is for the match value to BE the whole
+first segment -- so the prefix itself must be dialed as the first segment
+(no shared "tunnel/" root), which is why `path_prefix()` below returns
+`tun-<client_id>-<digest>` rather than something nested under a shared
+prefix. Confirmed end to end: a client presenting its own prefix as the
+first path segment was accepted onto its own alias; the same client
+presenting another client's alias in `-R` was refused with "Rejecting
+connection with not allowed destination".
 
 Security note: `client_id` is the DB `hostname`, which reaches this module
 from client-controlled registration input -- it is NOT validated upstream
@@ -125,14 +138,22 @@ yaml.SafeLoader.add_constructor(
 
 
 def path_prefix(client_id: str, secret: str) -> str:
-    """Per-client URL segment: `<client_id>-<digest>`.
+    """Per-client value the client must dial as its first path segment.
+
+    `tun-<client_id>-<digest>`. Must BE the first path segment, not a
+    sub-path under some shared root: wstunnel's `!PathPrefix` restriction
+    matcher only inspects the first segment (see the module docstring), so
+    a value like "tunnel/<this>" could never match. The `tun-` marker is
+    what lets nginx tell a tunnel attach apart from an application route
+    now that the prefix sits at the URL root instead of under a fixed
+    "tunnel/" segment.
 
     Derived from the client's own secret so it is stable across restarts
     and needs no storage of its own. It identifies the client to
     /internal/tunnel_auth; the bearer token is what authenticates.
     """
     digest = hashlib.sha256(f"{client_id}:{secret}".encode()).hexdigest()[:16]
-    return f"{client_id}-{digest}"
+    return f"tun-{client_id}-{digest}"
 
 
 def _render() -> str:
@@ -140,7 +161,10 @@ def _render() -> str:
         "restrictions": [
             {
                 "name": client_id,
-                "match": [_PathPrefix(f"tunnel/{prefix}")],
+                # !PathPrefix matches only the first path segment (measured
+                # against 10.6.2), so the match value must BE the prefix,
+                # not "tunnel/<prefix>" -- the latter can never fire.
+                "match": [_PathPrefix(prefix)],
                 "allow": [
                     _ReverseTunnelRule(
                         {

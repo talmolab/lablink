@@ -20,33 +20,46 @@ def test_path_prefix_is_stable_and_client_specific(tm):
     assert a == tm.path_prefix("vm-1", "secret-a")
     assert a != tm.path_prefix("vm-2", "secret-a")
     assert a != tm.path_prefix("vm-1", "secret-b")
-    assert a.startswith("vm-1-")
+    assert a.startswith("tun-vm-1-")
 
 
 def test_authorize_writes_a_rule_scoped_to_one_alias(tm):
-    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="vm-1-abc")
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
     text = tm.RESTRICTIONS_PATH.read_text()
-    assert "vm-1-abc" in text
+    assert "tun-vm-1-abc" in text
     assert "127.0.0.10/32" in text
     assert "6080" in text and "7070" in text
     # The whole point: no other alias may appear in this client's rule.
     assert "127.0.0.11" not in text
 
 
+def test_match_value_has_no_path_separator(tm):
+    # !PathPrefix matches only the client's first path segment (measured
+    # against wstunnel 10.6.2). A match value with a "/" in it can never
+    # fire -- and the failure mode is a silent deny-all for that client,
+    # not an error, which is exactly how this went unnoticed the first
+    # time. The rendered match must be the bare prefix.
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    parsed = yaml.safe_load(tm.RESTRICTIONS_PATH.read_text())
+    match_value = parsed["restrictions"][0]["match"][0]
+    assert "/" not in match_value
+    assert match_value == "tun-vm-1-abc"
+
+
 def test_second_client_does_not_clobber_the_first(tm):
-    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="vm-1-abc")
-    tm.authorize_client(client_id="vm-2", alias_octet=11, prefix="vm-2-def")
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    tm.authorize_client(client_id="vm-2", alias_octet=11, prefix="tun-vm-2-def")
     text = tm.RESTRICTIONS_PATH.read_text()
-    assert "vm-1-abc" in text and "vm-2-def" in text
+    assert "tun-vm-1-abc" in text and "tun-vm-2-def" in text
 
 
 def test_revoke_removes_only_that_client(tm):
-    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="vm-1-abc")
-    tm.authorize_client(client_id="vm-2", alias_octet=11, prefix="vm-2-def")
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    tm.authorize_client(client_id="vm-2", alias_octet=11, prefix="tun-vm-2-def")
     tm.revoke_client("vm-1")
     text = tm.RESTRICTIONS_PATH.read_text()
-    assert "vm-1-abc" not in text
-    assert "vm-2-def" in text
+    assert "tun-vm-1-abc" not in text
+    assert "tun-vm-2-def" in text
 
 
 def test_revoke_unknown_client_is_a_noop(tm):
@@ -62,7 +75,7 @@ def test_authorize_rejects_unsafe_client_id(tm):
         tm.authorize_client(
             client_id="vm-evil\nrestrictions:\n  - name: pwn",
             alias_octet=10,
-            prefix="vm-evil-abc",
+            prefix="tun-vm-evil-abc",
         )
     assert not tm.RESTRICTIONS_PATH.exists()
 
@@ -77,9 +90,9 @@ def test_authorize_rejects_unsafe_prefix(tm):
 
 def test_authorize_rejects_out_of_range_alias_octet(tm):
     with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1", alias_octet=255, prefix="vm-1-abc")
+        tm.authorize_client(client_id="vm-1", alias_octet=255, prefix="tun-vm-1-abc")
     with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1", alias_octet=0, prefix="vm-1-abc")
+        tm.authorize_client(client_id="vm-1", alias_octet=0, prefix="tun-vm-1-abc")
     assert not tm.RESTRICTIONS_PATH.exists()
 
 
@@ -97,7 +110,7 @@ def test_render_cannot_be_forced_into_a_second_top_level_entry(tm):
 
 
 def test_restrictions_file_is_owner_only(tm):
-    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="vm-1-abc")
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
     assert tm.RESTRICTIONS_PATH.stat().st_mode & 0o777 == 0o600
 
 
