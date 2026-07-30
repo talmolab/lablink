@@ -14,6 +14,9 @@ from lablink_allocator_service.providers.connectivity.lan_direct import (
 from lablink_allocator_service.providers.connectivity.mesh_overlay import (
     MeshOverlayClientConnectivity,
 )
+from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+    ReverseTunnelClientConnectivity,
+)
 from lablink_allocator_service.providers.protocol import ComputeProvider
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,7 @@ _BUILTIN: dict[str, type] = {"aws": AWSProvider, "manual": ManualProvider}
 _CONNECTIVITY_BUILTIN: dict[str, type] = {
     "lan_direct": LANDirectClientConnectivity,
     "mesh_overlay": MeshOverlayClientConnectivity,
+    "reverse_tunnel": ReverseTunnelClientConnectivity,
 }
 
 
