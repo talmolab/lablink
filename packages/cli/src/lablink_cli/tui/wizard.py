@@ -410,11 +410,11 @@ class ManualConnectivityScreen(Screen):
     def _next(self) -> None:
         cfg = self.app.config
         rb = self.query_one("#connectivity-select", RadioSet)
-        chosen = "lan_direct"
-        if rb.pressed_button and rb.pressed_button.id == "connectivity-mesh-overlay":
-            chosen = "mesh_overlay"
-        elif rb.pressed_button and rb.pressed_button.id == "connectivity-relay":
-            chosen = "relay"
+        pressed = rb.pressed_button.id if rb.pressed_button else ""
+        chosen = {
+            "connectivity-mesh-overlay": "mesh_overlay",
+            "connectivity-relay": "relay",
+        }.get(pressed, "lan_direct")
         cfg.manual.connectivity = chosen
         cfg.manual.overlay_tailnet = self.query_one(
             "#overlay-tailnet", Input

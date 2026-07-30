@@ -55,9 +55,6 @@ FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
 # dependencies, so a cross-package import would fail there. Guarded by
 # test_deploy_compose.py::TestCanonicalUrlFile::test_filename_matches_allocator.
 CANONICAL_URL_FILENAME = "allocator-url"
-# Compose's own conventional override filename — auto-loaded from the project
-# directory with no `-f` needed. Only written when connectivity is "relay".
-RELAY_OVERRIDE_FILENAME = "docker-compose.override.yml"
 
 console = Console()
 
@@ -161,10 +158,12 @@ def render_compose_dir(
     (target / "docker-compose.yml").write_text(template.read_text())
 
     # 1b. Relay adds an override rather than a third base template (see the
-    #     override file's own header). Deleted when connectivity isn't relay,
-    #     so a redeploy that switches away stops publishing frps's port —
-    #     `docker compose up` would otherwise keep honouring a stale override.
-    override_path = target / RELAY_OVERRIDE_FILENAME
+    #     override file's own header). Compose auto-loads this filename from
+    #     the project directory, with no `-f` needed. Deleted when
+    #     connectivity isn't relay, so a redeploy that switches away stops
+    #     publishing frps's port — `docker compose up` would otherwise keep
+    #     honouring a stale override.
+    override_path = target / "docker-compose.override.yml"
     if cfg.manual.connectivity == "relay":
         override_template = resources.files("lablink_cli.templates").joinpath(
             "docker-compose-relay-override.yml"

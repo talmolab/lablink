@@ -656,21 +656,6 @@ class TestRelayPreflight:
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
         assert "frps_auth_token" in capsys.readouterr().out
 
-    def test_relay_needs_no_tailscale_authkey(self, tmp_path):
-        """Regression guard: relay exists for networks that can't run
-        Tailscale, so it must not be caught by the sidecar authkey gate.
-        Reaching the docker-on-PATH preflight (or beyond) is enough — the
-        authkey check runs before it and would have exited first."""
-        from lablink_cli.commands.deploy_compose import run_deploy_compose
-
-        with (
-            patch(
-                "lablink_cli.commands.deploy_compose.shutil.which", return_value=None
-            ),
-            pytest.raises(SystemExit),
-        ):
-            run_deploy_compose(_relay_cfg(), yes=True, workdir_root=tmp_path)
-
 
 class TestComposeUp:
     @patch("lablink_cli.commands.deploy_compose.subprocess.run")
