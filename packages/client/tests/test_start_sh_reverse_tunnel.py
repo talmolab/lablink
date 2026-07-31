@@ -61,10 +61,12 @@ def test_passes_the_path_prefix_explicitly(block):
     assert '-P "$TUNNEL_PATH_PREFIX"' in block
 
 
-def test_missing_input_reports_error_status(validation_loop):
-    assert "STATUS_SUPERSEDED_FILE" in validation_loop
-    assert 'send_status "error"' in validation_loop
-    assert "exit 1" in validation_loop
+def test_missing_input_reports_error_status(validation_loop, block):
+    """The loop delegates to tunnel_abort, which is what reports the status
+    and stops -- assert both halves so neither can drift away."""
+    assert "tunnel_abort" in validation_loop
+    assert 'send_status "error"' in block
+    assert "exit 1" in block
 
 
 def test_binds_the_allocator_assigned_alias_for_both_ports(block):
@@ -197,7 +199,18 @@ class TestDetectionLogicBehavior:
 set -u
 TUNNEL_LOG="{log_path}"
 STATUS_SUPERSEDED_FILE="{superseded}"
+TUNNEL_URL="wss://allocator.example.com"
+TUNNEL_PATH_PREFIX="tun-vm-1-abc"
+TUNNEL_BIND_ADDR="127.0.0.10"
+CLIENT_SECRET="cs"
 send_status() {{ echo "STATUS_CALLED:$1"; return 0; }}
+# Defined above the extracted snippet in start.sh, so stand it in here.
+tunnel_abort() {{
+  echo "$1" >&2
+  touch "$STATUS_SUPERSEDED_FILE"
+  send_status "error"
+  exit 1
+}}
 # Redirected so this stand-in process doesn't hold the harness's own
 # stdout pipe open after the harness itself exits.
 sleep 100 </dev/null >/dev/null 2>&1 &
@@ -241,3 +254,53 @@ echo "REACHED_END"
         )
         assert "STATUS_CALLED:error" in result.stdout, result.stdout
         assert "REACHED_END" not in result.stdout, result.stdout
+
+
+class TestReachabilityPreflight:
+    """Runs the real preflight (from `tunnel_abort() {` through the line that
+    announces the tunnel) in a bash subprocess with `curl` stubbed, so the
+    probe's decision is what is under test rather than whether an allocator
+    happens to be listening on this machine."""
+
+    @staticmethod
+    def _extract_preflight(script_text: str) -> str:
+        start = script_text.index("  tunnel_abort() {")
+        end = script_text.index('  echo "Opening tunnel to')
+        return re.sub(r"sleep 3\b", "sleep 0.05", script_text[start:end])
+
+    def _run(self, curl_rc: int) -> subprocess.CompletedProcess:
+        snippet = self._extract_preflight(START_SH.read_text())
+        with tempfile.TemporaryDirectory() as d:
+            harness = f"""
+set -u
+STATUS_SUPERSEDED_FILE="{Path(d) / 'superseded'}"
+TUNNEL_URL="wss://allocator.example.com"
+TUNNEL_PATH_PREFIX="tun-vm-1-abc"
+TUNNEL_BIND_ADDR="127.0.0.10"
+CLIENT_SECRET="cs"
+send_status() {{ echo "STATUS_CALLED:$1"; return 0; }}
+curl() {{ return {curl_rc}; }}
+{snippet}
+echo "REACHED_LAUNCH"
+"""
+            return subprocess.run(
+                ["bash", "-c", harness], capture_output=True, text=True, timeout=30
+            )
+
+    def test_unreachable_allocator_fails_instead_of_declaring_a_live_tunnel(self):
+        """The bug this preflight exists for, observed live 2026-07-31: with
+        the allocator unreachable (a hostname resolving to an address this
+        container cannot route to), wstunnel logs only "Opening TCP
+        connection" per retry -- at INFO, no error line -- so every log-based
+        check passes and the client announced a healthy tunnel that had never
+        connected. Only a positive probe catches it."""
+        result = self._run(curl_rc=7)  # curl(7): couldn't connect, as observed
+        assert "STATUS_CALLED:error" in result.stdout, result.stdout
+        assert "REACHED_LAUNCH" not in result.stdout, result.stdout
+        assert "cannot reach the allocator" in result.stderr, result.stderr
+
+    def test_reachable_allocator_proceeds_to_launch(self):
+        """The probe must not become a new way to strand a healthy client."""
+        result = self._run(curl_rc=0)
+        assert "STATUS_CALLED:error" not in result.stdout, result.stdout
+        assert "REACHED_LAUNCH" in result.stdout, result.stdout

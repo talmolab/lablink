@@ -165,15 +165,47 @@ fi
 # allocator's HTTP API directly regardless. It does need to be up before a
 # session is assigned, hence ahead of the custom startup script.
 if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
+  # Report status=error and stop. Used by every pre-launch failure below;
+  # tunnel_fail() further down is this plus killing the running tunnel.
+  tunnel_abort() {
+    echo "$1" >&2
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  }
+
   for v in TUNNEL_URL TUNNEL_PATH_PREFIX TUNNEL_BIND_ADDR CLIENT_SECRET; do
     # ${!v} indirect expansion, not eval -- this script is #!/bin/bash.
     if [ -z "${!v}" ]; then
-      echo "CONNECTIVITY=reverse_tunnel but $v is unset" >&2
-      touch "$STATUS_SUPERSEDED_FILE"
-      send_status "error" || echo ">> WARNING: failed to report status=error"
-      exit 1
+      tunnel_abort "CONNECTIVITY=reverse_tunnel but $v is unset"
     fi
   done
+
+  # Preflight: can this container reach the allocator at all? The tunnel dials
+  # the host in TUNNEL_URL, so if ordinary HTTPS to that host fails, the tunnel
+  # cannot come up either -- and wstunnel's output will NOT say so. On a
+  # connect-level failure (a name resolving to an unroutable address, no route,
+  # a blocked port) it logs only "Opening TCP connection" per retry, at INFO,
+  # with no error line for the checks below to match. Observed live 2026-07-31:
+  # a client whose DNS resolved the allocator to a tailnet address it had no
+  # route to printed "Tunnel process running" and carried on, exactly the
+  # reports-healthy-while-unreachable failure this block exists to prevent.
+  # So probe positively here rather than inferring health from the absence of
+  # a failure line. Retries because a just-started allocator can need a moment.
+  TUNNEL_PROBE_URL="$(printf '%s' "$TUNNEL_URL" \
+    | sed -e 's|^wss://|https://|' -e 's|^ws://|http://|')/api/health"
+  TUNNEL_REACHABLE=""
+  for attempt in 1 2 3 4 5; do
+    if curl -sf --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
+      TUNNEL_REACHABLE=yes
+      break
+    fi
+    echo "allocator not reachable yet at $TUNNEL_PROBE_URL (attempt $attempt/5)"
+    sleep 3
+  done
+  if [ -z "$TUNNEL_REACHABLE" ]; then
+    tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL -- the tunnel cannot come up. Check DNS and routing from inside this container: a hostname that resolves to an address this container cannot route to fails exactly here."
+  fi
 
   echo "Opening tunnel to $TUNNEL_URL..."
   # Tee to a file as well as the log stream: the liveness check below has to
@@ -202,11 +234,8 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
   # Kills the tunnel and reports status=error. Shared by every failure
   # branch below so each one stays a one-liner.
   tunnel_fail() {
-    echo "$1" >&2
     kill "$TUNNEL_PID" 2>/dev/null
-    touch "$STATUS_SUPERSEDED_FILE"
-    send_status "error" || echo ">> WARNING: failed to report status=error"
-    exit 1
+    tunnel_abort "$1"
   }
 
   # Distinct failures, and only the first kills the process on its own:
@@ -240,7 +269,7 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
   # between attempts, a persistently-failing non-401 tunnel could take an
   # extra cycle to be caught. Widen this (or read wstunnel's own backoff
   # config) if that's ever observed in practice.
-  FAILURES=$(grep -cE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG")
+  FAILURES=$(grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG")
   if [ "$FAILURES" -gt 0 ]; then
     sleep 3
     if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
@@ -249,7 +278,7 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
     if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
       tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
     fi
-    FAILURES_AFTER=$(grep -cE "Invalid status code|failed to do websocket handshake" "$TUNNEL_LOG")
+    FAILURES_AFTER=$(grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG")
     if [ "$FAILURES_AFTER" -gt "$FAILURES" ]; then
       tunnel_fail "tunnel handshake still failing after the grace window -- see [tunnel] output"
     fi
