@@ -1695,6 +1695,22 @@ class TestReverseTunnelRegister:
                 insecure=False, overlay_hostname="host", reverse_tunnel=True,
             )
 
+    def test_tunnel_and_lan_ip_are_mutually_exclusive(self, tmp_path):
+        """A tunnel client dials out; the allocator never dials its LAN
+        address, so --lan-ip is meaningless here and must be rejected
+        the same way --overlay-hostname/--tailscale-authkey already are,
+        rather than silently ignored."""
+        from lablink_cli.commands.register import run_register
+        import pytest
+
+        with pytest.raises(SystemExit):
+            run_register(
+                allocator_url="https://a", register_token="t", hostname=None,
+                lan_ip="192.168.1.5", machine_identity=None, gpu_present=None,
+                gpu_model=None, force=True, env_file=tmp_path / "e",
+                insecure=False, reverse_tunnel=True,
+            )
+
     def test_version_skew_is_caught(self, tmp_path, monkeypatch, capsys):
         """An allocator too old to know the sentinel may ignore it and
         register some other connectivity. This docker run already omits

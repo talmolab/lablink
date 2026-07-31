@@ -133,6 +133,12 @@ def run_register(
             "— a tunnel client joins no tailnet."
         )
         raise SystemExit(1)
+    if reverse_tunnel and lan_ip is not None:
+        console.print(
+            "[red]--lan-ip does not apply with --tunnel[/red] "
+            "— a tunnel client dials out; the allocator never dials its LAN address."
+        )
+        raise SystemExit(1)
 
     remote_mode = overlay_hostname is not None or reverse_tunnel
 
