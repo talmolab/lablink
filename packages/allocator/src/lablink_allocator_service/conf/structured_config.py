@@ -207,11 +207,26 @@ class ManualConfig:
               public internet via the tailnet named by overlay_tailnet,
               using the same tailscale sidecar connectivity="mesh_overlay"
               already provisions (reused, not a second sidecar).
+            - "cloudflare_tunnel": publish the allocator at
+              public_hostname via a Cloudflare Tunnel the admin created in
+              their own Cloudflare account. Requires a domain whose
+              nameservers point at Cloudflare (free-plan "full setup" —
+              partial/CNAME setup is Business-tier, subdomain zones are
+              Enterprise, so an institutional domain cannot be used).
+              NOTE: unlike Funnel, which terminates TLS on this machine,
+              Cloudflare decrypts all traffic at its edge — admin logins
+              and participant desktop streams included.
+        public_hostname (str): The public hostname participants open, e.g.
+            "lab.smithlab.org". Required when participant_exposure is
+            "cloudflare_tunnel"; ignored otherwise. Deliberately generic:
+            any future exposure mode with an admin-chosen hostname reuses
+            this field rather than adding a vendor-named one.
     """
 
     connectivity: str = field(default="lan_direct")
     overlay_tailnet: str = field(default="")
     participant_exposure: str = field(default="none")
+    public_hostname: str = field(default="")
 
 
 @dataclass

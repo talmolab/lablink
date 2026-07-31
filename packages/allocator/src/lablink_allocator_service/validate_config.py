@@ -32,10 +32,14 @@ VALID_PROVIDERS = ("aws", "manual")
 VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
 
 # manual.participant_exposure — how participants (not clients) reach the
-# allocator when it isn't on their LAN. Independent of connectivity above;
-# "tailscale_funnel" reuses the same tailnet, just for a different purpose
-# (publishing the allocator's own HTTP port, not reaching a client).
-VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel")
+# allocator when it isn't on their LAN. Independent of connectivity above.
+# "tailscale_funnel" reuses the mesh_overlay tailnet to publish the
+# allocator's own HTTP port; "cloudflare_tunnel" publishes it at
+# manual.public_hostname through a Cloudflare Tunnel the admin owns.
+# Must stay in sync with the wizard's exposure radio set and with
+# deploy_compose's preflights, which key on "not none" rather than on any
+# single value.
+VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel", "cloudflare_tunnel")
 
 # Deployment-example / commonly-typed weak values a Funnel-exposed admin
 # panel must never ship with — CT-log scanning finds a newly-published
@@ -135,18 +139,34 @@ def get_config_errors(cfg) -> list:
         # lan_direct sends the participant's browser straight to a client's
         # LAN IP (ws://<client-ip>:6080 — see LANDirectClientConnectivity),
         # bypassing the allocator entirely. That's unreachable off-LAN and,
-        # once the allocator itself is Funnel-exposed, actively blocked as
+        # once the allocator itself is publicly exposed, actively blocked as
         # mixed content by the browser (ws:// from an https:// page).
         # mesh_overlay doesn't have this problem — it proxies sessions
-        # through the allocator's own nginx, which Funnel already exposes.
-        if participant_exposure == "tailscale_funnel" and connectivity == "lan_direct":
+        # through the allocator's own nginx, which any exposure mode
+        # publishes. Keyed on "any exposure" rather than on Funnel
+        # specifically: the reasoning is about being publicly reachable,
+        # not about which tunnel does the publishing.
+        if participant_exposure != "none" and connectivity == "lan_direct":
             errors.append(
-                "manual.participant_exposure is 'tailscale_funnel' but "
+                f"manual.participant_exposure is '{participant_exposure}' but "
                 "manual.connectivity is 'lan_direct' — participant sessions "
                 "would connect directly to a client's LAN IP, which is "
                 "unreachable off-LAN and blocked as mixed content from the "
-                "HTTPS Funnel page. Use manual.connectivity: mesh_overlay "
+                "HTTPS page. Use manual.connectivity: mesh_overlay "
                 "instead, which proxies sessions through the allocator."
+            )
+
+        # cloudflare_tunnel publishes at an admin-chosen hostname, so that
+        # hostname is not optional. The tunnel token is checked at deploy
+        # time instead (it lives in .env, never in config.yaml).
+        if participant_exposure == "cloudflare_tunnel" and not getattr(
+            manual_cfg, "public_hostname", ""
+        ):
+            errors.append(
+                "manual.participant_exposure is 'cloudflare_tunnel' but "
+                "manual.public_hostname is empty — set it to the hostname "
+                "configured as the tunnel's public hostname in Cloudflare "
+                "(e.g. lab.smithlab.org)."
             )
 
         needs_tailnet = (
