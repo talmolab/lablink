@@ -290,6 +290,7 @@ class ManualConnectivityScreen(Screen):
         current_exposure = (
             getattr(cfg.manual, "participant_exposure", "none") or "none"
         )
+        current_hostname = getattr(cfg.manual, "public_hostname", "") or ""
 
         yield Header()
         with VerticalScroll():
@@ -343,13 +344,16 @@ class ManualConnectivityScreen(Screen):
             )
             yield Label(
                 "How participants (not clients) reach the allocator when it\n"
-                "isn't on their LAN. Independent of connectivity above — you\n"
-                "can combine either connectivity option with either exposure\n"
-                "option.\n"
+                "isn't on their LAN. Independent of connectivity above.\n"
                 "none: allocator stays LAN-only, as today (default).\n"
-                "tailscale_funnel: publish the allocator itself to\n"
-                "participants over the public internet via Tailscale Funnel —\n"
-                "no Tailscale install needed on their side.",
+                "tailscale_funnel: published at <machine>.<tailnet>.ts.net —\n"
+                "no domain needed, but the hostname is not yours to choose.\n"
+                "cloudflare_tunnel: published at a hostname you choose.\n"
+                "Needs a domain whose nameservers point at Cloudflare, plus a\n"
+                "tunnel token from Cloudflare's Zero Trust dashboard. Note\n"
+                "that Cloudflare decrypts all traffic at its edge, including\n"
+                "admin logins and participant desktop streams; Funnel does\n"
+                "not. See docs/configuration.md for the one-time setup.",
                 classes="step-description",
             )
             with RadioSet(id="participant-exposure-select"):
@@ -364,6 +368,26 @@ class ManualConnectivityScreen(Screen):
                     value=(current_exposure == "tailscale_funnel"),
                     id="participant-exposure-funnel",
                 )
+                yield RadioButton(
+                    "cloudflare_tunnel — publish at a hostname you choose",
+                    value=(current_exposure == "cloudflare_tunnel"),
+                    id="participant-exposure-cloudflare",
+                )
+
+            # Hard-wrapped: .field-label doesn't wrap, so a single long line
+            # widens this screen's virtual width past an 80-column terminal
+            # (the overflow class of bug #399 fixed).
+            yield Label(
+                "Public hostname (cloudflare_tunnel only — the hostname\n"
+                "you configured as the tunnel's public hostname in\n"
+                "Cloudflare, e.g. lab.smithlab.org)",
+                classes="field-label",
+            )
+            yield Input(
+                value=current_hostname,
+                placeholder="lab.smithlab.org",
+                id="public-hostname",
+            )
 
             yield Label("", id="connectivity-error", classes="error")
         with Center():
@@ -393,12 +417,15 @@ class ManualConnectivityScreen(Screen):
 
         rb_exposure = self.query_one("#participant-exposure-select", RadioSet)
         chosen_exposure = "none"
-        if (
-            rb_exposure.pressed_button
-            and rb_exposure.pressed_button.id == "participant-exposure-funnel"
-        ):
+        pressed = rb_exposure.pressed_button
+        if pressed and pressed.id == "participant-exposure-funnel":
             chosen_exposure = "tailscale_funnel"
+        elif pressed and pressed.id == "participant-exposure-cloudflare":
+            chosen_exposure = "cloudflare_tunnel"
         cfg.manual.participant_exposure = chosen_exposure
+        cfg.manual.public_hostname = self.query_one(
+            "#public-hostname", Input
+        ).value.strip()
 
         errors = [
             e for e in validate_config(cfg)
@@ -406,6 +433,9 @@ class ManualConnectivityScreen(Screen):
                 "connectivity" in e
                 or "overlay_tailnet" in e
                 or "participant_exposure" in e
+                # The cloudflare_tunnel hostname error names this field;
+                # omitting it here would let an invalid config through.
+                or "public_hostname" in e
             )
             # admin_password isn't collected until deploy time (resolve_admin_
             # credentials runs in deploy_compose.py, not the wizard) — the

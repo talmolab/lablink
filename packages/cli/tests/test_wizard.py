@@ -490,22 +490,26 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
 # ---------------------------------------------------------------------------
 # ManualConnectivityScreen
 # ---------------------------------------------------------------------------
-def _drive_connectivity_screen(
+def _drive_connectivity_screen_cfg(
     *,
     choose_mesh_overlay: bool,
     overlay_tailnet: str = "",
     choose_funnel: bool = False,
+    choose_cloudflare: bool = False,
+    public_hostname: str = "",
 ):
-    """Push ManualConnectivityScreen directly, drive it, return
-    (cfg.manual.connectivity, cfg.manual.overlay_tailnet,
-    cfg.manual.participant_exposure, screen_stack_grew)."""
+    """Push ManualConnectivityScreen, drive it, return (cfg, stack_delta).
+
+    The 4-tuple wrapper below predates the third exposure mode; new cases
+    read fields off cfg directly instead of growing the tuple.
+    """
     import asyncio
     from textual.widgets import Input, RadioButton, RadioSet
 
     cfg, app = _build_cfg_and_app()
     cfg.provider = "manual"
 
-    async def _run() -> tuple[str, str, str, int]:
+    async def _run():
         from lablink_cli.tui.wizard import ManualConnectivityScreen
 
         async with app.run_test() as pilot:
@@ -520,29 +524,45 @@ def _drive_connectivity_screen(
                 for btn in radio_set.query(RadioButton):
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
-                screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+            screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+
+            target_id = None
             if choose_funnel:
+                target_id = "participant-exposure-funnel"
+            elif choose_cloudflare:
+                target_id = "participant-exposure-cloudflare"
+            if target_id:
                 exposure_set = screen.query_one(
                     "#participant-exposure-select", RadioSet
                 )
                 for btn in exposure_set.query(RadioButton):
-                    if btn.id == "participant-exposure-funnel":
+                    if btn.id == target_id:
                         btn.value = True
-                if not choose_mesh_overlay:
-                    screen.query_one(
-                        "#overlay-tailnet", Input
-                    ).value = overlay_tailnet
+            if choose_cloudflare:
+                screen.query_one("#public-hostname", Input).value = public_hostname
+
             await pilot.pause()
             screen._next()
             await pilot.pause()
-            return (
-                cfg.manual.connectivity,
-                cfg.manual.overlay_tailnet,
-                cfg.manual.participant_exposure,
-                len(app.screen_stack) - stack_before,
-            )
+            return cfg, len(app.screen_stack) - stack_before
 
     return asyncio.run(_run())
+
+
+def _drive_connectivity_screen(
+    *, choose_mesh_overlay: bool, overlay_tailnet: str = "", choose_funnel: bool = False
+):
+    cfg, delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=choose_mesh_overlay,
+        overlay_tailnet=overlay_tailnet,
+        choose_funnel=choose_funnel,
+    )
+    return (
+        cfg.manual.connectivity,
+        cfg.manual.overlay_tailnet,
+        cfg.manual.participant_exposure,
+        delta,
+    )
 
 
 def test_connectivity_screen_defaults_to_lan_direct():
@@ -693,3 +713,51 @@ def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
         "a real requirement (tailnet) blocks progression; an unset "
         "admin_password (not yet collected at this wizard stage) must not"
     )
+
+
+def test_connectivity_screen_writes_cloudflare_tunnel_and_hostname():
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="lab.example.org",
+    )
+    assert cfg.manual.participant_exposure == "cloudflare_tunnel"
+    assert cfg.manual.public_hostname == "lab.example.org"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_connectivity_screen_blocks_cloudflare_without_hostname():
+    """The hostname is the whole point of this mode; an empty one must not
+    get past the screen. Requires the error-substring filter in _next() to
+    include 'public_hostname'."""
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="",
+    )
+    assert cfg.manual.participant_exposure == "cloudflare_tunnel"
+    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_blocks_lan_direct_with_cloudflare():
+    """Same rejection lan_direct + Funnel gets, now generalized."""
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=False,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="lab.example.org",
+    )
+    assert cfg.manual.connectivity == "lan_direct"
+    assert stack_delta == 0
+
+
+def test_connectivity_screen_cloudflare_hostname_is_stripped():
+    cfg, _ = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="  lab.example.org  ",
+    )
+    assert cfg.manual.public_hostname == "lab.example.org"
