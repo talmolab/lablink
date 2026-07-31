@@ -716,6 +716,11 @@ def _print_summary(
     # insert a hard newline mid-command — that would break the
     # operator's copy-paste.
     mesh_overlay = cfg.manual.connectivity == "mesh_overlay"
+    reverse_tunnel = cfg.manual.connectivity == "reverse_tunnel"
+    # Both connectivity modes below mean the client isn't reachable on the
+    # allocator's own LAN — mesh_overlay via a Tailscale tailnet,
+    # reverse_tunnel by dialing out instead of accepting inbound at all.
+    off_lan = mesh_overlay or reverse_tunnel
     # Only substitute when we actually have the real URL — funnel_active
     # can be True while funnel_url is None (enable succeeded but the
     # status lookup didn't match), and a guessed fallback here would be
@@ -742,6 +747,18 @@ def _print_summary(
             f"--register-token {register_token or '<token>'} "
             "--overlay-hostname <name> --tailscale-authkey <key>"
         )
+    elif reverse_tunnel:
+        console.print(
+            "\n[bold]Next step:[/bold] for each tunnel client (a box or "
+            "workload that can't accept inbound connections), open a "
+            "terminal inside it and run (hostname/machine-identity/GPU are "
+            "auto-detected; the tunnel's values are minted by the "
+            "allocator, so --tunnel takes no arguments):"
+        )
+        register_cmd = (
+            f"  lablink client register --allocator-url {register_url} "
+            f"--register-token {register_token or '<token>'} --tunnel"
+        )
     else:
         console.print("\n[bold]Next step:[/bold] on each BYO box on the same LAN, run")
         register_cmd = (
@@ -749,7 +766,7 @@ def _print_summary(
             f"--register-token {register_token or '<token>'}"
         )
     console.print(register_cmd, soft_wrap=True, highlight=False)
-    if mesh_overlay:
+    if off_lan:
         console.print(
             "  [dim]Registering ahead of time from elsewhere instead? "
             "Add --no-run-locally to print secrets for your own "

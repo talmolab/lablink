@@ -2004,3 +2004,34 @@ class TestCanonicalUrlFile:
             cfg, yes=True, workdir_root=tmp_path, tailscale_authkey="tskey-abc"
         )
         assert "https://known.example.ts.net" in (target / "allocator-url").read_text()
+
+
+class TestReverseTunnelDeploy:
+    def test_renders_no_extra_port_or_env(self, tmp_path):
+        """The mode needs no inbound port and no secrets in .env. If this
+        fails, the transport has regressed toward frp's shape."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(connectivity="reverse_tunnel")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        env = (target / ".env").read_text()
+        assert "TUNNEL" not in env and "TOKEN" not in env
+        compose = (target / "docker-compose.yml").read_text()
+        assert compose.count("ports:") == 1
+        assert ":8080" not in compose
+        assert not (target / "docker-compose.override.yml").exists()
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_summary_shows_the_valueless_flag(self, mock_extract, mock_lan, capsys):
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok123456789012345678901"
+        mock_lan.return_value = "192.168.1.42"
+        _print_summary(_manual_cfg(connectivity="reverse_tunnel"))
+        out = capsys.readouterr().out
+        assert "--tunnel" in out
+        assert "on the same LAN" not in out
+        assert "--no-run-locally" in out
