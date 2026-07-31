@@ -45,6 +45,18 @@ services:
       # Funnel-exposed; the allocator falls back to the request host then.
       - ./allocator-url:/config/allocator-url:ro
       - allocator_pgdata:/var/lib/postgresql
+    environment:
+      # Which participant-exposure mode start.sh should act on. Always
+      # present (compose has no conditionals; an unset variable makes
+      # `docker compose up` warn). The other two modes leave start.sh's
+      # connector block untouched.
+      - PARTICIPANT_EXPOSURE=${PARTICIPANT_EXPOSURE:-none}
+      # Cloudflare Tunnel token, for participant_exposure=cloudflare_tunnel.
+      # Comes from .env (written by `lablink deploy
+      # --cloudflare-tunnel-token`), never from config.yaml — it is a
+      # credential. start.sh exits non-zero if the mode is set and this is
+      # empty, rather than starting an unexposed allocator that looks fine.
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     ports:
       # The container's nginx listens on :5000 (see lablink-nginx.conf in
       # the allocator package). It is the only listener — there is no TLS

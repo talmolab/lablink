@@ -32,6 +32,10 @@ from lablink_cli.config.schema import Config, save_config
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
 HEALTH_POLL_TIMEOUT_SECONDS = 300
+# Shorter than the health poll above on purpose: the stack is already
+# confirmed healthy locally by then, so this only waits on DNS/edge
+# propagation, and a miss is a warning rather than a failure.
+PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS = 30
 ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
 # Only ssl=none is supported by the manual-provider compose stack today:
 # the allocator image has no TLS terminator (Caddy is part of the AWS
@@ -122,7 +126,11 @@ def _tailscale_state_volume_exists(target: Path) -> bool:
 
 
 def render_compose_dir(
-    cfg: Config, target: Path, *, tailscale_authkey: str | None = None
+    cfg: Config,
+    target: Path,
+    *,
+    tailscale_authkey: str | None = None,
+    cloudflare_tunnel_token: str | None = None,
 ) -> None:
     """Render docker-compose.yml + .env + config.yaml into target.
 
@@ -145,6 +153,11 @@ def render_compose_dir(
     is not persisted in config.yaml (unlike admin/DB creds) — only into
     this deployment's .env, and only for as long as the sidecar needs it
     to join for the first time.
+
+    `cloudflare_tunnel_token` is only meaningful when
+    `cfg.manual.participant_exposure == "cloudflare_tunnel"`, and follows
+    the same rules as `tailscale_authkey`: .env only, carried forward on a
+    redeploy that omits it, overridden when supplied again (rotation).
     """
     target.mkdir(parents=True, exist_ok=True)
     needs_sidecar = _needs_tailscale_sidecar(cfg)
@@ -164,12 +177,25 @@ def render_compose_dir(
     #    instead of blanking out an already-joined sidecar's key.
     env_path = target / ".env"
     previous_authkey = _read_env_value(env_path, "TS_AUTHKEY")
+    previous_cf_token = _read_env_value(env_path, "CLOUDFLARE_TUNNEL_TOKEN")
 
     allocator_image = _allocator_image(cfg)
     env_lines = [
         f"ALLOCATOR_IMAGE={allocator_image}",
         f"HTTP_PORT={DEFAULT_HTTP_PORT}",
+        # Always declared: the compose templates substitute it
+        # unconditionally, and an unset variable makes `docker compose up`
+        # warn on every deploy.
+        f"PARTICIPANT_EXPOSURE={cfg.manual.participant_exposure}",
     ]
+    if cfg.manual.participant_exposure == "cloudflare_tunnel":
+        # Same carry-forward rule as TS_AUTHKEY: a redeploy that omits the
+        # flag keeps the working token, while an explicitly supplied one
+        # wins (that is the rotation path).
+        env_lines.append(
+            f"CLOUDFLARE_TUNNEL_TOKEN="
+            f"{cloudflare_tunnel_token or previous_cf_token or ''}"
+        )
     if needs_sidecar:
         resolved_authkey = tailscale_authkey or previous_authkey or ""
         env_lines.append(f"TS_AUTHKEY={resolved_authkey}")
@@ -207,6 +233,10 @@ def render_compose_dir(
             canonical_target.read_text() if canonical_target.exists() else ""
         )
         canonical_target.write_text(previous_url)
+    elif cfg.manual.participant_exposure == "cloudflare_tunnel":
+        # Known up front — the admin typed it. No after-the-fact write, and
+        # no window where the allocator reports the wrong URL.
+        canonical_target.write_text(f"https://{cfg.manual.public_hostname}")
     else:
         canonical_target.write_text("")
 
@@ -245,6 +275,7 @@ def run_deploy_compose(
     yes: bool = False,
     workdir_root: Path | None = None,
     tailscale_authkey: str | None = None,
+    cloudflare_tunnel_token: str | None = None,
 ) -> None:
     """Bring up the allocator stack via docker-compose.
 
@@ -265,6 +296,11 @@ def run_deploy_compose(
     `lablink destroy`, which wipes the working directory — including
     `.env` — but keeps that volume specifically so this doesn't force a
     needless re-auth).
+    `cloudflare_tunnel_token` is required when
+    `cfg.manual.participant_exposure == "cloudflare_tunnel"`, unless a
+    value is already on record in this deployment's existing `.env`. There
+    is no state-volume equivalent here: the tunnel's identity lives in
+    Cloudflare's account, and the token is the only local copy.
     """
     target = compose_workdir(cfg, workdir_root)
 
@@ -292,6 +328,35 @@ def run_deploy_compose(
                 "and re-run with --tailscale-authkey <key>."
             )
             raise SystemExit(1)
+
+    # Preflight: cloudflare_tunnel needs a hostname and a token. The
+    # hostname is also checked by get_config_errors(), but `lablink deploy`
+    # never calls that validator for the manual provider — this is the
+    # actual enforcement point for a hand-edited config.yaml. Modeled on
+    # the TS_AUTHKEY check above, minus the state-volume clause: there is
+    # no volume here, so "on record in .env" is the whole condition.
+    if cfg.manual.participant_exposure == "cloudflare_tunnel":
+        if not cfg.manual.public_hostname:
+            console.print(
+                "[red]manual.participant_exposure is 'cloudflare_tunnel' but "
+                "manual.public_hostname is empty.[/red]\n"
+                "Set it to the hostname you configured as the tunnel's "
+                "public hostname in Cloudflare (e.g. lab.smithlab.org)."
+            )
+            raise SystemExit(1)
+        previous_cf_token = _read_env_value(target / ".env", "CLOUDFLARE_TUNNEL_TOKEN")
+        if not cloudflare_tunnel_token and not previous_cf_token:
+            console.print(
+                "[red]manual.participant_exposure is 'cloudflare_tunnel' but "
+                "no --cloudflare-tunnel-token was given, and no previous "
+                "value is on record for this deployment.[/red]\n"
+                "Create a tunnel in Cloudflare's Zero Trust dashboard "
+                "(Networks > Tunnels), copy the token from its Docker "
+                "install command, and re-run with "
+                "--cloudflare-tunnel-token <token>."
+            )
+            raise SystemExit(1)
+
     # Preflight: SSL provider must be one the compose template supports.
     # The allocator image has no TLS terminator, so only ssl=none works
     # out of the box. Operators who need TLS run their own reverse proxy
@@ -306,29 +371,29 @@ def run_deploy_compose(
         )
         raise SystemExit(1)
 
-    # Preflight: lan_direct + tailscale_funnel is not a supported
+    # Preflight: lan_direct + any public exposure is not a supported
     # combination. lan_direct sends the participant's browser straight to
     # a client's LAN IP (ws://<client-ip>:6080 — see
     # LANDirectClientConnectivity), bypassing the allocator entirely —
     # unreachable off-LAN and blocked as mixed content once the allocator
-    # itself is Funnel-exposed. mesh_overlay proxies sessions through the
-    # allocator's own nginx instead, which Funnel already exposes.
+    # itself is publicly exposed. mesh_overlay proxies sessions through the
+    # allocator's own nginx instead, which any exposure mode publishes.
     # get_config_errors() also rejects this (catches it in the wizard/
     # `show-config`/`doctor`), but `lablink deploy` never calls that
     # validator for the manual provider — this is the actual enforcement
     # point for a hand-edited config.yaml deployed directly.
     if (
-        cfg.manual.participant_exposure == "tailscale_funnel"
+        cfg.manual.participant_exposure != "none"
         and cfg.manual.connectivity == "lan_direct"
     ):
         console.print(
-            "[red]manual.participant_exposure is 'tailscale_funnel' but "
-            "manual.connectivity is 'lan_direct'.[/red]\n"
+            f"[red]manual.participant_exposure is "
+            f"'{cfg.manual.participant_exposure}' but manual.connectivity is "
+            f"'lan_direct'.[/red]\n"
             "Participant sessions would connect directly to a client's LAN "
             "IP, which is unreachable off-LAN and blocked as mixed content "
-            "from the HTTPS Funnel page. Use manual.connectivity: "
-            "mesh_overlay instead, which proxies sessions through the "
-            "allocator."
+            "from the HTTPS page. Use manual.connectivity: mesh_overlay "
+            "instead, which proxies sessions through the allocator."
         )
         raise SystemExit(1)
 
@@ -349,22 +414,23 @@ def run_deploy_compose(
     cfg.app.admin_user = admin_user
     cfg.app.admin_password = admin_pw
 
-    # Preflight: a Funnel-exposed allocator is scanned by bots within
+    # Preflight: a publicly exposed allocator is scanned by bots within
     # minutes of publication (empirically confirmed 2026-07-22) — refuse
     # to ship a weak/example admin password once that's the case. Placed
     # after resolve_admin_credentials so a value resolved interactively
     # is what actually gets checked, not whatever (possibly empty) value
     # cfg.app.admin_password held before resolution.
-    if cfg.manual.participant_exposure == "tailscale_funnel":
+    if cfg.manual.participant_exposure != "none":
         from lablink_allocator_service.validate_config import is_weak_admin_password
 
         if is_weak_admin_password(admin_pw):
             console.print(
-                "[red]manual.participant_exposure is 'tailscale_funnel' "
-                "but the resolved admin password is empty, a known "
-                "example value, or shorter than 12 characters.[/red]\n"
-                "A Funnel-exposed allocator is reachable from the public "
-                "internet and gets scanned within minutes — set a strong "
+                f"[red]manual.participant_exposure is "
+                f"'{cfg.manual.participant_exposure}' but the resolved admin "
+                "password is empty, a known example value, or shorter than "
+                "12 characters.[/red]\n"
+                "A publicly exposed allocator is reachable from the internet "
+                "and gets scanned within minutes — set a strong "
                 "admin_password (12+ characters, not a common default) "
                 "before deploying."
             )
@@ -382,7 +448,12 @@ def run_deploy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    render_compose_dir(cfg, target, tailscale_authkey=tailscale_authkey)
+    render_compose_dir(
+        cfg,
+        target,
+        tailscale_authkey=tailscale_authkey,
+        cloudflare_tunnel_token=cloudflare_tunnel_token,
+    )
     console.print(f"[green]Rendered {target}[/green]")
 
     # Explicitly disable Funnel *before* _compose_up, whenever the new
@@ -419,10 +490,59 @@ def run_deploy_compose(
             _write_canonical_url(target, funnel_url)
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
+    cloudflare_url = None
+    if cfg.manual.participant_exposure == "cloudflare_tunnel":
+        cloudflare_url = f"https://{cfg.manual.public_hostname}"
+        if not _verify_public_hostname(cfg.manual.public_hostname):
+            console.print(
+                f"[yellow]{cloudflare_url} did not answer within "
+                f"{PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS}s.[/yellow]\n"
+                "The stack is up locally. Common causes: the DNS record is "
+                "still propagating (retry in a few minutes), or the tunnel's "
+                "public hostname in Cloudflare does not point at "
+                "http://localhost:5000."
+            )
+            _print_last_log_lines()
+
+    _print_summary(
+        cfg,
+        funnel_active=funnel_active,
+        funnel_url=funnel_url,
+        cloudflare_url=cloudflare_url,
+    )
 
     if not funnel_ok:
         raise SystemExit(1)
+
+
+def _verify_public_hostname(hostname: str) -> bool:
+    """True if the allocator answers on its public hostname.
+
+    One request over the real public URL proves DNS resolution, the
+    Cloudflare edge, the tunnel, nginx and Flask together — checking that
+    cloudflared is alive says nothing about whether the edge found it.
+
+    Deliberately advisory. A proxied CNAME created minutes earlier can
+    still be propagating, and the deployment itself is correct in that
+    case — the caller warns rather than failing.
+    """
+    url = f"https://{hostname}"
+    console.print(
+        f"[bold]Verifying public hostname {url}/api/health "
+        f"(up to {PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS}s) …[/bold]"
+    )
+    deadline = time.monotonic() + PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        try:
+            if check_health_endpoint(url).get("healthy"):
+                console.print(f"[green]Public hostname is live: {url}[/green]")
+                return True
+        except OSError:
+            # Unresolvable name / refused connection while the record
+            # propagates. Indistinguishable from "not ready yet" here.
+            pass
+        time.sleep(3)
+    return False
 
 
 def _compose_up(target: Path) -> None:
@@ -655,7 +775,11 @@ def _print_last_log_lines(lines: int = 30) -> None:
 
 
 def _print_summary(
-    cfg: Config, *, funnel_active: bool = False, funnel_url: str | None = None
+    cfg: Config,
+    *,
+    funnel_active: bool = False,
+    funnel_url: str | None = None,
+    cloudflare_url: str | None = None,
 ) -> None:
     register_token = _extract_register_token()
     # Manual provider is HTTP-only; preflight rejects anything else.
@@ -677,6 +801,16 @@ def _print_summary(
         )
         console.print(
             f"  Allocator URL (public): {public_url}",
+            soft_wrap=True,
+            highlight=False,
+        )
+    # Separate from funnel_url rather than folded into it: Funnel has an
+    # "enabled but URL unknown" state (it has to be read back out of the
+    # sidecar) that a Cloudflare hostname, being config the admin typed,
+    # can never be in.
+    if cloudflare_url:
+        console.print(
+            f"  Allocator URL (public): {cloudflare_url}",
             soft_wrap=True,
             highlight=False,
         )

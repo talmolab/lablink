@@ -534,3 +534,10 @@ class TestClientRegisterCommand:
         kwargs = mock_run.call_args.kwargs
         assert kwargs["overlay_hostname"] == "classroom-gpu-3"
         assert kwargs["tailscale_authkey"] == "tskey-abc"
+
+
+def test_deploy_help_documents_the_cloudflare_token_flag():
+    """CI renders Typer help with ANSI escapes; _plain() strips them."""
+    result = runner.invoke(app, ["deploy", "--help"])
+    assert result.exit_code == 0
+    assert "--cloudflare-tunnel-token" in _plain(result.output)
