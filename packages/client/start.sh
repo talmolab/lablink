@@ -192,19 +192,32 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
   # reports-healthy-while-unreachable failure this block exists to prevent.
   # So probe positively here rather than inferring health from the absence of
   # a failure line. Retries because a just-started allocator can need a moment.
+  #
+  # Deliberately NO -f: this asks "can I reach that host at all", not "is the
+  # allocator ready". Any HTTP answer -- including the 503 the readiness
+  # endpoint returns while THIS client's own tunnel is still unattached --
+  # proves reachability. Gating on 2xx deadlocked startup (observed live
+  # 2026-07-31): the client waited for a green health check that could only go
+  # green once the client's tunnel was up, which this check was blocking.
   TUNNEL_PROBE_URL="$(printf '%s' "$TUNNEL_URL" \
     | sed -e 's|^wss://|https://|' -e 's|^ws://|http://|')/api/health"
   TUNNEL_REACHABLE=""
   for attempt in 1 2 3 4 5; do
-    if curl -sf --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
+    if curl -s --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
       TUNNEL_REACHABLE=yes
       break
+    else
+      # $? must be read here, inside the else: after `fi` it is the *if
+      # statement's* status, which is 0 when the condition failed and no else
+      # ran. curl's code is the diagnosis: 6 = DNS, 7 = no route / refused,
+      # 28 = timeout, 35/60 = TLS. Without it this line names a symptom only.
+      probe_rc=$?
+      echo "allocator not reachable yet at $TUNNEL_PROBE_URL (attempt $attempt/5, curl exit $probe_rc)"
     fi
-    echo "allocator not reachable yet at $TUNNEL_PROBE_URL (attempt $attempt/5)"
     sleep 3
   done
   if [ -z "$TUNNEL_REACHABLE" ]; then
-    tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL -- the tunnel cannot come up. Check DNS and routing from inside this container: a hostname that resolves to an address this container cannot route to fails exactly here."
+    tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL -- the tunnel cannot come up. Check DNS and routing from inside this container: a hostname that resolves to an address this container cannot route to fails exactly here (curl exit 6 = DNS, 7 = no route, 28 = timeout, 35/60 = TLS)."
   fi
 
   echo "Opening tunnel to $TUNNEL_URL..."

@@ -268,7 +268,12 @@ class TestReachabilityPreflight:
         end = script_text.index('  echo "Opening tunnel to')
         return re.sub(r"sleep 3\b", "sleep 0.05", script_text[start:end])
 
-    def _run(self, curl_rc: int) -> subprocess.CompletedProcess:
+    def _run(
+        self, curl_rc: int = 0, curl_body: str | None = None
+    ) -> subprocess.CompletedProcess:
+        """curl_body overrides the stub for tests that need the probe's
+        *flags* to decide the outcome rather than a fixed exit code."""
+        stub = curl_body if curl_body is not None else f"return {curl_rc}"
         snippet = self._extract_preflight(START_SH.read_text())
         with tempfile.TemporaryDirectory() as d:
             harness = f"""
@@ -279,7 +284,7 @@ TUNNEL_PATH_PREFIX="tun-vm-1-abc"
 TUNNEL_BIND_ADDR="127.0.0.10"
 CLIENT_SECRET="cs"
 send_status() {{ echo "STATUS_CALLED:$1"; return 0; }}
-curl() {{ return {curl_rc}; }}
+curl() {{ {stub}; }}
 {snippet}
 echo "REACHED_LAUNCH"
 """
@@ -304,3 +309,27 @@ echo "REACHED_LAUNCH"
         result = self._run(curl_rc=0)
         assert "STATUS_CALLED:error" not in result.stdout, result.stdout
         assert "REACHED_LAUNCH" in result.stdout, result.stdout
+
+    def test_readiness_503_still_counts_as_reachable(self):
+        """The deadlock this probe caused, observed live 2026-07-31:
+        /api/health answers 503 while THIS client's own tunnel is unattached,
+        so a probe demanding 2xx could only pass once the tunnel was up --
+        which the probe itself was blocking. Any HTTP answer proves
+        reachability, which is all this check is entitled to ask.
+
+        The stub fails exactly the way curl does when -f meets a 503 (exit 22)
+        and succeeds otherwise, so this passes only if the probe drops -f."""
+        result = self._run(
+            curl_body='for a in "$@"; do case "$a" in -*f*) return 22;; esac; '
+            "done; return 0"
+        )
+        assert "REACHED_LAUNCH" in result.stdout, result.stdout
+        assert "STATUS_CALLED:error" not in result.stdout, result.stdout
+
+    def test_failure_message_carries_curls_exit_code(self):
+        """The live failure log said only "not reachable", which is a symptom.
+        curl's exit code separates DNS (6) from no-route (7) from timeout (28)
+        -- and `$?` read after `fi` would report the if statement's 0 instead,
+        so this asserts the real code reaches the log."""
+        result = self._run(curl_rc=6)
+        assert "curl exit 6" in result.stdout, result.stdout
