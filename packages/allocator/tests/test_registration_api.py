@@ -841,7 +841,6 @@ def test_overlay_hostname_404_when_not_an_overlay_client(client, monkeypatch):
 # ---- reverse_tunnel registration ------------------------------------------
 
 def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypatch):
-    from lablink_allocator_service import main
     from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
         ReverseTunnelClientConnectivity,
     )
@@ -856,12 +855,15 @@ def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypa
         "lablink_allocator_service.tunnel_manager.authorize_client",
         lambda **kw: authorized.update(kw),
     )
-    # canonical_base_url only echoes the public https scheme/host once
-    # ssl.provider != "none" opens the ProxyFix gate (see
-    # test_register_response_honors_x_forwarded_proto) -- otherwise the
-    # Flask test client's default request.host_url ("http://localhost/")
-    # would be used instead.
-    monkeypatch.setattr(main.cfg.ssl, "provider", "letsencrypt", raising=False)
+    # No ssl.provider override and no X-Forwarded-* headers: reverse_tunnel
+    # is a manual-provider-only connectivity mode, and manual deployments
+    # only ever run ssl.provider: none (see canonical_base_url's
+    # docstring), which keeps the ProxyFix gate shut regardless of what
+    # headers a caller sends. The realistic response here is the plain
+    # http:// Flask test client default -- the CLI, not the allocator, is
+    # what compensates for that (see register.py's TUNNEL_URL, which
+    # prefers its own resolved_url over this field's value for exactly
+    # this reason).
 
     r = client.post(
         "/api/v1/clients/register",
@@ -869,11 +871,7 @@ def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypa
             "hostname": "vm-1", "machine_identity": "i-1",
             "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
         },
-        headers={
-            "Authorization": "Bearer tk_test_register",
-            "X-Forwarded-Proto": "https",
-            "X-Forwarded-Host": "allocator.example.com",
-        },
+        headers={"Authorization": "Bearer tk_test_register"},
     )
     assert r.status_code == 200
     body = r.get_json()
@@ -882,7 +880,11 @@ def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypa
     # The URL is the allocator's BASE address; the prefix travels separately
     # because the client passes it with -P and ignores the URL's path.
     assert "/tunnel/" not in body["tunnel_url"]
-    assert body["tunnel_url"].rstrip("/") == "https://allocator.example.com"
+    # Realistic manual topology: canonical_base_url falls back to
+    # request.host_url, which is http:// here (no canonical-url file, no
+    # trusted X-Forwarded-Proto) -- this is NOT an https guarantee, and
+    # nothing downstream of this response should assume one.
+    assert body["tunnel_url"].startswith("http://")
 
     kw = fake_db.register_client.call_args.kwargs
     assert kw["provider_metadata"]["tunnel_alias_octet"] == 12

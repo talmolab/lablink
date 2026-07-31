@@ -1626,10 +1626,42 @@ class TestReverseTunnelRegister:
         assert "TUNNEL_URL=wss://a.example.com" in text
         assert "TUNNEL_PATH_PREFIX=tun-vm-1-abc" in text
         assert "TUNNEL_BIND_ADDR=127.0.0.12" in text
-        # frpc dialed localhost inside the container; so does wstunnel, so
-        # keep KasmVNC off the client's own LAN.
+        # wstunnel dials localhost inside the container; keep KasmVNC
+        # off the client's own LAN.
         assert "KASMVNC_LISTEN=127.0.0.1" in text
         assert env.stat().st_mode & 0o777 == 0o600
+
+    def test_tunnel_url_prefers_caller_url_over_the_response_value(self, tmp_path):
+        """Same bug class as lablink#396 (see
+        test_prefers_caller_url_over_downgraded_response_url above):
+        resp["tunnel_url"] is canonical_base_url(request), which cannot
+        detect HTTPS on a manual deployment (ssl.provider: none keeps the
+        X-Forwarded-Proto gate shut) — so behind the operator's own
+        reverse proxy it reports http:// even when the allocator is only
+        reachable over HTTPS, and a ws:// dial against that host just
+        doesn't work. resp["tunnel_url"] must be used only as the SIGNAL
+        that this is a tunnel client; the URL value must come from the
+        caller's own (proven-reachable) allocator_url."""
+        from lablink_cli.commands.register import _write_env_file
+
+        env = tmp_path / "client.env"
+        _write_env_file(
+            env,
+            {
+                "client_id": "vm-1", "client_secret": "cs", "agent_token": "at",
+                "register_token": "rt", "connectivity": "reverse_tunnel",
+                "client_image": "img",
+                "allocator_url": "http://a.example.com",
+                "tunnel_url": "http://a.example.com",
+                "tunnel_path_prefix": "tun-vm-1-abc",
+                "tunnel_bind_addr": "127.0.0.12",
+            },
+            allocator_url="https://a.example.com",
+            overlay_hostname=None, tailscale_authkey=None,
+        )
+        text = env.read_text()
+        assert "TUNNEL_URL=wss://a.example.com" in text
+        assert "TUNNEL_URL=ws://a.example.com" not in text
 
     def test_docker_run_publishes_no_host_ports(self):
         from lablink_cli.commands.register import _build_docker_run

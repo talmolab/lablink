@@ -475,15 +475,23 @@ def _write_env_file(
     # is already written above and is what start.sh gates on, so a missing
     # value fails loudly there instead of silently skipping the tunnel.
     if resp.get("tunnel_url"):
-        # Always wss://: the allocator reports its canonical URL, which may
-        # be http:// behind an ingress that terminates TLS, and a ws:// dial
-        # would then be downgraded or refused.
-        tunnel_url = resp["tunnel_url"].replace("https://", "wss://", 1)
+        # resp["tunnel_url"] is only the SIGNAL that this is a tunnel
+        # client; the URL VALUE comes from resolved_url (same reasoning as
+        # ALLOCATOR_URL above, lablink#396): resp["tunnel_url"] is
+        # canonical_base_url(request), which can't detect HTTPS on a manual
+        # deployment (ssl.provider: none keeps the X-Forwarded-Proto gate
+        # shut — see that function's own docstring). Behind the operator's
+        # own reverse proxy (which the rendered compose explicitly
+        # recommends), that means it reports http:// even when the
+        # allocator is only reachable over HTTPS, and a ws:// dial against
+        # that host simply doesn't work. resolved_url is what the caller
+        # proved reachable to get this far.
+        tunnel_url = resolved_url.replace("https://", "wss://", 1)
         tunnel_url = tunnel_url.replace("http://", "ws://", 1)
         lines.append(f"TUNNEL_URL={tunnel_url}")
         lines.append(f"TUNNEL_PATH_PREFIX={resp['tunnel_path_prefix']}")
         lines.append(f"TUNNEL_BIND_ADDR={resp['tunnel_bind_addr']}")
-        # frpc/wstunnel dial localhost inside the container; keep KasmVNC
+        # wstunnel dials localhost inside the container; keep KasmVNC
         # off the client's own LAN interface too.
         lines.append("KASMVNC_LISTEN=127.0.0.1")
     if overlay_hostname is not None:
