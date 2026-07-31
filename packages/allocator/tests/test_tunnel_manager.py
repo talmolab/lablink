@@ -12,6 +12,7 @@ def tm(tmp_path, monkeypatch):
         tunnel_manager, "RESTRICTIONS_PATH", tmp_path / "restrictions.yaml"
     )
     monkeypatch.setattr(tunnel_manager, "_restrictions", {})
+    monkeypatch.setattr(tunnel_manager, "_hydrated", False)
     return tunnel_manager
 
 
@@ -130,6 +131,75 @@ def test_render_cannot_be_forced_into_a_second_top_level_entry(tm):
 def test_restrictions_file_is_owner_only(tm):
     tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
     assert tm.RESTRICTIONS_PATH.stat().st_mode & 0o777 == 0o600
+
+
+def test_authorize_after_restart_does_not_drop_other_clients(tm):
+    """A bare allocator restart wipes the in-process _restrictions dict
+    (module-level, not persisted) but leaves the restrictions file on
+    disk. Without rehydration, the next authorize_client() renders the
+    WHOLE file from the empty dict, silently revoking every other
+    client's tunnel."""
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    tm.authorize_client(client_id="vm-2", alias_octet=11, prefix="tun-vm-2-def")
+
+    # Simulate a process restart: the dict and the hydration flag are
+    # gone; the file (RESTRICTIONS_PATH, patched by the fixture) survives.
+    tm._restrictions.clear()
+    tm._hydrated = False
+
+    tm.authorize_client(client_id="vm-3", alias_octet=12, prefix="tun-vm-3-ghi")
+
+    text = tm.RESTRICTIONS_PATH.read_text()
+    assert "tun-vm-1-abc" in text
+    assert "tun-vm-2-def" in text
+    assert "tun-vm-3-ghi" in text
+
+
+def test_revoke_after_restart_finds_the_stale_entry(tm):
+    """revoke_client must also rehydrate: otherwise a revoke issued right
+    after a restart (before any authorize_client call) is a no-op against
+    the empty in-memory dict, leaving the stale rule live forever."""
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    tm._restrictions.clear()
+    tm._hydrated = False
+
+    tm.revoke_client("vm-1")
+
+    text = tm.RESTRICTIONS_PATH.read_text()
+    assert "tun-vm-1-abc" not in text
+
+
+def test_hydrate_tolerates_a_missing_file(tm):
+    assert not tm.RESTRICTIONS_PATH.exists()
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    assert "tun-vm-1-abc" in tm.RESTRICTIONS_PATH.read_text()
+
+
+def test_hydrate_tolerates_a_malformed_file(tm):
+    tm.RESTRICTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tm.RESTRICTIONS_PATH.write_text("not: [valid")  # unterminated flow sequence
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    text = tm.RESTRICTIONS_PATH.read_text()
+    assert "tun-vm-1-abc" in text
+    assert "not:" not in text
+
+
+def test_hydrate_only_reads_the_file_once_per_process(tm):
+    """A second hydrate call in the same process must be a no-op -- once
+    _hydrated is set, an external rewrite of the file (another process, a
+    human edit) must not get silently picked up mid-run."""
+    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
+    tm.RESTRICTIONS_PATH.write_text(
+        "restrictions:\n"
+        "- name: vm-9\n"
+        "  match: [tun-vm-9-xyz]\n"
+        "  allow:\n"
+        "  - port: ['6080', '7070']\n"
+        "    cidr: ['127.0.0.9/32']\n"
+    )
+    tm._hydrate_from_disk()
+    assert "vm-9" not in tm._restrictions
+    assert "vm-1" in tm._restrictions
 
 
 def test_attached_aliases_reads_listening_sockets(tm, monkeypatch):

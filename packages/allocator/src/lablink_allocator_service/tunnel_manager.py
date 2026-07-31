@@ -83,8 +83,8 @@ TUNNEL_SERVER_PORT = 8080
 # escape it -- it ends up as a YAML mapping key/value AND a path segment
 # (via path_prefix), so "sanitize" would need to satisfy both consumers.
 _CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
-# path_prefix() = "<client_id>-<digest>" (digest is 16 hex chars), so the
-# same charset applies with a little headroom for that suffix.
+# path_prefix() = "tun-<client_id>-<digest>" (digest is 16 hex chars), so
+# the same charset applies with a little headroom for that prefix/suffix.
 _PREFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,299}$")
 
 # A rendered restriction is one octet in a 127.0.0.0/8 /32 CIDR. 0 and 255
@@ -121,6 +121,14 @@ def is_valid_alias_octet(octet: int) -> bool:
 # client_id -> (alias_octet, prefix). Module-level, like secret_hash's
 # cache: one allocator process per deployment.
 _restrictions: dict[str, tuple[int, str]] = {}
+# True once this process has attempted to load _restrictions from disk.
+# `restart: unless-stopped` leaves the restrictions file (and the DB) in
+# place across a crash/restart -- only a container *recreate* wipes both
+# together, so the two stay consistent. Without this, _write() renders the
+# WHOLE file from this in-memory dict, so the first authorize_client() call
+# after a bare restart would silently drop every previously-authorized
+# client's rule.
+_hydrated = False
 
 
 class _PathPrefix(str):
@@ -215,6 +223,39 @@ def _write() -> None:
     os.chmod(RESTRICTIONS_PATH, 0o600)
 
 
+def _hydrate_from_disk() -> None:
+    """Load _restrictions from the on-disk file, once per process.
+
+    Runs before the first authorize_client()/revoke_client() mutation so a
+    freshly-restarted process doesn't treat "empty in-memory dict" as
+    "no clients have tunnels" -- see _hydrated's comment. Best-effort: a
+    missing or malformed file just means "nothing to load" rather than a
+    failure at import time or on the first registration after a restart.
+    """
+    global _hydrated
+    if _hydrated:
+        return
+    _hydrated = True  # only ever try once, even if this fails
+    try:
+        text = RESTRICTIONS_PATH.read_text()
+    except OSError:
+        return
+    try:
+        doc = yaml.safe_load(text) or {}
+        loaded: dict[str, tuple[int, str]] = {}
+        for entry in doc.get("restrictions") or []:
+            name = entry["name"]
+            prefix = str(entry["match"][0])
+            cidr = entry["allow"][0]["cidr"][0]
+            octet = int(cidr.rsplit(".", 1)[-1].split("/")[0])
+            loaded[name] = (octet, prefix)
+    except (yaml.YAMLError, KeyError, IndexError, TypeError, ValueError):
+        # Malformed file: fall back to empty rather than raising, and
+        # rather than trusting a partially-parsed (possibly corrupt) set.
+        return
+    _restrictions.update(loaded)
+
+
 def authorize_client(*, client_id: str, alias_octet: int, prefix: str) -> None:
     """Permit exactly this client to bind exactly its own alias.
 
@@ -224,6 +265,7 @@ def authorize_client(*, client_id: str, alias_octet: int, prefix: str) -> None:
     boundary: client_id is attacker-controlled (see the module docstring),
     so it's validated here rather than assumed clean by callers.
     """
+    _hydrate_from_disk()
     if not _is_safe_client_id(client_id):
         raise ValueError(f"unsafe client_id for tunnel restrictions: {client_id!r}")
     if not _is_safe_prefix(prefix):
@@ -246,6 +288,7 @@ def revoke_client(client_id: str) -> None:
     behavior. This also has to stay a no-op, not raise -- it runs on every
     client unregister.
     """
+    _hydrate_from_disk()
     if _restrictions.pop(client_id, None) is None:
         return
     _write()
