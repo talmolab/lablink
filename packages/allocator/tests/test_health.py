@@ -243,6 +243,28 @@ class TestTunnelStatus:
         body = client.get("/api/health").get_json()
         assert body["checks"]["tunnel"] == "1 client(s) not attached"
 
+    def test_unattached_client_does_not_make_the_allocator_unready(
+        self, health_client, monkeypatch
+    ):
+        """Reported, but not a 503. Observed live 2026-07-31: gating the code
+        on client attachment deadlocked client startup -- a registering client
+        is unattached by definition until its tunnel is up, its own preflight
+        probe waited for a green health check, and that check could not go
+        green until the tunnel it was blocking came up. It also failed
+        deploy_compose's health poll and made `lablink status` call the
+        allocator unhealthy because a *client* was down."""
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: set())
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = [10]
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200, resp.get_json()
+        assert resp.get_json()["status"] == "healthy"
+        assert resp.get_json()["checks"]["tunnel"] == "1 client(s) not attached"
+
     def test_health_ok_when_every_client_is_attached(self, health_client, monkeypatch):
         from lablink_allocator_service import tunnel_manager
 
@@ -259,7 +281,13 @@ class TestTunnelStatus:
         monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "not running")
         client, fake_db = health_client
         fake_db.list_tunnel_aliases.return_value = []
-        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "not running"
+        resp = client.get("/api/health")
+        assert resp.get_json()["checks"]["tunnel"] == "not running"
+        # The other side of the line drawn by
+        # test_unattached_client_does_not_make_the_allocator_unready: the
+        # shared server being down IS the allocator's own dependency failing,
+        # so it must still gate readiness.
+        assert resp.status_code == 503
 
     def test_health_ok_when_no_clients_registered(self, health_client, monkeypatch):
         """Shared server up, zero registered tunnel clients: the empty

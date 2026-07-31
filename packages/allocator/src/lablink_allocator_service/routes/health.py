@@ -12,6 +12,11 @@ from flask import Blueprint, current_app, jsonify
 
 bp = Blueprint("health", __name__)
 
+# Shared by _tunnel_status() (which produces it) and health_check() (which
+# excludes it from the readiness gate). One constant rather than two literals
+# so the two can't drift apart.
+_UNATTACHED_SUFFIX = " client(s) not attached"
+
 
 def _tailscale_status() -> str:
     """Return "ok" / "not joined" for the allocator's own tailnet
@@ -71,7 +76,7 @@ def _tunnel_status() -> str:
     except psycopg2.Error:
         return "client list unavailable"
     missing = expected - tunnel_manager.attached_aliases()
-    return f"{len(missing)} client(s) not attached" if missing else "ok"
+    return f"{len(missing)}{_UNATTACHED_SUFFIX}" if missing else "ok"
 
 
 @bp.route("/api/health", methods=["GET"])
@@ -94,7 +99,19 @@ def health_check():
     if getattr(connectivity, "requires_tunnel_check", False):
         checks["tunnel"] = _tunnel_status()
 
-    all_ready = all(v == "ok" for v in checks.values())
+    # A registered client whose tunnel isn't attached is reported but does not
+    # gate readiness: the allocator is serving fine, and nothing about one
+    # student's dead tunnel makes it unready. Gating on it also deadlocked the
+    # client's own startup — a registering client is "not attached" by
+    # definition until its tunnel is up, and it won't bring that tunnel up
+    # while this endpoint answers 503 (observed live 2026-07-31). The other
+    # tunnel values (server down, DB error) DO gate: those are the allocator's
+    # own dependencies failing.
+    all_ready = all(
+        v == "ok"
+        for k, v in checks.items()
+        if not (k == "tunnel" and v.endswith(_UNATTACHED_SUFFIX))
+    )
     status = "healthy" if all_ready else "starting"
     code = 200 if all_ready else 503
 
