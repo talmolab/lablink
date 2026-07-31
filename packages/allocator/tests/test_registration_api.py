@@ -546,6 +546,56 @@ def test_unregister_success(reg_client):
     fake_db.unregister_client.assert_called_once_with("vm-1")
 
 
+def test_unregister_revokes_a_reverse_tunnel_clients_restrictions_rule(
+    reg_client, monkeypatch
+):
+    """cleanup_client_identity was dead code (called by nothing); wired
+    into unregister so a departed tunnel client's restrictions-file rule
+    doesn't linger forever, growing the file on every re-registration."""
+    from lablink_allocator_service.secret_hash import hash_secret
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+    revoked = {}
+    monkeypatch.setattr(
+        "lablink_allocator_service.tunnel_manager.revoke_client",
+        lambda client_id: revoked.setdefault("client_id", client_id),
+    )
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+
+    assert r.status_code == 200
+    assert revoked == {"client_id": "vm-1"}
+
+
+def test_unregister_skips_cleanup_for_connectivity_without_it(reg_client):
+    """The default reg_client provider (AllocatorProxiedClientConnectivity)
+    has no cleanup_client_identity -- the optional-hook lookup must not
+    raise for connectivity modes that need no such cleanup."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+
+    assert r.status_code == 200
+
+
 # ---- GET /api/v1/clients (list endpoint) ---------------------------------
 
 def test_list_clients_rejects_missing_auth(reg_client):

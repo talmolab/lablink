@@ -315,6 +315,20 @@ def unregister_client(client_id):
     if not deleted:
         return jsonify({"error": "Client not found."}), 404
 
+    # Give the connectivity strategy a chance to drop any identity it
+    # minted for this client (e.g. reverse_tunnel's restrictions-file
+    # rule) -- optional because most strategies need no such cleanup, so
+    # it isn't part of the ClientConnectivity protocol.
+    prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
+        main.cfg.get("provider", None),
+        region=main.cfg.app.region,
+        terraform_dir=str(main.TERRAFORM_DIR),
+        connectivity=main.cfg.manual.connectivity,
+    )
+    cleanup = getattr(prov.client_connectivity, "cleanup_client_identity", None)
+    if cleanup is not None:
+        cleanup(hostname=client_id)
+
     return jsonify(client_id=client_id, status="unregistered"), 200
 
 
