@@ -724,18 +724,23 @@ def _print_summary(
     # Only substitute when we actually have the real URL — funnel_active
     # can be True while funnel_url is None (enable succeeded but the
     # status lookup didn't match), and a guessed fallback here would be
-    # exactly the wrong URL this function used to print.
-    funnel_url_used = mesh_overlay and funnel_active and bool(funnel_url)
+    # exactly the wrong URL this function used to print. Gated on off_lan,
+    # not just mesh_overlay: a reverse_tunnel client behind a NAT'd/
+    # firewalled box is just as unreachable at the LAN address, and Funnel
+    # (participant_exposure: tailscale_funnel) is the only way an off-LAN
+    # tunnel client reaches this deployment at all.
+    funnel_url_used = off_lan and funnel_active and bool(funnel_url)
+    # Hoisted above the mesh_overlay/reverse_tunnel branch so both off-LAN
+    # modes get the substitution — lan_direct clients genuinely are on the
+    # LAN, so their own hint below keeps using register_url as-is.
+    if funnel_url_used:
+        register_url = funnel_url
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
         # the allocator's LAN at all — the LAN URL above is unreachable
         # from it regardless of whether we detected one. When Funnel is
         # live, its public URL actually IS reachable from anywhere with
-        # internet access, so prefer it here specifically — but only for
-        # this mesh-overlay hint; lan_direct clients genuinely are on the
-        # LAN, so their own hint below keeps using register_url as-is.
-        if funnel_url_used:
-            register_url = funnel_url
+        # internet access, so prefer it here specifically.
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "

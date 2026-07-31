@@ -2035,3 +2035,34 @@ class TestReverseTunnelDeploy:
         assert "--tunnel" in out
         assert "on the same LAN" not in out
         assert "--no-run-locally" in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_register_hint_uses_public_url_when_funnel_active(
+        self, mock_extract, mock_lan, capsys
+    ):
+        """Regression: a reverse_tunnel client is behind a NAT/firewall that
+        can't accept inbound connections at all — participant_exposure:
+        tailscale_funnel is the only way an off-LAN one reaches this
+        deployment, exactly like mesh_overlay. Before this fix,
+        funnel_url_used (and the register_url substitution) were gated on
+        mesh_overlay only, so this printed an unreachable LAN address even
+        with Funnel live."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+        real_url = "https://lablink-allocator-testlab.example.ts.net"
+
+        _print_summary(
+            _manual_cfg(connectivity="reverse_tunnel"),
+            funnel_active=True,
+            funnel_url=real_url,
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            f"--allocator-url {real_url} --register-token {token} --tunnel" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
