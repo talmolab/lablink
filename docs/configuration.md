@@ -459,6 +459,103 @@ monitoring:
 
 **Viewing.** With `monitoring.enabled: true`, the admin UI exposes a **Session Metrics** button on the admin landing page; the page shows a cohort summary, funnel, per-VM table, and CSV/JSON download buttons. From the CLI, run `lablink stats` for the same summary in your terminal or `lablink export-metrics --client` to download CSV/JSON.
 
+### Manual Provider Options (`manual`)
+
+Applies only when `provider: manual` (bring-your-own clients, deployed with
+`lablink deploy` onto a machine you already have). Ignored by the AWS provider.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `connectivity` | string | `lan_direct` | How a participant's browser reaches a client's KasmVNC desktop: `lan_direct` (client is on the allocator's own LAN) or `mesh_overlay` (client is reached over a Tailscale tailnet and proxied through the allocator's nginx). |
+| `overlay_tailnet` | string | `""` | The tailnet's MagicDNS suffix (e.g. `example.ts.net`). Required for `connectivity: mesh_overlay` and for `participant_exposure: tailscale_funnel`. |
+| `participant_exposure` | string | `none` | How **participants** reach the allocator itself: `none` (LAN-only), `tailscale_funnel`, or `cloudflare_tunnel`. Independent of `connectivity`. |
+| `public_hostname` | string | `""` | The hostname participants open, e.g. `lab.smithlab.org`. Required when `participant_exposure: cloudflare_tunnel`; ignored otherwise. |
+
+`participant_exposure` is not the same axis as `connectivity`: the first is about
+publishing the allocator, the second about reaching clients. Any exposure mode
+other than `none` requires `connectivity: mesh_overlay` — `lan_direct` sends the
+browser straight to a client's LAN IP over `ws://`, which is unreachable off-LAN
+and blocked as mixed content from an HTTPS page. Both `lablink configure` and
+`lablink deploy` reject that combination.
+
+#### Exposure mode: `tailscale_funnel`
+
+Publishes the allocator at `<machine>.<tailnet>.ts.net` using the same Tailscale
+sidecar `mesh_overlay` already provisions. No domain required, but the hostname
+is not yours to choose — Tailscale Funnel supports no custom domains.
+
+#### Exposure mode: `cloudflare_tunnel`
+
+Publishes the allocator at a hostname you choose, through a Cloudflare Tunnel in
+your own Cloudflare account. `cloudflared` ships inside the allocator image and
+is started only when this mode is set; LabLink makes no Cloudflare API calls.
+
+!!! warning "Requires a domain whose nameservers point at Cloudflare"
+    A custom hostname needs Cloudflare's free-plan **full setup** — the domain's
+    nameservers must be delegated to Cloudflare. Cloudflare's partial (CNAME)
+    setup is Business-tier and subdomain zones are Enterprise-tier, so an
+    institutional domain such as `salk.edu` **cannot** be used on the free plan.
+    Register a domain you control instead (typically ~$10/yr), or use
+    `tailscale_funnel`, which needs no domain at all.
+
+**One-time setup** (done once per deployment host; the tunnel and its DNS record
+live in your Cloudflare account, so the URL is stable across every
+`lablink deploy` and `lablink destroy`):
+
+1. Sign up at [cloudflare.com](https://cloudflare.com) (free).
+2. **Add a site** → enter your domain → choose the Free plan.
+3. At your domain's registrar, replace the nameservers with the two Cloudflare shows.
+4. Wait for activation (usually minutes).
+5. Open the **Zero Trust** dashboard; pick a team name and the Free plan.
+6. **Networks → Tunnels → Create a tunnel** → connector `cloudflared` → name it.
+7. Copy the **token** from the Docker install command it shows (`eyJhIjoiN…`).
+8. On the **Public hostname** tab: subdomain `lab`, your domain, type `HTTP`, URL
+   `http://localhost:5000`. Cloudflare creates the DNS record for you.
+
+Cloudflare's Zero Trust onboarding sometimes asks for a payment method even
+though the plan is free.
+
+**Configuration:**
+
+```yaml
+provider: manual
+deployment_name: smith-lab
+ssl:
+  provider: none        # Cloudflare supplies the public certificate
+manual:
+  connectivity: mesh_overlay   # lan_direct is rejected with any exposure mode
+  overlay_tailnet: example.ts.net
+  participant_exposure: cloudflare_tunnel
+  public_hostname: lab.smithlab.org
+```
+
+**Deploy:**
+
+```bash
+lablink deploy \
+  --tailscale-authkey tskey-auth-... \
+  --cloudflare-tunnel-token eyJhIjoiN...
+```
+
+The token is stored only in the deployment's `.env` (mode `0600`), never in
+`config.yaml`, and is carried forward on redeploys — pass
+`--cloudflare-tunnel-token` on the first deploy, or again to rotate it. If the
+mode is set and no token is available, both `lablink deploy` and the container's
+`start.sh` fail loudly rather than starting an allocator that looks healthy but
+is unreachable.
+
+After `docker compose up`, `lablink deploy` requests `https://<public_hostname>/api/health`
+for up to 30 seconds. A miss is a warning, not a failure — a freshly created DNS
+record may still be propagating.
+
+##### Cloudflare can read your traffic
+
+Cloudflare Tunnel terminates TLS at Cloudflare's edge, so admin logins, session
+cookies and participant desktop streams are all decrypted there. Tailscale
+Funnel does not do this — its relays forward encrypted bytes and TLS terminates
+on your own machine. If your data cannot transit a third party in cleartext, use
+`tailscale_funnel` and accept its `.ts.net` hostname.
+
 ## Validating Configuration
 
 After modifying configuration, validate it:
