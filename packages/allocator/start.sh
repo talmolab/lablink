@@ -86,6 +86,27 @@ done
 # Validate nginx config; refuse to start if broken.
 nginx -t
 
+# Cloudflare Tunnel exposure: connect Cloudflare's edge to this container's
+# own nginx (:5000, the port the admin enters as the tunnel's public-hostname
+# service URL). The tunnel's ingress config lives in Cloudflare, not here, so
+# there is nothing to render locally and nothing to persist -- cloudflared
+# pulls it on every start. Gated on the mode so lan_direct/tailscale_funnel
+# deployments never start a connector.
+if [ "$PARTICIPANT_EXPOSURE" = "cloudflare_tunnel" ]; then
+  if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
+    echo "participant_exposure is 'cloudflare_tunnel' but CLOUDFLARE_TUNNEL_TOKEN is empty." >&2
+    echo "Re-run: lablink deploy --cloudflare-tunnel-token <token>" >&2
+    exit 1
+  fi
+  # The origin is configured in Cloudflare, not here; logging it keeps the
+  # docs' "type http://localhost:5000" instruction traceable to the code.
+  echo "Starting Cloudflare Tunnel connector (expected origin: http://localhost:5000)..."
+  # Backgrounded: nginx must reach the exec below to keep the container
+  # alive. cloudflared dials Cloudflare first and retries the origin, so
+  # starting a second or two before nginx listens is fine.
+  cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" &
+fi
+
 # Foreground nginx; this keeps the container alive.
 echo "Starting nginx on :5000..."
 exec nginx -g 'daemon off;'
