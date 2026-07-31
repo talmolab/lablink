@@ -99,6 +99,38 @@ def test_liveness_check_uses_process_substitution_not_a_pipeline(block):
     assert "> >(sed" in block
 
 
+def test_log_is_truncated_before_reuse():
+    """docker restart re-runs this script against the SAME filesystem (see
+    the STATUS_SUPERSEDED_FILE comment above this block for the identical
+    hazard). TUNNEL_LOG is opened with `tee -a`, so a rejected-handshake
+    line logged on ANY earlier boot must not survive to poison detection
+    on a later, healthy boot. Extracts just the lines between the
+    TUNNEL_LOG assignment and the wstunnel launch (truncation must happen
+    before the tee starts appending), substitutes a tmp path for the
+    hardcoded one, pre-seeds stale content, and confirms it's gone."""
+    lines = START_SH.read_text().splitlines()
+    start = next(
+        i for i, ln in enumerate(lines) if ln.strip().startswith("TUNNEL_LOG=")
+    )
+    end = next(i for i in range(start, len(lines)) if "wstunnel client" in lines[i])
+    snippet = "\n".join(lines[start:end])
+    assert ': > "$TUNNEL_LOG"' in snippet, (
+        "expected TUNNEL_LOG to be truncated before wstunnel launch"
+    )
+
+    with tempfile.TemporaryDirectory() as d:
+        log_path = Path(d) / "lablink-tunnel-client.log"
+        log_path.write_text("[tunnel] Invalid status code: 401\n")
+        harness = snippet.replace("/tmp/lablink-tunnel-client.log", str(log_path))
+
+        result = subprocess.run(
+            ["bash", "-c", harness], capture_output=True, text=True, timeout=5,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert log_path.read_text() == ""
+
+
 def test_precedes_the_custom_startup_script(block):
     text = START_SH.read_text().splitlines()
     tunnel_at = next(

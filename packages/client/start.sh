@@ -179,6 +179,13 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
   # Tee to a file as well as the log stream: the liveness check below has to
   # READ this output, because a rejected upgrade does not kill the process.
   TUNNEL_LOG=/tmp/lablink-tunnel-client.log
+  # Per-run state, same reason as STATUS_SUPERSEDED_FILE above: `docker
+  # restart` re-runs this script against the SAME filesystem, and the tee
+  # below is append-only. Without truncating here, a 401/403 logged on ANY
+  # earlier boot (e.g. the allocator's DB not yet ready) would survive to
+  # kill an already-healthy tunnel on every later boot -- permanently and
+  # silently, since the detection below only ever checks this file.
+  : > "$TUNNEL_LOG"
   # Process substitution, NOT a `| sed ... &` pipeline: after a pipeline $!
   # is the PID of the last stage (sed), which stays alive whether or not the
   # tunnel did, making the liveness check below vacuous.
