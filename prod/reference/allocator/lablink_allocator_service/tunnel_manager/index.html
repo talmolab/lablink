@@ -13,28 +13,28 @@
       
       
       
-        <link rel="prev" href="../lan_direct/">
+        <link rel="prev" href="../signed_cookie/">
       
       
-        <link rel="next" href="../reverse_tunnel/">
+        <link rel="next" href="../utils/">
       
       
         
       
       
-      <link rel="icon" href="../../../../../../assets/images/favicon.png">
+      <link rel="icon" href="../../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
     
     
       
-        <title>mesh_overlay - LabLink</title>
+        <title>tunnel_manager - LabLink</title>
       
     
     
-      <link rel="stylesheet" href="../../../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,11 +53,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../../../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lablink_allocator_serviceprovidersconnectivitymesh_overlay" class="md-skip">
+        <a href="#lablink_allocator_servicetunnel_manager" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../../../.." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href="../../../.." title="LabLink" class="md-header__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              mesh_overlay
+              tunnel_manager
             
           </span>
         </div>
@@ -246,7 +246,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../../../.." class="md-tabs__link">
+      <a href="../../../.." class="md-tabs__link">
         
   
   
@@ -267,7 +267,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../../prerequisites/" class="md-tabs__link">
+        <a href="../../../../prerequisites/" class="md-tabs__link">
           
   
   
@@ -287,7 +287,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../../cli/" class="md-tabs__link">
+        <a href="../../../../cli/" class="md-tabs__link">
           
   
   
@@ -307,7 +307,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../../adapting/" class="md-tabs__link">
+        <a href="../../../../adapting/" class="md-tabs__link">
           
   
   
@@ -327,7 +327,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../../deployment/" class="md-tabs__link">
+        <a href="../../../../deployment/" class="md-tabs__link">
           
   
   
@@ -347,7 +347,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../../../architecture/" class="md-tabs__link">
+        <a href="../../../../architecture/" class="md-tabs__link">
           
   
   
@@ -367,7 +367,7 @@
   
   
     <li class="md-tabs__item md-tabs__item--active">
-      <a href="../../../../../" class="md-tabs__link">
+      <a href="../../../" class="md-tabs__link">
         
   
   
@@ -402,7 +402,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../../../.." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
+    <a href="../../../.." title="LabLink" class="md-nav__button md-logo" aria-label="LabLink" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -432,7 +432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../.." class="md-nav__link">
+      <a href="../../../.." class="md-nav__link">
         
   
   
@@ -513,7 +513,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../prerequisites/" class="md-nav__link">
+      <a href="../../../../prerequisites/" class="md-nav__link">
         
   
   
@@ -541,7 +541,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../quickstart/" class="md-nav__link">
+      <a href="../../../../quickstart/" class="md-nav__link">
         
   
   
@@ -569,7 +569,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../quickstart-template/" class="md-nav__link">
+      <a href="../../../../quickstart-template/" class="md-nav__link">
         
   
   
@@ -597,7 +597,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../aws-setup/" class="md-nav__link">
+      <a href="../../../../aws-setup/" class="md-nav__link">
         
   
   
@@ -686,7 +686,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../cli/" class="md-nav__link">
+      <a href="../../../../cli/" class="md-nav__link">
         
   
   
@@ -714,7 +714,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../cli/installation/" class="md-nav__link">
+      <a href="../../../../cli/installation/" class="md-nav__link">
         
   
   
@@ -742,7 +742,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../cli/first-deployment/" class="md-nav__link">
+      <a href="../../../../cli/first-deployment/" class="md-nav__link">
         
   
   
@@ -770,7 +770,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../cli/managing-deployments/" class="md-nav__link">
+      <a href="../../../../cli/managing-deployments/" class="md-nav__link">
         
   
   
@@ -859,7 +859,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../adapting/" class="md-nav__link">
+      <a href="../../../../adapting/" class="md-nav__link">
         
   
   
@@ -887,7 +887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../workshop-guide/" class="md-nav__link">
+      <a href="../../../../workshop-guide/" class="md-nav__link">
         
   
   
@@ -915,7 +915,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../configuration/" class="md-nav__link">
+      <a href="../../../../configuration/" class="md-nav__link">
         
   
   
@@ -943,7 +943,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../cost-estimation/" class="md-nav__link">
+      <a href="../../../../cost-estimation/" class="md-nav__link">
         
   
   
@@ -971,7 +971,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../troubleshooting/" class="md-nav__link">
+      <a href="../../../../troubleshooting/" class="md-nav__link">
         
   
   
@@ -999,7 +999,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../faq/" class="md-nav__link">
+      <a href="../../../../faq/" class="md-nav__link">
         
   
   
@@ -1088,7 +1088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../deployment/" class="md-nav__link">
+      <a href="../../../../deployment/" class="md-nav__link">
         
   
   
@@ -1116,7 +1116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../dns-configuration/" class="md-nav__link">
+      <a href="../../../../dns-configuration/" class="md-nav__link">
         
   
   
@@ -1144,7 +1144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../security/" class="md-nav__link">
+      <a href="../../../../security/" class="md-nav__link">
         
   
   
@@ -1233,7 +1233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../architecture/" class="md-nav__link">
+      <a href="../../../../architecture/" class="md-nav__link">
         
   
   
@@ -1261,7 +1261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../database/" class="md-nav__link">
+      <a href="../../../../database/" class="md-nav__link">
         
   
   
@@ -1289,7 +1289,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../api-endpoints/" class="md-nav__link">
+      <a href="../../../../api-endpoints/" class="md-nav__link">
         
   
   
@@ -1317,7 +1317,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../workflows/" class="md-nav__link">
+      <a href="../../../../workflows/" class="md-nav__link">
         
   
   
@@ -1345,7 +1345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../contributing/" class="md-nav__link">
+      <a href="../../../../contributing/" class="md-nav__link">
         
   
   
@@ -1373,7 +1373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../changelog/" class="md-nav__link">
+      <a href="../../../../changelog/" class="md-nav__link">
         
   
   
@@ -1401,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../changelog-allocator/" class="md-nav__link">
+      <a href="../../../../changelog-allocator/" class="md-nav__link">
         
   
   
@@ -1429,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../../changelog-client/" class="md-nav__link">
+      <a href="../../../../changelog-client/" class="md-nav__link">
         
   
   
@@ -1514,7 +1514,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../" class="md-nav__link ">
+            <a href="../../../" class="md-nav__link ">
               
   
   
@@ -1556,7 +1556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../cli/" class="md-nav__link">
+      <a href="../../../cli/" class="md-nav__link">
         
   
   
@@ -1660,7 +1660,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -1702,7 +1702,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../admin_session_expiry/" class="md-nav__link">
+      <a href="../admin_session_expiry/" class="md-nav__link">
         
   
   
@@ -1730,7 +1730,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../auth/" class="md-nav__link">
+      <a href="../auth/" class="md-nav__link">
         
   
   
@@ -1758,7 +1758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../client_session/" class="md-nav__link">
+      <a href="../client_session/" class="md-nav__link">
         
   
   
@@ -1805,7 +1805,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../conf/" class="md-nav__link ">
+            <a href="../conf/" class="md-nav__link ">
               
   
   
@@ -1847,7 +1847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../conf/structured_config/" class="md-nav__link">
+      <a href="../conf/structured_config/" class="md-nav__link">
         
   
   
@@ -1902,7 +1902,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../db/" class="md-nav__link ">
+            <a href="../db/" class="md-nav__link ">
               
   
   
@@ -1944,7 +1944,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../db/metrics/" class="md-nav__link">
+      <a href="../db/metrics/" class="md-nav__link">
         
   
   
@@ -1972,7 +1972,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../db/operations/" class="md-nav__link">
+      <a href="../db/operations/" class="md-nav__link">
         
   
   
@@ -2000,7 +2000,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../db/pool/" class="md-nav__link">
+      <a href="../db/pool/" class="md-nav__link">
         
   
   
@@ -2028,7 +2028,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../db/schedules/" class="md-nav__link">
+      <a href="../db/schedules/" class="md-nav__link">
         
   
   
@@ -2056,7 +2056,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../db/vms/" class="md-nav__link">
+      <a href="../db/vms/" class="md-nav__link">
         
   
   
@@ -2092,7 +2092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generate_init_sql/" class="md-nav__link">
+      <a href="../generate_init_sql/" class="md-nav__link">
         
   
   
@@ -2120,7 +2120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../get_config/" class="md-nav__link">
+      <a href="../get_config/" class="md-nav__link">
         
   
   
@@ -2148,7 +2148,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../main/" class="md-nav__link">
+      <a href="../main/" class="md-nav__link">
         
   
   
@@ -2176,7 +2176,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../operations/" class="md-nav__link">
+      <a href="../operations/" class="md-nav__link">
         
   
   
@@ -2201,8 +2201,6 @@
                 
   
   
-    
-  
   
   
     
@@ -2215,15 +2213,17 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_1_10" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_10" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
+            <a href="../providers/" class="md-nav__link ">
               
   
   
@@ -2247,7 +2247,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_10_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_7_2_1_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_2_1_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2265,7 +2265,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../aws/" class="md-nav__link">
+      <a href="../providers/aws/" class="md-nav__link">
         
   
   
@@ -2290,8 +2290,6 @@
                 
   
   
-    
-  
   
   
     
@@ -2304,15 +2302,17 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_1_10_2" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2_1_10_2" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../providers/connectivity/" class="md-nav__link ">
               
   
   
@@ -2336,7 +2336,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_7_2_1_10_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_7_2_1_10_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_2_1_10_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2354,7 +2354,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../allocator_proxied/" class="md-nav__link">
+      <a href="../providers/connectivity/allocator_proxied/" class="md-nav__link">
         
   
   
@@ -2382,7 +2382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../lan_direct/" class="md-nav__link">
+      <a href="../providers/connectivity/lan_direct/" class="md-nav__link">
         
   
   
@@ -2407,37 +2407,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    mesh_overlay
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../providers/connectivity/mesh_overlay/" class="md-nav__link">
         
   
   
@@ -2453,166 +2426,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;mesh_overlay
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" mesh_overlay">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-classes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Classes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Classes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;MeshOverlayClientConnectivity
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" MeshOverlayClientConnectivity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Attributes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Attributes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.name" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;name
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.requires_tailscale_check" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;requires_tailscale_check
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Methods:
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods:">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.make_join_material" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;make_join_material
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.prepare_browser_session" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;prepare_browser_session
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Functions:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2625,7 +2438,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reverse_tunnel/" class="md-nav__link">
+      <a href="../providers/connectivity/reverse_tunnel/" class="md-nav__link">
         
   
   
@@ -2661,7 +2474,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../manual/" class="md-nav__link">
+      <a href="../providers/manual/" class="md-nav__link">
         
   
   
@@ -2689,7 +2502,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../protocol/" class="md-nav__link">
+      <a href="../providers/protocol/" class="md-nav__link">
         
   
   
@@ -2717,7 +2530,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../registry/" class="md-nav__link">
+      <a href="../providers/registry/" class="md-nav__link">
         
   
   
@@ -2753,7 +2566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../reboot/" class="md-nav__link">
+      <a href="../reboot/" class="md-nav__link">
         
   
   
@@ -2800,7 +2613,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../routes/" class="md-nav__link ">
+            <a href="../routes/" class="md-nav__link ">
               
   
   
@@ -2842,7 +2655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/admin_pages/" class="md-nav__link">
+      <a href="../routes/admin_pages/" class="md-nav__link">
         
   
   
@@ -2870,7 +2683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/admin_sessions/" class="md-nav__link">
+      <a href="../routes/admin_sessions/" class="md-nav__link">
         
   
   
@@ -2898,7 +2711,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/desktop/" class="md-nav__link">
+      <a href="../routes/desktop/" class="md-nav__link">
         
   
   
@@ -2926,7 +2739,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/health/" class="md-nav__link">
+      <a href="../routes/health/" class="md-nav__link">
         
   
   
@@ -2954,7 +2767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/internal_proxy_auth/" class="md-nav__link">
+      <a href="../routes/internal_proxy_auth/" class="md-nav__link">
         
   
   
@@ -2982,7 +2795,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/metrics/" class="md-nav__link">
+      <a href="../routes/metrics/" class="md-nav__link">
         
   
   
@@ -3010,7 +2823,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/provisioning/" class="md-nav__link">
+      <a href="../routes/provisioning/" class="md-nav__link">
         
   
   
@@ -3038,7 +2851,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/public/" class="md-nav__link">
+      <a href="../routes/public/" class="md-nav__link">
         
   
   
@@ -3066,7 +2879,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/registration/" class="md-nav__link">
+      <a href="../routes/registration/" class="md-nav__link">
         
   
   
@@ -3094,7 +2907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/schedules/" class="md-nav__link">
+      <a href="../routes/schedules/" class="md-nav__link">
         
   
   
@@ -3122,7 +2935,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/session_cookie/" class="md-nav__link">
+      <a href="../routes/session_cookie/" class="md-nav__link">
         
   
   
@@ -3150,7 +2963,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../routes/vm_telemetry/" class="md-nav__link">
+      <a href="../routes/vm_telemetry/" class="md-nav__link">
         
   
   
@@ -3186,7 +2999,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../scheduler/" class="md-nav__link">
+      <a href="../scheduler/" class="md-nav__link">
         
   
   
@@ -3214,7 +3027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../secret_hash/" class="md-nav__link">
+      <a href="../secret_hash/" class="md-nav__link">
         
   
   
@@ -3242,7 +3055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../signed_cookie/" class="md-nav__link">
+      <a href="../signed_cookie/" class="md-nav__link">
         
   
   
@@ -3267,10 +3080,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../tunnel_manager/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tunnel_manager
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3286,6 +3126,187 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;tunnel_manager
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" tunnel_manager">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.RESTRICTIONS_PATH" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;RESTRICTIONS_PATH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_DIR" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_DIR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_PORTS" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_PORTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_SERVER_PORT" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_SERVER_PORT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.attached_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;attached_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.authorize_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;authorize_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.is_valid_alias_octet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_valid_alias_octet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.path_prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;path_prefix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.revoke_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;revoke_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.tunnel_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;tunnel_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3317,7 +3338,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../utils/" class="md-nav__link ">
+            <a href="../utils/" class="md-nav__link ">
               
   
   
@@ -3359,7 +3380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../utils/ansi/" class="md-nav__link">
+      <a href="../utils/ansi/" class="md-nav__link">
         
   
   
@@ -3387,7 +3408,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../utils/aws_utils/" class="md-nav__link">
+      <a href="../utils/aws_utils/" class="md-nav__link">
         
   
   
@@ -3415,7 +3436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../utils/config_helpers/" class="md-nav__link">
+      <a href="../utils/config_helpers/" class="md-nav__link">
         
   
   
@@ -3443,7 +3464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../utils/sg_audit/" class="md-nav__link">
+      <a href="../utils/sg_audit/" class="md-nav__link">
         
   
   
@@ -3471,7 +3492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../utils/terraform_utils/" class="md-nav__link">
         
   
   
@@ -3507,7 +3528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../validate_config/" class="md-nav__link">
+      <a href="../validate_config/" class="md-nav__link">
         
   
   
@@ -3627,7 +3648,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../client/lablink_client_service/" class="md-nav__link ">
+            <a href="../../../client/lablink_client_service/" class="md-nav__link ">
               
   
   
@@ -3688,7 +3709,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../client/lablink_client_service/agent/" class="md-nav__link ">
+            <a href="../../../client/lablink_client_service/agent/" class="md-nav__link ">
               
   
   
@@ -3730,7 +3751,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/agent/api/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/agent/api/" class="md-nav__link">
         
   
   
@@ -3758,7 +3779,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/agent/kasmvnc/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/agent/kasmvnc/" class="md-nav__link">
         
   
   
@@ -3794,7 +3815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/check_gpu/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/check_gpu/" class="md-nav__link">
         
   
   
@@ -3841,7 +3862,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../client/lablink_client_service/conf/" class="md-nav__link ">
+            <a href="../../../client/lablink_client_service/conf/" class="md-nav__link ">
               
   
   
@@ -3883,7 +3904,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/conf/structured_config/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/conf/structured_config/" class="md-nav__link">
         
   
   
@@ -3919,7 +3940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/heartbeat/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/heartbeat/" class="md-nav__link">
         
   
   
@@ -3947,7 +3968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/http_utils/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/http_utils/" class="md-nav__link">
         
   
   
@@ -3994,7 +4015,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../client/lablink_client_service/monitoring/" class="md-nav__link ">
+            <a href="../../../client/lablink_client_service/monitoring/" class="md-nav__link ">
               
   
   
@@ -4036,7 +4057,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/aggregator/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/aggregator/" class="md-nav__link">
         
   
   
@@ -4064,7 +4085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/pusher/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/pusher/" class="md-nav__link">
         
   
   
@@ -4111,7 +4132,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../../../client/lablink_client_service/monitoring/samplers/" class="md-nav__link ">
+            <a href="../../../client/lablink_client_service/monitoring/samplers/" class="md-nav__link ">
               
   
   
@@ -4153,7 +4174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/samplers/active_window/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/samplers/active_window/" class="md-nav__link">
         
   
   
@@ -4181,7 +4202,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/samplers/filesystem/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/samplers/filesystem/" class="md-nav__link">
         
   
   
@@ -4209,7 +4230,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/samplers/gpu/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/samplers/gpu/" class="md-nav__link">
         
   
   
@@ -4237,7 +4258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/monitoring/samplers/processes/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/monitoring/samplers/processes/" class="md-nav__link">
         
   
   
@@ -4281,7 +4302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/session_anchor/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/session_anchor/" class="md-nav__link">
         
   
   
@@ -4309,7 +4330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../../client/lablink_client_service/update_inuse_status/" class="md-nav__link">
+      <a href="../../../client/lablink_client_service/update_inuse_status/" class="md-nav__link">
         
   
   
@@ -4380,43 +4401,19 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;mesh_overlay
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;tunnel_manager
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" mesh_overlay">
+    <nav class="md-nav" aria-label=" tunnel_manager">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-classes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Classes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Classes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;MeshOverlayClientConnectivity
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" MeshOverlayClientConnectivity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-attributes" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager-attributes" class="md-nav__link">
     <span class="md-ellipsis">
       
         Attributes
@@ -4428,10 +4425,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.name" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager.RESTRICTIONS_PATH" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;name
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;RESTRICTIONS_PATH
       
     </span>
   </a>
@@ -4439,38 +4436,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.requires_tailscale_check" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_DIR" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;requires_tailscale_check
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Methods:
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods:">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.make_join_material" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;make_join_material
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_DIR
       
     </span>
   </a>
@@ -4478,10 +4447,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.prepare_browser_session" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_PORTS" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;prepare_browser_session
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_PORTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.TUNNEL_SERVER_PORT" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;TUNNEL_SERVER_PORT
       
     </span>
   </a>
@@ -4493,24 +4473,86 @@
   
 </li>
         
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-functions" class="md-nav__link">
+  <a href="#lablink_allocator_service.tunnel_manager-functions" class="md-nav__link">
     <span class="md-ellipsis">
       
         Functions:
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Functions:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.attached_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;attached_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.authorize_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;authorize_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.is_valid_alias_octet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_valid_alias_octet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.path_prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;path_prefix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.revoke_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;revoke_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.tunnel_manager.tunnel_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;tunnel_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -4539,26 +4581,63 @@
   
 
 
-<h1 id="lablink_allocator_serviceprovidersconnectivitymesh_overlay">lablink_allocator_service.providers.connectivity.mesh_overlay<a class="headerlink" href="#lablink_allocator_serviceprovidersconnectivitymesh_overlay" title="Permanent link">&para;</a></h1>
+<h1 id="lablink_allocator_servicetunnel_manager">lablink_allocator_service.tunnel_manager<a class="headerlink" href="#lablink_allocator_servicetunnel_manager" title="Permanent link">&para;</a></h1>
 
 
 <div class="doc doc-object doc-module">
 
 
 
-<h2 id="lablink_allocator_service.providers.connectivity.mesh_overlay" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <code>lablink_allocator_service.providers.connectivity.mesh_overlay</code>
+<h2 id="lablink_allocator_service.tunnel_manager" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <code>lablink_allocator_service.tunnel_manager</code>
 
 
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay" class="headerlink" title="Permanent link">&para;</a></h2>
+<a href="#lablink_allocator_service.tunnel_manager" class="headerlink" title="Permanent link">&para;</a></h2>
 
     <div class="doc doc-contents first">
 
-        <p>Mesh-overlay connectivity: browser -&gt; allocator nginx proxy -&gt; client
-KasmVNC, reached over a Tailscale overlay instead of a routable LAN/VPC
-address. Not Run:AI-specific — any client that isn't on the allocator's
-own network fits this connectivity strategy; Run:AI-hosted client
-workloads are simply the motivating case.</p>
+        <p>Reverse-tunnel connectivity's server-side bookkeeping.</p>
+<p>One <code>wstunnel</code> server runs for the whole deployment (started by start.sh),
+and each client attaches to it over a WebSocket carrying its own path
+prefix. This module owns the two things the allocator must control:</p>
+<ol>
+<li>
+<p>The restrictions file. wstunnel's reverse-tunnel bind address is chosen
+   by the CLIENT, so without restrictions any client holding a valid
+   client_secret could bind another client's loopback alias and receive
+   that client's student sessions. Each rule pins one path prefix to one
+   /32 alias and the two ports we tunnel. wstunnel reloads the file
+   automatically when it changes, so no restart or signal is needed.</p>
+</li>
+<li>
+<p>Which aliases actually have a client attached. A bound port is NOT
+   evidence of an attached client: wstunnel keeps a reverse-tunnel
+   listener bound for --remote-to-local-server-idle-timeout after the
+   client leaves, and connections to an orphaned listener hang rather than
+   being refused (measured: 12s, no response). Health must therefore
+   observe the pairing, not the process or the port.</p>
+</li>
+</ol>
+<p>Two facts measured against the pinned wstunnel v10.6.2 binary, both of
+which the rendered file's shape depends on -- re-verify when bumping it:</p>
+<ul>
+<li><code>allow[].port</code> takes a list of port-number STRINGS, each parsed as a
+  single-port range (<code>port: [6080..=6080, ...]</code> under --log-lvl DEBUG).
+  A <code>[{start: N, end: N}]</code> form is rejected outright.</li>
+<li><code>!PathPrefix</code> compares ONLY the client's first path segment, so a match
+  value like <code>tunnel/&lt;prefix&gt;</code> can never fire and the failure is a silent
+  deny-all. The match value must BE the whole first segment, which is why
+  <code>path_prefix()</code> returns <code>tun-&lt;client_id&gt;-&lt;digest&gt;</code> at the root rather
+  than nesting under a shared "tunnel/". Confirmed end to end: a client
+  presenting another client's alias in <code>-R</code> was refused with "Rejecting
+  connection with not allowed destination".</li>
+</ul>
+<p>Security note: <code>client_id</code> is the DB <code>hostname</code>, which arrives from
+client-controlled registration input. Two independent guards, both
+load-bearing: <code>_is_safe()</code> rejects the charset (what stops a multi-line
+hostname reaching the renderer at all), and <code>yaml.safe_dump</code> does the
+rendering (what stops a single-line-but-special value -- quotes, colons,
+<code>#</code> -- forging YAML structure if it ever slipped past).</p>
 
 
 
@@ -4575,56 +4654,20 @@ workloads are simply the motivating case.</p>
 
 
 
-
-
-<h3 id="lablink_allocator_service.providers.connectivity.mesh_overlay-classes">Classes<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-classes" class="headerlink" title="Permanent link">&para;</a></h3>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h4 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <code>MeshOverlayClientConnectivity</code>
-
-
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity" class="headerlink" title="Permanent link">&para;</a></h4>
-
-
-    <div class="doc doc-contents ">
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-<h5 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-attributes">Attributes<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+<h3 id="lablink_allocator_service.tunnel_manager-attributes">Attributes<a href="#lablink_allocator_service.tunnel_manager-attributes" class="headerlink" title="Permanent link">&para;</a></h3>
 
 <div class="doc doc-object doc-attribute">
 
 
 
-<h6 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.name" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;mesh_overlay&#39;</span></code>
+<h4 id="lablink_allocator_service.tunnel_manager.RESTRICTIONS_PATH" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">RESTRICTIONS_PATH</span> <span class="o">=</span> <span class="n">TUNNEL_DIR</span> <span class="o">/</span> <span class="s1">&#39;restrictions.yaml&#39;</span></code>
 
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
   </span>
 
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.name" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.tunnel_manager.RESTRICTIONS_PATH" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -4637,15 +4680,54 @@ workloads are simply the motivating case.</p>
 
 
 
-<h6 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.requires_tailscale_check" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">requires_tailscale_check</span> <span class="o">=</span> <span class="kc">True</span></code>
+<h4 id="lablink_allocator_service.tunnel_manager.TUNNEL_DIR" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">TUNNEL_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;/tmp/lablink-tunnel&#39;</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
   </span>
 
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.requires_tailscale_check" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.tunnel_manager.TUNNEL_DIR" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="lablink_allocator_service.tunnel_manager.TUNNEL_PORTS" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">TUNNEL_PORTS</span> <span class="o">=</span> <span class="p">(</span><span class="mi">6080</span><span class="p">,</span> <span class="mi">7070</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.tunnel_manager.TUNNEL_PORTS" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="lablink_allocator_service.tunnel_manager.TUNNEL_SERVER_PORT" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">TUNNEL_SERVER_PORT</span> <span class="o">=</span> <span class="mi">8080</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.tunnel_manager.TUNNEL_SERVER_PORT" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -4655,47 +4737,64 @@ workloads are simply the motivating case.</p>
 </div>
 
 
-<h5 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-functions">Methods:<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+<h3 id="lablink_allocator_service.tunnel_manager-functions">Functions:<a href="#lablink_allocator_service.tunnel_manager-functions" class="headerlink" title="Permanent link">&para;</a></h3>
 
 <div class="doc doc-object doc-function">
 
 
-<h6 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.make_join_material" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">make_join_material</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">allocator_url</span><span class="p">,</span> <span class="n">client_image</span><span class="p">,</span> <span class="n">register_token</span><span class="p">)</span></code>
+<h4 id="lablink_allocator_service.tunnel_manager.attached_aliases" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">attached_aliases</span><span class="p">()</span></code>
 
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.make_join_material" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.tunnel_manager.attached_aliases" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
 
+        <p>Alias octets with a listening reverse-tunnel socket right now.</p>
+<p>Parses /proc/net/tcp because there is no wstunnel API for it. State
+"0A" is TCP_LISTEN; local_address is <code>&lt;hex ip&gt;:&lt;hex port&gt;</code> with the IP
+in network-reversed byte order, so 127.0.0.10 is 0A00007F.</p>
+
 
             <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/providers/connectivity/mesh_overlay.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="k">def</span><span class="w"> </span><span class="nf">make_join_material</span><span class="p">(</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="n">allocator_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="n">client_image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="n">register_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientJoinMaterial</span><span class="p">:</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="k">return</span> <span class="n">ClientJoinMaterial</span><span class="p">(</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="n">register_token</span><span class="o">=</span><span class="n">register_token</span><span class="p">,</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="n">allocator_url</span><span class="o">=</span><span class="n">allocator_url</span><span class="p">,</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="n">client_image</span><span class="o">=</span><span class="n">client_image</span><span class="p">,</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="p">)</span>
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-277">277</a></span>
+<span class="normal"><a href="#__codelineno-0-278">278</a></span>
+<span class="normal"><a href="#__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#__codelineno-0-283">283</a></span>
+<span class="normal"><a href="#__codelineno-0-284">284</a></span>
+<span class="normal"><a href="#__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#__codelineno-0-290">290</a></span>
+<span class="normal"><a href="#__codelineno-0-291">291</a></span>
+<span class="normal"><a href="#__codelineno-0-292">292</a></span>
+<span class="normal"><a href="#__codelineno-0-293">293</a></span>
+<span class="normal"><a href="#__codelineno-0-294">294</a></span>
+<span class="normal"><a href="#__codelineno-0-295">295</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-277" name="__codelineno-0-277"></a><span class="k">def</span><span class="w"> </span><span class="nf">attached_aliases</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<a id="__codelineno-0-278" name="__codelineno-0-278"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Alias octets with a listening reverse-tunnel socket right now.</span>
+<a id="__codelineno-0-279" name="__codelineno-0-279"></a>
+<a id="__codelineno-0-280" name="__codelineno-0-280"></a><span class="sd">    Parses /proc/net/tcp because there is no wstunnel API for it. State</span>
+<a id="__codelineno-0-281" name="__codelineno-0-281"></a><span class="sd">    &quot;0A&quot; is TCP_LISTEN; local_address is `&lt;hex ip&gt;:&lt;hex port&gt;` with the IP</span>
+<a id="__codelineno-0-282" name="__codelineno-0-282"></a><span class="sd">    in network-reversed byte order, so 127.0.0.10 is 0A00007F.</span>
+<a id="__codelineno-0-283" name="__codelineno-0-283"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-284" name="__codelineno-0-284"></a>    <span class="n">found</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<a id="__codelineno-0-285" name="__codelineno-0-285"></a>    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">_proc_net_tcp</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]:</span>
+<a id="__codelineno-0-286" name="__codelineno-0-286"></a>        <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+<a id="__codelineno-0-287" name="__codelineno-0-287"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">parts</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;0A&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-288" name="__codelineno-0-288"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-289" name="__codelineno-0-289"></a>        <span class="n">hex_ip</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">hex_port</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-290" name="__codelineno-0-290"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hex_ip</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">8</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">hex_ip</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;00007F&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-291" name="__codelineno-0-291"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">hex_port</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">TUNNEL_PORTS</span><span class="p">:</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>        <span class="n">found</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">hex_ip</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span> <span class="mi">16</span><span class="p">))</span>
+<a id="__codelineno-0-295" name="__codelineno-0-295"></a>    <span class="k">return</span> <span class="n">found</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4705,36 +4804,262 @@ workloads are simply the motivating case.</p>
 <div class="doc doc-object doc-function">
 
 
-<h6 id="lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.prepare_browser_session" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+<h4 id="lablink_allocator_service.tunnel_manager.authorize_client" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">authorize_client</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">alias_octet</span><span class="p">,</span> <span class="n">prefix</span><span class="p">)</span></code>
 
-<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay.MeshOverlayClientConnectivity.prepare_browser_session" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.tunnel_manager.authorize_client" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
 
+        <p>Permit exactly this client to bind exactly its own alias.</p>
+<p>Raises ValueError -- before any file work -- if client_id/prefix carry
+characters this module can't safely render, or if alias_octet is
+outside the range a /32 loopback rule can express. This is the trust
+boundary: client_id is attacker-controlled (see the module docstring),
+so it's validated here rather than assumed clean by callers.</p>
+
 
             <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/providers/connectivity/mesh_overlay.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="k">def</span><span class="w"> </span><span class="nf">prepare_browser_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BrowserSessionTarget</span><span class="p">:</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;fallback_fn&quot;</span><span class="p">,</span> <span class="n">_resolve_overlay_host</span><span class="p">)</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="k">return</span> <span class="n">prepare_browser_session</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#__codelineno-0-246">246</a></span>
+<span class="normal"><a href="#__codelineno-0-247">247</a></span>
+<span class="normal"><a href="#__codelineno-0-248">248</a></span>
+<span class="normal"><a href="#__codelineno-0-249">249</a></span>
+<span class="normal"><a href="#__codelineno-0-250">250</a></span>
+<span class="normal"><a href="#__codelineno-0-251">251</a></span>
+<span class="normal"><a href="#__codelineno-0-252">252</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-232" name="__codelineno-0-232"></a><span class="k">def</span><span class="w"> </span><span class="nf">authorize_client</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">alias_octet</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-233" name="__codelineno-0-233"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Permit exactly this client to bind exactly its own alias.</span>
+<a id="__codelineno-0-234" name="__codelineno-0-234"></a>
+<a id="__codelineno-0-235" name="__codelineno-0-235"></a><span class="sd">    Raises ValueError -- before any file work -- if client_id/prefix carry</span>
+<a id="__codelineno-0-236" name="__codelineno-0-236"></a><span class="sd">    characters this module can&#39;t safely render, or if alias_octet is</span>
+<a id="__codelineno-0-237" name="__codelineno-0-237"></a><span class="sd">    outside the range a /32 loopback rule can express. This is the trust</span>
+<a id="__codelineno-0-238" name="__codelineno-0-238"></a><span class="sd">    boundary: client_id is attacker-controlled (see the module docstring),</span>
+<a id="__codelineno-0-239" name="__codelineno-0-239"></a><span class="sd">    so it&#39;s validated here rather than assumed clean by callers.</span>
+<a id="__codelineno-0-240" name="__codelineno-0-240"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-241" name="__codelineno-0-241"></a>    <span class="n">_hydrate_from_disk</span><span class="p">()</span>
+<a id="__codelineno-0-242" name="__codelineno-0-242"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_safe</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">_MAX_CLIENT_ID_LEN</span><span class="p">):</span>
+<a id="__codelineno-0-243" name="__codelineno-0-243"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unsafe client_id for tunnel restrictions: </span><span class="si">{</span><span class="n">client_id</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-244" name="__codelineno-0-244"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_safe</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">_MAX_PREFIX_LEN</span><span class="p">):</span>
+<a id="__codelineno-0-245" name="__codelineno-0-245"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unsafe prefix for tunnel restrictions: </span><span class="si">{</span><span class="n">prefix</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-246" name="__codelineno-0-246"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid_alias_octet</span><span class="p">(</span><span class="n">alias_octet</span><span class="p">):</span>
+<a id="__codelineno-0-247" name="__codelineno-0-247"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-248" name="__codelineno-0-248"></a>            <span class="sa">f</span><span class="s2">&quot;alias_octet </span><span class="si">{</span><span class="n">alias_octet</span><span class="si">!r}</span><span class="s2"> out of range &quot;</span>
+<a id="__codelineno-0-249" name="__codelineno-0-249"></a>            <span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">_MIN_ALIAS_OCTET</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">_MAX_ALIAS_OCTET</span><span class="si">}</span><span class="s2">]&quot;</span>
+<a id="__codelineno-0-250" name="__codelineno-0-250"></a>        <span class="p">)</span>
+<a id="__codelineno-0-251" name="__codelineno-0-251"></a>    <span class="n">_restrictions</span><span class="p">[</span><span class="n">client_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">alias_octet</span><span class="p">,</span> <span class="n">prefix</span><span class="p">)</span>
+<a id="__codelineno-0-252" name="__codelineno-0-252"></a>    <span class="n">_write</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
 
 </div>
 
+<div class="doc doc-object doc-function">
 
 
-  </div>
+<h4 id="lablink_allocator_service.tunnel_manager.is_valid_alias_octet" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">is_valid_alias_octet</span><span class="p">(</span><span class="n">octet</span><span class="p">)</span></code>
 
+<a href="#lablink_allocator_service.tunnel_manager.is_valid_alias_octet" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>True iff <em>octet</em> is in the range a /32 loopback rule can express.</p>
+<p>Exposed so callers (routes/registration.py) can reject an
+out-of-range allocation with a clean error response before writing a
+client row, instead of finding out only when authorize_client raises.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span>
+<span class="normal"><a href="#__codelineno-0-85">85</a></span>
+<span class="normal"><a href="#__codelineno-0-86">86</a></span>
+<span class="normal"><a href="#__codelineno-0-87">87</a></span>
+<span class="normal"><a href="#__codelineno-0-88">88</a></span>
+<span class="normal"><a href="#__codelineno-0-89">89</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_valid_alias_octet</span><span class="p">(</span><span class="n">octet</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;True iff *octet* is in the range a /32 loopback rule can express.</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="sd">    Exposed so callers (routes/registration.py) can reject an</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="sd">    out-of-range allocation with a clean error response before writing a</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">    client row, instead of finding out only when authorize_client raises.</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="k">return</span> <span class="n">_MIN_ALIAS_OCTET</span> <span class="o">&lt;=</span> <span class="n">octet</span> <span class="o">&lt;=</span> <span class="n">_MAX_ALIAS_OCTET</span>
+</code></pre></div></td></tr></table></div>
+            </details>
     </div>
 
 </div>
-<h3 id="lablink_allocator_service.providers.connectivity.mesh_overlay-functions">Functions:<a href="#lablink_allocator_service.providers.connectivity.mesh_overlay-functions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.tunnel_manager.path_prefix" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">path_prefix</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">secret</span><span class="p">)</span></code>
+
+<a href="#lablink_allocator_service.tunnel_manager.path_prefix" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Per-client value the client must dial as its first path segment.</p>
+<p><code>tun-&lt;client_id&gt;-&lt;digest&gt;</code>. Must BE the first path segment, not a
+sub-path under some shared root: wstunnel's <code>!PathPrefix</code> restriction
+matcher only inspects the first segment (see the module docstring), so
+a value like "tunnel/<this>" could never match. The <code>tun-</code> marker is
+what lets nginx tell a tunnel attach apart from an application route
+now that the prefix sits at the URL root instead of under a fixed
+"tunnel/" segment.</p>
+<p>Derived from the client's own secret so it is stable across restarts
+and needs no storage of its own. It identifies the client to
+/internal/tunnel_auth; the bearer token is what authenticates.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-137">137</a></span>
+<span class="normal"><a href="#__codelineno-0-138">138</a></span>
+<span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span>
+<span class="normal"><a href="#__codelineno-0-144">144</a></span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="k">def</span><span class="w"> </span><span class="nf">path_prefix</span><span class="p">(</span><span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">secret</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Per-client value the client must dial as its first path segment.</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    `tun-&lt;client_id&gt;-&lt;digest&gt;`. Must BE the first path segment, not a</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">    sub-path under some shared root: wstunnel&#39;s `!PathPrefix` restriction</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    matcher only inspects the first segment (see the module docstring), so</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    a value like &quot;tunnel/&lt;this&gt;&quot; could never match. The `tun-` marker is</span>
+<a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">    what lets nginx tell a tunnel attach apart from an application route</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    now that the prefix sits at the URL root instead of under a fixed</span>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="sd">    &quot;tunnel/&quot; segment.</span>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a><span class="sd">    Derived from the client&#39;s own secret so it is stable across restarts</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    and needs no storage of its own. It identifies the client to</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">    /internal/tunnel_auth; the bearer token is what authenticates.</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">client_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">secret</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">16</span><span class="p">]</span>
+<a id="__codelineno-0-153" name="__codelineno-0-153"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;tun-</span><span class="si">{</span><span class="n">client_id</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">digest</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.tunnel_manager.revoke_client" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">revoke_client</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span></code>
+
+<a href="#lablink_allocator_service.tunnel_manager.revoke_client" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Drop this client's permission. No-op if it was never a tunnel client.</p>
+<p>No client_id validation here: an unsafe id can never have made it into
+_restrictions in the first place (authorize_client rejects it before
+writing), so the plain dict.pop miss already gives the right no-op
+behavior. This also has to stay a no-op, not raise -- it runs on every
+client unregister.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-255">255</a></span>
+<span class="normal"><a href="#__codelineno-0-256">256</a></span>
+<span class="normal"><a href="#__codelineno-0-257">257</a></span>
+<span class="normal"><a href="#__codelineno-0-258">258</a></span>
+<span class="normal"><a href="#__codelineno-0-259">259</a></span>
+<span class="normal"><a href="#__codelineno-0-260">260</a></span>
+<span class="normal"><a href="#__codelineno-0-261">261</a></span>
+<span class="normal"><a href="#__codelineno-0-262">262</a></span>
+<span class="normal"><a href="#__codelineno-0-263">263</a></span>
+<span class="normal"><a href="#__codelineno-0-264">264</a></span>
+<span class="normal"><a href="#__codelineno-0-265">265</a></span>
+<span class="normal"><a href="#__codelineno-0-266">266</a></span>
+<span class="normal"><a href="#__codelineno-0-267">267</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-255" name="__codelineno-0-255"></a><span class="k">def</span><span class="w"> </span><span class="nf">revoke_client</span><span class="p">(</span><span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-256" name="__codelineno-0-256"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Drop this client&#39;s permission. No-op if it was never a tunnel client.</span>
+<a id="__codelineno-0-257" name="__codelineno-0-257"></a>
+<a id="__codelineno-0-258" name="__codelineno-0-258"></a><span class="sd">    No client_id validation here: an unsafe id can never have made it into</span>
+<a id="__codelineno-0-259" name="__codelineno-0-259"></a><span class="sd">    _restrictions in the first place (authorize_client rejects it before</span>
+<a id="__codelineno-0-260" name="__codelineno-0-260"></a><span class="sd">    writing), so the plain dict.pop miss already gives the right no-op</span>
+<a id="__codelineno-0-261" name="__codelineno-0-261"></a><span class="sd">    behavior. This also has to stay a no-op, not raise -- it runs on every</span>
+<a id="__codelineno-0-262" name="__codelineno-0-262"></a><span class="sd">    client unregister.</span>
+<a id="__codelineno-0-263" name="__codelineno-0-263"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-264" name="__codelineno-0-264"></a>    <span class="n">_hydrate_from_disk</span><span class="p">()</span>
+<a id="__codelineno-0-265" name="__codelineno-0-265"></a>    <span class="k">if</span> <span class="n">_restrictions</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-266" name="__codelineno-0-266"></a>        <span class="k">return</span>
+<a id="__codelineno-0-267" name="__codelineno-0-267"></a>    <span class="n">_write</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.tunnel_manager.tunnel_status" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">tunnel_status</span><span class="p">()</span></code>
+
+<a href="#lablink_allocator_service.tunnel_manager.tunnel_status" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>"ok" iff the shared tunnel server is accepting connections.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/tunnel_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-298">298</a></span>
+<span class="normal"><a href="#__codelineno-0-299">299</a></span>
+<span class="normal"><a href="#__codelineno-0-300">300</a></span>
+<span class="normal"><a href="#__codelineno-0-301">301</a></span>
+<span class="normal"><a href="#__codelineno-0-302">302</a></span>
+<span class="normal"><a href="#__codelineno-0-303">303</a></span>
+<span class="normal"><a href="#__codelineno-0-304">304</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-298" name="__codelineno-0-298"></a><span class="k">def</span><span class="w"> </span><span class="nf">tunnel_status</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;ok&quot; iff the shared tunnel server is accepting connections.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-300" name="__codelineno-0-300"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-301" name="__codelineno-0-301"></a>        <span class="k">with</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="n">TUNNEL_SERVER_PORT</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<a id="__codelineno-0-302" name="__codelineno-0-302"></a>            <span class="k">return</span> <span class="s2">&quot;ok&quot;</span>
+<a id="__codelineno-0-303" name="__codelineno-0-303"></a>    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+<a id="__codelineno-0-304" name="__codelineno-0-304"></a>        <span class="k">return</span> <span class="s2">&quot;not running&quot;</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
 
 
 
@@ -4814,10 +5139,10 @@ workloads are simply the motivating case.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../../../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.share", "toc.follow"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
       
