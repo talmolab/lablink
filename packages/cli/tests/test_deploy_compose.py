@@ -2474,3 +2474,58 @@ class TestReverseTunnelDeploy:
         # ...and the hint is the off-LAN one, not the BYO-box one.
         assert "on the same LAN" not in out
         assert "--no-run-locally" in out
+
+    @pytest.mark.parametrize("connectivity", ["mesh_overlay", "reverse_tunnel"])
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_register_hint_uses_public_url_when_cloudflare_active(
+        self, mock_extract, mock_lan, capsys, connectivity
+    ):
+        """Regression: the substitution above was gated on Funnel, so a
+        cloudflare_tunnel deployment printed the LAN address that an off-LAN
+        client cannot reach — despite a verified public HTTPS URL existing.
+        Both off-LAN connectivity modes are affected; mesh_overlay +
+        cloudflare_tunnel is this feature's own documented example."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity=connectivity,
+                overlay_tailnet="example.ts.net",
+                participant_exposure="cloudflare_tunnel",
+                public_hostname="lab.example.org",
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            f"--allocator-url https://lab.example.org --register-token {token}" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_hint_keeps_the_lan_url(self, mock_extract, mock_lan, capsys):
+        """The substitution must stay scoped to off-LAN clients: a lan_direct
+        BYO box genuinely is on the LAN, so it keeps the LAN address. (This
+        config is preflight-rejected at deploy time; _print_summary is
+        checked directly to pin the branch.)"""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "abc123def456ghi789jklmnop"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                participant_exposure="cloudflare_tunnel",
+                public_hostname="lab.example.org",
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert "--allocator-url http://192.168.1.42" in out
+        assert "--allocator-url https://lab.example.org" not in out

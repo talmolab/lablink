@@ -772,24 +772,30 @@ def _print_summary(
     # we could detect one.
     register_url = lan_url or local_url
 
+    # The deployment's one internet-reachable URL, or None. Funnel's has to
+    # be read back out of the sidecar and can be missing even when enabled;
+    # Cloudflare's is just config the admin typed. Everything downstream only
+    # cares whether such a URL exists, so both collapse into one value here
+    # rather than each exposure mode growing its own branch.
+    if funnel_active and funnel_url:
+        public_url = funnel_url
+    elif cfg.manual.participant_exposure == "cloudflare_tunnel":
+        public_url = f"https://{cfg.manual.public_hostname}"
+    else:
+        public_url = None
+
     console.print("\n[bold green]Deployment complete.[/bold green]")
-    if funnel_active:
-        public_url = funnel_url or (
-            "(enabled, but the URL could not be determined — run "
-            f"`docker exec {TAILSCALE_SIDECAR_CONTAINER_NAME} tailscale "
-            "funnel status` to see it)"
-        )
+    if funnel_active and not funnel_url:
         console.print(
-            f"  Allocator URL (public): {public_url}",
+            "  Allocator URL (public): (enabled, but the URL could not be "
+            f"determined — run `docker exec {TAILSCALE_SIDECAR_CONTAINER_NAME} "
+            "tailscale funnel status` to see it)",
             soft_wrap=True,
             highlight=False,
         )
-    # Derived here rather than passed in: unlike Funnel's URL, which has to
-    # be read back out of the sidecar and has an "enabled but unknown"
-    # state, this one is just config the admin typed.
-    if cfg.manual.participant_exposure == "cloudflare_tunnel":
+    elif public_url:
         console.print(
-            f"  Allocator URL (public): https://{cfg.manual.public_hostname}",
+            f"  Allocator URL (public): {public_url}",
             soft_wrap=True,
             highlight=False,
         )
@@ -834,26 +840,27 @@ def _print_summary(
     # allocator's own LAN — mesh_overlay via a Tailscale tailnet,
     # reverse_tunnel by dialing out instead of accepting inbound at all.
     off_lan = mesh_overlay or reverse_tunnel
-    # Only substitute when we actually have the real URL — funnel_active
-    # can be True while funnel_url is None (enable succeeded but the
-    # status lookup didn't match), and a guessed fallback here would be
-    # exactly the wrong URL this function used to print. Gated on off_lan,
-    # not just mesh_overlay: a reverse_tunnel client behind a NAT'd/
-    # firewalled box is just as unreachable at the LAN address, and Funnel
-    # (participant_exposure: tailscale_funnel) is the only way an off-LAN
-    # tunnel client reaches this deployment at all.
-    funnel_url_used = off_lan and funnel_active and bool(funnel_url)
+    # Substitute only when a real public URL exists — funnel_active can be
+    # True while funnel_url is None (enable succeeded but the status lookup
+    # didn't match), and a guessed fallback here would be exactly the wrong
+    # URL this function used to print. Gated on off_lan, not just
+    # mesh_overlay: a reverse_tunnel client behind a NAT'd/firewalled box is
+    # just as unreachable at the LAN address. Gated on public_url rather
+    # than on Funnel specifically, because an off-LAN client cannot reach
+    # the LAN address no matter which exposure mode publishes the
+    # allocator — printing one is how this hint was wrong before.
+    public_url_used = off_lan and bool(public_url)
     # Hoisted above the mesh_overlay/reverse_tunnel branch so both off-LAN
     # modes get the substitution — lan_direct clients genuinely are on the
     # LAN, so their own hint below keeps using register_url as-is.
-    if funnel_url_used:
-        register_url = funnel_url
+    if public_url_used:
+        register_url = public_url
     if mesh_overlay:
         # A mesh-overlay client (e.g. a Run:AI-hosted workload) isn't on
         # the allocator's LAN at all — the LAN URL above is unreachable
-        # from it regardless of whether we detected one. When Funnel is
-        # live, its public URL actually IS reachable from anywhere with
-        # internet access, so prefer it here specifically.
+        # from it regardless of whether we detected one. Whichever exposure
+        # mode is live, its public URL IS reachable from anywhere with
+        # internet access, so prefer that here.
         console.print(
             "\n[bold]Next step:[/bold] for each mesh-overlay client "
             "(e.g. a Run:AI-hosted workload), open a terminal inside "
@@ -891,12 +898,12 @@ def _print_summary(
             "workload submission instead of running here, along with "
             "--hostname/--machine-identity.[/dim]"
         )
-    if not lan_url and not funnel_url_used:
+    if not lan_url and not public_url_used:
         # If we fell back to localhost, the printed command only works
         # for a BYO client *on the operator host*. Call that out so the
         # operator doesn't blindly hand it to a remote teammate. Doesn't
-        # apply when the mesh-overlay hint above already substituted the
-        # Funnel URL instead of falling back to localhost.
+        # apply when the off-LAN hint above already substituted a public
+        # URL instead of falling back to localhost.
         console.print(
             "  [yellow]Note:[/yellow] the URL above is localhost — only "
             "valid for a BYO client running on this same machine. For "
