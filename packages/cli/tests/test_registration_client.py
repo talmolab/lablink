@@ -141,11 +141,6 @@ class TestRegister:
 
     @patch("lablink_cli.api.urlopen")
     def test_register_sends_the_tunnel_sentinel(self, mock_urlopen):
-        """The brief's own test mocks `lablink_cli.api.requests.post`, but
-        this module has no `requests` import at all — it POSTs via
-        urllib's `urlopen` (see every other test in this class). Adapted
-        to the actual transport; the assertions (sentinel shape,
-        endpoint_url=None) are unchanged from the brief's intent."""
         response = {"client_id": "vm-1"}
         mock_resp = MagicMock()
         mock_resp.read.return_value = json.dumps(response).encode()

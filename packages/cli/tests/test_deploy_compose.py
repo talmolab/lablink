@@ -2025,19 +2025,6 @@ class TestReverseTunnelDeploy:
 
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
     @patch("lablink_cli.commands.deploy_compose._extract_register_token")
-    def test_summary_shows_the_valueless_flag(self, mock_extract, mock_lan, capsys):
-        from lablink_cli.commands.deploy_compose import _print_summary
-
-        mock_extract.return_value = "tok123456789012345678901"
-        mock_lan.return_value = "192.168.1.42"
-        _print_summary(_manual_cfg(connectivity="reverse_tunnel"))
-        out = capsys.readouterr().out
-        assert "--tunnel" in out
-        assert "on the same LAN" not in out
-        assert "--no-run-locally" in out
-
-    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
-    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
     def test_register_hint_uses_public_url_when_funnel_active(
         self, mock_extract, mock_lan, capsys
     ):
@@ -2066,3 +2053,6 @@ class TestReverseTunnelDeploy:
             f"--allocator-url {real_url} --register-token {token} --tunnel" in out
         )
         assert "--allocator-url http://192.168.1.42" not in out
+        # ...and the hint is the off-LAN one, not the BYO-box one.
+        assert "on the same LAN" not in out
+        assert "--no-run-locally" in out

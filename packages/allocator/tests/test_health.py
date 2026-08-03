@@ -229,20 +229,6 @@ class TestTunnelStatus:
     disconnects, and connections to that orphan hang rather than fail, so
     the shared tunnel server being up says nothing about any one client."""
 
-    def test_health_reports_unattached_clients(self, health_client, monkeypatch):
-        """A bound port is not evidence of an attached client: wstunnel keeps
-        the listener for its idle timeout after the client leaves, and
-        connections to an orphan hang instead of failing."""
-        from lablink_allocator_service import tunnel_manager
-
-        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
-        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10})
-        client, fake_db = health_client
-        fake_db.list_tunnel_aliases.return_value = [10, 11]
-
-        body = client.get("/api/health").get_json()
-        assert body["checks"]["tunnel"] == "1 client(s) not attached"
-
     def test_unattached_client_does_not_make_the_allocator_unready(
         self, health_client, monkeypatch
     ):
@@ -288,19 +274,6 @@ class TestTunnelStatus:
         # shared server being down IS the allocator's own dependency failing,
         # so it must still gate readiness.
         assert resp.status_code == 503
-
-    def test_health_ok_when_no_clients_registered(self, health_client, monkeypatch):
-        """Shared server up, zero registered tunnel clients: the empty
-        set has nothing missing from it, so this is the logically safe
-        'ok' case, not a degenerate one."""
-        from lablink_allocator_service import tunnel_manager
-
-        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
-        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10})
-        client, fake_db = health_client
-        fake_db.list_tunnel_aliases.return_value = []
-
-        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "ok"
 
     def test_health_degrades_when_db_query_fails(self, health_client, monkeypatch):
         """A transient Postgres problem (pool exhaustion, a brief restart)

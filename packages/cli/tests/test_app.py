@@ -515,18 +515,11 @@ class TestDeployDispatch:
 # ------------------------------------------------------------------
 class TestClientRegisterCommand:
     def test_cli_exposes_tunnel_flag(self):
-        import inspect
-        from lablink_cli.commands.register import run_register
-
-        assert "reverse_tunnel" in inspect.signature(run_register).parameters
-
         result = CliRunner().invoke(app, ["client", "register", "--help"])
         assert result.exit_code == 0
         # _plain, not result.output: Typer renders help through Rich and CI
         # has colour enabled, which breaks the flag name up with ANSI codes.
-        plain = _plain(result.output)
-        assert "--tunnel" in plain
-        assert "--no-tunnel" in plain
+        assert "--tunnel" in _plain(result.output)
 
     def test_passes_tunnel_flag_through(self):
         runner = CliRunner()

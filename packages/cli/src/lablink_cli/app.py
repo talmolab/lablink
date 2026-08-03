@@ -435,7 +435,7 @@ def register(
     ),
     tunnel: bool = typer.Option(
         False,
-        "--tunnel/--no-tunnel",
+        "--tunnel",
         help="Register a tunnel client: instead of the allocator dialling "
         "this box, the box dials OUT to the allocator and holds one "
         "connection open. For networks that won't carry Tailscale and "

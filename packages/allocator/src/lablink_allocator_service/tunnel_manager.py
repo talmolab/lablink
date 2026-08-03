@@ -18,48 +18,26 @@ prefix. This module owns the two things the allocator must control:
    being refused (measured: 12s, no response). Health must therefore
    observe the pairing, not the process or the port.
 
-Schema note: verified against the real wstunnel v10.6.2 binary (image tag
-"v10.6.2", not "10.6.2" -- ghcr.io only publishes the v-prefixed tag). The
-brief's `port: [{start: N, end: N}, ...]` form is rejected with
-`invalid type: map, expected a string`; the accepted shape is a list of
-port-number strings, each parsed as a single-port range:
+Two facts measured against the pinned wstunnel v10.6.2 binary, both of
+which the rendered file's shape depends on -- re-verify when bumping it:
 
-    restrictions:
-      - name: vm-1
-        match:
-          - !PathPrefix "tun-vm-1-abc123"
-        allow:
-          - !ReverseTunnel
-            port: ["6080", "7070"]
-            cidr: ["127.0.0.10/32"]
+* `allow[].port` takes a list of port-number STRINGS, each parsed as a
+  single-port range (`port: [6080..=6080, ...]` under --log-lvl DEBUG).
+  A `[{start: N, end: N}]` form is rejected outright.
+* `!PathPrefix` compares ONLY the client's first path segment, so a match
+  value like `tunnel/<prefix>` can never fire and the failure is a silent
+  deny-all. The match value must BE the whole first segment, which is why
+  `path_prefix()` returns `tun-<client_id>-<digest>` at the root rather
+  than nesting under a shared "tunnel/". Confirmed end to end: a client
+  presenting another client's alias in `-R` was refused with "Rejecting
+  connection with not allowed destination".
 
-Confirmed via `--log-lvl DEBUG`, which echoes the parsed rule back as
-`port: [6080..=6080, 7070..=7070]`. Re-verify when bumping the pinned
-version.
-
-`!PathPrefix` matches ONLY the client's first path segment (also verified
-against 10.6.2): a match value of `tunnel/<prefix>` can never fire against
-a client dialing in on `-P tunnel/<prefix>`, because wstunnel only ever
-compares that first segment to the match string. The only way this rule
-can both match AND stay per-client is for the match value to BE the whole
-first segment -- so the prefix itself must be dialed as the first segment
-(no shared "tunnel/" root), which is why `path_prefix()` below returns
-`tun-<client_id>-<digest>` rather than something nested under a shared
-prefix. Confirmed end to end: a client presenting its own prefix as the
-first path segment was accepted onto its own alias; the same client
-presenting another client's alias in `-R` was refused with "Rejecting
-connection with not allowed destination".
-
-Security note: `client_id` is the DB `hostname`, which reaches this module
-from client-controlled registration input -- it is NOT validated upstream
-beyond truthiness. Every function that renders it into the restrictions
-file therefore validates it here (see `_is_safe_client_id`) rather than
-trusting the caller, and rendering itself goes through `yaml.safe_dump`
-(not f-string/string-building) so a value that somehow slipped past
-validation still can't forge YAML structure. Both are load-bearing: the
-charset check is what stops a multi-line hostname from ever reaching the
-renderer, and safe_dump is what stops any single-line-but-still-special
-YAML character (quotes, colons, `#`, etc.) from doing so.
+Security note: `client_id` is the DB `hostname`, which arrives from
+client-controlled registration input. Two independent guards, both
+load-bearing: `_is_safe()` rejects the charset (what stops a multi-line
+hostname reaching the renderer at all), and `yaml.safe_dump` does the
+rendering (what stops a single-line-but-special value -- quotes, colons,
+`#` -- forging YAML structure if it ever slipped past).
 """
 from __future__ import annotations
 
@@ -77,15 +55,13 @@ TUNNEL_PORTS = (6080, 7070)
 # Where the tunnel server listens inside the container; nginx proxies to it.
 TUNNEL_SERVER_PORT = 8080
 
-# client_id is the DB hostname: registration only checks it's truthy (see
-# routes/registration.py), so this module can't trust it arrived sane.
-# Reject anything outside a conservative charset rather than trying to
-# escape it -- it ends up as a YAML mapping key/value AND a path segment
-# (via path_prefix), so "sanitize" would need to satisfy both consumers.
-_CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
-# path_prefix() = "tun-<client_id>-<digest>" (digest is 16 hex chars), so
-# the same charset applies with a little headroom for that prefix/suffix.
-_PREFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,299}$")
+# Values reaching the renderer end up as a YAML mapping key/value AND a
+# path segment, so reject an unsafe charset rather than trying to escape
+# it -- "sanitize" would have to satisfy both consumers.
+_SAFE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+# A hostname's own cap; path_prefix() adds "tun-" + "-<16 hex>" on top.
+_MAX_CLIENT_ID_LEN = 253
+_MAX_PREFIX_LEN = 300
 
 # A rendered restriction is one octet in a 127.0.0.0/8 /32 CIDR. 0 and 255
 # are excluded as the conventional network/broadcast-shaped ends of a
@@ -94,18 +70,13 @@ _MIN_ALIAS_OCTET = 1
 _MAX_ALIAS_OCTET = 254
 
 
-def _is_safe_client_id(client_id: str) -> bool:
-    # fullmatch, not match: `match` + a `$`-anchored pattern still accepts
-    # a single trailing newline ("vm-1\n"), since Python's `$` matches just
+def _is_safe(value: str, max_len: int) -> bool:
+    # fullmatch, not match: `match` + a `$`-anchored pattern still accepts a
+    # single trailing newline ("vm-1\n"), since Python's `$` matches just
     # before a trailing newline as well as end-of-string. safe_dump blocks
-    # the actual YAML-injection exploit either way, but this boundary
-    # check is what the module docstring claims stops a trailing newline
-    # at all, so it must actually do that.
-    return bool(_CLIENT_ID_RE.fullmatch(client_id))
-
-
-def _is_safe_prefix(prefix: str) -> bool:
-    return bool(_PREFIX_RE.fullmatch(prefix))
+    # the actual YAML-injection exploit either way, but this boundary check
+    # is what the docstring claims stops a trailing newline at all.
+    return len(value) <= max_len and bool(_SAFE_RE.fullmatch(value))
 
 
 def is_valid_alias_octet(octet: int) -> bool:
@@ -150,9 +121,11 @@ def _represent_reverse_tunnel(dumper: yaml.Dumper, data: "_ReverseTunnelRule"):
 yaml.SafeDumper.add_representer(_PathPrefix, _represent_path_prefix)
 yaml.SafeDumper.add_representer(_ReverseTunnelRule, _represent_reverse_tunnel)
 
-# So _render()'s self-check (below) can round-trip its own output: SafeLoader
-# has no constructor for our custom tags by default and would otherwise
-# raise before the check ever ran.
+# Load-bearing, do not delete: SafeLoader has no constructor for our custom
+# tags by default, so without these BOTH _render()'s self-check and
+# _hydrate_from_disk() raise on the tagged file we ourselves wrote. In
+# hydration's case the raise is swallowed by its own except, which silently
+# turns "reload every rule after a restart" into "drop them all".
 yaml.SafeLoader.add_constructor(
     "!PathPrefix", lambda loader, node: loader.construct_scalar(node)
 )
@@ -266,9 +239,9 @@ def authorize_client(*, client_id: str, alias_octet: int, prefix: str) -> None:
     so it's validated here rather than assumed clean by callers.
     """
     _hydrate_from_disk()
-    if not _is_safe_client_id(client_id):
+    if not _is_safe(client_id, _MAX_CLIENT_ID_LEN):
         raise ValueError(f"unsafe client_id for tunnel restrictions: {client_id!r}")
-    if not _is_safe_prefix(prefix):
+    if not _is_safe(prefix, _MAX_PREFIX_LEN):
         raise ValueError(f"unsafe prefix for tunnel restrictions: {prefix!r}")
     if not is_valid_alias_octet(alias_octet):
         raise ValueError(

@@ -128,11 +128,11 @@ def register_client():
     # Reverse-tunnel clients need two allocator-owned values minted before
     # the row is written: a loopback alias (the address nginx will dial) and
     # a path prefix identifying this client at the tunnel endpoint.
+    from lablink_allocator_service import tunnel_manager
+
     tunnel_alias_octet = None
     tunnel_prefix = None
     if provider == "manual" and provider_metadata.get("reverse_tunnel") is True:
-        from lablink_allocator_service import tunnel_manager
-
         tunnel_alias_octet = main.database.allocate_tunnel_alias_octet()
         # Range-check BEFORE writing the row: allocate_tunnel_alias_octet
         # never recycles, so a deployment can exhaust it (see its
@@ -170,8 +170,6 @@ def register_client():
         return jsonify({"error": "registration conflict"}), 409
 
     if tunnel_prefix is not None:
-        from lablink_allocator_service import tunnel_manager
-
         # Authorize AFTER the row exists: the restrictions file is what lets
         # this client bind its alias, and it must never name an alias no row
         # claims. Re-registration overwrites the client's single rule, so a

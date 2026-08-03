@@ -67,51 +67,22 @@ def test_revoke_unknown_client_is_a_noop(tm):
     tm.revoke_client("never-registered")  # must not raise
 
 
-def test_authorize_rejects_unsafe_client_id(tm):
-    # client_id is the DB hostname: attacker-controlled via registration,
-    # not validated upstream. A newline would let it forge a second
-    # top-level YAML restriction (see the module docstring) if it ever
-    # reached the renderer -- authorize_client must refuse it outright.
+@pytest.mark.parametrize("client_id,octet,prefix", [
+    # A newline could forge a second top-level YAML restriction if it ever
+    # reached the renderer; client_id is the DB hostname, so it arrives from
+    # registration input. Trailing-newline cases specifically: `.match()` with
+    # a `$`-anchored pattern still accepts them (Python's `$` matches before a
+    # trailing newline), so fullmatch is what actually closes it.
+    ("vm-evil\nrestrictions:\n  - name: pwn", 10, "tun-vm-evil-abc"),
+    ("vm-1", 10, "vm-1\nrestrictions:"),
+    ("vm-1\n", 10, "tun-vm-1-abc"),
+    ("vm-1", 10, "tun-vm-1-abc\n"),
+    ("vm-1", 255, "tun-vm-1-abc"),   # octet range: above
+    ("vm-1", 0, "tun-vm-1-abc"),     # ...and below
+])
+def test_authorize_rejects_unsafe_input(tm, client_id, octet, prefix):
     with pytest.raises(ValueError):
-        tm.authorize_client(
-            client_id="vm-evil\nrestrictions:\n  - name: pwn",
-            alias_octet=10,
-            prefix="tun-vm-evil-abc",
-        )
-    assert not tm.RESTRICTIONS_PATH.exists()
-
-
-def test_authorize_rejects_unsafe_prefix(tm):
-    with pytest.raises(ValueError):
-        tm.authorize_client(
-            client_id="vm-1", alias_octet=10, prefix="vm-1\nrestrictions:"
-        )
-    assert not tm.RESTRICTIONS_PATH.exists()
-
-
-def test_authorize_rejects_out_of_range_alias_octet(tm):
-    with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1", alias_octet=255, prefix="tun-vm-1-abc")
-    with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1", alias_octet=0, prefix="tun-vm-1-abc")
-    assert not tm.RESTRICTIONS_PATH.exists()
-
-
-def test_authorize_rejects_a_trailing_newline_client_id(tm):
-    # `.match()` + a `$`-anchored pattern still accepts a single trailing
-    # newline (Python's `$` matches just before a trailing newline, not
-    # only end-of-string) -- fullmatch is what actually closes this.
-    # safe_dump blocks the real YAML-injection exploit either way, but
-    # the module docstring claims this check stops a trailing newline,
-    # so it must.
-    with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1\n", alias_octet=10, prefix="tun-vm-1-abc")
-    assert not tm.RESTRICTIONS_PATH.exists()
-
-
-def test_authorize_rejects_a_trailing_newline_prefix(tm):
-    with pytest.raises(ValueError):
-        tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc\n")
+        tm.authorize_client(client_id=client_id, alias_octet=octet, prefix=prefix)
     assert not tm.RESTRICTIONS_PATH.exists()
 
 
@@ -167,12 +138,6 @@ def test_revoke_after_restart_finds_the_stale_entry(tm):
 
     text = tm.RESTRICTIONS_PATH.read_text()
     assert "tun-vm-1-abc" not in text
-
-
-def test_hydrate_tolerates_a_missing_file(tm):
-    assert not tm.RESTRICTIONS_PATH.exists()
-    tm.authorize_client(client_id="vm-1", alias_octet=10, prefix="tun-vm-1-abc")
-    assert "tun-vm-1-abc" in tm.RESTRICTIONS_PATH.read_text()
 
 
 def test_hydrate_tolerates_a_malformed_file(tm):

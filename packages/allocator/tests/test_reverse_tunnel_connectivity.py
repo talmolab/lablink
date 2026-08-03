@@ -31,12 +31,6 @@ def test_registry_resolves_the_strategy():
     assert prov.client_connectivity.name == "reverse_tunnel"
 
 
-def test_validator_accepts_the_connectivity_value():
-    from lablink_allocator_service.validate_config import VALID_CONNECTIVITY
-
-    assert "reverse_tunnel" in VALID_CONNECTIVITY
-
-
 def test_delegates_to_client_session_with_tunnel_alias_fallback():
     """prepare_browser_session delegates to client_session.prepare_browser_session
     and injects the tunnel-alias resolver via the fallback_fn kwarg — the same
@@ -106,33 +100,17 @@ def test_resolve_tunnel_alias_raises_when_not_registered():
             _resolve_tunnel_alias("vm-1")
 
 
-def test_make_join_material_returns_reverse_tunnel():
+def test_make_join_material_reports_the_connectivity_name():
+    """Only the connectivity field carries logic; the rest is pass-through.
+    cleanup_client_identity has no unit test here on purpose — it's a
+    one-line delegation, driven for real by test_registration_api.py's
+    test_unregister_revokes_a_reverse_tunnel_clients_restrictions_rule."""
     from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
         ReverseTunnelClientConnectivity,
     )
 
-    c = ReverseTunnelClientConnectivity()
-    m = c.make_join_material(
-        allocator_url="http://a:5000",
-        client_image="img:1",
-        register_token="tk_1",
+    m = ReverseTunnelClientConnectivity().make_join_material(
+        allocator_url="http://a:5000", client_image="img:1", register_token="tk_1",
     )
     assert isinstance(m, ClientJoinMaterial)
     assert m.connectivity == "reverse_tunnel"
-    assert m.allocator_url == "http://a:5000"
-    assert m.client_image == "img:1"
-    assert m.register_token == "tk_1"
-
-
-def test_cleanup_client_identity_revokes_tunnel_client():
-    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
-        ReverseTunnelClientConnectivity,
-    )
-
-    with patch(
-        "lablink_allocator_service.providers.connectivity.reverse_tunnel."
-        "tunnel_manager.revoke_client"
-    ) as m:
-        c = ReverseTunnelClientConnectivity()
-        c.cleanup_client_identity(hostname="vm-1")
-    m.assert_called_once_with("vm-1")

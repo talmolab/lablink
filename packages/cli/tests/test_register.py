@@ -1672,15 +1672,8 @@ class TestReverseTunnelRegister:
             {"client_image": "img"}, False, None, None, reverse_tunnel=True,
         )
         assert "--publish" not in cmd
-
-    def test_docker_run_pins_amd64(self):
-        from lablink_cli.commands.register import _build_docker_run
-        from pathlib import Path
-
-        cmd = _build_docker_run(
-            Path("/tmp/client.env"),
-            {"client_image": "img"}, False, None, None, reverse_tunnel=True,
-        )
+        # The client image is published amd64-only, so an arm64 host needs
+        # the platform pin or docker run fails on the manifest.
         assert "--platform" in cmd and "linux/amd64" in cmd
 
     def test_tunnel_and_overlay_hostname_are_mutually_exclusive(self, tmp_path):
