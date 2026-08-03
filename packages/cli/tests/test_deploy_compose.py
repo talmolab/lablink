@@ -2223,6 +2223,44 @@ class TestCloudflareTunnelPreflights:
                 cloudflare_tunnel_token="eyJhIjoiTOKEN",
             )
 
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "https://lab.example.org",
+            "lab.example.org/",
+            "lab.example.org:5000",
+            "lab.example.org\nevil.example",
+            "localhost",
+        ],
+    )
+    # Everything downstream of the preflight is patched, including
+    # _health_poll: if this check ever regresses, run_deploy_compose would
+    # otherwise fall through to a real 300s health poll and this test would
+    # hang for five minutes per case instead of failing immediately.
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_malformed_public_hostname_is_rejected(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path, hostname
+    ):
+        """`lablink deploy` never calls get_config_errors() for the manual
+        provider, so this is the only gate a hand-edited config.yaml passes
+        through. Without it a pasted scheme reaches the allocator-url file as
+        "https://https://host" and every client is handed that."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                self._cf_cfg(public_hostname=hostname),
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+        # Rejected before anything starts, not after a half-built stack.
+        mock_up.assert_not_called()
+
     @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")

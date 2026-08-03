@@ -1,3 +1,5 @@
+import pytest
+
 import lablink_allocator_service.validate_config as vc_module
 from lablink_allocator_service.validate_config import validate_config
 
@@ -682,6 +684,71 @@ class TestCloudflareTunnelExposure:
         assert matching, f"expected a public_hostname error, got {errors}"
         # The wizard filters on both substrings; see Task 6.
         assert "participant_exposure" in matching[0]
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "https://lab.example.org",  # the likely paste — docs show URL form
+            "http://lab.example.org",
+            "lab.example.org/",
+            "lab.example.org/path",
+            "lab.example.org:5000",
+            "lab example.org",
+            "lab.example.org\nevil.example",  # injects a 2nd allocator-url line
+            "localhost",  # no dot: a Cloudflare public hostname is a FQDN
+            ".lab.example.org",
+            "lab.example.org.",
+            "-lab.example.org",
+            "lab..example.org",
+        ],
+    )
+    def test_malformed_public_hostname_is_rejected(self, hostname):
+        """The value is interpolated into "https://{host}" for the canonical-URL
+        file clients are handed, and canonical_base_url accepts anything that
+        merely startswith("https://") — so without this check a pasted scheme
+        yields "https://https://host" that breaks silently."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(public_hostname=hostname))
+        assert [e for e in errors if "public_hostname" in e], (
+            f"{hostname!r} should have been rejected, got {errors}"
+        )
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "lab.smithlab.org",
+            "lablink-testing.com",
+            "a.b.c.example.org",
+            "lab-1.example.org",
+            "xn--80ak6aa92e.com",  # IDN punycode
+            "LAB.Example.ORG",  # DNS is case-insensitive
+        ],
+    )
+    def test_wellformed_public_hostname_is_accepted(self, hostname):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(public_hostname=hostname))
+        assert not [e for e in errors if "public_hostname" in e], (
+            f"{hostname!r} should have been accepted, got {errors}"
+        )
+
+    def test_blank_and_malformed_give_different_guidance(self):
+        """"You left it blank" and "you typed a URL" need different fixes;
+        a single generic message would send the operator the wrong way."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        blank = [
+            e for e in get_config_errors(self._cfg(public_hostname="")) if "public_hostname" in e
+        ][0]
+        malformed = [
+            e
+            for e in get_config_errors(self._cfg(public_hostname="https://lab.example.org"))
+            if "public_hostname" in e
+        ][0]
+        assert blank != malformed
+        assert "empty" in blank
+        assert "https://" in malformed
 
     def test_lan_direct_is_rejected_for_cloudflare_too(self):
         """The lan_direct rejection was written for Funnel but argues about

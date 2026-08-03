@@ -340,6 +340,23 @@ def run_deploy_compose(
                 "public hostname in Cloudflare (e.g. lab.smithlab.org)."
             )
             raise SystemExit(1)
+        from lablink_allocator_service.validate_config import (
+            PUBLIC_HOSTNAME_HINT,
+            is_valid_public_hostname,
+        )
+
+        # The value is interpolated into "https://{host}" for the canonical-URL
+        # file clients are handed, and canonical_base_url accepts anything that
+        # merely startswith("https://") — so a pasted scheme yields
+        # "https://https://host" that fails silently rather than loudly.
+        if not is_valid_public_hostname(cfg.manual.public_hostname):
+            console.print(
+                "[red]manual.public_hostname is not a bare hostname.[/red]\n"
+                f"It {PUBLIC_HOSTNAME_HINT}.",
+                highlight=False,
+            )
+            console.print(f"  got: {cfg.manual.public_hostname!r}", highlight=False)
+            raise SystemExit(1)
         previous_cf_token = _read_env_value(target / ".env", "CLOUDFLARE_TUNNEL_TOKEN")
         if not cloudflare_tunnel_token and not previous_cf_token:
             console.print(
