@@ -504,7 +504,21 @@ class ManualConnectivityScreen(Screen):
             return
         error_label.display = False
 
-        self.app.push_screen(DnsScreen())
+        # The manual path skips DnsScreen: the compose stack reads neither
+        # cfg.dns nor cfg.eip, and reads cfg.ssl.provider only to reject
+        # anything but "none" (SUPPORTED_SSL_FOR_MANUAL in deploy_compose).
+        # Asking for DNS and a TLS provider that the deploy then refuses is
+        # a trap, not a choice.
+        #
+        # Pinning both here is mandatory, not tidiness: SSLConfig.provider
+        # defaults to "letsencrypt", and DnsScreen is the only place the
+        # wizard ever writes cfg.ssl.provider. Skipping it without this
+        # would leave every manual config failing that preflight — and an
+        # inherited AWS config would carry a real domain through too.
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+
+        self.app.push_screen(StartupScreen())
 
 
 # ---------------------------------------------------------------------------

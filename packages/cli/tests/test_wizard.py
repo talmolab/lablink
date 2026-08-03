@@ -582,7 +582,7 @@ def test_connectivity_screen_defaults_to_lan_direct():
     )
     assert connectivity == "lan_direct"
     assert exposure == "none"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
@@ -592,7 +592,7 @@ def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
     assert connectivity == "mesh_overlay"
     assert tailnet == "example.ts.net"
     assert exposure == "none"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_blocks_next_when_tailnet_missing():
@@ -609,7 +609,7 @@ def test_connectivity_screen_writes_reverse_tunnel():
         choose_mesh_overlay=False, choose_reverse_tunnel=True
     )
     assert connectivity == "reverse_tunnel"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_reverse_tunnel_needs_no_extra_fields():
@@ -700,7 +700,7 @@ def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity
     assert connectivity == "mesh_overlay"
     assert exposure == "tailscale_funnel"
     assert tailnet == "example.ts.net"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_blocks_lan_direct_with_funnel():
@@ -753,7 +753,7 @@ def test_connectivity_screen_writes_cloudflare_tunnel_and_hostname():
     )
     assert cfg.manual.participant_exposure == "cloudflare_tunnel"
     assert cfg.manual.public_hostname == "lab.example.org"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_blocks_cloudflare_without_hostname():
@@ -767,7 +767,90 @@ def test_connectivity_screen_blocks_cloudflare_without_hostname():
         public_hostname="",
     )
     assert cfg.manual.participant_exposure == "cloudflare_tunnel"
-    assert stack_delta == 0, "invalid submission must not push DnsScreen"
+    assert stack_delta == 0, "invalid submission must not push the next screen"
+
+
+# ---------------------------------------------------------------------------
+# The manual path skips DNS/SSL
+# ---------------------------------------------------------------------------
+def _advance_past_connectivity(preset_ssl=None, preset_dns_enabled=None):
+    """Submit a valid ManualConnectivityScreen, return (top screen name, cfg).
+
+    Optional presets simulate a config carried over from the AWS path, where
+    ssl/dns were really configured.
+    """
+    import asyncio
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+    if preset_ssl is not None:
+        cfg.ssl.provider = preset_ssl
+    if preset_dns_enabled is not None:
+        cfg.dns.enabled = preset_dns_enabled
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.push_screen(ManualConnectivityScreen())
+            await pilot.pause()
+            app.screen_stack[-1]._next()
+            await pilot.pause()
+            return type(app.screen_stack[-1]).__name__, cfg
+
+    return asyncio.run(_run())
+
+
+def test_manual_path_skips_the_dns_ssl_screen():
+    """Nothing in the compose stack reads cfg.dns or cfg.eip, and
+    cfg.ssl.provider is read only to reject anything but 'none'. Offering
+    those choices to a manual operator is a trap, not a configuration."""
+    top, _ = _advance_past_connectivity()
+    assert top == "StartupScreen", f"manual path should skip DnsScreen, got {top}"
+
+
+def test_manual_path_pins_ssl_none_and_disables_dns():
+    """Mandatory, not cosmetic: SSLConfig.provider defaults to 'letsencrypt'
+    and DnsScreen is the only place the wizard writes cfg.ssl.provider, so
+    skipping that screen without pinning here leaves every manual config
+    failing deploy_compose's SUPPORTED_SSL_FOR_MANUAL preflight."""
+    _, cfg = _advance_past_connectivity()
+    assert cfg.ssl.provider == "none"
+    assert cfg.dns.enabled is False
+
+
+def test_manual_path_overrides_an_inherited_aws_dns_config():
+    """Switching an existing AWS config to manual must not carry its real
+    TLS provider and domain through — there is no longer a screen on which
+    to turn them off."""
+    _, cfg = _advance_past_connectivity(
+        preset_ssl="letsencrypt", preset_dns_enabled=True
+    )
+    assert cfg.ssl.provider == "none"
+    assert cfg.dns.enabled is False
+
+
+def test_aws_path_still_reaches_the_dns_ssl_screen():
+    """Regression guard: the skip above must be scoped to the manual path.
+    The AWS path genuinely provisions DNS and TLS via Terraform."""
+    import asyncio
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "aws"
+
+    async def _run():
+        from lablink_cli.tui.wizard import MachineScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.push_screen(MachineScreen())
+            await pilot.pause()
+            app.screen_stack[-1]._next()
+            await pilot.pause()
+            return type(app.screen_stack[-1]).__name__
+
+    assert asyncio.run(_run()) == "DnsScreen"
 
 
 def test_connectivity_screen_blocks_lan_direct_with_cloudflare():
