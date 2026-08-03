@@ -39,6 +39,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm /tmp/kasmvncserver.deb && \
     rm -rf /var/lib/apt/lists/*
 
+# cloudflared -- the connector for manual.participant_exposure=cloudflare_tunnel.
+# A single static binary (not a tarball, not a .deb), so no unpack step. Harmless
+# when unused: start.sh only launches it when the mode is set. Pinned rather than
+# floating, and paired with --no-autoupdate at runtime, so what ships is what was
+# tested. Must stay in lockstep with Dockerfile.dev.
+ARG CLOUDFLARED_VERSION=2026.7.3
+RUN curl -L -o /usr/local/bin/cloudflared \
+      "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" && \
+    chmod +x /usr/local/bin/cloudflared
+
 # Fix the bundled noVNC viewer's RFB VncAuth handshake. nginx (above)
 # serves /static/novnc/ from /usr/share/kasmvnc/www/ on THIS container,
 # so the browser-loaded bundle is the allocator's, not the client's.

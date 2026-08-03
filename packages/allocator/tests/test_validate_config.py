@@ -1,3 +1,5 @@
+import pytest
+
 import lablink_allocator_service.validate_config as vc_module
 from lablink_allocator_service.validate_config import validate_config
 
@@ -439,7 +441,9 @@ class TestParticipantExposureField:
     def test_rejects_unknown_value(self):
         from lablink_allocator_service.validate_config import get_config_errors
 
-        cfg = self._make_cfg(participant_exposure="cloudflare_tunnel")
+        # Was "cloudflare_tunnel" until that became a real mode; any value
+        # outside VALID_PARTICIPANT_EXPOSURE serves the same purpose.
+        cfg = self._make_cfg(participant_exposure="ngrok")
         errors = get_config_errors(cfg)
         assert any("manual.participant_exposure must be one of" in e for e in errors)
 
@@ -643,3 +647,152 @@ class TestParticipantExposureWeakPasswordGate:
         assert cfg.app.admin_password == MISSING_SECRET
         errors = get_config_errors(cfg)
         assert not any("admin_password" in e for e in errors)
+
+
+class TestCloudflareTunnelExposure:
+    def _cfg(self, *, connectivity="mesh_overlay", public_hostname="lab.example.org"):
+        from lablink_allocator_service.conf.structured_config import Config
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.manual.connectivity = connectivity
+        cfg.manual.overlay_tailnet = "example.ts.net"
+        cfg.manual.participant_exposure = "cloudflare_tunnel"
+        cfg.manual.public_hostname = public_hostname
+        cfg.app.admin_user = "admin"
+        cfg.app.admin_password = "a-strong-password-1"
+        return cfg
+
+    def test_value_is_accepted(self):
+        from lablink_allocator_service.validate_config import (
+            VALID_PARTICIPANT_EXPOSURE,
+        )
+
+        assert "cloudflare_tunnel" in VALID_PARTICIPANT_EXPOSURE
+
+    def test_valid_config_has_no_exposure_errors(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg())
+        assert not [e for e in errors if "participant_exposure" in e]
+
+    def test_missing_public_hostname_is_rejected(self):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(public_hostname=""))
+        matching = [e for e in errors if "public_hostname" in e]
+        assert matching, f"expected a public_hostname error, got {errors}"
+        # The wizard filters on both substrings; see Task 6.
+        assert "participant_exposure" in matching[0]
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "https://lab.example.org",  # the likely paste — docs show URL form
+            "http://lab.example.org",
+            "lab.example.org/",
+            "lab.example.org/path",
+            "lab.example.org:5000",
+            "lab example.org",
+            "lab.example.org\nevil.example",  # injects a 2nd allocator-url line
+            "localhost",  # no dot: a Cloudflare public hostname is a FQDN
+            ".lab.example.org",
+            "lab.example.org.",
+            "-lab.example.org",
+            "lab..example.org",
+        ],
+    )
+    def test_malformed_public_hostname_is_rejected(self, hostname):
+        """The value is interpolated into "https://{host}" for the canonical-URL
+        file clients are handed, and canonical_base_url accepts anything that
+        merely startswith("https://") — so without this check a pasted scheme
+        yields "https://https://host" that breaks silently."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(public_hostname=hostname))
+        assert [e for e in errors if "public_hostname" in e], (
+            f"{hostname!r} should have been rejected, got {errors}"
+        )
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "lab.smithlab.org",
+            "lablink-testing.com",
+            "a.b.c.example.org",
+            "lab-1.example.org",
+            "xn--80ak6aa92e.com",  # IDN punycode
+            "LAB.Example.ORG",  # DNS is case-insensitive
+        ],
+    )
+    def test_wellformed_public_hostname_is_accepted(self, hostname):
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(public_hostname=hostname))
+        assert not [e for e in errors if "public_hostname" in e], (
+            f"{hostname!r} should have been accepted, got {errors}"
+        )
+
+    def test_blank_and_malformed_give_different_guidance(self):
+        """"You left it blank" and "you typed a URL" need different fixes;
+        a single generic message would send the operator the wrong way."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        blank = [
+            e for e in get_config_errors(self._cfg(public_hostname="")) if "public_hostname" in e
+        ][0]
+        malformed = [
+            e
+            for e in get_config_errors(self._cfg(public_hostname="https://lab.example.org"))
+            if "public_hostname" in e
+        ][0]
+        assert blank != malformed
+        assert "empty" in blank
+        assert "https://" in malformed
+
+    def test_lan_direct_is_rejected_for_cloudflare_too(self):
+        """The lan_direct rejection was written for Funnel but argues about
+        public exposure in general: lan_direct points the browser at a
+        client's LAN IP, unreachable off-LAN and mixed-content-blocked from
+        any HTTPS page."""
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        errors = get_config_errors(self._cfg(connectivity="lan_direct"))
+        matching = [e for e in errors if "lan_direct" in e]
+        assert matching, f"expected a lan_direct error, got {errors}"
+        assert "cloudflare_tunnel" in matching[0], (
+            "the message must name the mode that triggered it, not Funnel"
+        )
+
+    def test_cloudflare_does_not_require_a_tailnet_by_itself(self):
+        """overlay_tailnet is needed for mesh_overlay clients, not for this
+        exposure mode. lan_direct is rejected above, so this uses the one
+        combination that isolates the question."""
+        from lablink_allocator_service.conf.structured_config import Config
+        from lablink_allocator_service.validate_config import get_config_errors
+
+        cfg = Config()
+        cfg.provider = "manual"
+        cfg.manual.connectivity = "mesh_overlay"
+        cfg.manual.overlay_tailnet = "example.ts.net"
+        cfg.manual.participant_exposure = "cloudflare_tunnel"
+        cfg.manual.public_hostname = "lab.example.org"
+        cfg.app.admin_user = "admin"
+        cfg.app.admin_password = "a-strong-password-1"
+        assert not [e for e in get_config_errors(cfg) if "overlay_tailnet" in e]
+
+
+def test_funnel_lan_direct_error_still_fires():
+    """Regression guard: generalizing the check must not drop the case it
+    was written for."""
+    from lablink_allocator_service.conf.structured_config import Config
+    from lablink_allocator_service.validate_config import get_config_errors
+
+    cfg = Config()
+    cfg.provider = "manual"
+    cfg.manual.connectivity = "lan_direct"
+    cfg.manual.overlay_tailnet = "example.ts.net"
+    cfg.manual.participant_exposure = "tailscale_funnel"
+    cfg.app.admin_user = "admin"
+    cfg.app.admin_password = "a-strong-password-1"
+    assert [e for e in get_config_errors(cfg) if "lan_direct" in e]

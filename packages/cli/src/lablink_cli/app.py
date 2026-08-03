@@ -191,13 +191,27 @@ def deploy(
         "'tailscale_funnel'; optional on redeploys (the previous value is "
         "carried forward). Manual provider only.",
     ),
+    cloudflare_tunnel_token: str = typer.Option(
+        None,
+        "--cloudflare-tunnel-token",
+        help="Cloudflare Tunnel token for publishing the allocator at "
+        "manual.public_hostname. Required on the first deploy when "
+        "manual.participant_exposure is 'cloudflare_tunnel'; optional on "
+        "redeploys (the previous value is carried forward). Supply it again "
+        "to rotate. Manual provider only.",
+    ),
 ) -> None:
     """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
     cfg = _load_cfg(config)
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        run_deploy_compose(cfg, yes=yes, tailscale_authkey=tailscale_authkey)
+        run_deploy_compose(
+            cfg,
+            yes=yes,
+            tailscale_authkey=tailscale_authkey,
+            cloudflare_tunnel_token=cloudflare_tunnel_token,
+        )
         return
 
     from lablink_cli.commands.deploy import run_deploy

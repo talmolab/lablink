@@ -301,6 +301,7 @@ class ManualConnectivityScreen(Screen):
         current_exposure = (
             getattr(cfg.manual, "participant_exposure", "none") or "none"
         )
+        current_hostname = getattr(cfg.manual, "public_hostname", "") or ""
 
         yield Header()
         with VerticalScroll():
@@ -369,13 +370,16 @@ class ManualConnectivityScreen(Screen):
             )
             yield Label(
                 "How participants (not clients) reach the allocator when it\n"
-                "isn't on their LAN. Independent of connectivity above — you\n"
-                "can combine either connectivity option with either exposure\n"
-                "option.\n"
+                "isn't on their LAN. Independent of connectivity above.\n"
                 "none: allocator stays LAN-only, as today (default).\n"
-                "tailscale_funnel: publish the allocator itself to\n"
-                "participants over the public internet via Tailscale Funnel —\n"
-                "no Tailscale install needed on their side.",
+                "tailscale_funnel: published at <machine>.<tailnet>.ts.net —\n"
+                "no domain needed, but the hostname is not yours to choose.\n"
+                "cloudflare_tunnel: published at a hostname you choose.\n"
+                "Needs a domain whose nameservers point at Cloudflare, plus a\n"
+                "tunnel token from Cloudflare's Zero Trust dashboard. Note\n"
+                "that Cloudflare decrypts all traffic at its edge, including\n"
+                "admin logins and participant desktop streams; Funnel does\n"
+                "not. See docs/configuration.md for the one-time setup.",
                 classes="step-description",
             )
             with RadioSet(id="participant-exposure-select"):
@@ -390,6 +394,30 @@ class ManualConnectivityScreen(Screen):
                     value=(current_exposure == "tailscale_funnel"),
                     id="participant-exposure-funnel",
                 )
+                yield RadioButton(
+                    "cloudflare_tunnel — publish at a hostname you choose",
+                    value=(current_exposure == "cloudflare_tunnel"),
+                    id="participant-exposure-cloudflare",
+                )
+
+            # Hard-wrapped: .field-label doesn't wrap, so a single long line
+            # widens this screen's virtual width past an 80-column terminal
+            # (the overflow class of bug #399 fixed).
+            yield Label(
+                "Public hostname (cloudflare_tunnel only — the hostname\n"
+                "you configured as the tunnel's public hostname in\n"
+                "Cloudflare, e.g. lab.smithlab.org)",
+                classes="field-label",
+            )
+            yield Input(
+                value=current_hostname,
+                placeholder="lab.smithlab.org",
+                id="public-hostname",
+                # Mirrors #overlay-tailnet: the initial state has to be right
+                # before any RadioSet.Changed fires, since re-entering the
+                # wizard on an existing config never touches the radios.
+                disabled=current_exposure != "cloudflare_tunnel",
+            )
 
             yield Label("", id="connectivity-error", classes="error")
         with Center():
@@ -406,26 +434,36 @@ class ManualConnectivityScreen(Screen):
         return (rb.pressed_button.id or "") if rb.pressed_button else ""
 
     @on(RadioSet.Changed)
-    def _sync_tailnet_field(self, event: RadioSet.Changed) -> None:
-        """Enable the tailnet field only for the modes that consume it.
+    def _sync_conditional_fields(self, event: RadioSet.Changed) -> None:
+        """Enable each address field only for the modes that consume it.
 
         Driven by BOTH radio sets, not just connectivity: the tailnet is
         required by mesh_overlay *and* by tailscale_funnel exposure, so a
         reverse_tunnel deployment that also publishes itself via Funnel
         still needs one. reverse_tunnel on its own needs no address.
+
+        The two fields are mutually exclusive in practice — Funnel's
+        hostname is Tailscale's to assign and Cloudflare's needs no tailnet
+        — so leaving both editable invites filling in the one that will be
+        ignored. Neither field is *cleared* on switching away: a value the
+        operator already typed is preserved for switching back, and an
+        ignored `public_hostname` is documented as harmless.
         """
         connectivity = {
             "connectivity-mesh-overlay": "mesh_overlay",
             "connectivity-reverse-tunnel": "reverse_tunnel",
         }.get(self._pressed("#connectivity-select"), "lan_direct")
+        pressed_exposure = self._pressed("#participant-exposure-select")
         exposure = (
             "tailscale_funnel"
-            if self._pressed("#participant-exposure-select")
-            == "participant-exposure-funnel"
+            if pressed_exposure == "participant-exposure-funnel"
             else "none"
         )
         self.query_one("#overlay-tailnet", Input).disabled = not _tailnet_needed(
             connectivity, exposure
+        )
+        self.query_one("#public-hostname", Input).disabled = (
+            pressed_exposure != "participant-exposure-cloudflare"
         )
 
     @on(Button.Pressed, "#back")
@@ -447,12 +485,15 @@ class ManualConnectivityScreen(Screen):
 
         rb_exposure = self.query_one("#participant-exposure-select", RadioSet)
         chosen_exposure = "none"
-        if (
-            rb_exposure.pressed_button
-            and rb_exposure.pressed_button.id == "participant-exposure-funnel"
-        ):
+        pressed = rb_exposure.pressed_button
+        if pressed and pressed.id == "participant-exposure-funnel":
             chosen_exposure = "tailscale_funnel"
+        elif pressed and pressed.id == "participant-exposure-cloudflare":
+            chosen_exposure = "cloudflare_tunnel"
         cfg.manual.participant_exposure = chosen_exposure
+        cfg.manual.public_hostname = self.query_one(
+            "#public-hostname", Input
+        ).value.strip()
 
         errors = [
             e for e in validate_config(cfg)
@@ -460,6 +501,9 @@ class ManualConnectivityScreen(Screen):
                 "connectivity" in e
                 or "overlay_tailnet" in e
                 or "participant_exposure" in e
+                # The cloudflare_tunnel hostname error names this field;
+                # omitting it here would let an invalid config through.
+                or "public_hostname" in e
             )
             # admin_password isn't collected until deploy time (resolve_admin_
             # credentials runs in deploy_compose.py, not the wizard) — the
@@ -474,7 +518,21 @@ class ManualConnectivityScreen(Screen):
             return
         error_label.display = False
 
-        self.app.push_screen(DnsScreen())
+        # The manual path skips DnsScreen: the compose stack reads neither
+        # cfg.dns nor cfg.eip, and reads cfg.ssl.provider only to reject
+        # anything but "none" (SUPPORTED_SSL_FOR_MANUAL in deploy_compose).
+        # Asking for DNS and a TLS provider that the deploy then refuses is
+        # a trap, not a choice.
+        #
+        # Pinning both here is mandatory, not tidiness: SSLConfig.provider
+        # defaults to "letsencrypt", and DnsScreen is the only place the
+        # wizard ever writes cfg.ssl.provider. Skipping it without this
+        # would leave every manual config failing that preflight — and an
+        # inherited AWS config would carry a real domain through too.
+        cfg.ssl.provider = "none"
+        cfg.dns.enabled = False
+
+        self.app.push_screen(StartupScreen())
 
 
 # ---------------------------------------------------------------------------

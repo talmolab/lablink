@@ -19,6 +19,7 @@ def _manual_cfg(
     connectivity="lan_direct",
     overlay_tailnet="",
     participant_exposure="none",
+    public_hostname="",
 ):
     cfg = Config()
     cfg.provider = "manual"
@@ -30,6 +31,7 @@ def _manual_cfg(
     cfg.manual.connectivity = connectivity
     cfg.manual.overlay_tailnet = overlay_tailnet
     cfg.manual.participant_exposure = participant_exposure
+    cfg.manual.public_hostname = public_hostname
     return cfg
 
 
@@ -485,11 +487,11 @@ class TestDeployComposeParticipantExposurePreflight:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
-    def test_weak_password_irrelevant_when_funnel_disabled(
+    def test_weak_password_irrelevant_when_exposure_is_none(
         self, mock_up, mock_poll, mock_summary, tmp_path
     ):
-        """The password gate is scoped to tailscale_funnel — an ordinary
-        lan_direct deployment must not be newly blocked by it."""
+        """The password gate is scoped to any public exposure, not to one
+        tunnel — an unexposed lan_direct deployment must not be blocked."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
         cfg = _manual_cfg(connectivity="lan_direct", admin_password="123456")
@@ -2006,6 +2008,503 @@ class TestCanonicalUrlFile:
         assert "https://known.example.ts.net" in (target / "allocator-url").read_text()
 
 
+class TestRenderComposeDirCloudflareTunnel:
+    def test_env_carries_mode_and_token(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+
+        env_content = (target / ".env").read_text()
+        assert "PARTICIPANT_EXPOSURE=cloudflare_tunnel" in env_content
+        assert "CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiTOKEN" in env_content
+
+    def test_env_always_declares_the_mode(self, tmp_path):
+        """Compose templates have no conditionals, so the key must exist on
+        every render or `docker compose up` warns about an unset variable."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(participant_exposure="none")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target)
+
+        env_content = (target / ".env").read_text()
+        assert "PARTICIPANT_EXPOSURE=none" in env_content
+        assert "CLOUDFLARE_TUNNEL_TOKEN" not in env_content
+
+    def test_token_is_carried_forward_when_flag_omitted(self, tmp_path):
+        """Mirrors TS_AUTHKEY: a redeploy without the flag must not blank
+        out a working token."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiFIRST",
+        )
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        assert "CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiFIRST" in (target / ".env").read_text()
+
+    def test_new_token_overrides_the_carried_one(self, tmp_path):
+        """Rotation path: an explicitly supplied token must win."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiOLD",
+        )
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiNEW",
+        )
+
+        env_content = (target / ".env").read_text()
+        assert "CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNEW" in env_content
+        assert "eyJhIjoiOLD" not in env_content
+
+    def test_canonical_url_written_at_render_time(self, tmp_path):
+        """Unlike Funnel, the hostname is known before anything starts, so
+        there is no after-the-fact write."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+
+        assert (
+            target / CANONICAL_URL_FILENAME
+        ).read_text() == "https://lab.example.org"
+
+    def test_switching_away_clears_the_canonical_url(self, tmp_path):
+        """A stale public URL handed to clients is worse than none."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        target = tmp_path / "compose"
+        render_compose_dir(
+            _manual_cfg(
+                connectivity="mesh_overlay",
+                overlay_tailnet="example.ts.net",
+                participant_exposure="cloudflare_tunnel",
+                public_hostname="lab.example.org",
+            ),
+            target,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+        render_compose_dir(_manual_cfg(participant_exposure="none"), target)
+
+        assert (target / CANONICAL_URL_FILENAME).read_text() == ""
+
+    def test_no_extra_compose_service_is_rendered(self, tmp_path):
+        """The connector runs inside the allocator container, so the
+        template count stays at two and no sidecar appears."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, cloudflare_tunnel_token="eyJhIjoiTOKEN")
+
+        compose_yaml = (target / "docker-compose.yml").read_text()
+        assert "cloudflared:" not in compose_yaml
+        assert "PARTICIPANT_EXPOSURE" in compose_yaml
+        assert "CLOUDFLARE_TUNNEL_TOKEN" in compose_yaml
+
+
+class TestFunnelCanonicalUrlUnchanged:
+    def test_funnel_still_preserves_the_previous_url(self, tmp_path):
+        """Regression guard: Funnel's URL is unknown until _enable_funnel
+        runs, so render must preserve whatever is already there."""
+        from lablink_cli.commands.deploy_compose import (
+            CANONICAL_URL_FILENAME,
+            render_compose_dir,
+        )
+
+        cfg = _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="tailscale_funnel",
+        )
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+        (target / CANONICAL_URL_FILENAME).write_text("https://box.example.ts.net")
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        assert (
+            target / CANONICAL_URL_FILENAME
+        ).read_text() == "https://box.example.ts.net"
+
+
+class TestCloudflareTunnelPreflights:
+    def _cf_cfg(self, **kw):
+        return _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname=kw.pop("public_hostname", "lab.example.org"),
+            # _manual_cfg's default ("pw") is weak, and the exposure
+            # password gate would then be what raises in every test here.
+            admin_password=kw.pop("admin_password", "a-strong-password-1"),
+            **kw,
+        )
+
+    def test_first_deploy_without_token_is_rejected(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                self._cf_cfg(),
+                yes=True,
+                workdir_root=tmp_path,
+                # Supplied so the sidecar's own authkey preflight can't be
+                # what raises — this test is about the tunnel token.
+                tailscale_authkey="tskey-abc",
+            )
+
+    def test_empty_public_hostname_is_rejected(self, tmp_path):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                self._cf_cfg(public_hostname=""),
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "https://lab.example.org",
+            "lab.example.org/",
+            "lab.example.org:5000",
+            "lab.example.org\nevil.example",
+            "localhost",
+        ],
+    )
+    # Everything downstream of the preflight is patched, including
+    # _health_poll: if this check ever regresses, run_deploy_compose would
+    # otherwise fall through to a real 300s health poll and this test would
+    # hang for five minutes per case instead of failing immediately.
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_malformed_public_hostname_is_rejected(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path, hostname
+    ):
+        """`lablink deploy` never calls get_config_errors() for the manual
+        provider, so this is the only gate a hand-edited config.yaml passes
+        through. Without it a pasted scheme reaches the allocator-url file as
+        "https://https://host" and every client is handed that."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                self._cf_cfg(public_hostname=hostname),
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+        # Rejected before anything starts, not after a half-built stack.
+        mock_up.assert_not_called()
+
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_first_deploy_with_token_proceeds(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_verify.return_value = True
+        run_deploy_compose(
+            self._cf_cfg(),
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+        mock_up.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_redeploy_without_token_uses_the_recorded_one(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
+    ):
+        """The token is on record in .env from the first deploy, so the
+        preflight must not demand it again."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_verify.return_value = True
+        run_deploy_compose(
+            self._cf_cfg(),
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+        run_deploy_compose(
+            self._cf_cfg(),
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+        )
+        assert mock_up.call_count == 2
+
+    def test_lan_direct_is_rejected(self, tmp_path):
+        """Same reasoning as lan_direct + Funnel: participant sessions would
+        point at a client's LAN IP, mixed-content-blocked from HTTPS."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = _manual_cfg(
+            connectivity="lan_direct",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+        )
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+
+    def test_weak_admin_password_is_rejected(self, tmp_path):
+        """A publicly exposed allocator is bot-scanned within minutes,
+        whichever tunnel publishes it."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cfg = self._cf_cfg(admin_password="123456")
+        with pytest.raises(SystemExit):
+            run_deploy_compose(
+                cfg,
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    @patch("lablink_cli.commands.deploy_compose._disable_funnel")
+    def test_no_funnel_disable_dance_for_this_mode(
+        self, mock_disable, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
+    ):
+        """_disable_funnel is still called (exposure isn't tailscale_funnel),
+        which is correct — it clears any Funnel state left in a preserved
+        sidecar volume. What must NOT happen is _enable_funnel running."""
+        from lablink_cli.commands import deploy_compose
+
+        mock_verify.return_value = True
+        with patch.object(deploy_compose, "_enable_funnel") as mock_enable:
+            deploy_compose.run_deploy_compose(
+                self._cf_cfg(),
+                yes=True,
+                workdir_root=tmp_path,
+                tailscale_authkey="tskey-abc",
+                cloudflare_tunnel_token="eyJhIjoiTOKEN",
+            )
+        mock_enable.assert_not_called()
+
+
+class TestVerifyPublicHostname:
+    @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
+    def test_returns_true_when_the_hostname_answers(self, mock_check):
+        from lablink_cli.commands.deploy_compose import _verify_public_hostname
+
+        mock_check.return_value = {"healthy": True}
+        assert _verify_public_hostname("lab.example.org") is True
+        # One check proves DNS + Cloudflare edge + tunnel + nginx + Flask.
+        assert mock_check.call_args[0][0] == "https://lab.example.org"
+
+    @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
+    def test_returns_false_on_a_miss_without_retrying(self, mock_check):
+        """A single attempt: the caller only warns, so retrying would delay
+        the same message rather than change it."""
+        from lablink_cli.commands.deploy_compose import _verify_public_hostname
+
+        mock_check.return_value = {"healthy": False}
+        assert _verify_public_hostname("lab.example.org") is False
+        assert mock_check.call_count == 1
+
+    @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
+    def test_survives_a_raising_check(self, mock_check):
+        """DNS for a brand-new record may not resolve yet; a raised
+        exception must be a warning, not a crashed deploy."""
+        from lablink_cli.commands.deploy_compose import _verify_public_hostname
+
+        mock_check.side_effect = OSError("name or service not known")
+        assert _verify_public_hostname("lab.example.org") is False
+
+
+class TestRedactSecretsInLogDump:
+    def test_redacts_token_and_authkey_by_name(self):
+        """cloudflared logs its whole environment at INFO, so the log dump
+        can carry credentials. Keyed on the variable name, since the value
+        formats are the vendors' to change."""
+        from lablink_cli.commands.deploy_compose import _redact_secrets
+
+        raw = (
+            "INF Environmental variables "
+            "map[CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiZGVhZGJlZWY]\n"
+            "TS_AUTHKEY=tskey-auth-kSecret123\n"
+            "cloudflared tunnel run --token eyJhIjoiZGVhZGJlZWY\n"
+            "ordinary log line, must survive\n"
+        )
+        out = _redact_secrets(raw)
+
+        assert "eyJhIjoiZGVhZGJlZWY" not in out
+        assert "tskey-auth-kSecret123" not in out
+        assert out.count("<redacted>") == 3
+        assert "ordinary log line, must survive" in out
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_dump_merges_stderr_and_redacts(self, mock_run, capsys):
+        """The allocator's Python logging goes to stderr, so the dump has to
+        merge it — which is what makes the redaction load-bearing."""
+        import subprocess
+
+        from lablink_cli.commands.deploy_compose import _print_last_log_lines
+
+        mock_run.return_value = MagicMock(
+            stdout="CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiLEAKED\nTraceback here\n",
+            returncode=0,
+        )
+        _print_last_log_lines()
+
+        assert mock_run.call_args.kwargs["stderr"] is subprocess.STDOUT
+        out = capsys.readouterr().out
+        assert "eyJhIjoiLEAKED" not in out
+        assert "<redacted>" in out
+        # The whole point of merging stderr: tracebacks must still show.
+        assert "Traceback here" in out
+
+
+class TestVerificationIsAWarningNotAFailure:
+    def _cf_cfg(self):
+        return _manual_cfg(
+            connectivity="mesh_overlay",
+            overlay_tailnet="example.ts.net",
+            participant_exposure="cloudflare_tunnel",
+            public_hostname="lab.example.org",
+            admin_password="a-strong-password-1",
+        )
+
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_unreachable_hostname_does_not_exit_nonzero(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
+    ):
+        """A fresh proxied CNAME can still be propagating. The stack is up
+        and correct; warn, don't fail."""
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        mock_verify.return_value = False
+        run_deploy_compose(
+            self._cf_cfg(),
+            yes=True,
+            workdir_root=tmp_path,
+            tailscale_authkey="tskey-abc",
+            cloudflare_tunnel_token="eyJhIjoiTOKEN",
+        )
+        mock_summary.assert_called_once()
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_summary_prints_the_public_url(self, mock_extract, mock_lan, capsys):
+        """The URL is derived from cfg inside _print_summary rather than
+        threaded in as a parameter, so the summary is what pins it down."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "abc123def456ghi789jklmnop"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(self._cf_cfg())
+        assert (
+            "Allocator URL (public): https://lab.example.org"
+            in capsys.readouterr().out
+        )
+
+        # ...and only for this mode.
+        _print_summary(_manual_cfg(participant_exposure="none"))
+        assert "URL (public)" not in capsys.readouterr().out
+
+    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_not_called_for_other_exposure_modes(
+        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
+    ):
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        run_deploy_compose(
+            _manual_cfg(participant_exposure="none"),
+            yes=True,
+            workdir_root=tmp_path,
+        )
+        mock_verify.assert_not_called()
+
 class TestReverseTunnelDeploy:
     def test_renders_no_extra_port_or_env(self, tmp_path):
         """The mode needs no inbound port and no secrets in .env. If this
@@ -2056,3 +2555,58 @@ class TestReverseTunnelDeploy:
         # ...and the hint is the off-LAN one, not the BYO-box one.
         assert "on the same LAN" not in out
         assert "--no-run-locally" in out
+
+    @pytest.mark.parametrize("connectivity", ["mesh_overlay", "reverse_tunnel"])
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_register_hint_uses_public_url_when_cloudflare_active(
+        self, mock_extract, mock_lan, capsys, connectivity
+    ):
+        """Regression: the substitution above was gated on Funnel, so a
+        cloudflare_tunnel deployment printed the LAN address that an off-LAN
+        client cannot reach — despite a verified public HTTPS URL existing.
+        Both off-LAN connectivity modes are affected; mesh_overlay +
+        cloudflare_tunnel is this feature's own documented example."""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        token = "abc123def456ghi789jklmnop"
+        mock_extract.return_value = token
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                connectivity=connectivity,
+                overlay_tailnet="example.ts.net",
+                participant_exposure="cloudflare_tunnel",
+                public_hostname="lab.example.org",
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert (
+            f"--allocator-url https://lab.example.org --register-token {token}" in out
+        )
+        assert "--allocator-url http://192.168.1.42" not in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_lan_direct_hint_keeps_the_lan_url(self, mock_extract, mock_lan, capsys):
+        """The substitution must stay scoped to off-LAN clients: a lan_direct
+        BYO box genuinely is on the LAN, so it keeps the LAN address. (This
+        config is preflight-rejected at deploy time; _print_summary is
+        checked directly to pin the branch.)"""
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "abc123def456ghi789jklmnop"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(
+            _manual_cfg(
+                participant_exposure="cloudflare_tunnel",
+                public_hostname="lab.example.org",
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert "--allocator-url http://192.168.1.42" in out
+        assert "--allocator-url https://lab.example.org" not in out

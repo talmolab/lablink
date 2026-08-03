@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 
 def _drive_monitoring_toggle(initial_enabled: bool, click_enabled: bool) -> bool:
     """Drive MonitoringScreen, return cfg.monitoring.enabled after Next.
@@ -490,23 +492,27 @@ def test_dns_advanced_eip_radio_is_scrollable_into_view():
 # ---------------------------------------------------------------------------
 # ManualConnectivityScreen
 # ---------------------------------------------------------------------------
-def _drive_connectivity_screen(
+def _drive_connectivity_screen_cfg(
     *,
     choose_mesh_overlay: bool,
     overlay_tailnet: str = "",
     choose_funnel: bool = False,
+    choose_cloudflare: bool = False,
+    public_hostname: str = "",
     choose_reverse_tunnel: bool = False,
 ):
-    """Push ManualConnectivityScreen directly, drive it, return
-    (cfg.manual.connectivity, cfg.manual.overlay_tailnet,
-    cfg.manual.participant_exposure, screen_stack_grew)."""
+    """Push ManualConnectivityScreen, drive it, return (cfg, stack_delta).
+
+    The 4-tuple wrapper below predates the third exposure mode; new cases
+    read fields off cfg directly instead of growing the tuple.
+    """
     import asyncio
     from textual.widgets import Input, RadioButton, RadioSet
 
     cfg, app = _build_cfg_and_app()
     cfg.provider = "manual"
 
-    async def _run() -> tuple[str, str, str, int]:
+    async def _run():
         from lablink_cli.tui.wizard import ManualConnectivityScreen
 
         async with app.run_test() as pilot:
@@ -521,34 +527,55 @@ def _drive_connectivity_screen(
                 for btn in radio_set.query(RadioButton):
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
-                screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
             if choose_reverse_tunnel:
                 radio_set = screen.query_one("#connectivity-select", RadioSet)
                 for btn in radio_set.query(RadioButton):
                     if btn.id == "connectivity-reverse-tunnel":
                         btn.value = True
+            screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
+
+            target_id = None
             if choose_funnel:
+                target_id = "participant-exposure-funnel"
+            elif choose_cloudflare:
+                target_id = "participant-exposure-cloudflare"
+            if target_id:
                 exposure_set = screen.query_one(
                     "#participant-exposure-select", RadioSet
                 )
                 for btn in exposure_set.query(RadioButton):
-                    if btn.id == "participant-exposure-funnel":
+                    if btn.id == target_id:
                         btn.value = True
-                if not choose_mesh_overlay:
-                    screen.query_one(
-                        "#overlay-tailnet", Input
-                    ).value = overlay_tailnet
+            if choose_cloudflare:
+                screen.query_one("#public-hostname", Input).value = public_hostname
+
             await pilot.pause()
             screen._next()
             await pilot.pause()
-            return (
-                cfg.manual.connectivity,
-                cfg.manual.overlay_tailnet,
-                cfg.manual.participant_exposure,
-                len(app.screen_stack) - stack_before,
-            )
+            return cfg, len(app.screen_stack) - stack_before
 
     return asyncio.run(_run())
+
+
+def _drive_connectivity_screen(
+    *,
+    choose_mesh_overlay: bool,
+    overlay_tailnet: str = "",
+    choose_funnel: bool = False,
+    choose_reverse_tunnel: bool = False,
+):
+    cfg, delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=choose_mesh_overlay,
+        overlay_tailnet=overlay_tailnet,
+        choose_funnel=choose_funnel,
+        choose_reverse_tunnel=choose_reverse_tunnel,
+    )
+    return (
+        cfg.manual.connectivity,
+        cfg.manual.overlay_tailnet,
+        cfg.manual.participant_exposure,
+        delta,
+    )
 
 
 def test_connectivity_screen_defaults_to_lan_direct():
@@ -557,7 +584,7 @@ def test_connectivity_screen_defaults_to_lan_direct():
     )
     assert connectivity == "lan_direct"
     assert exposure == "none"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
@@ -567,7 +594,7 @@ def test_connectivity_screen_writes_mesh_overlay_and_tailnet():
     assert connectivity == "mesh_overlay"
     assert tailnet == "example.ts.net"
     assert exposure == "none"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_blocks_next_when_tailnet_missing():
@@ -584,7 +611,7 @@ def test_connectivity_screen_writes_reverse_tunnel():
         choose_mesh_overlay=False, choose_reverse_tunnel=True
     )
     assert connectivity == "reverse_tunnel"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_reverse_tunnel_needs_no_extra_fields():
@@ -675,7 +702,7 @@ def test_connectivity_screen_writes_tailscale_funnel_independent_of_connectivity
     assert connectivity == "mesh_overlay"
     assert exposure == "tailscale_funnel"
     assert tailnet == "example.ts.net"
-    assert stack_delta == 1, "valid submission should push DnsScreen"
+    assert stack_delta == 1, "valid submission should push the next screen"
 
 
 def test_connectivity_screen_blocks_lan_direct_with_funnel():
@@ -717,3 +744,231 @@ def test_connectivity_screen_funnel_does_not_block_on_unset_admin_password():
         "a real requirement (tailnet) blocks progression; an unset "
         "admin_password (not yet collected at this wizard stage) must not"
     )
+
+
+def test_connectivity_screen_writes_cloudflare_tunnel_and_hostname():
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="lab.example.org",
+    )
+    assert cfg.manual.participant_exposure == "cloudflare_tunnel"
+    assert cfg.manual.public_hostname == "lab.example.org"
+    assert stack_delta == 1, "valid submission should push the next screen"
+
+
+def test_connectivity_screen_blocks_cloudflare_without_hostname():
+    """The hostname is the whole point of this mode; an empty one must not
+    get past the screen. Requires the error-substring filter in _next() to
+    include 'public_hostname'."""
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="",
+    )
+    assert cfg.manual.participant_exposure == "cloudflare_tunnel"
+    assert stack_delta == 0, "invalid submission must not push the next screen"
+
+
+def _hostname_field_disabled(*, select_exposure=None, preset_exposure="none"):
+    """Return #public-hostname's disabled state on ManualConnectivityScreen.
+
+    `preset_exposure` seeds the config (re-entering the wizard on an existing
+    config, where no radio is ever touched); `select_exposure` presses a radio
+    button id instead, exercising the RadioSet.Changed handler.
+    """
+    import asyncio
+    from textual.widgets import Input, RadioButton, RadioSet
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+    cfg.manual.participant_exposure = preset_exposure
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = ManualConnectivityScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            if select_exposure is not None:
+                for btn in screen.query_one(
+                    "#participant-exposure-select", RadioSet
+                ).query(RadioButton):
+                    if btn.id == select_exposure:
+                        btn.value = True
+                await pilot.pause()
+            return screen.query_one("#public-hostname", Input).disabled
+
+    return asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    "radio_id,expected_disabled",
+    [
+        ("participant-exposure-none", True),
+        ("participant-exposure-funnel", True),
+        ("participant-exposure-cloudflare", False),
+    ],
+)
+def test_public_hostname_enabled_only_for_cloudflare(radio_id, expected_disabled):
+    """Funnel's hostname is Tailscale's to assign, so an editable
+    public_hostname there invites filling in a field that is then ignored."""
+    assert _hostname_field_disabled(select_exposure=radio_id) is expected_disabled
+
+
+@pytest.mark.parametrize(
+    "preset,expected_disabled",
+    [("none", True), ("tailscale_funnel", True), ("cloudflare_tunnel", False)],
+)
+def test_public_hostname_initial_state_matches_existing_config(
+    preset, expected_disabled
+):
+    """Re-entering `lablink configure` on an existing config never touches a
+    radio, so RadioSet.Changed never fires — compose() has to get it right."""
+    assert _hostname_field_disabled(preset_exposure=preset) is expected_disabled
+
+
+def test_switching_exposure_preserves_a_typed_hostname():
+    """Disabling must not clear: an operator who mis-clicks Funnel and comes
+    back shouldn't have to retype the hostname."""
+    import asyncio
+    from textual.widgets import Input, RadioButton, RadioSet
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = ManualConnectivityScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            field = screen.query_one("#public-hostname", Input)
+            radios = screen.query_one("#participant-exposure-select", RadioSet)
+
+            def press(target):
+                for btn in radios.query(RadioButton):
+                    if btn.id == target:
+                        btn.value = True
+
+            press("participant-exposure-cloudflare")
+            await pilot.pause()
+            field.value = "lab.example.org"
+            press("participant-exposure-funnel")
+            await pilot.pause()
+            return field.disabled, field.value
+
+    disabled, value = asyncio.run(_run())
+    assert disabled is True
+    assert value == "lab.example.org"
+
+
+# ---------------------------------------------------------------------------
+# The manual path skips DNS/SSL
+# ---------------------------------------------------------------------------
+def _advance_past_connectivity(preset_ssl=None, preset_dns_enabled=None):
+    """Submit a valid ManualConnectivityScreen, return (top screen name, cfg).
+
+    Optional presets simulate a config carried over from the AWS path, where
+    ssl/dns were really configured.
+    """
+    import asyncio
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+    if preset_ssl is not None:
+        cfg.ssl.provider = preset_ssl
+    if preset_dns_enabled is not None:
+        cfg.dns.enabled = preset_dns_enabled
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.push_screen(ManualConnectivityScreen())
+            await pilot.pause()
+            app.screen_stack[-1]._next()
+            await pilot.pause()
+            return type(app.screen_stack[-1]).__name__, cfg
+
+    return asyncio.run(_run())
+
+
+def test_manual_path_skips_the_dns_ssl_screen():
+    """Nothing in the compose stack reads cfg.dns or cfg.eip, and
+    cfg.ssl.provider is read only to reject anything but 'none'. Offering
+    those choices to a manual operator is a trap, not a configuration."""
+    top, _ = _advance_past_connectivity()
+    assert top == "StartupScreen", f"manual path should skip DnsScreen, got {top}"
+
+
+def test_manual_path_pins_ssl_none_and_disables_dns():
+    """Mandatory, not cosmetic: SSLConfig.provider defaults to 'letsencrypt'
+    and DnsScreen is the only place the wizard writes cfg.ssl.provider, so
+    skipping that screen without pinning here leaves every manual config
+    failing deploy_compose's SUPPORTED_SSL_FOR_MANUAL preflight."""
+    _, cfg = _advance_past_connectivity()
+    assert cfg.ssl.provider == "none"
+    assert cfg.dns.enabled is False
+
+
+def test_manual_path_overrides_an_inherited_aws_dns_config():
+    """Switching an existing AWS config to manual must not carry its real
+    TLS provider and domain through — there is no longer a screen on which
+    to turn them off."""
+    _, cfg = _advance_past_connectivity(
+        preset_ssl="letsencrypt", preset_dns_enabled=True
+    )
+    assert cfg.ssl.provider == "none"
+    assert cfg.dns.enabled is False
+
+
+def test_aws_path_still_reaches_the_dns_ssl_screen():
+    """Regression guard: the skip above must be scoped to the manual path.
+    The AWS path genuinely provisions DNS and TLS via Terraform."""
+    import asyncio
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "aws"
+
+    async def _run():
+        from lablink_cli.tui.wizard import MachineScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.push_screen(MachineScreen())
+            await pilot.pause()
+            app.screen_stack[-1]._next()
+            await pilot.pause()
+            return type(app.screen_stack[-1]).__name__
+
+    assert asyncio.run(_run()) == "DnsScreen"
+
+
+def test_connectivity_screen_blocks_lan_direct_with_cloudflare():
+    """Same rejection lan_direct + Funnel gets, now generalized."""
+    cfg, stack_delta = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=False,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="lab.example.org",
+    )
+    assert cfg.manual.connectivity == "lan_direct"
+    assert stack_delta == 0
+
+
+def test_connectivity_screen_cloudflare_hostname_is_stripped():
+    cfg, _ = _drive_connectivity_screen_cfg(
+        choose_mesh_overlay=True,
+        overlay_tailnet="example.ts.net",
+        choose_cloudflare=True,
+        public_hostname="  lab.example.org  ",
+    )
+    assert cfg.manual.public_hostname == "lab.example.org"

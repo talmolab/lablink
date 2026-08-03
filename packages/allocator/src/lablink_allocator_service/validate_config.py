@@ -7,6 +7,7 @@ validation during CI/CD pipelines.
 
 import argparse
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Tuple
@@ -34,10 +35,14 @@ VALID_PROVIDERS = ("aws", "manual")
 VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay", "reverse_tunnel")
 
 # manual.participant_exposure — how participants (not clients) reach the
-# allocator when it isn't on their LAN. Independent of connectivity above;
-# "tailscale_funnel" reuses the same tailnet, just for a different purpose
-# (publishing the allocator's own HTTP port, not reaching a client).
-VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel")
+# allocator when it isn't on their LAN. Independent of connectivity above.
+# "tailscale_funnel" reuses the mesh_overlay tailnet to publish the
+# allocator's own HTTP port; "cloudflare_tunnel" publishes it at
+# manual.public_hostname through a Cloudflare Tunnel the admin owns.
+# Must stay in sync with the wizard's exposure radio set and with
+# deploy_compose's preflights, which key on "not none" rather than on any
+# single value.
+VALID_PARTICIPANT_EXPOSURE = ("none", "tailscale_funnel", "cloudflare_tunnel")
 
 # Deployment-example / commonly-typed weak values a Funnel-exposed admin
 # panel must never ship with — CT-log scanning finds a newly-published
@@ -53,6 +58,39 @@ WEAK_ADMIN_PASSWORDS = frozenset(
     {"123456", "admin", "password", "changeme", "placeholder_admin_password", ""}
 )
 MIN_ADMIN_PASSWORD_LENGTH = 12
+
+# manual.public_hostname is interpolated straight into "https://{host}" — both
+# for the canonical-URL file the allocator hands to registering clients and for
+# the CLI's post-deploy reachability check. Anything but a bare DNS name
+# therefore produces a silently broken URL rather than an error: the most
+# likely mistake is pasting the scheme ("https://lab.example.org", which the
+# docs and wizard both display in URL form), yielding
+# "https://https://lab.example.org" that canonical_base_url happily accepts
+# because it still startswith("https://"). A newline would append a second
+# line to that file, which is read with a whole-file read().strip().
+#
+# Deliberately stricter than validate_domain_format (which only rejects
+# leading/trailing dots): a dot is required, since a Cloudflare public
+# hostname is always a FQDN under a zone the admin controls.
+PUBLIC_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)"
+    r"[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$"
+)
+
+PUBLIC_HOSTNAME_HINT = (
+    "must be a bare hostname such as 'lab.smithlab.org' — no scheme "
+    "(drop the https://), port, path, or whitespace"
+)
+
+
+def is_valid_public_hostname(hostname: str) -> bool:
+    """True if *hostname* is a bare FQDN safe to interpolate into a URL.
+
+    Empty is *not* accepted here; callers report that separately, because
+    "you left it blank" and "you typed a URL" need different guidance.
+    """
+    return bool(PUBLIC_HOSTNAME_RE.match(hostname))
 
 
 def is_weak_admin_password(password: str) -> bool:
@@ -137,19 +175,40 @@ def get_config_errors(cfg) -> list:
         # lan_direct sends the participant's browser straight to a client's
         # LAN IP (ws://<client-ip>:6080 — see LANDirectClientConnectivity),
         # bypassing the allocator entirely. That's unreachable off-LAN and,
-        # once the allocator itself is Funnel-exposed, actively blocked as
+        # once the allocator itself is publicly exposed, actively blocked as
         # mixed content by the browser (ws:// from an https:// page).
         # mesh_overlay doesn't have this problem — it proxies sessions
-        # through the allocator's own nginx, which Funnel already exposes.
-        if participant_exposure == "tailscale_funnel" and connectivity == "lan_direct":
+        # through the allocator's own nginx, which any exposure mode
+        # publishes. Keyed on "any exposure" rather than on Funnel
+        # specifically: the reasoning is about being publicly reachable,
+        # not about which tunnel does the publishing.
+        if participant_exposure != "none" and connectivity == "lan_direct":
             errors.append(
-                "manual.participant_exposure is 'tailscale_funnel' but "
+                f"manual.participant_exposure is '{participant_exposure}' but "
                 "manual.connectivity is 'lan_direct' — participant sessions "
                 "would connect directly to a client's LAN IP, which is "
                 "unreachable off-LAN and blocked as mixed content from the "
-                "HTTPS Funnel page. Use manual.connectivity: mesh_overlay "
+                "HTTPS page. Use manual.connectivity: mesh_overlay "
                 "instead, which proxies sessions through the allocator."
             )
+
+        # cloudflare_tunnel publishes at an admin-chosen hostname, so that
+        # hostname is not optional. The tunnel token is checked at deploy
+        # time instead (it lives in .env, never in config.yaml).
+        if participant_exposure == "cloudflare_tunnel":
+            public_hostname = getattr(manual_cfg, "public_hostname", "")
+            if not public_hostname:
+                errors.append(
+                    "manual.participant_exposure is 'cloudflare_tunnel' but "
+                    "manual.public_hostname is empty — set it to the hostname "
+                    "configured as the tunnel's public hostname in Cloudflare "
+                    "(e.g. lab.smithlab.org)."
+                )
+            elif not is_valid_public_hostname(public_hostname):
+                errors.append(
+                    f"manual.public_hostname {PUBLIC_HOSTNAME_HINT} "
+                    f"(got '{public_hostname}')"
+                )
 
         needs_tailnet = (
             connectivity == "mesh_overlay" or participant_exposure == "tailscale_funnel"
