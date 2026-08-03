@@ -130,10 +130,19 @@ if [ "$PARTICIPANT_EXPOSURE" = "cloudflare_tunnel" ]; then
   # The origin is configured in Cloudflare, not here; logging it keeps the
   # docs' "type http://localhost:5000" instruction traceable to the code.
   echo "Starting Cloudflare Tunnel connector (expected origin: http://localhost:5000)..."
+  # cloudflared dumps its entire environment at INFO on startup, so leaving
+  # the token exported writes it verbatim into `docker logs` -- persisted,
+  # greppable by anyone with docker access, and shipped to whatever collects
+  # container logs. Hand it over as an argument and drop it from the
+  # environment first, so the dump has nothing to find. (The argument is
+  # still visible in the container's process list; cloudflared accepts no
+  # file-based token, so that exposure is unavoidable here.)
+  _cf_token="$CLOUDFLARE_TUNNEL_TOKEN"
+  unset CLOUDFLARE_TUNNEL_TOKEN
   # Backgrounded: nginx must reach the exec below to keep the container
   # alive. cloudflared dials Cloudflare first and retries the origin, so
   # starting a second or two before nginx listens is fine.
-  cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" &
+  cloudflared tunnel --no-autoupdate run --token "$_cf_token" &
 fi
 
 # Foreground nginx; this keeps the container alive.

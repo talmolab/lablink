@@ -746,16 +746,40 @@ def _health_poll() -> None:
     raise SystemExit(1)
 
 
+def _redact_secrets(text: str) -> str:
+    """Blank out credential values in container output before printing it.
+
+    Keyed on the variable *name*, not the value's shape: a Cloudflare token
+    is base64-ish and a tailnet auth key is `tskey-`-prefixed, but both are
+    the vendor's to change, whereas the names are ours.
+
+    Needed because `cloudflared` logs its whole environment at INFO on
+    startup. `start.sh` unsets the token before launching it, so a current
+    image never logs it — this is the second layer, covering images built
+    before that change and any other path that echoes a secret.
+    """
+    return re.sub(
+        r"((?:CLOUDFLARE_TUNNEL_TOKEN|TS_AUTHKEY)[=:]|--token[= ])\S+",
+        r"\1<redacted>",
+        text,
+    )
+
+
 def _print_last_log_lines(lines: int = 30) -> None:
     result = subprocess.run(
         ["docker", "logs", "--tail", str(lines), ALLOCATOR_CONTAINER_NAME],
-        capture_output=True,
+        # Merge stderr: the allocator's Python logging goes there (see
+        # _extract_register_token), so capturing the streams separately and
+        # printing only stdout hid the very tracebacks this dump exists to
+        # surface. Merging is also why the redaction above is load-bearing.
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         check=False,
     )
     if result.stdout:
         console.print("[dim]Last allocator log lines:[/dim]")
-        console.print(result.stdout)
+        console.print(_redact_secrets(result.stdout))
 
 
 def _print_summary(

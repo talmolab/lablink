@@ -2357,6 +2357,49 @@ class TestVerifyPublicHostname:
         assert _verify_public_hostname("lab.example.org") is False
 
 
+class TestRedactSecretsInLogDump:
+    def test_redacts_token_and_authkey_by_name(self):
+        """cloudflared logs its whole environment at INFO, so the log dump
+        can carry credentials. Keyed on the variable name, since the value
+        formats are the vendors' to change."""
+        from lablink_cli.commands.deploy_compose import _redact_secrets
+
+        raw = (
+            "INF Environmental variables "
+            "map[CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiZGVhZGJlZWY]\n"
+            "TS_AUTHKEY=tskey-auth-kSecret123\n"
+            "cloudflared tunnel run --token eyJhIjoiZGVhZGJlZWY\n"
+            "ordinary log line, must survive\n"
+        )
+        out = _redact_secrets(raw)
+
+        assert "eyJhIjoiZGVhZGJlZWY" not in out
+        assert "tskey-auth-kSecret123" not in out
+        assert out.count("<redacted>") == 3
+        assert "ordinary log line, must survive" in out
+
+    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
+    def test_dump_merges_stderr_and_redacts(self, mock_run, capsys):
+        """The allocator's Python logging goes to stderr, so the dump has to
+        merge it — which is what makes the redaction load-bearing."""
+        import subprocess
+
+        from lablink_cli.commands.deploy_compose import _print_last_log_lines
+
+        mock_run.return_value = MagicMock(
+            stdout="CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiLEAKED\nTraceback here\n",
+            returncode=0,
+        )
+        _print_last_log_lines()
+
+        assert mock_run.call_args.kwargs["stderr"] is subprocess.STDOUT
+        out = capsys.readouterr().out
+        assert "eyJhIjoiLEAKED" not in out
+        assert "<redacted>" in out
+        # The whole point of merging stderr: tracebacks must still show.
+        assert "Traceback here" in out
+
+
 class TestVerificationIsAWarningNotAFailure:
     def _cf_cfg(self):
         return _manual_cfg(

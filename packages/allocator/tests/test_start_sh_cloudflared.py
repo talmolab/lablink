@@ -59,6 +59,23 @@ def test_runs_with_the_token_and_no_autoupdate(block):
     assert "--no-autoupdate" in block
 
 
+def test_token_is_dropped_from_the_environment_before_launching(block):
+    """cloudflared logs its entire environment at INFO on startup, so an
+    exported token lands in `docker logs` verbatim — persisted and readable
+    by anyone with docker access. It must be copied to a local variable and
+    unset before the connector starts."""
+    lines = block.splitlines()
+    unset = next(
+        i for i, ln in enumerate(lines) if "unset CLOUDFLARE_TUNNEL_TOKEN" in ln
+    )
+    launch = next(
+        i for i, ln in enumerate(lines) if "cloudflared" in ln and "--token" in ln
+    )
+    assert unset < launch, "the unset must precede the connector launch"
+    # ...and the launch must not reach for the exported name again.
+    assert "$CLOUDFLARE_TUNNEL_TOKEN" not in lines[launch]
+
+
 def test_backgrounded_so_nginx_still_execs(block):
     assert block.rstrip().endswith("fi")
     assert "&" in block
