@@ -110,8 +110,18 @@ def _render_admin_session_page(ws_url: str, hostname: str) -> str:
 
     Unlike the student/peek paths (a bare redirect), this renders
     directly, since the Release form needs to know the hostname.
+
+    Both extras exist only because the viewer is framed here. The Kasm
+    bundle detects framing (`window.self !== window.top`) and without
+    `show_control_bar=1` defaults clipboard_up/down/seamless to false and
+    resize to off — killing copy/paste with no manual fallback. And an
+    iframe without `allowfullscreen` can't enter fullscreen, which is the
+    only place the viewer calls `navigator.keyboard.lock()`.
     """
-    viewer_src = f"/static/novnc/vnc.html?path={ws_url}&autoconnect=1&resize=remote"
+    viewer_src = (
+        f"/static/novnc/vnc.html?path={ws_url}"
+        "&autoconnect=1&resize=remote&show_control_bar=1"
+    )
     release_action = f"/admin/instances/{quote(hostname, safe='')}/release"
     safe_hostname = html.escape(hostname)
     return f"""<!doctype html>
@@ -136,5 +146,5 @@ def _render_admin_session_page(ws_url: str, hostname: str) -> str:
     <button type="submit">Release</button>
   </form>
 </header>
-<iframe src="{viewer_src}"></iframe>
+<iframe src="{viewer_src}" allowfullscreen></iframe>
 """

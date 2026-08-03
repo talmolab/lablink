@@ -77,6 +77,11 @@ def test_version_is_pinned_in_both_dockerfiles():
     """A floating tag would change what ships without a code change, and
     the two files must not drift apart."""
     root = START_SH.parent
+    if not (root / "Dockerfile").is_file():
+        # These tests also run inside the built allocator image, which copies
+        # start.sh but not the Dockerfiles. The drift guard's purpose is
+        # PR-review time on a full checkout; skip elsewhere.
+        pytest.skip(f"Dockerfile not found in {root} (not running from repo tree)")
     for name in ("Dockerfile", "Dockerfile.dev"):
         text = (root / name).read_text()
         assert "ARG CLOUDFLARED_VERSION=2026.7.3" in text, name

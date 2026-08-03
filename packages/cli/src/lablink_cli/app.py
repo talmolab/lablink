@@ -447,6 +447,17 @@ def register(
         "workload submission — for registering ahead of time, from "
         "somewhere other than the workload itself.",
     ),
+    tunnel: bool = typer.Option(
+        False,
+        "--tunnel",
+        help="Register a tunnel client: instead of the allocator dialling "
+        "this box, the box dials OUT to the allocator and holds one "
+        "connection open. For networks that won't carry Tailscale and "
+        "boxes that can't accept inbound connections. Takes no arguments — "
+        "the allocator mints every value needed. Defaults to "
+        "docker-running the client here; pass --no-run-locally to print "
+        "secrets for a separate workload submission instead.",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -490,6 +501,7 @@ def register(
         overlay_hostname=overlay_hostname,
         tailscale_authkey=tailscale_authkey,
         run_locally=run_locally,
+        reverse_tunnel=tunnel,
     )
 
 

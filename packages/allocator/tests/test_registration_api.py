@@ -1,6 +1,8 @@
 """Tests for the registration API + register-token at-rest hashing."""
 from unittest.mock import MagicMock
 
+import pytest
+
 
 def test_register_token_global_exists():
     from lablink_allocator_service import main
@@ -544,6 +546,56 @@ def test_unregister_success(reg_client):
     fake_db.unregister_client.assert_called_once_with("vm-1")
 
 
+def test_unregister_revokes_a_reverse_tunnel_clients_restrictions_rule(
+    reg_client, monkeypatch
+):
+    """cleanup_client_identity was dead code (called by nothing); wired
+    into unregister so a departed tunnel client's restrictions-file rule
+    doesn't linger forever, growing the file on every re-registration."""
+    from lablink_allocator_service.secret_hash import hash_secret
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+    revoked = {}
+    monkeypatch.setattr(
+        "lablink_allocator_service.tunnel_manager.revoke_client",
+        lambda client_id: revoked.setdefault("client_id", client_id),
+    )
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+
+    assert r.status_code == 200
+    assert revoked == {"client_id": "vm-1"}
+
+
+def test_unregister_skips_cleanup_for_connectivity_without_it(reg_client):
+    """The default reg_client provider (AllocatorProxiedClientConnectivity)
+    has no cleanup_client_identity -- the optional-hook lookup must not
+    raise for connectivity modes that need no such cleanup."""
+    from lablink_allocator_service.secret_hash import hash_secret
+
+    client, fake_db = reg_client
+    fake_db.get_client_secret_hash.return_value = hash_secret("sek")
+    fake_db.unregister_client.return_value = True
+
+    r = client.delete(
+        "/api/v1/clients/vm-1",
+        headers={"Authorization": "Bearer sek"},
+    )
+
+    assert r.status_code == 200
+
+
 # ---- GET /api/v1/clients (list endpoint) ---------------------------------
 
 def test_list_clients_rejects_missing_auth(reg_client):
@@ -834,3 +886,159 @@ def test_overlay_hostname_404_when_not_an_overlay_client(client, monkeypatch):
     )
 
     assert resp.status_code == 404
+
+
+# ---- reverse_tunnel registration ------------------------------------------
+
+def test_reverse_tunnel_registration_mints_alias_and_prefix(reg_client, monkeypatch):
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.allocate_tunnel_alias_octet.return_value = 12
+    authorized = {}
+    monkeypatch.setattr(
+        "lablink_allocator_service.tunnel_manager.authorize_client",
+        lambda **kw: authorized.update(kw),
+    )
+    # No ssl.provider override and no X-Forwarded-* headers: reverse_tunnel
+    # is a manual-provider-only connectivity mode, and manual deployments
+    # only ever run ssl.provider: none (see canonical_base_url's
+    # docstring), which keeps the ProxyFix gate shut regardless of what
+    # headers a caller sends. The realistic response here is the plain
+    # http:// Flask test client default -- the CLI, not the allocator, is
+    # what compensates for that (see register.py's TUNNEL_URL, which
+    # prefers its own resolved_url over this field's value for exactly
+    # this reason).
+
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["tunnel_bind_addr"] == "127.0.0.12"
+    assert body["tunnel_path_prefix"].startswith("tun-vm-1-")
+    # The URL is the allocator's BASE address; the prefix travels separately
+    # because the client passes it with -P and ignores the URL's path.
+    assert "/tunnel/" not in body["tunnel_url"]
+    # Realistic manual topology: canonical_base_url falls back to
+    # request.host_url, which is http:// here (no canonical-url file, no
+    # trusted X-Forwarded-Proto) -- this is NOT an https guarantee, and
+    # nothing downstream of this response should assume one.
+    assert body["tunnel_url"].startswith("http://")
+
+    kw = fake_db.register_client.call_args.kwargs
+    assert kw["provider_metadata"]["tunnel_alias_octet"] == 12
+    assert kw["provider_metadata"]["tunnel_path_prefix"] == body["tunnel_path_prefix"]
+    # The client may bind only its own alias.
+    assert authorized == {
+        "client_id": "vm-1", "alias_octet": 12,
+        "prefix": body["tunnel_path_prefix"],
+    }
+
+
+def test_plain_registration_against_a_tunnel_allocator_is_rejected(reg_client):
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1", "provider": "manual"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    assert "reverse_tunnel" in r.get_json()["error"]
+    fake_db.register_client.assert_not_called()
+
+
+def test_tunnel_sentinel_against_a_lan_direct_allocator_is_rejected(reg_client):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
+
+
+def test_response_omits_tunnel_fields_when_not_a_tunnel_client(reg_client):
+    client, _ = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": "vm-1", "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert "tunnel_url" not in r.get_json()
+
+
+@pytest.mark.parametrize("bad", [
+    "vm-1\nrestrictions:", "../../etc/passwd", "vm 1", "-leading-dash", "",
+])
+def test_register_rejects_a_malformed_hostname(reg_client, bad):
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": bad, "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_a_non_string_hostname(reg_client):
+    """A non-string hostname (e.g. a bare JSON int) must 400, not 500 --
+    _VALID_HOSTNAME.fullmatch(hostname) raises TypeError on anything that
+    isn't str/bytes-like."""
+    client, fake_db = reg_client
+    r = client.post(
+        "/api/v1/clients/register",
+        json={"hostname": 12345, "machine_identity": "i-1"},
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 400
+    fake_db.register_client.assert_not_called()
+
+
+def test_register_rejects_when_tunnel_alias_octets_are_exhausted(reg_client):
+    """allocate_tunnel_alias_octet() never recycles (see its docstring),
+    so a long-lived deployment can exhaust the 1-254 range. That must
+    surface as a clean 503 before the row is written -- not an unhandled
+    500 from authorize_client raising on an out-of-range octet after
+    register_client already inserted the row."""
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    client, fake_db = reg_client
+    client.application.config["LABLINK_PROVIDER"].client_connectivity = (
+        ReverseTunnelClientConnectivity()
+    )
+    fake_db.allocate_tunnel_alias_octet.return_value = 255
+    r = client.post(
+        "/api/v1/clients/register",
+        json={
+            "hostname": "vm-1", "machine_identity": "i-1",
+            "provider": "manual", "provider_metadata": {"reverse_tunnel": True},
+        },
+        headers={"Authorization": "Bearer tk_test_register"},
+    )
+    assert r.status_code == 503
+    fake_db.register_client.assert_not_called()

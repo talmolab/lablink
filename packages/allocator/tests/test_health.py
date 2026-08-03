@@ -5,6 +5,35 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock
 
+import pytest
+
+
+@pytest.fixture
+def health_client(app, monkeypatch):
+    """HTTP client wired for reverse-tunnel health checks: a stub provider
+    whose client_connectivity requires the tunnel check (the real
+    ReverseTunnelClientConnectivity, which sets requires_tunnel_check =
+    True), and a fake db standing in for main.database.
+
+    Returns (test_client, fake_db).
+    """
+    from lablink_allocator_service import main
+    from lablink_allocator_service.providers.connectivity.reverse_tunnel import (
+        ReverseTunnelClientConnectivity,
+    )
+
+    class _StubProvider:
+        client_connectivity = ReverseTunnelClientConnectivity()
+
+    app.config["LABLINK_PROVIDER"] = _StubProvider()
+
+    fake_db = MagicMock()
+    monkeypatch.setattr(main, "database", fake_db, raising=False)
+    monkeypatch.setattr(main, "scheduler_service", MagicMock(), raising=False)
+    monkeypatch.setattr(main, "reboot_service", MagicMock(), raising=False)
+
+    return app.test_client(), fake_db
+
 
 class TestTailscaleStatus:
     """Unit tests for _tailscale_status(), which shells out to `ip` to
@@ -192,3 +221,106 @@ class TestHealthEndpoint:
         data = resp.get_json()
         assert data["status"] == "starting"
         assert data["checks"]["tailscale"] == "not joined"
+
+
+class TestTunnelStatus:
+    """Health for reverse_tunnel must report *attachment*, not liveness: a
+    bound loopback listener survives for the idle timeout after its client
+    disconnects, and connections to that orphan hang rather than fail, so
+    the shared tunnel server being up says nothing about any one client."""
+
+    def test_unattached_client_does_not_make_the_allocator_unready(
+        self, health_client, monkeypatch
+    ):
+        """Reported, but not a 503. Observed live 2026-07-31: gating the code
+        on client attachment deadlocked client startup -- a registering client
+        is unattached by definition until its tunnel is up, its own preflight
+        probe waited for a green health check, and that check could not go
+        green until the tunnel it was blocking came up. It also failed
+        deploy_compose's health poll and made `lablink status` call the
+        allocator unhealthy because a *client* was down."""
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: set())
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = [10]
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200, resp.get_json()
+        assert resp.get_json()["status"] == "healthy"
+        assert resp.get_json()["checks"]["tunnel"] == "1 client(s) not attached"
+
+    def test_health_ok_when_every_client_is_attached(self, health_client, monkeypatch):
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        monkeypatch.setattr(tunnel_manager, "attached_aliases", lambda: {10, 11})
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = [10, 11]
+
+        assert client.get("/api/health").get_json()["checks"]["tunnel"] == "ok"
+
+    def test_health_reports_server_down(self, health_client, monkeypatch):
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "not running")
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.return_value = []
+        resp = client.get("/api/health")
+        assert resp.get_json()["checks"]["tunnel"] == "not running"
+        # The other side of the line drawn by
+        # test_unattached_client_does_not_make_the_allocator_unready: the
+        # shared server being down IS the allocator's own dependency failing,
+        # so it must still gate readiness.
+        assert resp.status_code == 503
+
+    def test_health_degrades_when_db_query_fails(self, health_client, monkeypatch):
+        """A transient Postgres problem (pool exhaustion, a brief restart)
+        while the tunnel server is up must degrade this one check's value,
+        not raise out of the route and 500 the whole endpoint -- the same
+        contract _tailscale_status keeps for its own external call."""
+        import psycopg2
+
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        client, fake_db = health_client
+        fake_db.list_tunnel_aliases.side_effect = psycopg2.OperationalError(
+            "connection pool exhausted"
+        )
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 503
+        assert resp.get_json()["checks"]["tunnel"] == "client list unavailable"
+
+    def test_health_tunnel_not_initialized_when_db_absent(
+        self, health_client, monkeypatch
+    ):
+        """main.database can in principle be None (mirrors the top-level
+        `database` check's own guard); _tunnel_status must report that
+        rather than raise AttributeError reaching for list_tunnel_aliases."""
+        from lablink_allocator_service import main
+        from lablink_allocator_service import tunnel_manager
+
+        monkeypatch.setattr(tunnel_manager, "tunnel_status", lambda: "ok")
+        client, _fake_db = health_client
+        monkeypatch.setattr(main, "database", None)
+
+        resp = client.get("/api/health")
+        assert resp.get_json()["checks"]["tunnel"] == "not initialized"
+
+    def test_tunnel_check_absent_when_not_reverse_tunnel(self, client, monkeypatch):
+        """A connectivity strategy that doesn't require a tunnel check
+        (e.g. lan_direct/allocator_proxied/mesh_overlay) must not add a
+        tunnel key — byte-identical health payload to today for every
+        existing deployment."""
+        from lablink_allocator_service import main as main_mod
+
+        monkeypatch.setattr(main_mod, "database", MagicMock())
+        monkeypatch.setattr(main_mod, "scheduler_service", MagicMock())
+        monkeypatch.setattr(main_mod, "reboot_service", MagicMock())
+
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert "tunnel" not in resp.get_json()["checks"]

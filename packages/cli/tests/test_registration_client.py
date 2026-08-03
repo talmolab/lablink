@@ -140,6 +140,25 @@ class TestRegister:
         assert body["provider"] == "manual"
 
     @patch("lablink_cli.api.urlopen")
+    def test_register_sends_the_tunnel_sentinel(self, mock_urlopen):
+        response = {"client_id": "vm-1"}
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(response).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        _make_client().register(
+            hostname="vm-1", machine_identity="i-1",
+            gpu_present=False, gpu_model=None, reverse_tunnel=True,
+        )
+
+        sent_req = mock_urlopen.call_args[0][0]
+        body = json.loads(sent_req.data.decode())
+        assert body["provider_metadata"] == {"reverse_tunnel": True}
+        assert body.get("endpoint_url") is None
+
+    @patch("lablink_cli.api.urlopen")
     def test_lan_ip_shape_unchanged(self, mock_urlopen):
         """Existing lan_ip callers must see byte-identical body shape."""
         response = {"client_id": 1}

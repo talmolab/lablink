@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 from datetime import datetime
 import psycopg2
+import re
 import secrets
 
 from flask import Blueprint, current_app, jsonify, request
@@ -25,6 +26,13 @@ from lablink_allocator_service.secret_hash import (
 from lablink_allocator_service.utils.config_helpers import canonical_base_url
 
 bp = Blueprint("registration", __name__)
+
+# A registering client's self-declared hostname becomes its client_id, which
+# is the DB primary key AND (under reverse_tunnel) is interpolated into a
+# generated config file and a filesystem path. Constrain it here, at the
+# boundary, so nothing downstream has to trust it; tunnel_manager re-checks
+# the same shape on its own as defense in depth.
+_VALID_HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$")
 
 
 @bp.route("/api/v1/clients/register", methods=["POST"])
@@ -47,6 +55,14 @@ def register_client():
     machine_identity = body.get("machine_identity")
     if not hostname or not machine_identity:
         return jsonify({"error": "hostname and machine_identity required."}), 400
+    if not isinstance(hostname, str) or not _VALID_HOSTNAME.fullmatch(hostname):
+        return jsonify({
+            "error": (
+                "hostname must start with a letter or digit and contain only "
+                "letters, digits, dots, dashes and underscores (max 253 "
+                "characters)."
+            )
+        }), 400
 
     provider = body.get("provider", "aws")
     provider_metadata = body.get("provider_metadata") or {}
@@ -86,7 +102,56 @@ def register_client():
                 )
             }), 400
 
+        # Same shape as the mesh_overlay check above: a reverse_tunnel
+        # registration (--tunnel) against a non-tunnel allocator, or a
+        # plain registration against a tunnel allocator, must be rejected
+        # at registration time rather than failing opaquely later.
+        expects_tunnel = prov.client_connectivity.name == "reverse_tunnel"
+        has_tunnel = provider_metadata.get("reverse_tunnel") is True
+        if expects_tunnel and not has_tunnel:
+            return jsonify({
+                "error": (
+                    "This allocator is configured for reverse_tunnel "
+                    "connectivity -- register with --tunnel."
+                )
+            }), 400
+        if not expects_tunnel and has_tunnel:
+            return jsonify({
+                "error": (
+                    "This allocator is not configured for reverse_tunnel "
+                    "connectivity -- --tunnel is not applicable here."
+                )
+            }), 400
+
     client_secret = secrets.token_urlsafe(32)
+
+    # Reverse-tunnel clients need two allocator-owned values minted before
+    # the row is written: a loopback alias (the address nginx will dial) and
+    # a path prefix identifying this client at the tunnel endpoint.
+    from lablink_allocator_service import tunnel_manager
+
+    tunnel_alias_octet = None
+    tunnel_prefix = None
+    if provider == "manual" and provider_metadata.get("reverse_tunnel") is True:
+        tunnel_alias_octet = main.database.allocate_tunnel_alias_octet()
+        # Range-check BEFORE writing the row: allocate_tunnel_alias_octet
+        # never recycles, so a deployment can exhaust it (see its
+        # docstring), and authorize_client would raise ValueError on an
+        # out-of-range octet -- but only after register_client already
+        # inserted the row, which would surface as an unhandled 500.
+        if not tunnel_manager.is_valid_alias_octet(tunnel_alias_octet):
+            return jsonify({
+                "error": (
+                    "This deployment has run out of reverse-tunnel "
+                    "loopback aliases; no more clients can register."
+                )
+            }), 503
+        tunnel_prefix = tunnel_manager.path_prefix(hostname, client_secret)
+        provider_metadata = {
+            **provider_metadata,
+            "tunnel_alias_octet": tunnel_alias_octet,
+            "tunnel_path_prefix": tunnel_prefix,
+        }
 
     try:
         client_id = main.database.register_client(
@@ -103,6 +168,16 @@ def register_client():
         return jsonify({"error": "registration conflict"}), 409
     if client_id is None:
         return jsonify({"error": "registration conflict"}), 409
+
+    if tunnel_prefix is not None:
+        # Authorize AFTER the row exists: the restrictions file is what lets
+        # this client bind its alias, and it must never name an alias no row
+        # claims. Re-registration overwrites the client's single rule, so a
+        # new alias/prefix cannot leave the old one authorized.
+        tunnel_manager.authorize_client(
+            client_id=client_id, alias_octet=tunnel_alias_octet,
+            prefix=tunnel_prefix,
+        )
 
     allocator_url = canonical_base_url(request)
     # cfg.machine.repository is the tutorial-repo-to-clone URL (shipped to
@@ -162,7 +237,7 @@ def register_client():
     repository = main.cfg.machine.repository or ""
     subject_software = main.cfg.machine.software or ""
 
-    return jsonify(
+    response = dict(
         client_id=client_id,
         client_secret=client_secret,
         agent_token=main.AGENT_TOKEN,
@@ -184,7 +259,18 @@ def register_client():
             else ""
         ),
         monitoring=monitoring,
-    ), 200
+    )
+
+    if tunnel_prefix is not None:
+        # Base address only. The client passes the prefix via -P; the
+        # tunnel tool ignores any path in the URL it dials (measured), so
+        # embedding the prefix here would silently produce the wrong
+        # request path.
+        response["tunnel_url"] = allocator_url.rstrip("/")
+        response["tunnel_path_prefix"] = tunnel_prefix
+        response["tunnel_bind_addr"] = f"127.0.0.{tunnel_alias_octet}"
+
+    return jsonify(response), 200
 
 
 @bp.route("/api/v1/clients/<client_id>/status", methods=["GET"])
@@ -226,6 +312,20 @@ def unregister_client(client_id):
     deleted = main.database.unregister_client(client_id)
     if not deleted:
         return jsonify({"error": "Client not found."}), 404
+
+    # Give the connectivity strategy a chance to drop any identity it
+    # minted for this client (e.g. reverse_tunnel's restrictions-file
+    # rule) -- optional because most strategies need no such cleanup, so
+    # it isn't part of the ClientConnectivity protocol.
+    prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
+        main.cfg.get("provider", None),
+        region=main.cfg.app.region,
+        terraform_dir=str(main.TERRAFORM_DIR),
+        connectivity=main.cfg.manual.connectivity,
+    )
+    cleanup = getattr(prov.client_connectivity, "cleanup_client_identity", None)
+    if cleanup is not None:
+        cleanup(hostname=client_id)
 
     return jsonify(client_id=client_id, status="unregistered"), 200
 

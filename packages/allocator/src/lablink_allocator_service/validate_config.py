@@ -28,8 +28,10 @@ VALID_PROVIDERS = ("aws", "manual")
 
 # manual.connectivity — must stay in sync with the connectivity registry
 # (_CONNECTIVITY_BUILTIN in providers/registry.py). "mesh_overlay" reaches
-# clients that aren't on the allocator's own LAN over a Tailscale tailnet.
-VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay")
+# clients over a Tailscale tailnet; "reverse_tunnel" reaches them through a
+# tunnel the client dials out to this allocator and holds open, for networks
+# that won't carry Tailscale.
+VALID_CONNECTIVITY = ("lan_direct", "mesh_overlay", "reverse_tunnel")
 
 # manual.participant_exposure — how participants (not clients) reach the
 # allocator when it isn't on their LAN. Independent of connectivity above.

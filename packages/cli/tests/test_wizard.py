@@ -497,6 +497,7 @@ def _drive_connectivity_screen_cfg(
     choose_funnel: bool = False,
     choose_cloudflare: bool = False,
     public_hostname: str = "",
+    choose_reverse_tunnel: bool = False,
 ):
     """Push ManualConnectivityScreen, drive it, return (cfg, stack_delta).
 
@@ -524,6 +525,11 @@ def _drive_connectivity_screen_cfg(
                 for btn in radio_set.query(RadioButton):
                     if btn.id == "connectivity-mesh-overlay":
                         btn.value = True
+            if choose_reverse_tunnel:
+                radio_set = screen.query_one("#connectivity-select", RadioSet)
+                for btn in radio_set.query(RadioButton):
+                    if btn.id == "connectivity-reverse-tunnel":
+                        btn.value = True
             screen.query_one("#overlay-tailnet", Input).value = overlay_tailnet
 
             target_id = None
@@ -550,12 +556,17 @@ def _drive_connectivity_screen_cfg(
 
 
 def _drive_connectivity_screen(
-    *, choose_mesh_overlay: bool, overlay_tailnet: str = "", choose_funnel: bool = False
+    *,
+    choose_mesh_overlay: bool,
+    overlay_tailnet: str = "",
+    choose_funnel: bool = False,
+    choose_reverse_tunnel: bool = False,
 ):
     cfg, delta = _drive_connectivity_screen_cfg(
         choose_mesh_overlay=choose_mesh_overlay,
         overlay_tailnet=overlay_tailnet,
         choose_funnel=choose_funnel,
+        choose_reverse_tunnel=choose_reverse_tunnel,
     )
     return (
         cfg.manual.connectivity,
@@ -591,6 +602,24 @@ def test_connectivity_screen_blocks_next_when_tailnet_missing():
     )
     assert connectivity == "mesh_overlay"
     assert stack_delta == 0, "invalid submission must not push DnsScreen"
+
+
+def test_connectivity_screen_writes_reverse_tunnel():
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False, choose_reverse_tunnel=True
+    )
+    assert connectivity == "reverse_tunnel"
+    assert stack_delta == 1, "valid submission should push DnsScreen"
+
+
+def test_reverse_tunnel_needs_no_extra_fields():
+    """The mode's whole point: nothing for the operator to supply. If this
+    ever needs a config value, the design has regressed."""
+    connectivity, tailnet, exposure, stack_delta = _drive_connectivity_screen(
+        choose_mesh_overlay=False, choose_reverse_tunnel=True
+    )
+    assert tailnet == ""
+    assert stack_delta == 1
 
 
 def _drive_startup_retry_fields(

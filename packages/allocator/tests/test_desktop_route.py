@@ -226,10 +226,15 @@ def test_desktop_admin_session_renders_wrapper_with_release_form(
         '<form method="POST" action="/admin/instances/host-troubleshoot/release">'
         in body
     )
+    # show_control_bar=1 and allowfullscreen are both required by the framed
+    # viewer: without the first the Kasm bundle defaults clipboard off (it
+    # detects `window.self !== window.top`), and without the second it can
+    # never reach the fullscreen handler that calls navigator.keyboard.lock.
     assert (
         'src="/static/novnc/vnc.html?path=proxy/tok-admin'
-        '&autoconnect=1&resize=remote"' in body
+        '&autoconnect=1&resize=remote&show_control_bar=1"' in body
     )
+    assert "allowfullscreen" in body
 
 
 def test_desktop_admin_session_escapes_hostname(desktop_client_with_row):
