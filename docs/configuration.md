@@ -544,9 +544,10 @@ mode is set and no token is available, both `lablink deploy` and the container's
 `start.sh` fail loudly rather than starting an allocator that looks healthy but
 is unreachable.
 
-After `docker compose up`, `lablink deploy` requests `https://<public_hostname>/api/health`
-for up to 30 seconds. A miss is a warning, not a failure — a freshly created DNS
-record may still be propagating.
+After `docker compose up`, `lablink deploy` makes one request to
+`https://<public_hostname>/api/health`. A miss is a warning, not a failure — a
+freshly created DNS record may still be propagating, in which case retry the URL
+in your browser in a few minutes.
 
 ##### Cloudflare can read your traffic
 
