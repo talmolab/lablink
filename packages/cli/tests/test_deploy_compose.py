@@ -2337,20 +2337,20 @@ class TestVerifyPublicHostname:
         # One check proves DNS + Cloudflare edge + tunnel + nginx + Flask.
         assert mock_check.call_args[0][0] == "https://lab.example.org"
 
-    @patch("lablink_cli.commands.deploy_compose.time.sleep")
     @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
-    def test_returns_false_after_the_timeout(self, mock_check, mock_sleep):
+    def test_returns_false_on_a_miss_without_retrying(self, mock_check):
+        """A single attempt: the caller only warns, so retrying would delay
+        the same message rather than change it."""
         from lablink_cli.commands.deploy_compose import _verify_public_hostname
 
         mock_check.return_value = {"healthy": False}
         assert _verify_public_hostname("lab.example.org") is False
-        assert mock_check.call_count > 1, "must retry, not give up on one miss"
+        assert mock_check.call_count == 1
 
-    @patch("lablink_cli.commands.deploy_compose.time.sleep")
     @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
-    def test_survives_a_raising_check(self, mock_check, mock_sleep):
+    def test_survives_a_raising_check(self, mock_check):
         """DNS for a brand-new record may not resolve yet; a raised
-        exception must be a retry, not a crashed deploy."""
+        exception must be a warning, not a crashed deploy."""
         from lablink_cli.commands.deploy_compose import _verify_public_hostname
 
         mock_check.side_effect = OSError("name or service not known")
@@ -2388,27 +2388,25 @@ class TestVerificationIsAWarningNotAFailure:
         )
         mock_summary.assert_called_once()
 
-    @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
-    @patch("lablink_cli.commands.deploy_compose._print_summary")
-    @patch("lablink_cli.commands.deploy_compose._health_poll")
-    @patch("lablink_cli.commands.deploy_compose._compose_up")
-    def test_summary_receives_the_public_url(
-        self, mock_up, mock_poll, mock_summary, mock_verify, tmp_path
-    ):
-        from lablink_cli.commands.deploy_compose import run_deploy_compose
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_summary_prints_the_public_url(self, mock_extract, mock_lan, capsys):
+        """The URL is derived from cfg inside _print_summary rather than
+        threaded in as a parameter, so the summary is what pins it down."""
+        from lablink_cli.commands.deploy_compose import _print_summary
 
-        mock_verify.return_value = True
-        run_deploy_compose(
-            self._cf_cfg(),
-            yes=True,
-            workdir_root=tmp_path,
-            tailscale_authkey="tskey-abc",
-            cloudflare_tunnel_token="eyJhIjoiTOKEN",
-        )
+        mock_extract.return_value = "abc123def456ghi789jklmnop"
+        mock_lan.return_value = "192.168.1.42"
+
+        _print_summary(self._cf_cfg())
         assert (
-            mock_summary.call_args.kwargs["cloudflare_url"]
-            == "https://lab.example.org"
+            "Allocator URL (public): https://lab.example.org"
+            in capsys.readouterr().out
         )
+
+        # ...and only for this mode.
+        _print_summary(_manual_cfg(participant_exposure="none"))
+        assert "URL (public)" not in capsys.readouterr().out
 
     @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
     @patch("lablink_cli.commands.deploy_compose._print_summary")

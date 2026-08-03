@@ -32,10 +32,6 @@ from lablink_cli.config.schema import Config, save_config
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
 HEALTH_POLL_TIMEOUT_SECONDS = 300
-# Shorter than the health poll above on purpose: the stack is already
-# confirmed healthy locally by then, so this only waits on DNS/edge
-# propagation, and a miss is a warning rather than a failure.
-PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS = 30
 ALLOCATOR_IMAGE_BASE = "ghcr.io/talmolab/lablink-allocator-image"
 # Only ssl=none is supported by the manual-provider compose stack today:
 # the allocator image has no TLS terminator (Caddy is part of the AWS
@@ -490,13 +486,11 @@ def run_deploy_compose(
             _write_canonical_url(target, funnel_url)
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    cloudflare_url = None
     if cfg.manual.participant_exposure == "cloudflare_tunnel":
-        cloudflare_url = f"https://{cfg.manual.public_hostname}"
         if not _verify_public_hostname(cfg.manual.public_hostname):
             console.print(
-                f"[yellow]{cloudflare_url} did not answer within "
-                f"{PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS}s.[/yellow]\n"
+                f"[yellow]https://{cfg.manual.public_hostname} did not "
+                "answer.[/yellow]\n"
                 "The stack is up locally. Common causes: the DNS record is "
                 "still propagating (retry in a few minutes), or the tunnel's "
                 "public hostname in Cloudflare does not point at "
@@ -504,12 +498,7 @@ def run_deploy_compose(
             )
             _print_last_log_lines()
 
-    _print_summary(
-        cfg,
-        funnel_active=funnel_active,
-        funnel_url=funnel_url,
-        cloudflare_url=cloudflare_url,
-    )
+    _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
 
     if not funnel_ok:
         raise SystemExit(1)
@@ -522,27 +511,22 @@ def _verify_public_hostname(hostname: str) -> bool:
     Cloudflare edge, the tunnel, nginx and Flask together — checking that
     cloudflared is alive says nothing about whether the edge found it.
 
-    Deliberately advisory. A proxied CNAME created minutes earlier can
-    still be propagating, and the deployment itself is correct in that
-    case — the caller warns rather than failing.
+    Advisory, and deliberately a single attempt rather than a poll: by this
+    point the stack is already confirmed healthy locally, so a failure here
+    is either a still-propagating DNS record or a wrong origin in the
+    Cloudflare dashboard. Neither is something waiting fixes, and the
+    caller only warns — so retrying would just delay the same message.
     """
     url = f"https://{hostname}"
-    console.print(
-        f"[bold]Verifying public hostname {url}/api/health "
-        f"(up to {PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS}s) …[/bold]"
-    )
-    deadline = time.monotonic() + PUBLIC_HOSTNAME_VERIFY_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        try:
-            if check_health_endpoint(url).get("healthy"):
-                console.print(f"[green]Public hostname is live: {url}[/green]")
-                return True
-        except OSError:
-            # Unresolvable name / refused connection while the record
-            # propagates. Indistinguishable from "not ready yet" here.
-            pass
-        time.sleep(3)
-    return False
+    console.print(f"[bold]Verifying public hostname {url}/api/health …[/bold]")
+    try:
+        healthy = bool(check_health_endpoint(url).get("healthy"))
+    except OSError:
+        # Unresolvable name / refused connection while the record propagates.
+        healthy = False
+    if healthy:
+        console.print(f"[green]Public hostname is live: {url}[/green]")
+    return healthy
 
 
 def _compose_up(target: Path) -> None:
@@ -775,11 +759,7 @@ def _print_last_log_lines(lines: int = 30) -> None:
 
 
 def _print_summary(
-    cfg: Config,
-    *,
-    funnel_active: bool = False,
-    funnel_url: str | None = None,
-    cloudflare_url: str | None = None,
+    cfg: Config, *, funnel_active: bool = False, funnel_url: str | None = None
 ) -> None:
     register_token = _extract_register_token()
     # Manual provider is HTTP-only; preflight rejects anything else.
@@ -804,13 +784,12 @@ def _print_summary(
             soft_wrap=True,
             highlight=False,
         )
-    # Separate from funnel_url rather than folded into it: Funnel has an
-    # "enabled but URL unknown" state (it has to be read back out of the
-    # sidecar) that a Cloudflare hostname, being config the admin typed,
-    # can never be in.
-    if cloudflare_url:
+    # Derived here rather than passed in: unlike Funnel's URL, which has to
+    # be read back out of the sidecar and has an "enabled but unknown"
+    # state, this one is just config the admin typed.
+    if cfg.manual.participant_exposure == "cloudflare_tunnel":
         console.print(
-            f"  Allocator URL (public): {cloudflare_url}",
+            f"  Allocator URL (public): https://{cfg.manual.public_hostname}",
             soft_wrap=True,
             highlight=False,
         )
