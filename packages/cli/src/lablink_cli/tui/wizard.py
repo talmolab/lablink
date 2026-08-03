@@ -413,6 +413,10 @@ class ManualConnectivityScreen(Screen):
                 value=current_hostname,
                 placeholder="lab.smithlab.org",
                 id="public-hostname",
+                # Mirrors #overlay-tailnet: the initial state has to be right
+                # before any RadioSet.Changed fires, since re-entering the
+                # wizard on an existing config never touches the radios.
+                disabled=current_exposure != "cloudflare_tunnel",
             )
 
             yield Label("", id="connectivity-error", classes="error")
@@ -430,26 +434,36 @@ class ManualConnectivityScreen(Screen):
         return (rb.pressed_button.id or "") if rb.pressed_button else ""
 
     @on(RadioSet.Changed)
-    def _sync_tailnet_field(self, event: RadioSet.Changed) -> None:
-        """Enable the tailnet field only for the modes that consume it.
+    def _sync_conditional_fields(self, event: RadioSet.Changed) -> None:
+        """Enable each address field only for the modes that consume it.
 
         Driven by BOTH radio sets, not just connectivity: the tailnet is
         required by mesh_overlay *and* by tailscale_funnel exposure, so a
         reverse_tunnel deployment that also publishes itself via Funnel
         still needs one. reverse_tunnel on its own needs no address.
+
+        The two fields are mutually exclusive in practice — Funnel's
+        hostname is Tailscale's to assign and Cloudflare's needs no tailnet
+        — so leaving both editable invites filling in the one that will be
+        ignored. Neither field is *cleared* on switching away: a value the
+        operator already typed is preserved for switching back, and an
+        ignored `public_hostname` is documented as harmless.
         """
         connectivity = {
             "connectivity-mesh-overlay": "mesh_overlay",
             "connectivity-reverse-tunnel": "reverse_tunnel",
         }.get(self._pressed("#connectivity-select"), "lan_direct")
+        pressed_exposure = self._pressed("#participant-exposure-select")
         exposure = (
             "tailscale_funnel"
-            if self._pressed("#participant-exposure-select")
-            == "participant-exposure-funnel"
+            if pressed_exposure == "participant-exposure-funnel"
             else "none"
         )
         self.query_one("#overlay-tailnet", Input).disabled = not _tailnet_needed(
             connectivity, exposure
+        )
+        self.query_one("#public-hostname", Input).disabled = (
+            pressed_exposure != "participant-exposure-cloudflare"
         )
 
     @on(Button.Pressed, "#back")

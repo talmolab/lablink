@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 
 def _drive_monitoring_toggle(initial_enabled: bool, click_enabled: bool) -> bool:
     """Drive MonitoringScreen, return cfg.monitoring.enabled after Next.
@@ -768,6 +770,103 @@ def test_connectivity_screen_blocks_cloudflare_without_hostname():
     )
     assert cfg.manual.participant_exposure == "cloudflare_tunnel"
     assert stack_delta == 0, "invalid submission must not push the next screen"
+
+
+def _hostname_field_disabled(*, select_exposure=None, preset_exposure="none"):
+    """Return #public-hostname's disabled state on ManualConnectivityScreen.
+
+    `preset_exposure` seeds the config (re-entering the wizard on an existing
+    config, where no radio is ever touched); `select_exposure` presses a radio
+    button id instead, exercising the RadioSet.Changed handler.
+    """
+    import asyncio
+    from textual.widgets import Input, RadioButton, RadioSet
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+    cfg.manual.participant_exposure = preset_exposure
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = ManualConnectivityScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            if select_exposure is not None:
+                for btn in screen.query_one(
+                    "#participant-exposure-select", RadioSet
+                ).query(RadioButton):
+                    if btn.id == select_exposure:
+                        btn.value = True
+                await pilot.pause()
+            return screen.query_one("#public-hostname", Input).disabled
+
+    return asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    "radio_id,expected_disabled",
+    [
+        ("participant-exposure-none", True),
+        ("participant-exposure-funnel", True),
+        ("participant-exposure-cloudflare", False),
+    ],
+)
+def test_public_hostname_enabled_only_for_cloudflare(radio_id, expected_disabled):
+    """Funnel's hostname is Tailscale's to assign, so an editable
+    public_hostname there invites filling in a field that is then ignored."""
+    assert _hostname_field_disabled(select_exposure=radio_id) is expected_disabled
+
+
+@pytest.mark.parametrize(
+    "preset,expected_disabled",
+    [("none", True), ("tailscale_funnel", True), ("cloudflare_tunnel", False)],
+)
+def test_public_hostname_initial_state_matches_existing_config(
+    preset, expected_disabled
+):
+    """Re-entering `lablink configure` on an existing config never touches a
+    radio, so RadioSet.Changed never fires — compose() has to get it right."""
+    assert _hostname_field_disabled(preset_exposure=preset) is expected_disabled
+
+
+def test_switching_exposure_preserves_a_typed_hostname():
+    """Disabling must not clear: an operator who mis-clicks Funnel and comes
+    back shouldn't have to retype the hostname."""
+    import asyncio
+    from textual.widgets import Input, RadioButton, RadioSet
+
+    cfg, app = _build_cfg_and_app()
+    cfg.provider = "manual"
+
+    async def _run():
+        from lablink_cli.tui.wizard import ManualConnectivityScreen
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = ManualConnectivityScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            field = screen.query_one("#public-hostname", Input)
+            radios = screen.query_one("#participant-exposure-select", RadioSet)
+
+            def press(target):
+                for btn in radios.query(RadioButton):
+                    if btn.id == target:
+                        btn.value = True
+
+            press("participant-exposure-cloudflare")
+            await pilot.pause()
+            field.value = "lab.example.org"
+            press("participant-exposure-funnel")
+            await pilot.pause()
+            return field.disabled, field.value
+
+    disabled, value = asyncio.run(_run())
+    assert disabled is True
+    assert value == "lab.example.org"
 
 
 # ---------------------------------------------------------------------------
