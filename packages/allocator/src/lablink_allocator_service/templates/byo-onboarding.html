@@ -88,17 +88,41 @@
   <body>
     <div class="panel">
       <h2>BYO Client Onboarding</h2>
+      {% if connectivity == "mesh_overlay" %}
       <p>
-        Run this command on a Linux GPU box to register it as a manual client
-        with this allocator. The command is pre-populated with this
+        This allocator uses <strong>mesh_overlay</strong> connectivity, so a
+        client reaches it over a Tailscale tailnet rather than the LAN. Open a
+        terminal inside each client (e.g. a Run:AI-hosted workload) and run the
+        command below — hostname, machine identity and GPU are auto-detected.
+        Choose any <code>&lt;name&gt;</code> as that client's Tailscale
+        hostname, and mint <code>&lt;key&gt;</code> in your Tailscale admin
+        console.
+      </p>
+      {% elif connectivity == "reverse_tunnel" %}
+      <p>
+        This allocator uses <strong>reverse_tunnel</strong> connectivity: the
+        client dials out to this allocator instead of accepting inbound
+        connections. Open a terminal inside each client box and run the command
+        below — hostname, machine identity and GPU are auto-detected, and
+        <code>--tunnel</code> takes no arguments because the allocator mints
+        every value the tunnel needs.
+      </p>
+      {% else %}
+      <p>
+        Run this command on a Linux GPU box on this allocator's LAN to register
+        it as a manual client. The command is pre-populated with this
         deployment's URL and current bootstrap token.
       </p>
+      {% endif %}
 
       <div class="cmd-wrap">
         <button class="copy-btn" id="copyBtn" onclick="copyCmd()">Copy</button>
         <pre id="cmd">lablink client register \
   --allocator-url {{ allocator_url }} \
-  --register-token {{ register_token }}{% if show_insecure %} \
+  --register-token {{ register_token }}{% if connectivity == "mesh_overlay" %} \
+  --overlay-hostname &lt;name&gt; \
+  --tailscale-authkey &lt;key&gt;{% elif connectivity == "reverse_tunnel" %} \
+  --tunnel{% endif %}{% if show_insecure %} \
   --insecure{% endif %}</pre>
       </div>
 
@@ -107,6 +131,17 @@
         restart. If a BYO operator's <code>lablink client register</code> fails with
         an auth error, refresh this page to copy the current token.
       </div>
+
+      {% if connectivity in ("mesh_overlay", "reverse_tunnel") %}
+      <p style="font-size: 14px; color: #666;">
+        Registering ahead of time, from somewhere other than the client itself?
+        Add <code>--no-run-locally</code> to print the secrets for your own
+        workload submission instead of starting a container here. That also
+        requires <code>--hostname</code> and <code>--machine-identity</code>,
+        since auto-detection would report this machine's facts, not the future
+        client's.
+      </p>
+      {% endif %}
 
       <p style="font-size: 14px; color: #666;">
         Prerequisites on the BYO box: Docker + nvidia-container-toolkit (for
