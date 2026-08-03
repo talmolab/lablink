@@ -343,12 +343,24 @@ class VmDatabase:
             row = cursor.fetchone()
         return row[0]
 
+    # Every read of tunnel metadata below filters through this. The metadata
+    # is client-supplied and the sentinel check that would reject a forged one
+    # is gated on `provider == "manual"` (routes/registration.py), so a
+    # `provider: "aws"` registration stores arbitrary tunnel_* keys verbatim.
+    # The sentinel arm restricts these reads to rows the allocator minted; the
+    # regex arm is what makes the int() calls below total.
+    _TUNNEL_ROW_SQL = (
+        "provider_metadata->>'reverse_tunnel' = 'true' "
+        "AND provider_metadata->>'tunnel_alias_octet' ~ '^[0-9]+$'"
+    )
+
     def get_tunnel_alias(self, hostname: str):
         """Loopback-alias octet for a reverse-tunnel client, or None."""
         with self._cursor as cursor:
             cursor.execute(
                 f"SELECT provider_metadata->>'tunnel_alias_octet' "
-                f"FROM {self.table_name} WHERE hostname = %s;",
+                f"FROM {self.table_name} WHERE hostname = %s "
+                f"AND {self._TUNNEL_ROW_SQL};",
                 (hostname,),
             )
             row = cursor.fetchone()
@@ -368,7 +380,7 @@ class VmDatabase:
             cursor.execute(
                 f"SELECT provider_metadata->>'tunnel_alias_octet' "
                 f"FROM {self.table_name} "
-                f"WHERE provider_metadata->>'tunnel_alias_octet' IS NOT NULL;"
+                f"WHERE {self._TUNNEL_ROW_SQL};"
             )
             rows = cursor.fetchall()
         return [int(r[0]) for r in rows]
@@ -376,16 +388,35 @@ class VmDatabase:
     def get_tunnel_path_prefix(self, prefix: str):
         """(client_id, prefix) for the client owning this tunnel path
         prefix, or None. The prefix is stored at registration rather than
-        recomputed here so this stays a single indexed-ish lookup."""
+        recomputed here so this stays a single indexed-ish lookup.
+
+        Ambiguity is None, not a coin flip: this lookup is the only thing
+        binding a presented secret to an identity (see
+        routes/internal_proxy_auth.py's tunnel_auth), and the column has no
+        uniqueness constraint, so `fetchone()` on a duplicate would pick a
+        row by undefined ordering and then authenticate against THAT row's
+        secret. Refusing outright turns it into a 401 someone can find in
+        the log instead of an intermittent wrong-client attach.
+        """
         with self._cursor as cursor:
             cursor.execute(
                 f"SELECT hostname, provider_metadata->>'tunnel_path_prefix' "
                 f"FROM {self.table_name} "
-                f"WHERE provider_metadata->>'tunnel_path_prefix' = %s;",
+                f"WHERE provider_metadata->>'tunnel_path_prefix' = %s "
+                f"AND {self._TUNNEL_ROW_SQL};",
                 (prefix,),
             )
-            row = cursor.fetchone()
-        return (row[0], row[1]) if row else None
+            rows = cursor.fetchall()
+        if len(rows) != 1:
+            if rows:
+                logger.error(
+                    "Refusing tunnel auth: %d rows claim path prefix %r "
+                    "(expected exactly 1)",
+                    len(rows),
+                    prefix,
+                )
+            return None
+        return rows[0]
 
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:

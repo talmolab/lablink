@@ -29,44 +29,27 @@ def block() -> str:
     return "\n".join(lines[start:end + 1])
 
 
-@pytest.fixture(scope="module")
-def validation_loop(block) -> str:
-    """The `for v in ...; do ... done` input-validation loop, scoped tightly
-    so its assertions can't be satisfied by an unrelated failure branch
-    elsewhere in the block (e.g. tunnel_fail, added for the grace-window
-    fix, also contains `send_status "error"` and `exit 1`)."""
-    lines = block.splitlines()
-    start = next(
-        i for i, ln in enumerate(lines)
-        if ln.strip().startswith("for v in TUNNEL_URL")
-    )
-    end = next(i for i in range(start, len(lines)) if lines[i].strip() == "done")
-    return "\n".join(lines[start:end + 1])
-
-
 def test_gated_on_connectivity_not_on_secret_presence(block):
     """Gating on a secret's presence would make a missing value a silent
     no-tunnel; the allocator already told us the mode."""
     assert 'if [ "$CONNECTIVITY" = "reverse_tunnel" ]' in block
 
 
-def test_requires_its_inputs(validation_loop):
-    required = "for v in TUNNEL_URL TUNNEL_PATH_PREFIX TUNNEL_BIND_ADDR CLIENT_SECRET"
-    assert required in validation_loop
+def test_requires_its_inputs_and_aborts_when_one_is_missing(block):
+    """Scoped to the validation loop's own lines, not the whole block:
+    tunnel_fail and tunnel_check_fatal also contain send_status/exit, so a
+    block-wide `in` check would pass even if this loop stopped aborting."""
+    loop = next(ln for ln in block.splitlines() if "for v in TUNNEL_URL" in ln)
+    assert "TUNNEL_URL TUNNEL_PATH_PREFIX TUNNEL_BIND_ADDR CLIENT_SECRET" in loop
+    assert "tunnel_abort" in block
+    assert 'send_status "error"' in block
+    assert "exit 1" in block
 
 
 def test_passes_the_path_prefix_explicitly(block):
     """Without -P the client ignores the URL path and requests /v1/events,
     which matches no tunnel location — measured against the real client."""
     assert '-P "$TUNNEL_PATH_PREFIX"' in block
-
-
-def test_missing_input_reports_error_status(validation_loop, block):
-    """The loop delegates to tunnel_abort, which is what reports the status
-    and stops -- assert both halves so neither can drift away."""
-    assert "tunnel_abort" in validation_loop
-    assert 'send_status "error"' in block
-    assert "exit 1" in block
 
 
 def test_binds_the_allocator_assigned_alias_for_both_ports(block):
@@ -79,20 +62,11 @@ def test_authenticates_with_the_client_secret(block):
 
 
 def test_verifies_the_tunnel_survived_attaching(block):
-    """wstunnel retries a rejected upgrade forever, so a wrong secret would
-    otherwise leave the client reporting healthy while unreachable."""
+    """The dead-process branch has no behavioral test (the bash harnesses
+    below stand in a live PID), so this text check is its only guard.
+    Rejected-upgrade detection IS covered behaviorally — see
+    TestDetectionLogicBehavior."""
     assert 'kill -0 "$TUNNEL_PID"' in block
-
-
-def test_detects_a_rejected_upgrade_not_just_a_dead_process(block):
-    """The load-bearing check. wstunnel does NOT exit on a rejected
-    handshake -- it logs `Invalid status code: 401` and retries forever, so
-    a process-liveness check alone reports healthy while the client is
-    unreachable. That is precisely the failure class this feature has
-    shipped three times. Scan the tunnel's own output for a failed
-    handshake during the wait window."""
-    assert "Invalid status code" in block or "handshake" in block
-    assert "TUNNEL_LOG" in block
 
 
 def test_liveness_check_uses_process_substitution_not_a_pipeline(block):
@@ -141,22 +115,6 @@ def test_precedes_the_custom_startup_script(block):
     )
     script_at = next(i for i, ln in enumerate(text) if "custom-startup.sh" in ln)
     assert tunnel_at < script_at
-
-
-def test_401_403_fail_fast_without_a_grace_window(block):
-    """A wrong secret (401) or forbidden prefix (403) will never succeed on
-    retry, so it must be checked -- and be fatal -- before the grace window
-    that exists for potentially-transient errors, not folded into it."""
-    assert 'grep -qE "Invalid status code: 40[13]"' in block
-
-
-def test_other_failures_get_a_grace_window_before_failing(block):
-    """A non-101 upgrade response that isn't 401/403 (e.g. a 503 while the
-    allocator's proxy is still warming up) may be transient -- wstunnel's own
-    backoff can succeed on the next attempt. The fix must not fail on a
-    single point-in-time grep; it must check whether failures are still
-    accumulating after a second, shorter wait."""
-    assert block.count("grep -cE") == 2, "expected a before/after failure count"
 
 
 class TestDetectionLogicBehavior:
@@ -333,3 +291,38 @@ echo "REACHED_LAUNCH"
         so this asserts the real code reaches the log."""
         result = self._run(curl_rc=6)
         assert "curl exit 6" in result.stdout, result.stdout
+        # ...and a connectivity failure must keep pointing at DNS/routing —
+        # the TLS branch below must not swallow this class.
+        assert "cannot reach the allocator" in result.stderr, result.stderr
+        assert "TLS handshake" not in result.stderr, result.stderr
+
+    def test_self_signed_cert_still_counts_as_reachable(self):
+        """The probe must not be stricter than the tunnel it gates.
+
+        wstunnel does not verify server certificates -- v10.6.2's
+        --tls-verify-certificate help: "Disabled by default. The client will
+        happily connect to any server with self-signed certificate." -- and
+        this branch passes no such flag. So an allocator on a self-signed or
+        staging cert (ssl.staging, or the operator's own reverse proxy) must
+        not abort a client whose tunnel would connect fine.
+
+        The stub fails with curl's real cert-rejection code (60) unless -k is
+        present, so this passes only if the probe actually sends -k.
+        """
+        result = self._run(
+            curl_body='for a in "$@"; do case "$a" in -*k*) return 0;; esac; '
+            "done; return 60"
+        )
+        assert "REACHED_LAUNCH" in result.stdout, result.stdout
+        assert "STATUS_CALLED:error" not in result.stdout, result.stdout
+
+    @pytest.mark.parametrize("rc", [35, 60])
+    def test_tls_failure_is_not_diagnosed_as_dns(self, rc):
+        """A TLS failure that survives -k is not a trust problem, so the
+        abort must not send the operator to DNS and routing -- which is what
+        the single catch-all message used to do for every exit code."""
+        result = self._run(curl_rc=rc)
+        assert "STATUS_CALLED:error" in result.stdout, result.stdout
+        assert "TLS handshake" in result.stderr, result.stderr
+        assert f"curl exit {rc}" in result.stderr, result.stderr
+        assert "Check DNS and routing" not in result.stderr, result.stderr

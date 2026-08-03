@@ -199,11 +199,17 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
   # proves reachability. Gating on 2xx deadlocked startup (observed live
   # 2026-07-31): the client waited for a green health check that could only go
   # green once the client's tunnel was up, which this check was blocking.
+  #
+  # Deliberately -k, same reason: this must not be stricter than the tunnel it
+  # gates. wstunnel v10.6.2's --tls-verify-certificate help reads "Disabled by
+  # default. The client will happily connect to any server with self-signed
+  # certificate." and this branch sets no such flag -- so without -k a
+  # self-signed or staging cert aborts a client whose tunnel connects fine.
   TUNNEL_PROBE_URL="$(printf '%s' "$TUNNEL_URL" \
     | sed -e 's|^wss://|https://|' -e 's|^ws://|http://|')/api/health"
   TUNNEL_REACHABLE=""
   for attempt in 1 2 3 4 5; do
-    if curl -s --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
+    if curl -sk --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
       TUNNEL_REACHABLE=yes
       break
     else
@@ -217,7 +223,15 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
     sleep 3
   done
   if [ -z "$TUNNEL_REACHABLE" ]; then
-    tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL -- the tunnel cannot come up. Check DNS and routing from inside this container: a hostname that resolves to an address this container cannot route to fails exactly here (curl exit 6 = DNS, 7 = no route, 28 = timeout, 35/60 = TLS)."
+    # A TLS failure that survives -k isn't trust, so don't send them to DNS.
+    case "$probe_rc" in
+      35|60)
+        tunnel_abort "TLS handshake with the allocator at $TUNNEL_PROBE_URL failed (curl exit $probe_rc) -- the tunnel cannot come up. Not a trust problem (nothing here verifies certs): check TUNNEL_URL's scheme and port."
+        ;;
+      *)
+        tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL (curl exit $probe_rc) -- the tunnel cannot come up. Check DNS and routing from inside this container (curl 6 = DNS, 7 = no route / refused, 28 = timeout)."
+        ;;
+    esac
   fi
 
   echo "Opening tunnel to $TUNNEL_URL..."
@@ -251,48 +265,44 @@ if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
     tunnel_abort "$1"
   }
 
-  # Distinct failures, and only the first kills the process on its own:
+  # Two fatal conditions, checked now and again after the grace window:
   #  - process died (bad binary, bad flag)
-  #  - handshake rejected. wstunnel does NOT exit on this -- it logs
+  #  - 401/403. wstunnel does NOT exit on a rejected handshake -- it logs
   #    "Invalid status code: NNN" and RETRIES FOREVER, so a kill -0 check
-  #    alone would report healthy while the client is unreachable -- the
-  #    exact failure this feature has shipped three times before. Verified
-  #    in a spike: nginx returns 401 at the upgrade and the client loops.
-  sleep 5
-  if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
-    tunnel_fail "tunnel process exited -- see [tunnel] output above"
-  fi
-
-  # 401/403 mean the allocator rejected our credentials/URL outright --
-  # retrying can never fix that -- so fail immediately rather than waiting
-  # out the grace window below, which exists for errors that CAN self-heal.
-  if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
-    tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
-  fi
-
-  # Any OTHER non-101 upgrade response (e.g. a 503 while the allocator's
-  # proxy is still warming up) or a generic handshake-failure line is not
-  # necessarily permanent: wstunnel's own backoff can succeed on the very
-  # next attempt, inside the same window we just waited out. A single
-  # point-in-time grep can't tell a permanent failure from one that already
-  # recovered, so check whether failures are STILL accumulating rather than
-  # whether one ever appeared: snapshot the count, wait a short second
-  # window, and only fail if it grew (or the process died in the meantime).
-  # ponytail: fixed 3s window -- if wstunnel's backoff ever exceeds this
-  # between attempts, a persistently-failing non-401 tunnel could take an
-  # extra cycle to be caught. Widen this (or read wstunnel's own backoff
-  # config) if that's ever observed in practice.
-  FAILURES=$(grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG")
-  if [ "$FAILURES" -gt 0 ]; then
-    sleep 3
+  #    alone would report healthy while the client is unreachable, the exact
+  #    failure this feature has shipped three times. Neither can be fixed by
+  #    retrying, so they are fatal immediately rather than folded into the
+  #    grace window, which exists for errors that CAN self-heal.
+  tunnel_check_fatal() {
     if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
       tunnel_fail "tunnel process exited -- see [tunnel] output above"
     fi
     if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
       tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
     fi
-    FAILURES_AFTER=$(grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG")
-    if [ "$FAILURES_AFTER" -gt "$FAILURES" ]; then
+  }
+  tunnel_count_failures() {
+    grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG"
+  }
+
+  sleep 5
+  tunnel_check_fatal
+
+  # Any OTHER non-101 upgrade response (e.g. a 503 while the allocator's
+  # proxy is still warming up) may be transient: wstunnel's own backoff can
+  # succeed on the very next attempt, inside the window we just waited out.
+  # A point-in-time grep can't tell a permanent failure from one that already
+  # recovered, so ask whether failures are STILL accumulating -- snapshot the
+  # count, wait a short second window, fail only if it grew.
+  # ponytail: fixed 3s window -- if wstunnel's backoff ever exceeds this
+  # between attempts, a persistently-failing non-401 tunnel could take an
+  # extra cycle to be caught. Widen this (or read wstunnel's own backoff
+  # config) if that's ever observed in practice.
+  FAILURES=$(tunnel_count_failures)
+  if [ "$FAILURES" -gt 0 ]; then
+    sleep 3
+    tunnel_check_fatal
+    if [ "$(tunnel_count_failures)" -gt "$FAILURES" ]; then
       tunnel_fail "tunnel handshake still failing after the grace window -- see [tunnel] output"
     fi
   fi

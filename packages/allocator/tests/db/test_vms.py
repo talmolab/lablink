@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from unittest.mock import MagicMock, patch, ANY
 
@@ -1626,7 +1628,8 @@ def test_list_tunnel_aliases_returns_ints(db_instance, mock_db_connection):
     assert db_instance.list_tunnel_aliases() == [10, 11]
     db_instance.cursor.execute.assert_called_with(
         "SELECT provider_metadata->>'tunnel_alias_octet' FROM vms "
-        "WHERE provider_metadata->>'tunnel_alias_octet' IS NOT NULL;"
+        "WHERE provider_metadata->>'reverse_tunnel' = 'true' "
+        "AND provider_metadata->>'tunnel_alias_octet' ~ '^[0-9]+$';"
     )
 
 
@@ -1636,3 +1639,65 @@ def test_list_tunnel_aliases_empty_when_none_registered(
     _, mock_cursor, _ = mock_db_connection
     mock_cursor.fetchall.return_value = []
     assert db_instance.list_tunnel_aliases() == []
+
+
+@pytest.mark.parametrize(
+    "method,args",
+    [
+        ("list_tunnel_aliases", ()),
+        ("get_tunnel_alias", ("vm-1",)),
+    ],
+)
+def test_tunnel_alias_reads_only_trust_allocator_minted_rows(
+    db_instance, mock_db_connection, method, args
+):
+    """provider_metadata is client-supplied and the sentinel check that would
+    reject a forged one is gated on `provider == "manual"`, so a
+    `provider: "aws"` row can carry arbitrary tunnel_* keys. Without the
+    sentinel arm a forged octet could name ANOTHER client's alias and hand a
+    student that client's desktop (octets are sequential from 10); without the
+    regex arm a non-numeric one reached int() and 500'd /api/health."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    mock_cursor.fetchone.return_value = None
+    getattr(db_instance, method)(*args)
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'reverse_tunnel' = 'true'" in sql
+    assert "~ '^[0-9]+$'" in sql
+
+
+def test_get_tunnel_path_prefix_returns_the_single_owner(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [("vm-1", "tun-vm-1-abc")]
+    assert db_instance.get_tunnel_path_prefix("tun-vm-1-abc") == (
+        "vm-1", "tun-vm-1-abc",
+    )
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_path_prefix' = %s" in sql
+    assert "provider_metadata->>'reverse_tunnel' = 'true'" in sql
+    assert params == ("tun-vm-1-abc",)
+
+
+def test_get_tunnel_path_prefix_unknown_is_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    assert db_instance.get_tunnel_path_prefix("tun-nobody-000") is None
+
+
+def test_get_tunnel_path_prefix_refuses_an_ambiguous_match(
+    db_instance, mock_db_connection, caplog
+):
+    """This lookup is the only binding between a presented secret and an
+    identity (tunnel_auth), and the column has no uniqueness constraint --
+    so a duplicate must fail closed rather than let fetchone() pick a row
+    by undefined ordering and then authenticate against THAT row's secret."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [
+        ("vm-1", "tun-collide"),
+        ("vm-2", "tun-collide"),
+    ]
+    with caplog.at_level(logging.ERROR):
+        assert db_instance.get_tunnel_path_prefix("tun-collide") is None
+    assert "tun-collide" in caplog.text

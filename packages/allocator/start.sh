@@ -69,7 +69,11 @@ echo "[allocator] Using config: $CONFIG_DIR/$CONFIG_NAME"
 # Empty on any failure -- a missing/unparseable config means the tunnel server
 # simply does not start, and Flask's own config loading will report the real
 # problem.
-CONNECTIVITY_MODE=$(python3 -c "import yaml; print((yaml.safe_load(open('/config/config.yaml')) or {}).get('manual', {}).get('connectivity', ''))" 2>/dev/null || echo "")
+# Must read the same "$CONFIG_DIR/$CONFIG_NAME" echoed above, never a
+# hardcoded /config/config.yaml: both are overridable env knobs, and if this
+# read and Flask disagree the tunnel server never starts while Flask still
+# reports reverse_tunnel -- /api/health then 503s forever.
+CONNECTIVITY_MODE=$(python3 -c "import sys, yaml; print((yaml.safe_load(open(sys.argv[1])) or {}).get('manual', {}).get('connectivity', ''))" "$CONFIG_DIR/$CONFIG_NAME" 2>/dev/null || echo "")
 
 # Reverse-tunnel connectivity: run the shared tunnel server clients attach
 # to. Bound to loopback only -- nginx is the sole way in, so the WebSocket

@@ -32,9 +32,18 @@ def test_mode_is_read_from_the_mounted_config_not_an_env_var(script_text):
     """Nothing sets CONNECTIVITY_MODE in the container environment, and
     nothing should: this mode adds no env and no port to the compose stack
     (Task 14 pins that). The config file the allocator already mounts is the
-    only source of truth."""
+    only source of truth.
+
+    Must be the resolved "$CONFIG_DIR/$CONFIG_NAME" rather than a hardcoded
+    /config/config.yaml too: both are overridable env knobs, and if this read
+    and Flask disagree the tunnel server never starts while Flask still
+    reports reverse_tunnel, so /api/health 503s forever."""
     assert "CONNECTIVITY_MODE=$(" in script_text
-    assert "/config/config.yaml" in script_text
+    mode_line = next(
+        ln for ln in script_text.splitlines() if ln.startswith("CONNECTIVITY_MODE=$(")
+    )
+    assert "$CONFIG_DIR/$CONFIG_NAME" in mode_line
+    assert "/config/config.yaml" not in mode_line
 
 
 def test_binds_loopback_only(block):
@@ -53,11 +62,8 @@ def test_idle_timeout_is_short(block):
     assert int(m.group(1)) <= 30
 
 
-def test_uses_the_restrictions_file(block):
-    assert "--restrict-config /tmp/lablink-tunnel/restrictions.yaml" in block
-
-
-def test_restrictions_file_exists_before_the_server_starts(block):
+def test_uses_a_restrictions_file_that_exists_before_the_server_starts(block):
     """wstunnel refuses to start if --restrict-config points at a missing
     file, and the first client registers only after Flask is up."""
+    assert "--restrict-config /tmp/lablink-tunnel/restrictions.yaml" in block
     assert "restrictions:" in block  # seeds an empty document
