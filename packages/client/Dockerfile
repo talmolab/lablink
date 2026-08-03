@@ -126,6 +126,20 @@ RUN for f in /usr/share/kasmvnc/www/assets/ui-*.js; do \
             || { echo "ERROR: sed did not remove the clobber from $f"; exit 1; }; \
     done
 
+# wstunnel -- reverse-tunnel connectivity's client side. Dials OUT to the
+# allocator's HTTPS address and asks it to expose this container's KasmVNC
+# (:6080) and agent (:7070) on the allocator's loopback. Only the client half
+# is needed here; the server half is the allocator image's business. Must stay
+# in lockstep with Dockerfile.dev. Harmless when unused -- start.sh only runs
+# it when CONNECTIVITY=reverse_tunnel.
+ARG WSTUNNEL_VERSION=10.6.2
+RUN curl -L -o /tmp/wstunnel.tar.gz \
+      "https://github.com/erebe/wstunnel/releases/download/v${WSTUNNEL_VERSION}/wstunnel_${WSTUNNEL_VERSION}_linux_amd64.tar.gz" && \
+    tar -xzf /tmp/wstunnel.tar.gz -C /tmp && \
+    mv /tmp/wstunnel /usr/local/bin/wstunnel && \
+    chmod +x /usr/local/bin/wstunnel && \
+    rm -f /tmp/wstunnel.tar.gz
+
 EXPOSE 6080 7070
 
 # lightdm conflicts with headless VNC; disable it so KasmVNC can own the session.

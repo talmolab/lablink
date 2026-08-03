@@ -273,6 +273,17 @@ class ManualMachineScreen(Screen):
         self.app.push_screen(ManualConnectivityScreen())
 
 
+def _tailnet_needed(connectivity: str, participant_exposure: str) -> bool:
+    """True when something in this config actually reads overlay_tailnet.
+
+    Mirrors the validator's rule (see get_config_errors): the tailnet is
+    required by mesh_overlay connectivity *or* by tailscale_funnel exposure,
+    and by nothing else. Keep the two in step — if they disagree, the wizard
+    either blocks on a field it disabled or offers one nothing consumes.
+    """
+    return connectivity == "mesh_overlay" or participant_exposure == "tailscale_funnel"
+
+
 # ---------------------------------------------------------------------------
 # Screen 4 (Manual path only): Client connectivity
 # ---------------------------------------------------------------------------
@@ -309,7 +320,9 @@ class ManualConnectivityScreen(Screen):
                 "How the student's browser reaches a client's KasmVNC desktop.\n"
                 "lan_direct: the client is on the allocator's own LAN (default).\n"
                 "mesh_overlay: the client isn't on the allocator's LAN (e.g. a\n"
-                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.",
+                "Run:AI-hosted workload) — reached over a Tailscale tailnet instead.\n"
+                "reverse_tunnel: the client can't accept inbound connections at\n"
+                "all — it dials out and holds a tunnel open instead.",
                 classes="step-description",
             )
 
@@ -325,16 +338,29 @@ class ManualConnectivityScreen(Screen):
                     value=(current == "mesh_overlay"),
                     id="connectivity-mesh-overlay",
                 )
+                yield RadioButton(
+                    "reverse_tunnel — client dials out and holds a tunnel",
+                    value=(current == "reverse_tunnel"),
+                    id="connectivity-reverse-tunnel",
+                )
 
             yield Label(
-                "Tailscale tailnet domain (used by mesh_overlay and/or "
-                "participant exposure below, e.g. example.ts.net)",
+                "Tailscale tailnet domain — needed only by mesh_overlay or by\n"
+                "tailscale_funnel exposure below (e.g. example.ts.net)",
                 classes="field-label",
+                id="overlay-tailnet-label",
             )
+            # Disabled when neither of the two things that consume it is
+            # selected, rather than hidden: DnsScreen already uses `disabled`
+            # for fields a mode doesn't apply to, and Textual leaves disabled
+            # widgets out of the Tab order, so an operator can see the field
+            # exists and why without being able to type into a value nothing
+            # would read. reverse_tunnel needs no address of its own.
             yield Input(
                 value=cfg.manual.overlay_tailnet or "",
                 placeholder="example.ts.net",
                 id="overlay-tailnet",
+                disabled=not _tailnet_needed(current, current_exposure),
             )
 
             yield Label(
@@ -375,6 +401,33 @@ class ManualConnectivityScreen(Screen):
     def on_mount(self) -> None:
         self.query_one("#connectivity-error").display = False
 
+    def _pressed(self, selector: str) -> str:
+        rb = self.query_one(selector, RadioSet)
+        return (rb.pressed_button.id or "") if rb.pressed_button else ""
+
+    @on(RadioSet.Changed)
+    def _sync_tailnet_field(self, event: RadioSet.Changed) -> None:
+        """Enable the tailnet field only for the modes that consume it.
+
+        Driven by BOTH radio sets, not just connectivity: the tailnet is
+        required by mesh_overlay *and* by tailscale_funnel exposure, so a
+        reverse_tunnel deployment that also publishes itself via Funnel
+        still needs one. reverse_tunnel on its own needs no address.
+        """
+        connectivity = {
+            "connectivity-mesh-overlay": "mesh_overlay",
+            "connectivity-reverse-tunnel": "reverse_tunnel",
+        }.get(self._pressed("#connectivity-select"), "lan_direct")
+        exposure = (
+            "tailscale_funnel"
+            if self._pressed("#participant-exposure-select")
+            == "participant-exposure-funnel"
+            else "none"
+        )
+        self.query_one("#overlay-tailnet", Input).disabled = not _tailnet_needed(
+            connectivity, exposure
+        )
+
     @on(Button.Pressed, "#back")
     def _back(self) -> None:
         self.app.pop_screen()
@@ -383,9 +436,10 @@ class ManualConnectivityScreen(Screen):
     def _next(self) -> None:
         cfg = self.app.config
         rb = self.query_one("#connectivity-select", RadioSet)
-        chosen = "lan_direct"
-        if rb.pressed_button and rb.pressed_button.id == "connectivity-mesh-overlay":
-            chosen = "mesh_overlay"
+        chosen = {
+            "connectivity-mesh-overlay": "mesh_overlay",
+            "connectivity-reverse-tunnel": "reverse_tunnel",
+        }.get(rb.pressed_button and rb.pressed_button.id, "lan_direct")
         cfg.manual.connectivity = chosen
         cfg.manual.overlay_tailnet = self.query_one(
             "#overlay-tailnet", Input

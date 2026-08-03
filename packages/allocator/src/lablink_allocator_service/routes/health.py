@@ -7,9 +7,15 @@ only once every check passes, 503 + "starting" otherwise.
 import subprocess
 import time
 
+import psycopg2
 from flask import Blueprint, current_app, jsonify
 
 bp = Blueprint("health", __name__)
+
+# Shared by _tunnel_status() (which produces it) and health_check() (which
+# excludes it from the readiness gate). One constant rather than two literals
+# so the two can't drift apart.
+_UNATTACHED_SUFFIX = " client(s) not attached"
 
 
 def _tailscale_status() -> str:
@@ -43,6 +49,36 @@ def _tailscale_status() -> str:
     return "ok" if result.returncode == 0 and "inet " in result.stdout else "not joined"
 
 
+def _tunnel_status() -> str:
+    """Tunnel health as a *pairing* property, not a process one.
+
+    tunnel_manager.tunnel_status() only says the shared server is up. A
+    client whose tunnel died leaves its alias bound for the idle timeout,
+    and connections to that orphan hang rather than fail -- so a registered
+    client with no listening alias is the condition worth reporting.
+
+    Guards the same "not initialized" window the top-level `database`
+    check already names, and catches psycopg2.Error the same way
+    `_tailscale_status` catches its own external call's (OSError,
+    TimeoutExpired) -- so a transient Postgres problem (pool exhaustion,
+    a brief restart) degrades this one check's value instead of raising
+    out of the route and 500ing the whole endpoint.
+    """
+    from lablink_allocator_service import main, tunnel_manager
+
+    server = tunnel_manager.tunnel_status()
+    if server != "ok":
+        return server
+    if main.database is None:
+        return "not initialized"
+    try:
+        expected = set(main.database.list_tunnel_aliases())
+    except psycopg2.Error:
+        return "client list unavailable"
+    missing = expected - tunnel_manager.attached_aliases()
+    return f"{len(missing)}{_UNATTACHED_SUFFIX}" if missing else "ok"
+
+
 @bp.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -57,12 +93,25 @@ def health_check():
             "ok" if main.reboot_service is not None else "not initialized"
         ),
     }
-    if current_app.config[
-        "LABLINK_PROVIDER"
-    ].client_connectivity.requires_tailscale_check:
+    connectivity = current_app.config["LABLINK_PROVIDER"].client_connectivity
+    if connectivity.requires_tailscale_check:
         checks["tailscale"] = _tailscale_status()
+    if getattr(connectivity, "requires_tunnel_check", False):
+        checks["tunnel"] = _tunnel_status()
 
-    all_ready = all(v == "ok" for v in checks.values())
+    # A registered client whose tunnel isn't attached is reported but does not
+    # gate readiness: the allocator is serving fine, and nothing about one
+    # student's dead tunnel makes it unready. Gating on it also deadlocked the
+    # client's own startup — a registering client is "not attached" by
+    # definition until its tunnel is up, and it won't bring that tunnel up
+    # while this endpoint answers 503 (observed live 2026-07-31). The other
+    # tunnel values (server down, DB error) DO gate: those are the allocator's
+    # own dependencies failing.
+    all_ready = all(
+        v == "ok"
+        for k, v in checks.items()
+        if not (k == "tunnel" and v.endswith(_UNATTACHED_SUFFIX))
+    )
     status = "healthy" if all_ready else "starting"
     code = 200 if all_ready else 503
 

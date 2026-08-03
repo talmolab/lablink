@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from unittest.mock import MagicMock, patch, ANY
 
@@ -1523,3 +1525,179 @@ def test_clear_unhealthy_only_clears_the_allocator_set_flag(db_instance):
     assert "healthy = NULL" in sql
     assert "healthy = 'Unhealthy'" in sql  # the WHERE guard
     assert params == ("LAPTOP-M8NLMMGL",)
+
+
+def test_allocate_tunnel_alias_octet_returns_base_when_empty(
+    db_instance, mock_db_connection
+):
+    """First-ever allocation self-initializes the settings counter at
+    _TUNNEL_ALIAS_BASE via the INSERT arm of the upsert."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (10,)
+    assert db_instance.allocate_tunnel_alias_octet() == 10
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "settings" in sql
+    assert "ON CONFLICT" in sql
+    assert params == ("10",)
+
+
+def test_allocate_tunnel_alias_octet_increments_from_max(
+    db_instance, mock_db_connection
+):
+    """A subsequent allocation takes the ON CONFLICT DO UPDATE arm,
+    atomically incrementing the existing counter row."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (12,)
+    assert db_instance.allocate_tunnel_alias_octet() == 12
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "settings" in sql
+    assert "ON CONFLICT" in sql
+    assert "value::int + 1" in sql
+    assert params == ("10",)
+
+
+def test_allocate_tunnel_alias_octet_concurrent_returns_distinct_octets(real_db):
+    """Two interleaved allocations must never return the same octet.
+
+    allocate_tunnel_alias_octet() used to be a bare SELECT MAX(...): two
+    concurrent registrations could read the same "current max" before
+    either wrote anything and mint the same octet -- this repo's own
+    documented VM-assignment race (see assign_vm), just with a read that
+    never claims anything. The fix is a single atomic UPSERT against a
+    counter row in `settings`, verified here with real interleaved
+    threads against a real Postgres."""
+    import threading
+
+    with real_db._cursor as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS settings ("
+            "key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        cur.execute("DELETE FROM settings WHERE key = 'tunnel_alias_next_octet'")
+
+    n = 8
+    barrier = threading.Barrier(n)
+    results: list = []
+    errors: list[BaseException] = []
+    lock = threading.Lock()
+
+    def allocate():
+        try:
+            barrier.wait(timeout=5)
+            octet = real_db.allocate_tunnel_alias_octet()
+            with lock:
+                results.append(octet)
+        except BaseException as e:  # noqa: BLE001
+            with lock:
+                errors.append(e)
+
+    threads = [threading.Thread(target=allocate) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Thread errors: {errors}"
+    assert len(results) == n
+    assert len(set(results)) == n, f"Duplicate octets allocated: {results}"
+
+
+def test_get_tunnel_alias_returns_int(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = ("10",)
+    assert db_instance.get_tunnel_alias("vm-1") == 10
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "WHERE hostname = %s" in sql
+    assert params == ("vm-1",)
+
+
+def test_get_tunnel_alias_missing_is_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchone.return_value = (None,)
+    assert db_instance.get_tunnel_alias("vm-1") is None
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_alias_octet'" in sql
+    assert "WHERE hostname = %s" in sql
+    assert params == ("vm-1",)
+
+
+def test_list_tunnel_aliases_returns_ints(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [("10",), ("11",)]
+    assert db_instance.list_tunnel_aliases() == [10, 11]
+    db_instance.cursor.execute.assert_called_with(
+        "SELECT provider_metadata->>'tunnel_alias_octet' FROM vms "
+        "WHERE provider_metadata->>'reverse_tunnel' = 'true' "
+        "AND provider_metadata->>'tunnel_alias_octet' ~ '^[0-9]+$';"
+    )
+
+
+def test_list_tunnel_aliases_empty_when_none_registered(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    assert db_instance.list_tunnel_aliases() == []
+
+
+@pytest.mark.parametrize(
+    "method,args",
+    [
+        ("list_tunnel_aliases", ()),
+        ("get_tunnel_alias", ("vm-1",)),
+    ],
+)
+def test_tunnel_alias_reads_only_trust_allocator_minted_rows(
+    db_instance, mock_db_connection, method, args
+):
+    """provider_metadata is client-supplied and the sentinel check that would
+    reject a forged one is gated on `provider == "manual"`, so a
+    `provider: "aws"` row can carry arbitrary tunnel_* keys. Without the
+    sentinel arm a forged octet could name ANOTHER client's alias and hand a
+    student that client's desktop (octets are sequential from 10); without the
+    regex arm a non-numeric one reached int() and 500'd /api/health."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    mock_cursor.fetchone.return_value = None
+    getattr(db_instance, method)(*args)
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "provider_metadata->>'reverse_tunnel' = 'true'" in sql
+    assert "~ '^[0-9]+$'" in sql
+
+
+def test_get_tunnel_path_prefix_returns_the_single_owner(
+    db_instance, mock_db_connection
+):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [("vm-1", "tun-vm-1-abc")]
+    assert db_instance.get_tunnel_path_prefix("tun-vm-1-abc") == (
+        "vm-1", "tun-vm-1-abc",
+    )
+    sql, params = mock_cursor.execute.call_args[0]
+    assert "provider_metadata->>'tunnel_path_prefix' = %s" in sql
+    assert "provider_metadata->>'reverse_tunnel' = 'true'" in sql
+    assert params == ("tun-vm-1-abc",)
+
+
+def test_get_tunnel_path_prefix_unknown_is_none(db_instance, mock_db_connection):
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = []
+    assert db_instance.get_tunnel_path_prefix("tun-nobody-000") is None
+
+
+def test_get_tunnel_path_prefix_refuses_an_ambiguous_match(
+    db_instance, mock_db_connection, caplog
+):
+    """This lookup is the only binding between a presented secret and an
+    identity (tunnel_auth), and the column has no uniqueness constraint --
+    so a duplicate must fail closed rather than let fetchone() pick a row
+    by undefined ordering and then authenticate against THAT row's secret."""
+    _, mock_cursor, _ = mock_db_connection
+    mock_cursor.fetchall.return_value = [
+        ("vm-1", "tun-collide"),
+        ("vm-2", "tun-collide"),
+    ]
+    with caplog.at_level(logging.ERROR):
+        assert db_instance.get_tunnel_path_prefix("tun-collide") is None
+    assert "tun-collide" in caplog.text

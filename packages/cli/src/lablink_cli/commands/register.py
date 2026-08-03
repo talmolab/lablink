@@ -92,10 +92,11 @@ def run_register(
     overlay_hostname: str | None = None,
     tailscale_authkey: str | None = None,
     run_locally: bool = True,
+    reverse_tunnel: bool = False,
 ) -> None:
     """Orchestrate registration. Exits non-zero on any user-facing error.
 
-    Three shapes:
+    Four shapes:
     - Real BYO box (default): auto-detects hostname/LAN IP/machine
       identity/GPU, then docker-runs the client container after
       persisting secrets.
@@ -111,19 +112,45 @@ def run_register(
       machine's own facts); ``--hostname``/``--machine-identity`` are
       required. No docker run — instead prints the secrets for the
       admin to paste into their own workload submission.
+    - Reverse-tunnel (``reverse_tunnel=True``, i.e. ``--tunnel``): the
+      client dials out to the allocator instead of being dialled, so it
+      needs none of overlay's Tailscale plumbing — no ``--tailscale-
+      authkey``, no LAN IP, no published ports. Otherwise follows the
+      same run-locally/hand-off shape as mesh-overlay.
     """
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
-    if overlay_hostname is None:
+    if reverse_tunnel and overlay_hostname is not None:
+        console.print(
+            "[red]--tunnel and --overlay-hostname are different "
+            "connectivity modes; pass only one.[/red]"
+        )
+        raise SystemExit(1)
+    if reverse_tunnel and tailscale_authkey:
+        console.print(
+            "[red]--tailscale-authkey does not apply with --tunnel[/red] "
+            "— a tunnel client joins no tailnet."
+        )
+        raise SystemExit(1)
+    if reverse_tunnel and lan_ip is not None:
+        console.print(
+            "[red]--lan-ip does not apply with --tunnel[/red] "
+            "— a tunnel client dials out; the allocator never dials its LAN address."
+        )
+        raise SystemExit(1)
+
+    remote_mode = overlay_hostname is not None or reverse_tunnel
+
+    if not remote_mode:
         if not run_locally:
             console.print(
                 "[red]--no-run-locally only applies with "
-                "--overlay-hostname.[/red]"
+                "--overlay-hostname or --tunnel.[/red]"
             )
             raise SystemExit(1)
     else:
-        if not tailscale_authkey:
+        if overlay_hostname is not None and not tailscale_authkey:
             console.print(
                 "[red]--tailscale-authkey is required with "
                 "--overlay-hostname.[/red]"
@@ -132,34 +159,37 @@ def run_register(
         if not run_locally:
             if not hostname:
                 console.print(
-                    "[red]--hostname is required with --overlay-hostname "
-                    "--no-run-locally.[/red] Auto-detection would report "
-                    "this machine's own hostname, not the future "
+                    "[red]--hostname is required with --overlay-hostname/"
+                    "--tunnel --no-run-locally.[/red] Auto-detection would "
+                    "report this machine's own hostname, not the future "
                     "client's — the client doesn't exist yet."
                 )
                 raise SystemExit(1)
             if not machine_identity:
                 console.print(
                     "[red]--machine-identity is required with "
-                    "--overlay-hostname --no-run-locally.[/red] "
+                    "--overlay-hostname/--tunnel --no-run-locally.[/red] "
                     "Auto-detection would report this machine's own "
                     "identity, not the future client's."
                 )
                 raise SystemExit(1)
 
-    # Step 1: idempotency / resume. Skipped only for the mesh-overlay
-    # hand-off case (overlay_hostname set, run_locally false) — that
+    # Step 1: idempotency / resume. Skipped only for the hand-off case
+    # (overlay_hostname or reverse_tunnel set, run_locally false) — that
     # case has no local container/env-file lifecycle to resume.
     if (
-        (overlay_hostname is None or run_locally)
+        (not remote_mode or run_locally)
         and env_file.exists()
         and not force
     ):
         _resume(env_file, console)
         return
 
-    if overlay_hostname is not None:
-        console.print(f"Registering overlay hostname: {overlay_hostname}")
+    if remote_mode:
+        if overlay_hostname is not None:
+            console.print(f"Registering overlay hostname: {overlay_hostname}")
+        else:
+            console.print("Registering a reverse-tunnel client...")
         if run_locally:
             resolved_hostname = _detect_hostname(hostname, console)
             resolved_machine_identity = _detect_machine_identity(
@@ -208,6 +238,14 @@ def run_register(
                 gpu_present=resolved_gpu_present,
                 gpu_model=resolved_gpu_model,
             )
+        elif reverse_tunnel:
+            response = client.register(
+                hostname=resolved_hostname,
+                machine_identity=resolved_machine_identity,
+                reverse_tunnel=True,
+                gpu_present=resolved_gpu_present,
+                gpu_model=resolved_gpu_model,
+            )
         else:
             response = client.register(
                 hostname=resolved_hostname,
@@ -229,11 +267,26 @@ def run_register(
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1) from e
 
+    if reverse_tunnel and response.get("connectivity") != "reverse_tunnel":
+        # A version-skewed allocator that predates the sentinel may have
+        # silently ignored it and registered some other connectivity —
+        # this docker run will omit --publish (LOCAL flag says tunnel) and
+        # start.sh will never open one (CONNECTIVITY says otherwise), so
+        # the client would be unreachable by both paths while reporting
+        # healthy. Fail loudly instead of shipping that.
+        console.print(
+            "[red]--tunnel was requested but the allocator registered this "
+            f"client as connectivity={response.get('connectivity')!r} "
+            "instead of reverse_tunnel. The allocator likely predates "
+            "reverse-tunnel support and ignored the request.[/red]"
+        )
+        raise SystemExit(1)
+
     # Step 5: persist env file (0600)
     _write_env_file(
         env_file,
-        allocator_url,
         response,
+        allocator_url=allocator_url,
         overlay_hostname=overlay_hostname,
         tailscale_authkey=tailscale_authkey,
     )
@@ -241,21 +294,23 @@ def run_register(
         f"[green]Secrets saved to {env_file} (mode 0600)[/green]"
     )
 
-    if overlay_hostname is not None and not run_locally:
-        # No host for the CLI to act on — the Run:AI workload doesn't
-        # exist yet. Print everything the admin needs to paste into
-        # their own workload submission instead of docker-running
-        # anything. The loop below already emits OVERLAY_HOSTNAME/
-        # TAILSCALE_AUTHKEY since _write_env_file now includes them.
+    if remote_mode and not run_locally:
+        # No host for the CLI to act on — the box doesn't exist yet.
+        # Print everything the admin needs to paste into their own
+        # workload submission instead of docker-running anything. The
+        # loop below already emits OVERLAY_HOSTNAME/TAILSCALE_AUTHKEY or
+        # TUNNEL_* since _write_env_file writes whichever apply.
         console.print(
             "\n[bold]No local container will be started[/bold] — this "
             "box doesn't exist yet. Paste the following into your "
-            "Run:AI workload's environment variables:\n"
+            "own workload submission's environment variables:\n"
         )
         for line in env_file.read_text().splitlines():
             if line.startswith("#"):
                 continue
             print(line)
+        if overlay_hostname is None:
+            return
         # There is no docker run for us to add `-v` to on this path, so the
         # operator has to arrange persistence themselves. Without it every
         # workload restart joins the tailnet as a brand-new node and
@@ -280,7 +335,7 @@ def run_register(
     startup_script_path = _write_startup_script(response)
     cmd = _build_docker_run(
         env_file, response, resolved_gpu_present, startup_script_path,
-        overlay_hostname,
+        overlay_hostname, reverse_tunnel=reverse_tunnel,
     )
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
@@ -291,6 +346,11 @@ def run_register(
             "[dim]This container joins Tailscale as "
             f"{overlay_hostname} on start — confirm with "
             "`docker logs lablink-client`.[/dim]"
+        )
+    elif reverse_tunnel:
+        console.print(
+            "[dim]This container opens a tunnel to the allocator on "
+            "start — confirm with `docker logs lablink-client`.[/dim]"
         )
     _start_log_shipper(env_file, console)
 
@@ -361,9 +421,9 @@ def _resume(env_file: Path, console: Console) -> None:
 
 def _write_env_file(
     env_file: Path,
-    allocator_url: str,
     resp: dict,
     *,
+    allocator_url: str,
     overlay_hostname: str | None = None,
     tailscale_authkey: str | None = None,
 ) -> None:
@@ -416,6 +476,30 @@ def _write_env_file(
         lines.append(f"TUTORIAL_REPO_TO_CLONE={resp['repository']}")
     if resp.get("subject_software"):
         lines.append(f"SUBJECT_SOFTWARE={resp['subject_software']}")
+    # The allocator-minted tunnel values, detected from the response rather
+    # than passed in: both are response fields. CONNECTIVITY=reverse_tunnel
+    # is already written above and is what start.sh gates on, so a missing
+    # value fails loudly there instead of silently skipping the tunnel.
+    if resp.get("tunnel_url"):
+        # resp["tunnel_url"] is only the SIGNAL that this is a tunnel
+        # client; the URL VALUE comes from resolved_url (same reasoning as
+        # ALLOCATOR_URL above, lablink#396): resp["tunnel_url"] is
+        # canonical_base_url(request), which can't detect HTTPS on a manual
+        # deployment (ssl.provider: none keeps the X-Forwarded-Proto gate
+        # shut — see that function's own docstring). Behind the operator's
+        # own reverse proxy (which the rendered compose explicitly
+        # recommends), that means it reports http:// even when the
+        # allocator is only reachable over HTTPS, and a ws:// dial against
+        # that host simply doesn't work. resolved_url is what the caller
+        # proved reachable to get this far.
+        tunnel_url = resolved_url.replace("https://", "wss://", 1)
+        tunnel_url = tunnel_url.replace("http://", "ws://", 1)
+        lines.append(f"TUNNEL_URL={tunnel_url}")
+        lines.append(f"TUNNEL_PATH_PREFIX={resp['tunnel_path_prefix']}")
+        lines.append(f"TUNNEL_BIND_ADDR={resp['tunnel_bind_addr']}")
+        # wstunnel dials localhost inside the container; keep KasmVNC
+        # off the client's own LAN interface too.
+        lines.append("KASMVNC_LISTEN=127.0.0.1")
     if overlay_hostname is not None:
         # Written so a nested `docker run --env-file` (the run_locally
         # path) carries these into the container automatically —
@@ -453,6 +537,7 @@ def _build_docker_run(
     gpu_present: bool,
     startup_script: Path | None,
     overlay_hostname: str | None,
+    reverse_tunnel: bool = False,
 ) -> list[str]:
     cmd = [
         "docker", "run", "-d",
@@ -465,6 +550,10 @@ def _build_docker_run(
         # bits forever. Costs one HEAD per register; layers that haven't
         # changed are not re-downloaded.
         "--pull", "always",
+        # The client image is published amd64-only, so an arm64 host (Apple
+        # Silicon) otherwise fails with "no matching manifest for
+        # linux/arm64/v8". No-op on native amd64.
+        "--platform", "linux/amd64",
     ]
     if gpu_present:
         cmd += ["--gpus", "all"]
@@ -520,9 +609,17 @@ def _build_docker_run(
     # host's, leaving the ports unreachable from the LAN — the
     # allocator's password rotation just times out at the container's
     # :7070. Explicit `--publish` behaves the same on every platform.
+    #
+    # Reverse-tunnel clients publish neither: the allocator reaches this
+    # container through the tunnel it dials out, and publishing would
+    # expose KasmVNC/the agent on the LAN this mode exists to avoid
+    # trusting.
+    if not reverse_tunnel:
+        cmd += [
+            "--publish", "7070:7070",
+            "--publish", "6080:6080",
+        ]
     cmd += [
-        "--publish", "7070:7070",
-        "--publish", "6080:6080",
         "--env-file", str(env_file),
         resp["client_image"],
     ]

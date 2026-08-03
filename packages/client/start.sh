@@ -154,6 +154,162 @@ if [ -n "$TAILSCALE_AUTHKEY" ]; then
   fi
 fi
 
+# Reverse-tunnel connectivity: dial OUT to the allocator and hold one
+# WebSocket open, asking it to expose this container's KasmVNC (:6080) and
+# agent (:7070) on the loopback alias it assigned us. Gated on CONNECTIVITY
+# rather than on a secret's presence: an absent or misspelled value must be a
+# loud failure, not a silent no-tunnel.
+#
+# Unlike the tailscale join this does NOT need to run first -- the tunnel is
+# inbound-only (allocator -> client) and this container reaches the
+# allocator's HTTP API directly regardless. It does need to be up before a
+# session is assigned, hence ahead of the custom startup script.
+if [ "$CONNECTIVITY" = "reverse_tunnel" ]; then
+  # Report status=error and stop. Used by every pre-launch failure below;
+  # tunnel_fail() further down is this plus killing the running tunnel.
+  tunnel_abort() {
+    echo "$1" >&2
+    touch "$STATUS_SUPERSEDED_FILE"
+    send_status "error" || echo ">> WARNING: failed to report status=error"
+    exit 1
+  }
+
+  for v in TUNNEL_URL TUNNEL_PATH_PREFIX TUNNEL_BIND_ADDR CLIENT_SECRET; do
+    # ${!v} indirect expansion, not eval -- this script is #!/bin/bash.
+    if [ -z "${!v}" ]; then
+      tunnel_abort "CONNECTIVITY=reverse_tunnel but $v is unset"
+    fi
+  done
+
+  # Preflight: can this container reach the allocator at all? The tunnel dials
+  # the host in TUNNEL_URL, so if ordinary HTTPS to that host fails, the tunnel
+  # cannot come up either -- and wstunnel's output will NOT say so. On a
+  # connect-level failure (a name resolving to an unroutable address, no route,
+  # a blocked port) it logs only "Opening TCP connection" per retry, at INFO,
+  # with no error line for the checks below to match. Observed live 2026-07-31:
+  # a client whose DNS resolved the allocator to a tailnet address it had no
+  # route to printed "Tunnel process running" and carried on, exactly the
+  # reports-healthy-while-unreachable failure this block exists to prevent.
+  # So probe positively here rather than inferring health from the absence of
+  # a failure line. Retries because a just-started allocator can need a moment.
+  #
+  # Deliberately NO -f: this asks "can I reach that host at all", not "is the
+  # allocator ready". Any HTTP answer -- including the 503 the readiness
+  # endpoint returns while THIS client's own tunnel is still unattached --
+  # proves reachability. Gating on 2xx deadlocked startup (observed live
+  # 2026-07-31): the client waited for a green health check that could only go
+  # green once the client's tunnel was up, which this check was blocking.
+  #
+  # Deliberately -k, same reason: this must not be stricter than the tunnel it
+  # gates. wstunnel v10.6.2's --tls-verify-certificate help reads "Disabled by
+  # default. The client will happily connect to any server with self-signed
+  # certificate." and this branch sets no such flag -- so without -k a
+  # self-signed or staging cert aborts a client whose tunnel connects fine.
+  TUNNEL_PROBE_URL="$(printf '%s' "$TUNNEL_URL" \
+    | sed -e 's|^wss://|https://|' -e 's|^ws://|http://|')/api/health"
+  TUNNEL_REACHABLE=""
+  for attempt in 1 2 3 4 5; do
+    if curl -sk --max-time 5 -o /dev/null "$TUNNEL_PROBE_URL"; then
+      TUNNEL_REACHABLE=yes
+      break
+    else
+      # $? must be read here, inside the else: after `fi` it is the *if
+      # statement's* status, which is 0 when the condition failed and no else
+      # ran. curl's code is the diagnosis: 6 = DNS, 7 = no route / refused,
+      # 28 = timeout, 35/60 = TLS. Without it this line names a symptom only.
+      probe_rc=$?
+      echo "allocator not reachable yet at $TUNNEL_PROBE_URL (attempt $attempt/5, curl exit $probe_rc)"
+    fi
+    sleep 3
+  done
+  if [ -z "$TUNNEL_REACHABLE" ]; then
+    # A TLS failure that survives -k isn't trust, so don't send them to DNS.
+    case "$probe_rc" in
+      35|60)
+        tunnel_abort "TLS handshake with the allocator at $TUNNEL_PROBE_URL failed (curl exit $probe_rc) -- the tunnel cannot come up. Not a trust problem (nothing here verifies certs): check TUNNEL_URL's scheme and port."
+        ;;
+      *)
+        tunnel_abort "cannot reach the allocator at $TUNNEL_PROBE_URL (curl exit $probe_rc) -- the tunnel cannot come up. Check DNS and routing from inside this container (curl 6 = DNS, 7 = no route / refused, 28 = timeout)."
+        ;;
+    esac
+  fi
+
+  echo "Opening tunnel to $TUNNEL_URL..."
+  # Tee to a file as well as the log stream: the liveness check below has to
+  # READ this output, because a rejected upgrade does not kill the process.
+  TUNNEL_LOG=/tmp/lablink-tunnel-client.log
+  # Per-run state, same reason as STATUS_SUPERSEDED_FILE above: `docker
+  # restart` re-runs this script against the SAME filesystem, and the tee
+  # below is append-only. Without truncating here, a 401/403 logged on ANY
+  # earlier boot (e.g. the allocator's DB not yet ready) would survive to
+  # kill an already-healthy tunnel on every later boot -- permanently and
+  # silently, since the detection below only ever checks this file.
+  : > "$TUNNEL_LOG"
+  # Process substitution, NOT a `| sed ... &` pipeline: after a pipeline $!
+  # is the PID of the last stage (sed), which stays alive whether or not the
+  # tunnel did, making the liveness check below vacuous.
+  # -P is mandatory: without it the client ignores the URL's path entirely
+  # and requests /v1/events, which no tunnel location matches (measured).
+  wstunnel client \
+    -P "$TUNNEL_PATH_PREFIX" \
+    -H "Authorization: Bearer $CLIENT_SECRET" \
+    -R tcp://$TUNNEL_BIND_ADDR:6080:127.0.0.1:6080 \
+    -R tcp://$TUNNEL_BIND_ADDR:7070:127.0.0.1:7070 \
+    "$TUNNEL_URL" > >(sed -u 's/^/[tunnel] /' | tee -a "$TUNNEL_LOG" >&5) 2>&1 &
+  TUNNEL_PID=$!
+
+  # Kills the tunnel and reports status=error. Shared by every failure
+  # branch below so each one stays a one-liner.
+  tunnel_fail() {
+    kill "$TUNNEL_PID" 2>/dev/null
+    tunnel_abort "$1"
+  }
+
+  # Two fatal conditions, checked now and again after the grace window:
+  #  - process died (bad binary, bad flag)
+  #  - 401/403. wstunnel does NOT exit on a rejected handshake -- it logs
+  #    "Invalid status code: NNN" and RETRIES FOREVER, so a kill -0 check
+  #    alone would report healthy while the client is unreachable, the exact
+  #    failure this feature has shipped three times. Neither can be fixed by
+  #    retrying, so they are fatal immediately rather than folded into the
+  #    grace window, which exists for errors that CAN self-heal.
+  tunnel_check_fatal() {
+    if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
+      tunnel_fail "tunnel process exited -- see [tunnel] output above"
+    fi
+    if grep -qE "Invalid status code: 40[13]" "$TUNNEL_LOG"; then
+      tunnel_fail "tunnel handshake rejected (401/403) by the allocator -- see [tunnel] output"
+    fi
+  }
+  tunnel_count_failures() {
+    grep -cE "Invalid status code|failed to do websocket handshake|cannot connect to remote server" "$TUNNEL_LOG"
+  }
+
+  sleep 5
+  tunnel_check_fatal
+
+  # Any OTHER non-101 upgrade response (e.g. a 503 while the allocator's
+  # proxy is still warming up) may be transient: wstunnel's own backoff can
+  # succeed on the very next attempt, inside the window we just waited out.
+  # A point-in-time grep can't tell a permanent failure from one that already
+  # recovered, so ask whether failures are STILL accumulating -- snapshot the
+  # count, wait a short second window, fail only if it grew.
+  # ponytail: fixed 3s window -- if wstunnel's backoff ever exceeds this
+  # between attempts, a persistently-failing non-401 tunnel could take an
+  # extra cycle to be caught. Widen this (or read wstunnel's own backoff
+  # config) if that's ever observed in practice.
+  FAILURES=$(tunnel_count_failures)
+  if [ "$FAILURES" -gt 0 ]; then
+    sleep 3
+    tunnel_check_fatal
+    if [ "$(tunnel_count_failures)" -gt "$FAILURES" ]; then
+      tunnel_fail "tunnel handshake still failing after the grace window -- see [tunnel] output"
+    fi
+  fi
+
+  echo "Tunnel process running (pid $TUNNEL_PID)"
+fi
+
 # Report 'initializing' as soon as the overlay (if any) is up. On cold
 # reboot this is redundant with user_data.sh's earlier post, but on warm
 # reboot user_data.sh's guard may exit before reaching its send_status —

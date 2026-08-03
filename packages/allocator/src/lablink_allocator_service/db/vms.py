@@ -289,6 +289,135 @@ class VmDatabase:
                 )
                 raise
 
+    _TUNNEL_ALIAS_BASE = 10
+
+    def allocate_tunnel_alias_octet(self) -> int:
+        """Atomically claim the next unused loopback-alias octet for a
+        reverse-tunnel client.
+
+        Used to be a bare ``SELECT MAX((provider_metadata->>...)::int)``
+        over client rows -- a pure read with no claim, so two concurrent
+        registrations could observe the same "current max" before either
+        one's INSERT was even issued and mint the same octet. A classroom
+        registering many clients at once is the normal case, and this
+        repo already has a documented VM-assignment race of exactly this
+        shape (see assign_vm).
+
+        Fixed with a counter row in the existing ``settings`` table
+        (still no schema change): ``INSERT ... ON CONFLICT DO UPDATE`` is
+        a single statement that self-initializes the counter on first use
+        and otherwise increments it, both atomically. Postgres re-checks
+        the UPDATE arm's SET expression against the row's just-committed
+        value for any caller that was blocked waiting on it, so two
+        interleaved calls can never return the same value (verified with
+        concurrent threads against a real Postgres in
+        test_allocate_tunnel_alias_octet_concurrent_returns_distinct_octets).
+
+        Monotonic and never recycled -- and, unlike the old MAX-based
+        read, now consumed by every *allocation attempt*, not just every
+        distinct live client: a registration that later 409s (hijack
+        conflict) or IntegrityErrors, and every legitimate
+        re-registration of the same client, each burn one more integer,
+        since the counter is claimed before ``register_client`` is ever
+        called. A pool table would let a value be reclaimed when its
+        client leaves, but needs the migration machinery this codebase
+        deliberately avoids, so this tops out at 254 allocation attempts
+        *ever* for the deployment's lifetime -- not 245 concurrent
+        clients. Callers MUST range-check the return value before using
+        it (see routes/registration.py, which returns 503 rather than
+        calling tunnel_manager.authorize_client with an out-of-range
+        octet) -- deployments are ephemeral with a fresh DB each time, so
+        this ceiling resets on redeploy, but a long-lived deployment with
+        enough registration churn can still exhaust it well before 254
+        distinct clients were ever simultaneously live.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                "INSERT INTO settings (key, value) "
+                "VALUES ('tunnel_alias_next_octet', %s) "
+                "ON CONFLICT (key) DO UPDATE "
+                "SET value = (settings.value::int + 1)::text "
+                "RETURNING value::int;",
+                (str(self._TUNNEL_ALIAS_BASE),),
+            )
+            row = cursor.fetchone()
+        return row[0]
+
+    # Every read of tunnel metadata below filters through this. The metadata
+    # is client-supplied and the sentinel check that would reject a forged one
+    # is gated on `provider == "manual"` (routes/registration.py), so a
+    # `provider: "aws"` registration stores arbitrary tunnel_* keys verbatim.
+    # The sentinel arm restricts these reads to rows the allocator minted; the
+    # regex arm is what makes the int() calls below total.
+    _TUNNEL_ROW_SQL = (
+        "provider_metadata->>'reverse_tunnel' = 'true' "
+        "AND provider_metadata->>'tunnel_alias_octet' ~ '^[0-9]+$'"
+    )
+
+    def get_tunnel_alias(self, hostname: str):
+        """Loopback-alias octet for a reverse-tunnel client, or None."""
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'tunnel_alias_octet' "
+                f"FROM {self.table_name} WHERE hostname = %s "
+                f"AND {self._TUNNEL_ROW_SQL};",
+                (hostname,),
+            )
+            row = cursor.fetchone()
+        if not row or row[0] is None:
+            return None
+        return int(row[0])
+
+    def list_tunnel_aliases(self) -> list[int]:
+        """Alias octets of every registered reverse-tunnel client.
+
+        Used by health to compare *registered* clients against the set of
+        aliases with a socket actually attached right now (see
+        routes/health.py's tunnel check) -- a registered client isn't
+        necessarily a connected one.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT provider_metadata->>'tunnel_alias_octet' "
+                f"FROM {self.table_name} "
+                f"WHERE {self._TUNNEL_ROW_SQL};"
+            )
+            rows = cursor.fetchall()
+        return [int(r[0]) for r in rows]
+
+    def get_tunnel_path_prefix(self, prefix: str):
+        """(client_id, prefix) for the client owning this tunnel path
+        prefix, or None. The prefix is stored at registration rather than
+        recomputed here so this stays a single indexed-ish lookup.
+
+        Ambiguity is None, not a coin flip: this lookup is the only thing
+        binding a presented secret to an identity (see
+        routes/internal_proxy_auth.py's tunnel_auth), and the column has no
+        uniqueness constraint, so `fetchone()` on a duplicate would pick a
+        row by undefined ordering and then authenticate against THAT row's
+        secret. Refusing outright turns it into a 401 someone can find in
+        the log instead of an intermittent wrong-client attach.
+        """
+        with self._cursor as cursor:
+            cursor.execute(
+                f"SELECT hostname, provider_metadata->>'tunnel_path_prefix' "
+                f"FROM {self.table_name} "
+                f"WHERE provider_metadata->>'tunnel_path_prefix' = %s "
+                f"AND {self._TUNNEL_ROW_SQL};",
+                (prefix,),
+            )
+            rows = cursor.fetchall()
+        if len(rows) != 1:
+            if rows:
+                logger.error(
+                    "Refusing tunnel auth: %d rows claim path prefix %r "
+                    "(expected exactly 1)",
+                    len(rows),
+                    prefix,
+                )
+            return None
+        return rows[0]
+
     def list_hosts_by_provider(self, provider: str) -> list:
         with self._cursor as cursor:
             cursor.execute(
