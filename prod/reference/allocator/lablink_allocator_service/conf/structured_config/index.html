@@ -2638,6 +2638,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;public_hostname
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5990,6 +6001,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;public_hostname
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -8102,7 +8124,7 @@ software to be used.</p>
 
 
 <h4 id="lablink_allocator_service.conf.structured_config.ManualConfig" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ManualConfig</span><span class="p">(</span><span class="n">connectivity</span><span class="o">=</span><span class="s1">&#39;lan_direct&#39;</span><span class="p">,</span> <span class="n">overlay_tailnet</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">participant_exposure</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ManualConfig</span><span class="p">(</span><span class="n">connectivity</span><span class="o">=</span><span class="s1">&#39;lan_direct&#39;</span><span class="p">,</span> <span class="n">overlay_tailnet</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">participant_exposure</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">public_hostname</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -8195,7 +8217,36 @@ want off-LAN participants, or vice versa. Options:
 - "tailscale_funnel": publish the allocator's HTTP port to the
   public internet via the tailnet named by overlay_tailnet,
   using the same tailscale sidecar connectivity="mesh_overlay"
-  already provisions (reused, not a second sidecar).</p>
+  already provisions (reused, not a second sidecar).
+- "cloudflare_tunnel": publish the allocator at
+  public_hostname via a Cloudflare Tunnel the admin created in
+  their own Cloudflare account. Requires a domain whose
+  nameservers point at Cloudflare (free-plan "full setup" —
+  partial/CNAME setup is Business-tier, subdomain zones are
+  Enterprise, so an institutional domain cannot be used).
+  NOTE: unlike Funnel, which terminates TLS on this machine,
+  Cloudflare decrypts all traffic at its edge — admin logins
+  and participant desktop streams included.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><a class="autorefs autorefs-internal" title="            public_hostname = field(default='')
+
+  
+      class-attribute
+      instance-attribute
+   (lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname)" href="#lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname">public_hostname</a></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The public hostname participants open, e.g.
+"lab.smithlab.org". Required when participant_exposure is
+"cloudflare_tunnel"; ignored otherwise. Deliberately generic:
+any future exposure mode with an admin-chosen hostname reuses
+this field rather than adding a vendor-named one.</p>
               </div>
             </td>
           </tr>
@@ -8275,6 +8326,27 @@ want off-LAN participants, or vice versa. Options:
   </span>
 
 <a href="#lablink_allocator_service.conf.structured_config.ManualConfig.participant_exposure" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">public_hostname</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.ManualConfig.public_hostname" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
