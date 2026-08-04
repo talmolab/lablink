@@ -106,8 +106,10 @@ def get_vm_logs(hostname):
     # template hides that section when provider != "aws".
     return render_template(
         "instance-logs.html",
-        hostname=hostname,
-        provider=main.cfg.provider,
+        log_title=f"VM Logs - {hostname}",
+        log_endpoint=f"/api/vm-logs/{hostname}",
+        download_slug=hostname,
+        show_cloud_init=(main.cfg.provider or "aws") == "aws",
     )
 
 

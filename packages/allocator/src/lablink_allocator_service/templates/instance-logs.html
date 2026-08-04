@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VM Logs - {{ hostname }}</title>
+    <title>{{ log_title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -205,7 +205,7 @@
         <div class="header-card">
             <h2 style="margin: 0; color: #333;">
                 <span class="status-indicator"></span>
-                VM Logs - {{ hostname }}
+                {{ log_title }}
             </h2>
         </div>
 
@@ -236,7 +236,7 @@
             </div>
 
             <!-- Log type tabs -->
-            {% set has_cloud_init = (provider or 'aws') == 'aws' %}
+            {% set has_cloud_init = show_cloud_init %}
             <ul class="nav nav-tabs mb-0" id="logTabs" role="tablist">
                 {% if has_cloud_init %}
                 <li class="nav-item" role="presentation">
@@ -285,7 +285,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const hostname = "{{ hostname }}";
+        const logEndpoint = "{{ log_endpoint }}";
+        const downloadSlug = "{{ download_slug }}";
         const hasCloudInit = {{ 'true' if has_cloud_init else 'false' }};
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
@@ -306,7 +307,7 @@
             try {
                 const shouldFollowTail = document.getElementById("followTail").checked;
 
-                const res = await fetch(`/api/vm-logs/${hostname}`, { credentials : 'include' });
+                const res = await fetch(logEndpoint, { credentials : 'include' });
                 if (res.ok) {
                     const data = await res.json();
                     const cloudInitLogs = data.cloud_init_logs || "No logs available.";
@@ -375,7 +376,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${hostname}_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+            a.download = `${downloadSlug}_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
