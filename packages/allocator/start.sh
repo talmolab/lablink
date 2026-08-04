@@ -1,5 +1,25 @@
 #!/bin/bash
 
+# Capture this container's entire stdout/stderr so the allocator can serve its
+# own logs at /admin/allocator-logs. Nothing mounts docker.sock (deliberately --
+# it would hand this internet-exposed container root on the Docker host), so the
+# allocator cannot run `docker logs` on itself; a file it writes is the only
+# option.
+#
+# `tee` is load-bearing. rotatelogs writes ONLY to its file, so redirecting
+# straight into it would silence the container's stdout and make `docker logs`
+# return nothing -- breaking `lablink logs` for both providers and the very
+# fallback this page relies on for boot-failure diagnosis. tee's own stdout
+# keeps feeding the container's stdout while its second descriptor feeds
+# rotatelogs.
+#
+# rotatelogs -n 2 cycles two fixed filenames (allocator.log, allocator.log.1),
+# capping disk at ~128 MB with no cron and no logrotate config. Plain `tee -a`
+# to a file would grow without limit inside a single long run, which is the
+# failure mode that matters for a BYO allocator left up for weeks.
+mkdir -p /var/log/lablink
+exec > >(tee >(rotatelogs -n 2 /var/log/lablink/allocator.log 64M)) 2>&1
+
 export POSTGRES_HOST_AUTH_METHOD=trust
 
 

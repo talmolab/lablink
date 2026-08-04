@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     postgresql postgresql-contrib \
     rsync \
     openssh-client \
+    apache2-utils \
     libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
