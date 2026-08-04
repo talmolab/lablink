@@ -207,6 +207,29 @@ def test_log_page_vm_not_found(client, admin_headers, monkeypatch):
     assert "VM not found." in response.data.decode()
 
 
+def test_log_page_hides_cloud_init_for_manual_provider(
+    client, admin_headers, monkeypatch
+):
+    """Non-AWS providers have no cloud-init concept, so that tab must not
+    render. Guards the template's show_cloud_init parameterization."""
+    fake_db = MagicMock()
+    fake_db.vm_exists.return_value = True
+    monkeypatch.setattr("lablink_allocator_service.main.database", fake_db)
+    # The view reads only cfg.provider off cfg for this page.
+    monkeypatch.setattr(
+        "lablink_allocator_service.main.cfg",
+        SimpleNamespace(provider="manual"),
+    )
+
+    html = client.get("/admin/logs/vm-1", headers=admin_headers).data.decode()
+    assert 'id="cloudInitTab"' not in html
+    assert 'id="dockerTab"' in html
+    assert "VM Logs - vm-1" in html
+    assert '"/api/vm-logs/vm-1"' in html
+    # Opened in its own tab from the instances page, so Close Tab works here.
+    assert "Close Tab" in html
+
+
 @patch("lablink_allocator_service.main.database")
 def test_view_instances_vnc_actions_by_state(mock_database, client, admin_headers):
     """Each VM state shows the right VNC action in the actions cell."""

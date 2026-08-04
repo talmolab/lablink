@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Capture stdout/stderr to a file so /admin/allocator-logs has something to
+# read: nothing mounts docker.sock, so the allocator cannot `docker logs`
+# itself. `tee` is load-bearing -- rotatelogs writes only to its file, so
+# piping straight into it would leave `docker logs` (and `lablink logs`)
+# empty. `-n 2` cycles two files, capping disk at ~128 MB without logrotate.
+mkdir -p /var/log/lablink
+exec > >(tee >(rotatelogs -n 2 /var/log/lablink/allocator.log 64M)) 2>&1
+
 export POSTGRES_HOST_AUTH_METHOD=trust
 
 

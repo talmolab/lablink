@@ -27,6 +27,9 @@ from lablink_allocator_service.routes.admin_pages import bp as admin_pages_bp
 from lablink_allocator_service.routes.admin_sessions import (
     bp as admin_sessions_bp,
 )
+from lablink_allocator_service.routes.allocator_logs import (
+    bp as allocator_logs_bp,
+)
 from lablink_allocator_service.routes.desktop import bp as desktop_bp
 from lablink_allocator_service.routes.health import bp as health_bp
 from lablink_allocator_service.routes.internal_proxy_auth import (
@@ -86,6 +89,7 @@ app.wsgi_app = _ProxyFixWhenTrusted(
 )
 app.register_blueprint(admin_pages_bp)
 app.register_blueprint(admin_sessions_bp)
+app.register_blueprint(allocator_logs_bp)
 app.register_blueprint(desktop_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(internal_proxy_auth_bp)

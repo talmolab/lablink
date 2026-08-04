@@ -515,3 +515,33 @@ Retrieves reboot tracking information for a specific VM.
 - **Code:** `404 Not Found` if the VM is not found.
 - **Code:** `503 Service Unavailable` if the logs are not yet available because the VM's log shipper has not started reporting yet.
 - **Code:** `500 Internal Server Error` on failure.
+
+### Get the Allocator's Own Logs
+
+**Endpoint:** `GET /api/allocator-logs`
+
+**Description:** Returns a redacted tail (last 2000 lines) of the allocator's own container output, read from the file `start.sh` writes at `/var/log/lablink/allocator.log`. Backs the `/admin/allocator-logs` page. Values of `PASSWORD`/`TOKEN`/`SECRET`/`KEY` assignments are masked before the response leaves the process.
+
+**Authentication:** Admin HTTP Basic
+
+**URL Parameters:** None
+
+**Request Body:** None
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:**
+  ```json
+  {
+    "cloud_init_logs": null,
+    "docker_logs": "2026-08-03 12:00:00 - Starting nginx on :5000...",
+    "error": null
+  }
+  ```
+
+`cloud_init_logs` is always `null`: the allocator host's cloud-init output lives outside the container and is out of scope. When no log file exists, `docker_logs` is `null` and `error` explains why — the response is still `200`.
+
+**Error Response:**
+
+- **Code:** `401 Unauthorized` without admin credentials.
