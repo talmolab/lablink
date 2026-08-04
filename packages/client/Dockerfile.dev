@@ -7,6 +7,11 @@ ARG USERNAME="client"
 # Set non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
 
+# The base image sets no locale, so the container runs as C/POSIX and desktop
+# terminals ASCII-decode UTF-8 output — rich/click box drawing turns into runs
+# of U+FFFD. C.UTF-8 is built into glibc 2.35, so no `locales` package needed.
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
