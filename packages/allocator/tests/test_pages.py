@@ -226,6 +226,8 @@ def test_log_page_hides_cloud_init_for_manual_provider(
     assert 'id="dockerTab"' in html
     assert "VM Logs - vm-1" in html
     assert '"/api/vm-logs/vm-1"' in html
+    # Opened in its own tab from the instances page, so Close Tab works here.
+    assert "Close Tab" in html
 
 
 @patch("lablink_allocator_service.main.database")

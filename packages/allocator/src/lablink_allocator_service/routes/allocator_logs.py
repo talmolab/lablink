@@ -54,4 +54,6 @@ def allocator_logs_page():
         log_endpoint="/api/allocator-logs",
         download_slug="allocator",
         show_cloud_init=False,
+        # Reached via same-tab navigation from /admin, so window.close() is a no-op.
+        show_close=False,
     )

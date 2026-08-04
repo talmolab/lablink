@@ -110,6 +110,8 @@ def get_vm_logs(hostname):
         log_endpoint=f"/api/vm-logs/{hostname}",
         download_slug=hostname,
         show_cloud_init=(main.cfg.provider or "aws") == "aws",
+        # Opened in a new tab from the instances page, so it can close itself.
+        show_close=True,
     )
 
 

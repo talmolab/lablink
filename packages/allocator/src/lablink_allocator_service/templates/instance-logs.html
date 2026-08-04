@@ -276,11 +276,14 @@
         </div>
 
         <!-- Navigation -->
+        {# Only pages opened in their own tab can close themselves. #}
+        {% if show_close %}
         <div style="text-align: center;">
             <button class="back-button" onclick="handleClose()">
                 <i class="bi bi-x-lg me-2"></i>Close Tab
             </button>
         </div>
+        {% endif %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
