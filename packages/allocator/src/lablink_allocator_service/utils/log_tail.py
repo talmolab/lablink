@@ -16,11 +16,9 @@ from pathlib import Path
 from lablink_allocator_service.utils.ansi import strip_ansi
 
 LOG_DIR = Path("/var/log/lablink")
-LOG_BASENAME = "allocator.log"
 
-# Matches what `rotatelogs -n 2` produces: the base name plus its circular
-# sibling (allocator.log, allocator.log.1).
-_ROTATION_GLOB = f"{LOG_BASENAME}*"
+# Matches what `rotatelogs -n 2` produces: allocator.log, allocator.log.1.
+_ROTATION_GLOB = "allocator.log*"
 
 # Matches the CLI's _MANUAL_ALLOCATOR_TAIL so the web page and `lablink
 # logs` show the same depth of history.
@@ -56,16 +54,7 @@ def _rotation_files(log_dir: Path) -> list[Path]:
     the concatenation chronological either way.
     """
     try:
-        files = [p for p in log_dir.glob(_ROTATION_GLOB) if p.is_file()]
-        # Build (mtime, path) pairs inside the guard, skipping entries
-        # whose stat fails (e.g., file disappears between glob and here).
-        pairs = []
-        for p in files:
-            try:
-                pairs.append((p.stat().st_mtime, p))
-            except OSError:
-                continue
-        return [p for _, p in sorted(pairs)]
+        return sorted(log_dir.glob(_ROTATION_GLOB), key=lambda p: p.stat().st_mtime)
     except OSError:
         return []
 
@@ -74,8 +63,7 @@ def _tail_bytes(path: Path, window: int) -> str:
     """Read at most `window` bytes from the end of `path`."""
     with path.open("rb") as fh:
         fh.seek(0, os.SEEK_END)
-        size = fh.tell()
-        fh.seek(max(0, size - window))
+        fh.seek(max(0, fh.tell() - window))
         return fh.read().decode("utf-8", errors="replace")
 
 

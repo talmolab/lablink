@@ -314,7 +314,7 @@
                 if (res.ok) {
                     const data = await res.json();
                     const cloudInitLogs = data.cloud_init_logs || "No logs available.";
-                    const dockerLogs = data.docker_logs || "No logs available.";
+                    const dockerLogs = data.docker_logs || data.error || "No logs available.";
 
                     setBoxText("cloudInitLogBox", cloudInitLogs);
                     setBoxText("dockerLogBox", dockerLogs);

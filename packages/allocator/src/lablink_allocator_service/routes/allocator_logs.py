@@ -17,10 +17,8 @@ bp = Blueprint("allocator_logs", __name__)
 logger = logging.getLogger(__name__)
 
 _MISSING_LOG_MSG = (
-    "No allocator log file found under /var/log/lablink. This page reads "
-    "the file start.sh writes inside the container, so it is empty when "
-    "the allocator runs outside its container or from an image predating "
-    "this feature. Run `lablink logs` instead."
+    "No log file under /var/log/lablink -- start.sh writes it, so it is "
+    "absent outside the container. Run `lablink logs` instead."
 )
 
 
