@@ -48,14 +48,23 @@ def byo_onboarding():
     The register token rotates on each allocator restart, so this page is
     dynamic — re-render to get the current token. Behind admin Basic auth
     (same gate as the rest of /admin); no new privilege boundary.
+
+    The rendered flags depend on the configured connectivity, because
+    ``register_client`` rejects a shape that doesn't match it with a 400 (see
+    its ``expects_overlay``/``expects_tunnel`` checks) — a single lan_direct
+    command would be guaranteed-broken copy-paste on the other two modes.
+    Read off ``client_connectivity.name`` rather than
+    ``cfg.manual.connectivity`` so this page and that check can never disagree.
     """
     from lablink_allocator_service import main
 
+    provider = current_app.config["LABLINK_PROVIDER"]
     return render_template(
         "byo-onboarding.html",
         allocator_url=canonical_base_url(request),
         register_token=main.REGISTER_TOKEN,
         show_insecure=is_self_signed_ssl(main.cfg),
+        connectivity=provider.client_connectivity.name,
     )
 
 

@@ -69,6 +69,47 @@ def test_byo_onboarding_shows_insecure_for_self_signed(client, admin_headers, mo
     assert "--insecure" in html
 
 
+def _onboarding_html(app, client, admin_headers, connectivity):
+    """Render the onboarding page as if the deployment used *connectivity*."""
+    app.config["LABLINK_PROVIDER"] = SimpleNamespace(
+        client_connectivity=SimpleNamespace(name=connectivity)
+    )
+    response = client.get("/admin/byo-onboarding", headers=admin_headers)
+    assert response.status_code == 200
+    return response.data.decode()
+
+
+def test_byo_onboarding_mesh_overlay_flags(app, client, admin_headers):
+    """register_client 400s a mesh_overlay registration that arrives without
+    --overlay-hostname/--tailscale-authkey, so the copyable command must carry
+    both — otherwise the page hands the admin a guaranteed-broken command."""
+    html = _onboarding_html(app, client, admin_headers, "mesh_overlay")
+    assert "--overlay-hostname" in html
+    assert "--tailscale-authkey" in html
+    assert "--tunnel" not in html
+    # Hand-off variant's extra requirements are stated, not just implied.
+    assert "--no-run-locally" in html
+    assert "--machine-identity" in html
+
+
+def test_byo_onboarding_reverse_tunnel_flags(app, client, admin_headers):
+    """--tunnel takes no arguments, and overlay's Tailscale flags are rejected
+    outright by run_register in this mode."""
+    html = _onboarding_html(app, client, admin_headers, "reverse_tunnel")
+    assert "--tunnel" in html
+    assert "--overlay-hostname" not in html
+    assert "--tailscale-authkey" not in html
+
+
+def test_byo_onboarding_lan_direct_has_no_off_lan_flags(app, client, admin_headers):
+    """lan_direct is the one mode where the bare command is correct; the
+    off-LAN flags would be rejected as not applicable."""
+    html = _onboarding_html(app, client, admin_headers, "lan_direct")
+    assert "--overlay-hostname" not in html
+    assert "--tunnel" not in html
+    assert "--no-run-locally" not in html
+
+
 @patch("lablink_allocator_service.main.database")
 def test_admin_instances(mock_database, client, admin_headers):
     """Test the admin instances endpoint without any instances."""
