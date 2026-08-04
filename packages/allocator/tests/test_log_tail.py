@@ -75,6 +75,16 @@ def test_redacts_secret_assignments():
     assert out.count("***REDACTED***") == 5
 
 
+def test_strips_ansi_escapes(tmp_path):
+    """Werkzeug colorizes non-2xx request lines; the log box would render
+    the escapes as literal junk."""
+    (tmp_path / "allocator.log").write_text(
+        '\x1b[31m\x1b[1mGET /admin HTTP/1.1\x1b[0m" 401\n'
+    )
+    out = read_allocator_log(log_dir=tmp_path)
+    assert out == 'GET /admin HTTP/1.1" 401'
+
+
 def test_redaction_applies_through_read(tmp_path):
     (tmp_path / "allocator.log").write_text("DB_PASSWORD=letmein\n")
     out = read_allocator_log(log_dir=tmp_path)

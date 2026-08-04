@@ -13,6 +13,8 @@ import os
 import re
 from pathlib import Path
 
+from lablink_allocator_service.utils.ansi import strip_ansi
+
 LOG_DIR = Path("/var/log/lablink")
 LOG_BASENAME = "allocator.log"
 
@@ -81,7 +83,7 @@ def read_allocator_log(
     log_dir: Path = LOG_DIR,
     max_lines: int = DEFAULT_MAX_LINES,
 ) -> str | None:
-    """Last `max_lines` lines across the rotation set, redacted.
+    """Last `max_lines` lines across the rotation set, cleaned and redacted.
 
     Returns None when there is no log file to read at all -- the caller
     turns that into a user-facing explanation rather than an error.
@@ -99,4 +101,8 @@ def read_allocator_log(
     # line. Harmless: _TAIL_WINDOW_BYTES holds far more than max_lines of
     # ordinary output, so the slice below almost always discards it.
     lines = "".join(chunks).splitlines()[-max_lines:]
-    return redact_secrets("\n".join(lines)) or None
+    # Werkzeug colorizes non-2xx request lines, so this stream carries ANSI
+    # escapes that the log box would render as literal junk. Client VM logs
+    # reach the same template already clean -- vm_telemetry strips them at
+    # ingestion -- so strip here to match.
+    return redact_secrets(strip_ansi("\n".join(lines))) or None
