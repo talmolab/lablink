@@ -1584,6 +1584,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#get-the-allocators-own-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get the Allocator's Own Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2993,6 +3004,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/routes/allocator_logs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    allocator_logs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/routes/desktop/" class="md-nav__link">
         
   
@@ -3518,6 +3557,34 @@
     
   
     config_helpers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/utils/log_tail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    log_tail
   
 
     
@@ -4704,6 +4771,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#get-the-allocators-own-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get the Allocator's Own Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5124,6 +5202,28 @@
 <li><strong>Code:</strong> <code>404 Not Found</code> if the VM is not found.</li>
 <li><strong>Code:</strong> <code>503 Service Unavailable</code> if the logs are not yet available because the VM's log shipper has not started reporting yet.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
+</ul>
+<h3 id="get-the-allocators-own-logs">Get the Allocator's Own Logs<a class="headerlink" href="#get-the-allocators-own-logs" title="Permanent link">&para;</a></h3>
+<p><strong>Endpoint:</strong> <code>GET /api/allocator-logs</code></p>
+<p><strong>Description:</strong> Returns a redacted tail (last 2000 lines) of the allocator's own container output, read from the file <code>start.sh</code> writes at <code>/var/log/lablink/allocator.log</code>. Backs the <code>/admin/allocator-logs</code> page. Values of <code>PASSWORD</code>/<code>TOKEN</code>/<code>SECRET</code>/<code>KEY</code> assignments are masked before the response leaves the process.</p>
+<p><strong>Authentication:</strong> Admin HTTP Basic</p>
+<p><strong>URL Parameters:</strong> None</p>
+<p><strong>Request Body:</strong> None</p>
+<p><strong>Success Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>200 OK</code></li>
+<li><strong>Content:</strong>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="p">{</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">&quot;cloud_init_logs&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">&quot;docker_logs&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-03 12:00:00 - Starting nginx on :5000...&quot;</span><span class="p">,</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="p">}</span>
+</code></pre></div></li>
+</ul>
+<p><code>cloud_init_logs</code> is always <code>null</code>: the allocator host's cloud-init output lives outside the container and is out of scope. When no log file exists, <code>docker_logs</code> is <code>null</code> and <code>error</code> explains why — the response is still <code>200</code>.</p>
+<p><strong>Error Response:</strong></p>
+<ul>
+<li><strong>Code:</strong> <code>401 Unauthorized</code> without admin credentials.</li>
 </ul>
 
 
