@@ -33,7 +33,7 @@ _TAIL_WINDOW_BYTES = 2 * 1024 * 1024
 # The log page makes that stream readable to anyone holding the admin
 # password, so mask before it leaves the process.
 _SECRET_RE = re.compile(
-    r"((?:PASSWORD|TOKEN|SECRET|KEY)\s*[=:]\s*)(\S+)",
+    r"((?:\w*(?:PASSWORD|TOKEN|SECRET|KEY)\w*)\s*[=:]\s*)(\S+)",
     re.IGNORECASE,
 )
 
@@ -55,9 +55,17 @@ def _rotation_files(log_dir: Path) -> list[Path]:
     """
     try:
         files = [p for p in log_dir.glob(_ROTATION_GLOB) if p.is_file()]
+        # Build (mtime, path) pairs inside the guard, skipping entries
+        # whose stat fails (e.g., file disappears between glob and here).
+        pairs = []
+        for p in files:
+            try:
+                pairs.append((p.stat().st_mtime, p))
+            except OSError:
+                continue
+        return [p for _, p in sorted(pairs)]
     except OSError:
         return []
-    return sorted(files, key=lambda p: p.stat().st_mtime)
 
 
 def _tail_bytes(path: Path, window: int) -> str:
