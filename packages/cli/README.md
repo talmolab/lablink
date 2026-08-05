@@ -1,14 +1,20 @@
 # LabLink CLI
 
-Command-line tool for deploying and managing LabLink teaching lab infrastructure on AWS.
+Command-line tool for deploying and managing LabLink teaching lab infrastructure —
+on AWS (EC2 via Terraform) or on a machine you already have (`provider: manual`,
+deployed with docker-compose).
 
 ## Installation
 
-```bash
-uv tool install lablink-cli
-```
+This package is not yet published to PyPI. Install it from source — the repo is a
+`uv` workspace, so sync all three packages into the shared root venv:
 
-This installs `lablink` as a global command in an isolated environment. See the [uv docs](https://docs.astral.sh/uv/guides/tools/) for more on `uv tool`.
+```bash
+git clone https://github.com/talmolab/lablink.git
+cd lablink
+uv sync --all-packages
+source .venv/bin/activate
+```
 
 ## Usage
 
@@ -22,17 +28,26 @@ lablink --version   # or -v
 | Command | Description |
 |---------|-------------|
 | `configure` | Create or edit LabLink configuration (interactive TUI) |
-| `setup` | Create S3 + DynamoDB resources for remote Terraform state |
-| `deploy` | Deploy LabLink infrastructure with Terraform |
-| `destroy` | Tear down LabLink infrastructure |
-| `launch-client` | Launch client VMs via the allocator service |
-| `status` | Health checks, Terraform state, and cost estimate |
-| `logs` | View VM logs in an interactive TUI |
-| `cleanup` | Clean up orphaned AWS resources and local state |
+| `setup` | Provision provider-specific bootstrap resources (AWS: S3 + DynamoDB for Terraform state) |
 | `doctor` | Check prerequisites and configuration |
+| `deploy` | Deploy LabLink infrastructure (AWS Terraform or docker-compose) |
+| `destroy` | Tear down LabLink infrastructure |
+| `status` | Show deployment health and inventory |
+| `logs` | View allocator and client logs |
+| `export-metrics` | Export deployment metrics to CSV or JSON |
+| `stats` | Show a cohort session-metrics summary in the terminal |
+| `cleanup` | Remove deployment resources and local state |
 | `show-config` | View the current LabLink configuration |
 | `cache-clear` | Clear LabLink caches (Terraform templates, deployment metrics) |
-| `export-metrics` | Export deployment metrics to CSV or JSON |
+
+### Client fleet commands
+
+| Command | Description |
+|---------|-------------|
+| `client launch` | Launch client VMs via the allocator service (AWS provider) |
+| `client register` | Register this bring-your-own box as a manual client and run the client container |
+| `client unregister` | Tear down a registered BYO box |
+| `client reset-overlay` | Discard this box's persisted mesh-overlay node identity |
 
 Run `lablink <command> --help` for details on any command.
 
