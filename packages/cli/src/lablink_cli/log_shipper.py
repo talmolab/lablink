@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -21,6 +23,8 @@ from typing import Callable, Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 from urllib.request import urlopen as _stdlib_urlopen
+
+from lablink_cli.api import USER_AGENT
 
 
 def load_env(env_file: Path) -> dict[str, str]:
@@ -91,6 +95,11 @@ def post_batch(
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {client_secret}",
+        # urllib's default "Python-urllib/x.y" is blocked with HTTP 403 by
+        # Cloudflare-proxied allocators (see api.py's USER_AGENT) — post_batch
+        # treats any 4xx as fatal, so without this every batch kills the
+        # shipper on its first POST.
+        "User-Agent": USER_AGENT,
     }
 
     for attempt in range(MAX_RETRIES):
@@ -240,12 +249,44 @@ def _initial_since() -> str:
     return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _read_lines_from_popen(proc):
-    """Wrap a Popen's stdout for line-by-line iteration."""
+# Yielded when the flush window elapses with no new log line, so the read
+# loop wakes up and re-evaluates should_flush().
+TICK = object()
+
+
+def _read_lines_from_popen(proc, *, timeout: float = FLUSH_INTERVAL_S):
+    """Yield a Popen's stdout line by line, plus TICK on each idle timeout.
+
+    A bare ``for line in proc.stdout`` only wakes when output arrives, so a
+    container that logs a burst at startup and then goes quiet holds its
+    buffer forever and the allocator never sees a single line. The shell
+    shipper avoids this with ``read -t "$FLUSH_INTERVAL"``
+    (log_shipper.sh:115); pipes aren't selectable on Windows — where BYO
+    clients actually run — so a reader thread plus a queue is the portable
+    equivalent.
+    """
     if proc.stdout is None:
         return
-    for line in proc.stdout:
-        yield line.rstrip("\n")
+    q: queue.Queue = queue.Queue()
+    eof = object()
+
+    def pump():
+        try:
+            for line in proc.stdout:
+                q.put(line.rstrip("\n"))
+        finally:
+            q.put(eof)
+
+    threading.Thread(target=pump, daemon=True).start()
+    while True:
+        try:
+            item = q.get(timeout=timeout)
+        except queue.Empty:
+            yield TICK
+            continue
+        if item is eof:
+            return
+        yield item
 
 
 def run_shipper(
@@ -283,17 +324,21 @@ def run_shipper(
         # ---- Inner read loop ----
         try:
             for line in line_source:
-                ts, msg = parse_docker_line(line)
-                # Buffer the original tagged line, preserving the timestamp
-                # prefix so admin views show it (matches log_shipper.sh's
-                # docker --timestamps + sed pipeline).
-                if ts is not None:
-                    buffer.append(f"{ts} {msg}")
-                    last_ts_in_batch = ts
-                else:
-                    buffer.append(msg)
-                if buffer_first_ts is None:
-                    buffer_first_ts = time.monotonic()
+                # TICK means the flush window elapsed with no new line —
+                # skip straight to the flush check below. should_flush()
+                # already no-ops on an empty buffer.
+                if line is not TICK:
+                    ts, msg = parse_docker_line(line)
+                    # Buffer the original tagged line, preserving the
+                    # timestamp prefix so admin views show it (matches
+                    # log_shipper.sh's docker --timestamps + sed pipeline).
+                    if ts is not None:
+                        buffer.append(f"{ts} {msg}")
+                        last_ts_in_batch = ts
+                    else:
+                        buffer.append(msg)
+                    if buffer_first_ts is None:
+                        buffer_first_ts = time.monotonic()
 
                 elapsed = (
                     time.monotonic() - buffer_first_ts

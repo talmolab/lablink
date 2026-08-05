@@ -118,6 +118,30 @@ class TestPostBatch:
             "messages": ["[start] booting", "[agent] ready"],
         }
 
+    def test_sends_product_user_agent(self):
+        """Cloudflare-proxied allocators 403 urllib's default UA.
+
+        Regression: post_batch built its Request without a User-Agent,
+        so every batch was blocked before the client secret was even
+        checked, and post_batch's own 4xx handling treated that as
+        fatal and killed the shipper on its first POST.
+        """
+        from unittest.mock import MagicMock
+        from lablink_cli.api import USER_AGENT
+        from lablink_cli.log_shipper import post_batch
+
+        resp = MagicMock()
+        resp.__enter__.return_value = resp
+        resp.__exit__.return_value = False
+        resp.status = 200
+        resp.read.return_value = b'{"ok": true}'
+        urlopen = MagicMock(return_value=resp)
+
+        post_batch(**self._args(), urlopen=urlopen, sleep=MagicMock())
+
+        req = urlopen.call_args.args[0]
+        assert req.get_header("User-agent") == USER_AGENT
+
     def test_retries_on_5xx_then_succeeds(self):
         from io import BytesIO
         from unittest.mock import MagicMock
@@ -337,6 +361,44 @@ class TestOpenDockerLogs:
         assert "--since" not in cmd
 
 
+class TestReadLinesFromPopen:
+    def test_yields_tick_while_source_is_idle(self):
+        """A source that emits a burst then goes quiet must still tick.
+
+        Without the idle tick the read loop blocks forever and a buffered
+        startup burst is never flushed to the allocator.
+        """
+        import subprocess
+        import sys
+        from lablink_cli.log_shipper import TICK, _read_lines_from_popen
+
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import time; print('burst', flush=True); time.sleep(30)",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        try:
+            seen = []
+            for item in _read_lines_from_popen(proc, timeout=0.1):
+                seen.append(item)
+                # Interpreter startup may outrun the first tick, so wait for
+                # both the burst and the ticks rather than assuming an order.
+                if "burst" in seen and seen.count(TICK) >= 2:
+                    break
+        finally:
+            proc.terminate()
+            proc.wait(timeout=5)
+
+        assert "burst" in seen
+        assert seen.count(TICK) >= 2
+
+
 class TestSelfLog:
     def test_appends_line(self, tmp_path):
         from lablink_cli.log_shipper import self_log
@@ -423,6 +485,59 @@ class TestRunShipper:
         # state updated with the timestamp of the last line in the batch
         state = (tmp_path / "log_shipper.state").read_text()
         assert "2026-05-28T14:23:49Z" in state
+
+    def test_idle_tick_flushes_a_partial_buffer(self, tmp_path, monkeypatch):
+        """A short startup burst followed by silence must still be shipped.
+
+        Regression: the flush check used to run only when a new line
+        arrived, so a container that logged at boot and then went quiet
+        held its lines forever and the allocator recorded nothing.
+        """
+        from unittest.mock import MagicMock
+        from lablink_cli.log_shipper import TICK, run_shipper
+
+        env_file = self._env(tmp_path)
+        post_calls = []
+
+        def fake_post_batch(**kw):
+            post_calls.append(kw)
+            return "ok"
+
+        def fake_iter():
+            yield "2026-05-28T14:23:01Z boot line 1"
+            yield "2026-05-28T14:23:02Z boot line 2"
+            # ...then the container goes quiet. Ticks are all we get.
+            yield TICK
+            yield TICK
+
+        # Clock advances past FLUSH_INTERVAL_S while only ticks arrive.
+        clock = iter([0, 0, 0, 100, 200])
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.time.monotonic", lambda: next(clock)
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.post_batch", fake_post_batch
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.inspect_container",
+            MagicMock(return_value="missing"),
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.STATE_FILE",
+            tmp_path / "log_shipper.state",
+        )
+        monkeypatch.setattr(
+            "lablink_cli.log_shipper.SELF_LOG_FILE",
+            tmp_path / "log_shipper.log",
+        )
+
+        run_shipper(env_file, _line_iter=fake_iter, _sleep=lambda s: None)
+
+        assert len(post_calls) == 1
+        assert post_calls[0]["messages"] == [
+            "2026-05-28T14:23:01Z boot line 1",
+            "2026-05-28T14:23:02Z boot line 2",
+        ]
 
     def test_exits_on_fatal_post(self, tmp_path, monkeypatch):
         from unittest.mock import MagicMock
