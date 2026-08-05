@@ -177,8 +177,6 @@ LabLink uses **independent versioning** for its packages:
 - **lablink-client-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
 - **lablink-cli**: [![PyPI](https://img.shields.io/pypi/v/lablink-cli)](https://pypi.org/project/lablink-cli/)
 
-See the [Release Process](https://talmolab.github.io/lablink/contributing/#release-process) for how releases are managed.
-
 ---
 
 ## 🤝 Contributing
