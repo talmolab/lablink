@@ -60,7 +60,6 @@ Production images are built from the PyPI packages:
 - `<sha>` - Specific git commit
 - `linux-amd64-test` - Development/testing builds
 - `<version>` (e.g., `0.1.2`) - Only published when a build is triggered manually
-  with an explicit `allocator_version` / `client_version`; no version tags exist today
 
 See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tagging strategy.
 
@@ -125,7 +124,6 @@ cd lablink
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install all three packages into one shared venv at the repo root.
-# This repo is a uv workspace: both flags are required.
 uv sync --all-packages --extra dev
 ```
 

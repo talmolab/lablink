@@ -13,7 +13,6 @@ This package is not yet published to PyPI. Install it from source — the repo i
 git clone https://github.com/talmolab/lablink.git
 cd lablink
 uv sync --all-packages
-source .venv/bin/activate
 ```
 
 ## Usage
@@ -25,29 +24,29 @@ lablink --version   # or -v
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `configure` | Create or edit LabLink configuration (interactive TUI) |
-| `setup` | Provision provider-specific bootstrap resources (AWS: S3 + DynamoDB for Terraform state) |
-| `doctor` | Check prerequisites and configuration |
-| `deploy` | Deploy LabLink infrastructure (AWS Terraform or docker-compose) |
-| `destroy` | Tear down LabLink infrastructure |
-| `status` | Show deployment health and inventory |
-| `logs` | View allocator and client logs |
-| `export-metrics` | Export deployment metrics to CSV or JSON |
-| `stats` | Show a cohort session-metrics summary in the terminal |
-| `cleanup` | Remove deployment resources and local state |
-| `show-config` | View the current LabLink configuration |
-| `cache-clear` | Clear LabLink caches (Terraform templates, deployment metrics) |
+| Command          | Description                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `configure`      | Create or edit LabLink configuration (interactive TUI)                                   |
+| `setup`          | Provision provider-specific bootstrap resources (AWS: S3 + DynamoDB for Terraform state) |
+| `doctor`         | Check prerequisites and configuration                                                    |
+| `deploy`         | Deploy LabLink infrastructure (AWS Terraform or docker-compose)                          |
+| `destroy`        | Tear down LabLink infrastructure                                                         |
+| `status`         | Show deployment health and inventory                                                     |
+| `logs`           | View allocator and client logs                                                           |
+| `export-metrics` | Export deployment metrics to CSV or JSON                                                 |
+| `stats`          | Show a cohort session-metrics summary in the terminal                                    |
+| `cleanup`        | Remove deployment resources and local state                                              |
+| `show-config`    | View the current LabLink configuration                                                   |
+| `cache-clear`    | Clear LabLink caches (Terraform templates, deployment metrics)                           |
 
 ### Client fleet commands
 
-| Command | Description |
-|---------|-------------|
-| `client launch` | Launch client VMs via the allocator service (AWS provider) |
-| `client register` | Register this bring-your-own box as a manual client and run the client container |
-| `client unregister` | Tear down a registered BYO box |
-| `client reset-overlay` | Discard this box's persisted mesh-overlay node identity |
+| Command                | Description                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `client launch`        | Launch client VMs via the allocator service (AWS provider)                       |
+| `client register`      | Register this bring-your-own box as a manual client and run the client container |
+| `client unregister`    | Tear down a registered BYO box                                                   |
+| `client reset-overlay` | Discard this box's persisted mesh-overlay node identity                          |
 
 Run `lablink <command> --help` for details on any command.
 
