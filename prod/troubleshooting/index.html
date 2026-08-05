@@ -6078,9 +6078,12 @@
 <ul>
 <li>In <code>error</code> status</li>
 <li>In <code>running</code> status but with <code>Unhealthy</code> GPU health</li>
-<li>Stuck in <code>initializing</code> status for more than 15 minutes</li>
+<li>Stuck in <code>initializing</code> status for more than 25 minutes</li>
 <li>Stuck in <code>rebooting</code> status for more than 10 minutes (previous reboot failed)</li>
+<li>In <code>running</code> status but silent — no heartbeat within the last 3 minutes</li>
 </ul>
+<p>Only providers that can recover hosts participate. The <code>manual</code> (bring-your-own)
+provider cannot, so BYO boxes are never rebooted by the allocator.</p>
 <p>For each failed VM, it attempts:</p>
 <ol>
 <li><strong>SSH hard reboot</strong>: <code>sudo cloud-init clean &amp;&amp; sudo reboot</code> (clears cloud-init state and reboots)</li>
@@ -6101,8 +6104,9 @@
 </li>
 <li>
 <p><strong>Check reboot count for a specific VM</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># Via API (requires admin auth)</span>
-<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>curl<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span>http://&lt;allocator-ip&gt;/api/reboot-vm/&lt;hostname&gt;
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="c1"># Query the database — there is no reboot API endpoint</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;container-id&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a><span class="w">  </span><span class="s2">&quot;SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE hostname = &#39;lablink-vm-xxx&#39;;&quot;</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -6124,12 +6128,12 @@
 <p><strong>If SSH key not found</strong>: Ensure Terraform state is present and the SSH key is accessible to the allocator.</p>
 </li>
 <li>
-<p><strong>Manually trigger a reboot</strong> via the API:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-u<span class="w"> </span>admin:&lt;password&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;hostname&quot;: &quot;lablink-vm-xxx&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-62-4" name="__codelineno-62-4" href="#__codelineno-62-4"></a><span class="w">  </span>http://&lt;allocator-ip&gt;/api/reboot-vm
-</code></pre></div></p>
+<p><strong>Manually trigger a reboot</strong>: there is no reboot endpoint. Set the VM's status
+   back to <code>error</code> and clear its reboot count — the background service picks it up
+   on its next 60-second pass:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a><span class="k">UPDATE</span><span class="w"> </span><span class="n">vms</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reboot_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">hostname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;lablink-vm-xxx&#39;</span><span class="p">;</span>
+</code></pre></div>
+   To reboot out of band instead, use the EC2 console or <code>aws ec2 reboot-instances</code>.</p>
 </li>
 </ol>
 <h3 id="client-vm-not-registering">Client VM Not Registering<a class="headerlink" href="#client-vm-not-registering" title="Permanent link">&para;</a></h3>
