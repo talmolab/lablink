@@ -124,6 +124,59 @@ reverse-tunnel deployments.
     registering client is unattached until its tunnel comes up. The allocator's own
     dependencies (tunnel server, database) do gate.
 
+### Connection Usage
+
+**Endpoint:** `GET /api/health/connections`
+
+**Authentication:** Admin (HTTP Basic) — the same gate as `/admin/*`.
+
+Reports PostgreSQL connection usage against the server's configured maximum,
+for checking headroom before scaling a deployment up. `active_connections` is
+server-wide (every database, plus autovacuum workers and admin sessions), which
+is the right comparison against `max_connections` — read from PostgreSQL, so it
+tracks whatever `start.sh` or an operator actually configured. Counts include
+the connection serving this request.
+
+`idle_in_transaction` distinguishes a leaked pooled connection from ordinary
+load; a non-zero value that doesn't fall back to zero is worth investigating.
+
+The same numbers are rendered on the `/admin` panel, so reaching for `curl` is
+optional. Above 90% the panel escalates from a plain line to a red banner naming
+what breaks (new connections refused → failed VM registration and admin
+actions) and what to raise, plus a pointer at `idle_in_transaction` when it's
+non-zero. If the numbers can't be read, the panel shows
+`DB connections unavailable` rather than breaking.
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:**
+  ```json
+  {
+    "status": "ok",
+    "active_connections": 61,
+    "idle_in_transaction": 0,
+    "max_connections": 300,
+    "utilization_percent": 20.3,
+    "warning": false,
+    "critical": false
+  }
+  ```
+
+`warning` is set above 80% utilization and `critical` above 90%.
+
+**Error Response:**
+
+- **Code:** `503 Service Unavailable` with `{"status": "unavailable"}` when the
+  numbers can't be read — the database isn't initialized yet, or the query
+  failed (including a pool with no free connections).
+
+!!! note "Busy is not broken"
+    High utilization still answers `200`; the `warning` and `critical` booleans
+    carry that signal instead. A `503` here means the numbers are *unreadable*,
+    not that the pool is saturated — otherwise any monitor treating status codes
+    as liveness would try to restart the allocator for being popular.
+
 ## Client VM API Endpoints
 
 These endpoints are used by client VMs to report to the allocator. They require that

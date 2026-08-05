@@ -1,16 +1,26 @@
-"""GET /api/health — structured readiness probe.
+"""Health and capacity reporting.
 
-Reports per-dependency readiness rather than a bare 200 so a deployment
-stuck mid-startup is distinguishable from a healthy one: 200 + "healthy"
-only once every check passes, 503 + "starting" otherwise.
+`GET /api/health` reports per-dependency readiness rather than a bare 200 so
+a deployment stuck mid-startup is distinguishable from a healthy one: 200 +
+"healthy" only once every check passes, 503 + "starting" otherwise.
+
+`GET /api/health/connections` reports Postgres connection usage against the
+configured maximum. Deliberately a *separate* route: /api/health is polled in
+a tight loop by start.sh during boot and by `lablink deploy` afterwards, and
+neither should pay for a Postgres aggregate to learn whether the service is up.
 """
+import logging
 import subprocess
 import time
 
 import psycopg2
 from flask import Blueprint, current_app, jsonify
 
+from lablink_allocator_service.auth import auth
+from lablink_allocator_service.db.pool import PooledCursor
+
 bp = Blueprint("health", __name__)
+logger = logging.getLogger(__name__)
 
 # Shared by _tunnel_status() (which produces it) and health_check() (which
 # excludes it from the readiness gate). One constant rather than two literals
@@ -79,6 +89,64 @@ def _tunnel_status() -> str:
     return f"{len(missing)}{_UNATTACHED_SUFFIX}" if missing else "ok"
 
 
+def connection_stats() -> dict | None:
+    """Server-wide Postgres connection usage, or None if unreadable.
+
+    None rather than an exception because both callers have to degrade: the
+    /admin panel renders "unavailable" and the JSON route answers 503. Neither
+    a 500 on the admin page nor a traceback out of a gauge is a useful outcome.
+
+    Not underscore-prefixed, unlike this module's other helpers: routes
+    /admin_pages.py imports it, so it is a deliberate cross-module API rather
+    than module-private.
+    """
+    from lablink_allocator_service import main
+
+    if main.database is None:
+        return None
+    try:
+        # count(*) over pg_stat_activity is server-wide (every database, plus
+        # autovacuum workers and admin sessions), which is the right numerator
+        # for a server-wide max_connections. The reading includes this
+        # request's own checked-out connection.
+        #
+        # max_connections is read from Postgres, not hardcoded: start.sh sets
+        # it to 300 and any literal here would drift out of agreement with the
+        # shell script that actually configures the server.
+        #
+        # ponytail: measured *through* the pool, so a genuinely exhausted pool
+        # raises PoolError (a psycopg2.Error) and this returns None -- no
+        # numbers at the moment saturation is the question. Open a dedicated
+        # connection here if saturation reporting has to survive saturation.
+        with PooledCursor(main.database.pool) as cursor:
+            cursor.execute(
+                "SELECT count(*), "
+                "count(*) FILTER (WHERE state = 'idle in transaction'), "
+                "current_setting('max_connections')::int "
+                "FROM pg_stat_activity"
+            )
+            active, idle_in_transaction, max_connections = cursor.fetchone()
+    except Exception:
+        # Deliberately broad. psycopg2.Error (including PoolError) is the
+        # expected failure, but this is a report-only gauge rendered inside
+        # /admin: there is no failure mode where propagating beats reporting
+        # "unavailable", and a narrower catch let an unexpected shape from
+        # fetchone() take the whole admin panel down with a 500. Logged with a
+        # traceback so nothing is swallowed silently.
+        logger.warning("Postgres connection stats unavailable", exc_info=True)
+        return None
+
+    utilization = active / max(max_connections, 1)
+    return {
+        "active_connections": active,
+        "idle_in_transaction": idle_in_transaction,
+        "max_connections": max_connections,
+        "utilization_percent": round(utilization * 100, 1),
+        "warning": utilization > 0.8,
+        "critical": utilization > 0.9,
+    }
+
+
 @bp.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -124,3 +192,22 @@ def health_check():
         payload["uptime_seconds"] = round(time.monotonic() - main._startup_time, 1)
 
     return jsonify(payload), code
+
+
+@bp.route("/api/health/connections", methods=["GET"])
+@auth.login_required
+def connection_health():
+    """Report Postgres connection usage. Admin Basic auth, same gate as
+    /admin/* — the allocator is publicly reachable via Funnel/Cloudflare and
+    connection counts are operator detail.
+
+    High utilization still answers 200, with `warning`/`critical` in the body:
+    a gauge that 503s gets read as "restart me" by anything treating status
+    codes as liveness, and this module already documents a 503 that deadlocked
+    client startup exactly that way. 503 here means the numbers are
+    *unreadable*, not that the pool is busy.
+    """
+    stats = connection_stats()
+    if stats is None:
+        return jsonify({"status": "unavailable"}), 503
+    return jsonify({"status": "ok", **stats}), 200

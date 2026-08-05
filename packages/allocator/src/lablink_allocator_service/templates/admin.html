@@ -74,6 +74,35 @@
         transition: background-color 0.3s;
       }
 
+      .connections {
+        margin: 0 0 20px;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .connections.warning {
+        color: #b26a00;
+      }
+
+      /* Warning stays plain amber text — a boxed alert at 81% is noise.
+         Critical escalates to a banner, because at that point the next
+         connection attempt can actually be refused. */
+      .connections.critical {
+        color: #c62828;
+        text-align: left;
+        background-color: #fdecea;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 12px 16px;
+      }
+
+      .connections.critical code {
+        background-color: rgba(198, 40, 40, 0.1);
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+
       @media (max-width: 600px) {
         .panel {
           padding: 30px 20px;
@@ -90,6 +119,20 @@
   <body>
     <div class="panel">
       <h2>LabLink Admin Panel</h2>
+
+      {% if connections %}
+      {% if connections.critical %}{% set level = " critical" %}
+      {% elif connections.warning %}{% set level = " warning" %}
+      {% else %}{% set level = "" %}{% endif %}
+      <p class="connections{{ level }}">
+        {% if connections.critical %}<strong>Database connections critical</strong> &mdash; {% else %}DB connections {% endif %}{{ connections.active_connections }} / {{ connections.max_connections }} ({{ connections.utilization_percent }}%)
+        {% if connections.critical %}
+        <br />New connections may be refused, which fails VM registration and admin actions. Raise <code>max_connections</code> and <code>LABLINK_DB_POOL_MAX_SIZE</code>{% if connections.idle_in_transaction %}, or investigate the {{ connections.idle_in_transaction }} connection(s) idle in transaction{% endif %}.
+        {% endif %}
+      </p>
+      {% else %}
+      <p class="connections">DB connections unavailable</p>
+      {% endif %}
 
       <div class="button-group">
         <button onclick="location.href='/admin/instances'">
