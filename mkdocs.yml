@@ -102,6 +102,7 @@ nav:
       - Overview: cli/index.md
       - Installation: cli/installation.md
       - First Deployment: cli/first-deployment.md
+      - Bring-Your-Own Clients: cli/byo-clients.md
       - Managing Deployments: cli/managing-deployments.md
   - Admin Guide:
       - Adapting for Your Software: adapting.md

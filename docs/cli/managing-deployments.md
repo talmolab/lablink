@@ -1,8 +1,14 @@
 # Managing Deployments
 
-Day-to-day operations once an allocator is running: launch client VMs, follow logs, export metrics, and clean up.
+Day-to-day operations once an allocator is running: add client machines, follow logs, export metrics, and clean up.
 
 Every command on this page reads `~/.lablink/config.yaml` by default. Pass `--config /path/to/other.yaml` to target a different deployment.
+
+!!! note "This page describes the AWS provider"
+    Most of these commands branch on your config's `provider`. Under
+    `provider: manual` the same commands act on a local docker-compose stack
+    instead — see [Bring-Your-Own Clients](byo-clients.md#day-to-day), which covers
+    the manual workflow end to end.
 
 ## Launch client VMs
 
@@ -10,14 +16,18 @@ Every command on this page reads `~/.lablink/config.yaml` by default. Pass `--co
 lablink client launch --num-vms 5
 ```
 
-This asks the allocator to provision client VMs on your behalf. The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.
+The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.
 
 | Flag | Description |
 |---|---|
 | `-n`, `--num-vms` | Number of client VMs to launch. Required. |
 | `-c`, `--config` | Override the default config path. |
+| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
 
 Watch `lablink status` to see the VMs transition from pending → running.
+
+Under the manual provider this no-ops; you add boxes with
+[`lablink client register`](byo-clients.md#step-4-register-each-box) instead.
 
 ## Check status
 
@@ -68,6 +78,16 @@ Example — only allocator metrics after tear-down:
 lablink export-metrics --allocator --format json -o post-mortem.json
 ```
 
+## Session metrics summary
+
+```bash
+lablink stats
+```
+
+Prints the cohort summary — participation funnel and aggregate time-in-software —
+for deployments running with `monitoring.enabled: true`. See
+[`stats`](../reference/cli.md#stats).
+
 ## Show the current config
 
 ```bash
@@ -84,7 +104,11 @@ lablink destroy
 
 Runs `terraform destroy` against the deployment's working directory (`~/.lablink/deploys/<name>/`). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.
 
-Pass `-y` / `--yes` to skip the confirmation prompt. Password prompts still appear.
+| Flag | Description |
+|---|---|
+| `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
+| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `--keep-data` | **Manual provider only** — preserve the Postgres data volume instead of the default full wipe. Ignored for AWS. |
 
 ## Cleanup orphaned resources
 
@@ -95,7 +119,7 @@ lablink cleanup --dry-run   # preview
 lablink cleanup             # actually delete
 ```
 
-It targets resources tagged with your deployment name. `--dry-run` prints what would be deleted without touching AWS.
+It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific Terraform state files. `--dry-run` prints what would be deleted without touching AWS.
 
 ## Clear local caches
 
@@ -121,9 +145,11 @@ Clearing the Terraform template cache forces the next deploy to re-download temp
 
 Keep multiple config files if you manage more than one deployment:
 
+`--config` is a per-command option, not a root one — it goes *after* the command:
+
 ```bash
-lablink --config ~/configs/workshop.yaml deploy
-lablink --config ~/configs/dev.yaml status
+lablink deploy --config ~/configs/workshop.yaml
+lablink status --config ~/configs/dev.yaml
 ```
 
 Each deployment gets its own working directory under `~/.lablink/deploys/<name>/` keyed by the `deployment_name` field in its config.
@@ -131,5 +157,6 @@ Each deployment gets its own working directory under `~/.lablink/deploys/<name>/
 ## Next steps
 
 - [CLI Reference](../reference/cli.md) — every command and flag in one page.
+- [Bring-Your-Own Clients](byo-clients.md) — the manual-provider workflow end to end.
 - [Troubleshooting](../troubleshooting.md) — general LabLink issues (not CLI-specific).
 - [Configuration](../configuration.md) — full `config.yaml` schema reference.
