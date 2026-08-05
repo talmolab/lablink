@@ -2375,18 +2375,44 @@ class TestVerifyPublicHostname:
         # One check proves DNS + Cloudflare edge + tunnel + nginx + Flask.
         assert mock_check.call_args[0][0] == "https://lab.example.org"
 
+    @patch("lablink_cli.commands.deploy_compose.time.sleep")
     @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
-    def test_returns_false_on_a_miss_without_retrying(self, mock_check):
-        """A single attempt: the caller only warns, so retrying would delay
-        the same message rather than change it."""
+    def test_retries_until_the_tunnel_route_comes_up(self, mock_check, mock_sleep):
+        """The local health poll clears before cloudflared has registered
+        with the edge, so the first tries legitimately miss on a good
+        deploy. Regression guard for the single-attempt version, which
+        warned on every cloudflare_tunnel deploy."""
         from lablink_cli.commands.deploy_compose import _verify_public_hostname
+
+        mock_check.side_effect = [
+            {"healthy": False},
+            OSError("connection refused"),
+            {"healthy": True},
+        ]
+        assert _verify_public_hostname("lab.example.org") is True
+        assert mock_check.call_count == 3
+        # Stops as soon as it succeeds — no sleep after the last try.
+        assert mock_sleep.call_count == 2
+
+    @patch("lablink_cli.commands.deploy_compose.time.sleep")
+    @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
+    def test_returns_false_after_exhausting_attempts(self, mock_check, mock_sleep):
+        """Bounded: a wrong origin in the Cloudflare dashboard is not
+        something waiting fixes, so the poll gives up and the caller warns."""
+        from lablink_cli.commands.deploy_compose import (
+            PUBLIC_HOSTNAME_MAX_ATTEMPTS,
+            _verify_public_hostname,
+        )
 
         mock_check.return_value = {"healthy": False}
         assert _verify_public_hostname("lab.example.org") is False
-        assert mock_check.call_count == 1
+        assert mock_check.call_count == PUBLIC_HOSTNAME_MAX_ATTEMPTS
+        # No trailing sleep once the budget is spent.
+        assert mock_sleep.call_count == PUBLIC_HOSTNAME_MAX_ATTEMPTS - 1
 
+    @patch("lablink_cli.commands.deploy_compose.time.sleep")
     @patch("lablink_cli.commands.deploy_compose.check_health_endpoint")
-    def test_survives_a_raising_check(self, mock_check):
+    def test_survives_a_raising_check(self, mock_check, mock_sleep):
         """DNS for a brand-new record may not resolve yet; a raised
         exception must be a warning, not a crashed deploy."""
         from lablink_cli.commands.deploy_compose import _verify_public_hostname

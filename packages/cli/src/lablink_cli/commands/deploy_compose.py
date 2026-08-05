@@ -48,6 +48,12 @@ ALLOCATOR_INTERNAL_PORT = 5000
 FUNNEL_ACL_NOT_GRANTED_MARKER = "Funnel is not enabled on your tailnet"
 FUNNEL_ENABLE_MAX_ATTEMPTS = 5
 FUNNEL_ENABLE_RETRY_DELAY_SECONDS = 2
+# Budget for the public-hostname check to survive cloudflared's own startup
+# (see _verify_public_hostname). Live runs registered the first edge
+# connection ~1s after `docker compose up` returned and served traffic within
+# a few seconds; 6 tries 5s apart leaves ~25s of headroom over that.
+PUBLIC_HOSTNAME_MAX_ATTEMPTS = 6
+PUBLIC_HOSTNAME_RETRY_DELAY_SECONDS = 5
 # Name of the file carrying the allocator's real public URL, staged next to
 # config.yaml and bind-mounted to /config/<name>. Must stay in sync with
 # config_helpers.CANONICAL_URL_FILENAME in the allocator package — duplicated
@@ -528,22 +534,36 @@ def _verify_public_hostname(hostname: str) -> bool:
     Cloudflare edge, the tunnel, nginx and Flask together — checking that
     cloudflared is alive says nothing about whether the edge found it.
 
-    Advisory, and deliberately a single attempt rather than a poll: by this
-    point the stack is already confirmed healthy locally, so a failure here
-    is either a still-propagating DNS record or a wrong origin in the
-    Cloudflare dashboard. Neither is something waiting fixes, and the
-    caller only warns — so retrying would just delay the same message.
+    Polled, because the local `_health_poll` above clears as soon as Flask
+    answers — which is *before* the public path exists. cloudflared is still
+    registering its edge connections at that point and nginx is still binding
+    :5000, so a single attempt fails on a perfectly good deploy (observed
+    live 2026-08-05: warned at 20:25:30, the same container served the public
+    hostname seconds later and stayed up).
+
+    Still advisory, and bounded short: the remaining failure modes — a
+    still-propagating DNS record, or a public hostname in the Cloudflare
+    dashboard pointing somewhere other than the origin — are not things
+    waiting fixes, and the caller only warns.
     """
     url = f"https://{hostname}"
-    console.print(f"[bold]Verifying public hostname {url}/api/health …[/bold]")
-    try:
-        healthy = bool(check_health_endpoint(url).get("healthy"))
-    except OSError:
-        # Unresolvable name / refused connection while the record propagates.
-        healthy = False
-    if healthy:
-        console.print(f"[green]Public hostname is live: {url}[/green]")
-    return healthy
+    console.print(
+        f"[bold]Verifying public hostname {url}/api/health "
+        f"(up to {PUBLIC_HOSTNAME_MAX_ATTEMPTS} tries) …[/bold]"
+    )
+    for attempt in range(1, PUBLIC_HOSTNAME_MAX_ATTEMPTS + 1):
+        try:
+            healthy = bool(check_health_endpoint(url).get("healthy"))
+        except OSError:
+            # Unresolvable name / refused connection while the record
+            # propagates, or while the tunnel route is still coming up.
+            healthy = False
+        if healthy:
+            console.print(f"[green]Public hostname is live: {url}[/green]")
+            return True
+        if attempt < PUBLIC_HOSTNAME_MAX_ATTEMPTS:
+            time.sleep(PUBLIC_HOSTNAME_RETRY_DELAY_SECONDS)
+    return False
 
 
 def _compose_up(target: Path) -> None:
