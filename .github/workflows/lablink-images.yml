@@ -25,6 +25,7 @@ on:
     paths:
       - "packages/allocator/**"
       - "packages/client/**"
+      - "!packages/**/*.md"
       - ".github/workflows/lablink-images.yml"
   push:
     branches:
@@ -33,6 +34,7 @@ on:
     paths:
       - "packages/allocator/**"
       - "packages/client/**"
+      - "!packages/**/*.md"
       - ".github/workflows/lablink-images.yml"
 
 jobs:

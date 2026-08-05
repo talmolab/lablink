@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - "packages/**"
+      - "!packages/**/*.md"
       - ".github/workflows/ci.yml"
 
 permissions:
