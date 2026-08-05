@@ -97,12 +97,6 @@
         padding: 12px 16px;
       }
 
-      .connections.critical code {
-        background-color: rgba(198, 40, 40, 0.1);
-        border-radius: 4px;
-        padding: 1px 4px;
-      }
-
       @media (max-width: 600px) {
         .panel {
           padding: 30px 20px;
@@ -121,12 +115,10 @@
       <h2>LabLink Admin Panel</h2>
 
       {% if connections %}
-      {% if connections.critical %}{% set level = " critical" %}
-      {% elif connections.warning %}{% set level = " warning" %}
-      {% else %}{% set level = "" %}{% endif %}
-      <p class="connections{{ level }}">
-        {% if connections.critical %}<strong>Database connections critical</strong> &mdash; {% else %}DB connections {% endif %}{{ connections.active_connections }} / {{ connections.max_connections }} ({{ connections.utilization_percent }}%)
-        {% if connections.critical %}
+      {% set critical = connections.level == "critical" %}
+      <p class="connections {{ connections.level }}">
+        {% if critical %}<strong>Database connections critical</strong> &mdash; {% else %}DB connections {% endif %}{{ connections.active_connections }} / {{ connections.max_connections }} ({{ connections.utilization_percent }}%)
+        {% if critical %}
         <br />New connections may be refused, which fails VM registration and admin actions. Raise <code>max_connections</code> and <code>LABLINK_DB_POOL_MAX_SIZE</code>{% if connections.idle_in_transaction %}, or investigate the {{ connections.idle_in_transaction }} connection(s) idle in transaction{% endif %}.
         {% endif %}
       </p>

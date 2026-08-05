@@ -90,49 +90,24 @@ def _tunnel_status() -> str:
 
 
 def connection_stats() -> dict | None:
-    """Postgres *client* connection usage, or None if unreadable.
+    """Postgres client connection usage, or None if unreadable.
 
-    Counts client backends across every database on the server -- the things
-    max_connections actually bounds -- not every row in pg_stat_activity. See
-    the query comment for why that distinction matters.
-
-    None rather than an exception because both callers have to degrade: the
-    /admin panel renders "unavailable" and the JSON route answers 503. Neither
-    a 500 on the admin page nor a traceback out of a gauge is a useful outcome.
-
-    Not underscore-prefixed, unlike this module's other helpers: routes
-    /admin_pages.py imports it, so it is a deliberate cross-module API rather
-    than module-private.
+    None rather than raising: both callers must degrade -- /admin renders
+    "unavailable" and the JSON route answers 503.
     """
     from lablink_allocator_service import main
 
-    if main.database is None:
-        return None
     try:
-        # backend_type = 'client backend' is load-bearing, not a nicety.
-        # pg_stat_activity has a row per server *process*, so a bare count(*)
-        # also counts the checkpointer, background writer, walwriter, autovacuum
-        # launcher and logical replication launcher -- none of which occupy a
-        # max_connections slot. Measured live on a real deployment: 10 rows for
-        # 5 actual client connections, i.e. the bare count roughly doubled the
-        # reported usage. The bias is not even constant, since parallel and
-        # autovacuum workers come and go.
+        # client backends only: pg_stat_activity rows include background workers
+        # (checkpointer, walwriter, the launchers), which hold no
+        # max_connections slot. Measured live: 10 rows for 5 real connections.
+        # LIKE, not '=', so 'idle in transaction (aborted)' counts too -- it
+        # pins locks the same way. max_connections read from Postgres because
+        # start.sh sets it and a literal here would drift.
         #
-        # state LIKE 'idle in transaction%' rather than '=' so it also catches
-        # 'idle in transaction (aborted)'. An aborted-but-open transaction pins
-        # locks and blocks vacuum exactly like a live one; verified live that an
-        # '=' comparison reported 0 while one was being held.
-        #
-        # max_connections is read from Postgres, not hardcoded: start.sh sets
-        # it to 300 and any literal here would drift out of agreement with the
-        # shell script that actually configures the server. Note the effective
-        # ceiling for the allocator's non-superuser role is slightly lower --
-        # superuser_reserved_connections (default 3) is carved out of it.
-        #
-        # ponytail: measured *through* the pool, so a genuinely exhausted pool
-        # raises PoolError (a psycopg2.Error) and this returns None -- no
-        # numbers at the moment saturation is the question. Open a dedicated
-        # connection here if saturation reporting has to survive saturation.
+        # ponytail: measured *through* the pool, so an exhausted pool returns
+        # None instead of numbers. Use a dedicated connection if saturation
+        # reporting has to survive saturation.
         with PooledCursor(main.database.pool) as cursor:
             cursor.execute(
                 "SELECT count(*) FILTER (WHERE backend_type = 'client backend'), "
@@ -142,23 +117,18 @@ def connection_stats() -> dict | None:
             )
             active, idle_in_transaction, max_connections = cursor.fetchone()
     except Exception:
-        # Deliberately broad. psycopg2.Error (including PoolError) is the
-        # expected failure, but this is a report-only gauge rendered inside
-        # /admin: there is no failure mode where propagating beats reporting
-        # "unavailable", and a narrower catch let an unexpected shape from
-        # fetchone() take the whole admin panel down with a 500. Logged with a
-        # traceback so nothing is swallowed silently.
+        # Broad on purpose: rendered inside /admin, so anything escaping here
+        # 500s the operator's panel. Logged with a traceback, never swallowed.
         logger.warning("Postgres connection stats unavailable", exc_info=True)
         return None
 
-    utilization = active / max(max_connections, 1)
+    util = active / max(max_connections, 1)
     return {
         "active_connections": active,
         "idle_in_transaction": idle_in_transaction,
         "max_connections": max_connections,
-        "utilization_percent": round(utilization * 100, 1),
-        "warning": utilization > 0.8,
-        "critical": utilization > 0.9,
+        "utilization_percent": round(util * 100, 1),
+        "level": "critical" if util > 0.9 else "warning" if util > 0.8 else "ok",
     }
 
 
@@ -212,16 +182,8 @@ def health_check():
 @bp.route("/api/health/connections", methods=["GET"])
 @auth.login_required
 def connection_health():
-    """Report Postgres connection usage. Admin Basic auth, same gate as
-    /admin/* — the allocator is publicly reachable via Funnel/Cloudflare and
-    connection counts are operator detail.
-
-    High utilization still answers 200, with `warning`/`critical` in the body:
-    a gauge that 503s gets read as "restart me" by anything treating status
-    codes as liveness, and this module already documents a 503 that deadlocked
-    client startup exactly that way. 503 here means the numbers are
-    *unreadable*, not that the pool is busy.
-    """
+    """Report Postgres connection usage. Admin-gated; 503 means the numbers are
+    unreadable, never that the pool is merely busy."""
     stats = connection_stats()
     if stats is None:
         return jsonify({"status": "unavailable"}), 503

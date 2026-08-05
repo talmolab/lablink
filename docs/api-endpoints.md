@@ -133,30 +133,18 @@ reverse-tunnel deployments.
 Reports PostgreSQL connection usage against the server's configured maximum,
 for checking headroom before scaling a deployment up.
 
-`active_connections` counts **client backends** across every database on the
-server — the things `max_connections` actually bounds. It deliberately excludes
-the rows `pg_stat_activity` carries for background processes (checkpointer,
-background writer, walwriter, autovacuum launcher, logical replication
-launcher), which hold no connection slot; counting them roughly doubles
-reported usage on an idle deployment. The count does include the connection
-serving this request.
-
-`max_connections` is read from PostgreSQL, so it tracks whatever `start.sh` or
-an operator actually configured. The effective ceiling for the allocator's
-non-superuser role is slightly lower, since `superuser_reserved_connections`
-(default 3) is carved out of it.
+`active_connections` counts client backends only — the things `max_connections`
+bounds — excluding the background-worker rows `pg_stat_activity` also carries.
+It includes the connection serving this request. `max_connections` is read from
+PostgreSQL, so it tracks whatever is actually configured.
 
 `idle_in_transaction` distinguishes a leaked pooled connection from ordinary
 load; a non-zero value that doesn't fall back to zero is worth investigating.
-It counts both `idle in transaction` and `idle in transaction (aborted)` — an
-aborted-but-open transaction pins locks and blocks vacuum just like a live one.
+It counts `idle in transaction (aborted)` too — an aborted-but-open transaction
+pins locks just like a live one.
 
-The same numbers are rendered on the `/admin` panel, so reaching for `curl` is
-optional. Above 90% the panel escalates from a plain line to a red banner naming
-what breaks (new connections refused → failed VM registration and admin
-actions) and what to raise, plus a pointer at `idle_in_transaction` when it's
-non-zero. If the numbers can't be read, the panel shows
-`DB connections unavailable` rather than breaking.
+The same numbers appear on the [`/admin` panel](#admin-pages), which escalates
+to a banner above 90%.
 
 **Success Response:**
 
@@ -169,24 +157,18 @@ non-zero. If the numbers can't be read, the panel shows
     "idle_in_transaction": 0,
     "max_connections": 300,
     "utilization_percent": 20.3,
-    "warning": false,
-    "critical": false
+    "level": "ok"
   }
   ```
 
-`warning` is set above 80% utilization and `critical` above 90%.
+`level` is `ok`, `warning` above 80% utilization, or `critical` above 90%. High
+utilization still answers `200` — busy is not broken.
 
 **Error Response:**
 
 - **Code:** `503 Service Unavailable` with `{"status": "unavailable"}` when the
   numbers can't be read — the database isn't initialized yet, or the query
   failed (including a pool with no free connections).
-
-!!! note "Busy is not broken"
-    High utilization still answers `200`; the `warning` and `critical` booleans
-    carry that signal instead. A `503` here means the numbers are *unreadable*,
-    not that the pool is saturated — otherwise any monitor treating status codes
-    as liveness would try to restart the allocator for being popular.
 
 ## Client VM API Endpoints
 

@@ -357,11 +357,29 @@ class _FakeCursor:
 @pytest.fixture
 def stats_db(monkeypatch):
     """Patch main.database with a mock exposing .pool, so connection_stats()
-    gets past its `is None` guard. Returns the monkeypatch fixture."""
+    reaches its query. Returns the monkeypatch fixture."""
     from lablink_allocator_service import main
 
     monkeypatch.setattr(main, "database", MagicMock(), raising=False)
     return monkeypatch
+
+
+# Shared by the route and panel tests, which exercise presentation rather than
+# the query. Variants: {**STATS_OK, "level": "warning"}.
+STATS_OK = {
+    "active_connections": 61,
+    "idle_in_transaction": 0,
+    "max_connections": 300,
+    "utilization_percent": 20.3,
+    "level": "ok",
+}
+STATS_CRITICAL = {
+    "active_connections": 295,
+    "idle_in_transaction": 0,
+    "max_connections": 300,
+    "utilization_percent": 98.3,
+    "level": "critical",
+}
 
 
 class TestConnectionStats:
@@ -403,40 +421,24 @@ class TestConnectionStats:
 
         assert "state LIKE 'idle in transaction%'" in fake.sql
 
-    def test_reports_counts_and_utilization(self, stats_db):
-        stats = self._stats(stats_db, row=(61, 0, 300))
+    @pytest.mark.parametrize(
+        "row, pct, level",
+        [
+            ((61, 0, 300), 20.3, "ok"),
+            ((243, 0, 300), 81.0, "warning"),   # >80%
+            ((273, 2, 300), 91.0, "critical"),  # >90%
+            ((60, 0, 600), 10.0, "ok"),         # denominator follows the server
+            ((0, 0, 0), 0.0, "ok"),             # no ZeroDivisionError
+        ],
+    )
+    def test_utilization_and_level(self, stats_db, row, pct, level):
+        stats = self._stats(stats_db, row=row)
 
-        assert stats == {
-            "active_connections": 61,
-            "idle_in_transaction": 0,
-            "max_connections": 300,
-            "utilization_percent": 20.3,
-            "warning": False,
-            "critical": False,
-        }
-
-    def test_warning_above_80_percent(self, stats_db):
-        stats = self._stats(stats_db, row=(243, 0, 300))
-
-        assert stats["utilization_percent"] == 81.0
-        assert stats["warning"] is True
-        assert stats["critical"] is False
-
-    def test_critical_above_90_percent(self, stats_db):
-        stats = self._stats(stats_db, row=(273, 2, 300))
-
-        assert stats["utilization_percent"] == 91.0
-        assert stats["warning"] is True
-        assert stats["critical"] is True
-        assert stats["idle_in_transaction"] == 2
-
-    def test_max_connections_read_from_postgres_not_hardcoded(self, stats_db):
-        """start.sh sets max_connections=300 today and an operator can raise
-        it further; the denominator must follow the server, not a literal."""
-        stats = self._stats(stats_db, row=(60, 0, 600))
-
-        assert stats["max_connections"] == 600
-        assert stats["utilization_percent"] == 10.0
+        assert stats["active_connections"] == row[0]
+        assert stats["idle_in_transaction"] == row[1]
+        assert stats["max_connections"] == row[2]
+        assert stats["utilization_percent"] == pct
+        assert stats["level"] == level
 
     def test_none_when_database_not_initialized(self, monkeypatch):
         from lablink_allocator_service import main
@@ -459,12 +461,6 @@ class TestConnectionStats:
         was narrow. Don't narrow it again."""
         assert self._stats(stats_db, error=RuntimeError("unexpected")) is None
 
-    def test_no_zero_division_when_max_connections_is_zero(self, stats_db):
-        stats = self._stats(stats_db, row=(0, 0, 0))
-
-        assert stats["utilization_percent"] == 0.0
-
-
 class TestConnectionHealthEndpoint:
     """GET /api/health/connections."""
 
@@ -479,25 +475,12 @@ class TestConnectionHealthEndpoint:
         assert client.get("/api/health/connections").status_code == 401
 
     def test_returns_stats(self, client, admin_headers, monkeypatch):
-        self._patch_stats(
-            monkeypatch,
-            {
-                "active_connections": 61,
-                "idle_in_transaction": 0,
-                "max_connections": 300,
-                "utilization_percent": 20.3,
-                "warning": False,
-                "critical": False,
-            },
-        )
+        self._patch_stats(monkeypatch, STATS_OK)
 
         resp = client.get("/api/health/connections", headers=admin_headers)
 
         assert resp.status_code == 200
-        body = resp.get_json()
-        assert body["status"] == "ok"
-        assert body["active_connections"] == 61
-        assert body["max_connections"] == 300
+        assert resp.get_json() == {"status": "ok", **STATS_OK}
 
     def test_503_when_unreadable(self, client, admin_headers, monkeypatch):
         self._patch_stats(monkeypatch, None)
@@ -511,22 +494,12 @@ class TestConnectionHealthEndpoint:
         """Busy is not broken: a saturated pool must not answer non-200, or
         anything treating status codes as liveness will try to restart the
         allocator for being popular."""
-        self._patch_stats(
-            monkeypatch,
-            {
-                "active_connections": 295,
-                "idle_in_transaction": 0,
-                "max_connections": 300,
-                "utilization_percent": 98.3,
-                "warning": True,
-                "critical": True,
-            },
-        )
+        self._patch_stats(monkeypatch, STATS_CRITICAL)
 
         resp = client.get("/api/health/connections", headers=admin_headers)
 
         assert resp.status_code == 200
-        assert resp.get_json()["critical"] is True
+        assert resp.get_json()["level"] == "critical"
 
 
 class TestAdminPanelConnectionLine:
@@ -542,20 +515,12 @@ class TestAdminPanelConnectionLine:
 
         monkeypatch.setattr(admin_mod, "connection_stats", lambda: value)
 
-    def test_renders_the_line(self, client, admin_headers, monkeypatch):
-        self._patch_stats(
-            monkeypatch,
-            {
-                "active_connections": 61,
-                "idle_in_transaction": 0,
-                "max_connections": 300,
-                "utilization_percent": 20.3,
-                "warning": False,
-                "critical": False,
-            },
-        )
+    def _html(self, client, admin_headers, monkeypatch, stats):
+        self._patch_stats(monkeypatch, stats)
+        return client.get("/admin", headers=admin_headers).data.decode()
 
-        html = client.get("/admin", headers=admin_headers).data.decode()
+    def test_renders_the_line(self, client, admin_headers, monkeypatch):
+        html = self._html(client, admin_headers, monkeypatch, STATS_OK)
 
         assert "61 / 300" in html
         assert "20.3%" in html
@@ -566,19 +531,7 @@ class TestAdminPanelConnectionLine:
         """At critical the line escalates to a banner that says what is at
         stake and what to change — a red number alone doesn't tell an operator
         what to do about it."""
-        self._patch_stats(
-            monkeypatch,
-            {
-                "active_connections": 295,
-                "idle_in_transaction": 0,
-                "max_connections": 300,
-                "utilization_percent": 98.3,
-                "warning": True,
-                "critical": True,
-            },
-        )
-
-        html = client.get("/admin", headers=admin_headers).data.decode()
+        html = self._html(client, admin_headers, monkeypatch, STATS_CRITICAL)
 
         assert "connections critical" in html
         assert "Database connections critical" in html
@@ -592,38 +545,25 @@ class TestAdminPanelConnectionLine:
     ):
         """Saturation caused by leaked connections has a different fix than
         saturation caused by load, so name it when the count is non-zero."""
-        self._patch_stats(
+        html = self._html(
+            client,
+            admin_headers,
             monkeypatch,
-            {
-                "active_connections": 295,
-                "idle_in_transaction": 7,
-                "max_connections": 300,
-                "utilization_percent": 98.3,
-                "warning": True,
-                "critical": True,
-            },
+            {**STATS_CRITICAL, "idle_in_transaction": 7},
         )
-
-        html = client.get("/admin", headers=admin_headers).data.decode()
 
         assert "7 connection(s) idle in transaction" in html
 
     def test_warning_stays_a_plain_line(self, client, admin_headers, monkeypatch):
         """80% is worth noticing, not worth a banner. Escalating here would
         train operators to ignore the banner that matters."""
-        self._patch_stats(
+        html = self._html(
+            client,
+            admin_headers,
             monkeypatch,
-            {
-                "active_connections": 243,
-                "idle_in_transaction": 0,
-                "max_connections": 300,
-                "utilization_percent": 81.0,
-                "warning": True,
-                "critical": False,
-            },
+            {**STATS_OK, "active_connections": 243, "utilization_percent": 81.0,
+             "level": "warning"},
         )
-
-        html = client.get("/admin", headers=admin_headers).data.decode()
 
         assert "connections warning" in html
         assert "243 / 300" in html
@@ -634,11 +574,7 @@ class TestAdminPanelConnectionLine:
         self, client, admin_headers, monkeypatch
     ):
         """A database problem costs one line, not the whole admin page."""
-        self._patch_stats(monkeypatch, None)
+        html = self._html(client, admin_headers, monkeypatch, None)
 
-        resp = client.get("/admin", headers=admin_headers)
-        html = resp.data.decode()
-
-        assert resp.status_code == 200
         assert "DB connections unavailable" in html
         assert "View Current Instances" in html
