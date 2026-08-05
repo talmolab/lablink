@@ -65,6 +65,50 @@ graph TB
     style Research fill:#8bc34a,color:#fff
 ```
 
+## Providers and Connectivity
+
+Two axes decide how a LabLink deployment is shaped. Both are resolved once at
+startup, in `providers/registry.py`, and the rest of the codebase talks to the
+resulting objects rather than branching on provider type.
+
+### Compute provider — where client machines come from
+
+Discovered through the `lablink.providers` entry-point group, so a new backend can be
+added without touching core code. Two ship today:
+
+| `provider` | Behaviour |
+|---|---|
+| `aws` | Provisions EC2 client VMs with Terraform. |
+| `manual` | Provisions nothing. Machines you already own register themselves via `POST /api/v1/clients/register`. |
+
+Capability flags, not provider-type checks, gate the behaviour that differs:
+
+- **`can_provision_hosts`** — false for `manual`, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a Terraform output.
+- **`can_recover_hosts`** — false for `manual`, so the auto-reboot loop skips BYO boxes instead of attempting AWS calls against machines it doesn't own.
+
+### Client connectivity — how the desktop is reached
+
+Selectable for the `manual` provider only, as a small closed set:
+
+| `manual.connectivity` | Byte path |
+|---|---|
+| `lan_direct` | The browser opens a WebSocket straight to the client's LAN IP. Requires the client and participant on the allocator's LAN. |
+| `mesh_overlay` | The client joins a Tailscale tailnet; the allocator reaches it over the overlay and proxies through its own nginx. |
+| `reverse_tunnel` | The client dials **out** to the allocator and holds one connection open, for boxes that can't accept inbound connections. |
+
+Each strategy implements `prepare_browser_session`, which is what
+`/api/request_vm` calls to rotate the client's VNC password and persist the
+`browser_ws_url` the viewer page will open — which is why the assignment path has no
+connectivity-specific branches in it.
+
+AWS deployments always use the allocator-proxied path and ignore this setting.
+
+See [Bring-Your-Own Clients](cli/byo-clients.md#pick-a-connectivity-mode) for
+choosing between these,
+[Configuration](configuration.md#manual-provider-options-manual) for the settings,
+and [API Endpoints](api-endpoints.md#client-registration-api) for the registration
+contract.
+
 ## Component Details
 
 ### Allocator Service
@@ -89,17 +133,19 @@ graph TB
 
 2. **API Endpoints**:
 
-   - `/request_vm`: Allocate VM to user
+   - `/api/request_vm`: Claim a seat for a participant
+   - `/desktop`: Cookie-gated noVNC viewer
    - `/admin/create`: Create new VM instances
    - `/admin/instances`: List all instances
-   - `/admin/destroy`: Destroy instances
-   - `/vm_startup`: Client registration
+   - `/api/v1/clients/register`: BYO client self-registration
+   - `/api/heartbeat`: Client liveness reporting
+
+   See [API Endpoints](api-endpoints.md) for the full surface.
 
 3. **Database Management**:
 
-   - Tracks VM states (available, in-use, failed)
-   - PostgreSQL listen/notify for real-time updates
-   - Automated triggers for state changes
+   - Tracks VM states (`initializing`, `running`, `error`, `rebooting`)
+   - Claims seats atomically with `FOR UPDATE SKIP LOCKED`
 
 4. **Infrastructure Orchestration**:
    - Spawns client VMs via Terraform
@@ -135,35 +181,31 @@ graph TB
 
 2. **Allocator Communication**:
 
-   - Authenticated via bearer token (auto-distributed at launch)
+   - Authenticated with its own per-client secret, issued at registration
    - Heartbeat mechanism
-   - Status updates (in-use, available)
+   - Status updates (in-use, health, startup timings)
    - Failure reporting
 
-3. **Research Execution**:
-   - Clones configured repository
-   - Runs containerized research software
-   - Executes user-defined CRD commands
+3. **Desktop Session**:
+   - Runs a KasmVNC desktop the participant reaches in a browser
+   - Exposes a local agent the allocator calls to rotate the VNC password per session
+   - Clones the configured repository and runs the containerized research software
 
 **Configuration**: See `packages/client/src/lablink_client/conf/structured_config.py`
 
 ### Database Schema
 
-**Table: `vms`**
+Four tables: `vms` (one row per client machine), `operations` (async provisioning
+work), `scheduled_destructions`, and `settings` (deployment-wide key/value state).
 
-| Column            | Type         | Description                                            |
-| ----------------- | ------------ | ------------------------------------------------------ |
-| `Hostname`        | VARCHAR(255) | VM hostname/identifier (Primary Key)                   |
-| `UserEmail`       | VARCHAR(255) | User email                                             |
-| `Status`          | VARCHAR(50)  | VM status (running/initializing/error/rebooting)       |
-| `CrdCommand`      | TEXT         | Command to execute on VM                               |
-| `CreatedAt`       | TIMESTAMP    | Creation timestamp                                     |
-| `reboot_count`    | INTEGER      | Number of reboot attempts (default: 0)                 |
-| `last_reboot_time`| TIMESTAMP    | When the last reboot was attempted                     |
+The `vms` row carries the machine's identity and assignment, its provider and
+connectivity details, per-session browser state, liveness counters, startup timings,
+and — when enabled — session metrics. Full column-by-column reference:
+[Database](database.md#vms-table).
 
-**Triggers**:
-
-- `notify_vm_update`: Sends PostgreSQL NOTIFY on row changes
+**Triggers**: one, maintaining `updated_at` on `scheduled_destructions`. LabLink no
+longer uses `LISTEN`/`NOTIFY`; see
+[Database](database.md#triggers) for what replaced it.
 
 ### VM State Machine
 
@@ -269,36 +311,44 @@ stateDiagram-v2
 
 ## Data Flow
 
-### VM Request Flow
+### Seat Assignment Flow
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant WebUI as Web UI/API
-    participant Flask as Flask App
+    participant Flask as Allocator
     participant DB as PostgreSQL
-    participant Client as Client VM
+    participant Agent as Client agent
 
-    User->>WebUI: Submit VM request
-    WebUI->>Flask: POST /request_vm
-    Flask->>DB: SELECT * FROM vms<br/>WHERE status='available'<br/>LIMIT 1
+    User->>Flask: POST /api/request_vm<br/>(email only)
+    Flask->>DB: Already own a running seat?
 
-    alt VM Available
-        DB-->>Flask: Return VM details
-        Flask-->>WebUI: Return VM hostname<br/>and connection details
-        WebUI-->>User: Display VM info
-        Flask->>DB: PostgreSQL NOTIFY<br/>vm_update
-        DB-->>Client: Notify event
-    else No VM Available
-        DB-->>Flask: No results
-        Flask-->>WebUI: Error: No VMs available
-        WebUI-->>User: Queue request or<br/>show error message
+    alt Rejoin
+        DB-->>Flask: Existing seat
+    else Fresh claim
+        Flask->>DB: assign_vm — SELECT … <br/>FOR UPDATE SKIP LOCKED
+        alt Pool empty
+            DB-->>Flask: no rows
+            Flask-->>User: 503 no_seats.html
+        end
     end
 
-    Note over Client: Later: update_inuse_status service<br/>monitors for software process
-    Client->>Client: Software process starts
-    Client->>Flask: Update status to in-use
-    Flask->>DB: UPDATE vms<br/>SET status='in-use'
+    Flask->>Flask: Mint session_id + browser_token
+    Flask->>Agent: POST /api/session/start<br/>(rotate KasmVNC password)
+
+    alt Rotation OK
+        Agent-->>Flask: 200
+        Flask->>DB: Persist session state,<br/>clear Unhealthy
+        Flask-->>User: 302 /desktop<br/>+ signed lablink_session cookie
+        User->>Flask: GET /desktop
+        Flask-->>User: noVNC viewer
+    else RotationFailed
+        Flask->>DB: Mark Unhealthy,<br/>release seat
+        Flask-->>User: 503 rotation_failed.html
+    end
+
+    Note over Agent: Later: update_inuse_status reports<br/>whether the software is running
+    Agent->>Flask: POST /api/update_inuse_status
 ```
 
 ### VM Creation Flow
@@ -326,8 +376,8 @@ sequenceDiagram
 
     VM->>Docker: Pull Docker image<br/>from ghcr.io
     VM->>VM: Clone user repository<br/>(if configured)
-    VM->>Docker: Start client service<br/>(subscribe, check_gpu, etc.)
-    Docker->>Flask: POST /vm_startup<br/>(hostname registration)
+    VM->>Docker: Start client services<br/>(agent, heartbeat, check_gpu)
+    Docker->>Flask: POST /api/vm-status<br/>(status: running)
 
     Flask-->>Admin: VMs created successfully<br/>(show instance details)
 ```
@@ -427,7 +477,7 @@ See [Security](security.md) for detailed security considerations.
 | Component     | Technology      | Rationale                          |
 | ------------- | --------------- | ---------------------------------- |
 | Web Framework | Flask           | Lightweight, Python ecosystem      |
-| Database      | PostgreSQL      | LISTEN/NOTIFY, ACID compliance     |
+| Database      | PostgreSQL      | ACID compliance, `SKIP LOCKED` for race-free seat claims |
 | IaC           | Terraform       | Declarative, AWS support           |
 | Containers    | Docker          | Portability, dependency isolation  |
 | CI/CD         | GitHub Actions  | Native GitHub integration          |

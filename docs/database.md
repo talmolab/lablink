@@ -6,10 +6,12 @@ This guide covers the PostgreSQL database used by LabLink, including schema, man
 
 LabLink uses **PostgreSQL** for:
 
-- Tracking VM states (available, in-use, failed)
-- Storing user assignments
-- Real-time notifications (LISTEN/NOTIFY)
-- Audit logging
+- Tracking VM states (`initializing`, `running`, `error`, `rebooting`)
+- Storing seat assignments, and claiming them atomically so concurrent requesters can't collide
+- Holding per-session browser state (session IDs, rotated VNC credentials)
+- Registration records and hashed secrets for BYO clients
+- Async operation and scheduled-destruction bookkeeping
+- Session metrics, when `monitoring.enabled` is set
 
 **Version**: PostgreSQL 13+
 **Location**: Runs in allocator Docker container
@@ -17,188 +19,167 @@ LabLink uses **PostgreSQL** for:
 
 ## Database Schema
 
-### Schema Overview
+The schema is created once, at container start, by `generate-init-sql` writing
+`init.sql` for Postgres' bootstrap step. There are four tables.
 
-```mermaid
-erDiagram
-    VMS {
-        varchar_1024 HostName PK "VM hostname/instance ID"
-        varchar_1024 Pin "VM pin/identifier"
-        varchar_1024 CrdCommand "Command to execute"
-        varchar_1024 UserEmail "User email address"
-        boolean InUse "Whether software is running"
-        varchar_1024 Healthy "Health status"
-        varchar_1024 Status "VM status"
-        text Logs "VM logs"
-        timestamp TerraformApplyStartTime "Terraform start"
-        timestamp TerraformApplyEndTime "Terraform end"
-        float TerraformApplyDurationSeconds "Terraform duration"
-        timestamp CloudInitStartTime "Cloud-init start"
-        timestamp CloudInitEndTime "Cloud-init end"
-        float CloudInitDurationSeconds "Cloud-init duration"
-        timestamp ContainerStartTime "Container start"
-        timestamp ContainerEndTime "Container end"
-        float ContainerStartupDurationSeconds "Container startup duration"
-        float TotalStartupDurationSeconds "Total startup duration"
-        timestamp CreatedAt "Creation timestamp"
-        integer reboot_count "Reboot attempt count"
-        timestamp last_reboot_time "Last reboot time"
-    }
+!!! note "One-time-use database"
+    A LabLink database is created fresh for each deployment and thrown away with it,
+    so there is no migration machinery. New schema goes in `generate_init_sql.py`,
+    not into a runtime upgrade path.
 
-    VMS ||--o{ trigger_crd_command_insert_or_update : "fires on notify_crd_command_update()"
-```
+### `vms` Table
 
-### Tables
+The main table. One row per client machine, whether it was provisioned by Terraform
+or registered itself as a BYO box. The table name is configurable via
+`db.table_name` (default `vm_table`); this page calls it `vms`.
 
-#### `vms` Table
+It carries five groups of columns:
 
-Primary table tracking all VM instances with comprehensive timing metrics.
+**Identity and assignment**
 
-| Column                            | Type          | Constraints   | Description                                             |
-| --------------------------------- | ------------- | ------------- | ------------------------------------------------------- |
-| `HostName`                        | VARCHAR(1024) | PRIMARY KEY   | VM hostname/instance ID                                 |
-| `Pin`                             | VARCHAR(1024) |               | VM pin/identifier for access                            |
-| `CrdCommand`                      | VARCHAR(1024) |               | Command to execute on VM                                |
-| `UserEmail`                       | VARCHAR(1024) |               | User email address                                      |
-| `InUse`                           | BOOLEAN       | NOT NULL      | Whether configured software is running (default: FALSE) |
-| `Healthy`                         | VARCHAR(1024) |               | Health status of the VM                                 |
-| `Status`                          | VARCHAR(1024) |               | VM status                                               |
-| `Logs`                            | TEXT          |               | VM logs                                                 |
-| `TerraformApplyStartTime`         | TIMESTAMP     |               | When Terraform apply started                            |
-| `TerraformApplyEndTime`           | TIMESTAMP     |               | When Terraform apply completed                          |
-| `TerraformApplyDurationSeconds`   | FLOAT         |               | Duration of Terraform apply in seconds                  |
-| `CloudInitStartTime`              | TIMESTAMP     |               | When cloud-init started                                 |
-| `CloudInitEndTime`                | TIMESTAMP     |               | When cloud-init completed                               |
-| `CloudInitDurationSeconds`        | FLOAT         |               | Duration of cloud-init in seconds                       |
-| `ContainerStartTime`              | TIMESTAMP     |               | When container startup started                          |
-| `ContainerEndTime`                | TIMESTAMP     |               | When container became ready                             |
-| `ContainerStartupDurationSeconds` | FLOAT         |               | Duration of container startup in seconds                |
-| `TotalStartupDurationSeconds`     | FLOAT         |               | Total VM startup duration in seconds                    |
-| `CreatedAt`                       | TIMESTAMP     | DEFAULT NOW() | Creation timestamp                                      |
-| `reboot_count`                    | INTEGER       | DEFAULT 0     | Number of reboot attempts                               |
-| `last_reboot_time`               | TIMESTAMP     |               | When the last reboot was attempted                      |
+| Column | Type | Description |
+|---|---|---|
+| `HostName` | VARCHAR(1024) PK | Hostname / instance ID |
+| `UserEmail` | VARCHAR(1024) | Assigned participant, `NULL` when free |
+| `InUse` | BOOLEAN NOT NULL | Whether the configured software is actively running |
+| `Healthy` | VARCHAR(1024) | Health status |
+| `Status` | VARCHAR(1024) | `initializing`, `running`, `error`, `rebooting` |
+| `CreatedAt` | TIMESTAMP | Row creation time |
+| `last_release_time` | TIMESTAMP | When the seat was last released |
 
-**InUse Status**:
+**Provider and connectivity** — how the allocator reaches this machine
 
-The `InUse` column indicates whether the configured software (e.g., SLEAP) is actively running on the VM, not just whether a user has been assigned. This is monitored by the `update_inuse_status` service running on the client VM.
+| Column | Type | Description |
+|---|---|---|
+| `provider` | TEXT NOT NULL | `aws` or `manual`. Defaults to `aws` |
+| `machine_identity` | TEXT | Stable machine ID, unique where non-NULL. Lets a BYO box re-register without consuming a second seat |
+| `endpoint_url` | TEXT | Reported endpoint, if any |
+| `provider_metadata` | JSONB NOT NULL | Connectivity-specific payload: `lan_ip`, `overlay_hostname`, or the reverse-tunnel alias octet and path prefix |
+| `client_secret_hash` | TEXT | Argon2 hash of this client's own secret |
+| `gpu_present` | BOOLEAN | Whether a GPU was detected |
+| `gpu_model` | TEXT | Reported GPU model |
 
-- `FALSE`: Software process not running
-- `TRUE`: Software process actively running
+**Browser session** — per-assignment state, rewritten on each new session
 
-**Timing Metrics**:
+| Column | Type | Description |
+|---|---|---|
+| `SessionId` | UUID | Per-session ID, unique where non-NULL. Bound to the `lablink_session` cookie |
+| `BrowserToken` | TEXT | Per-session token, unique where non-NULL |
+| `VncPassword` | TEXT | Current KasmVNC password, rotated at assignment |
+| `browser_ws_url` | TEXT | The URL the viewer page opens |
+| `browser_credential` | TEXT | Sent as HTTP Basic by the viewer, when required |
+| `Upstream` | TEXT | Proxy upstream for this client |
+| `SessionStartedAt` | TIMESTAMPTZ | Session start |
+| `AdminReservedAt` | TIMESTAMPTZ | Set while an admin holds the VM for troubleshooting |
 
-The table tracks three phases of VM startup:
+**Liveness and recovery**
 
-1. **Terraform Apply**: Infrastructure provisioning (EC2 instance creation)
-2. **Cloud-init**: OS-level initialization and Docker setup
-3. **Container Startup**: Application container becoming ready
+| Column | Type | Description |
+|---|---|---|
+| `last_seen_at` | TIMESTAMP | Last heartbeat |
+| `boot_id` | VARCHAR(64) | Changes across reboots, so a silent restart is detectable |
+| `disk_free_pct` | SMALLINT | Reported free disk percentage |
+| `reboot_count` | INTEGER | Reboot attempts so far |
+| `last_reboot_time` | TIMESTAMP | Last reboot attempt |
 
-These metrics help identify bottlenecks in the VM creation process.
+The last two are added by `ensure_reboot_columns()` at reboot-service startup, not
+by `init.sql` — the one exception to the note above.
 
-**Example Row**:
+**Startup timings and logs**
+
+`CloudInitLogs`, `DockerLogs`, and the `TerraformApply*`, `CloudInit*`, `Container*`
+and `TotalStartupDurationSeconds` timing columns, which break VM startup into its
+Terraform / cloud-init / container-start phases for bottleneck analysis.
+
+**Session metrics** — populated only when `monitoring.enabled` is true
+
+The `SessionMetrics*`, `SecondsIn*`, `SecondsToFirst*`, `Gpu*`, `Vram*` and
+`Training*` columns, plus `MaxLabeledFrames` — per-session time-in-software, GPU
+activity and training-progress counters.
+
+#### Indexes
 
 ```sql
-HostName          | UserEmail        | InUse | CrdCommand       | TotalStartupDurationSeconds | CreatedAt
-------------------+------------------+-------+------------------+-----------------------------+---------------------
-i-0abc123def456   | user@example.com | true  | python train.py  | 245.67                      | 2025-01-15 10:30:00
+CREATE UNIQUE INDEX vms_browser_token_idx     ON vms(BrowserToken)      WHERE BrowserToken IS NOT NULL;
+CREATE UNIQUE INDEX vms_session_id_idx        ON vms(SessionId)         WHERE SessionId IS NOT NULL;
+CREATE UNIQUE INDEX vms_machine_identity_idx  ON vms(machine_identity)  WHERE machine_identity IS NOT NULL;
+CREATE INDEX        vms_provider_idx          ON vms(provider);
+CREATE INDEX        vms_assignable_idx        ON vms(status, useremail, last_release_time)
+    WHERE useremail IS NULL AND status = 'running' AND adminreservedat IS NULL;
 ```
+
+`vms_assignable_idx` is the one that matters for assignment: it covers exactly the
+rows a seat request can claim, so `assign_vm`'s `FOR UPDATE SKIP LOCKED` scan stays
+cheap as the pool grows.
+
+**`InUse` vs assignment.** `InUse` means *the configured software is running*, not
+*a participant is assigned*. A participant can hold a seat with `InUse = FALSE`
+if they haven't launched anything yet. It's maintained by the client's
+`update_inuse_status` service.
+
+### `operations` Table
+
+Tracks asynchronous provisioning work so the CLI and admin UI can poll progress
+instead of blocking on a long Terraform run.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | SERIAL PK | |
+| `op_type` | VARCHAR(16) NOT NULL | What kind of operation |
+| `status` | VARCHAR(16) NOT NULL | Current state |
+| `params` | TEXT | Serialized request parameters |
+| `created_by` | VARCHAR(255) | Requesting admin |
+| `created_at` | TIMESTAMP NOT NULL | Defaults to `NOW()` |
+| `started_at` / `finished_at` | TIMESTAMP | Execution window |
+| `output` / `error` | TEXT | Captured result |
+| `resources_total` / `resources_completed` | INTEGER | Progress counters |
+
+Exposed via [`/api/operations`](api-endpoints.md#operations-api).
+
+### `scheduled_destructions` Table
+
+Backs scheduled tear-down, so a workshop deployment can be capped ahead of time.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | SERIAL PK | |
+| `schedule_name` | VARCHAR(255) NOT NULL UNIQUE | |
+| `destruction_time` | TIMESTAMP NOT NULL | When to tear down |
+| `recurrence_rule` | VARCHAR(255) | Optional recurrence |
+| `created_by` | VARCHAR(255) | |
+| `status` | VARCHAR(50) NOT NULL | Defaults to `scheduled` |
+| `execution_count` | INTEGER | Defaults to 0 |
+| `last_execution_time` | TIMESTAMP | |
+| `last_execution_result` | TEXT | |
+| `notification_enabled` | BOOLEAN | Defaults to `TRUE` |
+| `notification_hours_before` | INTEGER | Defaults to 1 |
+| `created_at` / `updated_at` | TIMESTAMP | Default `NOW()` |
+
+Exposed via [`/api/schedule-destruction`](api-endpoints.md#scheduled-destruction-api).
+
+### `settings` Table
+
+A two-column key/value store (`key TEXT PRIMARY KEY`, `value TEXT NOT NULL`) for
+deployment-wide state that has to survive a restart. Its main use is holding
+`register_token_hash`, the argon2 hash of the deployment's register token, so
+client registration can be verified without keeping the token in memory alone.
 
 ### Triggers
 
-#### `notify_vm_update`
+One, `scheduled_destructions_updated_at`, which maintains `updated_at` on that
+table.
 
-Sends PostgreSQL NOTIFY when VM table changes.
+!!! note "LISTEN/NOTIFY has been removed"
+    LabLink used to drive client assignment through a `notify_vm_changes` trigger
+    firing `pg_notify` on a `vm_updates` channel, with each client holding a
+    `LISTEN` connection open and blocking on `POST /vm_startup` for a CRD command
+    and PIN. All of it — the trigger, the channel, the `db.message_channel` config
+    key, the endpoint, and the client-side `subscribe` service — is gone.
 
-**Purpose**: Real-time updates to client VMs
-
-**Definition**:
-
-```sql
-CREATE OR REPLACE FUNCTION notify_vm_changes()
-RETURNS trigger AS $$
-BEGIN
-  PERFORM pg_notify('vm_updates', row_to_json(NEW)::text);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER vm_update_trigger
-AFTER INSERT OR UPDATE ON vms
-FOR EACH ROW
-EXECUTE FUNCTION notify_vm_changes();
-```
-
-**How it works**:
-
-1. Client VM starts up and sends HTTP POST to `/vm_startup` endpoint
-
-2. Allocator validates VM exists in database and establishes `LISTEN vm_updates` connection
-
-3. HTTP request blocks while allocator waits for VM assignment
-
-4. User requests a VM via web UI (POST `/api/request_vm`)
-
-5. Allocator assigns first available VM by updating database with `CrdCommand` and `Pin`
-
-6. Database trigger fires on UPDATE and sends `pg_notify()` with JSON payload to `vm_updates` channel
-
-7. Allocator receives notification via PostgreSQL LISTEN connection
-
-8. Allocator parses notification and matches hostname to the pending `/vm_startup` request
-
-9. HTTP response returns to client with command and pin
-
-10. Client executes the CrdCommand to connect to the configured software
-
-### NOTIFY/LISTEN Flow Diagram
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Client as Client VM
-    participant Flask as Flask App<br/>(Allocator)
-    participant DB as PostgreSQL
-    participant Trigger as notify_crd_command_update<br/>Trigger
-
-    Note over Client: Client VM starts up
-
-    Client->>Flask: POST /vm_startup<br/>{hostname: "vm-123"}<br/>
-
-    Note over Flask: Allocator validates VM<br/>and establishes LISTEN
-
-    Flask->>DB: SELECT * WHERE hostname='vm-123'
-    DB-->>Flask: VM found
-
-    Flask->>DB: LISTEN vm_updates
-
-    Note over Flask,DB: Allocator waits for notification<br/>(HTTP response blocked)
-
-    Note over User: User requests a VM
-
-    User->>Flask: POST /api/request_vm<br/>{email: "user@example.com",<br/>crd_command: "..."}
-
-    Note over Flask: Allocator assigns first<br/>available VM
-
-    Flask->>DB: UPDATE vms<br/>SET UserEmail='user@example.com',<br/>CrdCommand='...', Pin='...'<br/>WHERE hostname='vm-123'
-
-    DB->>Trigger: Row modified<br/>(AFTER INSERT/UPDATE trigger)
-
-    Trigger->>Trigger: Build JSON payload<br/>{HostName, CrdCommand, Pin}
-
-    Trigger->>DB: pg_notify('vm_updates',<br/>JSON payload)
-
-    DB-->>Flask: NOTIFY event received<br/>(on LISTEN connection)
-
-    Flask->>Flask: Parse notification<br/>Check if HostName matches<br/>pending vm_startup request
-
-    alt Hostname matches
-        Flask-->>Client: HTTP 200 OK<br/>{status: "success",<br/>command: "...", pin: "..."}
-        Flask-->>User: Success page<br/>with VM hostname
-        Client->>Client: Execute CrdCommand<br/>(connect to software)
-    else Hostname doesn't match
-        Note over Flask: Continue waiting for<br/>matching notification
-    end
-```
+    Assignment now runs the other direction: `/api/request_vm` claims a seat with
+    `FOR UPDATE SKIP LOCKED` and the allocator calls the assigned client's local
+    agent to rotate its VNC password. No pub/sub, and no long-lived database
+    connection per client.
 
 ## Accessing the Database
 
@@ -261,26 +242,32 @@ SELECT * FROM vms;
 
 ### View Available VMs
 
-```sql
-SELECT hostname, status, created_at
-FROM vms
-WHERE status = 'available'
-ORDER BY created_at;
-```
-
-### View In-Use VMs
+A seat is claimable when it is `running`, unassigned, and not reserved by an admin —
+the same predicate `vms_assignable_idx` covers.
 
 ```sql
-SELECT hostname, email, status, crd_command, updated_at
+SELECT hostname, status, gpu_model, createdat
 FROM vms
-WHERE status = 'in-use'
-ORDER BY updated_at DESC;
+WHERE status = 'running' AND useremail IS NULL AND adminreservedat IS NULL
+ORDER BY createdat;
 ```
+
+### View Assigned VMs
+
+```sql
+SELECT hostname, useremail, status, inuse, sessionstartedat
+FROM vms
+WHERE useremail IS NOT NULL
+ORDER BY sessionstartedat DESC;
+```
+
+`inuse` tells you whether the configured software is actually running, which is not
+the same as a seat being assigned.
 
 ### Count VMs by Status
 
 ```sql
-SELECT status, COUNT(*) as count
+SELECT status, COUNT(*) AS count
 FROM vms
 GROUP BY status;
 ```
@@ -290,32 +277,58 @@ Expected output:
 ```
  status       | count
 --------------+-------
- available    |     5
- in-use       |     3
+ running      |     8
+ initializing |     1
  error        |     1
- rebooting    |     1
 ```
 
-### Find VM by Email
+### Find a VM by Email
 
 ```sql
-SELECT hostname, status, crd_command
+SELECT hostname, status, healthy, sessionstartedat
 FROM vms
-WHERE email = 'user@example.com';
+WHERE useremail = 'user@example.com';
 ```
 
-### Update VM Status
+### Release a Seat
+
+Clearing the assignment and the per-session state returns a VM to the pool:
 
 ```sql
--- Mark VM as available
 UPDATE vms
-SET status = 'available', email = NULL, crd_command = NULL, updated_at = NOW()
+SET useremail = NULL, sessionid = NULL, browsertoken = NULL,
+    sessionstartedat = NULL, last_release_time = NOW()
 WHERE hostname = 'i-0abc123def456';
+```
 
--- Mark VM as failed
-UPDATE vms
-SET status = 'failed', updated_at = NOW()
-WHERE hostname = 'i-0abc123def456';
+### Clear a Stuck Unhealthy Flag
+
+A single transient rotation failure can leave a client marked `Unhealthy`. The admin
+UI exposes this as **clear-unhealthy**; the equivalent query is:
+
+```sql
+UPDATE vms SET healthy = NULL WHERE hostname = 'i-0abc123def456';
+```
+
+### View BYO Client Registrations
+
+```sql
+SELECT hostname, machine_identity, provider, gpu_model,
+       provider_metadata, last_seen_at
+FROM vms
+WHERE provider = 'manual'
+ORDER BY last_seen_at DESC NULLS LAST;
+```
+
+### Find Silent Clients
+
+Clients that stopped heartbeating — the signal the recovery loop acts on:
+
+```sql
+SELECT hostname, status, last_seen_at, reboot_count
+FROM vms
+WHERE status = 'running'
+  AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL '3 minutes');
 ```
 
 ### Delete VM Record
@@ -332,50 +345,6 @@ Only delete after VM instance is terminated in AWS.
 ```sql
 -- Use with caution!
 TRUNCATE TABLE vms;
-```
-
-## Monitoring LISTEN/NOTIFY
-
-### Listen for VM Updates
-
-```sql
--- In psql session
-LISTEN vm_updates;
-
--- In another session, make a change:
-UPDATE vms SET status = 'in-use' WHERE id = 1;
-
--- First session receives:
-Asynchronous notification "vm_updates" received from server process with PID 12345.
-```
-
-### Listen from Python
-
-```python
-import psycopg2
-import select
-
-conn = psycopg2.connect(
-    dbname="lablink_db",
-    user="lablink",
-    password="lablink",
-    host="localhost"
-)
-
-conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-cursor = conn.cursor()
-cursor.execute("LISTEN vm_updates;")
-
-print("Waiting for notifications...")
-
-while True:
-    if select.select([conn], [], [], 5) == ([], [], []):
-        print("Timeout")
-    else:
-        conn.poll()
-        while conn.notifies:
-            notify = conn.notifies.pop(0)
-            print(f"Notification: {notify.payload}")
 ```
 
 ## Database Backup
@@ -751,11 +720,13 @@ SELECT * FROM vms;
 -- Count by status
 SELECT status, COUNT(*) FROM vms GROUP BY status;
 
--- Find available VMs
-SELECT * FROM vms WHERE status = 'available';
+-- Find claimable seats
+SELECT * FROM vms
+WHERE status = 'running' AND useremail IS NULL AND adminreservedat IS NULL;
 
--- Update VM status
-UPDATE vms SET status = 'available' WHERE hostname = 'i-xxxxx';
+-- Release a seat back to the pool
+UPDATE vms SET useremail = NULL, sessionid = NULL, browsertoken = NULL
+WHERE hostname = 'i-xxxxx';
 
 -- Backup
 pg_dump -U lablink lablink_db > backup.sql
