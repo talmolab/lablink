@@ -245,7 +245,23 @@ def _check_aws_prereqs() -> None:
     # 6. AMI for region
     checks.append(_check_ami(cfg))
 
-    # Display results
+    _render_checks(
+        checks,
+        pass_message=(
+            "[green]All checks passed.[/green] "
+            "Ready to deploy with 'lablink deploy'."
+        ),
+        fail_message=(
+            "[yellow]Some checks failed.[/yellow] "
+            "Resolve the issues above before deploying."
+        ),
+    )
+
+
+def _render_checks(
+    checks: list[dict], *, pass_message: str, fail_message: str
+) -> bool:
+    """Print a check-results table. Returns True if every check passed."""
     table = Table(show_header=True)
     table.add_column("Check")
     table.add_column("Status")
@@ -264,17 +280,8 @@ def _check_aws_prereqs() -> None:
 
     console.print(table)
     console.print()
-
-    if all_pass:
-        console.print(
-            "[green]All checks passed.[/green] "
-            "Ready to deploy with 'lablink deploy'."
-        )
-    else:
-        console.print(
-            "[yellow]Some checks failed.[/yellow] "
-            "Resolve the issues above before deploying."
-        )
+    console.print(pass_message if all_pass else fail_message)
+    return all_pass
 
 
 def _check_manual_prereqs() -> None:
@@ -308,6 +315,175 @@ def _check_manual_prereqs() -> None:
             "[red]✗[/red] docker compose: missing "
             "(install the Compose plugin)"
         )
+
+
+# --------------------------------------------------------------------
+# Client-side checks (`lablink client doctor`)
+#
+# These run ON a registered BYO box, not on the operator's deploy host.
+# `lablink doctor` answers "can I deploy from here?"; this answers "is the
+# client on this machine actually working?"
+# --------------------------------------------------------------------
+
+# A shipper that is alive but hasn't shipped in this long is reporting a
+# problem no liveness check can see — the process is up and the container is
+# healthy, but nothing is reaching the allocator. That combination went
+# unnoticed for a week (lablink#428), which is the reason this command exists.
+SHIPPER_STALE_AFTER_S = 15 * 60
+
+
+def _format_age(seconds: float) -> str:
+    """Coarse human age ("6d", "3h", "20m") for the staleness message.
+
+    A raw minute count reads as noise once it passes a few hours
+    ("8687 min ago"), and this is the one line an operator scans to decide
+    whether logs are flowing.
+    """
+    if seconds >= 86400:
+        return f"{int(seconds // 86400)}d"
+    if seconds >= 3600:
+        return f"{int(seconds // 3600)}h"
+    return f"{int(seconds // 60)}m"
+
+
+def _check_client_registered() -> dict:
+    """Check that `lablink client register` has run on this box."""
+    from lablink_cli.commands.register import DEFAULT_ENV_FILE
+
+    result = {"check": "Registered", "status": "fail"}
+    if not DEFAULT_ENV_FILE.exists():
+        result["detail"] = (
+            f"No {DEFAULT_ENV_FILE}. Run `lablink client register` first."
+        )
+        return result
+    result["status"] = "pass"
+    result["detail"] = str(DEFAULT_ENV_FILE)
+    return result
+
+
+def _check_client_container() -> dict:
+    """Report the lablink-client container's state.
+
+    Doubles as the docker-daemon check: `inspect_container` returns
+    "daemon_error" when the daemon is unreachable, so a separate probe would
+    only duplicate the same `docker inspect` call.
+    """
+    from lablink_cli.log_shipper import CONTAINER_NAME, inspect_container
+
+    result = {"check": "Client container", "status": "fail"}
+    status = inspect_container(CONTAINER_NAME)
+
+    if status == "daemon_error":
+        result["detail"] = (
+            "Docker daemon unreachable. Start Docker and re-check."
+        )
+    elif status == "missing":
+        result["detail"] = (
+            f"No container named {CONTAINER_NAME}. "
+            "Re-run `lablink client register --force` to recreate it."
+        )
+    elif status == "exited":
+        result["detail"] = (
+            f"{CONTAINER_NAME} is stopped. "
+            "Run `lablink client register` to restart it."
+        )
+    elif status == "restarting":
+        result["status"] = "warn"
+        result["detail"] = (
+            f"{CONTAINER_NAME} is restarting — it may be crash-looping. "
+            f"Check `docker logs {CONTAINER_NAME}`."
+        )
+    else:
+        result["status"] = "pass"
+        result["detail"] = f"{CONTAINER_NAME} is running"
+    return result
+
+
+def _check_log_shipper(now: float | None = None) -> dict:
+    """Check the log shipper is alive AND actually shipping.
+
+    Liveness alone is not enough. A shipper can sit blocked on a quiet
+    container with a full buffer, process up, nothing delivered — so this
+    also reports how long ago a batch last landed.
+    """
+    import time
+    from datetime import datetime, timezone
+
+    from lablink_cli.commands.register import _shipper_alive
+    from lablink_cli.log_shipper import STATE_FILE, read_last_shipped_ts
+
+    result = {"check": "Log shipper", "status": "fail"}
+
+    if not _shipper_alive():
+        result["detail"] = (
+            "Not running — client logs are not reaching the allocator. "
+            "Run `lablink client register` to restart it."
+        )
+        return result
+
+    last = read_last_shipped_ts(STATE_FILE)
+    if last is None:
+        result["status"] = "warn"
+        result["detail"] = (
+            "Running, but has never shipped a batch. Normal for the first "
+            "minute after registering; otherwise check the allocator URL "
+            "and client secret."
+        )
+        return result
+
+    try:
+        shipped_at = datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
+    except ValueError:
+        result["status"] = "warn"
+        result["detail"] = f"Running; unparseable last-shipped value {last!r}"
+        return result
+
+    current = now if now is not None else time.time()
+    age_s = current - shipped_at.timestamp()
+    if age_s > SHIPPER_STALE_AFTER_S:
+        result["status"] = "warn"
+        result["detail"] = (
+            f"Running, but last shipped {_format_age(age_s)} ago ({last}). "
+            "The process is up but nothing is reaching the allocator."
+        )
+        return result
+
+    result["status"] = "pass"
+    result["detail"] = f"Running; last shipped {last}"
+    return result
+
+
+def run_client_doctor() -> None:
+    """Run the BYO-client checks and print a results table."""
+    console.print()
+    console.print(
+        Panel(
+            "[bold]LabLink Client Doctor[/bold]\n"
+            "Checking this machine's BYO client.",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
+    checks = [
+        _check_client_registered(),
+        _check_client_container(),
+        _check_log_shipper(),
+    ]
+
+    _render_checks(
+        checks,
+        pass_message=(
+            "[green]All checks passed.[/green] "
+            "This client is registered and shipping logs."
+        ),
+        fail_message=(
+            "[yellow]Some checks need attention.[/yellow] "
+            "Most are fixed by re-running `lablink client register`."
+        ),
+    )
 
 
 def run_doctor() -> None:
