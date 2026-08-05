@@ -1,37 +1,18 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
-
 # Claude Developer Guide
 
-**LabLink** is a cloud-based virtual teaching lab accessible through Chrome browser. It consists of three packages: an **allocator** service (Flask API that orchestrates VM provisioning), a **client** service (runs on GPU VMs for health reporting), and a **CLI** tool (Typer-based command-line interface for deploying and managing infrastructure). See `openspec/project.md` for full project context, conventions, and constraints.
+**LabLink** is a cloud-based virtual teaching lab accessible through Chrome browser. It consists of three packages: an **allocator** service (Flask API that orchestrates VM provisioning), a **client** service (runs on GPU VMs for health reporting), and a **CLI** tool (Typer-based command-line interface for deploying and managing infrastructure).
 
 ## Key Resources
 
 | Resource | Location |
 |----------|----------|
-| Project conventions | `openspec/project.md` |
-| API endpoints | `openspec/specs/api/spec.md` |
-| Database schema | `openspec/specs/database/spec.md` |
-| Docker strategy | `openspec/specs/docker/spec.md` |
-| CI/CD workflows | `openspec/specs/ci-cd/spec.md` |
+| Architecture, providers, connectivity | `docs/architecture.md` |
+| API endpoints | `docs/api-endpoints.md` |
+| Database schema | `docs/database.md` |
+| CI/CD workflows and image tagging | `docs/workflows.md` |
 | Configuration reference | `docs/configuration.md` |
 | Configuration examples | `docs/configuration.md#full-configuration-examples` |
+| CLI reference | `docs/reference/cli.md` |
 | Documentation site | https://talmolab.github.io/lablink/ |
 
 ## Repository Structure
@@ -40,7 +21,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 lablink/
 ├── packages/
 │   ├── allocator/          # Allocator service (Flask, Terraform)
-│   ├── client/             # Client service (GPU health, subscription)
+│   ├── client/             # Client service (KasmVNC desktop, agent, health reporting)
 │   └── cli/                # CLI tool (Typer, deploys infrastructure)
 │       └── src/lablink_cli/
 │           ├── app.py                  # CLI entry point + Typer command definitions
@@ -50,10 +31,6 @@ lablink/
 │           ├── commands/               # Command implementations (deploy, cleanup, status, logs, doctor, setup, launch, export_metrics)
 │           ├── config/                 # Config schema and validation
 │           └── tui/                    # Interactive TUI (wizard, logs viewer)
-├── openspec/
-│   ├── project.md          # Project conventions
-│   ├── specs/              # Capability specifications
-│   └── changes/            # Change proposals
 ├── .claude/commands/       # Slash commands for development
 └── docs/                   # MkDocs documentation
 ```
@@ -138,18 +115,70 @@ The CLI (`lablink` command) downloads Terraform files from tagged GitHub release
 - **Region**: Passed as `-var=region=` to Terraform (not string-replaced in `.tf` files)
 - **Template repo**: `talmolab/lablink-template` — allocator infrastructure Terraform configs
 
+## Conventions
+
+Salvaged from the retired `openspec/project.md`, minus the parts that had gone
+stale or that `docs/` already covers.
+
+### Code style
+- **PEP 8** via ruff. Max line length 88 (ruff default).
+- **Type hints** required for public functions; **Google-style docstrings**.
+- f-strings for formatting. Import order stdlib → third-party → local (ruff handles).
+- `snake_case.py` files and functions, `PascalCase` classes,
+  `UPPER_SNAKE_CASE` constants, `_leading_underscore` for private members.
+
+### Allocator database layer
+
+All allocator persistence lives in `packages/allocator/src/lablink_allocator_service/db/`.
+Each class owns one concern and they **share a single connection pool** rather than
+each opening their own — `POOL_MAX_SIZE` is tuned for the service's total
+connection budget, so a second pool would silently double it.
+
+```
+db/
+├── __init__.py     # Docstring only, NO re-exports — read it before adding any
+├── pool.py         # PooledCursor, make_pool, validate_pool_sizes, POOL_* sizing
+├── vms.py          # VmDatabase — VM rows, registration/auth, seats, logs, health
+├── schedules.py    # ScheduleDatabase — scheduled_destructions table
+├── metrics.py      # MetricsDatabase — session-metrics columns on the VM table
+└── operations.py   # OperationsDatabase — operations table (async apply/destroy jobs)
+```
+
+Two non-obvious rules here:
+
+- **`db/__init__.py` re-exports nothing.** If it did, importing *any* submodule —
+  including the dependency-free `db.pool` — would eagerly execute `db/vms.py` and
+  its top-level `import psycopg2` as a side effect, coupling every consumer to the
+  heaviest module in the package.
+- **A class that constructs a pool must do so in its own module.** `VmDatabase`
+  builds its pool inline rather than calling `make_pool`, so its own `import
+  psycopg2` binding is the one used. `make_pool` is for callers needing only a bare
+  pool (e.g. the APScheduler job in `scheduler.py`). `VmDatabase` also accepts an
+  injected `pool=` and tracks ownership, so it will not close a pool it was handed.
+
+Related: new `database.py`-adjacent modules must **lazy-import psycopg2**, not
+import it at module level, or pytest collection order can poison the mocking
+guards in `test_database.py` / `test_reboot.py`.
+
+### Docker strategy
+- Two Dockerfiles per package: `Dockerfile.dev` builds local code with `uv sync`
+  (CI/testing); `Dockerfile` installs the published PyPI package (production).
+- Explicit venv paths: `/app/.venv` (allocator), `/home/client/.venv` (client).
+- Console scripts are declared in each `pyproject.toml`.
+
 ## Notes for Claude
 
 ### When Making Changes
 1. Read existing code before editing
-2. Follow patterns in `openspec/project.md`
+2. Follow the conventions below
 3. Add tests for new functionality
-4. Update specs if behavior changes
+4. Update the relevant page under `docs/` if behavior changes
 
 ### When Adding Features
-1. Check if an OpenSpec proposal is needed (see `openspec/AGENTS.md`)
-2. Add to structured config if user-facing
-3. Document in appropriate spec
+1. Add to structured config if user-facing
+2. Document in the relevant `docs/` page — `docs/api-endpoints.md` for a new
+   route, `docs/database.md` for a schema change, `docs/configuration.md` for a
+   new config key
 
 ### Code Review Checklist
 - [ ] Follows existing patterns

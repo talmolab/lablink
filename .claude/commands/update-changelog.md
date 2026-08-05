@@ -113,7 +113,7 @@ git diff $(git describe --tags --abbrev=0)..HEAD --stat
 - Claude development commands for streamlined workflows (`/test-allocator`, `/docker-build`, etc.)
 - HTTPS support for client services with `ALLOCATOR_URL` environment variable
 - Comprehensive Docker container verification tests
-- OpenSpec change proposal workflow and documentation
+- Bring-your-own client support via the `manual` provider
 
 ### Changed
 - Improved database connection handling with better error messages

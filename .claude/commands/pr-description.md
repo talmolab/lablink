@@ -84,7 +84,6 @@ Related to #[issue-number] (if applicable)
 - [ ] CHANGELOG.md updated
 - [ ] Tests added/updated
 - [ ] No breaking changes (or breaking changes documented)
-- [ ] OpenSpec change proposal created (if applicable)
 
 ## Screenshots/Output
 
@@ -207,27 +206,6 @@ gh pr edit <PR_NUMBER> --body "$CURRENT
 ## Update
 [Additional information]
 "
-```
-
-## For OpenSpec Changes
-
-If PR implements an OpenSpec change:
-
-```markdown
-## OpenSpec Change
-
-This PR implements OpenSpec change: `add-claude-dev-commands`
-
-**Proposal**: openspec/changes/add-claude-dev-commands/proposal.md
-**Tasks**: openspec/changes/add-claude-dev-commands/tasks.md
-
-### Implementation Status
-
-- [x] Task 1.1: Create .claude/commands directory
-- [x] Task 2.1: Create testing commands
-- [ ] Task 3.1: Create Docker commands (in progress)
-
-See proposal for full details.
 ```
 
 ## Related Commands
