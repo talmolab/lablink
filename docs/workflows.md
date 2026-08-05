@@ -148,7 +148,7 @@ Publishes Python packages to PyPI with safety guardrails.
 
 ### Triggers
 
-- **Git tags** matching package name pattern (e.g., `lablink-allocator-service_v0.0.2a0`)
+- **Git tags** matching package name pattern (e.g., `lablink-allocator-service_v0.1.2`)
 - **Manual dispatch** with dry-run option
 
 ### Features
@@ -184,16 +184,16 @@ Publishes Python packages to PyPI with safety guardrails.
 
 - **Format**: `{package-name}_v{version}`
 - **Examples**:
-  - `lablink-allocator-service_v0.0.2a0`
-  - `lablink-client-service_v0.0.7a0`
+  - `lablink-allocator-service_v0.1.2`
+  - `lablink-client-service_v0.1.2`
 
 ### Example: Publishing a Release
 
 ```bash
 # 1. Create and push tags
-git tag lablink-allocator-service_v0.0.2a0
-git tag lablink-client-service_v0.0.7a0
-git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
+git tag lablink-allocator-service_v0.1.2
+git tag lablink-client-service_v0.1.2
+git push origin lablink-allocator-service_v0.1.2 lablink-client-service_v0.1.2
 
 # 2. Workflow automatically:
 #    - Detects tags
@@ -204,8 +204,8 @@ git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7
 # 3. Manually trigger Docker image build (see below)
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 ### Building Docker Images After Publishing
@@ -226,8 +226,8 @@ gh workflow run lablink-images.yml \
 # Build both images with their respective versions
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 **Option 2: Using GitHub UI**:
@@ -236,15 +236,15 @@ gh workflow run lablink-images.yml \
 2. Click "Run workflow"
 3. Select branch: `main`
 4. **Set environment: `prod`** (required!)
-5. **Enter allocator version: `0.0.2a0`** (required!)
-6. **Enter client version: `0.0.7a0`** (required!)
+5. **Enter allocator version: `0.1.2`** (required!)
+6. **Enter client version: `0.1.2`** (required!)
 7. Click "Run workflow"
 
 **What happens:**
 
 - Pulls packages from PyPI with specified versions
 - Builds Docker images using production `Dockerfile`
-- Tags images with version numbers (e.g., `:0.0.2a0`, `:linux-amd64-0.0.2a0`)
+- Tags images with version numbers (e.g., `:0.1.2`, `:linux-amd64-0.1.2`)
 - Tags images with `:latest` for convenience
 - Verifies images work correctly
 - **No `-test` suffix** on production images
@@ -359,7 +359,7 @@ sequenceDiagram
     participant Build as GitHub Actions<br/>lablink-images.yml
     participant Registry as ghcr.io
 
-    Developer->>Git: Create and push tags<br/>lablink-allocator-service_v0.0.2a0<br/>lablink-client-service_v0.0.7a0
+    Developer->>Git: Create and push tags<br/>lablink-allocator-service_v0.1.2<br/>lablink-client-service_v0.1.2
     Git->>GHA: Trigger publish-pip.yml
 
     Note over GHA: Step 1: Publish to PyPI
@@ -371,11 +371,11 @@ sequenceDiagram
 
     Note over Developer,Manual: CRITICAL: Do NOT skip Step 2
 
-    Developer->>Manual: gh workflow run lablink-images.yml<br/>-f environment=prod<br/>-f allocator_version=0.0.2a0<br/>-f client_version=0.0.7a0
+    Developer->>Manual: gh workflow run lablink-images.yml<br/>-f environment=prod<br/>-f allocator_version=0.1.2<br/>-f client_version=0.1.2
 
     Note over Build: Step 2: Build Production Images
     Manual->>Build: Trigger with versions
-    Build->>PyPI: Pull packages<br/>lablink-allocator==0.0.2a0<br/>lablink-client==0.0.7a0
+    Build->>PyPI: Pull packages<br/>lablink-allocator==0.1.2<br/>lablink-client==0.1.2
     Build->>Build: Build from Dockerfile<br/>(PyPI packages)
     Build->>Registry: Push images with<br/>version tags
     Registry-->>Developer: Images ready for<br/>deployment
@@ -385,9 +385,9 @@ sequenceDiagram
 
 ```bash
 # Create and push git tags
-git tag lablink-allocator-service_v0.0.2a0
-git tag lablink-client-service_v0.0.7a0
-git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
+git tag lablink-allocator-service_v0.1.2
+git tag lablink-client-service_v0.1.2
+git push origin lablink-allocator-service_v0.1.2 lablink-client-service_v0.1.2
 
 # publish-pip.yml workflow automatically:
 #   - Runs tests
@@ -401,8 +401,8 @@ git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7
 # After packages are published, build production images
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 **Critical**: Do NOT skip Step 2. Without it, your published packages won't have corresponding Docker images, and deployments will fail.
@@ -435,7 +435,7 @@ gh workflow run lablink-images.yml -f environment=ci-test
 
 ```bash
 # Published to PyPI but forgot Step 2
-git push origin lablink-allocator-service_v0.0.2a0
+git push origin lablink-allocator-service_v0.1.2
 # Result: Package exists but no Docker image with version tag
 ```
 
@@ -450,15 +450,15 @@ gh workflow run lablink-images.yml -f environment=prod
 
 ```bash
 # 1. Publish packages
-git push origin lablink-allocator-service_v0.0.2a0 lablink-client-service_v0.0.7a0
+git push origin lablink-allocator-service_v0.1.2 lablink-client-service_v0.1.2
 
 # 2. Wait for publish-pip.yml to complete successfully
 
 # 3. Build Docker images with explicit versions
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 ### Smart Dockerfile Selection
@@ -490,14 +490,14 @@ Docker images are tagged differently based on how they are triggered. This allow
 ```bash
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 Creates images tagged with:
 
-- `ghcr.io/talmolab/lablink-allocator-image:0.0.2a0` - **Version-specific tag**
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.0.2a0` - Platform + version
+- `ghcr.io/talmolab/lablink-allocator-image:0.1.2` - **Version-specific tag**
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.1.2` - Platform + version
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest` - Latest for platform
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64` - Platform tag
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6` - Metadata tag
@@ -538,14 +538,14 @@ Creates images tagged with `-test` suffix:
 ```bash
 gh workflow run lablink-images.yml \
   -f environment=prod \
-  -f allocator_version=0.0.2a0 \
-  -f client_version=0.0.7a0
+  -f allocator_version=0.1.2 \
+  -f client_version=0.1.2
 ```
 
 Creates images tagged with:
 
-- `ghcr.io/talmolab/lablink-client-base-image:0.0.7a0` - **Version-specific tag**
-- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.0.7a0` - Platform + version
+- `ghcr.io/talmolab/lablink-client-base-image:0.1.2` - **Version-specific tag**
+- `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-0.1.2` - Platform + version
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-latest` - Latest for platform
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-nvidia-cuda-11.6.1-cudnn8-runtime-ubuntu20.04`
 - `ghcr.io/talmolab/lablink-client-base-image:linux-amd64-ubuntu20.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3`
@@ -554,7 +554,7 @@ Creates images tagged with:
 
 **Push to main branch (automatic):**
 
-Creates same tags as manual trigger except without version-specific tags (`0.0.7a0`, `linux-amd64-0.0.7a0`)
+Creates same tags as manual trigger except without version-specific tags (`0.1.2`, `linux-amd64-0.1.2`)
 
 **Pull requests / test branch (automatic):**
 
@@ -566,8 +566,8 @@ For production deployments, always use version-specific tags in your Terraform c
 
 ```hcl
 # terraform.tfvars or -var flags
-allocator_image_tag = "0.0.2a0"  # Pin to specific version
-client_image_tag    = "0.0.7a0"  # Pin to specific version
+allocator_image_tag = "0.1.2"  # Pin to specific version
+client_image_tag    = "0.1.2"  # Pin to specific version
 ```
 
 For development/testing, you can use environment-specific tags:
@@ -648,9 +648,9 @@ Runs after successful build, pulls and tests the client image:
 
 - **Image Selection**: Pulls using SHA-based tag (e.g., `:linux-amd64-<sha>-test`) to ensure exact image match and prevent race conditions from concurrent builds
 - **Virtual Environment**: Activates venv at `/home/client/.venv`
-- **Entry Points**: Verifies `check_gpu.main()`, `subscribe.main()`, `update_inuse_status.main()` are importable and callable
-- **Console Scripts**: Verifies `check_gpu`, `subscribe`, `update_inuse_status` exist and execute
-- **Package Imports**: Tests importing subscribe, check_gpu, update_inuse_status modules
+- **Entry Points**: Verifies `agent.api.main()`/`create_app()`, `check_gpu.main()`, `update_inuse_status.main()` are importable and callable
+- **Console Scripts**: Verifies `agent`, `check_gpu`, `update_inuse_status` exist and execute
+- **Package Imports**: Tests importing `agent.api`, `agent.kasmvnc.rotate_kasmvnc_password`, `check_gpu`, `update_inuse_status`
 - **UV Availability**: Verifies `uv` command and version
 - **Dev Dependencies** (dev images only): Verifies pytest, ruff with versions
 
@@ -672,9 +672,9 @@ PR opened → lablink-images.yml triggered
   └─ Verify Client Job
      ├─ Pull ghcr.io/.../lablink-client-base-image:linux-amd64-abc1234-test
      ├─ Venv activated: /home/client/.venv ✓
-     ├─ Entry points callable: check_gpu.main(), subscribe.main(), update_inuse_status.main() ✓
-     ├─ Console scripts: check_gpu, subscribe, update_inuse_status ✓
-     ├─ Imports: subscribe.main, check_gpu.main, update_inuse_status.main ✓
+     ├─ Entry points callable: agent.api.main(), check_gpu.main(), update_inuse_status.main() ✓
+     ├─ Console scripts: agent, check_gpu, update_inuse_status ✓
+     ├─ Imports: agent.api, agent.kasmvnc, check_gpu.main, update_inuse_status.main ✓
      ├─ UV: uv 0.6.8 ✓
      └─ Dev deps: pytest 8.4.2, ruff ✓
 ```

@@ -663,8 +663,12 @@ The allocator runs a background `AutoRebootService` that checks for failed VMs e
 
 - In `error` status
 - In `running` status but with `Unhealthy` GPU health
-- Stuck in `initializing` status for more than 15 minutes
+- Stuck in `initializing` status for more than 25 minutes
 - Stuck in `rebooting` status for more than 10 minutes (previous reboot failed)
+- In `running` status but silent — no heartbeat within the last 3 minutes
+
+Only providers that can recover hosts participate. The `manual` (bring-your-own)
+provider cannot, so BYO boxes are never rebooted by the allocator.
 
 For each failed VM, it attempts:
 
@@ -686,8 +690,9 @@ For each failed VM, it attempts:
 
 2. **Check reboot count for a specific VM**:
    ```bash
-   # Via API (requires admin auth)
-   curl -u admin:<password> http://<allocator-ip>/api/reboot-vm/<hostname>
+   # Query the database — there is no reboot API endpoint
+   sudo docker exec <container-id> psql -U lablink -d lablink_db -c \
+     "SELECT hostname, status, reboot_count, last_reboot_time FROM vms WHERE hostname = 'lablink-vm-xxx';"
    ```
 
 3. **Check if max attempts exceeded**:
@@ -706,13 +711,13 @@ For each failed VM, it attempts:
 
 2. **If SSH key not found**: Ensure Terraform state is present and the SSH key is accessible to the allocator.
 
-3. **Manually trigger a reboot** via the API:
-   ```bash
-   curl -X POST -u admin:<password> \
-     -H "Content-Type: application/json" \
-     -d '{"hostname": "lablink-vm-xxx"}' \
-     http://<allocator-ip>/api/reboot-vm
+3. **Manually trigger a reboot**: there is no reboot endpoint. Set the VM's status
+   back to `error` and clear its reboot count — the background service picks it up
+   on its next 60-second pass:
+   ```sql
+   UPDATE vms SET reboot_count = 0, status = 'error' WHERE hostname = 'lablink-vm-xxx';
    ```
+   To reboot out of band instead, use the EC2 console or `aws ec2 reboot-instances`.
 
 ### Client VM Not Registering
 

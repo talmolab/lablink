@@ -4,7 +4,6 @@
 
 [![PyPI - lablink-allocator-service](https://img.shields.io/pypi/v/lablink-allocator-service?label=allocator)](https://pypi.org/project/lablink-allocator-service/)
 [![PyPI - lablink-client-service](https://img.shields.io/pypi/v/lablink-client-service?label=client)](https://pypi.org/project/lablink-client-service/)
-[![PyPI - lablink-cli](https://img.shields.io/pypi/v/lablink-cli?label=cli)](https://pypi.org/project/lablink-cli/)
 [![CI](https://img.shields.io/github/actions/workflow/status/talmolab/lablink/ci.yml?event=pull_request&label=CI)](https://github.com/talmolab/lablink/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://talmolab.github.io/lablink/)
 [![License](https://img.shields.io/github/license/talmolab/lablink)](LICENSE)
@@ -15,7 +14,9 @@
 
 This repository contains the **core LabLink packages, Docker images, and documentation**:
 
-### Python Packages (Published to PyPI)
+### Python Packages
+
+Published to PyPI:
 
 - **[lablink-allocator](packages/allocator/)** - VM Allocator Service
 
@@ -29,35 +30,36 @@ This repository contains the **core LabLink packages, Docker images, and documen
   pip install lablink-client-service
   ```
 
+Not yet on PyPI — install from source:
+
 - **[lablink-cli](packages/cli/)** - Command-line tool to deploy and manage LabLink infrastructure
   ```bash
-  uv tool install lablink-cli
+  git clone https://github.com/talmolab/lablink.git
+  cd lablink && uv sync --all-packages
   ```
 
 ### Docker Images (Published to GHCR)
 
-Production images are built from PyPI packages and tagged with specific versions:
+Production images are built from the PyPI packages:
 
 - **lablink-allocator-image** - Allocator service container
 
   ```bash
-  docker pull ghcr.io/talmolab/lablink-allocator-image:0.0.2a0
   docker pull ghcr.io/talmolab/lablink-allocator-image:latest
   ```
 
 - **lablink-client-base-image** - Client service container
   ```bash
-  docker pull ghcr.io/talmolab/lablink-client-base-image:0.0.7a0
   docker pull ghcr.io/talmolab/lablink-client-base-image:latest
   ```
 
 **Available Tags:**
 
-- `<version>` (e.g., `0.0.2a0`) - Specific package version (recommended for production)
 - `latest` - Latest stable release
 - `linux-amd64-latest` - Latest for specific platform
 - `<sha>` - Specific git commit
 - `linux-amd64-test` - Development/testing builds
+- `<version>` (e.g., `0.1.2`) - Only published when a build is triggered manually
 
 See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagging-strategy) for complete tagging strategy.
 
@@ -77,7 +79,7 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 
 |           | **Path A — CLI (recommended)**        | **Path B — Template fork**                                            |
 | --------- | ------------------------------------- | --------------------------------------------------------------------- |
-| Install   | `uv tool install lablink-cli`         | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
+| Install   | `uv sync --all-packages`              | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
 | Configure | Interactive TUI (`lablink configure`) | Edit `lablink.yaml` by hand                                           |
 | Deploy    | `lablink deploy`                      | `terraform apply`                                                     |
 | Best for  | Most users                            | Custom Terraform workflows                                            |
@@ -85,8 +87,10 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 ### Using the CLI
 
 ```bash
-# Install
-uv tool install lablink-cli
+# Install from source (see docs/cli/installation.md)
+git clone https://github.com/talmolab/lablink.git
+cd lablink && uv sync --all-packages
+source .venv/bin/activate
 
 # Interactive configuration wizard (Textual TUI)
 lablink configure
@@ -94,9 +98,13 @@ lablink configure
 # Validate your environment
 lablink doctor
 
-# Deploy infrastructure
-lablink setup   # one-time GCP/Tailscale bootstrap
-lablink deploy  # provision allocator + VMs
+# Deploy the allocator
+lablink setup   # S3 bucket + DynamoDB lock table for Terraform state (run by `configure`)
+lablink deploy  # provision the allocator
+
+# Add clients
+lablink client launch --num-vms 5   # AWS: allocator provisions client VMs
+lablink client register             # manual provider: register a bring-your-own box
 
 # Monitor
 lablink status  # check running infrastructure
@@ -115,13 +123,8 @@ cd lablink
 # Install uv (recommended Python package manager)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Setup allocator service for development
-cd packages/allocator
-uv sync --extra dev
-
-# Setup client service for development
-cd ../client
-uv sync --extra dev
+# Install all three packages into one shared venv at the repo root.
+uv sync --all-packages --extra dev
 ```
 
 See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) for detailed development instructions.
@@ -175,7 +178,7 @@ LabLink uses **independent versioning** for its packages:
 
 - **lablink-allocator-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-allocator-service)](https://pypi.org/project/lablink-allocator-service/)
 - **lablink-client-service**: [![PyPI](https://img.shields.io/pypi/v/lablink-client-service)](https://pypi.org/project/lablink-client-service/)
-- **lablink-cli**: [![PyPI](https://img.shields.io/pypi/v/lablink-cli)](https://pypi.org/project/lablink-cli/)
+- **lablink-cli**: not yet published to PyPI (install from source)
 
 See the [Release Process](https://talmolab.github.io/lablink/contributing/#release-process) for how releases are managed.
 

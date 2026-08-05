@@ -20,8 +20,10 @@ The allocator uses Hydra for structured configuration.
 
 **Key configuration options:**
 
-- `ssl.staging: true` - HTTP only for testing (unlimited deployments)
-- `ssl.staging: false` - HTTPS with trusted certificates (production)
+- `provider` - `aws` (EC2 via Terraform) or `manual` (bring-your-own clients that
+  register themselves)
+- `ssl.provider` - `none` (HTTP only, for testing), `letsencrypt` (Caddy
+  auto-HTTPS), `cloudflare`, or `acm`
 - `dns.enabled: true` - Use DNS-based URLs
 - `db.password` - Database password (change from default)
 
