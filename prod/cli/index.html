@@ -749,6 +749,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#two-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cli-vs-template-repo" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -833,6 +844,34 @@
     
   
     First Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="byo-clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bring-Your-Own Clients
   
 
     
@@ -4323,6 +4362,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#two-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cli-vs-template-repo" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4381,6 +4431,37 @@
 <p class="admonition-title">Status: pre-PyPI</p>
 <p>The CLI is not yet published to PyPI. For now, install it from source with <code>uv sync --all-packages</code> — see <a href="installation/">Installation</a>. <code>uv tool install lablink</code> will be the path once the package is released.</p>
 </div>
+<h2 id="two-providers">Two providers<a class="headerlink" href="#two-providers" title="Permanent link">&para;</a></h2>
+<p>The CLI can deploy in either of two modes, selected by the <code>provider</code> field in your
+config:</p>
+<table>
+<thead>
+<tr>
+<th><code>provider</code></th>
+<th>Allocator runs on</th>
+<th>Client machines</th>
+<th>Needs AWS?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws</code> (default)</td>
+<td>EC2, provisioned by Terraform</td>
+<td><code>lablink client launch</code> provisions them for you</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>manual</code></td>
+<td>docker-compose, on a machine you already have</td>
+<td>you register your own boxes with <code>lablink client register</code></td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>Everything below compares the <strong>AWS</strong> path against the template repo. If you'd
+rather run LabLink on hardware you already own — lab workstations, an on-prem
+server, a scheduler-hosted workload — see
+<a href="byo-clients/">Bring-Your-Own Clients</a> instead.</p>
 <h2 id="cli-vs-template-repo">CLI vs. template repo<a class="headerlink" href="#cli-vs-template-repo" title="Permanent link">&para;</a></h2>
 <p>Both paths deploy the same allocator service and manage the same set of AWS resources. The practical difference is <strong>how much of the deployment you own and configure yourself</strong>.</p>
 <table>
@@ -4453,7 +4534,7 @@
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ol>
 <li><a href="installation/">Install the CLI</a></li>
-<li><a href="first-deployment/">Run your first deployment</a></li>
+<li><a href="first-deployment/">Run your first deployment</a> (AWS) — or <a href="byo-clients/">bring your own clients</a> (no AWS)</li>
 <li><a href="managing-deployments/">Manage an existing deployment</a></li>
 <li>Full command reference: <a href="../reference/cli/">CLI Reference</a></li>
 </ol>

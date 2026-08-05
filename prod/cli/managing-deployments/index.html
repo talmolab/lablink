@@ -13,7 +13,7 @@
       
       
       
-        <link rel="prev" href="../first-deployment/">
+        <link rel="prev" href="../byo-clients/">
       
       
         <link rel="next" href="../../adapting/">
@@ -770,6 +770,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../byo-clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bring-Your-Own Clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -870,6 +898,17 @@
     <span class="md-ellipsis">
       
         Export metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#session-metrics-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session metrics summary
       
     </span>
   </a>
@@ -4444,6 +4483,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#session-metrics-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session metrics summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#show-the-current-config" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4530,12 +4580,19 @@
 
 
 <h1 id="managing-deployments">Managing Deployments<a class="headerlink" href="#managing-deployments" title="Permanent link">&para;</a></h1>
-<p>Day-to-day operations once an allocator is running: launch client VMs, follow logs, export metrics, and clean up.</p>
+<p>Day-to-day operations once an allocator is running: add client machines, follow logs, export metrics, and clean up.</p>
 <p>Every command on this page reads <code>~/.lablink/config.yaml</code> by default. Pass <code>--config /path/to/other.yaml</code> to target a different deployment.</p>
+<div class="admonition note">
+<p class="admonition-title">This page describes the AWS provider</p>
+<p>Most of these commands branch on your config's <code>provider</code>. Under
+<code>provider: manual</code> the same commands act on a local docker-compose stack
+instead — see <a href="../byo-clients/#day-to-day">Bring-Your-Own Clients</a>, which covers
+the manual workflow end to end.</p>
+</div>
 <h2 id="launch-client-vms">Launch client VMs<a class="headerlink" href="#launch-client-vms" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
-<p>This asks the allocator to provision client VMs on your behalf. The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.</p>
+<p>The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.</p>
 <table>
 <thead>
 <tr>
@@ -4552,9 +4609,15 @@
 <td><code>-c</code>, <code>--config</code></td>
 <td>Override the default config path.</td>
 </tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>Show the full Terraform output instead of a summary.</td>
+</tr>
 </tbody>
 </table>
 <p>Watch <code>lablink status</code> to see the VMs transition from pending → running.</p>
+<p>Under the manual provider this no-ops; you add boxes with
+<a href="../byo-clients/#step-4-register-each-box"><code>lablink client register</code></a> instead.</p>
 <h2 id="check-status">Check status<a class="headerlink" href="#check-status" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
@@ -4624,45 +4687,74 @@
 <p>Example — only allocator metrics after tear-down:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lablink<span class="w"> </span>export-metrics<span class="w"> </span>--allocator<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>-o<span class="w"> </span>post-mortem.json
 </code></pre></div>
+<h2 id="session-metrics-summary">Session metrics summary<a class="headerlink" href="#session-metrics-summary" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>stats
+</code></pre></div>
+<p>Prints the cohort summary — participation funnel and aggregate time-in-software —
+for deployments running with <code>monitoring.enabled: true</code>. See
+<a href="../../reference/cli/#stats"><code>stats</code></a>.</p>
 <h2 id="show-the-current-config">Show the current config<a class="headerlink" href="#show-the-current-config" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>show-config
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>show-config
 </code></pre></div>
 <p>Pretty-prints <code>~/.lablink/config.yaml</code> with syntax highlighting and runs schema validation. Useful for spotting typos before a deploy.</p>
 <h2 id="destroy-the-deployment">Destroy the deployment<a class="headerlink" href="#destroy-the-deployment" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>destroy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
 <p>Runs <code>terraform destroy</code> against the deployment's working directory (<code>~/.lablink/deploys/&lt;name&gt;/</code>). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.</p>
-<p>Pass <code>-y</code> / <code>--yes</code> to skip the confirmation prompt. Password prompts still appear.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-y</code>, <code>--yes</code></td>
+<td>Skip the confirmation prompt. Password prompts still appear.</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>Show the full Terraform output instead of a summary.</td>
+</tr>
+<tr>
+<td><code>--keep-data</code></td>
+<td><strong>Manual provider only</strong> — preserve the Postgres data volume instead of the default full wipe. Ignored for AWS.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="cleanup-orphaned-resources">Cleanup orphaned resources<a class="headerlink" href="#cleanup-orphaned-resources" title="Permanent link">&para;</a></h2>
 <p>If a destroy was interrupted — Ctrl-C, an AWS outage, a deleted workspace — leftover resources may stay behind. The cleanup command finds and removes them:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>lablink<span class="w"> </span>cleanup<span class="w">             </span><span class="c1"># actually delete</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>lablink<span class="w"> </span>cleanup<span class="w">             </span><span class="c1"># actually delete</span>
 </code></pre></div>
-<p>It targets resources tagged with your deployment name. <code>--dry-run</code> prints what would be deleted without touching AWS.</p>
+<p>It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific Terraform state files. <code>--dry-run</code> prints what would be deleted without touching AWS.</p>
 <h2 id="clear-local-caches">Clear local caches<a class="headerlink" href="#clear-local-caches" title="Permanent link">&para;</a></h2>
 <p>The CLI stores two caches you may want to clear occasionally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Clear the Terraform template cache (~/.lablink/cache/terraform/)</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>lablink<span class="w"> </span>cache-clear
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Clear the deployment metrics cache (~/.lablink/deployments/)</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Clear both</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--all
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1"># Only prune in-progress records (leftovers from plan-cancel or Ctrl-C)</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments<span class="w"> </span>--stale
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Clear the Terraform template cache (~/.lablink/cache/terraform/)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>lablink<span class="w"> </span>cache-clear
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Clear the deployment metrics cache (~/.lablink/deployments/)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Clear both</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--all
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Only prune in-progress records (leftovers from plan-cancel or Ctrl-C)</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments<span class="w"> </span>--stale
 </code></pre></div>
 <p>Clearing the Terraform template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back <code>lablink export-metrics --allocator</code>.</p>
 <h2 id="switching-between-deployments">Switching between deployments<a class="headerlink" href="#switching-between-deployments" title="Permanent link">&para;</a></h2>
 <p>Keep multiple config files if you manage more than one deployment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>lablink<span class="w"> </span>--config<span class="w"> </span>~/configs/workshop.yaml<span class="w"> </span>deploy
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>lablink<span class="w"> </span>--config<span class="w"> </span>~/configs/dev.yaml<span class="w"> </span>status
+<p><code>--config</code> is a per-command option, not a root one — it goes <em>after</em> the command:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>deploy<span class="w"> </span>--config<span class="w"> </span>~/configs/workshop.yaml
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>lablink<span class="w"> </span>status<span class="w"> </span>--config<span class="w"> </span>~/configs/dev.yaml
 </code></pre></div>
 <p>Each deployment gets its own working directory under <code>~/.lablink/deploys/&lt;name&gt;/</code> keyed by the <code>deployment_name</code> field in its config.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../../reference/cli/">CLI Reference</a> — every command and flag in one page.</li>
+<li><a href="../byo-clients/">Bring-Your-Own Clients</a> — the manual-provider workflow end to end.</li>
 <li><a href="../../troubleshooting/">Troubleshooting</a> — general LabLink issues (not CLI-specific).</li>
 <li><a href="../../configuration/">Configuration</a> — full <code>config.yaml</code> schema reference.</li>
 </ul>

@@ -16,7 +16,7 @@
         <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../managing-deployments/">
+        <link rel="next" href="../byo-clients/">
       
       
         
@@ -896,6 +896,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../byo-clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bring-Your-Own Clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -4487,6 +4515,14 @@
 
 <h1 id="first-deployment">First Deployment<a class="headerlink" href="#first-deployment" title="Permanent link">&para;</a></h1>
 <p>This walkthrough takes you from a clean install through a live allocator and back to an empty AWS account. Budget about 15 minutes end to end.</p>
+<div class="admonition note">
+<p class="admonition-title">This is the AWS path</p>
+<p>Everything below assumes the default <code>provider: aws</code> — the allocator on EC2,
+client VMs provisioned by Terraform. To run the allocator on a machine you
+already have and register your own client boxes instead, follow
+<a href="../byo-clients/">Bring-Your-Own Clients</a>; it needs no AWS account and no
+Terraform.</p>
+</div>
 <h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
 <p>Make sure you've completed <a href="../installation/">Installation</a> and that <code>lablink doctor</code> reports clean values for "Terraform installed" and "AWS credentials". The other checks will light up as you go.</p>
 <h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
@@ -4504,6 +4540,7 @@
 <li>An <strong>S3 bucket</strong> for Terraform state (versioned + encrypted).</li>
 <li>A <strong>DynamoDB table</strong> for state locking.</li>
 </ol>
+<p>(Manual-provider configs skip that step — there's no remote state to bootstrap.)</p>
 <div class="admonition tip">
 <p class="admonition-title">Re-running the wizard</p>
 <p><code>lablink configure</code> is idempotent. Run it again anytime to edit the config — it loads your existing values as defaults.</p>
@@ -4514,7 +4551,7 @@
 <h2 id="step-2-sanity-check">Step 2: Sanity check<a class="headerlink" href="#step-2-sanity-check" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>doctor
 </code></pre></div>
-<p>All six checks should now pass:</p>
+<p>All six AWS checks should now pass:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌─────────────────────────┬────────┬─────────────────────────────────────┐
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│ Check                   │ Status │ Detail                              │
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├─────────────────────────┼────────┼─────────────────────────────────────┤
@@ -4534,14 +4571,14 @@
 <ol>
 <li>Download the pinned <code>lablink-template</code> Terraform files into <code>~/.lablink/cache/terraform/&lt;version&gt;/</code> (first run only).</li>
 <li>Copy them into a working directory at <code>~/.lablink/deploys/&lt;deployment-name&gt;/</code>.</li>
-<li>Prompt you once for an <strong>admin password</strong> and <strong>database password</strong>. These are injected into the Terraform variables — they are not stored in <code>config.yaml</code>.</li>
+<li>Prompt you once for an <strong>admin username</strong> (default <code>admin</code>) and <strong>admin password</strong>. These are injected into the Terraform variables — they are not stored in <code>config.yaml</code>.</li>
 <li>Run <code>terraform init</code> + <code>terraform apply</code>, showing the plan and asking for confirmation.</li>
 <li>Wait for the allocator EC2 instance to come up and its <code>/api/health</code> endpoint to report <code>healthy</code>.</li>
 </ol>
 <p>Expect 2–5 minutes for Terraform + another 1–3 minutes for the allocator to finish its first-boot container start.</p>
 <div class="admonition tip">
 <p class="admonition-title">Skip interactive confirmations</p>
-<p>Pass <code>-y</code> / <code>--yes</code> to skip Terraform plan confirmation. Admin/DB passwords are still prompted for.</p>
+<p>Pass <code>-y</code> / <code>--yes</code> to skip Terraform plan confirmation. The admin credentials are still prompted for.</p>
 </div>
 <p>When deploy completes, note the <code>ec2_public_ip</code> in the Terraform output — that's your allocator URL.</p>
 <h2 id="step-4-verify">Step 4: Verify<a class="headerlink" href="#step-4-verify" title="Permanent link">&para;</a></h2>
@@ -4554,7 +4591,7 @@
 <li><strong>Client VMs</strong> — per-VM state reported by the allocator (empty until you run <code>lablink client launch</code>).</li>
 <li><strong>Cost Estimate</strong> — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.</li>
 </ul>
-<p>Open the allocator in a browser using <code>http://&lt;ec2_public_ip&gt;</code> (or your configured domain) and log in with username <code>admin</code> and the admin password you entered during deploy.</p>
+<p>Open the allocator in a browser using <code>http://&lt;ec2_public_ip&gt;</code> (or your configured domain) and log in with the admin username and password you entered during deploy.</p>
 <h2 id="step-5-launch-a-client-vm">Step 5: Launch a client VM<a class="headerlink" href="#step-5-launch-a-client-vm" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
 </code></pre></div>

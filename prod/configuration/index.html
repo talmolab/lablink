@@ -770,6 +770,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../cli/byo-clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bring-Your-Own Clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/managing-deployments/" class="md-nav__link">
         
   
@@ -6350,7 +6378,7 @@
 <td><code>connectivity</code></td>
 <td>string</td>
 <td><code>lan_direct</code></td>
-<td>How a participant's browser reaches a client's KasmVNC desktop: <code>lan_direct</code> (client is on the allocator's own LAN) or <code>mesh_overlay</code> (client is reached over a Tailscale tailnet and proxied through the allocator's nginx).</td>
+<td>How a participant's browser reaches a client's KasmVNC desktop: <code>lan_direct</code> (client is on the allocator's own LAN), <code>mesh_overlay</code> (client is reached over a Tailscale tailnet and proxied through the allocator's nginx), or <code>reverse_tunnel</code> (client dials <strong>out</strong> to the allocator and holds one connection open — for networks that won't carry Tailscale and boxes that can't accept inbound connections).</td>
 </tr>
 <tr>
 <td><code>overlay_tailnet</code></td>
@@ -6373,11 +6401,15 @@
 </tbody>
 </table>
 <p><code>participant_exposure</code> is not the same axis as <code>connectivity</code>: the first is about
-publishing the allocator, the second about reaching clients. Any exposure mode
-other than <code>none</code> requires <code>connectivity: mesh_overlay</code> — <code>lan_direct</code> sends the
-browser straight to a client's LAN IP over <code>ws://</code>, which is unreachable off-LAN
-and blocked as mixed content from an HTTPS page. Both <code>lablink configure</code> and
-<code>lablink deploy</code> reject that combination.</p>
+publishing the allocator, the second about reaching clients. What they do constrain
+is that any exposure mode other than <code>none</code> rules out <code>connectivity: lan_direct</code> —
+<code>lan_direct</code> sends the browser straight to a client's LAN IP over <code>ws://</code>, which is
+unreachable off-LAN and blocked as mixed content from an HTTPS page. Both
+<code>lablink configure</code> and <code>lablink deploy</code> reject that combination. <code>mesh_overlay</code> and
+<code>reverse_tunnel</code> both work with any exposure mode.</p>
+<p>Note that <code>overlay_tailnet</code> is required whenever a tailnet is involved on <em>either</em>
+axis, so a <code>reverse_tunnel</code> deployment that publishes itself via
+<code>tailscale_funnel</code> still needs one; <code>reverse_tunnel</code> on its own does not.</p>
 <h4 id="exposure-mode-tailscale_funnel">Exposure mode: <code>tailscale_funnel</code><a class="headerlink" href="#exposure-mode-tailscale_funnel" title="Permanent link">&para;</a></h4>
 <p>Publishes the allocator at <code>&lt;machine&gt;.&lt;tailnet&gt;.ts.net</code> using the same Tailscale
 sidecar <code>mesh_overlay</code> already provisions. No domain required, but the hostname
