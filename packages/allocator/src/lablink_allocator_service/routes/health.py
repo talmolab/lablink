@@ -90,7 +90,11 @@ def _tunnel_status() -> str:
 
 
 def connection_stats() -> dict | None:
-    """Server-wide Postgres connection usage, or None if unreadable.
+    """Postgres *client* connection usage, or None if unreadable.
+
+    Counts client backends across every database on the server -- the things
+    max_connections actually bounds -- not every row in pg_stat_activity. See
+    the query comment for why that distinction matters.
 
     None rather than an exception because both callers have to degrade: the
     /admin panel renders "unavailable" and the JSON route answers 503. Neither
@@ -105,14 +109,25 @@ def connection_stats() -> dict | None:
     if main.database is None:
         return None
     try:
-        # count(*) over pg_stat_activity is server-wide (every database, plus
-        # autovacuum workers and admin sessions), which is the right numerator
-        # for a server-wide max_connections. The reading includes this
-        # request's own checked-out connection.
+        # backend_type = 'client backend' is load-bearing, not a nicety.
+        # pg_stat_activity has a row per server *process*, so a bare count(*)
+        # also counts the checkpointer, background writer, walwriter, autovacuum
+        # launcher and logical replication launcher -- none of which occupy a
+        # max_connections slot. Measured live on a real deployment: 10 rows for
+        # 5 actual client connections, i.e. the bare count roughly doubled the
+        # reported usage. The bias is not even constant, since parallel and
+        # autovacuum workers come and go.
+        #
+        # state LIKE 'idle in transaction%' rather than '=' so it also catches
+        # 'idle in transaction (aborted)'. An aborted-but-open transaction pins
+        # locks and blocks vacuum exactly like a live one; verified live that an
+        # '=' comparison reported 0 while one was being held.
         #
         # max_connections is read from Postgres, not hardcoded: start.sh sets
         # it to 300 and any literal here would drift out of agreement with the
-        # shell script that actually configures the server.
+        # shell script that actually configures the server. Note the effective
+        # ceiling for the allocator's non-superuser role is slightly lower --
+        # superuser_reserved_connections (default 3) is carved out of it.
         #
         # ponytail: measured *through* the pool, so a genuinely exhausted pool
         # raises PoolError (a psycopg2.Error) and this returns None -- no
@@ -120,8 +135,8 @@ def connection_stats() -> dict | None:
         # connection here if saturation reporting has to survive saturation.
         with PooledCursor(main.database.pool) as cursor:
             cursor.execute(
-                "SELECT count(*), "
-                "count(*) FILTER (WHERE state = 'idle in transaction'), "
+                "SELECT count(*) FILTER (WHERE backend_type = 'client backend'), "
+                "count(*) FILTER (WHERE state LIKE 'idle in transaction%'), "
                 "current_setting('max_connections')::int "
                 "FROM pg_stat_activity"
             )

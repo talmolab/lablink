@@ -339,14 +339,19 @@ class _FakeCursor:
         return self
 
     def __enter__(self):
-        cursor = MagicMock()
+        self.cursor = MagicMock()
         if self._error is not None:
-            cursor.execute.side_effect = self._error
-        cursor.fetchone.return_value = self._row
-        return cursor
+            self.cursor.execute.side_effect = self._error
+        self.cursor.fetchone.return_value = self._row
+        return self.cursor
 
     def __exit__(self, *exc):
         return False
+
+    @property
+    def sql(self):
+        """The SQL the helper executed, for tests that pin its semantics."""
+        return self.cursor.execute.call_args[0][0]
 
 
 @pytest.fixture
@@ -370,6 +375,33 @@ class TestConnectionStats:
             health_mod, "PooledCursor", _FakeCursor(row=row, error=error)
         )
         return health_mod.connection_stats()
+
+    def test_counts_only_client_backends(self, stats_db):
+        """pg_stat_activity has a row per server *process*, so a bare count(*)
+        also counts the checkpointer, background writer, walwriter and the two
+        launchers -- none of which occupy a max_connections slot. Measured on a
+        live deployment: 10 rows for 5 real client connections. Without this
+        filter the gauge roughly doubles reported usage."""
+        import lablink_allocator_service.routes.health as health_mod
+
+        fake = _FakeCursor(row=(5, 0, 300))
+        stats_db.setattr(health_mod, "PooledCursor", fake)
+        health_mod.connection_stats()
+
+        assert "backend_type = 'client backend'" in fake.sql
+
+    def test_idle_filter_catches_aborted_transactions(self, stats_db):
+        """'idle in transaction (aborted)' is a distinct state, and an
+        aborted-but-open transaction pins locks and blocks vacuum exactly like a
+        live one. Verified live that an '=' comparison reported 0 while one was
+        held, so the filter must be a prefix match."""
+        import lablink_allocator_service.routes.health as health_mod
+
+        fake = _FakeCursor(row=(5, 1, 300))
+        stats_db.setattr(health_mod, "PooledCursor", fake)
+        health_mod.connection_stats()
+
+        assert "state LIKE 'idle in transaction%'" in fake.sql
 
     def test_reports_counts_and_utilization(self, stats_db):
         stats = self._stats(stats_db, row=(61, 0, 300))

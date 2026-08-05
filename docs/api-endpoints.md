@@ -131,14 +131,25 @@ reverse-tunnel deployments.
 **Authentication:** Admin (HTTP Basic) — the same gate as `/admin/*`.
 
 Reports PostgreSQL connection usage against the server's configured maximum,
-for checking headroom before scaling a deployment up. `active_connections` is
-server-wide (every database, plus autovacuum workers and admin sessions), which
-is the right comparison against `max_connections` — read from PostgreSQL, so it
-tracks whatever `start.sh` or an operator actually configured. Counts include
-the connection serving this request.
+for checking headroom before scaling a deployment up.
+
+`active_connections` counts **client backends** across every database on the
+server — the things `max_connections` actually bounds. It deliberately excludes
+the rows `pg_stat_activity` carries for background processes (checkpointer,
+background writer, walwriter, autovacuum launcher, logical replication
+launcher), which hold no connection slot; counting them roughly doubles
+reported usage on an idle deployment. The count does include the connection
+serving this request.
+
+`max_connections` is read from PostgreSQL, so it tracks whatever `start.sh` or
+an operator actually configured. The effective ceiling for the allocator's
+non-superuser role is slightly lower, since `superuser_reserved_connections`
+(default 3) is carved out of it.
 
 `idle_in_transaction` distinguishes a leaked pooled connection from ordinary
 load; a non-zero value that doesn't fall back to zero is worth investigating.
+It counts both `idle in transaction` and `idle in transaction (aborted)` — an
+aborted-but-open transaction pins locks and blocks vacuum just like a live one.
 
 The same numbers are rendered on the `/admin` panel, so reaching for `curl` is
 optional. Above 90% the panel escalates from a plain line to a red banner naming
