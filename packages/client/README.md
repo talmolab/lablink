@@ -5,7 +5,7 @@ Client service for LabLink VM management.
 ## Installation
 
 ```bash
-pip install lablink-client
+pip install lablink-client-service
 ```
 
 ## Usage

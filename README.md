@@ -18,11 +18,13 @@ This repository contains the **core LabLink packages, Docker images, and documen
 ### Python Packages (Published to PyPI)
 
 - **[lablink-allocator](packages/allocator/)** - VM Allocator Service
+
   ```bash
   pip install lablink-allocator-service
   ```
 
 - **[lablink-client](packages/client/)** - Client Service
+
   ```bash
   pip install lablink-client-service
   ```
@@ -37,6 +39,7 @@ This repository contains the **core LabLink packages, Docker images, and documen
 Production images are built from PyPI packages and tagged with specific versions:
 
 - **lablink-allocator-image** - Allocator service container
+
   ```bash
   docker pull ghcr.io/talmolab/lablink-allocator-image:0.0.2a0
   docker pull ghcr.io/talmolab/lablink-allocator-image:latest
@@ -49,6 +52,7 @@ Production images are built from PyPI packages and tagged with specific versions
   ```
 
 **Available Tags:**
+
 - `<version>` (e.g., `0.0.2a0`) - Specific package version (recommended for production)
 - `latest` - Latest stable release
 - `linux-amd64-latest` - Latest for specific platform
@@ -71,12 +75,12 @@ See [Docker Image Tags](https://talmolab.github.io/lablink/workflows/#image-tagg
 
 ### Two Deployment Paths
 
-| | **Path A — CLI (recommended)** | **Path B — Template fork** |
-|---|---|---|
-| Install | `uv tool install lablink-cli` | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
-| Configure | Interactive TUI (`lablink configure`) | Edit `lablink.yaml` by hand |
-| Deploy | `lablink deploy` | `terraform apply` |
-| Best for | Most users | Custom Terraform workflows |
+|           | **Path A — CLI (recommended)**        | **Path B — Template fork**                                            |
+| --------- | ------------------------------------- | --------------------------------------------------------------------- |
+| Install   | `uv tool install lablink-cli`         | Fork [lablink-template](https://github.com/talmolab/lablink-template) |
+| Configure | Interactive TUI (`lablink configure`) | Edit `lablink.yaml` by hand                                           |
+| Deploy    | `lablink deploy`                      | `terraform apply`                                                     |
+| Best for  | Most users                            | Custom Terraform workflows                                            |
 
 ### Using the CLI
 
@@ -139,26 +143,26 @@ See the [Contributing Guide](https://talmolab.github.io/lablink/contributing/) f
 ```
 lablink/
 ├── packages/
-│   ├── allocator/                   # Allocator Python package
-│   │   ├── src/lablink_allocator/   # Source code
-│   │   │   └── terraform/           # Client VM Terraform (part of package)
-│   │   ├── tests/                   # Unit tests including Terraform tests
-│   │   ├── Dockerfile               # Production image (from PyPI)
-│   │   └── Dockerfile.dev           # Development image (local code)
-│   ├── client/                      # Client Python package
-│   │   ├── src/lablink_client/      # Source code
-│   │   ├── tests/                   # Unit tests
-│   │   ├── Dockerfile               # Production image (from PyPI)
-│   │   └── Dockerfile.dev           # Development image (local code)
-│   └── cli/                         # CLI Python package (Typer + Textual)
-│       ├── src/lablink_cli/         # Source code (commands, TUI, config)
-│       └── tests/                   # Unit tests
-├── docs/                            # MkDocs documentation
-└── .github/workflows/               # CI/CD workflows
-    ├── ci.yml                       # Tests, linting, Docker builds
-    ├── publish-pip.yml              # PyPI publishing
-    ├── lablink-images.yml           # Docker image builds & pushes
-    └── docs.yml                     # Documentation deployment
+│   ├── allocator/                           # Allocator Python package
+│   │   ├── src/lablink_allocator_service/   # Source code
+│   │   │   └── terraform/                   # Client VM Terraform (part of package)
+│   │   ├── tests/                           # Unit tests including Terraform tests
+│   │   ├── Dockerfile                       # Production image (from PyPI)
+│   │   └── Dockerfile.dev                   # Development image (local code)
+│   ├── client/                              # Client Python package
+│   │   ├── src/lablink_client_service/      # Source code
+│   │   ├── tests/                           # Unit tests
+│   │   ├── Dockerfile                       # Production image (from PyPI)
+│   │   └── Dockerfile.dev                   # Development image (local code)
+│   └── cli/                                 # CLI Python package (Typer + Textual)
+│       ├── src/lablink_cli/                 # Source code (commands, TUI, config)
+│       └── tests/                           # Unit tests
+├── docs/                                    # MkDocs documentation
+└── .github/workflows/                       # CI/CD workflows
+    ├── ci.yml                               # Tests, linting, Docker builds
+    ├── publish-pip.yml                      # PyPI publishing
+    ├── lablink-images.yml                   # Docker image builds & pushes
+    └── docs.yml                             # Documentation deployment
 ```
 
 **Note**: Infrastructure deployment code (allocator EC2, DNS, etc.) has been moved to [lablink-template](https://github.com/talmolab/lablink-template).

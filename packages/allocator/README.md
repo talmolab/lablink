@@ -5,7 +5,7 @@ VM allocation and management service for LabLink.
 ## Installation
 
 ```bash
-pip install lablink-allocator
+pip install lablink-allocator-service
 ```
 
 ## Usage
