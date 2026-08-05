@@ -466,17 +466,22 @@ Applies only when `provider: manual` (bring-your-own clients, deployed with
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `connectivity` | string | `lan_direct` | How a participant's browser reaches a client's KasmVNC desktop: `lan_direct` (client is on the allocator's own LAN) or `mesh_overlay` (client is reached over a Tailscale tailnet and proxied through the allocator's nginx). |
+| `connectivity` | string | `lan_direct` | How a participant's browser reaches a client's KasmVNC desktop: `lan_direct` (client is on the allocator's own LAN), `mesh_overlay` (client is reached over a Tailscale tailnet and proxied through the allocator's nginx), or `reverse_tunnel` (client dials **out** to the allocator and holds one connection open — for networks that won't carry Tailscale and boxes that can't accept inbound connections). |
 | `overlay_tailnet` | string | `""` | The tailnet's MagicDNS suffix (e.g. `example.ts.net`). Required for `connectivity: mesh_overlay` and for `participant_exposure: tailscale_funnel`. |
 | `participant_exposure` | string | `none` | How **participants** reach the allocator itself: `none` (LAN-only), `tailscale_funnel`, or `cloudflare_tunnel`. Independent of `connectivity`. |
 | `public_hostname` | string | `""` | The hostname participants open, e.g. `lab.smithlab.org`. Required when `participant_exposure: cloudflare_tunnel`; ignored otherwise. |
 
 `participant_exposure` is not the same axis as `connectivity`: the first is about
-publishing the allocator, the second about reaching clients. Any exposure mode
-other than `none` requires `connectivity: mesh_overlay` — `lan_direct` sends the
-browser straight to a client's LAN IP over `ws://`, which is unreachable off-LAN
-and blocked as mixed content from an HTTPS page. Both `lablink configure` and
-`lablink deploy` reject that combination.
+publishing the allocator, the second about reaching clients. What they do constrain
+is that any exposure mode other than `none` rules out `connectivity: lan_direct` —
+`lan_direct` sends the browser straight to a client's LAN IP over `ws://`, which is
+unreachable off-LAN and blocked as mixed content from an HTTPS page. Both
+`lablink configure` and `lablink deploy` reject that combination. `mesh_overlay` and
+`reverse_tunnel` both work with any exposure mode.
+
+Note that `overlay_tailnet` is required whenever a tailnet is involved on *either*
+axis, so a `reverse_tunnel` deployment that publishes itself via
+`tailscale_funnel` still needs one; `reverse_tunnel` on its own does not.
 
 #### Exposure mode: `tailscale_funnel`
 

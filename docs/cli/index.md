@@ -5,6 +5,21 @@ The `lablink` command is a CLI-driven alternative to the [lablink-template](http
 !!! note "Status: pre-PyPI"
     The CLI is not yet published to PyPI. For now, install it from source with `uv sync --all-packages` — see [Installation](installation.md). `uv tool install lablink` will be the path once the package is released.
 
+## Two providers
+
+The CLI can deploy in either of two modes, selected by the `provider` field in your
+config:
+
+| `provider` | Allocator runs on | Client machines | Needs AWS? |
+|---|---|---|---|
+| `aws` (default) | EC2, provisioned by Terraform | `lablink client launch` provisions them for you | Yes |
+| `manual` | docker-compose, on a machine you already have | you register your own boxes with `lablink client register` | No |
+
+Everything below compares the **AWS** path against the template repo. If you'd
+rather run LabLink on hardware you already own — lab workstations, an on-prem
+server, a scheduler-hosted workload — see
+[Bring-Your-Own Clients](byo-clients.md) instead.
+
 ## CLI vs. template repo
 
 Both paths deploy the same allocator service and manage the same set of AWS resources. The practical difference is **how much of the deployment you own and configure yourself**.
@@ -41,6 +56,6 @@ You can switch between them later — both read the same `config.yaml` schema fo
 ## Next steps
 
 1. [Install the CLI](installation.md)
-2. [Run your first deployment](first-deployment.md)
+2. [Run your first deployment](first-deployment.md) (AWS) — or [bring your own clients](byo-clients.md) (no AWS)
 3. [Manage an existing deployment](managing-deployments.md)
 4. Full command reference: [CLI Reference](../reference/cli.md)

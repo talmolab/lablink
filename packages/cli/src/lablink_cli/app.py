@@ -774,7 +774,7 @@ def export_metrics(
 
     Pass --client for per-VM metrics from the allocator. Pass --allocator
     for per-deploy metrics from the local cache. With no flag, exports
-    both. The --allocator-only path skips the network entirely.
+    both. Passing only --allocator skips the network entirely.
     """
     from lablink_cli.commands.export_metrics import run_export_metrics
 

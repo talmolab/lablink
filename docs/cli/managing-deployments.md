@@ -1,23 +1,42 @@
 # Managing Deployments
 
-Day-to-day operations once an allocator is running: launch client VMs, follow logs, export metrics, and clean up.
+Day-to-day operations once an allocator is running: add client machines, follow logs, export metrics, and clean up.
 
 Every command on this page reads `~/.lablink/config.yaml` by default. Pass `--config /path/to/other.yaml` to target a different deployment.
 
-## Launch client VMs
+!!! note "Provider-dependent behavior"
+    Most of these commands branch on your config's `provider`. The AWS behavior is
+    described below, with the manual-provider difference called out where there is
+    one. For the full bring-your-own workflow in one place, see
+    [Bring-Your-Own Clients](byo-clients.md).
+
+## Add client machines
+
+**AWS provider** — ask the allocator to provision VMs:
 
 ```bash
 lablink client launch --num-vms 5
 ```
 
-This asks the allocator to provision client VMs on your behalf. The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.
+The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.
 
 | Flag | Description |
 |---|---|
 | `-n`, `--num-vms` | Number of client VMs to launch. Required. |
 | `-c`, `--config` | Override the default config path. |
+| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
 
 Watch `lablink status` to see the VMs transition from pending → running.
+
+**Manual provider** — run this *on each box you're adding*, not on the allocator host:
+
+```bash
+lablink client register --allocator-url http://192.168.1.42 --register-token <token>
+```
+
+`lablink client launch` no-ops under the manual provider. To remove a box later, run
+`lablink client unregister` on it. Details and the mesh-overlay / reverse-tunnel
+variants: [Bring-Your-Own Clients](byo-clients.md#step-4-register-each-box).
 
 ## Check status
 
@@ -29,6 +48,9 @@ Shows Terraform outputs, health checks, per-VM state, and a cost estimate. This 
 
 See [First Deployment](first-deployment.md#step-4-verify) for what each section means.
 
+Under the manual provider it instead shows docker-compose container status and the
+allocator's health endpoint — no cost estimate, since the hardware is yours.
+
 ## Follow logs
 
 ```bash
@@ -39,6 +61,10 @@ Opens an interactive TUI that streams logs from the allocator and any running cl
 
 !!! tip "Quit and search"
     Use `q` to exit. The viewer supports `/` to search, `n` / `N` for next/previous match, and arrow keys for navigation.
+
+Under the manual provider there's no TUI — it tails the local `lablink-allocator`
+container. Per-VM client logs aren't centralized in that mode; run
+`docker logs lablink-client` on the box itself.
 
 ## Export metrics
 
@@ -68,6 +94,21 @@ Example — only allocator metrics after tear-down:
 lablink export-metrics --allocator --format json -o post-mortem.json
 ```
 
+## Session metrics summary
+
+```bash
+lablink stats
+```
+
+Prints the cohort session-metrics summary — participation funnel and aggregate
+time-in-software — in your terminal. It reads the allocator's
+`/api/session-metrics/summary` endpoint, the same view model the admin UI's
+**Session Metrics** page uses, so the two can't disagree.
+
+The figures only populate for deployments running with `monitoring.enabled: true`.
+Use `export-metrics --client` when you want the underlying per-VM rows instead of
+the summary.
+
 ## Show the current config
 
 ```bash
@@ -84,7 +125,13 @@ lablink destroy
 
 Runs `terraform destroy` against the deployment's working directory (`~/.lablink/deploys/<name>/`). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.
 
-Pass `-y` / `--yes` to skip the confirmation prompt. Password prompts still appear.
+| Flag | Description |
+|---|---|
+| `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
+| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `--keep-data` | **Manual provider only** — preserve the Postgres data volume instead of the default full wipe, so registration history and sessions survive the next deploy. Ignored for AWS. |
+
+Under the manual provider this brings the compose stack down instead of running Terraform.
 
 ## Cleanup orphaned resources
 
@@ -95,7 +142,9 @@ lablink cleanup --dry-run   # preview
 lablink cleanup             # actually delete
 ```
 
-It targets resources tagged with your deployment name. `--dry-run` prints what would be deleted without touching AWS.
+On AWS it targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific Terraform state files. `--dry-run` prints what would be deleted without touching AWS.
+
+Under the manual provider it runs `docker compose down --volumes` and removes the compose working directory. `--dry-run` is AWS-only — the manual path confirms interactively instead.
 
 ## Clear local caches
 
@@ -121,9 +170,11 @@ Clearing the Terraform template cache forces the next deploy to re-download temp
 
 Keep multiple config files if you manage more than one deployment:
 
+`--config` is a per-command option, not a root one — it goes *after* the command:
+
 ```bash
-lablink --config ~/configs/workshop.yaml deploy
-lablink --config ~/configs/dev.yaml status
+lablink deploy --config ~/configs/workshop.yaml
+lablink status --config ~/configs/dev.yaml
 ```
 
 Each deployment gets its own working directory under `~/.lablink/deploys/<name>/` keyed by the `deployment_name` field in its config.
@@ -131,5 +182,6 @@ Each deployment gets its own working directory under `~/.lablink/deploys/<name>/
 ## Next steps
 
 - [CLI Reference](../reference/cli.md) — every command and flag in one page.
+- [Bring-Your-Own Clients](byo-clients.md) — the manual-provider workflow end to end.
 - [Troubleshooting](../troubleshooting.md) — general LabLink issues (not CLI-specific).
 - [Configuration](../configuration.md) — full `config.yaml` schema reference.

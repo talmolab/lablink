@@ -2,6 +2,13 @@
 
 This walkthrough takes you from a clean install through a live allocator and back to an empty AWS account. Budget about 15 minutes end to end.
 
+!!! note "This is the AWS path"
+    Everything below assumes the default `provider: aws` — the allocator on EC2,
+    client VMs provisioned by Terraform. To run the allocator on a machine you
+    already have and register your own client boxes instead, follow
+    [Bring-Your-Own Clients](byo-clients.md); it needs no AWS account and no
+    Terraform.
+
 ## Before you start
 
 Make sure you've completed [Installation](installation.md) and that `lablink doctor` reports clean values for "Terraform installed" and "AWS credentials". The other checks will light up as you go.
@@ -24,6 +31,8 @@ The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablin
 1. An **S3 bucket** for Terraform state (versioned + encrypted).
 2. A **DynamoDB table** for state locking.
 
+(Manual-provider configs skip that step — there's no remote state to bootstrap.)
+
 !!! tip "Re-running the wizard"
     `lablink configure` is idempotent. Run it again anytime to edit the config — it loads your existing values as defaults.
 
@@ -39,7 +48,7 @@ lablink show-config
 lablink doctor
 ```
 
-All six checks should now pass:
+All six AWS checks should now pass:
 
 ```text
 ┌─────────────────────────┬────────┬─────────────────────────────────────┐
@@ -66,14 +75,14 @@ This will:
 
 1. Download the pinned `lablink-template` Terraform files into `~/.lablink/cache/terraform/<version>/` (first run only).
 2. Copy them into a working directory at `~/.lablink/deploys/<deployment-name>/`.
-3. Prompt you once for an **admin password** and **database password**. These are injected into the Terraform variables — they are not stored in `config.yaml`.
+3. Prompt you once for an **admin username** (default `admin`) and **admin password**. These are injected into the Terraform variables — they are not stored in `config.yaml`.
 4. Run `terraform init` + `terraform apply`, showing the plan and asking for confirmation.
 5. Wait for the allocator EC2 instance to come up and its `/api/health` endpoint to report `healthy`.
 
 Expect 2–5 minutes for Terraform + another 1–3 minutes for the allocator to finish its first-boot container start.
 
 !!! tip "Skip interactive confirmations"
-    Pass `-y` / `--yes` to skip Terraform plan confirmation. Admin/DB passwords are still prompted for.
+    Pass `-y` / `--yes` to skip Terraform plan confirmation. The admin credentials are still prompted for.
 
 When deploy completes, note the `ec2_public_ip` in the Terraform output — that's your allocator URL.
 
@@ -90,7 +99,7 @@ This shows four sections:
 - **Client VMs** — per-VM state reported by the allocator (empty until you run `lablink client launch`).
 - **Cost Estimate** — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.
 
-Open the allocator in a browser using `http://<ec2_public_ip>` (or your configured domain) and log in with username `admin` and the admin password you entered during deploy.
+Open the allocator in a browser using `http://<ec2_public_ip>` (or your configured domain) and log in with the admin username and password you entered during deploy.
 
 ## Step 5: Launch a client VM
 
