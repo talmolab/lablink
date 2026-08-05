@@ -4,83 +4,135 @@ This document outlines the API endpoints provided by the LabLink Allocator servi
 
 ## Authentication
 
-LabLink uses two authentication mechanisms:
+LabLink uses four gates. All bearer credentials go in `Authorization: Bearer <token>`.
 
-- **HTTP Basic Auth**: For admin endpoints (dashboard, VM management). Credentials are configured via `app.admin_user` and `app.admin_password` in `config.yaml`.
-- **Bearer Token**: For machine-to-machine endpoints (client VM → allocator). A random token is auto-generated at allocator startup and distributed to client VMs via Terraform/cloud-init. Requests must include `Authorization: Bearer <token>`.
+| Gate | Credential | Guards |
+|---|---|---|
+| **HTTP Basic** | `app.admin_user` / `app.admin_password` from `config.yaml` | `/admin/*` pages and the operator JSON APIs |
+| **Client secret** | A per-client secret minted when that client registers, stored as an argon2 hash | client → allocator telemetry (`/api/heartbeat`, `/api/vm-status`, …) |
+| **Register token** | One deployment-wide bootstrap token, also stored hashed | `POST /api/v1/clients/register` only |
+| **Signed cookie** | `lablink_session`, minted by `/api/request_vm` | `GET /desktop` |
+
+A handful of endpoints are deliberately unauthenticated: `/` and
+`/api/request_vm` (participant-facing), `/api/health` and
+`/api/unassigned_vms_count` (health/monitoring), and `/internal/*` (reachable only
+from the allocator's own nginx, never exposed publicly).
+
+Secrets are per-client, so a leaked one compromises a single machine. The register
+token is the only deployment-wide credential, and it can do nothing but register.
 
 ## Student Endpoint
 
+### Landing Page
+
+**Endpoint:** `GET /`
+
+**Authentication:** None.
+
+Renders `index.html`, the email form a participant submits to claim a seat.
+
 ### Request a VM
 
-Assigns an available VM to a user.
+Claims a seat for a participant and redirects them to their desktop.
 
 **Endpoint:** `POST /api/request_vm`
 
-**Description:** Submits a user's email and a Chrome Remote Desktop (CRD) command to be assigned to an available VM. If a VM is available, it is assigned to the user, and the user is shown a success page with connection details.
-
-**Authentication:** None (student-facing)
+**Authentication:** None — this is the only unauthenticated state-changing endpoint in the allocator.
 
 **Request Body:** `application/x-www-form-urlencoded`
 
-- `email` (string, required): The user's email address.
-- `crd_command` (string, required): The CRD command for the session.
+- `email` (string, required): The participant's email address.
+
+**What it does:**
+
+1. **Idempotent rejoin.** If this email already owns a running seat, it keeps that seat rather than consuming a second one.
+2. **Atomic claim.** Otherwise `assign_vm` claims a free seat with `SELECT … FOR UPDATE SKIP LOCKED`, so concurrent requesters cannot collide on one VM. An empty pool raises and returns `503` with `no_seats.html`.
+3. **Per-session prep.** Mints a `session_id` and `browser_token`, then rotates the KasmVNC password on the assigned client through that client's local agent. This runs inside the assignment transaction, so a rotation failure rolls the assignment back.
+4. **Cookie + redirect.** Signs a `lablink_session` cookie bound to the `session_id` and redirects to [`/desktop`](#the-participant-desktop).
 
 **Success Response:**
 
-- **Code:** `200 OK`
-- **Content:** An HTML page (`success.html`) displaying the assigned VM's hostname and PIN.
+- **Code:** `302 Found` → `/desktop`, with the `lablink_session` cookie set.
 
 **Error Response:**
 
-- **Code:** `200 OK`
-- **Content:** An HTML page (`index.html`) with an error message displayed if no VMs are available, if required fields are missing, or if an invalid CRD command is provided.
+- **Code:** `503 Service Unavailable` — `no_seats.html` when the pool is empty, or `rotation_failed.html` when the assigned client could not be reached. On a rotation failure the seat is released and the VM flagged `Unhealthy` so the participant isn't wedged on a dead machine.
+- **Code:** `200 OK` — `index.html` re-rendered with an error if `email` is missing.
 
-**Client Usage:** This endpoint is not used by the client service. It is called from the allocator's web interface when an end-user manually requests a VM.
+The participant supplies nothing but an email address — the old `crd_command` and
+PIN contract is gone, along with the mechanism behind it
+([Database](database.md#triggers)).
 
-## Client VM API Endpoints
+### The participant desktop
 
-These endpoints are used by client VMs to communicate with the allocator. They require a valid bearer token (`Authorization: Bearer <token>`), which is auto-generated at allocator startup and distributed to client VMs via cloud-init.
+**Endpoint:** `GET /desktop`
 
-### VM Startup Registration
+**Authentication:** The signed `lablink_session` cookie.
 
-Used by a client VM to register itself with the allocator upon startup and to listen for an assignment.
+Renders the noVNC viewer page. Reads the cookie minted by `/api/request_vm`, looks
+up the assigned VM by `session_id`, and configures the viewer from the persisted
+`browser_ws_url` and `browser_credential`. If the cookie is missing, invalid, or the
+bound VM is no longer running, it redirects to `/` so the participant can submit
+their email again.
 
-**Endpoint:** `POST /vm_startup`
+### Internal proxy authorization
 
-**Description:** A client VM calls this endpoint after it boots up. It sends its hostname and then listens for a PostgreSQL notification that contains the assigned `CrdCommand` and `Pin`. This is a long-polling request.
+**Endpoints:** `GET|POST /internal/proxy_auth`, `GET|POST /internal/tunnel_auth`
 
-**Authentication:** Bearer Token
+**Authentication:** None — these are `auth_request` subrequest targets for the
+allocator's own nginx and are never routed publicly.
 
-**Request Body:** `application/json`
+nginx calls these before proxying desktop bytes, to check that the requesting
+session is entitled to the client it is asking for. `tunnel_auth` is the
+equivalent gate for reverse-tunnel clients.
 
-```json
-{
-  "hostname": "lablink-vm-prod-1"
-}
-```
+## Health
+
+### Readiness Check
+
+**Endpoint:** `GET /api/health`
+
+**Authentication:** None — this is what load balancers, `lablink deploy` and
+`lablink status` poll.
+
+Returns a structured readiness report rather than a bare 200. The `checks` map
+always covers `database`, `scheduler` and `reboot_service`, and gains a `tailscale`
+entry when the configured connectivity needs one, or a `tunnel` entry for
+reverse-tunnel deployments.
 
 **Success Response:**
 
-- **Code:** `200 OK`
+- **Code:** `200 OK` when every gating check is `ok`
 - **Content:**
   ```json
   {
-    "status": "success",
-    "pin": "123456",
-    "command": "crd --code=..."
+    "status": "ready",
+    "checks": {
+      "database": "ok",
+      "scheduler": "ok",
+      "reboot_service": "ok"
+    }
   }
   ```
 
 **Error Response:**
 
-- **Code:** `400 Bad Request` if `hostname` is not provided.
-- **Code:** `404 Not Found` if the VM with the given `hostname` is not found in the database.
+- **Code:** `503 Service Unavailable` when a gating check fails.
 
-**Client Usage:**
+!!! note "A dead client tunnel does not make the allocator unready"
+    Unattached client tunnels are reported but deliberately don't gate readiness — a
+    registering client is unattached until its tunnel comes up. The allocator's own
+    dependencies (tunnel server, database) do gate.
 
-- **When:** Called by the `subscribe` service, which is started by `start.sh` when the client container boots.
-- **How:** The service sends a POST request with the VM's hostname. It then waits indefinitely for a response. When an end-user is assigned this VM, the allocator responds with the CRD command and PIN, which the client then uses to start the remote desktop session.
+## Client VM API Endpoints
+
+These endpoints are used by client VMs to report to the allocator. They require that
+client's own secret as a bearer token — see [Authentication](#authentication).
+
+Clients only ever *report upward* through these; they are never told about an
+assignment. The allocator pushes that the other way, by calling the client's local
+agent (see [`/api/request_vm`](#request-a-vm) and
+[Database](database.md#triggers)).
 
 ### Get Unassigned VM Count
 
@@ -90,7 +142,7 @@ Retrieves the number of available (unassigned) VMs.
 
 **Description:** Returns the current count of VMs that are running and not yet assigned to a user.
 
-**Authentication:** Bearer Token
+**Authentication:** None (health/monitoring)
 
 **Request Body:** None
 
@@ -114,7 +166,7 @@ Updates the "in-use" status of a VM.
 
 **Description:** Called by the client VM to indicate whether a user is actively using it.
 
-**Authentication:** Bearer Token
+**Authentication:** Client secret
 
 **Request Body:** `application/json`
 
@@ -153,7 +205,7 @@ Updates the GPU health status of a VM.
 
 **Description:** Called by the client VM to report its GPU health status.
 
-**Authentication:** Bearer Token
+**Authentication:** Client secret
 
 **Request Body:** `application/json`
 
@@ -190,7 +242,7 @@ Updates the overall status of a VM (e.g., `initializing`, `running`, `error`, `r
 
 **Description:** Called by the client VM during its startup sequence to report its current status.
 
-**Authentication:** Bearer Token
+**Authentication:** Client secret
 
 **Request Body:** `application/json`
 
@@ -225,7 +277,7 @@ Receives and stores startup metrics from a VM.
 
 **Description:** Called by the client VM's `user_data.sh` script to post timing metrics for `cloud-init` and container startup.
 
-**Authentication:** Bearer Token
+**Authentication:** Client secret
 
 **URL Parameters:**
 
@@ -265,11 +317,11 @@ Receives and stores startup metrics from a VM.
 
 Receives and stores logs pushed from a VM.
 
-**Endpoint:** `POST /api/vm-logs`
+**Endpoint:** `POST /api/vm-logs/<hostname>`
 
 **Description:** Receives batched log lines pushed from a VM by the `log_shipper.sh` script, which tails the VM's `cloud-init` output and the client container's Docker logs.
 
-**Authentication:** Bearer Token
+**Authentication:** Client secret
 
 **Request Body:** `application/json`
 
@@ -345,34 +397,13 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 - **Code:** `200 OK`
 - **Content:** An HTML page (`delete-dashboard.html`) displaying the Terraform error output.
 
-### Download All User Data
-
-**Endpoint:** `GET /api/scp-client`
-
-**Description:** Connects to each running VM via SSH, finds all files matching the configured `extension`, copies them to a temporary directory on the allocator, zips them, and provides the zip file for download.
-
-**Authentication:** HTTP Basic Auth
-
-**Request Body:** None
-
-**Success Response:**
-
-- **Code:** `200 OK`
-- **Content-Type:** `application/zip`
-- **Content:** A zip file containing the data from all VMs.
-
-**Error Response:**
-
-- **Code:** `404 Not Found` if no VMs or no files are found.
-- **Code:** `500 Internal Server Error` if an error occurs during the SSH/SCP process.
-
 ### Get Status of All VMs
 
 **Endpoint:** `GET /api/vm-status`
 
 **Description:** Returns a JSON object mapping each VM hostname to its current status. Used by the admin dashboard.
 
-**Authentication:** Bearer Token
+**Authentication:** HTTP Basic Auth
 
 **Request Body:** None
 
@@ -392,42 +423,13 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 - **Code:** `404 Not Found` if no VMs are found in the database.
 - **Code:** `500 Internal Server Error` on failure.
 
-### Get Status of a Specific VM
-
-**Endpoint:** `GET /api/vm-status/<hostname>`
-
-**Description:** Returns the status of a specific VM.
-
-**Authentication:** Bearer Token
-
-**URL Parameters:**
-
-- `hostname` (string, required): The hostname of the VM.
-  **Request Body:** None
-
-**Success Response:**
-
-- **Code:** `200 OK`
-- **Content:**
-  ```json
-  {
-    "hostname": "lablink-vm-prod-1",
-    "status": "running"
-  }
-  ```
-
-**Error Response:**
-
-- **Code:** `404 Not Found` if the VM is not found.
-- **Code:** `500 Internal Server Error` on failure.
-
 ### Get Logs for a Specific VM
 
 **Endpoint:** `GET /api/vm-logs/<hostname>`
 
 **Description:** Returns the stored logs for a specific VM. Used by the admin log viewer page.
 
-**Authentication:** Bearer Token
+**Authentication:** HTTP Basic Auth
 
 **URL Parameters:**
 
@@ -480,3 +482,208 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 **Error Response:**
 
 - **Code:** `401 Unauthorized` without admin credentials.
+
+### Heartbeat
+
+**Endpoint:** `POST /api/heartbeat`
+
+**Description:** Periodic liveness ping. Lets the allocator detect silent failures — a dead container, a broken network, a hung host, an OOM, or an out-of-band VM termination — that no other endpoint would reveal. The body also carries cheap health signals for early warning.
+
+**Authentication:** Client secret (resolved from the `vm_id` field)
+
+**Request Body:** `application/json`
+
+```json
+{
+  "vm_id": "lablink-vm-prod-1",
+  "boot_id": "…",
+  "disk_free_pct": 62
+}
+```
+
+**Client Usage:** Sent by the client's `heartbeat` service every `HEARTBEAT_INTERVAL_SECONDS`. A client that stops heartbeating for longer than the staleness window becomes eligible for automatic recovery — see [Troubleshooting](troubleshooting.md#vm-auto-reboot-not-working).
+
+---
+
+## Client Registration API
+
+Used by bring-your-own (BYO) client machines to enrol themselves under the
+`manual` provider. AWS-provisioned clients do not use these endpoints — Terraform
+supplies their credentials directly.
+
+Registration is what the CLI's `lablink client register` drives — see
+[Bring-Your-Own Clients](cli/byo-clients.md#step-4-register-each-box) for the
+operator-facing walkthrough, and
+[Configuration](configuration.md#manual-provider-options-manual) for the `manual.*`
+settings it depends on.
+
+### Register a Client
+
+**Endpoint:** `POST /api/v1/clients/register`
+
+**Authentication:** Register token (the one deployment-wide bearer credential)
+
+**Request Body:** `application/json`
+
+| Field | Required | Description |
+|---|---|---|
+| `hostname` | yes | The client's self-declared hostname, which becomes its `client_id`. Must start with a letter or digit and contain only letters, digits, dots, dashes and underscores (max 253 chars). |
+| `machine_identity` | yes | Stable machine identifier, unique across the deployment. Re-registering the same identity replaces the old row rather than adding a seat. |
+| `provider` | no | Defaults to `aws`. BYO clients send `manual`. |
+| `provider_metadata` | no | Shape must match the deployment's configured `manual.connectivity` — `lan_ip` for `lan_direct`, `overlay_hostname` for `mesh_overlay`, `reverse_tunnel: true` for `reverse_tunnel`. A mismatch is rejected here rather than failing opaquely at assignment time. |
+| `endpoint_url`, `gpu_present`, `gpu_model` | no | Reported by the client; all auto-detected by the CLI. |
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:** the client's credentials and the configuration it needs to start:
+
+```json
+{
+  "client_id": "gpu-box-3",
+  "client_secret": "…",
+  "agent_token": "…",
+  "allocator_url": "https://lab.example.org",
+  "connectivity": "lan_direct",
+  "client_image": "ghcr.io/talmolab/lablink-client-base-image:latest",
+  "repository": "https://github.com/talmolab/sleap-tutorial-data.git",
+  "subject_software": "sleap",
+  "register_token": "…",
+  "startup_script_b64": "",
+  "startup_on_error": "continue",
+  "startup_max_attempts": 3,
+  "startup_base_delay_seconds": 30,
+  "startup_success_check_b64": "",
+  "monitoring": { "enabled": false }
+}
+```
+
+`client_secret` is returned **once** and stored only as an argon2 hash. Reverse-tunnel
+registrations additionally receive `tunnel_url`, `tunnel_path_prefix` and
+`tunnel_bind_addr`, all minted by the allocator.
+
+**Error Response:**
+
+- **Code:** `400 Bad Request` — missing/invalid `hostname` or `machine_identity`, or a `provider_metadata` shape that doesn't match the configured connectivity.
+- **Code:** `401 Unauthorized` — bad or missing register token.
+
+### Get Client Status
+
+**Endpoint:** `GET /api/v1/clients/<client_id>/status`
+
+**Authentication:** That client's own secret.
+
+Lets a registered client confirm the allocator still knows about it.
+
+### Unregister a Client
+
+**Endpoint:** `DELETE /api/v1/clients/<client_id>`
+
+**Authentication:** That client's own secret.
+
+Removes the client's row. Driven by `lablink client unregister`, which calls this
+best-effort — a client whose allocator is already gone still tears itself down
+locally.
+
+### List Clients
+
+**Endpoint:** `GET /api/v1/clients`
+
+**Authentication:** HTTP Basic Auth
+
+Operator view of every registered client.
+
+### Report Overlay Hostname
+
+**Endpoint:** `POST /api/overlay-hostname`
+
+**Authentication:** Client secret
+
+A mesh-overlay client reports the tailnet hostname it actually joined under. This
+matters because MagicDNS appends a numeric suffix when a name is already held by an
+offline node, so the name the client *asked* for and the name it *got* can differ.
+
+---
+
+## Operations API
+
+Long-running provisioning work runs asynchronously; these endpoints expose it.
+
+### List Operations
+
+**Endpoint:** `GET /api/operations`
+
+**Authentication:** HTTP Basic Auth
+
+Returns recent operations with their `op_type`, `status`, timestamps, and
+`resources_completed` / `resources_total` progress counters.
+
+### Get an Operation
+
+**Endpoint:** `GET /api/operations/<operation_id>`
+
+**Authentication:** HTTP Basic Auth
+
+Returns one operation, including its captured `output` and `error`. This is what
+the CLI polls while `client launch` runs.
+
+---
+
+## Scheduled Destruction API
+
+Lets an operator schedule tear-down ahead of time — useful for capping the cost of
+a workshop deployment.
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/schedule-destruction` | `POST` | Create a schedule. |
+| `/api/schedule-destruction` | `GET` | List schedules. |
+| `/api/schedule-destruction/<schedule_id>` | `GET` | Fetch one schedule. |
+| `/api/schedule-destruction/<schedule_id>` | `DELETE` | Cancel a schedule. |
+
+**Authentication:** HTTP Basic Auth on all four.
+
+Schedules are persisted in the `scheduled_destructions` table — see
+[Database](database.md#scheduled_destructions-table).
+
+---
+
+## Session Metrics API
+
+Populated only when `monitoring.enabled` is true.
+
+### Report Session Metrics
+
+**Endpoint:** `POST /api/session-metrics/<hostname>`
+
+**Authentication:** Client secret
+
+The client's monitoring sampler posts its accumulated per-session counters
+(time-in-software, GPU activity, training progress).
+
+### Get the Cohort Summary
+
+**Endpoint:** `GET /api/session-metrics/summary`
+
+**Authentication:** HTTP Basic Auth
+
+Returns the aggregate view model — participation funnel plus cohort totals. Both
+the admin **Session Metrics** page and `lablink stats` render this same payload, so
+the two can never disagree.
+
+### Export Metrics
+
+**Endpoint:** `GET /api/export-metrics`
+
+**Authentication:** HTTP Basic Auth
+
+Per-VM metrics as CSV or JSON. Backs `lablink export-metrics --client`.
+
+---
+
+## Admin Pages
+
+The allocator also serves operator HTML pages under `/admin`, all behind HTTP Basic
+Auth. They are walked through in the [Workshop Guide](workshop-guide.md), and
+`/admin/byo-onboarding` in [Bring-Your-Own Clients](cli/byo-clients.md#step-4-register-each-box).
+Only the JSON APIs above are documented here.
