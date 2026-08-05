@@ -1335,6 +1335,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#providers-and-connectivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providers and Connectivity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Providers and Connectivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#compute-provider-where-client-machines-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute provider — where client machines come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-connectivity-how-the-desktop-is-reached" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client connectivity — how the desktop is reached
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#component-details" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1447,10 +1486,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#vm-request-flow" class="md-nav__link">
+  <a href="#seat-assignment-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        VM Request Flow
+        Seat Assignment Flow
       
     </span>
   </a>
@@ -4556,6 +4595,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#providers-and-connectivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Providers and Connectivity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Providers and Connectivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#compute-provider-where-client-machines-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute provider — where client machines come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-connectivity-how-the-desktop-is-reached" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client connectivity — how the desktop is reached
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#component-details" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4668,10 +4746,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#vm-request-flow" class="md-nav__link">
+  <a href="#seat-assignment-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        VM Request Flow
+        Seat Assignment Flow
       
     </span>
   </a>
@@ -4852,6 +4930,70 @@
     style PostgreSQL fill:#336791,color:#fff
     style Subscribe fill:#4a90e2,color:#fff
     style Research fill:#8bc34a,color:#fff</div>
+<h2 id="providers-and-connectivity">Providers and Connectivity<a class="headerlink" href="#providers-and-connectivity" title="Permanent link">&para;</a></h2>
+<p>Two axes decide how a LabLink deployment is shaped. Both are resolved once at
+startup, in <code>providers/registry.py</code>, and the rest of the codebase talks to the
+resulting objects rather than branching on provider type.</p>
+<h3 id="compute-provider-where-client-machines-come-from">Compute provider — where client machines come from<a class="headerlink" href="#compute-provider-where-client-machines-come-from" title="Permanent link">&para;</a></h3>
+<p>Discovered through the <code>lablink.providers</code> entry-point group, so a new backend can be
+added without touching core code. Two ship today:</p>
+<table>
+<thead>
+<tr>
+<th><code>provider</code></th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws</code></td>
+<td>Provisions EC2 client VMs with Terraform.</td>
+</tr>
+<tr>
+<td><code>manual</code></td>
+<td>Provisions nothing. Machines you already own register themselves via <code>POST /api/v1/clients/register</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Capability flags, not provider-type checks, gate the behaviour that differs:</p>
+<ul>
+<li><strong><code>can_provision_hosts</code></strong> — false for <code>manual</code>, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a Terraform output.</li>
+<li><strong><code>can_recover_hosts</code></strong> — false for <code>manual</code>, so the auto-reboot loop skips BYO boxes instead of attempting AWS calls against machines it doesn't own.</li>
+</ul>
+<h3 id="client-connectivity-how-the-desktop-is-reached">Client connectivity — how the desktop is reached<a class="headerlink" href="#client-connectivity-how-the-desktop-is-reached" title="Permanent link">&para;</a></h3>
+<p>Selectable for the <code>manual</code> provider only, as a small closed set:</p>
+<table>
+<thead>
+<tr>
+<th><code>manual.connectivity</code></th>
+<th>Byte path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lan_direct</code></td>
+<td>The browser opens a WebSocket straight to the client's LAN IP. Requires the client and participant on the allocator's LAN.</td>
+</tr>
+<tr>
+<td><code>mesh_overlay</code></td>
+<td>The client joins a Tailscale tailnet; the allocator reaches it over the overlay and proxies through its own nginx.</td>
+</tr>
+<tr>
+<td><code>reverse_tunnel</code></td>
+<td>The client dials <strong>out</strong> to the allocator and holds one connection open, for boxes that can't accept inbound connections.</td>
+</tr>
+</tbody>
+</table>
+<p>Each strategy implements <code>prepare_browser_session</code>, which is what
+<code>/api/request_vm</code> calls to rotate the client's VNC password and persist the
+<code>browser_ws_url</code> the viewer page will open — which is why the assignment path has no
+connectivity-specific branches in it.</p>
+<p>AWS deployments always use the allocator-proxied path and ignore this setting.</p>
+<p>See <a href="../cli/byo-clients/#pick-a-connectivity-mode">Bring-Your-Own Clients</a> for
+choosing between these,
+<a href="../configuration/#manual-provider-options-manual">Configuration</a> for the settings,
+and <a href="../api-endpoints/#client-registration-api">API Endpoints</a> for the registration
+contract.</p>
 <h2 id="component-details">Component Details<a class="headerlink" href="#component-details" title="Permanent link">&para;</a></h2>
 <h3 id="allocator-service">Allocator Service<a class="headerlink" href="#allocator-service" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Central management server for VM allocation and orchestration.</p>
@@ -4879,23 +5021,24 @@
 <p><strong>API Endpoints</strong>:</p>
 </li>
 <li>
-<p><code>/request_vm</code>: Allocate VM to user</p>
+<p><code>/api/request_vm</code>: Claim a seat for a participant</p>
 </li>
+<li><code>/desktop</code>: Cookie-gated noVNC viewer</li>
 <li><code>/admin/create</code>: Create new VM instances</li>
 <li><code>/admin/instances</code>: List all instances</li>
-<li><code>/admin/destroy</code>: Destroy instances</li>
-<li>
-<p><code>/vm_startup</code>: Client registration</p>
-</li>
+<li><code>/api/v1/clients/register</code>: BYO client self-registration</li>
+<li><code>/api/heartbeat</code>: Client liveness reporting</li>
+</ol>
+<p>See <a href="../api-endpoints/">API Endpoints</a> for the full surface.</p>
+<ol>
 <li>
 <p><strong>Database Management</strong>:</p>
 </li>
 <li>
-<p>Tracks VM states (available, in-use, failed)</p>
+<p>Tracks VM states (<code>initializing</code>, <code>running</code>, <code>error</code>, <code>rebooting</code>)</p>
 </li>
-<li>PostgreSQL listen/notify for real-time updates</li>
 <li>
-<p>Automated triggers for state changes</p>
+<p>Claims seats atomically with <code>FOR UPDATE SKIP LOCKED</code></p>
 </li>
 <li>
 <p><strong>Infrastructure Orchestration</strong>:</p>
@@ -4939,73 +5082,31 @@
 <p><strong>Allocator Communication</strong>:</p>
 </li>
 <li>
-<p>Authenticated via bearer token (auto-distributed at launch)</p>
+<p>Authenticated with its own per-client secret, issued at registration</p>
 </li>
 <li>Heartbeat mechanism</li>
-<li>Status updates (in-use, available)</li>
+<li>Status updates (in-use, health, startup timings)</li>
 <li>
 <p>Failure reporting</p>
 </li>
 <li>
-<p><strong>Research Execution</strong>:</p>
+<p><strong>Desktop Session</strong>:</p>
 </li>
-<li>Clones configured repository</li>
-<li>Runs containerized research software</li>
-<li>Executes user-defined CRD commands</li>
+<li>Runs a KasmVNC desktop the participant reaches in a browser</li>
+<li>Exposes a local agent the allocator calls to rotate the VNC password per session</li>
+<li>Clones the configured repository and runs the containerized research software</li>
 </ol>
 <p><strong>Configuration</strong>: See <code>packages/client/src/lablink_client/conf/structured_config.py</code></p>
 <h3 id="database-schema">Database Schema<a class="headerlink" href="#database-schema" title="Permanent link">&para;</a></h3>
-<p><strong>Table: <code>vms</code></strong></p>
-<table>
-<thead>
-<tr>
-<th>Column</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Hostname</code></td>
-<td>VARCHAR(255)</td>
-<td>VM hostname/identifier (Primary Key)</td>
-</tr>
-<tr>
-<td><code>UserEmail</code></td>
-<td>VARCHAR(255)</td>
-<td>User email</td>
-</tr>
-<tr>
-<td><code>Status</code></td>
-<td>VARCHAR(50)</td>
-<td>VM status (running/initializing/error/rebooting)</td>
-</tr>
-<tr>
-<td><code>CrdCommand</code></td>
-<td>TEXT</td>
-<td>Command to execute on VM</td>
-</tr>
-<tr>
-<td><code>CreatedAt</code></td>
-<td>TIMESTAMP</td>
-<td>Creation timestamp</td>
-</tr>
-<tr>
-<td><code>reboot_count</code></td>
-<td>INTEGER</td>
-<td>Number of reboot attempts (default: 0)</td>
-</tr>
-<tr>
-<td><code>last_reboot_time</code></td>
-<td>TIMESTAMP</td>
-<td>When the last reboot was attempted</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Triggers</strong>:</p>
-<ul>
-<li><code>notify_vm_update</code>: Sends PostgreSQL NOTIFY on row changes</li>
-</ul>
+<p>Four tables: <code>vms</code> (one row per client machine), <code>operations</code> (async provisioning
+work), <code>scheduled_destructions</code>, and <code>settings</code> (deployment-wide key/value state).</p>
+<p>The <code>vms</code> row carries the machine's identity and assignment, its provider and
+connectivity details, per-session browser state, liveness counters, startup timings,
+and — when enabled — session metrics. Full column-by-column reference:
+<a href="../database/#vms-table">Database</a>.</p>
+<p><strong>Triggers</strong>: one, maintaining <code>updated_at</code> on <code>scheduled_destructions</code>. LabLink no
+longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
+<a href="../database/#triggers">Database</a> for what replaced it.</p>
 <h3 id="vm-state-machine">VM State Machine<a class="headerlink" href="#vm-state-machine" title="Permanent link">&para;</a></h3>
 <p>The <code>status</code> field in the <code>vms</code> table follows this lifecycle:</p>
 <div class="mermaid">stateDiagram-v2
@@ -5141,34 +5242,42 @@
 <li>Clients: Depends on AMI</li>
 </ul>
 <h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
-<h3 id="vm-request-flow">VM Request Flow<a class="headerlink" href="#vm-request-flow" title="Permanent link">&para;</a></h3>
+<h3 id="seat-assignment-flow">Seat Assignment Flow<a class="headerlink" href="#seat-assignment-flow" title="Permanent link">&para;</a></h3>
 <div class="mermaid">sequenceDiagram
     actor User
-    participant WebUI as Web UI/API
-    participant Flask as Flask App
+    participant Flask as Allocator
     participant DB as PostgreSQL
-    participant Client as Client VM
+    participant Agent as Client agent
 
-    User-&gt;&gt;WebUI: Submit VM request
-    WebUI-&gt;&gt;Flask: POST /request_vm
-    Flask-&gt;&gt;DB: SELECT * FROM vms&lt;br/&gt;WHERE status='available'&lt;br/&gt;LIMIT 1
+    User-&gt;&gt;Flask: POST /api/request_vm&lt;br/&gt;(email only)
+    Flask-&gt;&gt;DB: Already own a running seat?
 
-    alt VM Available
-        DB--&gt;&gt;Flask: Return VM details
-        Flask--&gt;&gt;WebUI: Return VM hostname&lt;br/&gt;and connection details
-        WebUI--&gt;&gt;User: Display VM info
-        Flask-&gt;&gt;DB: PostgreSQL NOTIFY&lt;br/&gt;vm_update
-        DB--&gt;&gt;Client: Notify event
-    else No VM Available
-        DB--&gt;&gt;Flask: No results
-        Flask--&gt;&gt;WebUI: Error: No VMs available
-        WebUI--&gt;&gt;User: Queue request or&lt;br/&gt;show error message
+    alt Rejoin
+        DB--&gt;&gt;Flask: Existing seat
+    else Fresh claim
+        Flask-&gt;&gt;DB: assign_vm — SELECT … &lt;br/&gt;FOR UPDATE SKIP LOCKED
+        alt Pool empty
+            DB--&gt;&gt;Flask: no rows
+            Flask--&gt;&gt;User: 503 no_seats.html
+        end
     end
 
-    Note over Client: Later: update_inuse_status service&lt;br/&gt;monitors for software process
-    Client-&gt;&gt;Client: Software process starts
-    Client-&gt;&gt;Flask: Update status to in-use
-    Flask-&gt;&gt;DB: UPDATE vms&lt;br/&gt;SET status='in-use'</div>
+    Flask-&gt;&gt;Flask: Mint session_id + browser_token
+    Flask-&gt;&gt;Agent: POST /api/session/start&lt;br/&gt;(rotate KasmVNC password)
+
+    alt Rotation OK
+        Agent--&gt;&gt;Flask: 200
+        Flask-&gt;&gt;DB: Persist session state,&lt;br/&gt;clear Unhealthy
+        Flask--&gt;&gt;User: 302 /desktop&lt;br/&gt;+ signed lablink_session cookie
+        User-&gt;&gt;Flask: GET /desktop
+        Flask--&gt;&gt;User: noVNC viewer
+    else RotationFailed
+        Flask-&gt;&gt;DB: Mark Unhealthy,&lt;br/&gt;release seat
+        Flask--&gt;&gt;User: 503 rotation_failed.html
+    end
+
+    Note over Agent: Later: update_inuse_status reports&lt;br/&gt;whether the software is running
+    Agent-&gt;&gt;Flask: POST /api/update_inuse_status</div>
 <h3 id="vm-creation-flow">VM Creation Flow<a class="headerlink" href="#vm-creation-flow" title="Permanent link">&para;</a></h3>
 <div class="mermaid">sequenceDiagram
     actor Admin
@@ -5192,8 +5301,8 @@
 
     VM-&gt;&gt;Docker: Pull Docker image&lt;br/&gt;from ghcr.io
     VM-&gt;&gt;VM: Clone user repository&lt;br/&gt;(if configured)
-    VM-&gt;&gt;Docker: Start client service&lt;br/&gt;(subscribe, check_gpu, etc.)
-    Docker-&gt;&gt;Flask: POST /vm_startup&lt;br/&gt;(hostname registration)
+    VM-&gt;&gt;Docker: Start client services&lt;br/&gt;(agent, heartbeat, check_gpu)
+    Docker-&gt;&gt;Flask: POST /api/vm-status&lt;br/&gt;(status: running)
 
     Flask--&gt;&gt;Admin: VMs created successfully&lt;br/&gt;(show instance details)</div>
 <h3 id="health-check-flow">Health Check Flow<a class="headerlink" href="#health-check-flow" title="Permanent link">&para;</a></h3>
@@ -5328,7 +5437,7 @@
 <tr>
 <td>Database</td>
 <td>PostgreSQL</td>
-<td>LISTEN/NOTIFY, ACID compliance</td>
+<td>ACID compliance, <code>SKIP LOCKED</code> for race-free seat claims</td>
 </tr>
 <tr>
 <td>IaC</td>
