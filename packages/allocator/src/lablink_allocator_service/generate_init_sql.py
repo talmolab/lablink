@@ -20,6 +20,13 @@ ALTER USER {DB_USER} WITH LOGIN;
 CREATE DATABASE {DB_NAME} OWNER {DB_USER};
 GRANT ALL PRIVILEGES ON DATABASE {DB_NAME} TO {DB_USER};
 
+-- Read-only access to the stats views, for /api/health/connections. Without
+-- it, pg_stat_activity still returns a row per backend (so count(*) is right)
+-- but masks `state` as NULL for sessions owned by any other role, which would
+-- make the idle-in-transaction count silently undercount. Grants no data
+-- access and no write privileges of any kind.
+GRANT pg_read_all_stats TO {DB_USER};
+
 \\c {DB_NAME};
 
 SET ROLE {DB_USER};

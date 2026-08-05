@@ -9,6 +9,15 @@ def test_build_init_sql_returns_string():
     assert "CREATE TABLE" in sql
 
 
+def test_stats_role_granted():
+    """/api/health/connections' idle-in-transaction count reads `state` from
+    pg_stat_activity, which Postgres masks as NULL for sessions owned by other
+    roles unless the reader holds pg_read_all_stats. Without this grant the
+    count silently undercounts instead of erroring."""
+    sql = build_init_sql()
+    assert "GRANT pg_read_all_stats TO" in sql
+
+
 def test_per_session_columns_present():
     sql = build_init_sql()
     for col in ("SessionId", "BrowserToken", "VncPassword",
