@@ -125,3 +125,147 @@ class TestDoctorManual:
         run_doctor()
         out = capsys.readouterr().out
         assert "docker" in out.lower()
+
+
+# ------------------------------------------------------------------
+# Client-side checks (`lablink client doctor`)
+# ------------------------------------------------------------------
+class TestCheckClientRegistered:
+    def test_missing_env_file(self, tmp_path):
+        from lablink_cli.commands.doctor import _check_client_registered
+
+        with patch(
+            "lablink_cli.commands.register.DEFAULT_ENV_FILE",
+            tmp_path / "nope.env",
+        ):
+            result = _check_client_registered()
+
+        assert result["status"] == "fail"
+        assert "lablink client register" in result["detail"]
+
+    def test_env_file_present(self, tmp_path):
+        from lablink_cli.commands.doctor import _check_client_registered
+
+        env_file = tmp_path / "client.env"
+        env_file.write_text("VM_NAME=box\n")
+        with patch(
+            "lablink_cli.commands.register.DEFAULT_ENV_FILE", env_file
+        ):
+            result = _check_client_registered()
+
+        assert result["status"] == "pass"
+
+
+class TestCheckClientContainer:
+    def _run(self, status):
+        from lablink_cli.commands.doctor import _check_client_container
+
+        with patch(
+            "lablink_cli.log_shipper.inspect_container", return_value=status
+        ):
+            return _check_client_container()
+
+    def test_running_passes(self):
+        assert self._run("running")["status"] == "pass"
+
+    def test_restarting_warns_about_crash_loop(self):
+        result = self._run("restarting")
+        assert result["status"] == "warn"
+        assert "crash-looping" in result["detail"]
+
+    def test_missing_suggests_force(self):
+        result = self._run("missing")
+        assert result["status"] == "fail"
+        assert "--force" in result["detail"]
+
+    def test_exited_fails(self):
+        assert self._run("exited")["status"] == "fail"
+
+    def test_daemon_error_reported_as_daemon_problem(self):
+        result = self._run("daemon_error")
+        assert result["status"] == "fail"
+        assert "daemon" in result["detail"].lower()
+
+
+class TestCheckLogShipper:
+    # 2026-08-05T12:00:00Z
+    SHIPPED = "2026-08-05T12:00:00Z"
+    SHIPPED_EPOCH = 1785931200.0
+
+    def _run(self, *, alive, last, now=None):
+        from lablink_cli.commands.doctor import _check_log_shipper
+
+        with (
+            patch(
+                "lablink_cli.commands.register._shipper_alive",
+                return_value=alive,
+            ),
+            patch(
+                "lablink_cli.log_shipper.read_last_shipped_ts",
+                return_value=last,
+            ),
+        ):
+            return _check_log_shipper(now=now)
+
+    def test_dead_shipper_fails(self):
+        result = self._run(alive=False, last=self.SHIPPED)
+        assert result["status"] == "fail"
+        assert "not reaching the allocator" in result["detail"].lower()
+
+    def test_alive_and_recent_passes(self):
+        result = self._run(
+            alive=True, last=self.SHIPPED, now=self.SHIPPED_EPOCH + 60
+        )
+        assert result["status"] == "pass"
+
+    def test_alive_but_stale_warns(self):
+        """The failure a liveness-only check cannot see: process up,
+        container healthy, nothing reaching the allocator."""
+        result = self._run(
+            alive=True, last=self.SHIPPED, now=self.SHIPPED_EPOCH + 6 * 86400
+        )
+        assert result["status"] == "warn"
+        assert "6d ago" in result["detail"]
+        assert self.SHIPPED in result["detail"]
+
+    def test_age_formatting_stays_readable(self):
+        from lablink_cli.commands.doctor import _format_age
+
+        assert _format_age(20 * 60) == "20m"
+        assert _format_age(3 * 3600) == "3h"
+        assert _format_age(6 * 86400) == "6d"
+
+    def test_alive_but_never_shipped_warns(self):
+        result = self._run(alive=True, last=None)
+        assert result["status"] == "warn"
+        assert "never shipped" in result["detail"]
+
+    def test_unparseable_timestamp_warns(self):
+        result = self._run(alive=True, last="not-a-timestamp")
+        assert result["status"] == "warn"
+
+
+class TestRunClientDoctor:
+    def test_renders_all_three_checks(self, capsys):
+        from lablink_cli.commands.doctor import run_client_doctor
+
+        with (
+            patch(
+                "lablink_cli.commands.doctor._check_client_registered",
+                return_value={"check": "Registered", "status": "pass"},
+            ),
+            patch(
+                "lablink_cli.commands.doctor._check_client_container",
+                return_value={"check": "Client container", "status": "pass"},
+            ),
+            patch(
+                "lablink_cli.commands.doctor._check_log_shipper",
+                return_value={"check": "Log shipper", "status": "pass"},
+            ),
+        ):
+            run_client_doctor()
+
+        out = capsys.readouterr().out
+        assert "Registered" in out
+        assert "Log shipper" in out
+        assert "All checks passed" in out

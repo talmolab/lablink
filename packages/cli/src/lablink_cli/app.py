@@ -379,6 +379,14 @@ def doctor() -> None:
     run_doctor()
 
 
+@client_app.command("doctor")
+def client_doctor() -> None:
+    """Check this machine's BYO client (container, log shipper)."""
+    from lablink_cli.commands.doctor import run_client_doctor
+
+    run_client_doctor()
+
+
 @client_app.command("register")
 def register(
     allocator_url: str = typer.Option(
