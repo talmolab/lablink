@@ -8,11 +8,11 @@ Terraform, no cloud bill.
 Set `provider: manual` in your config and every command in the
 [CLI Reference](../reference/cli.md) switches to this path.
 
+Beyond the split in [CLI Overview](index.md#two-providers), the practical
+differences:
+
 | | AWS provider | Manual provider |
 |---|---|---|
-| Where the allocator runs | EC2, via Terraform | docker-compose, on your machine |
-| Where client machines come from | `lablink client launch` provisions them | you run `lablink client register` on each box |
-| Needs AWS credentials | Yes | No |
 | Needs Terraform | Yes | No |
 | Needs docker locally | No | **Yes** (allocator + clients are containers) |
 | Cost | Per-hour EC2 + EBS + optional ALB | Your own hardware |
@@ -43,15 +43,12 @@ all.
 | `reverse_tunnel` | The client dials **out** to the allocator and holds one connection open. | The network won't carry Tailscale, or the box can't accept inbound connections at all. |
 
 !!! warning "`lan_direct` cannot serve off-LAN participants"
-    `lan_direct` sends the browser straight to a client's private LAN IP over
-    `ws://`, which is unreachable from outside the LAN and blocked as mixed content
-    from an HTTPS page. Both `lablink configure` and `lablink deploy` reject
-    `lan_direct` combined with any `manual.participant_exposure` other than `none`.
-    If participants are remote, pick `mesh_overlay` or `reverse_tunnel`.
+    If participants are remote, pick `mesh_overlay` or `reverse_tunnel` —
+    `lan_direct` combined with any exposure mode is rejected, and
+    [Configuration](../configuration.md#manual-provider-options-manual) explains why.
 
 Reaching the **allocator** from off-LAN is a separate axis —
-`manual.participant_exposure`, covered in
-[Configuration](../configuration.md#manual-provider-options-manual).
+`manual.participant_exposure`, covered on that same page.
 
 ## Step 1: Configure
 
@@ -95,9 +92,6 @@ manual:
 ```bash
 lablink doctor
 ```
-
-Under the manual provider this checks two things — that `docker` is on `PATH`, and
-that `docker compose` works. That's the whole prerequisite list.
 
 ## Step 3: Deploy the allocator
 
@@ -166,13 +160,9 @@ the returned secrets to `~/.lablink/client.env` (mode `0600`), and `docker run`s
 client container. Every auto-detected value has an override flag if you need one.
 
 The registration shape has to match the allocator's configured connectivity, or the
-allocator rejects it with a 400:
-
-| `manual.connectivity` | Register with |
-|---|---|
-| `lan_direct` | no connectivity flag |
-| `mesh_overlay` | `--overlay-hostname <name> --tailscale-authkey <key>` |
-| `reverse_tunnel` | `--tunnel` |
+allocator rejects it with a 400 — see
+[`client register`](../reference/cli.md#client-register) for which flags each mode
+requires.
 
 The allocator's admin UI also renders a ready-to-paste command at
 **`/admin/byo-onboarding`**, with the flags already matched to your mode. That's the
@@ -201,13 +191,12 @@ lablink status
 |---|---|---|
 | Check health | `lablink status` | Shows compose container status + the allocator's health endpoint. No cost estimate — the hardware is yours. |
 | Read logs | `lablink logs` | Tails the local `lablink-allocator` container. Per-VM client logs aren't centralized in this mode — run `docker logs lablink-client` on the box itself. |
-| Session metrics | `lablink stats` | Same as the AWS path. |
-| Export metrics | `lablink export-metrics --client` | Same as the AWS path. |
 | Add a box | `lablink client register` | Run on the new box. |
 | Remove a box | `lablink client unregister` | Run on that box. |
 
-`lablink client launch` does nothing here — it no-ops with a message pointing you
-back at `client register`.
+Only `client launch` is unavailable — it no-ops with a message pointing you back at
+`client register`. Every other command, `stats` and `export-metrics` included,
+behaves as it does on the AWS path.
 
 ## Removing a box
 

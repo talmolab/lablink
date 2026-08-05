@@ -20,17 +20,11 @@ exits with a hint to run `lablink configure`.
 
 ## Provider modes
 
-Almost every command below branches on the `provider` field in your config, so read
-the reference with your provider in mind:
-
-| `provider` | What it means | Client machines come from |
-|---|---|---|
-| `aws` (default) | The allocator runs on EC2, provisioned by Terraform from your machine. | `lablink client launch` — the allocator provisions EC2 VMs. |
-| `manual` | The allocator runs as a local docker-compose stack on a machine you already have. No AWS account needed. | `lablink client register`, run by you on each bring-your-own (BYO) box. |
-
-See [Bring-Your-Own Clients](../cli/byo-clients.md) for the manual-provider
-walkthrough, and [Configuration](../configuration.md#manual-provider-options-manual)
-for the `manual.*` settings.
+Almost every command below branches on the `provider` field in your config; each
+one notes its manual-provider behavior inline. For the two modes side by side see
+[CLI Overview](../cli/index.md#two-providers), for the manual walkthrough
+[Bring-Your-Own Clients](../cli/byo-clients.md), and for the `manual.*` settings
+[Configuration](../configuration.md#manual-provider-options-manual).
 
 ---
 
