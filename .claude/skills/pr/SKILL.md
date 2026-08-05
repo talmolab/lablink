@@ -52,7 +52,7 @@ gh issue view <issue-number>
 ## Step 3: Implement Changes
 
 - Make focused, incremental changes
-- Follow existing code patterns and style (see `openspec/project.md`)
+- Follow existing code patterns and style (see `CLAUDE.md`)
 - Add type hints for public functions
 - Use Google-style docstrings
 - Consider backwards compatibility

@@ -44,7 +44,6 @@ The documentation includes:
 - **User guides**: Getting started, configuration, deployment
 - **API reference**: Auto-generated from docstrings (mkdocstrings)
 - **Development docs**: Contributing, testing, workflows
-- **OpenSpec docs**: Change proposals and specifications
 - **Changelog**: Auto-generated from git history
 
 ## Server Options

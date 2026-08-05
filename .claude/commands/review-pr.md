@@ -137,7 +137,7 @@ Claude will:
 3. **Analyze thoroughly**:
    - Trace code logic
    - Identify edge cases
-   - Check against project conventions (CLAUDE.md, openspec/project.md)
+   - Check against project conventions (CLAUDE.md)
    - Verify test coverage
 
 4. **Post structured review**:
@@ -185,8 +185,7 @@ The command ensures these are checked:
 - [ ] Comments for complex logic
 
 ### Project-Specific
-- [ ] Follows openspec/project.md conventions
-- [ ] OpenSpec change proposal created if needed
+- [ ] Follows CLAUDE.md conventions
 - [ ] CI workflows pass
 - [ ] Docker builds succeed
 - [ ] No secrets committed
@@ -250,7 +249,7 @@ Review PR #42 for security vulnerabilities and input validation
 
 Tell Claude:
 ```
-Review PR #42 and check compliance with openspec/project.md conventions
+Review PR #42 and check compliance with CLAUDE.md conventions
 ```
 
 ## gh CLI Setup
