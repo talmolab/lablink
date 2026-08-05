@@ -8,6 +8,7 @@ import logging
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from lablink_allocator_service.auth import auth
+from lablink_allocator_service.routes.health import connection_stats
 from lablink_allocator_service.utils.config_helpers import (
     canonical_base_url,
     is_self_signed_ssl,
@@ -37,6 +38,9 @@ def admin():
         can_provision_hosts=provider.can_provision_hosts,
         can_destroy_hosts=provider.can_destroy_hosts,
         monitoring_enabled=monitoring_enabled,
+        # One aggregate query per admin page load. Low-traffic operator page,
+        # and None renders as "unavailable" rather than breaking the panel.
+        connections=connection_stats(),
     )
 
 

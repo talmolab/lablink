@@ -20,6 +20,10 @@ ALTER USER {DB_USER} WITH LOGIN;
 CREATE DATABASE {DB_NAME} OWNER {DB_USER};
 GRANT ALL PRIVILEGES ON DATABASE {DB_NAME} TO {DB_USER};
 
+-- For /api/health/connections: without it, pg_stat_activity masks other roles'
+-- `state` as NULL. Read-only access to the stats views, nothing else.
+GRANT pg_read_all_stats TO {DB_USER};
+
 \\c {DB_NAME};
 
 SET ROLE {DB_USER};

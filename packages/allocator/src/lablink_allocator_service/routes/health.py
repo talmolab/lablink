@@ -1,16 +1,26 @@
-"""GET /api/health — structured readiness probe.
+"""Health and capacity reporting.
 
-Reports per-dependency readiness rather than a bare 200 so a deployment
-stuck mid-startup is distinguishable from a healthy one: 200 + "healthy"
-only once every check passes, 503 + "starting" otherwise.
+`GET /api/health` reports per-dependency readiness rather than a bare 200 so
+a deployment stuck mid-startup is distinguishable from a healthy one: 200 +
+"healthy" only once every check passes, 503 + "starting" otherwise.
+
+`GET /api/health/connections` reports Postgres connection usage against the
+configured maximum. Deliberately a *separate* route: /api/health is polled in
+a tight loop by start.sh during boot and by `lablink deploy` afterwards, and
+neither should pay for a Postgres aggregate to learn whether the service is up.
 """
+import logging
 import subprocess
 import time
 
 import psycopg2
 from flask import Blueprint, current_app, jsonify
 
+from lablink_allocator_service.auth import auth
+from lablink_allocator_service.db.pool import PooledCursor
+
 bp = Blueprint("health", __name__)
+logger = logging.getLogger(__name__)
 
 # Shared by _tunnel_status() (which produces it) and health_check() (which
 # excludes it from the readiness gate). One constant rather than two literals
@@ -79,6 +89,49 @@ def _tunnel_status() -> str:
     return f"{len(missing)}{_UNATTACHED_SUFFIX}" if missing else "ok"
 
 
+def connection_stats() -> dict | None:
+    """Postgres client connection usage, or None if unreadable.
+
+    None rather than raising: both callers must degrade -- /admin renders
+    "unavailable" and the JSON route answers 503.
+    """
+    from lablink_allocator_service import main
+
+    try:
+        # client backends only: pg_stat_activity rows include background workers
+        # (checkpointer, walwriter, the launchers), which hold no
+        # max_connections slot. Measured live: 10 rows for 5 real connections.
+        # LIKE, not '=', so 'idle in transaction (aborted)' counts too -- it
+        # pins locks the same way. max_connections read from Postgres because
+        # start.sh sets it and a literal here would drift.
+        #
+        # ponytail: measured *through* the pool, so an exhausted pool returns
+        # None instead of numbers. Use a dedicated connection if saturation
+        # reporting has to survive saturation.
+        with PooledCursor(main.database.pool) as cursor:
+            cursor.execute(
+                "SELECT count(*) FILTER (WHERE backend_type = 'client backend'), "
+                "count(*) FILTER (WHERE state LIKE 'idle in transaction%'), "
+                "current_setting('max_connections')::int "
+                "FROM pg_stat_activity"
+            )
+            active, idle_in_transaction, max_connections = cursor.fetchone()
+    except Exception:
+        # Broad on purpose: rendered inside /admin, so anything escaping here
+        # 500s the operator's panel. Logged with a traceback, never swallowed.
+        logger.warning("Postgres connection stats unavailable", exc_info=True)
+        return None
+
+    util = active / max(max_connections, 1)
+    return {
+        "active_connections": active,
+        "idle_in_transaction": idle_in_transaction,
+        "max_connections": max_connections,
+        "utilization_percent": round(util * 100, 1),
+        "level": "critical" if util > 0.9 else "warning" if util > 0.8 else "ok",
+    }
+
+
 @bp.route("/api/health", methods=["GET"])
 def health_check():
     """Return structured readiness status."""
@@ -124,3 +177,14 @@ def health_check():
         payload["uptime_seconds"] = round(time.monotonic() - main._startup_time, 1)
 
     return jsonify(payload), code
+
+
+@bp.route("/api/health/connections", methods=["GET"])
+@auth.login_required
+def connection_health():
+    """Report Postgres connection usage. Admin-gated; 503 means the numbers are
+    unreadable, never that the pool is merely busy."""
+    stats = connection_stats()
+    if stats is None:
+        return jsonify({"status": "unavailable"}), 503
+    return jsonify({"status": "ok", **stats}), 200

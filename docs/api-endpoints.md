@@ -124,6 +124,52 @@ reverse-tunnel deployments.
     registering client is unattached until its tunnel comes up. The allocator's own
     dependencies (tunnel server, database) do gate.
 
+### Connection Usage
+
+**Endpoint:** `GET /api/health/connections`
+
+**Authentication:** Admin (HTTP Basic) — the same gate as `/admin/*`.
+
+Reports PostgreSQL connection usage against the server's configured maximum,
+for checking headroom before scaling a deployment up.
+
+`active_connections` counts client backends only — the things `max_connections`
+bounds — excluding the background-worker rows `pg_stat_activity` also carries.
+It includes the connection serving this request. `max_connections` is read from
+PostgreSQL, so it tracks whatever is actually configured.
+
+`idle_in_transaction` distinguishes a leaked pooled connection from ordinary
+load; a non-zero value that doesn't fall back to zero is worth investigating.
+It counts `idle in transaction (aborted)` too — an aborted-but-open transaction
+pins locks just like a live one.
+
+The same numbers appear on the [`/admin` panel](#admin-pages), which escalates
+to a banner above 90%.
+
+**Success Response:**
+
+- **Code:** `200 OK`
+- **Content:**
+  ```json
+  {
+    "status": "ok",
+    "active_connections": 61,
+    "idle_in_transaction": 0,
+    "max_connections": 300,
+    "utilization_percent": 20.3,
+    "level": "ok"
+  }
+  ```
+
+`level` is `ok`, `warning` above 80% utilization, or `critical` above 90%. High
+utilization still answers `200` — busy is not broken.
+
+**Error Response:**
+
+- **Code:** `503 Service Unavailable` with `{"status": "unavailable"}` when the
+  numbers can't be read — the database isn't initialized yet, or the query
+  failed (including a pool with no free connections).
+
 ## Client VM API Endpoints
 
 These endpoints are used by client VMs to report to the allocator. They require that
