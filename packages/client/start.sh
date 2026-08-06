@@ -413,6 +413,23 @@ fi
 touch /home/client/.Xauthority
 chmod 600 /home/client/.Xauthority
 
+# XFCE's compositor recomposites the whole screen on every window move, so
+# Xvnc sees one full-screen damage rect instead of a few small ones and
+# re-encodes the entire framebuffer for each frame of a drag -- the single
+# largest source of choppy motion in the participant desktop. Write the
+# setting straight into the xfconf XML store rather than calling
+# `xfconf-query`, which needs the session dbus to already be up and would
+# race xfce4-session.
+mkdir -p /home/client/.config/xfce4/xfconf/xfce-perchannel-xml
+cat > /home/client/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml <<'XFWM'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+  </property>
+</channel>
+XFWM
+
 # Pre-seed the xstartup script kasmvncserver invokes after Xkasmvnc is up.
 # We use `xfce4-session` (not the `startxfce4` wrapper) because the wrapper
 # tries to spawn its own Xorg, which fails in a container with no GPU node
