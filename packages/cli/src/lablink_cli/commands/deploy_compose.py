@@ -489,25 +489,31 @@ def run_deploy_compose(
     metrics_path = cache_path_for(cfg.deployment_name, deploy_start_dt)
     write_metrics(metrics_path, metrics)
 
-    render_compose_dir(
-        cfg,
-        target,
-        tailscale_authkey=tailscale_authkey,
-        cloudflare_tunnel_token=cloudflare_tunnel_token,
-    )
-    console.print(f"[green]Rendered {target}[/green]")
-
-    # Explicitly disable Funnel *before* _compose_up, whenever the new
-    # config no longer wants it — this must run before --remove-orphans
-    # potentially deletes the sidecar (a removed container can't be
-    # `docker exec`'d into), and it's needed even when the sidecar
-    # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
-    # since Funnel persists in the sidecar's own state regardless of
-    # whether _enable_funnel keeps getting called. See _disable_funnel.
-    if cfg.manual.participant_exposure != "tailscale_funnel":
-        _disable_funnel()
-
+    # Everything from here to the success write is inside the try: the record
+    # already exists on disk, so any escape that skips the write below strands
+    # it at in_progress — indistinguishable from a Ctrl-C, and with null
+    # timings. render_compose_dir writes files and calls save_config, and
+    # _write_canonical_url writes one too, so OSError is live in both stretches
+    # either side of the timed phases, not just in the phases themselves.
     try:
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey=tailscale_authkey,
+            cloudflare_tunnel_token=cloudflare_tunnel_token,
+        )
+        console.print(f"[green]Rendered {target}[/green]")
+
+        # Explicitly disable Funnel *before* _compose_up, whenever the new
+        # config no longer wants it — this must run before --remove-orphans
+        # potentially deletes the sidecar (a removed container can't be
+        # `docker exec`'d into), and it's needed even when the sidecar
+        # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
+        # since Funnel persists in the sidecar's own state regardless of
+        # whether _enable_funnel keeps getting called. See _disable_funnel.
+        if cfg.manual.participant_exposure != "tailscale_funnel":
+            _disable_funnel()
+
         with phase_timer(
             metrics, "allocator_compose_up_duration_seconds", metrics_path
         ):
@@ -516,6 +522,38 @@ def run_deploy_compose(
             metrics, "allocator_health_check_duration_seconds", metrics_path
         ):
             _health_poll()
+
+        # Disable again, now that the sidecar (if the compose file still
+        # declares one) is guaranteed running. The call above can silently
+        # no-op if the sidecar was stopped-but-not-removed at that point —
+        # `docker exec` fails on a stopped container the same way it does on
+        # a missing one, and _disable_funnel() can't tell those apart. If
+        # connectivity stays mesh_overlay, _compose_up just restarted that
+        # same stopped sidecar, reattached to tailscale_state with Funnel's
+        # last-known "on" config still intact — this second call is what
+        # actually clears it. Harmless no-op if the sidecar was removed as
+        # an orphan instead (nothing to disable).
+        if cfg.manual.participant_exposure != "tailscale_funnel":
+            _disable_funnel()
+
+        funnel_ok = True
+        funnel_url = None
+        if cfg.manual.participant_exposure == "tailscale_funnel":
+            funnel_ok, funnel_url = _enable_funnel()
+            if funnel_url:
+                _write_canonical_url(target, funnel_url)
+
+        if cfg.manual.participant_exposure == "cloudflare_tunnel":
+            if not _verify_public_hostname(cfg.manual.public_hostname):
+                console.print(
+                    f"[yellow]https://{cfg.manual.public_hostname} did not "
+                    "answer.[/yellow]\n"
+                    "The stack is up locally. Common causes: the DNS record is "
+                    "still propagating (retry in a few minutes), or the "
+                    "tunnel's public hostname in Cloudflare does not point at "
+                    "http://localhost:5000."
+                )
+                _print_last_log_lines()
     except (Exception, SystemExit) as e:
         # SystemExit IS caught here, unlike the AWS path where it means "user
         # cancelled" and in_progress is the honest state. Nothing in this
@@ -528,38 +566,7 @@ def run_deploy_compose(
         write_metrics(metrics_path, metrics)
         raise
 
-    # Disable again, now that the sidecar (if the compose file still
-    # declares one) is guaranteed running. The call above can silently
-    # no-op if the sidecar was stopped-but-not-removed at that point —
-    # `docker exec` fails on a stopped container the same way it does on
-    # a missing one, and _disable_funnel() can't tell those apart. If
-    # connectivity stays mesh_overlay, _compose_up just restarted that
-    # same stopped sidecar, reattached to tailscale_state with Funnel's
-    # last-known "on" config still intact — this second call is what
-    # actually clears it. Harmless no-op if the sidecar was removed as
-    # an orphan instead (nothing to disable).
-    if cfg.manual.participant_exposure != "tailscale_funnel":
-        _disable_funnel()
-
-    funnel_ok = True
-    funnel_url = None
-    if cfg.manual.participant_exposure == "tailscale_funnel":
-        funnel_ok, funnel_url = _enable_funnel()
-        if funnel_url:
-            _write_canonical_url(target, funnel_url)
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
-
-    if cfg.manual.participant_exposure == "cloudflare_tunnel":
-        if not _verify_public_hostname(cfg.manual.public_hostname):
-            console.print(
-                f"[yellow]https://{cfg.manual.public_hostname} did not "
-                "answer.[/yellow]\n"
-                "The stack is up locally. Common causes: the DNS record is "
-                "still propagating (retry in a few minutes), or the tunnel's "
-                "public hostname in Cloudflare does not point at "
-                "http://localhost:5000."
-            )
-            _print_last_log_lines()
 
     # Total = sum of the timed phases, matching the AWS path's definition
     # (machine work only, excluding prompt time). Exposure setup — Funnel

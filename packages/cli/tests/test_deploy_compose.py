@@ -2705,6 +2705,38 @@ class TestComposeDeploymentMetrics:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_render_failure_records_failure(
+        self, mock_up, mock_poll, mock_summary, tmp_path, monkeypatch
+    ):
+        """A failure *outside* the timed phases still records 'failed'.
+
+        The record is written before render_compose_dir, so anything that
+        escapes between that write and the success write would strand it at
+        in_progress with null timings — indistinguishable from a Ctrl-C.
+        """
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        cache = tmp_path / "cache"
+        monkeypatch.setattr(deployment_metrics, "DEPLOYMENTS_DIR", cache)
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.render_compose_dir",
+            side_effect=OSError("disk full"),
+        ):
+            with pytest.raises(OSError):
+                run_deploy_compose(_manual_cfg(), yes=True, workdir_root=tmp_path)
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        assert records[0]["status"] == "failed"
+        assert "disk full" in records[0]["error"]
+        # Never reached the phases, so their timings stay empty.
+        assert records[0]["allocator_compose_up_duration_seconds"] is None
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_declined_confirmation_writes_nothing(
         self, mock_up, mock_poll, mock_summary, tmp_path, monkeypatch
     ):

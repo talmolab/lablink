@@ -373,14 +373,21 @@ Writes metrics to disk for offline analysis. Two data sources:
 With no source flag, both are exported and `_client` / `_allocator` suffixes are
 appended to the base output name.
 
+Allocator metrics are scoped to the config's `deployment_name` **and** provider —
+the cache holds a record per deploy attempt for every deployment on the machine,
+and a name reused across providers has records of two different shapes in it. AWS
+deploys populate the `allocator_terraform_*` columns; manual (compose) deploys
+populate `allocator_compose_up_duration_seconds` instead. Both populate
+`allocator_health_check_duration_seconds` and the total.
+
 | Option | Description |
 |---|---|
 | `--client` | Export per-VM client metrics from the allocator. |
-| `--allocator` | Export per-deploy allocator metrics from the local cache. Skips the network. |
+| `--allocator` | Export per-deploy allocator metrics from the local cache, scoped to this config's deployment and provider. Skips the network. |
 | `-f`, `--format FMT` | `csv` (default) or `json`. |
 | `-o`, `--output PATH` | Output file path. With a single source flag it is the literal path; with both (or neither), it is a base name and `_client` / `_allocator` suffixes are added before the extension. Default: `metrics_client.<fmt>` and/or `metrics_allocator.<fmt>`. |
 | `--include-logs` | Include `cloud_init_logs` and `docker_logs` columns. Large — opt-in only. |
-| `-c`, `--config PATH` | Path to `config.yaml`. Skipped when only `--allocator` is passed. |
+| `-c`, `--config PATH` | Path to `config.yaml`. With only `--allocator`, it is loaded when present (to scope the export) but not required — the command still works on a machine that has no config, exporting the whole cache. |
 
 ---
 
