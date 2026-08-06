@@ -277,12 +277,11 @@ git push origin feature/add-spot-instance-support
 **Example:**
 
 ```python
-def request_vm(email: str, crd_command: str) -> dict[str, str]:
+def request_vm(email: str) -> dict[str, str]:
     """Request a VM from the allocator.
 
     Args:
         email: User email address for VM assignment.
-        crd_command: Command to execute on the VM.
 
     Returns:
         Dictionary containing VM details:
@@ -295,7 +294,7 @@ def request_vm(email: str, crd_command: str) -> dict[str, str]:
         RuntimeError: If no VMs are available.
 
     Example:
-        >>> result = request_vm("user@example.com", "python train.py")
+        >>> result = request_vm("user@example.com")
         >>> print(result['hostname'])
         i-0abc123def456
     """
@@ -306,7 +305,7 @@ def request_vm(email: str, crd_command: str) -> dict[str, str]:
     if not vm:
         raise RuntimeError("No VMs available")
 
-    return assign_vm(vm, email, crd_command)
+    return assign_vm(vm, email)
 ```
 
 ### Terraform Style
