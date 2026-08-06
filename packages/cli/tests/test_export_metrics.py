@@ -12,7 +12,10 @@ from urllib.error import HTTPError
 import pytest
 
 from lablink_cli import deployment_metrics
-from lablink_cli.commands.export_metrics import run_export_metrics
+from lablink_cli.commands.export_metrics import (
+    _export_allocator_metrics,
+    run_export_metrics,
+)
 
 
 class TestRunExportMetrics:
@@ -451,15 +454,20 @@ class TestExportMetricsFlags:
     def test_both_flags_writes_csv_sidecar(
         self, mock_cfg, tmp_path, monkeypatch
     ):
-        """Both flags + -o metrics.csv → _client + _allocator sidecar files."""
+        """Both flags + -o metrics.csv → _client + _allocator sidecar files.
+
+        Records carry mock_cfg's deployment_name: allocator records are
+        scoped to the current deployment, so foreign names would be filtered
+        out and there'd be no sidecar to assert on.
+        """
         records = [
             {
-                "deployment_name": "lab-a",
+                "deployment_name": "mylab",
                 "region": "us-east-1",
                 "status": "success",
             },
             {
-                "deployment_name": "lab-b",
+                "deployment_name": "mylab",
                 "region": "us-west-2",
                 "status": "failed",
             },
@@ -489,15 +497,15 @@ class TestExportMetricsFlags:
         assert not base_path.exists()
         with open(allocator_path) as f:
             rows = list(csv.DictReader(f))
-        assert {r["deployment_name"] for r in rows} == {"lab-a", "lab-b"}
+        assert {r["region"] for r in rows} == {"us-east-1", "us-west-2"}
 
     def test_both_flags_writes_json_sidecar(
         self, mock_cfg, tmp_path, monkeypatch
     ):
         """JSON mode: both flags write _client.json and _allocator.json sidecars."""
         records = [
-            {"deployment_name": "lab-a", "status": "success"},
-            {"deployment_name": "lab-b", "status": "success"},
+            {"deployment_name": "mylab", "status": "success"},
+            {"deployment_name": "mylab", "status": "failed"},
         ]
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
@@ -524,14 +532,14 @@ class TestExportMetricsFlags:
         assert not base_path.exists()
         data = json.loads(allocator_path.read_text())
         assert data["count"] == 2
-        assert {r["deployment_name"] for r in data["allocator_metrics"]} == {
-            "lab-a",
-            "lab-b",
+        assert {r["status"] for r in data["allocator_metrics"]} == {
+            "success",
+            "failed",
         }
 
     def test_no_flags_defaults_to_both(self, mock_cfg, tmp_path, monkeypatch):
         """No flags → same as --client --allocator (-o is treated as base name)."""
-        records = [{"deployment_name": "lab-a", "status": "success"}]
+        records = [{"deployment_name": "mylab", "status": "success"}]
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
@@ -549,6 +557,88 @@ class TestExportMetricsFlags:
         assert client_path.exists()
         assert allocator_path.exists()
         assert not base_path.exists()
+
+    def test_allocator_records_scoped_to_deployment(
+        self, mock_cfg, tmp_path, monkeypatch
+    ):
+        """Other deployments' cached records stay out of this export.
+
+        The cache is global, so before scoping an export named for one
+        deployment carried every deployment's rows.
+        """
+        records = [
+            {"deployment_name": "mylab", "status": "success"},
+            {"deployment_name": "someone-elses-lab", "status": "success"},
+            {"deployment_name": "old-aws-lab", "status": "failed"},
+        ]
+        _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
+
+        allocator_path = tmp_path / "alloc.csv"
+        _export_allocator_metrics(
+            allocator_path, "csv", deployment_name=mock_cfg.deployment_name
+        )
+
+        with open(allocator_path) as f:
+            rows = list(csv.DictReader(f))
+        assert [r["deployment_name"] for r in rows] == ["mylab"]
+
+    def test_allocator_records_scoped_to_provider(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """A reused deployment_name must not leak its AWS rows into BYO.
+
+        The real case: a `sleap-lablink` config switched from aws to manual.
+        Name-scoping alone still matched the old AWS Terraform records.
+        """
+        records = [
+            {"deployment_name": "sleap-lablink", "region": "us-west-2"},
+            {
+                "deployment_name": "sleap-lablink",
+                "provider": "aws",
+                "region": "us-west-2",
+            },
+        ]
+        _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
+
+        allocator_path = tmp_path / "alloc.csv"
+        _export_allocator_metrics(
+            allocator_path,
+            "csv",
+            deployment_name="sleap-lablink",
+            provider="manual",
+        )
+
+        assert not allocator_path.exists()
+        assert "sleap-lablink" in capsys.readouterr().out
+
+        # Same cache, AWS config: both rows export, including the legacy one
+        # written before the provider field existed.
+        aws_path = tmp_path / "aws.csv"
+        _export_allocator_metrics(
+            aws_path, "csv", deployment_name="sleap-lablink", provider="aws"
+        )
+        with open(aws_path) as f:
+            assert len(list(csv.DictReader(f))) == 2
+
+    def test_allocator_empty_after_scoping_skips_file(
+        self, mock_cfg, tmp_path, monkeypatch, capsys
+    ):
+        """A cache with no rows for this deployment writes nothing.
+
+        The manual/compose deploy path records no allocator metrics at all,
+        so this is the normal BYO outcome — it must not dump the AWS rows
+        that happen to share the cache.
+        """
+        records = [{"deployment_name": "old-aws-lab", "status": "success"}]
+        _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
+
+        allocator_path = tmp_path / "alloc.csv"
+        _export_allocator_metrics(
+            allocator_path, "csv", deployment_name="byo-lab"
+        )
+
+        assert not allocator_path.exists()
+        assert "byo-lab" in capsys.readouterr().out
 
     def test_client_only_skips_allocator_file(
         self, mock_cfg, tmp_path, monkeypatch
