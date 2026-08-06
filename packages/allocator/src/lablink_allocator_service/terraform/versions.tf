@@ -1,5 +1,9 @@
 terraform {
-  required_version = ">= 1.6.0, < 2.0.0"
+  # Floor is 1.9, not 1.6: below the 1.8.0 line the S3 backend can corrupt
+  # state on a retried upload rather than fail cleanly, because an
+  # aws-sdk-go-v2 bug leaves the PutObject body non-seekable
+  # (hashicorp/terraform#34528). Let terraform refuse rather than risk it.
+  required_version = ">= 1.9.0, < 2.0.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"

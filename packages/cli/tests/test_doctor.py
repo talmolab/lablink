@@ -27,12 +27,50 @@ class TestCheckTerraform:
     def test_installed_with_version(self, _mock_which, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout=json.dumps({"terraform_version": "1.6.6"}),
+            stdout=json.dumps({"terraform_version": "1.9.8"}),
         )
 
         result = _check_terraform()
         assert result["status"] == "pass"
-        assert "1.6.6" in result["detail"]
+        assert "1.9.8" in result["detail"]
+
+    @patch("subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/terraform")
+    def test_version_below_minimum_fails(self, _mock_which, mock_run):
+        """Below 1.9.0 the S3 backend can corrupt state — refuse, don't warn."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({"terraform_version": "1.6.6"}),
+        )
+
+        result = _check_terraform()
+        assert result["status"] == "fail"
+        assert "1.9.0+" in result["detail"]
+        assert "34528" in result["detail"]
+
+    @patch("subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/terraform")
+    def test_newer_major_minor_passes(self, _mock_which, mock_run):
+        """A two-component version must not crash the tuple comparison."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({"terraform_version": "1.10"}),
+        )
+
+        result = _check_terraform()
+        assert result["status"] == "pass"
+
+    @patch("subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/terraform")
+    def test_unparseable_version_passes(self, _mock_which, mock_run):
+        """An unrecognised version string must not block the operator."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({"terraform_version": "unknown"}),
+        )
+
+        result = _check_terraform()
+        assert result["status"] == "pass"
 
     @patch("subprocess.run")
     @patch("shutil.which", return_value="/usr/bin/terraform")

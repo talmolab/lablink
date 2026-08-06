@@ -22,6 +22,29 @@ STATUS_STYLES = {
     "warn": "[yellow]WARN[/yellow]",
 }
 
+# Terraform's S3 backend corrupts state below this version: an aws-sdk-go-v2 bug
+# leaves the PutObject body non-seekable, so a retried state upload fails with
+# "failed to rewind transport stream for retry" *after* apply/destroy has already
+# run. Fixed in the 1.8.0 line (hashicorp/terraform#34528, PR #34796); we require
+# 1.9.0 to match the version the allocator image ships.
+MIN_TERRAFORM_VERSION = (1, 9, 0)
+
+
+def _parse_version(version: str) -> tuple[int, ...] | None:
+    """Parse a dotted version string into a comparable tuple.
+
+    Args:
+        version: Version string such as ``"1.9.8"``. Pre-release suffixes
+            (``"1.10.0-beta1"``) are truncated at the first hyphen.
+
+    Returns:
+        Tuple of integers, or None if the string is not parseable.
+    """
+    try:
+        return tuple(int(part) for part in version.split("-")[0].split("."))
+    except (AttributeError, ValueError):
+        return None
+
 
 def _load_config_safe():
     """Load config from default path; return None if missing/invalid.
@@ -69,8 +92,19 @@ def _check_terraform() -> dict:
             version = info.get(
                 "terraform_version", "unknown"
             )
-            result["status"] = "pass"
-            result["detail"] = f"v{version} ({path})"
+            parsed = _parse_version(version)
+            minimum = ".".join(str(p) for p in MIN_TERRAFORM_VERSION)
+            if parsed is not None and parsed < MIN_TERRAFORM_VERSION:
+                result["status"] = "fail"
+                result["detail"] = (
+                    f"v{version} ({path}) is too old — need {minimum}+. "
+                    "Older versions corrupt Terraform state on S3 upload "
+                    "retries instead of failing cleanly "
+                    "(hashicorp/terraform#34528)."
+                )
+            else:
+                result["status"] = "pass"
+                result["detail"] = f"v{version} ({path})"
         else:
             result["status"] = "warn"
             result["detail"] = (
