@@ -19,6 +19,7 @@ import shutil
 import socket
 import subprocess
 import time
+from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
 
@@ -28,6 +29,12 @@ from rich.console import Console
 from lablink_cli.commands.status import check_health_endpoint
 from lablink_cli.commands.utils import resolve_admin_credentials
 from lablink_cli.config.schema import Config, save_config
+from lablink_cli.deployment_metrics import (
+    DeploymentMetrics,
+    cache_path_for,
+    phase_timer,
+    write_metrics,
+)
 
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
@@ -467,6 +474,21 @@ def run_deploy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
+    # Initialize deployment metrics — written incrementally so a failed
+    # deploy still leaves a record on disk, same as the AWS path. Started
+    # here, after the confirmation gate, so an aborted "Proceed?" leaves no
+    # in_progress file behind at all. region/template_version stay None:
+    # there is no region and no Terraform template in a compose deploy.
+    deploy_start_dt = datetime.now(timezone.utc)
+    metrics = DeploymentMetrics(
+        deployment_name=cfg.deployment_name,
+        provider="manual",
+        ssl_enabled=cfg.ssl.provider != "none",
+        allocator_deploy_start_time=deploy_start_dt.isoformat(),
+    )
+    metrics_path = cache_path_for(cfg.deployment_name, deploy_start_dt)
+    write_metrics(metrics_path, metrics)
+
     render_compose_dir(
         cfg,
         target,
@@ -485,8 +507,26 @@ def run_deploy_compose(
     if cfg.manual.participant_exposure != "tailscale_funnel":
         _disable_funnel()
 
-    _compose_up(target)
-    _health_poll()
+    try:
+        with phase_timer(
+            metrics, "allocator_compose_up_duration_seconds", metrics_path
+        ):
+            _compose_up(target)
+        with phase_timer(
+            metrics, "allocator_health_check_duration_seconds", metrics_path
+        ):
+            _health_poll()
+    except (Exception, SystemExit) as e:
+        # SystemExit IS caught here, unlike the AWS path where it means "user
+        # cancelled" and in_progress is the honest state. Nothing in this
+        # stretch is a cancellation — _compose_up and _health_poll both raise
+        # SystemExit for a genuine failure (non-zero compose exit, health
+        # timeout), so leaving those as in_progress would under-report real
+        # failures. KeyboardInterrupt is a BaseException and still escapes.
+        metrics.status = "failed"
+        metrics.error = str(e)
+        write_metrics(metrics_path, metrics)
+        raise
 
     # Disable again, now that the sidecar (if the compose file still
     # declares one) is guaranteed running. The call above can silently
@@ -520,6 +560,27 @@ def run_deploy_compose(
                 "http://localhost:5000."
             )
             _print_last_log_lines()
+
+    # Total = sum of the timed phases, matching the AWS path's definition
+    # (machine work only, excluding prompt time). Exposure setup — Funnel
+    # enable, public-hostname verification — is deliberately untimed, so a
+    # slow DNS propagation doesn't masquerade as slow deploy machinery.
+    metrics.allocator_deploy_end_time = datetime.now(timezone.utc).isoformat()
+    metrics.allocator_total_deployment_duration_seconds = round(
+        sum(
+            v
+            for v in (
+                metrics.allocator_compose_up_duration_seconds,
+                metrics.allocator_health_check_duration_seconds,
+            )
+            if v is not None
+        ),
+        3,
+    )
+    metrics.status = "success" if funnel_ok else "failed"
+    if not funnel_ok:
+        metrics.error = "tailscale funnel could not be enabled"
+    write_metrics(metrics_path, metrics)
 
     _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
 
