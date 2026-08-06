@@ -248,6 +248,17 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
     Delete the stray record from the wrong zone, then re-apply.
 
+??? note "Verifying a deployment end to end"
+    The template repo ships a script that checks DNS, HTTP, and SSL together. It lives in `scripts/`, not `lablink-infrastructure/`:
+
+    ```bash
+    ./scripts/verify-deployment.sh prod          # reads config.yaml + terraform outputs
+    ./scripts/verify-deployment.sh <domain> <ip> # or pass them explicitly
+    ./scripts/verify-deployment.sh --ci prod     # no ANSI colors, for CI logs
+    ```
+
+    Green checks are pass, yellow warnings usually mean "not ready yet — wait and retry", red is a real failure. The three common ones are a DNS timeout (wait longer), HTTP not responding (check the allocator container logs), and SSL not ready (check the Caddy logs).
+
 ??? note "NS delegation not working"
     `nslookup` returns your registrar's nameservers instead of AWS, so records in Route53 are never consulted.
 

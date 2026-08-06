@@ -116,34 +116,24 @@ For exact pricing, use the [AWS Pricing Calculator](https://calculator.aws/).
 
 Costs for running the allocator EC2 instance.
 
-#### Instance Type Options
-
 | Instance Type | vCPUs | RAM | Price (On-Demand) | Monthly (24/7) |
 |---------------|-------|-----|-------------------|----------------|
-| **t2.micro** | 1 | 1 GB | $0.0116/hour | $8.50 |
-| **t2.small** | 1 | 2 GB | $0.023/hour | $16.79 |
-| **t2.medium** | 2 | 4 GB | $0.0464/hour | $33.87 |
-| **t3.micro** | 2 | 1 GB | $0.0104/hour | $7.59 |
-| **t3.small** | 2 | 2 GB | $0.0208/hour | $15.18 |
+| **t3.large** | 2 | 8 GB | $0.0832/hour | $60.74 |
 
-**Recommended**: **t2.micro** for dev/test, **t2.small** for production
+!!! note "This is not a config key"
+    The allocator's instance type is fixed at **t3.large** — it's a Terraform local in [lablink-template](https://github.com/talmolab/lablink-template)'s `lablink-infrastructure/main.tf`, exposed only as an output. There is nothing in `config.yaml` to change it. `machine.machine_type` sets the **client VM** type, not the allocator's.
 
-**Estimated Monthly Cost**: **$8.50 - $17** (if running 24/7)
+**Estimated Monthly Cost**: **$60.74** (if running 24/7)
 
 #### Cost Optimization
 
-**Option 1: Terminate When Not Needed**
-- Stop allocator during off-hours
-- Cost: Only when running
-- Example: 8 hours/day × 20 days = 160 hours = $1.86/month (t2.micro)
+**Option 1: Destroy When Not Needed**
 
-**Option 2: Reserved Instances** (1-year commitment)
-- Up to 75% savings
-- t2.micro: $5.03/month (vs $8.50)
+The allocator is the only always-on cost, so a workshop-shaped usage pattern saves the most. 8 hours/day × 20 days = 160 hours = **$13.31/month**.
 
-**Option 3: Savings Plans**
-- Flexible commitment
-- Similar savings to Reserved Instances
+**Option 2: Reserved Instances or Savings Plans** (1-year commitment)
+
+Meaningful discounts on a 24/7 allocator, but they lock you in for a year — only worth it if the allocator genuinely stays up. Check the [AWS Pricing Calculator](https://calculator.aws/) for current rates before committing.
 
 ### Client VM Instances
 
@@ -259,64 +249,64 @@ If using resources across regions:
 ### Scenario 1: Development/Testing
 
 **Setup**:
-- 1 allocator (t2.micro)
+- 1 allocator (t3.large)
 - 2 client VMs (g4dn.xlarge)
 - Running 40 hours/month
 
 **Costs**:
 - Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0116 = $0.46
+- Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 2 × 40 hours × $0.526 = $42.08
 - Storage: $2.40 (allocator) + $16.00 (2 clients) = $18.40
 
-**Total**: **~$61/month**
+**Total**: **~$64/month**
 
 ### Scenario 2: Light Production Use
 
 **Setup**:
-- 1 allocator (t2.small, 24/7)
+- 1 allocator (t3.large, 24/7)
 - 5 client VMs (g4dn.xlarge)
 - VMs running 160 hours/month each
 
 **Costs**:
 - Infrastructure: $0.95/month (with Route 53)
-- Allocator: $16.79/month
+- Allocator: $60.74/month
 - Client VMs: 5 × 160 hours × $0.526 = $420.80
 - Storage: $2.40 + (5 × $8.00) = $42.40
 
-**Total**: **~$481/month**
+**Total**: **~$525/month**
 
 ### Scenario 3: Heavy Production Use
 
 **Setup**:
-- 1 allocator (t2.small, 24/7, Reserved Instance)
+- 1 allocator (t3.large, 24/7)
 - 20 client VMs (g4dn.xlarge, Spot Instances)
 - VMs running 320 hours/month each
 
 **Costs**:
 - Infrastructure: $0.95/month
-- Allocator: $5.03/month (Reserved Instance)
+- Allocator: $60.74/month
 - Client VMs: 20 × 320 hours × $0.158 (Spot) = $1,011.20
 - Storage: $2.40 + (20 × $8.00) = $162.40
 
-**Total**: **~$1,182/month**
+**Total**: **~$1,235/month**
 
-**Savings vs On-Demand**: ~$3,200/month (70% reduction)
+**Savings vs On-Demand**: the same client VMs on-demand would be 20 × 320 × $0.526 = $3,366.40, so Spot saves **~$2,355/month** on that line. A Reserved Instance or Savings Plan on the allocator would trim the $60.74 further.
 
 ### Scenario 4: Minimal (Cost-Conscious)
 
 **Setup**:
-- 1 allocator (t2.micro)
+- 1 allocator (t3.large)
 - 3 client VMs (g4dn.xlarge, Spot)
 - Only running when actively working (40 hours/month)
 
 **Costs**:
 - Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0116 = $0.46
+- Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 3 × 40 hours × $0.158 (Spot) = $18.96
 - Storage: Minimal (terminate when done) = $0.50
 
-**Total**: **~$20/month**
+**Total**: **~$23/month**
 
 ## Cost Monitoring
 
@@ -387,12 +377,12 @@ New AWS accounts get 12 months of free tier:
 
 | Service | Free Tier (Monthly) |
 |---------|---------------------|
-| EC2 (t2.micro) | 750 hours |
+| EC2 (t2.micro / t3.micro) | 750 hours |
 | EBS (gp2/gp3) | 30 GB |
 | S3 | 5 GB storage |
 | Data Transfer | 100 GB out |
 
-**Note**: GPU instances (g4dn, g5, p3) are **not** included in free tier.
+**Note**: neither the allocator nor the client VMs are covered. The free tier only extends to micro instances, and LabLink's allocator is a **t3.large**; GPU instances (g4dn, g5, p3) are excluded outright. Expect to pay for compute from day one.
 
 ## Hidden Costs to Watch
 
@@ -412,7 +402,7 @@ New AWS accounts get 12 months of free tier:
 | Aspect | LabLink | Self-Managed |
 |--------|---------|--------------|
 | Infrastructure setup | $0-1/month | $0 |
-| Allocator runtime | $8-17/month | $0 (your time) |
+| Allocator runtime | $61/month (24/7) | $0 (your time) |
 | Client VMs | Same | Same |
 | Management time | Minimal | Significant |
 
@@ -422,7 +412,7 @@ New AWS accounts get 12 months of free tier:
 
 | Service | Monthly Cost (5 VMs) | Setup Complexity |
 |---------|----------------------|------------------|
-| **LabLink** | ~$481 | Moderate |
+| **LabLink** | ~$525 | Moderate |
 | **AWS Batch** | ~$500+ | High |
 | **SageMaker** | ~$600+ | Moderate |
 | **Cloud GPUs (vast.ai)** | ~$200-400 | Low |
