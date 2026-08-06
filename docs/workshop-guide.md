@@ -33,11 +33,13 @@ The dashboard shows the following for each VM:
 | Column | Description |
 |--------|-------------|
 | **Hostname** | VM instance identifier |
-| **Health** | Overall VM health status (running, initializing, stopped) |
-| **GPU Health** | GPU availability and CUDA status |
-| **Logs** | Link to view startup and runtime logs for the VM |
-| **Assigned CRD** | Chrome Remote Desktop connection link for the VM |
 | **User Email** | Email of the participant assigned to the VM |
+| **In Use** | Whether the VM is currently claimed by a participant |
+| **VM Status** | Overall VM health status (running, initializing, stopped) |
+| **GPU Health Status** | GPU availability and CUDA status |
+| **Total Startup Duration** | How long the VM took to become ready |
+| **Logs** | Link to view startup and runtime logs for the VM |
+| **Access** | Per-VM actions (open the desktop, reboot, destroy) |
 
 !!! warning "What if a VM is stuck?"
     If a VM stays in "initializing" for more than 10 minutes or shows "error" status, it will be automatically rebooted. Check the VM logs for details.
@@ -73,10 +75,10 @@ https://lablink.yourdomain.com
 
 1. Visit the URL in their browser
 2. Enter their email address
-3. They receive a Chrome Remote Desktop (CRD) link to their assigned VM
-4. Click the link to open a full desktop with your software pre-installed
+3. The allocator assigns them a VM and drops them straight into its desktop
+4. The desktop opens in the browser tab with your software pre-installed
 
-No installation, no setup -- participants only need a Chrome browser.
+No installation, no setup -- participants only need a browser.
 
 ## During the Workshop
 
@@ -86,9 +88,9 @@ Keep the admin panel open to track participant activity:
 
 ![Admin panel](assets/images/admin-panel.png)
 
-- **Health** column shows if VMs are running normally
-- **GPU Health** confirms GPU availability for compute workloads
-- **Assigned CRD** shows which participants have been assigned VMs
+- **VM Status** column shows if VMs are running normally
+- **GPU Health Status** confirms GPU availability for compute workloads
+- **In Use** shows which VMs have been claimed
 - **User Email** shows who is using each VM
 
 ### Adding More VMs
@@ -104,37 +106,22 @@ New VMs are created without affecting existing running VMs. They'll be ready in 
 ### Handling Issues
 
 - **VM shows "error"**: The auto-reboot service will attempt to recover it automatically (up to 3 times). Check the logs link for details.
-- **Participant can't connect**: Verify their VM shows "running" status and that the CRD link is assigned. Try having them refresh the allocator page to get a new link.
+- **Participant can't connect**: Verify their VM shows "running" status and that they were assigned one. Try having them reload the allocator page to get a fresh session.
 - **All VMs assigned**: Create additional VMs as described above.
 
 ## End of Workshop
 
-### 1. Extract Participant Data
+### Destroy VMs
 
-Before destroying VMs, download any files participants created:
+!!! warning "Participant files are not recoverable"
+    LabLink does not collect work off the VMs. Tell participants to download
+    anything they want to keep before the session ends -- destroying a VM
+    destroys its disk.
 
-1. Click **"Download User Data"** in the admin panel
-2. The allocator collects files matching your configured extension (e.g., `.slp`) from each VM
-3. A zip file downloads with all participant work
+Tear down all VMs:
 
-![Download user data](assets/images/admin-destroy-vms.png)
-
-!!! warning "Do this before destroying VMs"
-    Files are not recoverable after VMs are destroyed. Always extract data first.
-
-The file extension to collect is configured in your `config.yaml`:
-
-```yaml
-machine:
-  extension: "slp"
-```
-
-### 2. Destroy VMs
-
-Once data is collected, tear down all VMs:
-
-1. Click **"Destroy All VMs"** in the admin panel
-2. Confirm the action
+1. Click **"Delete VMs"** in the admin panel
+2. Click **"Run terraform destroy"** and confirm
 
 ![Destroy All VMs](assets/images/admin-destroy-vms.png)
 

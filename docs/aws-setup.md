@@ -19,7 +19,7 @@ To deploy LabLink, you'll need:
 ## Prerequisites
 
 - AWS account with admin access (or appropriate IAM permissions)
-- [AWS CLI installed and configured](prerequisites.md#2-aws-cli)
+- [AWS CLI installed and configured](prerequisites.md#aws-cli)
 - Basic understanding of AWS services
 - Chosen AWS region for deployment
 
@@ -955,10 +955,14 @@ Once you have the AMI IDs for your region, update `config/config.yaml`:
 machine:
   ami_id: "ami-XXXXXXXXX" # Client VM AMI for your region
   # ...
-
-allocator_instance:
-  ami_id: "ami-YYYYYYYYY" # Allocator AMI for your region
 ```
+
+!!! note "The allocator's own AMI is not a config key"
+    `config.yaml` sets only the **client VM** AMI. The allocator instance's AMI and
+    type are Terraform-side values in
+    [lablink-template](https://github.com/talmolab/lablink-template)'s
+    `lablink-infrastructure/main.tf`. Adding an `allocator_instance:` block to
+    `config.yaml` fails validation — the schema rejects unknown keys.
 
 ### LabLink Custom AMIs (us-west-2 only)
 

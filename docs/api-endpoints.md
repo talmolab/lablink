@@ -547,7 +547,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 }
 ```
 
-**Client Usage:** Sent by the client's `heartbeat` service every `HEARTBEAT_INTERVAL_SECONDS`. A client that stops heartbeating for longer than the staleness window becomes eligible for automatic recovery — see [Troubleshooting](troubleshooting.md#vm-auto-reboot-not-working).
+**Client Usage:** Sent by the client's `heartbeat` service every `HEARTBEAT_INTERVAL_SECONDS`. A client that stops heartbeating for longer than the staleness window becomes eligible for automatic recovery — see [Troubleshooting](troubleshooting.md#client-vms-aws-provider).
 
 ---
 

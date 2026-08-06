@@ -27,7 +27,10 @@ provision from Terraform.
 - The CLI installed — see [Installation](installation.md).
 - A network path from each client box to the allocator, or from the allocator to each client. Which direction you need is what [connectivity mode](#pick-a-connectivity-mode) decides.
 
-`lablink doctor` checks the docker side for you under this provider.
+`lablink doctor` checks the docker side for you under this provider. Once a box is
+registered, `lablink client doctor` checks that box's own health — registration,
+container, and log shipper. See the
+[CLI Reference](../reference/cli.md#client-doctor).
 
 ## Pick a connectivity mode
 

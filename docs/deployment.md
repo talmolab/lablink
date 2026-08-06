@@ -52,7 +52,7 @@ flowchart TD
 
 Before deploying, ensure you have:
 
-- [x] AWS account configured (see [Prerequisites](prerequisites.md#1-aws-account))
+- [x] AWS account configured (see [Prerequisites](prerequisites.md#aws-account))
 - [x] Terraform installed (see [Prerequisites](prerequisites.md#terraform))
 - [x] S3 bucket for Terraform state (see [AWS Setup](aws-setup.md#step-2-s3-bucket-for-terraform-state))
 - [x] Elastic IP allocated for test/prod (see [AWS Setup](aws-setup.md#step-3-elastic-ip-allocation))
@@ -505,10 +505,11 @@ Via web interface:
 
 Via API:
 ```bash
-curl -X POST http://<allocator-ip>:80/request_vm \
-  -d "email=test@example.com" \
-  -d "crd_command=test_command"
+curl -X POST http://<allocator-ip>:80/api/request_vm \
+  -d "email=test@example.com"
 ```
+
+An email address is all a participant supplies — see [API Endpoints](api-endpoints.md) for the response shape.
 
 ### 4. Monitor Logs
 

@@ -300,6 +300,30 @@ an attached volume.
 
 ---
 
+### `client doctor`
+
+Check this machine's BYO client.
+
+```bash
+lablink client doctor
+```
+
+Run it **on a client box**, not on the allocator host. Three checks:
+
+| Check | Passes when |
+|---|---|
+| Registered | `~/.lablink/client.env` exists and carries this box's credentials |
+| Container | the `lablink-client` container exists and is running |
+| Log shipper | the in-container shipper is alive and forwarding to the allocator |
+
+Most failures are fixed by re-running [`client register`](#client-register).
+
+Distinct from the top-level [`doctor`](#doctor), which checks *operator-side*
+prerequisites before a deploy (docker under the manual provider; Terraform, AWS
+credentials, S3 and AMI under the AWS provider).
+
+---
+
 ## Operations commands
 
 ### `status`
