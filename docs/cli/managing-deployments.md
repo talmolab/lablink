@@ -61,8 +61,20 @@ Writes deployment metrics to disk for offline analysis. Two sources:
 | Flag | Data | Requires allocator running? |
 |---|---|---|
 | `--client` | Per-VM metrics pulled from the allocator's API (boot time, health status, logs) | Yes |
-| `--allocator` | Per-deploy metrics from the local cache at `~/.lablink/deployments/` (deploy duration, Terraform phase timings) | **No** — works after `lablink destroy` |
+| `--allocator` | Per-deploy metrics from the local cache at `~/.lablink/deployments/` (deploy duration, plus Terraform phase timings on AWS or `docker compose up` timing on the manual provider) | **No** — works after `lablink destroy` |
 | *(no flag)* | Both | Yes |
+
+Allocator metrics are **scoped to the deployment and provider in your config**.
+The cache is shared by every deployment you have ever run, so an unscoped export
+would put other deployments' rows in a file named after this one. Point
+`--config` at a different config to export that deployment instead. On a machine
+with no config at all, `--allocator` exports the whole cache and says how many
+deployments it spans.
+
+Reusing one `deployment_name` across providers is why the provider is part of the
+scope: a name deployed first on AWS and later with `provider: manual` has records
+of both shapes in the cache, and the Terraform phase columns say nothing about a
+compose stack.
 
 Other flags:
 

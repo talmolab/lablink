@@ -19,6 +19,7 @@ import shutil
 import socket
 import subprocess
 import time
+from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
 
@@ -28,6 +29,12 @@ from rich.console import Console
 from lablink_cli.commands.status import check_health_endpoint
 from lablink_cli.commands.utils import resolve_admin_credentials
 from lablink_cli.config.schema import Config, save_config
+from lablink_cli.deployment_metrics import (
+    DeploymentMetrics,
+    cache_path_for,
+    phase_timer,
+    write_metrics,
+)
 
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
@@ -467,59 +474,120 @@ def run_deploy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    render_compose_dir(
-        cfg,
-        target,
-        tailscale_authkey=tailscale_authkey,
-        cloudflare_tunnel_token=cloudflare_tunnel_token,
+    # Initialize deployment metrics — written incrementally so a failed
+    # deploy still leaves a record on disk, same as the AWS path. Started
+    # here, after the confirmation gate, so an aborted "Proceed?" leaves no
+    # in_progress file behind at all. region/template_version stay None:
+    # there is no region and no Terraform template in a compose deploy.
+    deploy_start_dt = datetime.now(timezone.utc)
+    metrics = DeploymentMetrics(
+        deployment_name=cfg.deployment_name,
+        provider="manual",
+        ssl_enabled=cfg.ssl.provider != "none",
+        allocator_deploy_start_time=deploy_start_dt.isoformat(),
     )
-    console.print(f"[green]Rendered {target}[/green]")
+    metrics_path = cache_path_for(cfg.deployment_name, deploy_start_dt)
+    write_metrics(metrics_path, metrics)
 
-    # Explicitly disable Funnel *before* _compose_up, whenever the new
-    # config no longer wants it — this must run before --remove-orphans
-    # potentially deletes the sidecar (a removed container can't be
-    # `docker exec`'d into), and it's needed even when the sidecar
-    # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
-    # since Funnel persists in the sidecar's own state regardless of
-    # whether _enable_funnel keeps getting called. See _disable_funnel.
-    if cfg.manual.participant_exposure != "tailscale_funnel":
-        _disable_funnel()
+    # Everything from here to the success write is inside the try: the record
+    # already exists on disk, so any escape that skips the write below strands
+    # it at in_progress — indistinguishable from a Ctrl-C, and with null
+    # timings. render_compose_dir writes files and calls save_config, and
+    # _write_canonical_url writes one too, so OSError is live in both stretches
+    # either side of the timed phases, not just in the phases themselves.
+    try:
+        render_compose_dir(
+            cfg,
+            target,
+            tailscale_authkey=tailscale_authkey,
+            cloudflare_tunnel_token=cloudflare_tunnel_token,
+        )
+        console.print(f"[green]Rendered {target}[/green]")
 
-    _compose_up(target)
-    _health_poll()
+        # Explicitly disable Funnel *before* _compose_up, whenever the new
+        # config no longer wants it — this must run before --remove-orphans
+        # potentially deletes the sidecar (a removed container can't be
+        # `docker exec`'d into), and it's needed even when the sidecar
+        # sticks around unchanged (e.g. connectivity=mesh_overlay alone),
+        # since Funnel persists in the sidecar's own state regardless of
+        # whether _enable_funnel keeps getting called. See _disable_funnel.
+        if cfg.manual.participant_exposure != "tailscale_funnel":
+            _disable_funnel()
 
-    # Disable again, now that the sidecar (if the compose file still
-    # declares one) is guaranteed running. The call above can silently
-    # no-op if the sidecar was stopped-but-not-removed at that point —
-    # `docker exec` fails on a stopped container the same way it does on
-    # a missing one, and _disable_funnel() can't tell those apart. If
-    # connectivity stays mesh_overlay, _compose_up just restarted that
-    # same stopped sidecar, reattached to tailscale_state with Funnel's
-    # last-known "on" config still intact — this second call is what
-    # actually clears it. Harmless no-op if the sidecar was removed as
-    # an orphan instead (nothing to disable).
-    if cfg.manual.participant_exposure != "tailscale_funnel":
-        _disable_funnel()
+        with phase_timer(
+            metrics, "allocator_compose_up_duration_seconds", metrics_path
+        ):
+            _compose_up(target)
+        with phase_timer(
+            metrics, "allocator_health_check_duration_seconds", metrics_path
+        ):
+            _health_poll()
 
-    funnel_ok = True
-    funnel_url = None
-    if cfg.manual.participant_exposure == "tailscale_funnel":
-        funnel_ok, funnel_url = _enable_funnel()
-        if funnel_url:
-            _write_canonical_url(target, funnel_url)
+        # Disable again, now that the sidecar (if the compose file still
+        # declares one) is guaranteed running. The call above can silently
+        # no-op if the sidecar was stopped-but-not-removed at that point —
+        # `docker exec` fails on a stopped container the same way it does on
+        # a missing one, and _disable_funnel() can't tell those apart. If
+        # connectivity stays mesh_overlay, _compose_up just restarted that
+        # same stopped sidecar, reattached to tailscale_state with Funnel's
+        # last-known "on" config still intact — this second call is what
+        # actually clears it. Harmless no-op if the sidecar was removed as
+        # an orphan instead (nothing to disable).
+        if cfg.manual.participant_exposure != "tailscale_funnel":
+            _disable_funnel()
+
+        funnel_ok = True
+        funnel_url = None
+        if cfg.manual.participant_exposure == "tailscale_funnel":
+            funnel_ok, funnel_url = _enable_funnel()
+            if funnel_url:
+                _write_canonical_url(target, funnel_url)
+
+        if cfg.manual.participant_exposure == "cloudflare_tunnel":
+            if not _verify_public_hostname(cfg.manual.public_hostname):
+                console.print(
+                    f"[yellow]https://{cfg.manual.public_hostname} did not "
+                    "answer.[/yellow]\n"
+                    "The stack is up locally. Common causes: the DNS record is "
+                    "still propagating (retry in a few minutes), or the "
+                    "tunnel's public hostname in Cloudflare does not point at "
+                    "http://localhost:5000."
+                )
+                _print_last_log_lines()
+    except (Exception, SystemExit) as e:
+        # SystemExit IS caught here, unlike the AWS path where it means "user
+        # cancelled" and in_progress is the honest state. Nothing in this
+        # stretch is a cancellation — _compose_up and _health_poll both raise
+        # SystemExit for a genuine failure (non-zero compose exit, health
+        # timeout), so leaving those as in_progress would under-report real
+        # failures. KeyboardInterrupt is a BaseException and still escapes.
+        metrics.status = "failed"
+        metrics.error = str(e)
+        write_metrics(metrics_path, metrics)
+        raise
+
     funnel_active = cfg.manual.participant_exposure == "tailscale_funnel" and funnel_ok
 
-    if cfg.manual.participant_exposure == "cloudflare_tunnel":
-        if not _verify_public_hostname(cfg.manual.public_hostname):
-            console.print(
-                f"[yellow]https://{cfg.manual.public_hostname} did not "
-                "answer.[/yellow]\n"
-                "The stack is up locally. Common causes: the DNS record is "
-                "still propagating (retry in a few minutes), or the tunnel's "
-                "public hostname in Cloudflare does not point at "
-                "http://localhost:5000."
+    # Total = sum of the timed phases, matching the AWS path's definition
+    # (machine work only, excluding prompt time). Exposure setup — Funnel
+    # enable, public-hostname verification — is deliberately untimed, so a
+    # slow DNS propagation doesn't masquerade as slow deploy machinery.
+    metrics.allocator_deploy_end_time = datetime.now(timezone.utc).isoformat()
+    metrics.allocator_total_deployment_duration_seconds = round(
+        sum(
+            v
+            for v in (
+                metrics.allocator_compose_up_duration_seconds,
+                metrics.allocator_health_check_duration_seconds,
             )
-            _print_last_log_lines()
+            if v is not None
+        ),
+        3,
+    )
+    metrics.status = "success" if funnel_ok else "failed"
+    if not funnel_ok:
+        metrics.error = "tailscale funnel could not be enabled"
+    write_metrics(metrics_path, metrics)
 
     _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
 

@@ -5,10 +5,12 @@ Two metric sources, selectable via flags:
 * ``--client``    : per-VM client metrics fetched from the allocator's
                     ``/api/export-metrics`` endpoint.
 * ``--allocator`` : per-deploy allocator metrics from the local CLI cache
-                    at ``~/.lablink/deployments/`` (issue #317).
+                    at ``~/.lablink/deployments/`` (issue #317), scoped to
+                    the config's ``deployment_name``.
 
 Default (no flag) exports both. ``--allocator`` alone never touches the
-network, so it works even after ``lablink destroy``.
+network — and loads no config, so it exports the cache unscoped — which is
+what makes it work even after ``lablink destroy``.
 """
 
 from __future__ import annotations
@@ -71,7 +73,7 @@ def _export_client_metrics(
                 f"[red]The allocator rejected admin user "
                 f"'{admin_user}' (HTTP 401).[/red]"
             )
-            print_admin_credentials_hint()
+            print_admin_credentials_hint(cfg)
         else:
             console.print(f"[red]HTTP {e.code}: {e.reason}[/red]")
         raise SystemExit(1) from e
@@ -104,17 +106,40 @@ def _export_client_metrics(
     )
 
 
-def _export_allocator_metrics(output_path: Path, fmt: str) -> None:
+def _export_allocator_metrics(
+    output_path: Path,
+    fmt: str,
+    deployment_name: str | None = None,
+    provider: str | None = None,
+) -> None:
     """Read CLI-local allocator deployment cache and write to ``output_path``.
 
-    Empty cache → print a yellow notice and skip writing the file (don't
+    The cache at ``~/.lablink/deployments/`` is global — one record per deploy
+    attempt for every deployment the operator has ever run — so an unfiltered
+    export puts other deployments' rows in a file named for this one.
+    ``provider`` is part of the scope because a name can be reused across
+    providers, and an AWS record's Terraform phase columns say nothing about a
+    compose stack. Records predating that field are AWS ones, hence the
+    ``"aws"`` default.
+
+    Either filter as None means no config was loaded (``--allocator`` alone on
+    a machine that has none, which is what keeps it working after ``lablink
+    destroy``) and exports the whole cache.
+
+    Empty result → print a yellow notice and skip writing the file (don't
     create a confusing zero-row CSV / empty-list JSON).
     """
-    records = load_all_metrics()
+    records = [
+        r
+        for r in load_all_metrics()
+        if (not deployment_name or r.get("deployment_name") == deployment_name)
+        and (not provider or (r.get("provider") or "aws") == provider)
+    ]
     if not records:
+        scope = f" for '{deployment_name}'" if deployment_name else ""
         console.print(
-            "[yellow]No allocator deployment metrics found in "
-            "~/.lablink/deployments/. Run `lablink deploy` first.[/yellow]"
+            f"[yellow]No allocator deployment metrics{scope} in "
+            f"~/.lablink/deployments/. Run `lablink deploy` first.[/yellow]"
         )
         return
 
@@ -144,6 +169,12 @@ def _export_allocator_metrics(output_path: Path, fmt: str) -> None:
         f"[green]Exported {len(records)} allocator deployment "
         f"records to {output_path}[/green]"
     )
+    names = {r.get("deployment_name") for r in records}
+    if deployment_name is None and len(names) > 1:
+        console.print(
+            f"  [dim]Spanning {len(names)} deployments — no config to scope by."
+            f"[/dim]"
+        )
 
 
 def run_export_metrics(
@@ -168,7 +199,9 @@ def run_export_metrics(
         include_logs: For client metrics, include cloud_init / docker logs.
         format: ``csv`` or ``json``.
         client: Export per-VM metrics fetched from the allocator.
-        allocator: Export per-deploy metrics from the CLI-local cache.
+        allocator: Export per-deploy metrics from the CLI-local cache,
+            scoped to ``cfg.deployment_name`` (whole cache when ``cfg`` is
+            None).
 
     No flags → both (the common "give me everything" case).
     """
@@ -203,4 +236,9 @@ def run_export_metrics(
         )
 
     if allocator:
-        _export_allocator_metrics(_path_for("allocator"), format)
+        _export_allocator_metrics(
+            _path_for("allocator"),
+            format,
+            deployment_name=getattr(cfg, "deployment_name", None),
+            provider=getattr(cfg, "provider", None) if cfg else None,
+        )

@@ -2636,3 +2636,110 @@ class TestReverseTunnelDeploy:
         out = capsys.readouterr().out
         assert "--allocator-url http://192.168.1.42" in out
         assert "--allocator-url https://lab.example.org" not in out
+
+
+class TestComposeDeploymentMetrics:
+    """The compose deploy records to the CLI-local cache, like the AWS path.
+
+    Without this, `lablink export-metrics --allocator` had nothing to report
+    for a BYO deployment — the read side worked, the write side never existed.
+    """
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_success_writes_record(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        run_deploy_compose(_manual_cfg(), yes=True, workdir_root=tmp_path)
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        rec = records[0]
+        assert rec["deployment_name"] == "testlab"
+        # provider is what keeps these out of an AWS export of the same name.
+        assert rec["provider"] == "manual"
+        assert rec["status"] == "success"
+        assert rec["allocator_compose_up_duration_seconds"] is not None
+        assert rec["allocator_health_check_duration_seconds"] is not None
+        assert rec["allocator_total_deployment_duration_seconds"] is not None
+        assert rec["allocator_deploy_end_time"]
+        # AWS-only dimensions stay empty rather than being invented.
+        assert rec["region"] is None
+        assert rec["template_version"] is None
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_health_timeout_records_failure(
+        self, mock_up, mock_summary, tmp_path
+    ):
+        """A health-poll timeout must land as 'failed', not 'in_progress'.
+
+        _health_poll raises SystemExit for a real failure, so the compose
+        path has to catch SystemExit where the AWS path deliberately
+        doesn't (there it means the operator cancelled).
+        """
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with patch(
+            "lablink_cli.commands.deploy_compose._health_poll",
+            side_effect=SystemExit(1),
+        ):
+            with pytest.raises(SystemExit):
+                run_deploy_compose(_manual_cfg(), yes=True, workdir_root=tmp_path)
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        assert records[0]["status"] == "failed"
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_render_failure_records_failure(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """A failure *outside* the timed phases still records 'failed'.
+
+        The record is written before render_compose_dir, so anything that
+        escapes between that write and the success write would strand it at
+        in_progress with null timings — indistinguishable from a Ctrl-C.
+        """
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.render_compose_dir",
+            side_effect=OSError("disk full"),
+        ):
+            with pytest.raises(OSError):
+                run_deploy_compose(_manual_cfg(), yes=True, workdir_root=tmp_path)
+
+        records = deployment_metrics.load_all_metrics()
+        assert len(records) == 1
+        assert records[0]["status"] == "failed"
+        assert "disk full" in records[0]["error"]
+        # Never reached the phases, so their timings stay empty.
+        assert records[0]["allocator_compose_up_duration_seconds"] is None
+
+    @patch("lablink_cli.commands.deploy_compose._print_summary")
+    @patch("lablink_cli.commands.deploy_compose._health_poll")
+    @patch("lablink_cli.commands.deploy_compose._compose_up")
+    def test_declined_confirmation_writes_nothing(
+        self, mock_up, mock_poll, mock_summary, tmp_path
+    ):
+        """Aborting at the "Proceed?" gate leaves no in_progress junk."""
+        from lablink_cli import deployment_metrics
+        from lablink_cli.commands.deploy_compose import run_deploy_compose
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.typer.confirm",
+            return_value=False,
+        ):
+            with pytest.raises(SystemExit):
+                run_deploy_compose(_manual_cfg(), workdir_root=tmp_path)
+
+        assert deployment_metrics.load_all_metrics() == []

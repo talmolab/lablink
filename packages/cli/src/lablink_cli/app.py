@@ -767,8 +767,10 @@ def export_metrics(
         False,
         "--allocator",
         help=(
-            "Export per-deploy allocator metrics from the local cache. "
-            "Works without a running allocator (e.g. after `lablink destroy`)."
+            "Export per-deploy allocator metrics from the local cache, "
+            "scoped to this config's deployment_name. Works without a "
+            "running allocator (e.g. after `lablink destroy`); passed "
+            "alone it loads no config and exports every deployment."
         ),
     ),
     config: str = typer.Option(
@@ -781,15 +783,24 @@ def export_metrics(
     """Export deployment metrics to CSV or JSON.
 
     Pass --client for per-VM metrics from the allocator. Pass --allocator
-    for per-deploy metrics from the local cache. With no flag, exports
-    both. Passing only --allocator skips the network entirely.
+    for per-deploy metrics from the local cache, scoped to this config's
+    deployment_name. With no flag, exports both. Passing only --allocator
+    skips the network entirely.
     """
     from lablink_cli.commands.export_metrics import run_export_metrics
 
-    # Skip config load when only --allocator is requested — it doesn't need
-    # the config and we want this command to work even after `lablink destroy`.
-    needs_cfg = client or not allocator
-    cfg = _load_cfg(config) if needs_cfg else None
+    # --client cannot work without the config (allocator URL + admin creds),
+    # so a missing one is fatal there. --allocator does not need it, but load
+    # it when it's there anyway: the config's deployment_name is what scopes
+    # the cache export to this deployment instead of dumping every deployment
+    # the operator has ever run. Only a machine with no config at all falls
+    # through to None (unscoped), which keeps the command usable after a wipe.
+    config_path = Path(config) if config else DEFAULT_CONFIG
+    cfg = (
+        _load_cfg(config)
+        if client or not allocator or config_path.exists()
+        else None
+    )
 
     run_export_metrics(
         cfg,

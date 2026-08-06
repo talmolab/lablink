@@ -46,7 +46,7 @@ def _fetch(cfg) -> dict:
                 f"[red]The allocator rejected admin user "
                 f"'{admin_user}' (HTTP 401).[/red]"
             )
-            print_admin_credentials_hint()
+            print_admin_credentials_hint(cfg)
         else:
             console.print(f"[red]Could not reach allocator: {e}[/red]")
         raise SystemExit(1) from e

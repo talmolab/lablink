@@ -71,12 +71,42 @@ def no_real_docker(request):
         yield
 
 
+@pytest.fixture(autouse=True)
+def no_real_deployment_cache(tmp_path_factory, monkeypatch):
+    """Keep test deploys out of the developer's real metrics cache.
+
+    ``DeploymentMetrics`` records land in ``~/.lablink/deployments/`` via a
+    module-level constant, so any test reaching a deploy path writes there for
+    real. Observed: teaching the compose path to record metrics immediately
+    left 25 ``testlab-*.json`` files in the developer's own cache, which then
+    show up in their `lablink export-metrics` output as if they were real
+    deployments.
+
+    Redirected per-test rather than per-file: the three AWS metrics tests
+    already patched this constant by hand, and every other deploy test
+    silently did not. Tests that want to seed a cache still monkeypatch the
+    same attribute themselves, which simply wins over this default.
+    """
+    from lablink_cli import deployment_metrics
+
+    monkeypatch.setattr(
+        deployment_metrics,
+        "DEPLOYMENTS_DIR",
+        tmp_path_factory.mktemp("deployments"),
+    )
+
+
 @pytest.fixture()
 def mock_cfg():
     """Minimal Config-like object for testing."""
     cfg = MagicMock()
     cfg.deployment_name = "mylab"
     cfg.environment = "dev"
+    # Real Config defaults to "aws" (structured_config.Config.provider). Left
+    # as a MagicMock it is truthy but never equals any provider string, so
+    # provider-dependent code takes neither branch cleanly — and it is not
+    # JSON-serializable, which breaks anything persisting it.
+    cfg.provider = "aws"
     cfg.app.region = "us-east-1"
     cfg.app.admin_user = "admin"
     cfg.app.admin_password = "secret"

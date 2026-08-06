@@ -29,6 +29,7 @@ from lablink_cli.commands.utils import (
     get_deploy_dir as _get_deploy_dir,
     get_terraform_outputs,
     print_aws_error,
+    resolve_from_saved_config,
 )
 
 console = Console()
@@ -637,27 +638,16 @@ def _resolve_manual_admin_credentials(
 
     Tries cfg first, then the workdir's rendered config.yaml (which
     deploy_compose.render_compose_dir always writes with the resolved
-    credentials).
+    credentials) — the same two sources ``resolve_admin_credentials``
+    consults for a manual config, minus its interactive prompt: callers
+    here print their own guidance instead, so this returns None.
     """
     user = getattr(cfg.app, "admin_user", "") or ""
     pw = getattr(cfg.app, "admin_password", "") or ""
     if user and pw and user != "MISSING" and pw != "MISSING":
         return user, pw
 
-    compose_cfg_path = workdir / "config.yaml"
-    if not compose_cfg_path.exists():
-        return None
-
-    import yaml
-
-    with open(compose_cfg_path) as f:
-        data = yaml.safe_load(f) or {}
-    app_cfg = data.get("app", {}) or {}
-    user = app_cfg.get("admin_user", "") or ""
-    pw = app_cfg.get("admin_password", "") or ""
-    if user and pw and user != "MISSING" and pw != "MISSING":
-        return user, pw
-    return None
+    return resolve_from_saved_config(workdir / "config.yaml")
 
 
 def _fetch_registered_clients(

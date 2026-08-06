@@ -443,6 +443,7 @@ def run_deploy(
     deploy_start_dt = datetime.now(timezone.utc)
     metrics = DeploymentMetrics(
         deployment_name=cfg.deployment_name,
+        provider=getattr(cfg, "provider", "aws"),
         region=cfg.app.region,
         template_version=template_version or TEMPLATE_VERSION,
         ssl_enabled=has_ssl,
