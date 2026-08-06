@@ -1,441 +1,376 @@
 # Frequently Asked Questions (FAQ)
 
-Common questions and answers about LabLink.
+Common questions about LabLink. If something here doesn't resolve your problem, [Troubleshooting](troubleshooting.md) goes deeper on failures, and `lablink doctor` checks your setup directly.
 
 ## General
 
-### What is LabLink?
+??? note "What is LabLink?"
+    LabLink is a virtual teaching lab accessible through a web browser. It gives participants a full desktop with your software pre-installed — they need nothing but a browser. You can run it on AWS, or on hardware you already own.
 
-LabLink is a virtual teaching lab accessible through a web browser. It gives participants a full desktop with your software pre-installed -- they need nothing but a browser. You can run it on AWS, or on hardware you already own.
+??? note "Who is LabLink for?"
+    - Instructors running hands-on software workshops or tutorials
+    - Research labs teaching computational tools to students or collaborators
+    - Anyone who needs to give participants a pre-configured desktop environment without local installation
 
-### Who is LabLink for?
+??? note "What cloud providers does LabLink support?"
+    **AWS (Amazon Web Services)** is the only cloud provider — the `aws` provider uses EC2, S3 and IAM.
 
-- Instructors running hands-on software workshops or tutorials
-- Research labs teaching computational tools to students or collaborators
-- Anyone who needs to give participants a pre-configured desktop environment without local installation
+    You can also skip the cloud entirely. The `manual` provider runs the allocator as a docker-compose stack and lets you register client machines you already own. See [Bring-Your-Own Clients](cli/byo-clients.md).
 
-### What cloud providers does LabLink support?
+??? note "Is LabLink free?"
+    LabLink itself is open-source and free. On the `aws` provider you pay for the AWS resources you use (EC2 instances, S3 storage, and so on) — see [Cost Estimation](cost-estimation.md). On the `manual` provider you're running on your own hardware, so there's no cloud bill at all.
 
-**AWS (Amazon Web Services)** is the only cloud provider — the `aws` provider uses EC2, S3 and IAM.
+## Installation & setup
 
-You can also skip the cloud entirely. The `manual` provider runs the allocator as a docker-compose stack and lets you register client machines you already own. See [Bring-Your-Own Clients](cli/byo-clients.md).
+??? note "Do I need an AWS account?"
+    Only for the `aws` provider, which needs permissions to create EC2 instances, security groups and other resources.
 
-### Is LabLink free?
+    With `provider: manual` you need no AWS account, no Terraform and no `gh` — just Docker on the allocator host and on each client box. See [Prerequisites](prerequisites.md#pick-your-path-first).
 
-LabLink itself is open-source and free. However, you'll pay for AWS resources you use (EC2 instances, S3 storage, etc.). See [Cost Estimation](cost-estimation.md).
+??? note "Can I run LabLink without AWS?"
+    Yes — that's the `manual` provider. The allocator runs as a docker-compose stack on a machine you already have, and you register your own client boxes with `lablink client register` rather than provisioning them.
 
-## Installation & Setup
+    Only the `aws` provider *creates* machines for you, and that's the part that needs AWS.
 
-### Do I need an AWS account?
-
-Only for the `aws` provider, which needs permissions to create EC2 instances, security groups and other resources.
-
-With `provider: manual` you need no AWS account, no Terraform and no `gh` — just Docker on the allocator host and on each client box. See [Prerequisites](prerequisites.md#pick-your-path-first).
-
-### How long does setup take?
-
-- **Initial AWS setup**: 1-2 hours (first time)
-- **Local testing**: 5-10 minutes
-- **First deployment**: 10-15 minutes
-
-### Can I run LabLink locally without AWS?
-
-Yes — that's the `manual` provider. The allocator runs as a docker-compose stack on a machine you already have, and you register your own client boxes with `lablink client register` rather than provisioning them.
-
-Only the `aws` provider *creates* machines for you, and that's the part that needs AWS.
+??? note "How long does setup take?"
+    - **Initial AWS setup**: 1-2 hours (first time)
+    - **Local testing**: 5-10 minutes
+    - **First deployment**: 10-15 minutes
 
 ## Configuration
 
-### How do I change the GPU type?
+??? note "How do I change the GPU type?"
+    Edit the allocator configuration:
 
-Edit the allocator configuration:
+    ```yaml
+    # lablink-infrastructure/config/config.yaml
+    machine:
+      machine_type: "g5.xlarge"  # Change to desired instance type
+    ```
 
-```yaml
-# lablink-infrastructure/config/config.yaml
-machine:
-  machine_type: "g5.xlarge"  # Change to desired instance type
-```
+    See [Configuration → Machine Type Options](configuration.md#machine-type-options) for available types.
 
-See [Configuration → Machine Type Options](configuration.md#machine-type-options) for available types.
+    Note this sets the **client VM** type. The allocator's own instance type is fixed at `t3.large` in Terraform and isn't a config key.
 
-### How do I use my own research software?
+??? note "How do I use my own research software?"
+    1. Create a Docker image with your software
+    2. Push to a container registry (e.g. ghcr.io)
+    3. Update configuration with your image URL
+    4. Optionally specify your code repository
 
-1. Create a Docker image with your software
-2. Push to a container registry (e.g., ghcr.io)
-3. Update configuration with your image URL
-4. Optionally specify your code repository
+    See [Adapting LabLink](adapting.md) for the full guide.
 
-See [Adapting LabLink](adapting.md) for detailed guide.
+??? note "Can I use a different AWS region?"
+    Yes. Update the region in configuration:
 
-### Can I use a different AWS region?
+    ```yaml
+    app:
+      region: "us-east-1"  # Change to your preferred region
+    ```
 
-Yes. Update the region in configuration:
+    **Important**: AMI IDs are region-specific. You'll need to find the appropriate AMI for your region.
 
-```yaml
-app:
-  region: "us-east-1"  # Change to your preferred region
-```
+??? note "Can I use a custom AMI?"
+    Yes. Create an AMI with your software pre-installed:
 
-**Important**: AMI IDs are region-specific. You'll need to find the appropriate AMI for your region.
+    ```bash
+    aws ec2 create-image --instance-id i-xxxxx --name "my-custom-ami"
+    ```
 
-### How do I change default passwords?
+    Then point the config at it:
 
-**Critical for production!** Replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config before deploying. See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods.
+    ```yaml
+    machine:
+      ami_id: "ami-your-custom-ami-id"
+    ```
 
-### Why does my browser say "Not Secure"?
+    See [Adapting LabLink → Custom AMI](adapting.md#custom-ami).
 
-You're deploying with `ssl.provider: "none"`, which serves HTTP only (no encryption). This is expected for testing.
+??? note "How do I change default passwords?"
+    **Critical for production.** Replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in your config before deploying. See [Security → Change Default Passwords](security.md#change-default-passwords) for all methods.
 
-To get a secure HTTPS connection with browser padlock, set `ssl.provider` to `letsencrypt`, `cloudflare`, or `acm` and redeploy.
+## SSL and access
 
-See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
+??? note "Why does my browser say “Not Secure”?"
+    You're deploying with `ssl.provider: "none"`, which serves HTTP only (no encryption). This is expected for testing.
 
-### Why can't I access the allocator in my browser?
+    To get a secure HTTPS connection with a browser padlock, set `ssl.provider` to `letsencrypt`, `cloudflare`, or `acm` and redeploy.
 
-If your browser cannot connect to `http://your-domain.com`:
+    See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
 
-1. Make sure you explicitly type `http://` (not `https://`)
-2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#reaching-the-allocator))
-3. Try incognito/private browsing mode
-4. Try accessing via IP address: `http://<allocator-ip>`
+??? note "Why can't I access the allocator in my browser?"
+    If your browser cannot connect to `http://your-domain.com`:
 
-### Which SSL provider should I use?
+    1. Make sure you explicitly type `http://` (not `https://`)
+    2. Clear your browser's HSTS cache (see [Troubleshooting → Reaching the allocator](troubleshooting.md#reaching-the-allocator))
+    3. Try incognito/private browsing mode
+    4. Try accessing via IP address: `http://<allocator-ip>:5000`
 
-**Use `ssl.provider: "none"` for:**
+??? note "Which SSL provider should I use?"
+    **Use `ssl.provider: "none"` for:**
 
-- Initial testing and development
-- Frequent deployments (unlimited — no certificates are issued)
-- Testing infrastructure changes
-- CI/CD automated tests
+    - Initial testing and development
+    - Frequent deployments (unlimited — no certificates are issued)
+    - Testing infrastructure changes
+    - CI/CD automated tests
 
-**Use `letsencrypt`, `cloudflare`, or `acm` for:**
+    **Use `letsencrypt`, `cloudflare`, or `acm` for:**
 
-- Production deployments
-- Internet-accessible allocators
-- Handling sensitive data
-- Long-running deployments
+    - Production deployments
+    - Internet-accessible allocators
+    - Handling sensitive data
+    - Long-running deployments
 
-**Key difference:** `none` = HTTP only (fast, unlimited, no encryption). The others = HTTPS with trusted certificates. Only `letsencrypt` is rate limited.
+    **Key difference:** `none` = HTTP only (fast, unlimited, no encryption). The others = HTTPS with trusted certificates. Only `letsencrypt` is rate limited.
 
-See [Configuration → SSL/TLS Options](configuration.md#ssltls-options-ssl).
+    See [Configuration → SSL/TLS Options](configuration.md#ssltls-options-ssl).
 
-### How many times can I redeploy?
+??? note "How many times can I redeploy?"
+    Unlimited with `ssl.provider: "none"` — no certificates are issued, so no rate limits.
 
-Unlimited with `ssl.provider: "none"` — no certificates are issued, so no rate limits.
+    With `letsencrypt` you're limited to **5 duplicate certificates per domain per week**. Redeploying the same test hostname repeatedly will exhaust that quota and the allocator will serve a TLS error until it resets. Use a fresh hostname for throwaway deployments, or `none` while iterating.
 
-With `letsencrypt` you're limited to **5 duplicate certificates per domain per week**. Redeploying the same test hostname repeatedly will exhaust that quota and the allocator will serve a TLS error until it resets. Use a fresh hostname for throwaway deployments, or `none` while iterating.
+    `cloudflare` and `acm` have no such limit.
 
-`cloudflare` and `acm` have no such limit.
+??? note "Can I switch SSL providers later?"
+    Yes. Change the configuration and redeploy:
 
-### Can I switch SSL providers later?
+    ```yaml
+    ssl:
+      provider: "letsencrypt"
+      email: "you@example.com"  # required for Let's Encrypt
+    ```
 
-Yes. Change the configuration and redeploy:
+    Then run:
 
-```yaml
-ssl:
-  provider: "letsencrypt"
-  email: "you@example.com"  # required for Let's Encrypt
-```
+    ```bash
+    terraform apply
+    ```
 
-Then run:
-```bash
-terraform apply
-```
-
-The allocator will obtain a trusted Let's Encrypt certificate and start serving HTTPS. You may need to clear your browser's HSTS cache.
+    The allocator will obtain a trusted certificate and start serving HTTPS. You may need to clear your browser's HSTS cache.
 
 ## Deployment
 
-### What's the difference between dev, test, and prod environments?
+??? note "What's the difference between dev, test, and prod environments?"
+    | Environment | Purpose | Image Tags | Terraform State |
+    |-------------|---------|------------|-----------------|
+    | **dev** | Local development | `-test` | Local file |
+    | **test** | Staging/pre-prod | `-test` | S3 bucket |
+    | **prod** | Production | Pinned versions | S3 bucket |
 
-| Environment | Purpose | Image Tags | Terraform State |
-|-------------|---------|------------|-----------------|
-| **dev** | Local development | `-test` | Local file |
-| **test** | Staging/pre-prod | `-test` | S3 bucket |
-| **prod** | Production | Pinned versions | S3 bucket |
+    See [Deployment → Environment-Specific Configurations](deployment.md#environment-specific-configurations).
 
-See [Deployment → Environment-Specific Configurations](deployment.md#environment-specific-configurations).
+??? note "How do I deploy to production?"
+    1. Navigate to the **Actions** tab in GitHub
+    2. Select "Deploy LabLink Infrastructure" (`terraform-deploy.yml`)
+    3. Click **Run workflow**
+    4. Select the `prod` environment
+    5. Enter a specific image tag (e.g. `v1.0.0`)
+    6. Click **Run workflow**
 
-### How do I deploy to production?
+    **Never use `:latest` in production.**
 
-1. Navigate to **Actions** tab in GitHub
-2. Select "Deploy LabLink Infrastructure" (`terraform-deploy.yml`)
-3. Click "Run workflow"
-4. Select `prod` environment
-5. Enter specific image tag (e.g., `v1.0.0`)
-6. Click "Run workflow"
+??? note "Can I deploy without GitHub Actions?"
+    Yes — either `lablink deploy` from the CLI, or Terraform directly:
 
-**Never use `:latest` in production!**
+    ```bash
+    cd lablink-infrastructure
+    terraform init
+    terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.0.0"
+    ```
 
-### Can I deploy without GitHub Actions?
+    See [Deployment → Method 2: Manual Terraform](deployment.md#method-2-manual-terraform-deployment).
 
-Yes, using Terraform CLI:
+??? note "How do I update an existing deployment?"
+    ```bash
+    git pull
+    terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.1.0"
+    ```
 
-```bash
-cd lablink-allocator
-terraform init
-terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.0.0"
-```
-
-See [Deployment → Method 2: Manual Terraform](deployment.md#method-2-manual-terraform-deployment).
-
-### How do I update an existing deployment?
-
-```bash
-# Pull latest code
-git pull
-
-# Re-apply Terraform with new image tag
-terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.1.0"
-```
-
-This will replace the EC2 instance with the new image.
+    This replaces the EC2 instance with the new image.
 
 ## Operations
 
-### How do I create client VMs?
+??? note "How do I create client VMs?"
+    **Via the web UI**: log in to the allocator, go to **Admin → Create New VM Instance**, enter the number of VMs, and submit.
 
-**Via Web UI**:
-1. Navigate to allocator web interface
-2. Login with admin credentials
-3. Go to **Admin → Create Instances**
-4. Enter number of VMs
-5. Submit
+    **Via the API**:
 
-**Via API**:
-```bash
-curl -X POST http://<allocator-ip>:5000/api/launch \
-  -u admin:password \
-  -d "instance_count=5"
-```
+    ```bash
+    curl -X POST http://<allocator-ip>:5000/api/launch \
+      -u admin:password \
+      -d "instance_count=5"
+    ```
 
-### How do I check VM status?
+??? note "How do I check VM status?"
+    **Via the web UI**: **Admin → View Current Instances**.
 
-**Via Web UI**:
-- Navigate to **Admin → View Instances**
+    **Via the CLI**: `lablink status`.
 
-**Via Database**:
-```bash
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, status, useremail FROM vms;"
-```
+    **Via the database**:
 
-### How do I destroy a deployment?
+    ```bash
+    ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
+    sudo docker exec <container-id> psql -U lablink -d lablink_db \
+      -c "SELECT hostname, status, useremail FROM vms;"
+    ```
 
-**Via GitHub Actions** (template repo):
-1. Actions → "Destroy LabLink Infrastructure" (`terraform-destroy.yml`)
-2. Run workflow
-3. Type `yes` to confirm and select the environment
+??? note "How do I destroy a deployment?"
+    **Via GitHub Actions** (template repo): Actions → "Destroy LabLink Infrastructure" (`terraform-destroy.yml`) → type `yes` to confirm and select the environment.
 
-**Via Terraform CLI**:
-```bash
-terraform destroy -var="resource_suffix=dev"
-```
+    **Via the CLI**: `lablink destroy`.
 
-### What happens if I destroy the allocator?
+    **Via Terraform**:
 
-- Allocator EC2 instance terminated
-- Database data lost (unless backed up)
-- Client VMs remain running (must be destroyed separately)
+    ```bash
+    terraform destroy -var="resource_suffix=dev"
+    ```
 
-**Always backup database before destroying!**
+??? note "What happens if I destroy the allocator?"
+    - The allocator EC2 instance is terminated
+    - Database data is lost unless backed up
+    - Client VMs keep running — destroy them separately, **first**
+
+    Destroy client VMs before the allocator, or you'll be cleaning them up by hand from the EC2 console.
 
 ## Troubleshooting
 
-### PostgreSQL won't start after deployment
+??? note "PostgreSQL won't start after deployment"
+    The container's `start.sh` starts Postgres and waits on `pg_isready` before Flask boots, so this normally means the cluster died rather than that it never started. Check, then restart it in place:
 
-The container's `start.sh` starts Postgres and waits on `pg_isready` before Flask boots, so this normally means the cluster died rather than that it never started. Check, then restart it in place:
+    ```bash
+    sudo docker exec <container-id> pg_isready -U lablink
+    sudo docker exec -it <container-id> pg_ctlcluster 17 main restart
+    ```
 
-```bash
-sudo docker exec <container-id> pg_isready -U lablink
-sudo docker exec -it <container-id> pg_ctlcluster 17 main restart
-```
+    See [Troubleshooting → Inside the allocator](troubleshooting.md#inside-the-allocator).
 
-See [Troubleshooting → Inside the allocator](troubleshooting.md#inside-the-allocator).
+??? note "I can't SSH into the instance"
+    1. Key permissions: `chmod 600 ~/lablink-key.pem`
+    2. Security group allows port 22
+    3. Correct IP address
+    4. Correct user — it's `ubuntu`
 
-### I can't SSH into the instance
+    See [Troubleshooting → SSH access](troubleshooting.md#ssh-access).
 
-Check:
-1. Key permissions: `chmod 600 ~/lablink-key.pem`
-2. Security group allows port 22
-3. Using correct IP address
-4. Using correct user (`ubuntu`)
+??? note "Client VMs aren't being created"
+    1. AWS credentials resolve inside the allocator container
+    2. Allocator container logs show the Terraform error
+    3. The IAM role has EC2 permissions
 
-See [Troubleshooting → SSH Access Issues](troubleshooting.md#ssh-access).
+    See [Troubleshooting → Client VMs](troubleshooting.md#client-vms-aws-provider).
 
-### Client VMs aren't being created
-
-Check:
-1. AWS credentials configured in allocator
-2. Allocator container logs for errors
-3. IAM permissions for EC2 operations
-
-See [Troubleshooting → VM Spawning Issues](troubleshooting.md#client-vms-aws-provider).
-
-### I'm getting billed unexpectedly
-
-- Check for running EC2 instances you forgot to terminate
-- Set up billing alerts (see [AWS Setup → Billing Alerts](aws-setup.md#step-8-billing-alerts))
-- Review [Cost Estimation](cost-estimation.md) guide
+??? note "I'm getting billed unexpectedly"
+    - Check for running EC2 instances you forgot to terminate
+    - Set up billing alerts (see [AWS Setup → Billing Alerts](aws-setup.md#step-8-billing-alerts))
+    - Review the [Cost Estimation](cost-estimation.md) guide
 
 ## Costs
 
-### How much does LabLink cost to run?
+??? note "How much does LabLink cost to run?"
+    **Always-on:**
 
-**AWS infrastructure**:
-- S3 bucket: ~$0.05/month
-- Elastic IPs: Free while associated
+    - Allocator (t3.large): $0.0832/hour (~$61/month if running 24/7)
+    - S3 bucket: ~$0.05/month
+    - Elastic IP: free while associated
 
-**Running costs** (per hour):
-- Allocator (t3.large): $0.0832/hour (~$61/month if running 24/7)
-- Client VM (g4dn.xlarge): $0.526/hour
+    **Per client VM, while running:**
 
-See [Cost Estimation](cost-estimation.md) for detailed breakdown.
+    - g4dn.xlarge: $0.526/hour
 
-### How can I reduce costs?
+    See [Cost Estimation](cost-estimation.md) for a detailed breakdown and worked scenarios.
 
-1. **Terminate VMs when not in use**
-2. **Use Spot Instances** for client VMs (up to 90% savings)
-3. **Use smaller instance types** for testing
-4. **Set up billing alerts** to monitor spending
-5. **Use Reserved Instances** for long-running allocators (up to 75% savings)
+??? note "How can I reduce costs?"
+    1. **Destroy VMs when not in use** — they're the dominant cost
+    2. **Destroy the allocator between workshops** — it's the only always-on charge
+    3. **Use Spot Instances** for client VMs (roughly 70% off on-demand)
+    4. **Use smaller instance types** for testing
+    5. **Set up billing alerts** to catch surprises early
 
-### Do I get charged for stopped instances?
+??? note "Do I get charged for stopped instances?"
+    - **EC2 instances**: no compute charges, but EBS storage charges continue
+    - **Elastic IPs**: free while associated, $0.005/hour if unassociated
 
-- **EC2 instances**: No compute charges, but EBS storage charges apply
-- **Elastic IPs**: Free while associated, $0.005/hour if unassociated
-
-**Best practice**: Terminate (not stop) instances when done.
+    **Best practice**: terminate rather than stop when you're done.
 
 ## Advanced
 
-### Can I use a custom AMI?
+??? note "Can I use RDS instead of PostgreSQL in Docker?"
+    Yes, for production. See [Database → Migrating to RDS](database.md#migrating-to-rds-production).
 
-Yes. Create an AMI with your software pre-installed:
+    Benefits: automated backups, high availability, managed updates.
 
-```bash
-# Create AMI from running instance
-aws ec2 create-image --instance-id i-xxxxx --name "my-custom-ami"
+??? note "Can I use LabLink with multiple AWS accounts?"
+    Yes. Deploy separate instances with different AWS credentials or roles per account.
 
-# Use in configuration
-machine:
-  ami_id: "ami-your-custom-ami-id"
-```
+??? note "Can I add my own API endpoints?"
+    Yes. Add a route in `packages/allocator/src/lablink_allocator_service/routes/`, then rebuild the image and redeploy:
 
-See [Adapting LabLink → Custom AMI](adapting.md#custom-ami).
+    ```python
+    @bp.route("/my-custom-endpoint", methods=["POST"])
+    def my_custom_endpoint():
+        return jsonify({"status": "success"})
+    ```
 
-### Can I use RDS instead of PostgreSQL in Docker?
-
-Yes, for production. See [Database → Migrating to RDS](database.md#migrating-to-rds-production).
-
-**Benefits**:
-- Automated backups
-- High availability
-- Managed updates
-
-### Can I use LabLink with multiple AWS accounts?
-
-Yes. Deploy separate instances with different AWS credentials/roles for each account.
-
-### Can I add my own API endpoints?
-
-Yes. Edit the allocator service in `packages/allocator/src/lablink_allocator/main.py`:
-
-```python
-@app.route('/my-custom-endpoint', methods=['POST'])
-def my_custom_endpoint():
-    # Your code here
-    return jsonify({'status': 'success'})
-```
-
-Rebuild the Docker image and redeploy.
-
-### How do I enable HTTPS?
-
-1. Get SSL certificate (e.g., Let's Encrypt)
-2. Configure nginx or use AWS Application Load Balancer
-3. Update security groups to allow port 443
-
-See [Security → Encryption in Transit](security.md#encryption-in-transit).
+    See [API Endpoints](api-endpoints.md) for the existing routes and their auth requirements.
 
 ## Security
 
-### Is it safe to use default passwords?
+??? note "Is it safe to use default passwords?"
+    **No.** Change them immediately for any non-local deployment.
 
-**No!** Change them immediately for any non-local deployment.
+    See [Security → Change Default Passwords](security.md#change-default-passwords).
 
-See [Security → Change Default Passwords](security.md#change-default-passwords).
+??? note "How are AWS credentials stored?"
+    For GitHub Actions: **OIDC**, so nothing is stored.
 
-### How are AWS credentials stored?
+    For local use: the AWS credentials file or environment variables.
 
-For GitHub Actions: **OIDC** (no stored credentials)
+    **Never commit credentials to version control.**
 
-For local: AWS credentials file or environment variables
+??? note "How are SSH keys managed?"
+    - Terraform generates unique keys per environment
+    - Keys are stored in Terraform state
+    - GitHub Actions exposes keys as temporary artifacts (1 day expiration)
+    - Rotate keys by destroying and recreating infrastructure
 
-**Never commit credentials to version control!**
-
-### How are SSH keys managed?
-
-- Terraform generates unique keys per environment
-- Keys stored in Terraform state
-- GitHub Actions exposes keys as temporary artifacts (1 day expiration)
-- Rotate keys by destroying and recreating infrastructure
-
-See [Security & Access → SSH Key Management](security.md#ssh-key-management).
+    See [Security & Access → SSH Key Management](security.md#ssh-key-management).
 
 ## Contributing
 
-### Can I contribute to LabLink?
+??? note "Can I contribute to LabLink?"
+    Yes — LabLink is open-source and contributions are welcome. Fork the repository, create a feature branch, make your changes, add tests, and submit a pull request. See [Contributing](contributing.md).
 
-Yes! LabLink is open-source. Contributions welcome:
+??? note "How do I report bugs?"
+    Open an issue on [GitHub](https://github.com/talmolab/lablink/issues) with the description, steps to reproduce, expected vs actual behaviour, logs or error messages, and your environment details.
 
-1. Fork repository
-2. Create feature branch
-3. Make changes
-4. Add tests
-5. Submit pull request
-
-### How do I report bugs?
-
-Open an issue on [GitHub](https://github.com/talmolab/lablink/issues) with:
-- Description of the bug
-- Steps to reproduce
-- Expected vs actual behavior
-- Logs/error messages
-- Environment details
-
-### Where can I ask questions?
-
-- **GitHub Issues**: For bugs and feature requests
-- **GitHub Discussions**: For questions and general discussion
+??? note "Where can I ask questions?"
+    - **GitHub Issues**: bugs and feature requests
+    - **GitHub Discussions**: questions and general discussion
 
 ## Comparison
 
-### How is LabLink different from AWS Batch?
+??? note "How is LabLink different from AWS Batch?"
+    | Feature | LabLink | AWS Batch |
+    |---------|---------|-----------|
+    | Setup complexity | Moderate | High |
+    | Custom software | Easy (Docker) | Easy (Docker) |
+    | GPU support | Yes | Yes |
+    | Cost | Pay for VMs | Pay for VMs + Batch overhead |
+    | Web UI | Included | Requires building |
+    | VM management | Automated | Automated |
+    | Learning curve | Moderate | Steep |
 
-| Feature | LabLink | AWS Batch |
-|---------|---------|-----------|
-| Setup complexity | Moderate | High |
-| Custom software | Easy (Docker) | Easy (Docker) |
-| GPU support | Yes | Yes |
-| Cost | Pay for VMs | Pay for VMs + Batch overhead |
-| Web UI | Included | Requires building |
-| VM management | Automated | Automated |
-| Learning curve | Moderate | Steep |
+    **LabLink advantage**: simpler setup, included web UI, research-focused.
 
-**LabLink advantage**: Simpler setup, included web UI, research-focused
+??? note "How is LabLink different from Kubernetes?"
+    LabLink is simpler and more focused:
 
-### How is LabLink different from Kubernetes?
+    - **LabLink**: VM allocation for research workloads
+    - **Kubernetes**: general-purpose container orchestration
 
-LabLink is simpler and more focused:
+    If you need simple VM management for research, use LabLink. If you need complex microservices orchestration, use Kubernetes.
 
-- **LabLink**: VM allocation for research workloads
-- **Kubernetes**: General-purpose container orchestration
+## Still have questions?
 
-If you need simple VM management for research, use LabLink. If you need complex microservices orchestration, use Kubernetes.
-
-## Still Have Questions?
-
-- Check [Documentation](index.md)
-- Search [GitHub Issues](https://github.com/talmolab/lablink/issues)
-- Open new issue with your question
+Check the [documentation index](index.md), search [existing issues](https://github.com/talmolab/lablink/issues), then open a new one.
