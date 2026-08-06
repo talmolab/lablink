@@ -344,14 +344,10 @@ ADMIN_CREDENTIALS_HINT_LINES = (
     "(saved at deploy time — a redeploy can change them).",
 )
 
-# Manual provider keeps its deploy-time copy somewhere else entirely (the
-# rendered compose dir, no environment scoping), so the AWS wording above
-# would send a BYO operator to a path that does not exist on their machine.
-MANUAL_ADMIN_CREDENTIALS_HINT_LINES = (
-    "Check app.admin_user / app.admin_password in your config, or in",
-    "~/.lablink/compose/<deployment>/config.yaml",
-    "(rendered at deploy time — a redeploy can change them).",
-)
+# Manual keeps its copy in the rendered compose dir instead, with no
+# environment scoping — only the middle line above differs, so swap that
+# rather than carrying a second near-identical tuple.
+MANUAL_SAVED_CONFIG_HINT = "~/.lablink/compose/<deployment>/config.yaml"
 
 
 def print_admin_credentials_hint(cfg: Config | None = None) -> None:
@@ -360,13 +356,10 @@ def print_admin_credentials_hint(cfg: Config | None = None) -> None:
     ``cfg`` selects which deploy-time file to name; omit it (or pass a
     non-manual config) for the AWS deploy dir.
     """
-    manual = cfg is not None and getattr(cfg, "provider", "aws") == "manual"
-    lines = (
-        MANUAL_ADMIN_CREDENTIALS_HINT_LINES
-        if manual
-        else ADMIN_CREDENTIALS_HINT_LINES
-    )
-    for line in lines:
+    header, path, footer = ADMIN_CREDENTIALS_HINT_LINES
+    if cfg is not None and getattr(cfg, "provider", "aws") == "manual":
+        path = MANUAL_SAVED_CONFIG_HINT
+    for line in (header, path, footer):
         console.print(f"  [dim]{line}[/dim]")
 
 
@@ -403,15 +396,6 @@ def resolve_from_saved_config(path: Path) -> tuple[str, str] | None:
     if user and user not in _MISSING and pw and pw not in _MISSING:
         return user, pw
     return None
-
-
-def _resolve_from_deploy_dir(
-    cfg: Config,
-) -> tuple[str, str] | None:
-    """Try to get credentials from the AWS deployment config."""
-    return resolve_from_saved_config(
-        get_deploy_dir(cfg) / "config" / "config.yaml"
-    )
 
 
 def _resolve_from_prompt() -> tuple[str, str]:
@@ -455,10 +439,8 @@ def resolve_admin_credentials(
         # Lazy: deploy_compose imports this module at load time.
         from lablink_cli.commands.deploy_compose import compose_workdir
 
-        resolved = resolve_from_saved_config(
-            compose_workdir(cfg) / "config.yaml"
-        )
+        path = compose_workdir(cfg) / "config.yaml"
     else:
-        resolved = _resolve_from_deploy_dir(cfg)
+        path = get_deploy_dir(cfg) / "config" / "config.yaml"
 
-    return resolved or _resolve_from_prompt()
+    return resolve_from_saved_config(path) or _resolve_from_prompt()

@@ -9,11 +9,11 @@ import yaml
 
 from lablink_cli.commands.utils import (
     _resolve_from_config,
-    _resolve_from_deploy_dir,
     get_allocator_url,
     get_deploy_dir,
     print_admin_credentials_hint,
     resolve_admin_credentials,
+    resolve_from_saved_config,
 )
 
 
@@ -245,28 +245,19 @@ class TestPrintAdminCredentialsHint:
         assert ".lablink/deploy" in capsys.readouterr().out
 
 
-class TestResolveFromDeployDir:
-    def test_returns_credentials(self, mock_cfg, tmp_path):
-        deploy_config = tmp_path / "config" / "config.yaml"
-        deploy_config.parent.mkdir(parents=True)
+class TestResolveFromSavedConfig:
+    """The reader both providers share; only the path differs."""
+
+    def test_returns_credentials(self, tmp_path):
+        path = tmp_path / "config.yaml"
         data = {"app": {"admin_user": "deploy-user", "admin_password": "deploy-pw"}}
-        deploy_config.write_text(yaml.dump(data))
-        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
-            mock_dir.return_value = tmp_path
-            result = _resolve_from_deploy_dir(mock_cfg)
-        assert result == ("deploy-user", "deploy-pw")
+        path.write_text(yaml.dump(data))
+        assert resolve_from_saved_config(path) == ("deploy-user", "deploy-pw")
 
-    def test_returns_none_when_no_deploy_dir(self, mock_cfg, tmp_path):
-        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
-            mock_dir.return_value = tmp_path / "nonexistent"
-            result = _resolve_from_deploy_dir(mock_cfg)
-        assert result is None
+    def test_returns_none_when_file_missing(self, tmp_path):
+        assert resolve_from_saved_config(tmp_path / "nonexistent.yaml") is None
 
-    def test_returns_none_when_missing_keys(self, mock_cfg, tmp_path):
-        deploy_config = tmp_path / "config" / "config.yaml"
-        deploy_config.parent.mkdir(parents=True)
-        deploy_config.write_text(yaml.dump({"app": {}}))
-        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
-            mock_dir.return_value = tmp_path
-            result = _resolve_from_deploy_dir(mock_cfg)
-        assert result is None
+    def test_returns_none_when_missing_keys(self, tmp_path):
+        path = tmp_path / "config.yaml"
+        path.write_text(yaml.dump({"app": {}}))
+        assert resolve_from_saved_config(path) is None

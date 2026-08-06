@@ -2649,13 +2649,10 @@ class TestComposeDeploymentMetrics:
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_success_writes_record(
-        self, mock_up, mock_poll, mock_summary, tmp_path, monkeypatch
+        self, mock_up, mock_poll, mock_summary, tmp_path
     ):
         from lablink_cli import deployment_metrics
         from lablink_cli.commands.deploy_compose import run_deploy_compose
-
-        cache = tmp_path / "cache"
-        monkeypatch.setattr(deployment_metrics, "DEPLOYMENTS_DIR", cache)
 
         run_deploy_compose(_manual_cfg(), yes=True, workdir_root=tmp_path)
 
@@ -2677,7 +2674,7 @@ class TestComposeDeploymentMetrics:
     @patch("lablink_cli.commands.deploy_compose._print_summary")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_health_timeout_records_failure(
-        self, mock_up, mock_summary, tmp_path, monkeypatch
+        self, mock_up, mock_summary, tmp_path
     ):
         """A health-poll timeout must land as 'failed', not 'in_progress'.
 
@@ -2687,9 +2684,6 @@ class TestComposeDeploymentMetrics:
         """
         from lablink_cli import deployment_metrics
         from lablink_cli.commands.deploy_compose import run_deploy_compose
-
-        cache = tmp_path / "cache"
-        monkeypatch.setattr(deployment_metrics, "DEPLOYMENTS_DIR", cache)
 
         with patch(
             "lablink_cli.commands.deploy_compose._health_poll",
@@ -2706,7 +2700,7 @@ class TestComposeDeploymentMetrics:
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_render_failure_records_failure(
-        self, mock_up, mock_poll, mock_summary, tmp_path, monkeypatch
+        self, mock_up, mock_poll, mock_summary, tmp_path
     ):
         """A failure *outside* the timed phases still records 'failed'.
 
@@ -2716,9 +2710,6 @@ class TestComposeDeploymentMetrics:
         """
         from lablink_cli import deployment_metrics
         from lablink_cli.commands.deploy_compose import run_deploy_compose
-
-        cache = tmp_path / "cache"
-        monkeypatch.setattr(deployment_metrics, "DEPLOYMENTS_DIR", cache)
 
         with patch(
             "lablink_cli.commands.deploy_compose.render_compose_dir",
@@ -2738,14 +2729,11 @@ class TestComposeDeploymentMetrics:
     @patch("lablink_cli.commands.deploy_compose._health_poll")
     @patch("lablink_cli.commands.deploy_compose._compose_up")
     def test_declined_confirmation_writes_nothing(
-        self, mock_up, mock_poll, mock_summary, tmp_path, monkeypatch
+        self, mock_up, mock_poll, mock_summary, tmp_path
     ):
         """Aborting at the "Proceed?" gate leaves no in_progress junk."""
         from lablink_cli import deployment_metrics
         from lablink_cli.commands.deploy_compose import run_deploy_compose
-
-        cache = tmp_path / "cache"
-        monkeypatch.setattr(deployment_metrics, "DEPLOYMENTS_DIR", cache)
 
         with patch(
             "lablink_cli.commands.deploy_compose.typer.confirm",

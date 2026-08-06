@@ -114,48 +114,33 @@ def _export_allocator_metrics(
 ) -> None:
     """Read CLI-local allocator deployment cache and write to ``output_path``.
 
-    The cache at ``~/.lablink/deployments/`` is global — one directory for
-    every deployment the operator has ever run — so records are filtered to
-    ``deployment_name`` whenever the caller knows it. Unfiltered, an export
-    named for one deployment silently carries every other deployment's rows
-    (observed on a real machine: an 88-row ``sleap-lablink`` export, 59 rows
-    of which belonged to two unrelated deployments).
+    The cache at ``~/.lablink/deployments/`` is global — one record per deploy
+    attempt for every deployment the operator has ever run — so an unfiltered
+    export puts other deployments' rows in a file named for this one.
+    ``provider`` is part of the scope because a name can be reused across
+    providers, and an AWS record's Terraform phase columns say nothing about a
+    compose stack. Records predating that field are AWS ones, hence the
+    ``"aws"`` default.
 
-    ``provider`` narrows further, because a name can be reused across
-    providers: a ``sleap-lablink`` config switched from aws to manual would
-    otherwise export the old AWS Terraform timings as if they described the
-    compose stack — different phase columns entirely. Records predating the
-    field are AWS ones, hence the ``"aws"`` default.
-
-    Either filter set to None means no config was loaded (``--allocator``
-    alone on a machine with no config, which is meant to work after
-    ``lablink destroy``) and exports the whole cache — announced below,
-    since "everything" is not what the file name suggests.
+    Either filter as None means no config was loaded (``--allocator`` alone on
+    a machine that has none, which is what keeps it working after ``lablink
+    destroy``) and exports the whole cache.
 
     Empty result → print a yellow notice and skip writing the file (don't
     create a confusing zero-row CSV / empty-list JSON).
     """
-    records = load_all_metrics()
-    if deployment_name:
-        records = [
-            r for r in records if r.get("deployment_name") == deployment_name
-        ]
-    if provider:
-        records = [
-            r for r in records if (r.get("provider") or "aws") == provider
-        ]
+    records = [
+        r
+        for r in load_all_metrics()
+        if (not deployment_name or r.get("deployment_name") == deployment_name)
+        and (not provider or (r.get("provider") or "aws") == provider)
+    ]
     if not records:
-        if deployment_name:
-            console.print(
-                f"[yellow]No allocator deployment metrics for "
-                f"'{deployment_name}' in ~/.lablink/deployments/. Run "
-                f"`lablink deploy` first.[/yellow]"
-            )
-        else:
-            console.print(
-                "[yellow]No allocator deployment metrics found in "
-                "~/.lablink/deployments/. Run `lablink deploy` first.[/yellow]"
-            )
+        scope = f" for '{deployment_name}'" if deployment_name else ""
+        console.print(
+            f"[yellow]No allocator deployment metrics{scope} in "
+            f"~/.lablink/deployments/. Run `lablink deploy` first.[/yellow]"
+        )
         return
 
     if fmt == "json":
@@ -184,13 +169,12 @@ def _export_allocator_metrics(
         f"[green]Exported {len(records)} allocator deployment "
         f"records to {output_path}[/green]"
     )
-    if deployment_name is None:
-        names = {r.get("deployment_name") for r in records}
-        if len(names) > 1:
-            console.print(
-                f"  [dim]Spanning {len(names)} deployments — no config was "
-                f"loaded to scope by.[/dim]"
-            )
+    names = {r.get("deployment_name") for r in records}
+    if deployment_name is None and len(names) > 1:
+        console.print(
+            f"  [dim]Spanning {len(names)} deployments — no config to scope by."
+            f"[/dim]"
+        )
 
 
 def run_export_metrics(
