@@ -6,7 +6,7 @@ Common questions and answers about LabLink.
 
 ### What is LabLink?
 
-LabLink is a cloud-based virtual teaching lab accessible through a Chrome browser. It lets you deploy workshop environments to AWS with pre-installed software -- students only need a web browser to get a full desktop with your software ready to go.
+LabLink is a virtual teaching lab accessible through a web browser. It gives participants a full desktop with your software pre-installed -- they need nothing but a browser. You can run it on AWS, or on hardware you already own.
 
 ### Who is LabLink for?
 
@@ -16,7 +16,9 @@ LabLink is a cloud-based virtual teaching lab accessible through a Chrome browse
 
 ### What cloud providers does LabLink support?
 
-Currently, LabLink supports **AWS (Amazon Web Services)** only. The architecture uses AWS-specific services (EC2, S3, IAM).
+**AWS (Amazon Web Services)** is the only cloud provider — the `aws` provider uses EC2, S3 and IAM.
+
+You can also skip the cloud entirely. The `manual` provider runs the allocator as a docker-compose stack and lets you register client machines you already own. See [Bring-Your-Own Clients](cli/byo-clients.md).
 
 ### Is LabLink free?
 
@@ -26,7 +28,9 @@ LabLink itself is open-source and free. However, you'll pay for AWS resources yo
 
 ### Do I need an AWS account?
 
-Yes. LabLink deploys to AWS and requires an AWS account with permissions to create EC2 instances, security groups, and other resources.
+Only for the `aws` provider, which needs permissions to create EC2 instances, security groups and other resources.
+
+With `provider: manual` you need no AWS account, no Terraform and no `gh` — just Docker on the allocator host and on each client box. See [Prerequisites](prerequisites.md#pick-your-path-first).
 
 ### How long does setup take?
 
@@ -36,7 +40,9 @@ Yes. LabLink deploys to AWS and requires an AWS account with permissions to crea
 
 ### Can I run LabLink locally without AWS?
 
-You can run the allocator locally with Docker for testing, but creating client VMs requires AWS.
+Yes — that's the `manual` provider. The allocator runs as a docker-compose stack on a machine you already have, and you register your own client boxes with `lablink client register` rather than provisioning them.
+
+Only the `aws` provider *creates* machines for you, and that's the part that needs AWS.
 
 ## Configuration
 
@@ -89,7 +95,7 @@ See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
 If your browser cannot connect to `http://your-domain.com`:
 
 1. Make sure you explicitly type `http://` (not `https://`)
-2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
+2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#reaching-the-allocator))
 3. Try incognito/private browsing mode
 4. Try accessing via IP address: `http://<allocator-ip>`
 
@@ -153,7 +159,7 @@ See [Deployment → Environment-Specific Configurations](deployment.md#environme
 ### How do I deploy to production?
 
 1. Navigate to **Actions** tab in GitHub
-2. Select "Terraform Deploy" workflow
+2. Select "Deploy LabLink Infrastructure" (`terraform-deploy.yml`)
 3. Click "Run workflow"
 4. Select `prod` environment
 5. Enter specific image tag (e.g., `v1.0.0`)
@@ -198,7 +204,7 @@ This will replace the EC2 instance with the new image.
 
 **Via API**:
 ```bash
-curl -X POST http://<allocator-ip>:80/admin/create \
+curl -X POST http://<allocator-ip>:5000/api/launch \
   -u admin:password \
   -d "instance_count=5"
 ```
@@ -211,15 +217,15 @@ curl -X POST http://<allocator-ip>:80/admin/create \
 **Via Database**:
 ```bash
 ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, status, email FROM vms;"
+sudo docker exec <container-id> psql -U lablink -d lablink_db -c "SELECT hostname, status, useremail FROM vms;"
 ```
 
 ### How do I destroy a deployment?
 
-**Via GitHub Actions**:
-1. Actions → "Allocator Master Destroy"
+**Via GitHub Actions** (template repo):
+1. Actions → "Destroy LabLink Infrastructure" (`terraform-destroy.yml`)
 2. Run workflow
-3. Select environment
+3. Type `yes` to confirm and select the environment
 
 **Via Terraform CLI**:
 ```bash
@@ -238,15 +244,14 @@ terraform destroy -var="resource_suffix=dev"
 
 ### PostgreSQL won't start after deployment
 
-**Known issue**. Solution:
+The container's `start.sh` starts Postgres and waits on `pg_isready` before Flask boots, so this normally means the cluster died rather than that it never started. Check, then restart it in place:
 
 ```bash
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-sudo docker exec -it <container-id> bash
-/etc/init.d/postgresql restart
+sudo docker exec <container-id> pg_isready -U lablink
+sudo docker exec -it <container-id> pg_ctlcluster 17 main restart
 ```
 
-See [Troubleshooting → PostgreSQL Issues](troubleshooting.md#postgresql-issues).
+See [Troubleshooting → Inside the allocator](troubleshooting.md#inside-the-allocator).
 
 ### I can't SSH into the instance
 
@@ -256,7 +261,7 @@ Check:
 3. Using correct IP address
 4. Using correct user (`ubuntu`)
 
-See [Troubleshooting → SSH Access Issues](troubleshooting.md#ssh-access-issues).
+See [Troubleshooting → SSH Access Issues](troubleshooting.md#ssh-access).
 
 ### Client VMs aren't being created
 
@@ -265,7 +270,7 @@ Check:
 2. Allocator container logs for errors
 3. IAM permissions for EC2 operations
 
-See [Troubleshooting → VM Spawning Issues](troubleshooting.md#vm-spawning-issues).
+See [Troubleshooting → VM Spawning Issues](troubleshooting.md#client-vms-aws-provider).
 
 ### I'm getting billed unexpectedly
 
@@ -282,7 +287,7 @@ See [Troubleshooting → VM Spawning Issues](troubleshooting.md#vm-spawning-issu
 - Elastic IPs: Free while associated
 
 **Running costs** (per hour):
-- Allocator (t2.micro): $0.0116/hour (~$8.50/month if running 24/7)
+- Allocator (t3.large): $0.0832/hour (~$61/month if running 24/7)
 - Client VM (g4dn.xlarge): $0.526/hour
 
 See [Cost Estimation](cost-estimation.md) for detailed breakdown.

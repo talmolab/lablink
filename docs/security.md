@@ -450,7 +450,7 @@ To switch a deployment from HTTP-only to HTTPS:
    https://your-domain.com
    ```
 
-5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
+5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#reaching-the-allocator))
 
 ## Secrets Management
 

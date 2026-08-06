@@ -309,7 +309,7 @@ ssl:
 - No encryption - all traffic is plaintext
 - Browser shows "Not Secure" warning
 - Useful for testing and development
-- May require clearing browser HSTS cache if you previously accessed via HTTPS (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
+- May require clearing browser HSTS cache if you previously accessed via HTTPS (see [Troubleshooting](troubleshooting.md#reaching-the-allocator))
 
 Configuration example:
 ```yaml
