@@ -1,8 +1,11 @@
 # Quickstart
 
-LabLink supports two equivalent deployment paths. Both produce the same allocator infrastructure on AWS — they differ in **where Terraform runs** and **where state lives**.
+LabLink deploys three ways. Two of them produce the same allocator infrastructure on AWS and differ only in **where Terraform runs** and **where state lives**. The third skips AWS entirely.
 
-Pick whichever fits your setup. You can switch between them later; both read the same `config.yaml` schema.
+Pick whichever fits your setup. You can switch between them later; all three read the same `config.yaml` schema.
+
+!!! tip "No AWS account?"
+    Set `provider: manual` and the allocator runs as a local docker-compose stack, with client machines you register yourself. No AWS account, no Terraform, no cloud bill — see [Bring-Your-Own Clients](cli/byo-clients.md).
 
 <div class="grid cards" markdown>
 
@@ -41,17 +44,21 @@ Pick whichever fits your setup. You can switch between them later; both read the
 | Drive Terraform directly from your laptop and see its output inline | CLI |
 | Export metrics from a deployment that's already been torn down | CLI |
 
-## Prerequisites (both paths)
+## Prerequisites
 
-Both paths share the same base prerequisites:
+Every path needs Python 3.10+, `uv`, and Git to install the CLI. What else you need depends on the path:
 
-- [Prerequisites](prerequisites.md) — AWS account, AWS CLI, Git.
-- An AWS region with the permissions listed in [AWS Setup](aws-setup.md).
+| Path | Also needs |
+|---|---|
+| Manual provider | Docker + the `docker compose` v2 plugin, on the allocator host and every client box |
+| CLI + AWS | An AWS account and region with the permissions in [AWS Setup](aws-setup.md), the AWS CLI, and Terraform installed locally |
+| Template repo | The same AWS account and CLI, plus the GitHub CLI (`gh`) for automated repo setup. GitHub Actions runs Terraform, so you don't install it |
 
-The template path additionally needs the GitHub CLI (`gh`) for automated repo setup. The CLI path additionally needs Terraform installed locally — see [CLI: Installation](cli/installation.md).
+Full install instructions per path: [Prerequisites](prerequisites.md).
 
 ## Next steps
 
 - [:material-source-branch: Quickstart: Template repo](quickstart-template.md)
 - [:material-console: Quickstart: CLI](cli/first-deployment.md)
-- [CLI Overview](cli/index.md) — deeper comparison of the two paths.
+- [:material-server-network: Bring-Your-Own Clients](cli/byo-clients.md) — the manual provider, no AWS.
+- [CLI Overview](cli/index.md) — deeper comparison of the paths.

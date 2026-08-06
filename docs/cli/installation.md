@@ -11,9 +11,17 @@ Before installing, make sure you have:
 
 - **[uv](https://docs.astral.sh/uv/)** — the Python project manager used by this repo. Install with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [official install guide](https://docs.astral.sh/uv/getting-started/installation/).
 - **Python 3.10+** — uv can manage this for you (`uv python install 3.11`). Check with `python --version`.
-- **Terraform 1.6+** — the CLI drives Terraform under the hood. Install from [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install).
-- **AWS credentials** configured locally (either `aws configure` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables). See [Prerequisites](../prerequisites.md#configure-aws-credentials).
-- **An AWS account** with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See [AWS Setup (Manual)](../aws-setup.md) for the full permission list.
+
+The rest depends on which provider you deploy with.
+
+=== "`provider: aws`"
+    - **Terraform 1.6+** — the CLI drives Terraform under the hood. Install from [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install).
+    - **AWS credentials** configured locally (either `aws configure` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables). See [Prerequisites](../prerequisites.md#configure-aws-credentials).
+    - **An AWS account** with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See [AWS Setup (Manual)](../aws-setup.md) for the full permission list.
+
+=== "`provider: manual`"
+    - **Docker** and the **`docker compose` v2 plugin**, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.
+    - No AWS account, no AWS credentials, and no Terraform — see [Bring-Your-Own Clients](byo-clients.md).
 
 ## Install from source
 
