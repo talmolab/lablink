@@ -4502,10 +4502,25 @@
 <ul>
 <li><strong><a href="https://docs.astral.sh/uv/">uv</a></strong> — the Python project manager used by this repo. Install with <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> or see the <a href="https://docs.astral.sh/uv/getting-started/installation/">official install guide</a>.</li>
 <li><strong>Python 3.10+</strong> — uv can manage this for you (<code>uv python install 3.11</code>). Check with <code>python --version</code>.</li>
+</ul>
+<p>The rest depends on which provider you deploy with.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><code>provider: aws</code></label><label for="__tabbed_1_2"><code>provider: manual</code></label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<ul>
 <li><strong>Terraform 1.6+</strong> — the CLI drives Terraform under the hood. Install from <a href="https://developer.hashicorp.com/terraform/install">developer.hashicorp.com/terraform/install</a>.</li>
 <li><strong>AWS credentials</strong> configured locally (either <code>aws configure</code> or <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> environment variables). See <a href="../../prerequisites/#configure-aws-credentials">Prerequisites</a>.</li>
 <li><strong>An AWS account</strong> with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See <a href="../../aws-setup/">AWS Setup (Manual)</a> for the full permission list.</li>
 </ul>
+</div>
+<div class="tabbed-block">
+<ul>
+<li><strong>Docker</strong> and the <strong><code>docker compose</code> v2 plugin</strong>, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.</li>
+<li>No AWS account, no AWS credentials, and no Terraform — see <a href="../byo-clients/">Bring-Your-Own Clients</a>.</li>
+</ul>
+</div>
+</div>
+</div>
 <h2 id="install-from-source">Install from source<a class="headerlink" href="#install-from-source" title="Permanent link">&para;</a></h2>
 <p>Clone the repo and run <code>uv sync --all-packages</code> at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on <code>lablink-allocator-service</code>, which uv resolves from the workspace automatically.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git

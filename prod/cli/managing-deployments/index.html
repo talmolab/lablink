@@ -4651,7 +4651,7 @@ the manual workflow end to end.</p>
 </tr>
 <tr>
 <td><code>--allocator</code></td>
-<td>Per-deploy metrics from the local cache at <code>~/.lablink/deployments/</code> (deploy duration, Terraform phase timings)</td>
+<td>Per-deploy metrics from the local cache at <code>~/.lablink/deployments/</code> (deploy duration, plus Terraform phase timings on AWS or <code>docker compose up</code> timing on the manual provider)</td>
 <td><strong>No</strong> — works after <code>lablink destroy</code></td>
 </tr>
 <tr>
@@ -4661,6 +4661,16 @@ the manual workflow end to end.</p>
 </tr>
 </tbody>
 </table>
+<p>Allocator metrics are <strong>scoped to the deployment and provider in your config</strong>.
+The cache is shared by every deployment you have ever run, so an unscoped export
+would put other deployments' rows in a file named after this one. Point
+<code>--config</code> at a different config to export that deployment instead. On a machine
+with no config at all, <code>--allocator</code> exports the whole cache and says how many
+deployments it spans.</p>
+<p>Reusing one <code>deployment_name</code> across providers is why the provider is part of the
+scope: a name deployed first on AWS and later with <code>provider: manual</code> has records
+of both shapes in the cache, and the Terraform phase columns say nothing about a
+compose stack.</p>
 <p>Other flags:</p>
 <table>
 <thead>

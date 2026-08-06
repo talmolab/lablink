@@ -1491,22 +1491,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#staging-mode-security" class="md-nav__link">
+  <a href="#http-only-deployments-sslprovider-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Staging Mode Security
+        HTTP-Only Deployments (ssl.provider: "none")
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Staging Mode Security">
+    <nav class="md-nav" aria-label="HTTP-Only Deployments (ssl.provider: &#34;none&#34;)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#data-exposed-in-staging-mode" class="md-nav__link">
+  <a href="#data-exposed-over-http" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Exposed in Staging Mode
+        Data Exposed Over HTTP
       
     </span>
   </a>
@@ -1514,10 +1514,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-staging-mode-is-acceptable" class="md-nav__link">
+  <a href="#when-http-only-is-acceptable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Staging Mode is Acceptable
+        When HTTP-Only is Acceptable
       
     </span>
   </a>
@@ -1525,10 +1525,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-production-mode-is-required" class="md-nav__link">
+  <a href="#when-ssl-is-required" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Production Mode is Required
+        When SSL is Required
       
     </span>
   </a>
@@ -1536,10 +1536,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mitigations-for-staging-mode" class="md-nav__link">
+  <a href="#mitigations-for-http-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mitigations for Staging Mode
+        Mitigations for HTTP-Only
       
     </span>
   </a>
@@ -1547,10 +1547,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#switching-to-production-mode" class="md-nav__link">
+  <a href="#enabling-ssl" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Switching to Production Mode
+        Enabling SSL
       
     </span>
   </a>
@@ -5330,22 +5330,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#staging-mode-security" class="md-nav__link">
+  <a href="#http-only-deployments-sslprovider-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Staging Mode Security
+        HTTP-Only Deployments (ssl.provider: "none")
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Staging Mode Security">
+    <nav class="md-nav" aria-label="HTTP-Only Deployments (ssl.provider: &#34;none&#34;)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#data-exposed-in-staging-mode" class="md-nav__link">
+  <a href="#data-exposed-over-http" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Exposed in Staging Mode
+        Data Exposed Over HTTP
       
     </span>
   </a>
@@ -5353,10 +5353,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-staging-mode-is-acceptable" class="md-nav__link">
+  <a href="#when-http-only-is-acceptable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Staging Mode is Acceptable
+        When HTTP-Only is Acceptable
       
     </span>
   </a>
@@ -5364,10 +5364,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-production-mode-is-required" class="md-nav__link">
+  <a href="#when-ssl-is-required" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Production Mode is Required
+        When SSL is Required
       
     </span>
   </a>
@@ -5375,10 +5375,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mitigations-for-staging-mode" class="md-nav__link">
+  <a href="#mitigations-for-http-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mitigations for Staging Mode
+        Mitigations for HTTP-Only
       
     </span>
   </a>
@@ -5386,10 +5386,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#switching-to-production-mode" class="md-nav__link">
+  <a href="#enabling-ssl" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Switching to Production Mode
+        Enabling SSL
       
     </span>
   </a>
@@ -6240,10 +6240,10 @@
 - Isolation from other workloads
 - Custom network ACLs
 - VPC Flow Logs for monitoring</p>
-<h2 id="staging-mode-security">Staging Mode Security<a class="headerlink" href="#staging-mode-security" title="Permanent link">&para;</a></h2>
-<p><strong>Warning</strong>: Staging mode (<code>ssl.staging: true</code>) serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.</p>
-<h3 id="data-exposed-in-staging-mode">Data Exposed in Staging Mode<a class="headerlink" href="#data-exposed-in-staging-mode" title="Permanent link">&para;</a></h3>
-<p>When using staging mode, the following information is transmitted unencrypted:</p>
+<h2 id="http-only-deployments-sslprovider-none">HTTP-Only Deployments (<code>ssl.provider: "none"</code>)<a class="headerlink" href="#http-only-deployments-sslprovider-none" title="Permanent link">&para;</a></h2>
+<p><strong>Warning</strong>: <code>ssl.provider: "none"</code> serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.</p>
+<h3 id="data-exposed-over-http">Data Exposed Over HTTP<a class="headerlink" href="#data-exposed-over-http" title="Permanent link">&para;</a></h3>
+<p>With no SSL provider, the following information is transmitted unencrypted:</p>
 <ul>
 <li>Admin usernames and passwords</li>
 <li>Database credentials</li>
@@ -6252,8 +6252,8 @@
 <li>SSH keys and access tokens</li>
 <li>All HTTP request/response data</li>
 </ul>
-<h3 id="when-staging-mode-is-acceptable">When Staging Mode is Acceptable<a class="headerlink" href="#when-staging-mode-is-acceptable" title="Permanent link">&para;</a></h3>
-<p>Use staging mode only when:</p>
+<h3 id="when-http-only-is-acceptable">When HTTP-Only is Acceptable<a class="headerlink" href="#when-http-only-is-acceptable" title="Permanent link">&para;</a></h3>
+<p>Use <code>ssl.provider: "none"</code> only when:</p>
 <ul>
 <li>Testing in isolated VPCs with no internet access</li>
 <li>Accessing via VPN on private networks</li>
@@ -6262,8 +6262,8 @@
 <li>Automated CI/CD testing pipelines</li>
 <li>No sensitive data is involved</li>
 </ul>
-<h3 id="when-production-mode-is-required">When Production Mode is Required<a class="headerlink" href="#when-production-mode-is-required" title="Permanent link">&para;</a></h3>
-<p>Use production mode (<code>ssl.staging: false</code>) for:</p>
+<h3 id="when-ssl-is-required">When SSL is Required<a class="headerlink" href="#when-ssl-is-required" title="Permanent link">&para;</a></h3>
+<p>Use a real SSL provider (<code>letsencrypt</code>, <code>cloudflare</code>, or <code>acm</code>) for:</p>
 <ul>
 <li>Any internet-accessible deployment</li>
 <li>Handling sensitive research data</li>
@@ -6272,8 +6272,8 @@
 <li>Production or staging environments</li>
 <li>Compliance requirements (HIPAA, GDPR, etc.)</li>
 </ul>
-<h3 id="mitigations-for-staging-mode">Mitigations for Staging Mode<a class="headerlink" href="#mitigations-for-staging-mode" title="Permanent link">&para;</a></h3>
-<p>If you must use staging mode with potentially sensitive data:</p>
+<h3 id="mitigations-for-http-only">Mitigations for HTTP-Only<a class="headerlink" href="#mitigations-for-http-only" title="Permanent link">&para;</a></h3>
+<p>If you must run without SSL alongside potentially sensitive data:</p>
 <ol>
 <li>
 <p><strong>Restrict access to your IP only</strong>:
@@ -6293,19 +6293,20 @@
 <p><strong>Deploy in private VPC</strong> - No internet gateway</p>
 </li>
 <li>
-<p><strong>Time-limited</strong> - Switch to production mode as soon as testing is complete</p>
+<p><strong>Time-limited</strong> - Enable an SSL provider as soon as testing is complete</p>
 </li>
 <li>
 <p><strong>Monitor access</strong> - Review allocator logs for unexpected connections</p>
 </li>
 </ol>
-<h3 id="switching-to-production-mode">Switching to Production Mode<a class="headerlink" href="#switching-to-production-mode" title="Permanent link">&para;</a></h3>
-<p>To switch a deployment from staging to production:</p>
+<h3 id="enabling-ssl">Enabling SSL<a class="headerlink" href="#enabling-ssl" title="Permanent link">&para;</a></h3>
+<p>To switch a deployment from HTTP-only to HTTPS:</p>
 <ol>
 <li>
 <p>Update configuration:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">ssl</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">staging</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;letsencrypt&quot;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;you@example.com&quot;</span><span class="w">  </span><span class="c1"># required for Let&#39;s Encrypt</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -6322,7 +6323,7 @@
 </code></pre></div></p>
 </li>
 <li>
-<p>Clear browser HSTS cache if you previously accessed via HTTP (see <a href="../troubleshooting/#browser-cannot-access-http-staging-mode">Troubleshooting</a>)</p>
+<p>Clear browser HSTS cache if you previously accessed via HTTP (see <a href="../troubleshooting/#reaching-the-allocator">Troubleshooting</a>)</p>
 </li>
 </ol>
 <h2 id="secrets-management">Secrets Management<a class="headerlink" href="#secrets-management" title="Permanent link">&para;</a></h2>

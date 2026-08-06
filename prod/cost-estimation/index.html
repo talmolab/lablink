@@ -1152,17 +1152,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#instance-type-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Instance Type Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#cost-optimization" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4947,17 +4936,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#instance-type-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Instance Type Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#cost-optimization" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5524,7 +5502,6 @@
 <h2 id="compute-costs-variable">Compute Costs (Variable)<a class="headerlink" href="#compute-costs-variable" title="Permanent link">&para;</a></h2>
 <h3 id="allocator-instance">Allocator Instance<a class="headerlink" href="#allocator-instance" title="Permanent link">&para;</a></h3>
 <p>Costs for running the allocator EC2 instance.</p>
-<h4 id="instance-type-options">Instance Type Options<a class="headerlink" href="#instance-type-options" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -5537,55 +5514,24 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>t2.micro</strong></td>
-<td>1</td>
-<td>1 GB</td>
-<td>$0.0116/hour</td>
-<td>$8.50</td>
-</tr>
-<tr>
-<td><strong>t2.small</strong></td>
-<td>1</td>
-<td>2 GB</td>
-<td>$0.023/hour</td>
-<td>$16.79</td>
-</tr>
-<tr>
-<td><strong>t2.medium</strong></td>
+<td><strong>t3.large</strong></td>
 <td>2</td>
-<td>4 GB</td>
-<td>$0.0464/hour</td>
-<td>$33.87</td>
-</tr>
-<tr>
-<td><strong>t3.micro</strong></td>
-<td>2</td>
-<td>1 GB</td>
-<td>$0.0104/hour</td>
-<td>$7.59</td>
-</tr>
-<tr>
-<td><strong>t3.small</strong></td>
-<td>2</td>
-<td>2 GB</td>
-<td>$0.0208/hour</td>
-<td>$15.18</td>
+<td>8 GB</td>
+<td>$0.0832/hour</td>
+<td>$60.74</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Recommended</strong>: <strong>t2.micro</strong> for dev/test, <strong>t2.small</strong> for production</p>
-<p><strong>Estimated Monthly Cost</strong>: <strong>$8.50 - $17</strong> (if running 24/7)</p>
+<div class="admonition note">
+<p class="admonition-title">This is not a config key</p>
+<p>The allocator's instance type is fixed at <strong>t3.large</strong> — it's a Terraform local in <a href="https://github.com/talmolab/lablink-template">lablink-template</a>'s <code>lablink-infrastructure/main.tf</code>, exposed only as an output. There is nothing in <code>config.yaml</code> to change it. <code>machine.machine_type</code> sets the <strong>client VM</strong> type, not the allocator's.</p>
+</div>
+<p><strong>Estimated Monthly Cost</strong>: <strong>$60.74</strong> (if running 24/7)</p>
 <h4 id="cost-optimization">Cost Optimization<a class="headerlink" href="#cost-optimization" title="Permanent link">&para;</a></h4>
-<p><strong>Option 1: Terminate When Not Needed</strong>
-- Stop allocator during off-hours
-- Cost: Only when running
-- Example: 8 hours/day × 20 days = 160 hours = $1.86/month (t2.micro)</p>
-<p><strong>Option 2: Reserved Instances</strong> (1-year commitment)
-- Up to 75% savings
-- t2.micro: $5.03/month (vs $8.50)</p>
-<p><strong>Option 3: Savings Plans</strong>
-- Flexible commitment
-- Similar savings to Reserved Instances</p>
+<p><strong>Option 1: Destroy When Not Needed</strong></p>
+<p>The allocator is the only always-on cost, so a workshop-shaped usage pattern saves the most. 8 hours/day × 20 days = 160 hours = <strong>$13.31/month</strong>.</p>
+<p><strong>Option 2: Reserved Instances or Savings Plans</strong> (1-year commitment)</p>
+<p>Meaningful discounts on a 24/7 allocator, but they lock you in for a year — only worth it if the allocator genuinely stays up. Check the <a href="https://calculator.aws/">AWS Pricing Calculator</a> for current rates before committing.</p>
 <h3 id="client-vm-instances">Client VM Instances<a class="headerlink" href="#client-vm-instances" title="Permanent link">&para;</a></h3>
 <p>Costs for running research workload VMs.</p>
 <h4 id="gpu-instance-types">GPU Instance Types<a class="headerlink" href="#gpu-instance-types" title="Permanent link">&para;</a></h4>
@@ -5817,49 +5763,49 @@
 <h2 id="example-cost-scenarios">Example Cost Scenarios<a class="headerlink" href="#example-cost-scenarios" title="Permanent link">&para;</a></h2>
 <h3 id="scenario-1-developmenttesting">Scenario 1: Development/Testing<a class="headerlink" href="#scenario-1-developmenttesting" title="Permanent link">&para;</a></h3>
 <p><strong>Setup</strong>:
-- 1 allocator (t2.micro)
+- 1 allocator (t3.large)
 - 2 client VMs (g4dn.xlarge)
 - Running 40 hours/month</p>
 <p><strong>Costs</strong>:
 - Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0116 = $0.46
+- Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 2 × 40 hours × $0.526 = $42.08
 - Storage: $2.40 (allocator) + $16.00 (2 clients) = $18.40</p>
-<p><strong>Total</strong>: <strong>~$61/month</strong></p>
+<p><strong>Total</strong>: <strong>~$64/month</strong></p>
 <h3 id="scenario-2-light-production-use">Scenario 2: Light Production Use<a class="headerlink" href="#scenario-2-light-production-use" title="Permanent link">&para;</a></h3>
 <p><strong>Setup</strong>:
-- 1 allocator (t2.small, 24/7)
+- 1 allocator (t3.large, 24/7)
 - 5 client VMs (g4dn.xlarge)
 - VMs running 160 hours/month each</p>
 <p><strong>Costs</strong>:
 - Infrastructure: $0.95/month (with Route 53)
-- Allocator: $16.79/month
+- Allocator: $60.74/month
 - Client VMs: 5 × 160 hours × $0.526 = $420.80
 - Storage: $2.40 + (5 × $8.00) = $42.40</p>
-<p><strong>Total</strong>: <strong>~$481/month</strong></p>
+<p><strong>Total</strong>: <strong>~$525/month</strong></p>
 <h3 id="scenario-3-heavy-production-use">Scenario 3: Heavy Production Use<a class="headerlink" href="#scenario-3-heavy-production-use" title="Permanent link">&para;</a></h3>
 <p><strong>Setup</strong>:
-- 1 allocator (t2.small, 24/7, Reserved Instance)
+- 1 allocator (t3.large, 24/7)
 - 20 client VMs (g4dn.xlarge, Spot Instances)
 - VMs running 320 hours/month each</p>
 <p><strong>Costs</strong>:
 - Infrastructure: $0.95/month
-- Allocator: $5.03/month (Reserved Instance)
+- Allocator: $60.74/month
 - Client VMs: 20 × 320 hours × $0.158 (Spot) = $1,011.20
 - Storage: $2.40 + (20 × $8.00) = $162.40</p>
-<p><strong>Total</strong>: <strong>~$1,182/month</strong></p>
-<p><strong>Savings vs On-Demand</strong>: ~$3,200/month (70% reduction)</p>
+<p><strong>Total</strong>: <strong>~$1,235/month</strong></p>
+<p><strong>Savings vs On-Demand</strong>: the same client VMs on-demand would be 20 × 320 × $0.526 = $3,366.40, so Spot saves <strong>~$2,355/month</strong> on that line. A Reserved Instance or Savings Plan on the allocator would trim the $60.74 further.</p>
 <h3 id="scenario-4-minimal-cost-conscious">Scenario 4: Minimal (Cost-Conscious)<a class="headerlink" href="#scenario-4-minimal-cost-conscious" title="Permanent link">&para;</a></h3>
 <p><strong>Setup</strong>:
-- 1 allocator (t2.micro)
+- 1 allocator (t3.large)
 - 3 client VMs (g4dn.xlarge, Spot)
 - Only running when actively working (40 hours/month)</p>
 <p><strong>Costs</strong>:
 - Infrastructure: $0.05/month
-- Allocator: 40 hours × $0.0116 = $0.46
+- Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 3 × 40 hours × $0.158 (Spot) = $18.96
 - Storage: Minimal (terminate when done) = $0.50</p>
-<p><strong>Total</strong>: <strong>~$20/month</strong></p>
+<p><strong>Total</strong>: <strong>~$23/month</strong></p>
 <h2 id="cost-monitoring">Cost Monitoring<a class="headerlink" href="#cost-monitoring" title="Permanent link">&para;</a></h2>
 <h3 id="view-current-costs">View Current Costs<a class="headerlink" href="#view-current-costs" title="Permanent link">&para;</a></h3>
 <p><strong>AWS Console</strong>:
@@ -5922,7 +5868,7 @@
 </thead>
 <tbody>
 <tr>
-<td>EC2 (t2.micro)</td>
+<td>EC2 (t2.micro / t3.micro)</td>
 <td>750 hours</td>
 </tr>
 <tr>
@@ -5939,7 +5885,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Note</strong>: GPU instances (g4dn, g5, p3) are <strong>not</strong> included in free tier.</p>
+<p><strong>Note</strong>: neither the allocator nor the client VMs are covered. The free tier only extends to micro instances, and LabLink's allocator is a <strong>t3.large</strong>; GPU instances (g4dn, g5, p3) are excluded outright. Expect to pay for compute from day one.</p>
 <h2 id="hidden-costs-to-watch">Hidden Costs to Watch<a class="headerlink" href="#hidden-costs-to-watch" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Unassociated Elastic IPs</strong>: $3.60/month each</li>
@@ -5968,7 +5914,7 @@
 </tr>
 <tr>
 <td>Allocator runtime</td>
-<td>$8-17/month</td>
+<td>$61/month (24/7)</td>
 <td>$0 (your time)</td>
 </tr>
 <tr>
@@ -5996,7 +5942,7 @@
 <tbody>
 <tr>
 <td><strong>LabLink</strong></td>
-<td>~$481</td>
+<td>~$525</td>
 <td>Moderate</td>
 </tr>
 <tr>

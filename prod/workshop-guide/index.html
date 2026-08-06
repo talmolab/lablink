@@ -1129,21 +1129,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-extract-participant-data" class="md-nav__link">
+  <a href="#destroy-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Extract Participant Data
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-destroy-vms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Destroy VMs
+        Destroy VMs
       
     </span>
   </a>
@@ -4697,21 +4686,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-extract-participant-data" class="md-nav__link">
+  <a href="#destroy-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Extract Participant Data
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-destroy-vms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Destroy VMs
+        Destroy VMs
       
     </span>
   </a>
@@ -4831,24 +4809,32 @@
 <td>VM instance identifier</td>
 </tr>
 <tr>
-<td><strong>Health</strong></td>
+<td><strong>User Email</strong></td>
+<td>Email of the participant assigned to the VM</td>
+</tr>
+<tr>
+<td><strong>In Use</strong></td>
+<td>Whether the VM is currently claimed by a participant</td>
+</tr>
+<tr>
+<td><strong>VM Status</strong></td>
 <td>Overall VM health status (running, initializing, stopped)</td>
 </tr>
 <tr>
-<td><strong>GPU Health</strong></td>
+<td><strong>GPU Health Status</strong></td>
 <td>GPU availability and CUDA status</td>
+</tr>
+<tr>
+<td><strong>Total Startup Duration</strong></td>
+<td>How long the VM took to become ready</td>
 </tr>
 <tr>
 <td><strong>Logs</strong></td>
 <td>Link to view startup and runtime logs for the VM</td>
 </tr>
 <tr>
-<td><strong>Assigned CRD</strong></td>
-<td>Chrome Remote Desktop connection link for the VM</td>
-</tr>
-<tr>
-<td><strong>User Email</strong></td>
-<td>Email of the participant assigned to the VM</td>
+<td><strong>Access</strong></td>
+<td>Per-VM actions (open the desktop, reboot, destroy)</td>
 </tr>
 </tbody>
 </table>
@@ -4876,18 +4862,18 @@
 <ol>
 <li>Visit the URL in their browser</li>
 <li>Enter their email address</li>
-<li>They receive a Chrome Remote Desktop (CRD) link to their assigned VM</li>
-<li>Click the link to open a full desktop with your software pre-installed</li>
+<li>The allocator assigns them a VM and drops them straight into its desktop</li>
+<li>The desktop opens in the browser tab with your software pre-installed</li>
 </ol>
-<p>No installation, no setup -- participants only need a Chrome browser.</p>
+<p>No installation, no setup -- participants only need a browser.</p>
 <h2 id="during-the-workshop">During the Workshop<a class="headerlink" href="#during-the-workshop" title="Permanent link">&para;</a></h2>
 <h3 id="monitor-the-dashboard">Monitor the Dashboard<a class="headerlink" href="#monitor-the-dashboard" title="Permanent link">&para;</a></h3>
 <p>Keep the admin panel open to track participant activity:</p>
 <p><img alt="Admin panel" src="../assets/images/admin-panel.png" /></p>
 <ul>
-<li><strong>Health</strong> column shows if VMs are running normally</li>
-<li><strong>GPU Health</strong> confirms GPU availability for compute workloads</li>
-<li><strong>Assigned CRD</strong> shows which participants have been assigned VMs</li>
+<li><strong>VM Status</strong> column shows if VMs are running normally</li>
+<li><strong>GPU Health Status</strong> confirms GPU availability for compute workloads</li>
+<li><strong>In Use</strong> shows which VMs have been claimed</li>
 <li><strong>User Email</strong> shows who is using each VM</li>
 </ul>
 <h3 id="adding-more-vms">Adding More VMs<a class="headerlink" href="#adding-more-vms" title="Permanent link">&para;</a></h3>
@@ -4901,31 +4887,21 @@
 <h3 id="handling-issues">Handling Issues<a class="headerlink" href="#handling-issues" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>VM shows "error"</strong>: The auto-reboot service will attempt to recover it automatically (up to 3 times). Check the logs link for details.</li>
-<li><strong>Participant can't connect</strong>: Verify their VM shows "running" status and that the CRD link is assigned. Try having them refresh the allocator page to get a new link.</li>
+<li><strong>Participant can't connect</strong>: Verify their VM shows "running" status and that they were assigned one. Try having them reload the allocator page to get a fresh session.</li>
 <li><strong>All VMs assigned</strong>: Create additional VMs as described above.</li>
 </ul>
 <h2 id="end-of-workshop">End of Workshop<a class="headerlink" href="#end-of-workshop" title="Permanent link">&para;</a></h2>
-<h3 id="1-extract-participant-data">1. Extract Participant Data<a class="headerlink" href="#1-extract-participant-data" title="Permanent link">&para;</a></h3>
-<p>Before destroying VMs, download any files participants created:</p>
-<ol>
-<li>Click <strong>"Download User Data"</strong> in the admin panel</li>
-<li>The allocator collects files matching your configured extension (e.g., <code>.slp</code>) from each VM</li>
-<li>A zip file downloads with all participant work</li>
-</ol>
-<p><img alt="Download user data" src="../assets/images/admin-destroy-vms.png" /></p>
+<h3 id="destroy-vms">Destroy VMs<a class="headerlink" href="#destroy-vms" title="Permanent link">&para;</a></h3>
 <div class="admonition warning">
-<p class="admonition-title">Do this before destroying VMs</p>
-<p>Files are not recoverable after VMs are destroyed. Always extract data first.</p>
+<p class="admonition-title">Participant files are not recoverable</p>
+<p>LabLink does not collect work off the VMs. Tell participants to download
+anything they want to keep before the session ends -- destroying a VM
+destroys its disk.</p>
 </div>
-<p>The file extension to collect is configured in your <code>config.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">extension</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;slp&quot;</span>
-</code></pre></div>
-<h3 id="2-destroy-vms">2. Destroy VMs<a class="headerlink" href="#2-destroy-vms" title="Permanent link">&para;</a></h3>
-<p>Once data is collected, tear down all VMs:</p>
+<p>Tear down all VMs:</p>
 <ol>
-<li>Click <strong>"Destroy All VMs"</strong> in the admin panel</li>
-<li>Confirm the action</li>
+<li>Click <strong>"Delete VMs"</strong> in the admin panel</li>
+<li>Click <strong>"Run terraform destroy"</strong> and confirm</li>
 </ol>
 <p><img alt="Destroy All VMs" src="../assets/images/admin-destroy-vms.png" /></p>
 <p>This terminates all client EC2 instances and clears VM records from the database.</p>
@@ -4938,8 +4914,8 @@
 <p>Manually run the <strong>Terraform Destroy</strong> workflow from the Actions tab.</p>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 </div>
 </div>

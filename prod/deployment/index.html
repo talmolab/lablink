@@ -5431,7 +5431,7 @@
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before deploying, ensure you have:</p>
 <ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> AWS account configured (see <a href="../prerequisites/#1-aws-account">Prerequisites</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> AWS account configured (see <a href="../prerequisites/#aws-account">Prerequisites</a>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Terraform installed (see <a href="../prerequisites/#terraform">Prerequisites</a>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> S3 bucket for Terraform state (see <a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">AWS Setup</a>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Elastic IP allocated for test/prod (see <a href="../aws-setup/#step-3-elastic-ip-allocation">AWS Setup</a>)</li>
@@ -5860,10 +5860,10 @@ Production deployments use pinned image tags for reproducibility and require exp
 4. Enter number of VMs to create
 5. Submit and monitor creation</p>
 <p>Via API:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://&lt;allocator-ip&gt;:80/request_vm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;email=test@example.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;crd_command=test_command&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://&lt;allocator-ip&gt;:80/api/request_vm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;email=test@example.com&quot;</span>
 </code></pre></div></p>
+<p>An email address is all a participant supplies — see <a href="../api-endpoints/">API Endpoints</a> for the response shape.</p>
 <h3 id="4-monitor-logs">4. Monitor Logs<a class="headerlink" href="#4-monitor-logs" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># SSH into allocator</span>
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@<span class="nv">$ALLOCATOR_IP</span>

@@ -4601,7 +4601,10 @@ provision from Terraform.</p>
 <li>The CLI installed — see <a href="../installation/">Installation</a>.</li>
 <li>A network path from each client box to the allocator, or from the allocator to each client. Which direction you need is what <a href="#pick-a-connectivity-mode">connectivity mode</a> decides.</li>
 </ul>
-<p><code>lablink doctor</code> checks the docker side for you under this provider.</p>
+<p><code>lablink doctor</code> checks the docker side for you under this provider. Once a box is
+registered, <code>lablink client doctor</code> checks that box's own health — registration,
+container, and log shipper. See the
+<a href="../../reference/cli/#client-doctor">CLI Reference</a>.</p>
 <h2 id="pick-a-connectivity-mode">Pick a connectivity mode<a class="headerlink" href="#pick-a-connectivity-mode" title="Permanent link">&para;</a></h2>
 <p><code>manual.connectivity</code> decides how a participant's browser reaches a client's
 KasmVNC desktop. This is the one decision worth making before you deploy, because
