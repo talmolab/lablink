@@ -309,7 +309,7 @@ ssl:
 - No encryption - all traffic is plaintext
 - Browser shows "Not Secure" warning
 - Useful for testing and development
-- May require clearing browser HSTS cache if you previously accessed via HTTPS (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-staging-mode))
+- May require clearing browser HSTS cache if you previously accessed via HTTPS (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
 
 Configuration example:
 ```yaml
@@ -354,7 +354,7 @@ Alternatives:
 Access via `https://your-domain.com` - browser shows secure padlock.
 
 !!! warning "HTTP-only Security"
-    `provider: "none"` serves unencrypted HTTP. Never use for production or sensitive data. See [Security](security.md#staging-mode-security).
+    `provider: "none"` serves unencrypted HTTP. Never use for production or sensitive data. See [Security](security.md#http-only-deployments-sslprovider-none).
 
 ### Allocator Deployment Options (`allocator`)
 

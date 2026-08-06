@@ -78,9 +78,9 @@ app:
 
 ### Why does my browser say "Not Secure"?
 
-You're using staging mode (`ssl.staging: true`), which serves HTTP only (no encryption). This is expected for testing.
+You're deploying with `ssl.provider: "none"`, which serves HTTP only (no encryption). This is expected for testing.
 
-To get a secure HTTPS connection with browser padlock, set `ssl.staging: false` in your configuration and redeploy.
+To get a secure HTTPS connection with browser padlock, set `ssl.provider` to `letsencrypt`, `cloudflare`, or `acm` and redeploy.
 
 See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
 
@@ -89,43 +89,46 @@ See [Configuration → SSL Options](configuration.md#ssltls-options-ssl).
 If your browser cannot connect to `http://your-domain.com`:
 
 1. Make sure you explicitly type `http://` (not `https://`)
-2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#browser-cannot-access-http-staging-mode))
+2. Clear your browser's HSTS cache (see [Troubleshooting → Browser HSTS](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
 3. Try incognito/private browsing mode
 4. Try accessing via IP address: `http://<allocator-ip>`
 
-### Should I use staging or production mode?
+### Which SSL provider should I use?
 
-**Use staging mode (`ssl.staging: true`) for:**
+**Use `ssl.provider: "none"` for:**
 
 - Initial testing and development
-- Frequent deployments (unlimited)
+- Frequent deployments (unlimited — no certificates are issued)
 - Testing infrastructure changes
 - CI/CD automated tests
 
-**Use production mode (`ssl.staging: false`) for:**
+**Use `letsencrypt`, `cloudflare`, or `acm` for:**
 
 - Production deployments
 - Internet-accessible allocators
 - Handling sensitive data
 - Long-running deployments
 
-**Key difference:** Staging = HTTP only (fast, unlimited, no encryption). Production = HTTPS with trusted certificates (secure, rate limited).
+**Key difference:** `none` = HTTP only (fast, unlimited, no encryption). The others = HTTPS with trusted certificates. Only `letsencrypt` is rate limited.
 
 See [Configuration → SSL/TLS Options](configuration.md#ssltls-options-ssl).
 
-### How many times can I deploy with staging mode?
+### How many times can I redeploy?
 
-Unlimited. Staging mode uses HTTP only, so there are no Let's Encrypt rate limits.
+Unlimited with `ssl.provider: "none"` — no certificates are issued, so no rate limits.
 
-With production mode, you're limited to 5 duplicate certificates per week.
+With `letsencrypt` you're limited to **5 duplicate certificates per domain per week**. Redeploying the same test hostname repeatedly will exhaust that quota and the allocator will serve a TLS error until it resets. Use a fresh hostname for throwaway deployments, or `none` while iterating.
 
-### Can I switch from staging to production mode?
+`cloudflare` and `acm` have no such limit.
+
+### Can I switch SSL providers later?
 
 Yes. Change the configuration and redeploy:
 
 ```yaml
 ssl:
-  staging: false
+  provider: "letsencrypt"
+  email: "you@example.com"  # required for Let's Encrypt
 ```
 
 Then run:

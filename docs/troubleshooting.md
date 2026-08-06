@@ -173,15 +173,15 @@ ssh: connect to host X.X.X.X port 22: Connection timed out
      --cidr 0.0.0.0/0
    ```
 
-#### Browser Cannot Access HTTP (Staging Mode)
+#### Browser Cannot Access HTTP (No SSL Provider)
 
 **Symptoms**:
-- Browser cannot connect to `http://your-domain.com` when using staging mode
+- Browser cannot connect to `http://your-domain.com` when deployed with `ssl.provider: "none"`
 - "This site can't be reached"
 - "Connection refused"
 - "ERR_CONNECTION_REFUSED"
 
-**Cause**: Your browser previously accessed the site via HTTPS and cached the HSTS (HTTP Strict Transport Security) policy. This forces all future requests to automatically upgrade to HTTPS. Since staging mode only serves HTTP (port 443 is closed), the browser cannot connect.
+**Cause**: Your browser previously accessed the site via HTTPS and cached the HSTS (HTTP Strict Transport Security) policy. This forces all future requests to automatically upgrade to HTTPS. Since `ssl.provider: "none"` serves HTTP only (port 443 is closed), the browser cannot connect.
 
 **Solution - Clear HSTS Cache:**
 
@@ -258,7 +258,7 @@ If you don't want to clear HSTS cache:
    curl http://test.lablink.sleap.ai
    ```
 
-**Verify Staging Mode is Working:**
+**Verify an HTTP-Only Deployment is Working:**
 
 ```bash
 # HTTP should return 200 OK
@@ -268,9 +268,9 @@ curl -I http://test.lablink.sleap.ai
 curl -I https://test.lablink.sleap.ai
 ```
 
-**Expected behavior**: When using staging mode (`ssl.staging: true`), your browser will show "Not Secure" in the address bar. This is normal and expected - staging mode uses unencrypted HTTP for testing.
+**Expected behavior**: With `ssl.provider: "none"`, your browser will show "Not Secure" in the address bar. This is normal and expected - no certificate is issued and traffic is unencrypted.
 
-To get a secure HTTPS connection, set `ssl.staging: false` in your configuration. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
+To get a secure HTTPS connection, set `ssl.provider` to `letsencrypt`, `cloudflare`, or `acm`. See [Configuration - SSL Options](configuration.md#ssltls-options-ssl).
 
 #### Flask App Not Starting
 
@@ -753,25 +753,24 @@ For each failed VM, it attempts:
    # "VM not found"
    ```
 
-4. **Check allocator logs for /vm_startup requests**:
+4. **Check allocator logs for registration requests**:
    ```bash
    ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-   sudo docker logs <allocator-container-id> | grep vm_startup
+   sudo docker logs <allocator-container-id> | grep -E "clients/register|heartbeat"
 
    # Look for:
-   # POST /vm_startup - 404 errors
+   # POST /api/v1/clients/register - 4xx errors
    ```
 
 5. **Test network connectivity**:
    ```bash
-   # From client VM
-   curl http://<allocator-ip>/vm_startup \
-     -H "Content-Type: application/json" \
-     -d '{"hostname": "lablink-vm-test-1"}'
-
-   # Expected if VM not in DB: {"error":"VM not found."}
-   # Expected if VM in DB: Success response
+   # From client VM — the allocator should answer even without credentials
+   curl -i http://<allocator-ip>/api/health
    ```
+
+   If that fails, the client cannot reach the allocator at all and no amount of
+   client-side debugging will help — check the security group and the allocator's
+   listening port first.
 
 **Solutions**:
 

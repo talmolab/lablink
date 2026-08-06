@@ -367,13 +367,13 @@ resource "aws_subnet" "private" {
 - Custom network ACLs
 - VPC Flow Logs for monitoring
 
-## Staging Mode Security
+## HTTP-Only Deployments (`ssl.provider: "none"`)
 
-**Warning**: Staging mode (`ssl.staging: true`) serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.
+**Warning**: `ssl.provider: "none"` serves unencrypted HTTP traffic. All data transmitted between users and the allocator is sent in plaintext.
 
-### Data Exposed in Staging Mode
+### Data Exposed Over HTTP
 
-When using staging mode, the following information is transmitted unencrypted:
+With no SSL provider, the following information is transmitted unencrypted:
 
 - Admin usernames and passwords
 - Database credentials
@@ -382,9 +382,9 @@ When using staging mode, the following information is transmitted unencrypted:
 - SSH keys and access tokens
 - All HTTP request/response data
 
-### When Staging Mode is Acceptable
+### When HTTP-Only is Acceptable
 
-Use staging mode only when:
+Use `ssl.provider: "none"` only when:
 
 - Testing in isolated VPCs with no internet access
 - Accessing via VPN on private networks
@@ -393,9 +393,9 @@ Use staging mode only when:
 - Automated CI/CD testing pipelines
 - No sensitive data is involved
 
-### When Production Mode is Required
+### When SSL is Required
 
-Use production mode (`ssl.staging: false`) for:
+Use a real SSL provider (`letsencrypt`, `cloudflare`, or `acm`) for:
 
 - Any internet-accessible deployment
 - Handling sensitive research data
@@ -404,9 +404,9 @@ Use production mode (`ssl.staging: false`) for:
 - Production or staging environments
 - Compliance requirements (HIPAA, GDPR, etc.)
 
-### Mitigations for Staging Mode
+### Mitigations for HTTP-Only
 
-If you must use staging mode with potentially sensitive data:
+If you must run without SSL alongside potentially sensitive data:
 
 1. **Restrict access to your IP only**:
    ```hcl
@@ -423,18 +423,19 @@ If you must use staging mode with potentially sensitive data:
 
 3. **Deploy in private VPC** - No internet gateway
 
-4. **Time-limited** - Switch to production mode as soon as testing is complete
+4. **Time-limited** - Enable an SSL provider as soon as testing is complete
 
 5. **Monitor access** - Review allocator logs for unexpected connections
 
-### Switching to Production Mode
+### Enabling SSL
 
-To switch a deployment from staging to production:
+To switch a deployment from HTTP-only to HTTPS:
 
 1. Update configuration:
    ```yaml
    ssl:
-     staging: false
+     provider: "letsencrypt"
+     email: "you@example.com"  # required for Let's Encrypt
    ```
 
 2. Redeploy:
@@ -449,7 +450,7 @@ To switch a deployment from staging to production:
    https://your-domain.com
    ```
 
-5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-staging-mode))
+5. Clear browser HSTS cache if you previously accessed via HTTP (see [Troubleshooting](troubleshooting.md#browser-cannot-access-http-no-ssl-provider))
 
 ## Secrets Management
 
