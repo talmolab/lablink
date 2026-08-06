@@ -59,7 +59,6 @@ db:
   host: "localhost"
   port: 5432
   table_name: "vms"
-  message_channel: "vm_updates"
 
 machine:
   machine_type: "g4dn.xlarge"
@@ -67,7 +66,6 @@ machine:
   ami_id: "ami-0601752c11b394251"
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
-  extension: "slp"
 
 app:
   admin_user: "admin"
@@ -82,7 +80,6 @@ dns:
 
 eip:
   strategy: "dynamic"
-  tag_name: "lablink-eip"
 
 ssl:
   provider: "letsencrypt"
@@ -128,7 +125,6 @@ Configuration for the PostgreSQL database.
 | `host` | string | `localhost` | Database host |
 | `port` | int | `5432` | PostgreSQL port |
 | `table_name` | string | `vm_table` | VM table name |
-| `message_channel` | string | `vm_updates` | PostgreSQL NOTIFY channel |
 
 !!! warning "Production Security"
     Configure `DB_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#database-password).
@@ -144,7 +140,6 @@ Configuration for client VM specifications. **These are the key options for adap
 | `ami_id` | string | `ami-00c257e12d6828491` | Amazon Machine Image (Ubuntu 24.04 + Docker + Nvidia) |
 | `repository` | string (optional) | `None` | Git repository to clone on VM |
 | `software` | string | `sleap` | Software identifier (used by client) |
-| `extension` | string | `slp` | File extension associated with the software's data files |
 
 #### Machine Type Options
 
@@ -214,12 +209,6 @@ repository: ""
 
 String identifier for the research software. Used by client service for software-specific logic.
 
-#### File Extension
-
-**Default**: `slp`
-
-The file extension associated with the software's data files. Used for identifying relevant data files on the VM.
-
 ### Application Options (`app`)
 
 General application settings.
@@ -254,7 +243,6 @@ Controls Elastic IP allocation strategy.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `strategy` | string | `"dynamic"` | `persistent` = reuse tagged EIP, `dynamic` = create new |
-| `tag_name` | string | `"lablink-eip"` | Tag name for persistent EIP lookup |
 
 ### SSL/TLS Options (`ssl`)
 
@@ -633,7 +621,6 @@ machine:
   image: "ghcr.io/yourorg/your-research-image:latest"
   repository: "https://github.com/yourorg/your-research-code.git"
   software: "your-software-name"
-  extension: "your-extension"
 ```
 
 See [Adapting LabLink](adapting.md) for complete guide.
@@ -730,7 +717,6 @@ db:
   host: "localhost"
   port: 5432
   table_name: "vms"
-  message_channel: "vm_updates"
 
 machine:
   machine_type: "g4dn.xlarge"
@@ -738,7 +724,6 @@ machine:
   ami_id: "ami-0601752c11b394251"  # us-west-2
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
-  extension: "slp"
 
 allocator:
   image_tag: "linux-amd64-latest-test"
@@ -756,7 +741,6 @@ dns:
 
 eip:
   strategy: "dynamic"
-  tag_name: "lablink-eip"
 
 ssl:
   provider: "none"
@@ -799,7 +783,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       host: "localhost"
       port: 5432
       table_name: "vms"
-      message_channel: "vm_updates"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -807,7 +790,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       ami_id: "ami-0601752c11b394251"  # us-west-2
       repository: "https://github.com/talmolab/sleap-tutorial-data.git"
       software: "sleap"
-      extension: "slp"
 
     allocator:
       image_tag: "linux-amd64-latest-test"
@@ -825,7 +807,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
 
     eip:
       strategy: "persistent"
-      tag_name: "lablink-eip"
 
     ssl:
       provider: "letsencrypt"
@@ -864,7 +845,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       host: "localhost"
       port: 5432
       table_name: "vms"
-      message_channel: "vm_updates"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -872,7 +852,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       ami_id: "ami-0601752c11b394251"  # us-west-2
       repository: "https://github.com/talmolab/sleap-tutorial-data.git"
       software: "sleap"
-      extension: "slp"
 
     allocator:
       image_tag: "linux-amd64-latest-test"
@@ -890,7 +869,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
 
     eip:
       strategy: "persistent"
-      tag_name: "lablink-eip"
 
     ssl:
       provider: "letsencrypt"
@@ -929,7 +907,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       host: "localhost"
       port: 5432
       table_name: "vms"
-      message_channel: "vm_updates"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -937,7 +914,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
       ami_id: "ami-0601752c11b394251"  # us-west-2
       repository: "https://github.com/talmolab/sleap-tutorial-data.git"
       software: "sleap"
-      extension: "slp"
 
     allocator:
       image_tag: "linux-amd64-latest-test"
@@ -955,7 +931,6 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
 
     eip:
       strategy: "persistent"
-      tag_name: "lablink-eip"
 
     ssl:
       provider: "cloudflare"
@@ -995,7 +970,6 @@ db:
   host: "localhost"
   port: 5432
   table_name: "vms"
-  message_channel: "vm_updates"
 
 machine:
   machine_type: "g4dn.xlarge"
@@ -1003,7 +977,6 @@ machine:
   ami_id: "ami-0601752c11b394251"  # us-west-2
   repository: "https://github.com/talmolab/sleap-tutorial-data.git"
   software: "sleap"
-  extension: "slp"
 
 allocator:
   image_tag: "linux-amd64-latest-test"
@@ -1021,7 +994,6 @@ dns:
 
 eip:
   strategy: "persistent"
-  tag_name: "lablink-eip"
 
 ssl:
   provider: "acm"
