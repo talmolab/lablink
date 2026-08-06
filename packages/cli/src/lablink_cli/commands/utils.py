@@ -298,7 +298,21 @@ def get_deploy_dir(cfg: Config) -> Path:
 
 
 def get_allocator_url(cfg: Config) -> str:
-    """Determine the allocator base URL from terraform outputs or config."""
+    """Determine the allocator base URL from terraform outputs or config.
+
+    Manual provider has neither input: no Terraform state to read an IP
+    from, and ``dns.enabled`` is meaningless for a compose stack. Both
+    compose templates publish ``${HTTP_PORT}:5000`` on the host, and the
+    CLI's manual paths already assume they run on that host (`status` and
+    `logs` shell into the local container), so localhost is the address —
+    the same base URL deploy_compose._health_poll polls after `up`.
+    Imported lazily: deploy_compose imports this module at load time.
+    """
+    if getattr(cfg, "provider", "aws") == "manual":
+        from lablink_cli.commands.deploy_compose import DEFAULT_HTTP_PORT
+
+        return f"http://localhost:{DEFAULT_HTTP_PORT}"
+
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}
     if deploy_dir.exists():
@@ -330,10 +344,29 @@ ADMIN_CREDENTIALS_HINT_LINES = (
     "(saved at deploy time — a redeploy can change them).",
 )
 
+# Manual provider keeps its deploy-time copy somewhere else entirely (the
+# rendered compose dir, no environment scoping), so the AWS wording above
+# would send a BYO operator to a path that does not exist on their machine.
+MANUAL_ADMIN_CREDENTIALS_HINT_LINES = (
+    "Check app.admin_user / app.admin_password in your config, or in",
+    "~/.lablink/compose/<deployment>/config.yaml",
+    "(rendered at deploy time — a redeploy can change them).",
+)
 
-def print_admin_credentials_hint() -> None:
-    """Print where admin credentials come from, after a rejected login."""
-    for line in ADMIN_CREDENTIALS_HINT_LINES:
+
+def print_admin_credentials_hint(cfg: Config | None = None) -> None:
+    """Print where admin credentials come from, after a rejected login.
+
+    ``cfg`` selects which deploy-time file to name; omit it (or pass a
+    non-manual config) for the AWS deploy dir.
+    """
+    manual = cfg is not None and getattr(cfg, "provider", "aws") == "manual"
+    lines = (
+        MANUAL_ADMIN_CREDENTIALS_HINT_LINES
+        if manual
+        else ADMIN_CREDENTIALS_HINT_LINES
+    )
+    for line in lines:
         console.print(f"  [dim]{line}[/dim]")
 
 
@@ -348,28 +381,37 @@ def _resolve_from_config(
     return None
 
 
-def _resolve_from_deploy_dir(
-    cfg: Config,
-) -> tuple[str, str] | None:
-    """Try to get credentials from the deployment config."""
+def resolve_from_saved_config(path: Path) -> tuple[str, str] | None:
+    """Try to get credentials from a deploy-time config.yaml at ``path``.
+
+    Both providers stash the resolved credentials in a rendered config.yaml,
+    just in different places (AWS: the deploy dir, manual: the compose
+    workdir), so the read is shared and only the path differs.
+    """
     import yaml
 
-    deploy_config_path = (
-        get_deploy_dir(cfg) / "config" / "config.yaml"
-    )
-    if not deploy_config_path.exists():
+    if not path.exists():
         return None
 
-    with open(deploy_config_path) as f:
-        deploy_cfg = yaml.safe_load(f) or {}
+    with open(path) as f:
+        saved_cfg = yaml.safe_load(f) or {}
 
-    app_cfg = deploy_cfg.get("app", {})
+    app_cfg = saved_cfg.get("app", {}) or {}
     user = app_cfg.get("admin_user", "")
     pw = app_cfg.get("admin_password", "")
 
     if user and user not in _MISSING and pw and pw not in _MISSING:
         return user, pw
     return None
+
+
+def _resolve_from_deploy_dir(
+    cfg: Config,
+) -> tuple[str, str] | None:
+    """Try to get credentials from the AWS deployment config."""
+    return resolve_from_saved_config(
+        get_deploy_dir(cfg) / "config" / "config.yaml"
+    )
 
 
 def _resolve_from_prompt() -> tuple[str, str]:
@@ -397,13 +439,26 @@ def resolve_admin_credentials(
 
     Resolution order:
     1. Main config (``cfg.app.admin_user`` / ``cfg.app.admin_password``)
-    2. Deployment-specific config saved during deploy
+    2. Deployment-specific config written during deploy — the AWS deploy
+       dir, or the rendered compose workdir under the manual provider
+       (which has no deploy dir at all, so the AWS lookup always missed
+       and every BYO operator got prompted)
     3. Interactive prompt (last resort)
 
     Returns ``(admin_user, admin_password)``.
     """
-    return (
-        _resolve_from_config(cfg)
-        or _resolve_from_deploy_dir(cfg)
-        or _resolve_from_prompt()
-    )
+    resolved = _resolve_from_config(cfg)
+    if resolved:
+        return resolved
+
+    if getattr(cfg, "provider", "aws") == "manual":
+        # Lazy: deploy_compose imports this module at load time.
+        from lablink_cli.commands.deploy_compose import compose_workdir
+
+        resolved = resolve_from_saved_config(
+            compose_workdir(cfg) / "config.yaml"
+        )
+    else:
+        resolved = _resolve_from_deploy_dir(cfg)
+
+    return resolved or _resolve_from_prompt()

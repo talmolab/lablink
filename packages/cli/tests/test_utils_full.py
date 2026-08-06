@@ -12,6 +12,7 @@ from lablink_cli.commands.utils import (
     _resolve_from_deploy_dir,
     get_allocator_url,
     get_deploy_dir,
+    print_admin_credentials_hint,
     resolve_admin_credentials,
 )
 
@@ -81,6 +82,16 @@ class TestGetAllocatorUrl:
 
         assert result == ""
 
+    def test_manual_provider_uses_localhost(self, mock_cfg):
+        """Manual provider short-circuits: no Terraform state, no DNS."""
+        mock_cfg.provider = "manual"
+
+        with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
+            result = get_allocator_url(mock_cfg)
+
+        assert result == "http://localhost:80"
+        mock_dir.assert_not_called()
+
     def test_deploy_dir_missing(self, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
@@ -136,6 +147,31 @@ class TestResolveAdminCredentials:
         assert user == "from-deploy"
         assert pw == "from-deploy"
 
+    def test_manual_reads_compose_config(self, mock_cfg, tmp_path):
+        """Manual provider: creds come from the rendered compose workdir."""
+        mock_cfg.provider = "manual"
+        mock_cfg.app.admin_user = "MISSING"
+        mock_cfg.app.admin_password = "MISSING"
+
+        compose_config = tmp_path / "mylab" / "config.yaml"
+        compose_config.parent.mkdir(parents=True)
+        compose_config.write_text(
+            yaml.dump(
+                {"app": {"admin_user": "byo-user", "admin_password": "byo-pw"}}
+            )
+        )
+
+        with patch(
+            "lablink_cli.commands.deploy_compose.DEFAULT_COMPOSE_DIR", tmp_path
+        ):
+            with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:
+                user, pw = resolve_admin_credentials(mock_cfg)
+
+        assert (user, pw) == ("byo-user", "byo-pw")
+        # The AWS deploy dir must not even be consulted — it never exists
+        # for a manual deployment, which is what used to force the prompt.
+        mock_dir.assert_not_called()
+
     @patch("builtins.input", return_value="prompted-user")
     @patch("getpass.getpass", return_value="prompted-pw")
     def test_interactive_prompt(self, mock_getpass, mock_input, mock_cfg, tmp_path):
@@ -188,6 +224,25 @@ class TestResolveFromConfig:
         mock_cfg.app.admin_password = "MISSING"
         result = _resolve_from_config(mock_cfg)
         assert result is None
+
+
+class TestPrintAdminCredentialsHint:
+    def test_aws_names_deploy_dir(self, capsys, mock_cfg):
+        print_admin_credentials_hint(mock_cfg)
+        out = capsys.readouterr().out
+        assert ".lablink/deploy" in out
+        assert "compose" not in out
+
+    def test_manual_names_compose_dir(self, capsys, mock_cfg):
+        mock_cfg.provider = "manual"
+        print_admin_credentials_hint(mock_cfg)
+        out = capsys.readouterr().out
+        assert ".lablink/compose" in out
+        assert "deploy/" not in out
+
+    def test_no_cfg_defaults_to_aws(self, capsys):
+        print_admin_credentials_hint()
+        assert ".lablink/deploy" in capsys.readouterr().out
 
 
 class TestResolveFromDeployDir:
