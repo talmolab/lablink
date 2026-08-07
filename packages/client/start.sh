@@ -413,6 +413,23 @@ fi
 touch /home/client/.Xauthority
 chmod 600 /home/client/.Xauthority
 
+# XFCE's compositor recomposites the whole screen on every window move, so
+# Xvnc sees one full-screen damage rect instead of a few small ones and
+# re-encodes the entire framebuffer for each frame of a drag -- the single
+# largest source of choppy motion in the participant desktop. Write the
+# setting straight into the xfconf XML store rather than calling
+# `xfconf-query`, which needs the session dbus to already be up and would
+# race xfce4-session.
+mkdir -p /home/client/.config/xfce4/xfconf/xfce-perchannel-xml
+cat > /home/client/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml <<'XFWM'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+  </property>
+</channel>
+XFWM
+
 # Pre-seed the xstartup script kasmvncserver invokes after Xkasmvnc is up.
 # We use `xfce4-session` (not the `startxfce4` wrapper) because the wrapper
 # tries to spawn its own Xorg, which fails in a container with no GPU node
@@ -432,13 +449,13 @@ chmod +x /home/client/.vnc/xstartup
 # a non-tty container, select-de.sh has no stdin and aborts the launch.
 touch /home/client/.vnc/.de-was-selected
 
-# kasmvncserver tries to open `network.ssl.pem_certificate` and `pem_key`
-# at startup regardless of `require_ssl`. The wrapper's defaults point at
-# /etc/ssl/private/ssl-cert-snakeoil.key, which the `client` user can't
-# read (root:ssl-cert 0640). Generate a fresh per-VM keypair under ~/.vnc/
-# and override the config to point at it. nginx terminates TLS at the
-# allocator, so we just need *some* valid keypair here; we never serve
-# it on the public path.
+# Inert, retained pending a separate cleanup. kasmvnc.yaml is read only by
+# the kasmvncserver Perl wrapper, which we bypass to exec Xvnc directly
+# (see the launch comment below) -- Xkasmvnc never opens the file. So these
+# cert paths are never read, this keypair is never used, and the unreadable
+# root:ssl-cert 0640 snakeoil key it was written to work around cannot be
+# reached in the first place. We run on the binary's compiled-in defaults.
+# Anything that must actually take effect belongs on the Xvnc argv.
 if [ ! -s /home/client/.vnc/kasmvnc.pem ]; then
   openssl req -x509 -newkey rsa:2048 -nodes \
     -keyout /home/client/.vnc/kasmvnc.key \
@@ -448,21 +465,22 @@ if [ ! -s /home/client/.vnc/kasmvnc.pem ]; then
   chmod 600 /home/client/.vnc/kasmvnc.key
 fi
 
-# Write the per-user kasmvnc.yaml that overrides the system-default cert
-# paths and disables SSL enforcement on the listener. nginx upstream is
-# plain ws:// because TLS is terminated one layer up at the allocator.
-{
-  echo 'network:'
-  echo '  protocol: http'
-  echo '  ssl:'
-  echo '    require_ssl: false'
-  echo '    pem_certificate: /home/client/.vnc/kasmvnc.pem'
-  echo '    pem_key: /home/client/.vnc/kasmvnc.key'
-  echo 'logging:'
-  echo '  log_writer_name: all'
-  echo '  log_dest: logfile'
-  echo '  level: 100'
-} > /home/client/.vnc/kasmvnc.yaml
+# Same never-read consumer as the keypair above: this file only means
+# something to the Perl wrapper. Kept so that a future switch back to the
+# wrapper is not a rediscovery exercise. Do NOT add encoder settings here
+# -- they would be silently ignored. They go on the Xvnc argv below.
+cat > /home/client/.vnc/kasmvnc.yaml <<'KASMYAML'
+network:
+  protocol: http
+  ssl:
+    require_ssl: false
+    pem_certificate: /home/client/.vnc/kasmvnc.pem
+    pem_key: /home/client/.vnc/kasmvnc.key
+logging:
+  log_writer_name: all
+  log_dest: logfile
+  level: 100
+KASMYAML
 
 # Pick the KasmVNC auth scheme based on how the browser will reach us:
 #   * allocator_proxied (AWS / default): allocator nginx attaches HTTP
@@ -533,6 +551,23 @@ fi
 #      xterm pin below).
 # -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
 # is the network-layer firewall.
+#
+# The three encoder flags are the desktop-responsiveness tuning. They are on
+# the argv rather than in kasmvnc.yaml *because* of the wrapper bypass above:
+# that file is parsed only by the wrapper, so an `encoding:` block there
+# never reaches this process. Stock KasmVNC never gets cheaper while the
+# screen moves -- it holds near-maximum quality through a full-screen redraw
+# and falls behind, which participants perceive as choppiness.
+#   -DynamicQualityMin 4  stock 7. The 7-8 band is pinned near the top, and
+#       KasmVNC varies quality within it by how fast the screen is CHANGING,
+#       not by network feedback, so the floor is what buys smooth motion. It
+#       returns to 8 once the screen is static. -DynamicQualityMax is left
+#       at its compiled default of 8.
+#   -VideoTime 2          stock 5. A drag or scroll otherwise spends five
+#       seconds in per-rect JPEG/WebP before video mode engages. The matching
+#       exit threshold is 3s and is deliberately left alone.
+#   -DetectScrolling 1    ships off. Sends a cheap region shift instead of
+#       re-encoding the scrolled region.
 stdbuf -oL -eL Xvnc :1 \
     -auth /home/client/.Xauthority \
     -desktop kasmvnc \
@@ -543,6 +578,9 @@ stdbuf -oL -eL Xvnc :1 \
     -localhost 0 \
     "${AUTH_ARGS[@]}" \
     -AlwaysShared 1 \
+    -DynamicQualityMin 4 \
+    -VideoTime 2 \
+    -DetectScrolling 1 \
     -noreset \
     2>&1 | sed -u 's/^/[kasmvnc] /' >&5 &
 
