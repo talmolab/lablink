@@ -100,3 +100,55 @@ def test_xfwm4_config_written_before_the_session_launches(script_text):
         if "/home/client/.vnc/xstartup" in ln and "DISPLAY=:1" in ln
     )
     assert xml_at < launch_at
+
+
+@pytest.fixture(scope="module")
+def kasmvnc_yaml(generated) -> dict:
+    return yaml.safe_load((generated / ".vnc/kasmvnc.yaml").read_text())
+
+
+def test_encoding_is_a_top_level_key(kasmvnc_yaml):
+    """One indent level too deep and `encoding:` nests under `logging:`,
+    where KasmVNC ignores it silently -- no warning, no error, just the
+    stock defaults. This is the assertion a string grep cannot make."""
+    assert "encoding" in kasmvnc_yaml
+    assert "encoding" not in kasmvnc_yaml.get("logging", {})
+    assert "encoding" not in kasmvnc_yaml.get("network", {})
+
+
+def test_dynamic_quality_floor_is_widened(kasmvnc_yaml):
+    """Stock band is 7-8, pinned near maximum, so the encoder holds
+    near-lossless through a full-screen redraw and falls behind rather
+    than degrading. KasmVNC varies quality within this band by how fast
+    the screen is CHANGING -- not by network feedback -- so lowering the
+    floor is what buys smooth motion."""
+    rect = kasmvnc_yaml["encoding"]["rect_encoding_mode"]
+    assert rect["min_quality"] == 4
+    assert rect["max_quality"] == 8
+
+
+def test_video_mode_engages_sooner(kasmvnc_yaml):
+    """Stock 5s: a drag or scroll spends five seconds in per-rect
+    JPEG/WebP before video mode engages."""
+    video = kasmvnc_yaml["encoding"]["video_encoding_mode"]
+    assert video["enter_video_encoding_mode"]["time_threshold"] == 2
+
+
+def test_vertical_scroll_detection_is_enabled(kasmvnc_yaml):
+    """Ships off. Sends a cheap region shift instead of re-encoding the
+    scrolled region."""
+    scrolling = kasmvnc_yaml["encoding"]["scrolling"]
+    assert scrolling["detect_vertical_scrolling"] is True
+
+
+def test_heredoc_conversion_preserved_the_existing_settings(kasmvnc_yaml):
+    """The echo-line block became a heredoc in the same edit that added
+    `encoding:`. These four are what the old block existed for: without
+    them Xvnc will not start (unreadable snakeoil cert) or nginx cannot
+    reach it (require_ssl on a plain-ws upstream)."""
+    assert kasmvnc_yaml["network"]["protocol"] == "http"
+    assert kasmvnc_yaml["network"]["ssl"]["require_ssl"] is False
+    assert kasmvnc_yaml["network"]["ssl"]["pem_certificate"].endswith(
+        "/.vnc/kasmvnc.pem"
+    )
+    assert kasmvnc_yaml["logging"]["level"] == 100

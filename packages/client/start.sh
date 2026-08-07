@@ -468,18 +468,39 @@ fi
 # Write the per-user kasmvnc.yaml that overrides the system-default cert
 # paths and disables SSL enforcement on the listener. nginx upstream is
 # plain ws:// because TLS is terminated one layer up at the allocator.
-{
-  echo 'network:'
-  echo '  protocol: http'
-  echo '  ssl:'
-  echo '    require_ssl: false'
-  echo '    pem_certificate: /home/client/.vnc/kasmvnc.pem'
-  echo '    pem_key: /home/client/.vnc/kasmvnc.key'
-  echo 'logging:'
-  echo '  log_writer_name: all'
-  echo '  log_dest: logfile'
-  echo '  level: 100'
-} > /home/client/.vnc/kasmvnc.yaml
+cat > /home/client/.vnc/kasmvnc.yaml <<'KASMYAML'
+network:
+  protocol: http
+  ssl:
+    require_ssl: false
+    pem_certificate: /home/client/.vnc/kasmvnc.pem
+    pem_key: /home/client/.vnc/kasmvnc.key
+logging:
+  log_writer_name: all
+  log_dest: logfile
+  level: 100
+# Encoder tuning. Without this block KasmVNC runs stock 1.4.0 defaults,
+# which hold near-maximum quality through a full-screen redraw and fall
+# behind rather than degrading -- the desktop never chooses to get cheaper
+# when it moves, which is what participants perceive as choppiness.
+encoding:
+  rect_encoding_mode:
+    # Stock band is 7-8, pinned near the top. KasmVNC varies quality within
+    # this band by how fast the screen is CHANGING, not by network feedback,
+    # so widening the floor is what buys smooth motion. It returns to 8 once
+    # the screen is static.
+    min_quality: 4
+    max_quality: 8
+  video_encoding_mode:
+    enter_video_encoding_mode:
+      # Stock 5s: a drag or scroll spends five seconds in per-rect
+      # JPEG/WebP before video mode engages. Note the matching exit
+      # threshold is 3s and is deliberately left at its default.
+      time_threshold: 2
+  scrolling:
+    # Ships off. Sends a cheap region shift instead of re-encoding.
+    detect_vertical_scrolling: true
+KASMYAML
 
 # Pick the KasmVNC auth scheme based on how the browser will reach us:
 #   * allocator_proxied (AWS / default): allocator nginx attaches HTTP
