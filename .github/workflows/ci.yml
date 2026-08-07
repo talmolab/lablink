@@ -105,7 +105,7 @@ jobs:
         if: matrix.needs-terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.6.6
+          terraform_version: 1.9.8
           terraform_wrapper: false
 
       - name: Install dependencies
