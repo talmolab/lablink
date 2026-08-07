@@ -449,13 +449,13 @@ chmod +x /home/client/.vnc/xstartup
 # a non-tty container, select-de.sh has no stdin and aborts the launch.
 touch /home/client/.vnc/.de-was-selected
 
-# kasmvncserver tries to open `network.ssl.pem_certificate` and `pem_key`
-# at startup regardless of `require_ssl`. The wrapper's defaults point at
-# /etc/ssl/private/ssl-cert-snakeoil.key, which the `client` user can't
-# read (root:ssl-cert 0640). Generate a fresh per-VM keypair under ~/.vnc/
-# and override the config to point at it. nginx terminates TLS at the
-# allocator, so we just need *some* valid keypair here; we never serve
-# it on the public path.
+# Inert, retained pending a separate cleanup. kasmvnc.yaml is read only by
+# the kasmvncserver Perl wrapper, which we bypass to exec Xvnc directly
+# (see the launch comment below) -- Xkasmvnc never opens the file. So these
+# cert paths are never read, this keypair is never used, and the unreadable
+# root:ssl-cert 0640 snakeoil key it was written to work around cannot be
+# reached in the first place. We run on the binary's compiled-in defaults.
+# Anything that must actually take effect belongs on the Xvnc argv.
 if [ ! -s /home/client/.vnc/kasmvnc.pem ]; then
   openssl req -x509 -newkey rsa:2048 -nodes \
     -keyout /home/client/.vnc/kasmvnc.key \
@@ -465,9 +465,10 @@ if [ ! -s /home/client/.vnc/kasmvnc.pem ]; then
   chmod 600 /home/client/.vnc/kasmvnc.key
 fi
 
-# Write the per-user kasmvnc.yaml that overrides the system-default cert
-# paths and disables SSL enforcement on the listener. nginx upstream is
-# plain ws:// because TLS is terminated one layer up at the allocator.
+# Same never-read consumer as the keypair above: this file only means
+# something to the Perl wrapper. Kept so that a future switch back to the
+# wrapper is not a rediscovery exercise. Do NOT add encoder settings here
+# -- they would be silently ignored. They go on the Xvnc argv below.
 cat > /home/client/.vnc/kasmvnc.yaml <<'KASMYAML'
 network:
   protocol: http
@@ -479,27 +480,6 @@ logging:
   log_writer_name: all
   log_dest: logfile
   level: 100
-# Encoder tuning. Without this block KasmVNC runs stock 1.4.0 defaults,
-# which hold near-maximum quality through a full-screen redraw and fall
-# behind rather than degrading -- the desktop never chooses to get cheaper
-# when it moves, which is what participants perceive as choppiness.
-encoding:
-  rect_encoding_mode:
-    # Stock band is 7-8, pinned near the top. KasmVNC varies quality within
-    # this band by how fast the screen is CHANGING, not by network feedback,
-    # so widening the floor is what buys smooth motion. It returns to 8 once
-    # the screen is static.
-    min_quality: 4
-    max_quality: 8
-  video_encoding_mode:
-    enter_video_encoding_mode:
-      # Stock 5s: a drag or scroll spends five seconds in per-rect
-      # JPEG/WebP before video mode engages. Note the matching exit
-      # threshold is 3s and is deliberately left at its default.
-      time_threshold: 2
-  scrolling:
-    # Ships off. Sends a cheap region shift instead of re-encoding.
-    detect_vertical_scrolling: true
 KASMYAML
 
 # Pick the KasmVNC auth scheme based on how the browser will reach us:
@@ -571,6 +551,23 @@ fi
 #      xterm pin below).
 # -interface 0.0.0.0 binds all interfaces; SG ingress (allocator SG only)
 # is the network-layer firewall.
+#
+# The three encoder flags are the desktop-responsiveness tuning. They are on
+# the argv rather than in kasmvnc.yaml *because* of the wrapper bypass above:
+# that file is parsed only by the wrapper, so an `encoding:` block there
+# never reaches this process. Stock KasmVNC never gets cheaper while the
+# screen moves -- it holds near-maximum quality through a full-screen redraw
+# and falls behind, which participants perceive as choppiness.
+#   -DynamicQualityMin 4  stock 7. The 7-8 band is pinned near the top, and
+#       KasmVNC varies quality within it by how fast the screen is CHANGING,
+#       not by network feedback, so the floor is what buys smooth motion. It
+#       returns to 8 once the screen is static. -DynamicQualityMax is left
+#       at its compiled default of 8.
+#   -VideoTime 2          stock 5. A drag or scroll otherwise spends five
+#       seconds in per-rect JPEG/WebP before video mode engages. The matching
+#       exit threshold is 3s and is deliberately left alone.
+#   -DetectScrolling 1    ships off. Sends a cheap region shift instead of
+#       re-encoding the scrolled region.
 stdbuf -oL -eL Xvnc :1 \
     -auth /home/client/.Xauthority \
     -desktop kasmvnc \
@@ -581,6 +578,9 @@ stdbuf -oL -eL Xvnc :1 \
     -localhost 0 \
     "${AUTH_ARGS[@]}" \
     -AlwaysShared 1 \
+    -DynamicQualityMin 4 \
+    -VideoTime 2 \
+    -DetectScrolling 1 \
     -noreset \
     2>&1 | sed -u 's/^/[kasmvnc] /' >&5 &
 

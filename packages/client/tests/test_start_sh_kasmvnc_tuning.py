@@ -6,11 +6,13 @@ and launches long-running services -- so these extract just the two
 config-generator blocks, run them in a bash subprocess against a temporary
 HOME, and parse the files they produce.
 
-Parsing rather than grepping is the point for the YAML. `encoding:` must be
-a TOP-LEVEL key; appended one indent level too deep it nests under
-`logging:` and KasmVNC ignores it *without an error*. A string assertion
-passes on that broken config and the deployment silently keeps the stock
-defaults, which is exactly the bug this work exists to fix.
+The encoder tuning is asserted against the *Xvnc argv*, not against
+kasmvnc.yaml. That file is read only by the kasmvncserver Perl wrapper,
+which start.sh deliberately bypasses to exec Xvnc directly, so settings
+placed there are inert -- an earlier version of these tests passed while
+asserting on a file nothing in the deployment opens. Asserting on the
+extracted argv block (rather than grepping the whole script) also means a
+flag named only in a comment cannot satisfy a test.
 """
 
 import subprocess
@@ -25,8 +27,14 @@ START_SH = Path(__file__).resolve().parents[1] / "start.sh"
 # (marker that identifies the block's first line, exact closing line)
 BLOCKS = [
     ("mkdir -p /home/client/.config/xfce4/xfconf", "XFWM"),
-    ("cat > /home/client/.vnc/kasmvnc.yaml", "KASMYAML"),
+    # Starts at the `mkdir -p ~/.vnc` that creates the heredoc's parent
+    # directory, so the block has to prove it makes its own parent rather
+    # than leaning on a directory the fixture pre-created.
+    ("mkdir -p /home/client/.vnc", "KASMYAML"),
 ]
+
+XVNC_LAUNCH = "stdbuf -oL -eL Xvnc :1"
+XVNC_LAUNCH_CLOSER = "    2>&1 | sed -u 's/^/[kasmvnc] /' >&5 &"
 
 
 def _extract(script_text: str, start_contains: str, closer: str) -> str:
@@ -52,16 +60,18 @@ def generated(tmp_path_factory, script_text) -> Path:
     """Run both generator blocks with /home/client redirected at a tmpdir,
     and return that tmpdir."""
     home = tmp_path_factory.mktemp("home")
-    (home / ".vnc").mkdir()
     for marker, closer in BLOCKS:
         snippet = _extract(script_text, marker, closer).replace(
             "/home/client", str(home)
         )
         result = subprocess.run(
-            ["bash", "-c", snippet],
+            # `set -e` because returncode otherwise reflects only the last
+            # command in the snippet: a failing mkdir followed by a
+            # succeeding cat would look like a pass.
+            ["bash", "-c", "set -e\n" + snippet],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         assert result.returncode == 0, result.stderr
     return home
@@ -103,42 +113,53 @@ def test_xfwm4_config_written_before_the_session_launches(script_text):
 
 
 @pytest.fixture(scope="module")
-def kasmvnc_yaml(generated) -> dict:
-    return yaml.safe_load((generated / ".vnc/kasmvnc.yaml").read_text())
+def xvnc_argv(script_text) -> list[str]:
+    """The Xvnc launch command's tokens, line continuations collapsed.
+    Scoped to the launch block so comment text can't satisfy a test."""
+    block = _extract(script_text, XVNC_LAUNCH, XVNC_LAUNCH_CLOSER)
+    return block.replace("\\\n", " ").split()
 
 
-def test_encoding_is_a_top_level_key(kasmvnc_yaml):
-    """One indent level too deep and `encoding:` nests under `logging:`,
-    where KasmVNC ignores it silently -- no warning, no error, just the
-    stock defaults. This is the assertion a string grep cannot make."""
-    assert "encoding" in kasmvnc_yaml
-    assert "encoding" not in kasmvnc_yaml.get("logging", {})
-    assert "encoding" not in kasmvnc_yaml.get("network", {})
+def _flag_value(argv: list[str], flag: str) -> str:
+    """The token immediately following `flag`, which is how Xvnc reads its
+    options -- the adjacency is the thing worth asserting."""
+    assert flag in argv, f"{flag} is not on the Xvnc argv"
+    return argv[argv.index(flag) + 1]
 
 
-def test_dynamic_quality_floor_is_widened(kasmvnc_yaml):
+def test_dynamic_quality_floor_is_widened(xvnc_argv):
     """Stock band is 7-8, pinned near maximum, so the encoder holds
     near-lossless through a full-screen redraw and falls behind rather
     than degrading. KasmVNC varies quality within this band by how fast
     the screen is CHANGING -- not by network feedback -- so lowering the
     floor is what buys smooth motion."""
-    rect = kasmvnc_yaml["encoding"]["rect_encoding_mode"]
-    assert rect["min_quality"] == 4
-    assert rect["max_quality"] == 8
+    assert _flag_value(xvnc_argv, "-DynamicQualityMin") == "4"
 
 
-def test_video_mode_engages_sooner(kasmvnc_yaml):
+def test_video_mode_engages_sooner(xvnc_argv):
     """Stock 5s: a drag or scroll spends five seconds in per-rect
     JPEG/WebP before video mode engages."""
-    video = kasmvnc_yaml["encoding"]["video_encoding_mode"]
-    assert video["enter_video_encoding_mode"]["time_threshold"] == 2
+    assert _flag_value(xvnc_argv, "-VideoTime") == "2"
 
 
-def test_vertical_scroll_detection_is_enabled(kasmvnc_yaml):
+def test_vertical_scroll_detection_is_enabled(xvnc_argv):
     """Ships off. Sends a cheap region shift instead of re-encoding the
-    scrolled region."""
-    scrolling = kasmvnc_yaml["encoding"]["scrolling"]
-    assert scrolling["detect_vertical_scrolling"] is True
+    scrolled region. `1`, not `true`, matching -AlwaysShared/-localhost
+    in the same argv."""
+    assert _flag_value(xvnc_argv, "-DetectScrolling") == "1"
+
+
+@pytest.fixture(scope="module")
+def kasmvnc_yaml(generated) -> dict:
+    return yaml.safe_load((generated / ".vnc/kasmvnc.yaml").read_text())
+
+
+def test_yaml_carries_no_encoder_settings(kasmvnc_yaml):
+    """Regression guard. kasmvnc.yaml is parsed only by the kasmvncserver
+    Perl wrapper, and start.sh bypasses that wrapper to exec Xvnc
+    directly -- so an `encoding:` block here reads as working tuning and
+    does nothing at all. Encoder settings belong on the argv."""
+    assert "encoding" not in kasmvnc_yaml
 
 
 def test_heredoc_conversion_preserved_the_existing_settings(kasmvnc_yaml):
