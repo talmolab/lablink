@@ -44,8 +44,8 @@ Use these commands for common development tasks:
 | **Testing** | `/test-allocator`, `/test-client`, `/test-cli`, `/test-coverage`, `/lint`, `/lint-fix` |
 | **Docker** | `/docker-build-allocator`, `/docker-build-client`, `/docker-test-allocator`, `/docker-test-client` |
 | **CI/CD** | `/trigger-ci`, `/trigger-docker-build`, `/publish-allocator`, `/publish-client` |
-| **Git & PR** | `/pr-description`, `/review-pr`, `/update-changelog` |
-| **Docs** | `/docs-serve`, `/docs-build` |
+| **Git & PR** | `/pr-description`, `/update-changelog` |
+| **Docs** | `/docs-build` |
 | **Dev** | `/dev-setup`, `/run-allocator-local`, `/validate-terraform` |
 
 Each file under `.claude/commands/` is the command plus only the notes that aren't
