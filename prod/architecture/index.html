@@ -5096,6 +5096,51 @@ contract.</p>
 <li>Exposes a local agent the allocator calls to rotate the VNC password per session</li>
 <li>Clones the configured repository and runs the containerized research software</li>
 </ol>
+<p><strong>Desktop performance</strong>: <code>start.sh</code> deliberately overrides four upstream
+defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
+moving — they hold near-maximum quality through a full-screen redraw and fall
+behind, which participants perceive as choppy motion. Do not revert these to
+their defaults without re-measuring:</p>
+<table>
+<thead>
+<tr>
+<th>Override</th>
+<th>Default</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>xfwm4</code> <code>use_compositing: false</code></td>
+<td>on</td>
+<td>The compositor recomposites the whole screen on every window move, so Xvnc sees one full-screen damage rect instead of a few small ones.</td>
+</tr>
+<tr>
+<td><code>-DynamicQualityMin 4</code></td>
+<td>7</td>
+<td>The stock 7–8 band is pinned near maximum. KasmVNC varies quality within the band by how fast the screen is <em>changing</em>, not by network feedback, so the floor is what governs motion smoothness.</td>
+</tr>
+<tr>
+<td><code>-VideoTime 2</code></td>
+<td>5</td>
+<td>Sustained motion otherwise spends five seconds in per-rect JPEG/WebP before video mode engages.</td>
+</tr>
+<tr>
+<td><code>-DetectScrolling 1</code></td>
+<td>off</td>
+<td>Sends a cheap region shift instead of re-encoding the scrolled region.</td>
+</tr>
+</tbody>
+</table>
+<p>The three encoder settings are passed on the <code>Xvnc</code> command line, not written
+to <code>~/.vnc/kasmvnc.yaml</code>. That file is read only by the <code>kasmvncserver</code> Perl
+wrapper, which <code>start.sh</code> bypasses to exec <code>Xvnc</code> directly, so tuning placed
+there is silently ignored.</p>
+<p>The compositing setting is written to the xfconf XML store rather than applied
+with <code>xfconf-query</code>, which would need the session dbus already up and would
+race <code>xfce4-session</code>. Turning the compositor off costs window drop shadows and
+ARGB transparency — <code>xfce4-terminal</code>'s transparent background, for instance,
+renders opaque. That is the trade, not a bug.</p>
 <p><strong>Configuration</strong>: See <code>packages/client/src/lablink_client/conf/structured_config.py</code></p>
 <h3 id="database-schema">Database Schema<a class="headerlink" href="#database-schema" title="Permanent link">&para;</a></h3>
 <p>Four tables: <code>vms</code> (one row per client machine), <code>operations</code> (async provisioning
