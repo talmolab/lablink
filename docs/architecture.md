@@ -191,6 +191,30 @@ contract.
    - Exposes a local agent the allocator calls to rotate the VNC password per session
    - Clones the configured repository and runs the containerized research software
 
+**Desktop performance**: `start.sh` deliberately overrides four upstream
+defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
+moving — they hold near-maximum quality through a full-screen redraw and fall
+behind, which participants perceive as choppy motion. Do not revert these to
+their defaults without re-measuring:
+
+| Override | Default | Why |
+|---|---|---|
+| `xfwm4` `use_compositing: false` | on | The compositor recomposites the whole screen on every window move, so Xvnc sees one full-screen damage rect instead of a few small ones. |
+| `-DynamicQualityMin 4` | 7 | The stock 7–8 band is pinned near maximum. KasmVNC varies quality within the band by how fast the screen is *changing*, not by network feedback, so the floor is what governs motion smoothness. |
+| `-VideoTime 2` | 5 | Sustained motion otherwise spends five seconds in per-rect JPEG/WebP before video mode engages. |
+| `-DetectScrolling 1` | off | Sends a cheap region shift instead of re-encoding the scrolled region. |
+
+The three encoder settings are passed on the `Xvnc` command line, not written
+to `~/.vnc/kasmvnc.yaml`. That file is read only by the `kasmvncserver` Perl
+wrapper, which `start.sh` bypasses to exec `Xvnc` directly, so tuning placed
+there is silently ignored.
+
+The compositing setting is written to the xfconf XML store rather than applied
+with `xfconf-query`, which would need the session dbus already up and would
+race `xfce4-session`. Turning the compositor off costs window drop shadows and
+ARGB transparency — `xfce4-terminal`'s transparent background, for instance,
+renders opaque. That is the trade, not a bug.
+
 **Configuration**: See `packages/client/src/lablink_client/conf/structured_config.py`
 
 ### Database Schema
