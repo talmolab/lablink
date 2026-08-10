@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import re
 import time
-from typing import Callable
+from typing import Callable, NoReturn
 
 import typer
 from rich.console import Console
@@ -20,47 +19,33 @@ from lablink_cli.api import (
     AllocatorUnavailableError,
 )
 from lablink_cli.commands.utils import (
+    format_duration,
     get_allocator_url,
     resolve_admin_credentials,
+    summarize_terraform,
 )
 
 console = Console()
 
 
-# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
-_APPLY_SUMMARY_RE = re.compile(
-    r"Apply complete!\s+Resources:\s+"
-    r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
-)
-_DESTROY_SUMMARY_RE = re.compile(
-    r"Destroy complete!\s+Resources:\s+(\d+)\s+destroyed",
-)
+def _resolve_api(cfg: Config) -> tuple[AllocatorAPI, str]:
+    """Build an allocator client from config, prompting for credentials if
+    they were never saved.
 
-
-def _summarize_terraform(output: str) -> str | None:
-    """Extract Terraform's apply/destroy summary line from raw output.
-
-    Returns None when neither summary matches — a no-op apply, an
-    interrupted run, or output captured before the trailing summary.
+    Returns ``(api, allocator_url)``; exits 1 if the deployment's URL
+    cannot be determined.
     """
-    m = _APPLY_SUMMARY_RE.search(output)
-    if m:
-        added, changed, destroyed = m.groups()
-        return f"Resources: {added} added, {changed} changed, {destroyed} destroyed"
-    m = _DESTROY_SUMMARY_RE.search(output)
-    if m:
-        (destroyed,) = m.groups()
-        return f"Resources: {destroyed} destroyed"
-    return None
+    allocator_url = get_allocator_url(cfg)
+    if not allocator_url:
+        console.print(
+            "[red]Could not determine allocator URL.[/red]\n"
+            "Run 'lablink deploy' first or check 'lablink status'."
+        )
+        raise SystemExit(1)
 
-
-def _format_duration(seconds: float) -> str:
-    """Render a duration as `1m 23s` or `45s`."""
-    seconds = int(seconds)
-    if seconds < 60:
-        return f"{seconds}s"
-    mins, secs = divmod(seconds, 60)
-    return f"{mins}m {secs}s"
+    admin_user, admin_pw = resolve_admin_credentials(cfg)
+    api = AllocatorAPI(allocator_url, admin_user, admin_pw, cfg.ssl.provider)
+    return api, allocator_url
 
 
 def _run_fleet_op(
@@ -76,7 +61,7 @@ def _run_fleet_op(
     the bar stays indeterminate rather than rendering a literal "None".
 
     Returns ``(result, elapsed_seconds)``. Exceptions from ``api_call``
-    propagate untouched — each caller maps them to its own messages.
+    propagate untouched — callers map them via ``_exit_fleet_error``.
     """
     started = time.monotonic()
     with Progress(
@@ -101,9 +86,57 @@ def _run_fleet_op(
     return result, time.monotonic() - started
 
 
+def _report(
+    result: dict | None,
+    elapsed: float,
+    *,
+    label: str,
+    verbose: bool,
+) -> None:
+    """Print the success line and Terraform's resource summary, plus the
+    raw Terraform output under ``verbose``."""
+    output = (result or {}).get("output", "")
+    console.print(
+        f"[green]✓ {label}[/green]  [dim]({format_duration(elapsed)})[/dim]"
+    )
+    summary = summarize_terraform(output)
+    if summary:
+        console.print(f"  {summary}")
+    if verbose and output:
+        console.print()
+        console.print("[bold]Terraform output:[/bold]")
+        console.print(output)
+    elif output:
+        console.print(
+            "  [dim]Pass --verbose to see full Terraform output.[/dim]"
+        )
+
+
+def _exit_fleet_error(e: AllocatorError, *, label: str) -> NoReturn:
+    """Report a failed fleet operation and exit 1.
+
+    Auth and connectivity failures get their own advice because the fix
+    differs. Everything else (409 already-in-progress, 405 unsupported,
+    poll timeout, HTTP 5xx) is reported verbatim under ``label`` — the
+    allocator's own message is more specific than anything we'd invent.
+    """
+    if isinstance(e, AllocatorAuthError):
+        console.print(
+            "[red]Authentication failed.[/red] Check your admin credentials."
+        )
+    elif isinstance(e, AllocatorUnavailableError):
+        console.print(f"[red]Could not connect to allocator:[/red] {e}")
+        console.print(
+            "  Check that the allocator is running with 'lablink status'."
+        )
+    else:
+        console.print(f"[red]{label}:[/red] {e}")
+    raise SystemExit(1)
+
+
 def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
     """Launch client VMs by calling the allocator /api/launch endpoint."""
-    if getattr(cfg, "provider", "aws") == "manual":
+    if cfg.provider == "manual":
         console.print(
             "Manual provider has no VMs to launch — each BYO box "
             "runs `lablink client register` to join the pool. See "
@@ -112,17 +145,7 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
         return
 
     console.print()
-
-    allocator_url = get_allocator_url(cfg)
-    if not allocator_url:
-        console.print(
-            "[red]Could not determine allocator URL.[/red]\n"
-            "Run 'lablink deploy' first or check 'lablink status'."
-        )
-        raise SystemExit(1)
-
-    admin_user, admin_pw = resolve_admin_credentials(cfg)
-    api = AllocatorAPI(allocator_url, admin_user, admin_pw, cfg.ssl.provider)
+    api, allocator_url = _resolve_api(cfg)
 
     console.print(f"  [dim]POST {allocator_url}/api/launch[/dim]")
     console.print()
@@ -134,44 +157,9 @@ def run_launch(cfg: Config, num_vms: int, *, verbose: bool = False) -> None:
             ),
             description=f"[bold]Launching {num_vms} client VM(s)...[/bold]",
         )
-
-        output = (result or {}).get("output", "")
-        summary = _summarize_terraform(output)
-        console.print(
-            f"[green]✓ Launch successful[/green]  "
-            f"[dim]({_format_duration(elapsed)})[/dim]"
-        )
-        if summary:
-            console.print(f"  {summary}")
-        if verbose and output:
-            console.print()
-            console.print("[bold]Terraform output:[/bold]")
-            console.print(output)
-        elif output:
-            console.print(
-                "  [dim]Pass --verbose to see full Terraform "
-                "output.[/dim]"
-            )
-
-    except AllocatorAuthError:
-        console.print(
-            "[red]Authentication failed.[/red] "
-            "Check your admin credentials."
-        )
-        raise SystemExit(1)
-    except AllocatorUnavailableError as e:
-        console.print(
-            f"[red]Could not connect to allocator:[/red] {e}"
-        )
-        console.print(
-            "  Check that the allocator is running with 'lablink status'."
-        )
-        raise SystemExit(1)
+        _report(result, elapsed, label="Launch successful", verbose=verbose)
     except AllocatorError as e:
-        console.print(
-            f"[red]Launch failed:[/red] {e}"
-        )
-        raise SystemExit(1)
+        _exit_fleet_error(e, label="Launch failed")
 
     console.print()
     console.print(
@@ -192,7 +180,7 @@ def run_client_destroy(
         yes: Skip the confirmation prompt.
         verbose: Print the allocator's full Terraform output.
     """
-    if getattr(cfg, "provider", "aws") == "manual":
+    if cfg.provider == "manual":
         console.print(
             "Manual provider has no VMs to destroy — each BYO box "
             "leaves the pool by running `lablink client unregister` "
@@ -202,16 +190,7 @@ def run_client_destroy(
         return
 
     console.print()
-
-    allocator_url = get_allocator_url(cfg)
-    if not allocator_url:
-        console.print(
-            "[red]Could not determine allocator URL.[/red]\n"
-            "Run 'lablink deploy' first or check 'lablink status'."
-        )
-        raise SystemExit(1)
-
-    admin_user, admin_pw = resolve_admin_credentials(cfg)
+    api, allocator_url = _resolve_api(cfg)
 
     if not yes:
         console.print(
@@ -229,8 +208,6 @@ def run_client_destroy(
             return
         console.print()
 
-    api = AllocatorAPI(allocator_url, admin_user, admin_pw, cfg.ssl.provider)
-
     console.print(f"  [dim]POST {allocator_url}/destroy[/dim]")
     console.print()
 
@@ -239,45 +216,18 @@ def run_client_destroy(
             lambda on_progress: api.destroy_vms(on_progress=on_progress),
             description="[bold]Destroying client VMs...[/bold]",
         )
-
-        output = (result or {}).get("output", "")
-        summary = _summarize_terraform(output)
-        console.print(
-            f"[green]✓ client VMs destroyed[/green]  "
-            f"[dim]({_format_duration(elapsed)})[/dim]"
-        )
-        if summary:
-            console.print(f"  {summary}")
-        if verbose and output:
-            console.print()
-            console.print("[bold]Terraform output:[/bold]")
-            console.print(output)
-        elif output:
-            console.print(
-                "  [dim]Pass --verbose to see full Terraform output.[/dim]"
-            )
+        _report(result, elapsed, label="client VMs destroyed", verbose=verbose)
     except AllocatorNotFoundError:
         # Nothing was ever launched, so there is nothing to tear down.
-        # Not a failure: the command is idempotent.
+        # Not a failure: the command is idempotent. Must precede the
+        # AllocatorError clause below — it is a subclass.
         console.print(
             "[yellow]No client VMs were launched — "
             "nothing to destroy.[/yellow]"
         )
         return
-    except AllocatorAuthError:
-        console.print(
-            "[red]Authentication failed.[/red] Check your admin credentials."
-        )
-        raise SystemExit(1)
-    except AllocatorUnavailableError as e:
-        console.print(f"[red]Could not connect to allocator:[/red] {e}")
-        console.print(
-            "  Check that the allocator is running with 'lablink status'."
-        )
-        raise SystemExit(1)
     except AllocatorError as e:
-        console.print(f"[red]Client destroy failed:[/red] {e}")
-        raise SystemExit(1)
+        _exit_fleet_error(e, label="Client destroy failed")
 
     console.print()
     console.print(

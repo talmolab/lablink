@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 import time
@@ -18,9 +17,11 @@ from lablink_allocator_service.conf.structured_config import Config
 from lablink_cli.commands.setup import check_credentials, _get_session
 from lablink_cli.commands.status import check_health_endpoint
 from lablink_cli.commands.utils import (
+    format_duration,
     get_allocator_url,
     get_deploy_dir,
     resolve_admin_credentials,
+    summarize_terraform,
 )
 from lablink_cli.api import (
     AllocatorAPI,
@@ -119,42 +120,6 @@ def _prepare_working_dir(
     return deploy_dir
 
 
-# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
-_APPLY_SUMMARY_RE = re.compile(
-    r"Apply complete!\s+Resources:\s+"
-    r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
-)
-_DESTROY_SUMMARY_RE = re.compile(
-    r"Destroy complete!\s+Resources:\s+(\d+)\s+destroyed",
-)
-
-
-def _summarize_terraform(output: str) -> str | None:
-    """Extract Terraform's apply/destroy summary line from raw output.
-
-    Returns None when neither summary matches — e.g., a no-op apply, an
-    interrupted run, or output captured before the trailing summary.
-    """
-    m = _APPLY_SUMMARY_RE.search(output)
-    if m:
-        added, changed, destroyed = m.groups()
-        return f"Resources: {added} added, {changed} changed, {destroyed} destroyed"
-    m = _DESTROY_SUMMARY_RE.search(output)
-    if m:
-        (destroyed,) = m.groups()
-        return f"Resources: {destroyed} destroyed"
-    return None
-
-
-def _format_duration(seconds: float) -> str:
-    """Render a duration as `1m 23s` or `45s`."""
-    seconds = int(seconds)
-    if seconds < 60:
-        return f"{seconds}s"
-    mins, secs = divmod(seconds, 60)
-    return f"{mins}m {secs}s"
-
-
 def _run_terraform(
     args: list[str],
     cwd: Path,
@@ -220,9 +185,9 @@ def _run_terraform(
         else:
             console.print(
                 f"  [green]✓ terraform {action}[/green]  "
-                f"[dim]({_format_duration(elapsed)})[/dim]"
+                f"[dim]({format_duration(elapsed)})[/dim]"
             )
-            summary = _summarize_terraform(output)
+            summary = summarize_terraform(output)
             if summary:
                 console.print(f"  {summary}")
 
@@ -690,10 +655,10 @@ def _destroy_client_vms(
         elapsed = time.monotonic() - started
         console.print(
             f"  [green]✓ client VMs destroyed[/green]  "
-            f"[dim]({_format_duration(elapsed)})[/dim]"
+            f"[dim]({format_duration(elapsed)})[/dim]"
         )
         output = (result or {}).get("output", "")
-        summary = _summarize_terraform(output)
+        summary = summarize_terraform(output)
         if summary:
             console.print(f"  {summary}")
         if verbose and output:

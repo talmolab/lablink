@@ -223,9 +223,7 @@ time loses their session. Run
 numbers. Prompts for confirmation unless `--yes` is passed.
 
 If no client VMs were ever launched the command reports that and exits 0, so it
-is safe to re-run. If an apply or destroy is already in progress — someone using
-the admin UI at the same time — the allocator refuses and names the in-flight
-job.
+is safe to re-run.
 
 Under the manual provider this command no-ops with a message pointing you at
 [`client unregister`](#client-unregister).

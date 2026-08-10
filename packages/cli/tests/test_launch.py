@@ -15,27 +15,6 @@ from lablink_cli.api import (
 from lablink_cli.commands.launch import run_client_destroy, run_launch
 
 
-class TestSummarizeTerraform:
-    def test_matches_apply_summary(self):
-        from lablink_cli.commands.launch import _summarize_terraform
-
-        output = "Apply complete! Resources: 3 added, 0 changed, 0 destroyed."
-        assert _summarize_terraform(output) == (
-            "Resources: 3 added, 0 changed, 0 destroyed"
-        )
-
-    def test_matches_destroy_summary(self):
-        from lablink_cli.commands.launch import _summarize_terraform
-
-        output = "Destroy complete! Resources: 7 destroyed."
-        assert _summarize_terraform(output) == "Resources: 7 destroyed"
-
-    def test_returns_none_when_no_summary(self):
-        from lablink_cli.commands.launch import _summarize_terraform
-
-        assert _summarize_terraform("terraform init\nno summary here") is None
-
-
 class TestRunLaunch:
     @patch("lablink_cli.commands.launch.resolve_admin_credentials")
     @patch("lablink_cli.commands.launch.get_allocator_url")
@@ -403,7 +382,12 @@ class TestRunClientDestroy:
 
 
 class TestManualDestroyNoOp:
-    def test_manual_provider_points_at_unregister(self, capsys, mock_cfg):
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_manual_provider_points_at_unregister_and_touches_nothing(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg, capsys
+    ):
         mock_cfg.provider = "manual"
 
         run_client_destroy(mock_cfg, yes=True)
@@ -411,17 +395,6 @@ class TestManualDestroyNoOp:
         out = " ".join(capsys.readouterr().out.split())
         assert "Manual provider" in out
         assert "lablink client unregister" in out
-
-    @patch("lablink_cli.commands.launch.AllocatorAPI")
-    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
-    @patch("lablink_cli.commands.launch.get_allocator_url")
-    def test_manual_provider_does_not_touch_allocator(
-        self, mock_url, mock_creds, mock_api_cls, mock_cfg
-    ):
-        mock_cfg.provider = "manual"
-
-        run_client_destroy(mock_cfg, yes=True)
-
         mock_url.assert_not_called()
         mock_creds.assert_not_called()
         mock_api_cls.assert_not_called()

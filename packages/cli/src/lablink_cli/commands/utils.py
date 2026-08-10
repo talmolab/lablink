@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,45 @@ from rich.console import Console
 from lablink_allocator_service.conf.structured_config import Config
 
 console = Console()
+
+
+# ------------------------------------------------------------------
+# Terraform output formatting
+# ------------------------------------------------------------------
+# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
+_APPLY_SUMMARY_RE = re.compile(
+    r"Apply complete!\s+Resources:\s+"
+    r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
+)
+_DESTROY_SUMMARY_RE = re.compile(
+    r"Destroy complete!\s+Resources:\s+(\d+)\s+destroyed",
+)
+
+
+def summarize_terraform(output: str) -> str | None:
+    """Extract Terraform's apply/destroy summary line from raw output.
+
+    Returns None when neither summary matches — a no-op apply, an
+    interrupted run, or output captured before the trailing summary.
+    """
+    m = _APPLY_SUMMARY_RE.search(output)
+    if m:
+        added, changed, destroyed = m.groups()
+        return f"Resources: {added} added, {changed} changed, {destroyed} destroyed"
+    m = _DESTROY_SUMMARY_RE.search(output)
+    if m:
+        (destroyed,) = m.groups()
+        return f"Resources: {destroyed} destroyed"
+    return None
+
+
+def format_duration(seconds: float) -> str:
+    """Render a duration as `1m 23s` or `45s`."""
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    mins, secs = divmod(seconds, 60)
+    return f"{mins}m {secs}s"
 
 
 # ------------------------------------------------------------------
