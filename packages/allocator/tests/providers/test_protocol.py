@@ -2,7 +2,6 @@ from lablink_allocator_service.providers.protocol import (
     ClientHandle,
     ComputeProvider,
     ClientConnectivity,
-    ProviderActionNotWired,
     BrowserSessionTarget,
 )
 
@@ -50,10 +49,6 @@ def test_protocols_are_runtime_checkable():
     assert isinstance(GoodConn(), ClientConnectivity)
     assert isinstance(GoodProvider(), ComputeProvider)
     assert not isinstance(object(), ComputeProvider)
-
-
-def test_provider_action_not_wired_is_exception():
-    assert issubclass(ProviderActionNotWired, Exception)
 
 
 def test_client_join_material_fields():

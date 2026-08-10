@@ -151,7 +151,9 @@ def render_compose_dir(
     mesh-overlay client's Tailscale hostname) or
     `cfg.manual.participant_exposure == "tailscale_funnel"` (so the
     allocator can publish itself to participants via Funnel). Both reuse
-    the exact same sidecar — it doesn't care which reason applies. The
+    the exact same sidecar — it doesn't care which reason applies, which
+    is why it ships as one `docker-compose.override.yml` layered over the
+    single base stack rather than as a second full copy of it. The
     internal Postgres data is persisted via a named volume on
     /var/lib/postgresql. Admin/DB creds live in the saved config.yaml
     (NOT in env vars) — the caller is responsible for populating
@@ -171,13 +173,23 @@ def render_compose_dir(
     target.mkdir(parents=True, exist_ok=True)
     needs_sidecar = _needs_tailscale_sidecar(cfg)
 
-    # 1. Copy the bundled docker-compose template — the sidecar variant
-    #    adds the Tailscale sidecar; otherwise identical.
-    template_name = (
-        "docker-compose-mesh-overlay.yml" if needs_sidecar else "docker-compose.yml"
+    # 1. Copy the bundled compose templates. The base stack is always the
+    #    same file; the Tailscale sidecar arrives as Compose's own
+    #    auto-loaded `docker-compose.override.yml`, so no `docker compose`
+    #    call site needs `-f` flags. Delete a stale override when the
+    #    sidecar is no longer needed — Compose would otherwise keep
+    #    merging it and silently rejoin the tailnet on the next redeploy.
+    templates = resources.files("lablink_cli.templates")
+    (target / "docker-compose.yml").write_text(
+        templates.joinpath("docker-compose.yml").read_text()
     )
-    template = resources.files("lablink_cli.templates").joinpath(template_name)
-    (target / "docker-compose.yml").write_text(template.read_text())
+    override_path = target / "docker-compose.override.yml"
+    if needs_sidecar:
+        override_path.write_text(
+            templates.joinpath("docker-compose.tailscale-override.yml").read_text()
+        )
+    else:
+        override_path.unlink(missing_ok=True)
 
     # 2. Render .env — only the values the compose template substitutes.
     #    No DB or admin creds here: they're inside config.yaml. Read the

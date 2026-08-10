@@ -24,6 +24,56 @@ except Exception:  # pragma: no cover - package metadata unavailable
 USER_AGENT = f"lablink-cli/{_CLI_VERSION}"
 
 
+def ssl_context(ssl_provider: str) -> ssl.SSLContext:
+    """Verifying context, except under `self_signed` where there is no CA
+    to verify against and the operator has opted into that trade."""
+    ctx = ssl.create_default_context()
+    if ssl_provider == "self_signed":
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def basic_auth_header(admin_user: str, admin_password: str) -> str:
+    credentials = base64.b64encode(
+        f"{admin_user}:{admin_password}".encode()
+    ).decode()
+    return f"Basic {credentials}"
+
+
+def _read_body(
+    url: str,
+    *,
+    method: str,
+    auth_header: str,
+    ssl_ctx: ssl.SSLContext,
+    timeout: int,
+    data: bytes | None = None,
+    content_type: str | None = None,
+) -> str:
+    """Send one authenticated request and return the decoded body.
+
+    Owns the plumbing every caller in this module shares — the header
+    set, the context manager, the decode — and nothing else. HTTPError
+    and URLError propagate untranslated: the three callers each map them
+    differently (raw for `authenticated_json_request`, typed exceptions
+    with 404/502 handling for `AllocatorAPI`, typed with 409/400 for
+    `RegistrationClient`), and that mapping is the part that must stay
+    per-caller.
+    """
+    req = Request(url, data=data, method=method)
+    req.add_header("User-Agent", USER_AGENT)
+    req.add_header("Authorization", auth_header)
+    req.add_header("Accept", "application/json")
+    if content_type:
+        req.add_header("Content-Type", content_type)
+
+    # S310: URL scheme is operator-supplied by design (allocator base URL
+    # from the CLI config); skipping the scheme allowlist check.
+    with urlopen(req, timeout=timeout, context=ssl_ctx) as resp:  # noqa: S310
+        return resp.read().decode()
+
+
 def authenticated_json_request(
     url: str,
     admin_user: str,
@@ -40,24 +90,14 @@ def authenticated_json_request(
     TUI error dict there), so this only owns the request plumbing, not
     the error translation.
     """
-    credentials = base64.b64encode(
-        f"{admin_user}:{admin_password}".encode()
-    ).decode()
-
-    req = Request(url, method="GET")
-    req.add_header("User-Agent", USER_AGENT)
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Accept", "application/json")
-
-    ctx = ssl.create_default_context()
-    if ssl_provider == "self_signed":
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-    # S310: URL scheme is operator-supplied by design (allocator base
-    # URL from the CLI config); skipping the scheme allowlist check.
-    resp = urlopen(req, timeout=timeout, context=ctx)  # noqa: S310
-    return json.loads(resp.read().decode())
+    raw = _read_body(
+        url,
+        method="GET",
+        auth_header=basic_auth_header(admin_user, admin_password),
+        ssl_ctx=ssl_context(ssl_provider),
+        timeout=timeout,
+    )
+    return json.loads(raw)
 
 # /destroy and /api/launch are async (they return a job id immediately;
 # the allocator runs Terraform on a background thread). Individual
@@ -111,14 +151,8 @@ class AllocatorAPI:
         ssl_provider: str = "none",
     ) -> None:
         self.base_url = base_url.rstrip("/")
-        self._auth_header = "Basic " + base64.b64encode(
-            f"{admin_user}:{admin_password}".encode()
-        ).decode()
-
-        self._ssl_ctx = ssl.create_default_context()
-        if ssl_provider == "self_signed":
-            self._ssl_ctx.check_hostname = False
-            self._ssl_ctx.verify_mode = ssl.CERT_NONE
+        self._auth_header = basic_auth_header(admin_user, admin_password)
+        self._ssl_ctx = ssl_context(ssl_provider)
 
     def destroy_vms(
         self,
@@ -228,21 +262,16 @@ class AllocatorAPI:
         content_type: str | None = None,
     ) -> dict | None:
         """Send an HTTP request to the allocator."""
-        url = f"{self.base_url}{path}"
-        req = Request(url, data=data, method=method)
-        req.add_header("User-Agent", USER_AGENT)
-        req.add_header("Authorization", self._auth_header)
-        req.add_header("Accept", "application/json")
-        if content_type:
-            req.add_header("Content-Type", content_type)
-
         try:
-            # S310: URL scheme is operator-supplied by design (allocator base
-            # URL from the CLI config); skipping the scheme allowlist check.
-            with urlopen(
-                req, timeout=_REQUEST_TIMEOUT_SECONDS, context=self._ssl_ctx
-            ) as resp:  # noqa: S310
-                raw = resp.read().decode()
+            raw = _read_body(
+                f"{self.base_url}{path}",
+                method=method,
+                auth_header=self._auth_header,
+                ssl_ctx=self._ssl_ctx,
+                timeout=_REQUEST_TIMEOUT_SECONDS,
+                data=data,
+                content_type=content_type,
+            )
         except HTTPError as e:
             self._handle_http_error(e)
         except URLError as e:
@@ -306,10 +335,7 @@ class RegistrationClient:
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._auth_header = f"Bearer {register_token}"
-        self._ssl_ctx = ssl.create_default_context()
-        if ssl_provider == "self_signed":
-            self._ssl_ctx.check_hostname = False
-            self._ssl_ctx.verify_mode = ssl.CERT_NONE
+        self._ssl_ctx = ssl_context(ssl_provider)
 
     def register(
         self,
@@ -359,19 +385,16 @@ class RegistrationClient:
         return self._post("/api/v1/clients/register", body)
 
     def _post(self, path: str, body: dict) -> dict:
-        url = f"{self.base_url}{path}"
-        data = json.dumps(body).encode()
-        req = Request(url, data=data, method="POST")
-        req.add_header("User-Agent", USER_AGENT)
-        req.add_header("Authorization", self._auth_header)
-        req.add_header("Content-Type", "application/json")
-        req.add_header("Accept", "application/json")
-
         try:
-            # S310: URL scheme is operator-supplied by design (allocator base
-            # URL from `--allocator-url`); skipping the scheme allowlist check.
-            with urlopen(req, timeout=60, context=self._ssl_ctx) as resp:  # noqa: S310
-                raw = resp.read().decode()
+            raw = _read_body(
+                f"{self.base_url}{path}",
+                method="POST",
+                auth_header=self._auth_header,
+                ssl_ctx=self._ssl_ctx,
+                timeout=60,
+                data=json.dumps(body).encode(),
+                content_type="application/json",
+            )
         except HTTPError as e:
             self._handle_http_error(e)
         except URLError as e:

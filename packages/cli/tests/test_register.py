@@ -1575,7 +1575,7 @@ def test_overlay_run_mounts_tailscale_state_volume():
     is ephemeral, so every container recreate mints a NEW tailnet node and
     Tailscale suffixes the MagicDNS name (-1, -2, ...), stranding the
     allocator on the dead one (lablink#404). Mirrors the allocator's own
-    tailscale_state volume in docker-compose-mesh-overlay.yml."""
+    tailscale_state volume in the compose sidecar override."""
     from pathlib import Path
 
     from lablink_cli.commands.register import (

@@ -15,7 +15,13 @@ from lablink_allocator_service.db.pool import (
     PooledCursor,
     validate_pool_sizes,
 )
-from lablink_allocator_service.secret_hash import SecretHashCache, invalidate_verify
+from lablink_allocator_service.secret_hash import (
+    SECRET_HASH_CACHE_MAX_SIZE,
+    SECRET_HASH_NEGATIVE_TTL_S,
+    SECRET_HASH_POSITIVE_TTL_S,
+    TtlLruCache,
+    invalidate_verify,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -97,7 +103,11 @@ class VmDatabase:
                 port=port,
             )
             self._owns_pool = True
-        self._secret_hash_cache = SecretHashCache()
+        self._secret_hash_cache = TtlLruCache(
+            ttl=SECRET_HASH_POSITIVE_TTL_S,
+            negative_ttl=SECRET_HASH_NEGATIVE_TTL_S,
+            max_size=SECRET_HASH_CACHE_MAX_SIZE,
+        )
 
     @property
     def _cursor(self):
@@ -193,7 +203,7 @@ class VmDatabase:
     def get_client_secret_hash(self, hostname: str):
         """Return the argon2 client_secret_hash for a hostname, or None.
 
-        Cached per-hostname (see ``SecretHashCache``). The version token
+        Cached per-hostname (see ``TtlLruCache``). The version token
         captured before the SELECT is re-checked on put — a concurrent
         ``register_client`` or ``unregister_client`` that bumps the
         version mid-flight rejects the stale write, so the next call

@@ -11,17 +11,10 @@ from lablink_allocator_service.client_session import (  # single canonical type
 )
 
 
-class ProviderActionNotWired(Exception):
-    """Raised by a provider method that is part of the contract but is
-    intentionally not wired into the allocator core in this PR."""
-
-
 class ProvisioningNotSupported(Exception):
     """Raised by a provider whose structural model does not support a
-    lifecycle operation — distinct from `ProviderActionNotWired` (deferred
-    wiring). For example, `ManualProvider` cannot ever provision hosts
-    because the operator brings them; raising this signals "never" rather
-    than "not yet"."""
+    lifecycle operation. For example, `ManualProvider` cannot ever provision
+    hosts because the operator brings them; raising this signals "never"."""
 
 
 @dataclass

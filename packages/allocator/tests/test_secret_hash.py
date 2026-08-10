@@ -6,8 +6,10 @@ import pytest
 from lablink_allocator_service import secret_hash
 from lablink_allocator_service.secret_hash import (
     REGISTER_TOKEN_SUBJECT,
-    SecretHashCache,
-    _VerifyResultCache,
+    SECRET_HASH_CACHE_MAX_SIZE,
+    SECRET_HASH_NEGATIVE_TTL_S,
+    SECRET_HASH_POSITIVE_TTL_S,
+    TtlLruCache,
     _token_fingerprint,
     clear_verify_cache,
     hash_secret,
@@ -23,6 +25,17 @@ def _isolate_verify_cache():
     clear_verify_cache()
     yield
     clear_verify_cache()
+
+
+def _secret_hash_cache(**overrides) -> TtlLruCache:
+    """A cache configured the way VmDatabase configures its own."""
+    kwargs = {
+        "ttl": SECRET_HASH_POSITIVE_TTL_S,
+        "negative_ttl": SECRET_HASH_NEGATIVE_TTL_S,
+        "max_size": SECRET_HASH_CACHE_MAX_SIZE,
+    }
+    kwargs.update(overrides)
+    return TtlLruCache(**kwargs)
 
 
 # ── Existing argon2 wrapper tests ──────────────────────────────────────
@@ -160,58 +173,72 @@ def test_invalidate_unknown_subject_is_noop():
 
 
 # ── Cache mechanics: TTL, capacity ─────────────────────────────────────
+# One class backs both caches, so these exercise it in the verify cache's
+# shape: a compound (subject, token-fingerprint) key and no version guard.
 
 
 def test_ttl_expiry():
-    """After the TTL elapses, the cached entry is dropped and argon2
-    runs again on the next call."""
-    cache = _VerifyResultCache(positive_ttl_seconds=0.01)
-    fp = _token_fingerprint("tk_a")
+    """After the TTL elapses, the cached entry is dropped and the caller
+    is told to re-derive the value."""
+    cache = TtlLruCache(ttl=0.01, max_size=8)
+    key = ("host-1", _token_fingerprint("tk_a"))
 
-    cache.mark_verified("host-1", fp)
-    assert cache.is_verified("host-1", fp) is True
+    cache.put(key, True)
+    assert cache.get(key)[0] is True
 
     import time as _time
 
     _time.sleep(0.02)
-    assert cache.is_verified("host-1", fp) is False
+    assert cache.get(key)[0] is False
 
 
 def test_lru_eviction_when_over_cap():
     """Beyond max_size, the least-recently-used entry is evicted."""
-    cache = _VerifyResultCache(max_size=3)
-    fps = [_token_fingerprint(f"tk_{i}") for i in range(4)]
-    for i, fp in enumerate(fps[:3]):
-        cache.mark_verified(f"host-{i}", fp)
+    cache = TtlLruCache(ttl=60.0, max_size=3)
+    keys = [(f"host-{i}", _token_fingerprint(f"tk_{i}")) for i in range(4)]
+    for key in keys[:3]:
+        cache.put(key, True)
     # Inserting a 4th entry evicts host-0 (the LRU).
-    cache.mark_verified("host-3", fps[3])
+    cache.put(keys[3], True)
 
-    assert cache.is_verified("host-0", fps[0]) is False
-    assert cache.is_verified("host-1", fps[1]) is True
-    assert cache.is_verified("host-2", fps[2]) is True
-    assert cache.is_verified("host-3", fps[3]) is True
+    assert cache.get(keys[0])[0] is False
+    assert cache.get(keys[1])[0] is True
+    assert cache.get(keys[2])[0] is True
+    assert cache.get(keys[3])[0] is True
 
 
 def test_lru_touch_on_get_preserves_recently_used():
-    cache = _VerifyResultCache(max_size=3)
-    fps = [_token_fingerprint(f"tk_{i}") for i in range(4)]
-    for i, fp in enumerate(fps[:3]):
-        cache.mark_verified(f"host-{i}", fp)
+    cache = TtlLruCache(ttl=60.0, max_size=3)
+    keys = [(f"host-{i}", _token_fingerprint(f"tk_{i}")) for i in range(4)]
+    for key in keys[:3]:
+        cache.put(key, True)
 
     # Touch host-0 so it's no longer the LRU; host-1 should be evicted
     # when we insert a 4th entry.
-    assert cache.is_verified("host-0", fps[0]) is True
-    cache.mark_verified("host-3", fps[3])
+    assert cache.get(keys[0])[0] is True
+    cache.put(keys[3], True)
 
-    assert cache.is_verified("host-0", fps[0]) is True
-    assert cache.is_verified("host-1", fps[1]) is False
-    assert cache.is_verified("host-2", fps[2]) is True
-    assert cache.is_verified("host-3", fps[3]) is True
+    assert cache.get(keys[0])[0] is True
+    assert cache.get(keys[1])[0] is False
+    assert cache.get(keys[2])[0] is True
+    assert cache.get(keys[3])[0] is True
 
 
-def test_invalid_max_size_rejected():
-    with pytest.raises(ValueError):
-        _VerifyResultCache(max_size=0)
+def test_negative_ttl_defaults_to_ttl_when_unset():
+    """The verify cache passes no negative_ttl; a stored None must then
+    expire on the positive TTL rather than immediately or never."""
+    cache = TtlLruCache(ttl=60.0, max_size=8)
+    cache.put("k", None)
+    assert cache.get("k") == (True, None, 0)
+
+
+def test_put_without_expected_version_skips_the_guard():
+    """The verify cache never passes a version; an intervening
+    invalidate must not be able to reject its writes."""
+    cache = TtlLruCache(ttl=60.0, max_size=8)
+    cache.invalidate("k")  # bumps version to 1
+    assert cache.put("k", True) is True
+    assert cache.get("k")[0] is True
 
 
 # ── REGISTER_TOKEN_SUBJECT sentinel ────────────────────────────────────
@@ -252,15 +279,15 @@ def test_token_fingerprint_does_not_include_plaintext():
     assert "totally_secret_token_value" not in fp
 
 
-# ── SecretHashCache: TTL, invalidate-race, LRU ─────────────────────────
+# ── Secret-hash cache: TTLs, invalidate-race ───────────────────────────
+# Same class as above, in the shape VmDatabase configures it: a plain
+# hostname key, a shorter negative TTL, and the version guard in use.
 
 
 def test_secret_hash_cache_ttl_expiry_re_queries():
     """Direct test of the cache primitive: after expiry, the next get is
     a miss and the caller must re-query."""
-    cache = SecretHashCache(
-        positive_ttl_seconds=0.05, negative_ttl_seconds=0.05
-    )
+    cache = _secret_hash_cache(ttl=0.05, negative_ttl=0.05)
     assert cache.put("vm-1", "$h", expected_version=0) is True
     hit, val, _ = cache.get("vm-1")
     assert hit is True and val == "$h"
@@ -275,14 +302,26 @@ def test_secret_hash_cache_ttl_expiry_re_queries():
 def test_secret_hash_cache_negative_entry_returns_hit_with_none():
     """A cached None must read back as (hit=True, value=None) so the
     caller short-circuits the DB query."""
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     assert cache.put("nope", None, expected_version=0) is True
     hit, val, _ = cache.get("nope")
     assert hit is True and val is None
 
 
+def test_secret_hash_cache_negative_entry_expires_on_the_shorter_ttl():
+    """A missing hostname is re-checked sooner than a real hash, so a
+    freshly registered host becomes auth-able without an invalidate."""
+    cache = _secret_hash_cache(ttl=60.0, negative_ttl=0.05)
+    cache.put("not-yet-registered", None, expected_version=0)
+
+    import time as _time
+    _time.sleep(0.08)
+
+    assert cache.get("not-yet-registered")[0] is False
+
+
 def test_secret_hash_cache_invalidate_clears_entry():
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     cache.put("vm-1", "$h", expected_version=0)
     cache.invalidate("vm-1")
     hit, val, _ = cache.get("vm-1")
@@ -293,7 +332,7 @@ def test_secret_hash_cache_put_rejected_when_invalidate_races():
     """Simulate the rotate-race: reader gets a version, mid-flight
     invalidate (concurrent re-register) bumps it, reader's put must
     not commit the stale value."""
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     # Reader observes the version before the DB SELECT.
     hit, _, version = cache.get("vm-1")
     assert hit is False
@@ -313,7 +352,7 @@ def test_secret_hash_cache_put_rejected_when_invalidate_races():
 
 def test_secret_hash_cache_put_accepted_when_no_race():
     """Sanity check: with no intervening invalidate, put commits."""
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     hit, _, version = cache.get("vm-1")
     assert hit is False
     assert cache.put("vm-1", "$h", expected_version=version) is True
@@ -324,7 +363,7 @@ def test_secret_hash_cache_put_accepted_when_no_race():
 def test_secret_hash_cache_version_bumped_per_hostname_only():
     """Invalidating vm-1 must not affect vm-2's version: a concurrent
     put for vm-2 must still succeed."""
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     _, _, v1 = cache.get("vm-1")
     _, _, v2 = cache.get("vm-2")
     cache.invalidate("vm-1")
@@ -335,7 +374,7 @@ def test_secret_hash_cache_version_bumped_per_hostname_only():
 def test_secret_hash_cache_lru_eviction_at_max_size():
     """When the cache is full, inserting a new entry evicts the LRU
     one. Bounds memory under unique-key floods."""
-    cache = SecretHashCache(max_size=2)
+    cache = _secret_hash_cache(max_size=2)
     assert cache.put("a", "$a", expected_version=0) is True
     assert cache.put("b", "$b", expected_version=0) is True
     # Touch "a" so "b" becomes LRU.
@@ -350,13 +389,13 @@ def test_secret_hash_cache_lru_eviction_at_max_size():
 
 def test_secret_hash_cache_rejects_invalid_max_size():
     with pytest.raises(ValueError, match="Invalid cache max_size"):
-        SecretHashCache(max_size=0)
+        _secret_hash_cache(max_size=0)
 
 
 def test_secret_hash_cache_clear_resets_versions():
     """clear() wipes entries and versions so a subsequent put against
     the old version is still accepted (no zombie versions)."""
-    cache = SecretHashCache()
+    cache = _secret_hash_cache()
     cache.put("vm-1", "$h", expected_version=0)
     cache.invalidate("vm-1")  # bumps version to 1
     cache.clear()
