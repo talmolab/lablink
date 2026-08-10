@@ -39,23 +39,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     desktop-base \
     xfce4-terminal \
-    # Terminal tooling. Small, and the two search tools are what students
-    # actually reach for in a repository. ~9 MB total.
+    # Terminal tooling, XFCE plugins named individually rather than via
+    # xfce4-goodies, Yaru theme -- see Dockerfile for why each.
     ripgrep \
     fd-find \
     htop \
     tree \
     jq \
-    # Named directly instead of via xfce4-goodies. That metapackage pulls
-    # ~25 panel plugins plus mousepad, ristretto, xfburn and xfce4-dict --
-    # 92 MB and 82 packages for the two things this desktop actually uses.
-    # notifyd is dbus-activated and needs no configuration; without it any
-    # libnotify call silently does nothing.
     xfce4-whiskermenu-plugin \
     xfce4-notifyd \
-    # Ubuntu 24.04's own theme. Yaru ships xfwm4 window decorations as well
-    # as the GTK theme and icons, so the desktop is themed end to end rather
-    # than GTK-only with fallback borders.
     yaru-theme-gtk \
     yaru-theme-icon \
     fonts-ubuntu \
@@ -94,10 +86,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Ubuntu ships fd-find's binary as `fdfind` to avoid a name collision with
-# an unrelated package. Everything written about the tool calls it `fd`, so
-# a student who types `fd` would get "command not found" for something that
-# is installed.
+# fd-find installs its binary as `fdfind`; see Dockerfile.
 RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
 
 # Tailscale — joined at container start (start.sh) only when a
