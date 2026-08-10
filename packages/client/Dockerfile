@@ -1,5 +1,5 @@
 # Base image with GPU support
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
 
 # Run as a non-root user; KasmVNC and the agent both run as this user.
 ARG USERNAME="client"
@@ -20,7 +20,6 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 # Default python3 is 3.8 in ubuntu 20.04 https://wiki.ubuntu.com/FocalFossa/ReleaseNotes#Python3_by_default
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1-mesa-glx \
     libglapi-mesa \
     libegl-mesa0 \
     libegl1 \
@@ -33,8 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     # For media playback
     vlc \
-    # Audio support for desktop apps (VLC, terminal bells, notifications)
-    libasound2 \
+    # Audio support for desktop apps (VLC, terminal bells, notifications).
+    # Renamed from libasound2 by noble's 64-bit time_t transition.
+    libasound2t64 \
     # For productivity and general use
     zip \
     unzip \
@@ -45,8 +45,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     desktop-base \
     xfce4-terminal \
-    xfce4-goodies \
-    elementary-xfce-icon-theme \
+    # Terminal tooling. Small, and the two search tools are what students
+    # actually reach for in a repository. ~9 MB total.
+    ripgrep \
+    fd-find \
+    htop \
+    tree \
+    jq \
+    # Named directly instead of via xfce4-goodies. That metapackage pulls
+    # ~25 panel plugins plus mousepad, ristretto, xfburn and xfce4-dict --
+    # 92 MB and 82 packages for the two things this desktop actually uses.
+    # notifyd is dbus-activated and needs no configuration; without it any
+    # libnotify call silently does nothing.
+    xfce4-whiskermenu-plugin \
+    xfce4-notifyd \
+    # Ubuntu 24.04's own theme. Yaru ships xfwm4 window decorations as well
+    # as the GTK theme and icons, so the desktop is themed end to end rather
+    # than GTK-only with fallback borders.
+    yaru-theme-gtk \
+    yaru-theme-icon \
+    fonts-ubuntu \
     fonts-dejavu \
     fonts-liberation \
     fontconfig \
@@ -83,15 +101,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Runtime deps for Google Chrome. Pre-installed here (rather than left
     # for the Chrome .deb's apt-get install to pull) because the next
     # RUN wipes /var/lib/apt/lists/*, so Chrome's install layer has no
-    # index to resolve them. Previously (pre-this-branch) CRD's install
-    # pulled libnss3/libnspr4 transitively; with CRD removed we name
-    # them explicitly here.
+    # index to resolve them.
     libnspr4 \
     libnss3 \
     libvulkan1 \
     git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Ubuntu ships fd-find's binary as `fdfind` to avoid a name collision with
+# an unrelated package. Everything written about the tool calls it `fd`, so
+# a student who types `fd` would get "command not found" for something that
+# is installed.
+RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
 
 # Tailscale — joined at container start (start.sh) only when a
 # mesh-overlay client was registered with TAILSCALE_AUTHKEY set;
@@ -102,7 +124,7 @@ RUN curl -fsSL https://tailscale.com/install.sh | sh
 # bump alongside client image releases.
 ARG KASMVNC_VERSION=1.4.0
 RUN curl -L -o /tmp/kasmvncserver.deb \
-      "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_jammy_${KASMVNC_VERSION}_amd64.deb" && \
+      "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_noble_${KASMVNC_VERSION}_amd64.deb" && \
     apt-get update && \
     apt-get install -y --no-install-recommends /tmp/kasmvncserver.deb && \
     rm /tmp/kasmvncserver.deb && \
@@ -227,8 +249,8 @@ RUN echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.bashrc &
     echo 'export PATH="/home/client/.local/bin:$PATH"' >> /home/client/.profile
 
 # Copy the startup script
-COPY start.sh /home/${USERNAME}/start.sh
-RUN sudo chmod +x /home/${USERNAME}/start.sh
+COPY start.sh desktop-config.sh /home/${USERNAME}/
+RUN sudo chmod +x /home/${USERNAME}/start.sh /home/${USERNAME}/desktop-config.sh
 
 # Run the startup script
 CMD ["/home/client/start.sh"]

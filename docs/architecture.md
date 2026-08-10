@@ -191,7 +191,7 @@ contract.
    - Exposes a local agent the allocator calls to rotate the VNC password per session
    - Clones the configured repository and runs the containerized research software
 
-**Desktop performance**: `start.sh` deliberately overrides four upstream
+**Desktop performance**: the client deliberately overrides six upstream
 defaults, because stock KasmVNC and XFCE never reduce cost while the screen is
 moving — they hold near-maximum quality through a full-screen redraw and fall
 behind, which participants perceive as choppy motion. Do not revert these to
@@ -203,6 +203,8 @@ their defaults without re-measuring:
 | `-DynamicQualityMin 4` | 7 | The stock 7–8 band is pinned near maximum. KasmVNC varies quality within the band by how fast the screen is *changing*, not by network feedback, so the floor is what governs motion smoothness. |
 | `-VideoTime 2` | 5 | Sustained motion otherwise spends five seconds in per-rect JPEG/WebP before video mode engages. |
 | `-DetectScrolling 1` | off | Sends a cheap region shift instead of re-encoding the scrolled region. |
+| `Xft` `RGBA: none` | `rgb` (subpixel) | Subpixel antialiasing puts coloured fringes on every glyph, and at `-DynamicQualityMin 4` those fringes are the first thing the encoder discards — text ends up ringed with colour noise. Greyscale antialiasing compresses better and stays legible at the quality floor. |
+| Solid backdrop (`image-style: 0`) | wallpaper image | The exposed desktop is re-encoded during every window drag. A flat fill costs almost nothing per damage rect where a photograph costs a lot — and it saves the 57 MB `ubuntu-wallpapers` package. |
 
 The three encoder settings are passed on the `Xvnc` command line, not written
 to `~/.vnc/kasmvnc.yaml`. That file is read only by the `kasmvncserver` Perl
@@ -211,9 +213,32 @@ there is silently ignored.
 
 The compositing setting is written to the xfconf XML store rather than applied
 with `xfconf-query`, which would need the session dbus already up and would
-race `xfce4-session`. Turning the compositor off costs window drop shadows and
-ARGB transparency — `xfce4-terminal`'s transparent background, for instance,
-renders opaque. That is the trade, not a bug.
+race `xfce4-session`. Every desktop setting is generated the same way, by
+`packages/client/desktop-config.sh`, which `start.sh` runs before launching the
+session. That script is standalone so the image-build workflow can execute it
+in the built image and read every value back with `xfconf-query` — a property
+written at the wrong nesting level reads as absent to xfconf, which no string
+match on the generator could catch. Turning the compositor off costs window
+drop shadows and ARGB transparency — `xfce4-terminal`'s transparent background,
+for instance, renders opaque. That is the trade, not a bug.
+
+The desktop is XFCE 4.18 on Ubuntu 24.04, themed with Yaru, Ubuntu's own theme.
+Yaru ships xfwm4 window decorations alongside the GTK theme and icons, so
+window borders match rather than falling back to XFCE's default. The package
+set names `xfce4-whiskermenu-plugin` and `xfce4-notifyd` directly instead of
+pulling `xfce4-goodies`, which cost 92 MB and 82 packages for the two of them.
+Accessories that came with that metapackage — mousepad, ristretto, xfburn,
+xfce4-dict, the clipboard-history plugin, and around 20 panel plugins — are
+deliberately absent.
+
+`xfce4-terminal` is kept rather than replaced with a GPU-accelerated terminal
+such as kitty or alacritty: those render through OpenGL, which under Xvnc means
+llvmpipe, so they would be slower here than the GTK terminal. Its configuration
+is an ini file at `~/.config/xfce4/terminal/terminalrc` rather than an xfconf
+channel, so it is the one setting the image-build workflow verifies by reading
+the file instead of querying a daemon. `ScrollingOnOutput` is off: a chatty
+training job would otherwise jerk the view to the bottom on every line, and
+each jump is a full-screen damage rect.
 
 **Configuration**: See `packages/client/src/lablink_client/conf/structured_config.py`
 

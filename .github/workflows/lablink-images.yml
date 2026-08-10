@@ -183,7 +183,7 @@ jobs:
             fi
             echo "tags=$tags" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.image-name }}" == "lablink-client-base-image" ]; then
-            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-12.8.1-cudnn8-devel-ubuntu22.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu22.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
+            tags="ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-latest$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-nvidia-cuda-12.8.1-cudnn8-devel-ubuntu24.04$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-$SHA$ENV_SUFFIX,ghcr.io/$REPO_OWNER/lablink-client-base-image:$PLATFORM-ubuntu24.04-nvm-0.40.2-uv-0.6.8-miniforge3-24.11.3$ENV_SUFFIX"
 
             # Add package version tag if available
             if [ -n "$PKG_VERSION" ]; then
@@ -459,6 +459,53 @@ jobs:
         run: |
           echo "Running client pytest tests..."
           docker run --rm --user client ${{ steps.get_tag.outputs.image }} bash -c 'cd /home/client/lablink-client && source /home/client/.venv/bin/activate && pytest tests -v --tb=short'
+
+      - name: Verify desktop configuration (dev images only)
+        if: >-
+          (github.event_name == 'pull_request') ||
+          (github.event_name == 'push' && (github.ref_name == 'test' || github.ref_name == 'main')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
+        run: |
+          echo "Verifying desktop configuration as xfconf actually parses it..."
+          docker run --rm --user client ${{ steps.get_tag.outputs.image }} bash -c '
+            set -e
+            /home/client/desktop-config.sh
+            # xfconfd is D-Bus activated and parses the XML store on the
+            # first query, so no X server or session is needed. This is the
+            # point of querying rather than grepping: a wrongly-nested or
+            # mistyped property reads as ABSENT here, and a string match on
+            # the generator script cannot see that.
+            eval "$(dbus-launch --sh-syntax)"
+            test "$(xfconf-query -c xfwm4 -p /general/use_compositing)" = "false"
+            test "$(xfconf-query -c xfwm4 -p /general/theme)" = "Yaru"
+            test "$(xfconf-query -c xsettings -p /Net/ThemeName)" = "Yaru"
+            test "$(xfconf-query -c xsettings -p /Net/IconThemeName)" = "Yaru"
+            test "$(xfconf-query -c xsettings -p /Xft/RGBA)" = "none"
+            test "$(xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-style)" = "0"
+            test "$(xfconf-query -c xfce4-panel -p /plugins/plugin-1)" = "whiskermenu"
+            test "$(xfconf-query -c xfce4-keyboard-shortcuts -p "/xfwm4/custom/<Super>Left")" = "tile_left_key"
+            test -f "$HOME/.config/xfce4/panel/whiskermenu-1.rc"
+            # A theme name that resolves to nothing on disk renders as the
+            # XFCE default and looks like the theming silently did not apply.
+            test -d /usr/share/themes/Yaru/xfwm4
+            test -d /usr/share/icons/Yaru/cursors
+            test -f /usr/share/xfce4/panel/plugins/whiskermenu.desktop
+            # notifyd needs no config IF it is dbus-activated. If this file is
+            # absent on noble, add an autostart entry to desktop-config.sh.
+            test -f /usr/share/dbus-1/services/org.xfce.xfce4-notifyd.Notifications.service
+            # The accessories that left with xfce4-goodies must stay gone --
+            # a stray Recommends could quietly pull the metapackage back in.
+            ! dpkg -s xfce4-goodies >/dev/null 2>&1
+            # terminalrc is an ini file, not an xfconf channel, so this is a
+            # file check rather than a query -- xfce4-terminal has no daemon
+            # to ask.
+            grep -q "^ColorBackground=#300a24$" "$HOME/.config/xfce4/terminal/terminalrc"
+            grep -q "^ScrollingLines=10000$" "$HOME/.config/xfce4/terminal/terminalrc"
+            # fd must answer to the name everything calls it.
+            command -v fd >/dev/null
+            command -v rg >/dev/null
+            echo "desktop configuration verified"
+          '
 
       - name: Execute client console scripts
         run: |
