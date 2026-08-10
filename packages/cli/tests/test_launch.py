@@ -9,9 +9,31 @@ import pytest
 from lablink_cli.api import (
     AllocatorAuthError,
     AllocatorError,
+    AllocatorNotFoundError,
     AllocatorUnavailableError,
 )
-from lablink_cli.commands.launch import run_launch
+from lablink_cli.commands.launch import run_client_destroy, run_launch
+
+
+class TestSummarizeTerraform:
+    def test_matches_apply_summary(self):
+        from lablink_cli.commands.launch import _summarize_terraform
+
+        output = "Apply complete! Resources: 3 added, 0 changed, 0 destroyed."
+        assert _summarize_terraform(output) == (
+            "Resources: 3 added, 0 changed, 0 destroyed"
+        )
+
+    def test_matches_destroy_summary(self):
+        from lablink_cli.commands.launch import _summarize_terraform
+
+        output = "Destroy complete! Resources: 7 destroyed."
+        assert _summarize_terraform(output) == "Resources: 7 destroyed"
+
+    def test_returns_none_when_no_summary(self):
+        from lablink_cli.commands.launch import _summarize_terraform
+
+        assert _summarize_terraform("terraform init\nno summary here") is None
 
 
 class TestRunLaunch:
@@ -238,6 +260,168 @@ class TestManualLaunchNoOp:
     ):
         mock_cfg.provider = "manual"
         run_launch(mock_cfg, num_vms=3, verbose=False)
+        mock_url.assert_not_called()
+        mock_creds.assert_not_called()
+        mock_api_cls.assert_not_called()
+
+
+class TestRunClientDestroy:
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_no_allocator_url_exits(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg
+    ):
+        mock_url.return_value = ""
+
+        with pytest.raises(SystemExit):
+            run_client_destroy(mock_cfg, yes=True)
+
+        mock_api_cls.assert_not_called()
+
+    @patch("lablink_cli.commands.launch.typer.confirm")
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_declining_confirmation_touches_nothing(
+        self, mock_url, mock_creds, mock_api_cls, mock_confirm, mock_cfg
+    ):
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_confirm.return_value = False
+
+        run_client_destroy(mock_cfg, yes=False)
+
+        mock_api_cls.return_value.destroy_vms.assert_not_called()
+
+    @patch("lablink_cli.commands.launch.typer.confirm")
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_yes_skips_the_prompt(
+        self, mock_url, mock_creds, mock_api_cls, mock_confirm, mock_cfg
+    ):
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_api = MagicMock()
+        mock_api.destroy_vms.return_value = {"status": "success", "output": ""}
+        mock_api_cls.return_value = mock_api
+
+        run_client_destroy(mock_cfg, yes=True)
+
+        mock_confirm.assert_not_called()
+        mock_api.destroy_vms.assert_called_once()
+        assert callable(mock_api.destroy_vms.call_args.kwargs["on_progress"])
+
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_success_prints_destroy_summary(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg, capsys
+    ):
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_api = MagicMock()
+        mock_api.destroy_vms.return_value = {
+            "status": "success",
+            "output": "Destroy complete! Resources: 4 destroyed.",
+        }
+        mock_api_cls.return_value = mock_api
+
+        run_client_destroy(mock_cfg, yes=True)
+
+        out = " ".join(capsys.readouterr().out.split())
+        assert "client VMs destroyed" in out
+        assert "Resources: 4 destroyed" in out
+
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_verbose_prints_raw_output(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg, capsys
+    ):
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_api = MagicMock()
+        mock_api.destroy_vms.return_value = {
+            "status": "success",
+            "output": "aws_instance.x: Destroying...",
+        }
+        mock_api_cls.return_value = mock_api
+
+        run_client_destroy(mock_cfg, yes=True, verbose=True)
+
+        out = " ".join(capsys.readouterr().out.split())
+        assert "aws_instance.x: Destroying" in out
+        assert "Pass --verbose" not in out
+
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_no_vms_launched_is_not_a_failure(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg, capsys
+    ):
+        """Nothing launched means nothing to destroy — idempotent, exit 0."""
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = AllocatorNotFoundError(
+            "tfvars does not exist — no client VMs were launched"
+        )
+        mock_api_cls.return_value = mock_api
+
+        # Must NOT raise.
+        run_client_destroy(mock_cfg, yes=True)
+
+        out = " ".join(capsys.readouterr().out.split())
+        assert "No client VMs were launched" in out
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            AllocatorAuthError("Authentication failed"),
+            AllocatorUnavailableError("connection refused"),
+            AllocatorError("An operation is already in progress (job #7)"),
+        ],
+    )
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_failures_exit_one(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg, exc
+    ):
+        mock_url.return_value = "http://1.2.3.4"
+        mock_creds.return_value = ("admin", "password")
+        mock_api = MagicMock()
+        mock_api.destroy_vms.side_effect = exc
+        mock_api_cls.return_value = mock_api
+
+        with pytest.raises(SystemExit) as excinfo:
+            run_client_destroy(mock_cfg, yes=True)
+
+        assert excinfo.value.code == 1
+
+
+class TestManualDestroyNoOp:
+    def test_manual_provider_points_at_unregister(self, capsys, mock_cfg):
+        mock_cfg.provider = "manual"
+
+        run_client_destroy(mock_cfg, yes=True)
+
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Manual provider" in out
+        assert "lablink client unregister" in out
+
+    @patch("lablink_cli.commands.launch.AllocatorAPI")
+    @patch("lablink_cli.commands.launch.resolve_admin_credentials")
+    @patch("lablink_cli.commands.launch.get_allocator_url")
+    def test_manual_provider_does_not_touch_allocator(
+        self, mock_url, mock_creds, mock_api_cls, mock_cfg
+    ):
+        mock_cfg.provider = "manual"
+
+        run_client_destroy(mock_cfg, yes=True)
+
         mock_url.assert_not_called()
         mock_creds.assert_not_called()
         mock_api_cls.assert_not_called()

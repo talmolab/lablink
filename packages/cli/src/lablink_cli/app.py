@@ -12,7 +12,7 @@ app = typer.Typer(
 
 client_app = typer.Typer(
     name="client",
-    help="Manage the client fleet (register/launch/unregister).",
+    help="Manage the client fleet (register/launch/destroy/unregister).",
 )
 app.add_typer(client_app, name="client")
 
@@ -296,6 +296,41 @@ def launch_client(
     from lablink_cli.commands.launch import run_launch
 
     run_launch(_load_cfg(config), num_vms=num_vms, verbose=verbose)
+
+
+@client_app.command("destroy")
+def destroy_client(
+    config: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml (default: ~/.lablink/config.yaml)",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts. Does not bypass credential prompts "
+        "(admin password still required interactively).",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show the full Terraform output instead of a summary.",
+    ),
+) -> None:
+    """Destroy all client VMs via the allocator service.
+
+    AWS provider only: the allocator runs 'terraform destroy' over its own
+    workspace and clears the VM table. Leaves the allocator itself running
+    — use 'lablink destroy' to tear down the whole deployment. For the
+    manual provider, BYO operators run 'lablink client unregister' on each
+    box instead; this command no-ops with a friendly message.
+    """
+    from lablink_cli.commands.launch import run_client_destroy
+
+    run_client_destroy(_load_cfg(config), yes=yes, verbose=verbose)
 
 
 @app.command(rich_help_panel="Operations")
