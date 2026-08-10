@@ -33,11 +33,13 @@ services:
       # response — matching the AWS path where Terraform/user_data
       # delivers the same file to the client container.
       - ./custom-startup.sh:/config/custom-startup.sh:ro
-      # Always materialized by render_compose_dir, same as above. This variant
-      # of the stack has no Tailscale sidecar and so is never Funnel-exposed,
-      # leaving the file empty — the allocator then falls back to the request
-      # host, which is correct here. Mounted anyway so both templates present
-      # the allocator an identical /config layout.
+      # The allocator's real public URL, written by `lablink deploy` after it
+      # confirms Funnel is live. Behind Funnel the allocator can't derive this
+      # from the request (no X-Forwarded-Proto, and ssl.provider=none keeps the
+      # header-trust gate shut), so it would otherwise hand clients an http://
+      # URL that only 302-redirects. Always materialized by
+      # render_compose_dir, same as above — empty when this deployment isn't
+      # Funnel-exposed, and the allocator falls back to the request host then.
       - ./allocator-url:/config/allocator-url:ro
       - allocator_pgdata:/var/lib/postgresql
     environment:

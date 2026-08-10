@@ -160,6 +160,9 @@ class TestRenderComposeDirMeshOverlay:
 
         compose_yaml = (target / "docker-compose.yml").read_text()
         assert "tailscale" not in compose_yaml
+        # The sidecar arrives as Compose's auto-loaded override; its
+        # absence is what keeps this stack single-service.
+        assert not (target / "docker-compose.override.yml").exists()
         env_content = (target / ".env").read_text()
         assert "TS_AUTHKEY" not in env_content
 
@@ -170,12 +173,32 @@ class TestRenderComposeDirMeshOverlay:
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
-        compose_yaml = (target / "docker-compose.yml").read_text()
-        assert "tailscale:" in compose_yaml
-        assert 'network_mode: "service:allocator"' in compose_yaml
+        # The base stack stays sidecar-free; the sidecar is layered on by
+        # docker-compose.override.yml, which Compose auto-loads from the
+        # project dir (so no CLI `docker compose` call passes -f).
+        assert "tailscale" not in (target / "docker-compose.yml").read_text()
+        override = (target / "docker-compose.override.yml").read_text()
+        assert "tailscale:" in override
+        assert 'network_mode: "service:allocator"' in override
         env_content = (target / ".env").read_text()
         assert "TS_AUTHKEY=tskey-abc" in env_content
         assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
+
+    def test_redeploy_without_sidecar_removes_stale_override(self, tmp_path):
+        """Turning mesh_overlay off must delete the override, or Compose
+        keeps merging it and the stack silently rejoins the tailnet."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
+
+        target = tmp_path / "compose"
+        render_compose_dir(
+            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net"),
+            target,
+            tailscale_authkey="tskey-abc",
+        )
+        assert (target / "docker-compose.override.yml").exists()
+
+        render_compose_dir(_manual_cfg(), target)
+        assert not (target / "docker-compose.override.yml").exists()
 
     def test_sidecar_always_pulls(self, tmp_path):
         """Regression guard: without pull_policy: always, a locally cached
@@ -192,12 +215,12 @@ class TestRenderComposeDirMeshOverlay:
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
-        compose_yaml = (target / "docker-compose.yml").read_text()
+        override = (target / "docker-compose.override.yml").read_text()
         # Split on the service key itself (2-space indent), not the bare
         # substring "tailscale:" — that also matches inside the image name
         # "tailscale/tailscale:latest" a few characters later and would
         # truncate the block before pull_policy.
-        tailscale_service = compose_yaml.split("\n  tailscale:\n")[1]
+        tailscale_service = override.split("\n  tailscale:\n")[1]
         assert "pull_policy: always" in tailscale_service
 
     def test_redeploy_without_authkey_carries_previous_value_forward(self, tmp_path):
@@ -259,9 +282,9 @@ class TestRenderComposeDirParticipantExposure:
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
-        compose_yaml = (target / "docker-compose.yml").read_text()
-        assert "tailscale:" in compose_yaml
-        assert 'network_mode: "service:allocator"' in compose_yaml
+        override = (target / "docker-compose.override.yml").read_text()
+        assert "tailscale:" in override
+        assert 'network_mode: "service:allocator"' in override
         env_content = (target / ".env").read_text()
         assert "TS_AUTHKEY=tskey-abc" in env_content
         assert "TAILSCALE_HOSTNAME=lablink-allocator-testlab" in env_content
@@ -279,8 +302,8 @@ class TestRenderComposeDirParticipantExposure:
         target = tmp_path / "compose"
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
 
-        compose_yaml = (target / "docker-compose.yml").read_text()
-        assert compose_yaml.count("\n  tailscale:\n") == 1
+        override = (target / "docker-compose.override.yml").read_text()
+        assert override.count("\n  tailscale:\n") == 1
         env_content = (target / ".env").read_text()
         assert "TS_AUTHKEY=tskey-abc" in env_content
 
@@ -1924,18 +1947,24 @@ class TestCanonicalUrlFile:
         render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
         assert (target / CANONICAL_URL_FILENAME).read_text() == ""
 
-    @pytest.mark.parametrize(
-        "template", ["docker-compose.yml", "docker-compose-mesh-overlay.yml"]
-    )
-    def test_both_templates_mount_the_file(self, template):
-        """Both variants mount it so the allocator sees an identical /config
-        layout regardless of which stack is running."""
-        from importlib import resources
+    def test_sidecar_stack_still_mounts_the_file(self, tmp_path):
+        """The sidecar stack must see the same /config layout as the plain
+        one. Structurally guaranteed now that the sidecar is an override
+        that never mentions the allocator service — this pins that: the
+        override must not shadow the allocator's volumes."""
+        from lablink_cli.commands.deploy_compose import render_compose_dir
 
-        content = (
-            resources.files("lablink_cli.templates").joinpath(template).read_text()
+        cfg = _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+        target = tmp_path / "compose"
+        render_compose_dir(cfg, target, tailscale_authkey="tskey-abc")
+
+        assert (
+            "./allocator-url:/config/allocator-url:ro"
+            in (target / "docker-compose.yml").read_text()
         )
-        assert "./allocator-url:/config/allocator-url:ro" in content
+        assert "allocator" not in (
+            target / "docker-compose.override.yml"
+        ).read_text().split("volumes:")[-1]
 
     def test_rendered_compose_mount_resolves(self, tmp_path):
         """The mount source must exist after render, or docker refuses the

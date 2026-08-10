@@ -16,6 +16,7 @@ from lablink_allocator_service.providers.protocol import (
     DestroyResult,
     ProvisionResult,
 )
+from lablink_allocator_service.utils.ansi import strip_ansi
 from lablink_allocator_service.utils.aws_utils import (
     check_support_nvidia,
     current_instance_security_group,
@@ -32,10 +33,6 @@ from lablink_allocator_service.utils.terraform_utils import (
     get_instance_timings,
     get_ssh_private_key,
 )
-
-# ANSI escape sequence stripper — moved from main.py to keep the
-# provider self-contained for SR-F1.
-_ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Matches Terraform's per-resource completion lines in `apply`/`destroy`
 # streamed output (see _run_streamed below). Matched against an
@@ -89,7 +86,7 @@ def _run_streamed(
         for line in proc.stdout:
             stdout_lines.append(line)
             if on_resource_complete and resource_complete_re.search(
-                _ANSI_ESCAPE.sub("", line)
+                strip_ansi(line)
             ):
                 on_resource_complete()
     except BaseException:
@@ -280,7 +277,7 @@ class AWSProvider:
         finally:
             plan_file_path.unlink(missing_ok=True)
 
-        clean_stdout = _ANSI_ESCAPE.sub("", apply_result.stdout)
+        clean_stdout = strip_ansi(apply_result.stdout)
 
         # Upload runtime tfvars to S3 (moved from main.py:614-620)
         upload_to_s3(
@@ -380,4 +377,4 @@ class AWSProvider:
         finally:
             plan_file_path.unlink(missing_ok=True)
 
-        return DestroyResult(stdout=_ANSI_ESCAPE.sub("", result.stdout))
+        return DestroyResult(stdout=strip_ansi(result.stdout))

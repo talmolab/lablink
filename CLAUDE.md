@@ -41,14 +41,14 @@ Use these commands for common development tasks:
 
 | Category | Commands |
 |----------|----------|
-| **Testing** | `/test-allocator`, `/test-client`, `/test-coverage`, `/lint`, `/lint-fix` |
+| **Testing** | `/test-allocator`, `/test-client`, `/test-cli`, `/test-coverage`, `/lint`, `/lint-fix` |
 | **Docker** | `/docker-build-allocator`, `/docker-build-client`, `/docker-test-allocator`, `/docker-test-client` |
 | **CI/CD** | `/trigger-ci`, `/trigger-docker-build`, `/publish-allocator`, `/publish-client` |
-| **Git & PR** | `/pr-description`, `/review-pr`, `/update-changelog` |
-| **Docs** | `/docs-serve`, `/docs-build` |
+| **Git & PR** | `/update-changelog` |
 | **Dev** | `/dev-setup`, `/run-allocator-local`, `/validate-terraform` |
 
-See `.claude/commands/README.md` for full documentation.
+Each file under `.claude/commands/` is the command plus only the notes that aren't
+obvious from it — this table is the index.
 
 ### Workflows
 Before implementing changes, present a plan and get user approval. Do not start coding until the approach is confirmed, especially for refactors or multi-file changes.

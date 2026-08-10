@@ -1,0 +1,55 @@
+# Rendered by `lablink deploy` (manual provider) as
+# `docker-compose.override.yml` — DO NOT edit by hand. Re-run `lablink
+# deploy` to regenerate after config changes.
+#
+# Compose auto-loads `docker-compose.override.yml` from the project
+# directory and deep-merges it over `docker-compose.yml`, so every
+# `docker compose` invocation the CLI makes (up, down, logs) picks this
+# up with no `-f` flags. It is written only when a tailnet join is
+# needed — for mesh-overlay client connectivity or for Funnel
+# participant exposure — and deleted on a redeploy that no longer needs
+# one.
+services:
+  # Joins the allocator's host to the tailnet so its nginx can reach
+  # mesh-overlay clients. network_mode: service:allocator means this
+  # container shares the allocator's network namespace — the allocator's
+  # own process sees the tailscale0 interface directly, no separate
+  # networking setup needed on the allocator service itself. Depends on
+  # allocator (not the other way around): sharing a network namespace
+  # requires that namespace to already exist.
+  tailscale:
+    image: tailscale/tailscale:latest
+    # Without this, a locally cached image from a prior pull silently wins
+    # even when it's the wrong architecture for the current host — confirmed
+    # live: a stale amd64-cached image ran QEMU-emulated on an Apple Silicon
+    # host and corrupted the Noise-protocol handshake (surfaced as
+    # `chacha20poly1305: message authentication failed`), even though the
+    # image is genuinely published multi-arch and a native arm64 pull joins
+    # the tailnet immediately. Matches the allocator service's own
+    # pull_policy in docker-compose.yml.
+    pull_policy: always
+    container_name: lablink-allocator-tailscale
+    network_mode: "service:allocator"
+    depends_on:
+      - allocator
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:-}
+      - TS_HOSTNAME=${TAILSCALE_HOSTNAME:-lablink-allocator}
+      - TS_STATE_DIR=/var/lib/tailscale
+      # containerboot defaults to --tun=userspace-networking, a
+      # software-only netstack with no real tailscale0 interface — nginx
+      # can't route to it. Confirmed live against a real tailnet: NET_ADMIN
+      # + /dev/net/tun alone were not enough; this must be set explicitly
+      # to get the kernel interface nginx depends on.
+      - TS_USERSPACE=false
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+    restart: unless-stopped
+
+volumes:
+  tailscale_state:

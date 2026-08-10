@@ -48,6 +48,7 @@ class TestRunExportMetrics:
         }).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         with (
@@ -86,6 +87,7 @@ class TestRunExportMetrics:
         }).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         captured_url = None
@@ -122,6 +124,7 @@ class TestRunExportMetrics:
         response_body = json.dumps({"vms": [], "count": 0}).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         with (
@@ -279,6 +282,7 @@ class TestRunExportMetrics:
         response_body = json.dumps({"vms": vms, "count": 2}).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         with (
@@ -329,6 +333,7 @@ class TestRunExportMetrics:
         }).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         with (
@@ -355,6 +360,7 @@ class TestRunExportMetrics:
     def test_malformed_json_response(self, mock_cfg, tmp_path):
         """Test graceful handling when the response body isn't valid JSON."""
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = b"<html>500 bad gateway</html>"
 
         with (
@@ -388,6 +394,7 @@ class TestRunExportMetrics:
         }).encode()
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = response_body
 
         with (
@@ -475,6 +482,7 @@ class TestExportMetricsFlags:
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = _vm_response_body()
 
         base_path = tmp_path / "metrics.csv"
@@ -510,6 +518,7 @@ class TestExportMetricsFlags:
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = _vm_response_body()
 
         base_path = tmp_path / "metrics.json"
@@ -543,6 +552,7 @@ class TestExportMetricsFlags:
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = _vm_response_body()
 
         base_path = tmp_path / "metrics.csv"
@@ -648,6 +658,7 @@ class TestExportMetricsFlags:
         _seed_allocator_cache(tmp_path / "cache", monkeypatch, records)
 
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = _vm_response_body()
 
         output_path = tmp_path / "metrics.csv"
@@ -739,6 +750,7 @@ class TestExportMetricsFlags:
 
         vms = [{"hostname": "vm-1", "status": "running"}]
         mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
         mock_resp.read.return_value = json.dumps(
             {"vms": vms, "count": 1}
         ).encode()

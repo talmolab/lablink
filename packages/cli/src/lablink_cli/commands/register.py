@@ -39,7 +39,7 @@ PID_FILE = Path.home() / ".lablink" / "log_shipper.pid"
 # offline) node still holds, so Tailscale appends a numeric suffix (-1, -2,
 # ...) and the allocator's recorded overlay hostname ends up pointing at the
 # dead node (lablink#404). The allocator's own sidecar has done this from the
-# start (the `tailscale_state` volume in docker-compose-mesh-overlay.yml);
+# start (the `tailscale_state` volume in the compose sidecar override);
 # the client side never got the equivalent. Fixed name, like the fixed
 # `--name lablink-client` below: one box runs one client container.
 TAILSCALE_STATE_VOLUME = "lablink-client-tailscale"

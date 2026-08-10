@@ -64,174 +64,135 @@ def _token_fingerprint(plaintext: str) -> str:
 # without going through invalidate (e.g. direct SQL, future code) only
 # leaves stale auth state for ~1 minute. With ~30 VMs polling at ~1 Hz
 # this still cuts steady-state DB load by ~60×.
-_SECRET_HASH_POSITIVE_TTL_S = 60.0
-_SECRET_HASH_NEGATIVE_TTL_S = 30.0
+SECRET_HASH_POSITIVE_TTL_S = 60.0
+SECRET_HASH_NEGATIVE_TTL_S = 30.0
 # Working set is the number of registered VMs (tens). Cap well above
 # that so legitimate workloads never evict; the cap bounds memory under
 # unique-key floods.
-_SECRET_HASH_CACHE_MAX_SIZE = 1024
+SECRET_HASH_CACHE_MAX_SIZE = 1024
 
 
-class SecretHashCache:
-    """Thread-safe per-hostname TTL+LRU cache for client_secret_hash.
+class TtlLruCache:
+    """Thread-safe TTL + LRU cache with an optional per-key version guard.
 
-    Caches both real hashes (positive_ttl) and absent-hostname None
-    results (negative_ttl). The shorter negative TTL keeps freshly
-    registered hosts auth-able within seconds without a register-time
-    invalidate, and limits how long a repeatedly probed unknown
-    hostname sits in memory.
+    Both caches in this module are instances of this: the
+    client_secret_hash cache (keyed by hostname, distinct positive and
+    negative TTLs, version guard in use — see
+    ``VmDatabase.get_client_secret_hash``) and the verify-result cache
+    (keyed by ``(subject, token-fingerprint)``, successes only, no
+    version guard).
 
-    Race-against-rotation: ``get`` returns a per-hostname version token
-    that ``put`` re-checks under lock. If ``invalidate`` ran between
-    ``get`` and ``put`` — i.e. a concurrent ``register_client`` rotated
-    the secret while a stale SELECT was in flight — the version
-    mismatch rejects the stale write, so the next call re-queries the
-    DB and picks up the new hash.
+    ``negative_ttl`` applies to a stored ``None`` and defaults to
+    ``ttl``. The secret-hash cache sets it shorter so a freshly
+    registered host becomes auth-able within seconds without a
+    register-time invalidate, and so a repeatedly probed unknown
+    hostname doesn't linger.
 
-    Bounded size: the underlying store is an ``OrderedDict`` with LRU
-    eviction on insert beyond ``max_size``. Both ``get`` and ``put``
-    move the entry to the most-recently-used end. This bounds memory
-    even if a misbehaving caller iterates through unique fake
-    hostnames.
+    Race-against-rotation: :meth:`get` returns a per-key version token
+    that :meth:`put` re-checks under the lock. If :meth:`invalidate` ran
+    in between — a concurrent ``register_client`` rotating the secret
+    while a stale SELECT was in flight — the mismatch rejects the stale
+    write, so the next call re-queries and picks up the new value. Pass
+    ``expected_version=None`` to skip the check; the verify cache has
+    nothing to race with, since it stores a result it derived itself
+    rather than a value it fetched.
+
+    Bounded size: an ``OrderedDict`` with LRU eviction on insert beyond
+    ``max_size``. Both ``get`` and ``put`` move the entry to the
+    most-recently-used end. The bound is a DoS guard against unique-key
+    floods, not a working-set sizing knob.
     """
 
     def __init__(
         self,
         *,
-        positive_ttl_seconds: float = _SECRET_HASH_POSITIVE_TTL_S,
-        negative_ttl_seconds: float = _SECRET_HASH_NEGATIVE_TTL_S,
-        max_size: int = _SECRET_HASH_CACHE_MAX_SIZE,
+        ttl: float,
+        max_size: int,
+        negative_ttl: float | None = None,
     ):
         if max_size < 1:
             raise ValueError(f"Invalid cache max_size: {max_size}")
-        self._positive_ttl = positive_ttl_seconds
-        self._negative_ttl = negative_ttl_seconds
+        self._ttl = ttl
+        self._negative_ttl = ttl if negative_ttl is None else negative_ttl
         self._max_size = max_size
         self._lock = threading.RLock()
-        # hostname -> (value, expires_at)
+        # key -> (value, expires_at) on the monotonic clock
         self._entries: OrderedDict = OrderedDict()
-        # hostname -> int. Bumped only by invalidate(); never reset by
-        # TTL expiry or LRU eviction (those aren't "the hash changed"
+        # key -> int. Bumped only by invalidate(); never reset by TTL
+        # expiry or LRU eviction (those aren't "the value changed"
         # events). put() rejects stores whose observed version is stale.
         self._versions: dict = {}
 
-    def get(self, hostname: str):
+    def get(self, key):
         """Return ``(hit, value, version)``.
 
-        ``hit=False`` means the caller must query the DB; pass
-        ``version`` back to :meth:`put` so a concurrent invalidate
-        between get and put rejects the stale write.
+        ``hit=False`` means the caller must re-fetch; pass ``version``
+        back to :meth:`put` so a concurrent invalidate between get and
+        put rejects the stale write.
         """
         with self._lock:
-            version = self._versions.get(hostname, 0)
-            entry = self._entries.get(hostname)
+            version = self._versions.get(key, 0)
+            entry = self._entries.get(key)
             if entry is None:
                 return False, None, version
             value, expires_at = entry
             if time.monotonic() >= expires_at:
-                del self._entries[hostname]
+                del self._entries[key]
                 return False, None, version
             # LRU touch
-            self._entries.move_to_end(hostname)
+            self._entries.move_to_end(key)
             return True, value, version
 
-    def put(self, hostname: str, value, expected_version: int) -> bool:
-        """Store ``value`` for ``hostname`` if no invalidate raced.
+    def put(self, key, value, expected_version: int | None = None) -> bool:
+        """Store ``value`` for ``key`` if no invalidate raced.
 
         Returns ``True`` if the entry was written, ``False`` if a
-        concurrent ``invalidate`` bumped the version between the
-        caller's ``get`` and this ``put``.
+        concurrent :meth:`invalidate` bumped the version between the
+        caller's :meth:`get` and this ``put``.
         """
-        ttl = self._positive_ttl if value is not None else self._negative_ttl
+        ttl = self._ttl if value is not None else self._negative_ttl
         with self._lock:
-            if self._versions.get(hostname, 0) != expected_version:
+            if (
+                expected_version is not None
+                and self._versions.get(key, 0) != expected_version
+            ):
                 return False
-            self._entries[hostname] = (value, time.monotonic() + ttl)
-            self._entries.move_to_end(hostname)
-            # Evict LRU entries beyond cap. Bound is a soft DoS guard,
-            # not a working-set sizing knob.
+            self._entries[key] = (value, time.monotonic() + ttl)
+            self._entries.move_to_end(key)
             while len(self._entries) > self._max_size:
                 self._entries.popitem(last=False)
             return True
 
-    def invalidate(self, hostname: str) -> None:
+    def invalidate(self, key) -> None:
         with self._lock:
-            self._versions[hostname] = self._versions.get(hostname, 0) + 1
-            self._entries.pop(hostname, None)
+            self._versions[key] = self._versions.get(key, 0) + 1
+            self._entries.pop(key, None)
+
+    def invalidate_where(self, predicate) -> None:
+        """Drop every entry whose key satisfies ``predicate``.
+
+        Unlike :meth:`invalidate` this bumps no version — it exists for
+        the verify cache, whose compound key means one subject owns an
+        unbounded set of keys and which runs no version guard anyway.
+        """
+        with self._lock:
+            for key in [k for k in self._entries if predicate(k)]:
+                del self._entries[key]
 
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()
             self._versions.clear()
 
-
-class _VerifyResultCache:
-    """Thread-safe per-(subject, token-fingerprint) TTL+LRU cache for
-    successful argon2 verifies.
-
-    Only successes are cached. A failed verify is never written, so a
-    wrong token can't poison entries: it would have a different
-    fingerprint and would still pay the full argon2 cost.
-
-    Invalidation: ``invalidate(subject)`` drops every entry for that
-    subject. Called from the registration paths that rotate or remove a
-    stored hash (the same hook ``SecretHashCache`` uses), so a rotated
-    secret doesn't keep accepting old tokens up to the TTL.
-
-    Bounded size: OrderedDict with LRU eviction on insert beyond
-    ``max_size``. Bound is a DoS guard against unique-key floods.
-    """
-
-    def __init__(
-        self,
-        *,
-        positive_ttl_seconds: float = _VERIFY_RESULT_POSITIVE_TTL_S,
-        max_size: int = _VERIFY_RESULT_CACHE_MAX_SIZE,
-    ):
-        if max_size < 1:
-            raise ValueError(f"Invalid cache max_size: {max_size}")
-        self._positive_ttl = positive_ttl_seconds
-        self._max_size = max_size
-        self._lock = threading.RLock()
-        # (subject, token_fp) -> expires_at (monotonic seconds)
-        self._entries: OrderedDict = OrderedDict()
-
-    def is_verified(self, subject: str, token_fp: str) -> bool:
-        key = (subject, token_fp)
-        with self._lock:
-            expires_at = self._entries.get(key)
-            if expires_at is None:
-                return False
-            if time.monotonic() >= expires_at:
-                del self._entries[key]
-                return False
-            self._entries.move_to_end(key)
-            return True
-
-    def mark_verified(self, subject: str, token_fp: str) -> None:
-        key = (subject, token_fp)
-        with self._lock:
-            self._entries[key] = time.monotonic() + self._positive_ttl
-            self._entries.move_to_end(key)
-            while len(self._entries) > self._max_size:
-                self._entries.popitem(last=False)
-
-    def invalidate(self, subject: str) -> None:
-        with self._lock:
-            keys_to_drop = [k for k in self._entries if k[0] == subject]
-            for k in keys_to_drop:
-                del self._entries[k]
-
-    def clear(self) -> None:
-        with self._lock:
-            self._entries.clear()
-
     def __len__(self) -> int:
         with self._lock:
             return len(self._entries)
 
 
-_verify_cache = _VerifyResultCache()
+_verify_cache = TtlLruCache(
+    ttl=_VERIFY_RESULT_POSITIVE_TTL_S,
+    max_size=_VERIFY_RESULT_CACHE_MAX_SIZE,
+)
 
 
 def verify_secret_cached(subject: str, plaintext: str, hashed: str) -> bool:
@@ -241,17 +202,20 @@ def verify_secret_cached(subject: str, plaintext: str, hashed: str) -> bool:
     The first call pays the argon2 verify cost; subsequent calls with
     the same ``(subject, plaintext)`` within the TTL return True without
     running argon2. Failures are never cached, so a wrong token always
-    pays the verify cost — there's no fast path for attackers.
+    pays the verify cost — there's no fast path for attackers, and a
+    wrong token cannot poison an entry either: it has a different
+    fingerprint, so it lands on a different key.
 
     Use a ``subject`` the caller has already identified out-of-band
     (e.g., hostname from the request body, client_id from the URL), so
     a cache hit doesn't silently accept a token across identities.
     """
-    fp = _token_fingerprint(plaintext)
-    if _verify_cache.is_verified(subject, fp):
+    key = (subject, _token_fingerprint(plaintext))
+    hit, _, _ = _verify_cache.get(key)
+    if hit:
         return True
     if verify_secret(plaintext, hashed):
-        _verify_cache.mark_verified(subject, fp)
+        _verify_cache.put(key, True)
         return True
     return False
 
@@ -260,9 +224,11 @@ def invalidate_verify(subject: str) -> None:
     """Drop every cached verify result for ``subject``.
 
     Call whenever the stored hash for a subject changes — e.g., on
-    ``register_client`` (rotation) or ``unregister_client`` (removal).
+    ``register_client`` (rotation) or ``unregister_client`` (removal),
+    the same hook the secret-hash cache uses, so a rotated secret does
+    not keep accepting old tokens up to the TTL.
     """
-    _verify_cache.invalidate(subject)
+    _verify_cache.invalidate_where(lambda k: k[0] == subject)
 
 
 def clear_verify_cache() -> None:
