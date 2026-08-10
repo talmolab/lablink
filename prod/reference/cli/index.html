@@ -1778,6 +1778,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#client-destroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        client destroy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#client-register" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4763,6 +4774,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#client-destroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        client destroy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#client-register" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5199,9 +5221,50 @@ locally for this command.</p>
 </tbody>
 </table>
 <hr />
+<h3 id="client-destroy"><code>client destroy</code><a class="headerlink" href="#client-destroy" title="Permanent link">&para;</a></h3>
+<p>Destroy all client VMs via the allocator service.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>destroy<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span><span class="w"> </span><span class="o">[</span>--verbose<span class="o">]</span>
+</code></pre></div>
+<p><strong>AWS provider only.</strong> Calls the allocator's destroy endpoint; the allocator runs
+<code>terraform destroy</code> over its own workspace, so Terraform is not required locally.</p>
+<p>This is the CLI equivalent of the admin UI's <strong>Delete Instances</strong> page. It leaves
+the allocator running — use <a href="#destroy"><code>destroy</code></a> to tear down the whole
+deployment.</p>
+<p><strong>Destructive.</strong> Along with the VMs, this clears the allocator's <code>vms</code> table:
+inventory, per-VM logs, and session history are gone. Anyone connected at the
+time loses their session. Run
+<a href="#export-metrics"><code>export-metrics</code></a> with <code>--allocator</code> first if you need the
+numbers. Prompts for confirmation unless <code>--yes</code> is passed.</p>
+<p>If no client VMs were ever launched the command reports that and exits 0, so it
+is safe to re-run.</p>
+<p>Under the manual provider this command no-ops with a message pointing you at
+<a href="#client-unregister"><code>client unregister</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code>, <code>--config PATH</code></td>
+<td>Path to <code>config.yaml</code>.</td>
+</tr>
+<tr>
+<td><code>-y</code>, <code>--yes</code></td>
+<td>Skip the confirmation prompt. Password prompts still appear.</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>Show the full Terraform output instead of a summary.</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h3 id="client-register"><code>client register</code><a class="headerlink" href="#client-register" title="Permanent link">&para;</a></h3>
 <p>Register this BYO box as a manual client and run the client container.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>URL<span class="w"> </span>--register-token<span class="w"> </span>TOKEN<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>register<span class="w"> </span>--allocator-url<span class="w"> </span>URL<span class="w"> </span>--register-token<span class="w"> </span>TOKEN<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <p>Run this <strong>on the machine you want to add to the pool</strong>, not on the allocator host.
 It registers the box with the allocator, writes the returned secrets to
@@ -5305,7 +5368,7 @@ connectivity mode.</p>
 <hr />
 <h3 id="client-unregister"><code>client unregister</code><a class="headerlink" href="#client-unregister" title="Permanent link">&para;</a></h3>
 <p>Tear down a registered BYO box.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>unregister<span class="w"> </span><span class="o">[</span>--env-file<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--insecure<span class="o">]</span><span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>unregister<span class="w"> </span><span class="o">[</span>--env-file<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--insecure<span class="o">]</span><span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span>
 </code></pre></div>
 <p>Best-effort notifies the allocator, then removes the <code>lablink-client</code> container and
 deletes the env file. Idempotent — does nothing and exits 0 if there is no env
@@ -5339,7 +5402,7 @@ re-registering lands back on the same tailnet node under the same name. Use
 <hr />
 <h3 id="client-reset-overlay"><code>client reset-overlay</code><a class="headerlink" href="#client-reset-overlay" title="Permanent link">&para;</a></h3>
 <p>Discard this box's persisted mesh-overlay node identity.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>reset-overlay<span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>reset-overlay<span class="w"> </span><span class="o">[</span>--yes<span class="o">]</span>
 </code></pre></div>
 <p>Only relevant to a mesh-overlay client. Run it when you want the next
 <code>client register</code> to join the tailnet as a brand-new node rather than reusing the
@@ -5369,7 +5432,7 @@ an attached volume.</p>
 <hr />
 <h3 id="client-doctor"><code>client doctor</code><a class="headerlink" href="#client-doctor" title="Permanent link">&para;</a></h3>
 <p>Check this machine's BYO client.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>doctor
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>doctor
 </code></pre></div>
 <p>Run it <strong>on a client box</strong>, not on the allocator host. Three checks:</p>
 <table>
@@ -5402,7 +5465,7 @@ credentials, S3 and AMI under the AWS provider).</p>
 <h2 id="operations-commands">Operations commands<a class="headerlink" href="#operations-commands" title="Permanent link">&para;</a></h2>
 <h3 id="status"><code>status</code><a class="headerlink" href="#status" title="Permanent link">&para;</a></h3>
 <p>Show deployment health and inventory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>lablink<span class="w"> </span>status<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>lablink<span class="w"> </span>status<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p><strong>AWS provider</strong> shows four sections:</p>
 <ol>
@@ -5437,7 +5500,7 @@ HTTP health endpoint. There is no cost estimate — the hardware is yours.</p>
 <hr />
 <h3 id="logs"><code>logs</code><a class="headerlink" href="#logs" title="Permanent link">&para;</a></h3>
 <p>View allocator and client logs.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>lablink<span class="w"> </span>logs<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>lablink<span class="w"> </span>logs<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p><strong>AWS provider:</strong> opens a Textual-based viewer that streams cloud-init and
 container logs from the allocator and any running client VMs. Use <code>q</code> to quit, <code>/</code>
@@ -5462,7 +5525,7 @@ each BYO box.</p>
 <hr />
 <h3 id="export-metrics"><code>export-metrics</code><a class="headerlink" href="#export-metrics" title="Permanent link">&para;</a></h3>
 <p>Export deployment metrics to CSV or JSON.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>lablink<span class="w"> </span>export-metrics<span class="w"> </span><span class="o">[</span>--client<span class="o">]</span><span class="w"> </span><span class="o">[</span>--allocator<span class="o">]</span><span class="w"> </span><span class="o">[</span>--format<span class="w"> </span>FMT<span class="o">]</span><span class="w"> </span><span class="o">[</span>--output<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--include-logs<span class="o">]</span><span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>lablink<span class="w"> </span>export-metrics<span class="w"> </span><span class="o">[</span>--client<span class="o">]</span><span class="w"> </span><span class="o">[</span>--allocator<span class="o">]</span><span class="w"> </span><span class="o">[</span>--format<span class="w"> </span>FMT<span class="o">]</span><span class="w"> </span><span class="o">[</span>--output<span class="w"> </span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>--include-logs<span class="o">]</span><span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p>Writes metrics to disk for offline analysis. Two data sources:</p>
 <ul>
@@ -5514,7 +5577,7 @@ populate <code>allocator_compose_up_duration_seconds</code> instead. Both popula
 <hr />
 <h3 id="stats"><code>stats</code><a class="headerlink" href="#stats" title="Permanent link">&para;</a></h3>
 <p>Show a cohort session-metrics summary in the terminal.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>lablink<span class="w"> </span>stats<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>lablink<span class="w"> </span>stats<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p>Prints the same cohort summary the admin UI shows under <strong>Session Metrics</strong> —
 participation funnel and aggregate time-in-software figures. It reads the
@@ -5543,7 +5606,7 @@ credentials; the figures only populate for deployments running with
 <h2 id="maintenance-commands">Maintenance commands<a class="headerlink" href="#maintenance-commands" title="Permanent link">&para;</a></h2>
 <h3 id="show-config"><code>show-config</code><a class="headerlink" href="#show-config" title="Permanent link">&para;</a></h3>
 <p>View the current LabLink configuration.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>lablink<span class="w"> </span>show-config<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>lablink<span class="w"> </span>show-config<span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p>Pretty-prints the YAML with syntax highlighting and runs schema validation. Reports
 validation errors inline.</p>
@@ -5564,7 +5627,7 @@ validation errors inline.</p>
 <hr />
 <h3 id="cleanup"><code>cleanup</code><a class="headerlink" href="#cleanup" title="Permanent link">&para;</a></h3>
 <p>Remove deployment resources and local state.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span><span class="o">[</span>--dry-run<span class="o">]</span><span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span><span class="o">[</span>--dry-run<span class="o">]</span><span class="w"> </span><span class="o">[</span>--config<span class="w"> </span>PATH<span class="o">]</span>
 </code></pre></div>
 <p><strong>AWS provider:</strong> deletes orphaned EC2/IAM/EIP/security-group resources tagged with
 your deployment name — the kind of leftovers a failed or interrupted <code>destroy</code>
@@ -5592,7 +5655,7 @@ removes the compose working directory.</p>
 <hr />
 <h3 id="cache-clear"><code>cache-clear</code><a class="headerlink" href="#cache-clear" title="Permanent link">&para;</a></h3>
 <p>Clear LabLink caches.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span><span class="o">[</span>--deployments<span class="o">]</span><span class="w"> </span><span class="o">[</span>--all<span class="o">]</span><span class="w"> </span><span class="o">[</span>--stale<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span><span class="o">[</span>--deployments<span class="o">]</span><span class="w"> </span><span class="o">[</span>--all<span class="o">]</span><span class="w"> </span><span class="o">[</span>--stale<span class="o">]</span>
 </code></pre></div>
 <p>By default clears the Terraform template cache at <code>~/.lablink/cache/terraform/</code>.
 With <code>--deployments</code>, clears the deployment metrics cache at
@@ -5622,9 +5685,9 @@ With <code>--deployments</code>, clears the deployment metrics cache at
 <hr />
 <h2 id="getting-help-at-the-command-line">Getting help at the command line<a class="headerlink" href="#getting-help-at-the-command-line" title="Permanent link">&para;</a></h2>
 <p>For the authoritative, always-current help text, use:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>lablink<span class="w"> </span>--help<span class="w">              </span><span class="c1"># top-level: lists all commands</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>lablink<span class="w"> </span>&lt;command&gt;<span class="w"> </span>--help<span class="w">    </span><span class="c1"># per-command: lists all flags</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>lablink<span class="w"> </span>client<span class="w"> </span>--help<span class="w">       </span><span class="c1"># the client-fleet subcommand group</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>lablink<span class="w"> </span>--help<span class="w">              </span><span class="c1"># top-level: lists all commands</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>lablink<span class="w"> </span>&lt;command&gt;<span class="w"> </span>--help<span class="w">    </span><span class="c1"># per-command: lists all flags</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>lablink<span class="w"> </span>client<span class="w"> </span>--help<span class="w">       </span><span class="c1"># the client-fleet subcommand group</span>
 </code></pre></div>
 
 

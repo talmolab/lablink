@@ -5607,7 +5607,7 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 </ul>
 <h3 id="destroy-all-vms">Destroy All VMs<a class="headerlink" href="#destroy-all-vms" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>POST /destroy</code></p>
-<p><strong>Description:</strong> Runs <code>terraform destroy</code> to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the <code>vms</code> table in the database. <strong>This is a destructive action.</strong></p>
+<p><strong>Description:</strong> Runs <code>terraform destroy</code> to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the <code>vms</code> table in the database. <strong>This is a destructive action.</strong> Driven by <code>lablink client destroy</code>, and by <code>lablink destroy</code> as its first teardown step.</p>
 <p><strong>Authentication:</strong> HTTP Basic Auth</p>
 <p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
