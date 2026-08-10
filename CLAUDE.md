@@ -44,7 +44,7 @@ Use these commands for common development tasks:
 | **Testing** | `/test-allocator`, `/test-client`, `/test-cli`, `/test-coverage`, `/lint`, `/lint-fix` |
 | **Docker** | `/docker-build-allocator`, `/docker-build-client`, `/docker-test-allocator`, `/docker-test-client` |
 | **CI/CD** | `/trigger-ci`, `/trigger-docker-build`, `/publish-allocator`, `/publish-client` |
-| **Git & PR** | `/pr-description`, `/update-changelog` |
+| **Git & PR** | `/update-changelog` |
 | **Docs** | `/docs-build` |
 | **Dev** | `/dev-setup`, `/run-allocator-local`, `/validate-terraform` |
 
