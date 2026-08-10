@@ -413,22 +413,10 @@ fi
 touch /home/client/.Xauthority
 chmod 600 /home/client/.Xauthority
 
-# XFCE's compositor recomposites the whole screen on every window move, so
-# Xvnc sees one full-screen damage rect instead of a few small ones and
-# re-encodes the entire framebuffer for each frame of a drag -- the single
-# largest source of choppy motion in the participant desktop. Write the
-# setting straight into the xfconf XML store rather than calling
-# `xfconf-query`, which needs the session dbus to already be up and would
-# race xfce4-session.
-mkdir -p /home/client/.config/xfce4/xfconf/xfce-perchannel-xml
-cat > /home/client/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml <<'XFWM'
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfwm4" version="1.0">
-  <property name="general" type="empty">
-    <property name="use_compositing" type="bool" value="false"/>
-  </property>
-</channel>
-XFWM
+# Generate the XFCE configuration before the session launches. See
+# desktop-config.sh for why this is a separate script and why it writes the
+# xfconf XML store directly instead of calling xfconf-query.
+/home/client/desktop-config.sh
 
 # Pre-seed the xstartup script kasmvncserver invokes after Xkasmvnc is up.
 # We use `xfce4-session` (not the `startxfce4` wrapper) because the wrapper
@@ -568,7 +556,29 @@ fi
 #       exit threshold is 3s and is deliberately left alone.
 #   -DetectScrolling 1    ships off. Sends a cheap region shift instead of
 #       re-encoding the scrolled region.
-stdbuf -oL -eL Xvnc :1 \
+# Keep Xvnc's GLX init on mesa, away from the host NVIDIA driver's EGL stack.
+#
+# When the container toolkit is asked for graphics capabilities it bind-mounts
+# the host driver's libEGL_nvidia.so.0 and libnvidia-egl-gbm.so.1 in, plus
+# 10_nvidia.json and 15_nvidia_gbm.json. libEGL then loads them during
+# GlxExtensionInit. Those libraries come from the HOST driver while libdrm.so.2
+# comes from this image, and on 24.04 that version skew makes Xvnc abort with a
+# double free inside drmFreeDevices ("munmap_chunk(): invalid pointer"), taking
+# the desktop down before xfce4-session can start.
+#
+# Verified on a GPU VM: identical argv, control aborts with signal 6, this
+# runs clean. The bind-mounted json files cannot be moved aside ("Device or
+# resource busy"), so the loader is pointed away from them instead.
+#
+# Scoped to this process on purpose -- it does NOT leak into xstartup, the
+# desktop session, or SLEAP, which keep the full driver stack and CUDA. The
+# desktop is software-rendered anyway (compositing off, no hw3d), so GLX
+# resolves through mesa swrast either way and nothing is lost.
+mkdir -p /home/client/.config/egl-none
+stdbuf -oL -eL env \
+    __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json \
+    __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/home/client/.config/egl-none \
+    Xvnc :1 \
     -auth /home/client/.Xauthority \
     -desktop kasmvnc \
     -httpd /usr/share/kasmvnc/www \
