@@ -231,6 +231,18 @@ Accessories that came with that metapackage — mousepad, ristretto, xfburn,
 xfce4-dict, the clipboard-history plugin, and around 20 panel plugins — are
 deliberately absent.
 
+`Xvnc` is launched with `__EGL_VENDOR_LIBRARY_FILENAMES` pinned to mesa and
+`__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS` pointed at an empty directory. Do not
+remove these. The container toolkit bind-mounts the *host* driver's
+`libEGL_nvidia.so.0` and `libnvidia-egl-gbm.so.1` into the container, along
+with `10_nvidia.json` and `15_nvidia_gbm.json`, and libEGL loads them during
+`GlxExtensionInit`. Those libraries are the host driver's while `libdrm.so.2`
+is the image's, and on 24.04 that skew aborts Xvnc with a double free in
+`drmFreeDevices` — the desktop never starts. The bind mounts cannot be moved
+aside from inside the container, so the loader is pointed away from them
+instead. The variables are set on the `Xvnc` process only: `xstartup`, the
+desktop session, and SLEAP all keep the full driver stack and CUDA.
+
 `xfce4-terminal` is kept rather than replaced with a GPU-accelerated terminal
 such as kitty or alacritty: those render through OpenGL, which under Xvnc means
 llvmpipe, so they would be slower here than the GTK terminal. Its configuration

@@ -556,7 +556,29 @@ fi
 #       exit threshold is 3s and is deliberately left alone.
 #   -DetectScrolling 1    ships off. Sends a cheap region shift instead of
 #       re-encoding the scrolled region.
-stdbuf -oL -eL Xvnc :1 \
+# Keep Xvnc's GLX init on mesa, away from the host NVIDIA driver's EGL stack.
+#
+# When the container toolkit is asked for graphics capabilities it bind-mounts
+# the host driver's libEGL_nvidia.so.0 and libnvidia-egl-gbm.so.1 in, plus
+# 10_nvidia.json and 15_nvidia_gbm.json. libEGL then loads them during
+# GlxExtensionInit. Those libraries come from the HOST driver while libdrm.so.2
+# comes from this image, and on 24.04 that version skew makes Xvnc abort with a
+# double free inside drmFreeDevices ("munmap_chunk(): invalid pointer"), taking
+# the desktop down before xfce4-session can start.
+#
+# Verified on a GPU VM: identical argv, control aborts with signal 6, this
+# runs clean. The bind-mounted json files cannot be moved aside ("Device or
+# resource busy"), so the loader is pointed away from them instead.
+#
+# Scoped to this process on purpose -- it does NOT leak into xstartup, the
+# desktop session, or SLEAP, which keep the full driver stack and CUDA. The
+# desktop is software-rendered anyway (compositing off, no hw3d), so GLX
+# resolves through mesa swrast either way and nothing is lost.
+mkdir -p /home/client/.config/egl-none
+stdbuf -oL -eL env \
+    __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json \
+    __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/home/client/.config/egl-none \
+    Xvnc :1 \
     -auth /home/client/.Xauthority \
     -desktop kasmvnc \
     -httpd /usr/share/kasmvnc/www \
