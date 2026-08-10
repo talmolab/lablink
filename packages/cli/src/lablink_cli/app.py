@@ -18,6 +18,41 @@ app.add_typer(client_app, name="client")
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
 
+# Where a lablink-template checkout keeps its committed config.
+TEMPLATE_CONFIG = Path("lablink-infrastructure") / "config" / "config.yaml"
+
+# The credential fields template mode pins, matching what the template's own
+# scripts/configure.sh emits: passwords as sentinels for CI to substitute,
+# admin_user as the literal the workflow never touches.
+TEMPLATE_CREDENTIALS = {
+    ("app", "admin_user"): "admin",
+    ("app", "admin_password"): "PLACEHOLDER_ADMIN_PASSWORD",
+    ("db", "password"): "PLACEHOLDER_DB_PASSWORD",
+}
+
+
+def _write_template_credentials(path: Path) -> None:
+    """Rewrite the wizard's credential defaults to the template's convention.
+
+    lablink-template commits config.yaml and injects the real passwords in
+    CI with ``sed s/PLACEHOLDER_<NAME>/.../``. The wizard never collects
+    credentials (they're resolved at deploy time on the local path), so it
+    writes the ``MISSING`` secret sentinel and the ``db.password`` default —
+    neither of which that sed matches. Without this the substitution
+    silently does nothing, and the workflow's own ``grep -q PLACEHOLDER_``
+    guard still passes, because it only catches placeholders left over, not
+    placeholders that were never there. ``admin_user`` gets no sed at all,
+    so it has to be a usable value here rather than a sentinel.
+    """
+    import yaml
+
+    data = yaml.safe_load(path.read_text())
+    for (section, key), value in TEMPLATE_CREDENTIALS.items():
+        data.setdefault(section, {})[key] = value
+    path.write_text(
+        yaml.dump(data, default_flow_style=False, sort_keys=False)
+    )
+
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -92,6 +127,14 @@ def configure(
         "-c",
         help="Path to config.yaml (default: ~/.lablink/config.yaml)",
     ),
+    template: bool = typer.Option(
+        False,
+        "--template",
+        help="Configure a lablink-template checkout instead of the local "
+        "deployment: writes lablink-infrastructure/config/config.yaml with "
+        "PLACEHOLDER_* passwords for GitHub Actions to substitute, and "
+        "skips AWS state setup (the template's setup.sh does that).",
+    ),
 ) -> None:
     """Create or edit the LabLink configuration.
 
@@ -99,10 +142,28 @@ def configure(
     then automatically creates the AWS resources needed for
     Terraform remote state (S3 bucket + DynamoDB lock table).
     Manual-provider configs skip the AWS setup step.
+
+    With --template, generates the config a lablink-template repo commits
+    and deploys via GitHub Actions, so that path gets the same wizard.
     """
     from lablink_cli.tui.wizard import ConfigWizard
 
-    config_path = Path(config) if config else DEFAULT_CONFIG
+    if config:
+        config_path = Path(config)
+    elif template:
+        config_path = TEMPLATE_CONFIG
+        # Same guard as the template's own scripts/configure.sh: without it
+        # a wrong cwd silently creates a stray lablink-infrastructure/ tree
+        # that no workflow will ever read.
+        if not TEMPLATE_CONFIG.parent.parent.is_dir():
+            typer.echo(
+                "--template must be run from the root of a lablink-template "
+                f"checkout ({TEMPLATE_CONFIG.parent.parent}/ not found).\n"
+                "Pass --config to write somewhere else."
+            )
+            raise typer.Exit(1)
+    else:
+        config_path = DEFAULT_CONFIG
 
     existing = None
     if config_path.exists():
@@ -114,6 +175,17 @@ def configure(
     # After the wizard saves config, run AWS setup automatically
     if not config_path.exists():
         # User quit the wizard without saving
+        return
+
+    if template:
+        _write_template_credentials(config_path)
+        from rich.console import Console
+
+        Console().print(
+            f"[dim]Wrote {config_path} with placeholder passwords. "
+            "Commit it and push — the Terraform Deploy workflow "
+            "substitutes your ADMIN_PASSWORD/DB_PASSWORD secrets.[/dim]"
+        )
         return
 
     cfg_after = load_config(config_path)

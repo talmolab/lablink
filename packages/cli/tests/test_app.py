@@ -566,3 +566,86 @@ def test_deploy_help_documents_the_cloudflare_token_flag():
     result = runner.invoke(app, ["deploy", "--help"])
     assert result.exit_code == 0
     assert "--cloudflare-tunnel-token" in _plain(result.output)
+
+
+# ------------------------------------------------------------------
+# configure --template (issue #339: give Path B users the TUI)
+# ------------------------------------------------------------------
+class TestConfigureTemplate:
+    """--template must emit the sentinels lablink-template's CI sed matches."""
+
+    @staticmethod
+    def _fake_wizard(mock_wizard_cls, config_path: Path):
+        """Stand in for the TUI: write what the real wizard would save."""
+        from lablink_cli.config.schema import Config, save_config
+
+        def _run():
+            cfg = Config()
+            cfg.deployment_name = "demo-lab"
+            save_config(cfg, config_path)
+
+        mock_wizard_cls.return_value = MagicMock(run=_run)
+
+    @patch("lablink_cli.commands.setup.run_setup")
+    @patch("lablink_cli.tui.wizard.ConfigWizard")
+    def test_writes_placeholders_and_skips_setup(
+        self, mock_wizard_cls, mock_run_setup, tmp_path, monkeypatch
+    ):
+        import yaml
+
+        from lablink_cli.app import TEMPLATE_CONFIG
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / TEMPLATE_CONFIG).parent.mkdir(parents=True)
+        self._fake_wizard(mock_wizard_cls, TEMPLATE_CONFIG)
+
+        result = runner.invoke(app, ["configure", "--template"])
+        assert result.exit_code == 0, result.output
+
+        data = yaml.safe_load((tmp_path / TEMPLATE_CONFIG).read_text())
+        assert data["app"]["admin_password"] == "PLACEHOLDER_ADMIN_PASSWORD"
+        assert data["db"]["password"] == "PLACEHOLDER_DB_PASSWORD"
+        # The workflow seds only the passwords, so this one must be usable.
+        assert data["app"]["admin_user"] == "admin"
+        # setup.sh already created the state bucket for this path.
+        mock_run_setup.assert_not_called()
+
+    @patch("lablink_cli.commands.setup.run_setup")
+    @patch("lablink_cli.tui.wizard.ConfigWizard")
+    def test_output_survives_the_workflows_sed_injection(
+        self, mock_wizard_cls, mock_run_setup, tmp_path, monkeypatch
+    ):
+        """Replay terraform-deploy.yml's substitution against the real output.
+
+        The workflow seds PLACEHOLDER_* to the GitHub secrets, then greps for
+        a leftover PLACEHOLDER_ as its only safety net. A config carrying the
+        wizard's own defaults instead passes that grep while injecting
+        nothing — deploying admin_password "MISSING" and a default DB
+        password. This asserts the generated file actually takes the secrets.
+        """
+        from lablink_cli.app import TEMPLATE_CONFIG
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / TEMPLATE_CONFIG).parent.mkdir(parents=True)
+        self._fake_wizard(mock_wizard_cls, TEMPLATE_CONFIG)
+
+        assert runner.invoke(app, ["configure", "--template"]).exit_code == 0
+
+        text = (tmp_path / TEMPLATE_CONFIG).read_text()
+        text = text.replace("PLACEHOLDER_ADMIN_PASSWORD", "s3cret-admin")
+        text = text.replace("PLACEHOLDER_DB_PASSWORD", "s3cret-db")
+
+        assert "PLACEHOLDER_" not in text  # the workflow's own guard
+        assert "s3cret-admin" in text and "s3cret-db" in text
+        assert "MISSING" not in text
+        mock_run_setup.assert_not_called()
+
+    @patch("lablink_cli.tui.wizard.ConfigWizard")
+    def test_rejects_a_non_template_checkout(
+        self, mock_wizard_cls, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)  # no lablink-infrastructure/ here
+        result = runner.invoke(app, ["configure", "--template"])
+        assert result.exit_code == 1
+        assert "lablink-template" in _plain(result.output)
+        mock_wizard_cls.assert_not_called()
