@@ -116,6 +116,13 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert "num-vms" in _plain(result.output)
 
+    def test_destroy_client_command_exists(self):
+        result = runner.invoke(app, ["client", "destroy", "--help"])
+        assert result.exit_code == 0
+        output = _plain(result.output)
+        assert "--yes" in output
+        assert "--verbose" in output
+
     def test_logs_command_exists(self):
         result = runner.invoke(app, ["logs", "--help"])
         assert result.exit_code == 0

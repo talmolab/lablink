@@ -25,7 +25,23 @@ from lablink_cli.commands.utils import (
     get_allocator_vm,
     get_client_vms,
     list_all_vms,
+    summarize_terraform,
 )
+
+
+class TestSummarizeTerraform:
+    def test_matches_apply_summary(self):
+        output = "Apply complete! Resources: 3 added, 0 changed, 0 destroyed."
+        assert summarize_terraform(output) == (
+            "Resources: 3 added, 0 changed, 0 destroyed"
+        )
+
+    def test_matches_destroy_summary(self):
+        output = "Destroy complete! Resources: 7 destroyed."
+        assert summarize_terraform(output) == "Resources: 7 destroyed"
+
+    def test_returns_none_when_no_summary(self):
+        assert summarize_terraform("terraform init\nno summary here") is None
 
 
 def _client_error(code: str) -> ClientError:

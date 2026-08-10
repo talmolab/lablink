@@ -427,7 +427,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 
 **Endpoint:** `POST /destroy`
 
-**Description:** Runs `terraform destroy` to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the `vms` table in the database. **This is a destructive action.**
+**Description:** Runs `terraform destroy` to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the `vms` table in the database. **This is a destructive action.** Driven by `lablink client destroy`, and by `lablink destroy` as its first teardown step.
 
 **Authentication:** HTTP Basic Auth
 

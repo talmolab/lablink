@@ -201,6 +201,41 @@ Under the manual provider this command no-ops with a message pointing you at
 
 ---
 
+### `client destroy`
+
+Destroy all client VMs via the allocator service.
+
+```bash
+lablink client destroy [--config PATH] [--yes] [--verbose]
+```
+
+**AWS provider only.** Calls the allocator's destroy endpoint; the allocator runs
+`terraform destroy` over its own workspace, so Terraform is not required locally.
+
+This is the CLI equivalent of the admin UI's **Delete Instances** page. It leaves
+the allocator running — use [`destroy`](#destroy) to tear down the whole
+deployment.
+
+**Destructive.** Along with the VMs, this clears the allocator's `vms` table:
+inventory, per-VM logs, and session history are gone. Anyone connected at the
+time loses their session. Run
+[`export-metrics`](#export-metrics) with `--allocator` first if you need the
+numbers. Prompts for confirmation unless `--yes` is passed.
+
+If no client VMs were ever launched the command reports that and exits 0, so it
+is safe to re-run.
+
+Under the manual provider this command no-ops with a message pointing you at
+[`client unregister`](#client-unregister).
+
+| Option | Description |
+|---|---|
+| `-c`, `--config PATH` | Path to `config.yaml`. |
+| `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
+| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+
+---
+
 ### `client register`
 
 Register this BYO box as a manual client and run the client container.
