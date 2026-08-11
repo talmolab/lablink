@@ -7,8 +7,8 @@ so the literal is baked into the instance and the allocator would otherwise
 serve an admin UI whose password is published in a public template.
 """
 
-import importlib.util
-from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -67,18 +67,42 @@ def test_config_validation_still_accepts_placeholders(
     assert is_valid is True, message
 
 
-def test_startup_gate_covers_every_credential_it_reads():
-    """main.py gates admin_user, admin_password and db.password.
+@pytest.mark.parametrize(
+    "field", ["app.admin_user", "app.admin_password", "db.password"]
+)
+def test_startup_gate_covers_every_credential_it_reads(field, monkeypatch, app):
+    """Startup refuses when any one of the three credentials is a sentinel."""
+    from omegaconf import OmegaConf
 
-    Read via find_spec rather than by importing main.py: that module builds a
-    Flask app, a DB pool and a provider at import time, and -- now that this
-    gate exists -- exits on the shipped default config, which still carries
-    PLACEHOLDER_* values. Importing it here would make the test pass or fail
-    depending on whether another test imported it first.
+    from lablink_allocator_service import main
+
+    section, key = field.split(".")
+    cfg = OmegaConf.create(OmegaConf.to_container(main.cfg, resolve=True))
+    cfg[section][key] = "PLACEHOLDER_UNFILLED"
+    monkeypatch.setattr(main, "cfg", cfg)
+
+    with pytest.raises(SystemExit, match=field):
+        main.verify_secrets_resolved()
+
+
+def test_startup_gate_passes_on_real_credentials(app):
+    """The test config carries real values, so startup must not be blocked."""
+    from lablink_allocator_service import main
+
+    main.verify_secrets_resolved()
+
+
+def test_importing_main_does_not_run_the_gate():
+    """The gate belongs in main(), not at import.
+
+    The shipped config.yaml legitimately holds PLACEHOLDER_* values, so a gate
+    at module scope makes `import lablink_allocator_service.main` exit 1 --
+    which is exactly what the image-verification CI job does.
     """
-    origin = importlib.util.find_spec("lablink_allocator_service.main").origin
-    src = Path(origin).read_text()
-    gate = src.split("_missing = []", 1)[1].split("if _missing:", 1)[0]
+    result = subprocess.run(
+        [sys.executable, "-c", "import lablink_allocator_service.main"],
+        capture_output=True,
+        text=True,
+    )
 
-    for field in ("cfg.app.admin_user", "cfg.app.admin_password", "cfg.db.password"):
-        assert f"is_unresolved_secret({field})" in gate, field
+    assert result.returncode == 0, result.stderr

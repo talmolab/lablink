@@ -119,30 +119,40 @@ os.environ["DATABASE_URL"] = (
     f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
 )
 
-# Validate that required secrets are configured.
-#
-# This runs after every deploy path converges — the config is already baked
-# into the instance — so it is the one place that sees what the allocator will
-# actually serve. Config-time validation cannot do this job: lablink-template
-# validates config.yaml *before* substituting its PLACEHOLDER_* sentinels, so
-# the placeholders are legitimate there and only suspicious here.
-_missing = []
-if is_unresolved_secret(cfg.app.admin_user):
-    _missing.append("app.admin_user")
-if is_unresolved_secret(cfg.app.admin_password):
-    _missing.append("app.admin_password")
-if is_unresolved_secret(cfg.db.password):
-    _missing.append("db.password")
-if _missing:
-    raise SystemExit(
-        f"FATAL: Required secrets not configured: {', '.join(_missing)}.\n"
-        "These still hold a placeholder, so no real credential was ever "
-        "supplied. Refusing to start rather than serve an admin UI whose "
-        "password is a literal published in the deployment template.\n"
-        "Deploying via GitHub Actions substitutes them from the "
-        "ADMIN_PASSWORD/DB_PASSWORD repository secrets; a local "
-        "`terraform apply` does not — set real values in config.yaml first."
-    )
+def verify_secrets_resolved() -> None:
+    """Refuse to start when a credential is still an unfilled placeholder.
+
+    Called from ``main()``, not at import: starting the service is the only
+    thing this must block, while *importing* this module is also how CI
+    smoke-tests the shipped image and how the tests build a Flask client —
+    neither of which supplies real credentials. Config-time validation cannot
+    do the job either, since lablink-template validates config.yaml *before*
+    substituting its PLACEHOLDER_* sentinels; the placeholders are legitimate
+    there and only suspicious once the allocator is about to serve them.
+
+    Raises:
+        SystemExit: If any required credential is still a sentinel.
+    """
+    missing = [
+        name
+        for name, value in (
+            ("app.admin_user", cfg.app.admin_user),
+            ("app.admin_password", cfg.app.admin_password),
+            ("db.password", cfg.db.password),
+        )
+        if is_unresolved_secret(value)
+    ]
+    if missing:
+        raise SystemExit(
+            f"FATAL: Required secrets not configured: {', '.join(missing)}.\n"
+            "These still hold a placeholder, so no real credential was ever "
+            "supplied. Refusing to start rather than serve an admin UI whose "
+            "password is a literal published in the deployment template.\n"
+            "Deploying via GitHub Actions substitutes them from the "
+            "ADMIN_PASSWORD/DB_PASSWORD repository secrets; a local "
+            "`terraform apply` does not — set real values in config.yaml first."
+        )
+
 
 # Initialize variables
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
@@ -251,6 +261,8 @@ def main():
     global scheduler_service, reboot_service, admin_session_expiry_service
     global operations_worker, operations_db
     global _startup_time
+
+    verify_secrets_resolved()
 
     try:
         _startup_time = time.monotonic()
