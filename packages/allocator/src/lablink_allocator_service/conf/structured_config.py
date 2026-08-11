@@ -9,6 +9,30 @@ from typing import Optional
 # If this value is still present at startup, the application will refuse to start.
 MISSING_SECRET = "MISSING"
 
+# Prefix of the literal sentinels lablink-template commits in config.yaml for
+# its deploy workflow to replace with GitHub secrets (PLACEHOLDER_ADMIN_PASSWORD,
+# PLACEHOLDER_DB_PASSWORD). Matched by prefix so a future sentinel is covered
+# without another release here.
+PLACEHOLDER_SECRET_PREFIX = "PLACEHOLDER_"
+
+
+def is_unresolved_secret(value: str) -> bool:
+    """True if *value* is an unfilled sentinel rather than a real credential.
+
+    Covers the schema default (``MISSING``) and the template's
+    ``PLACEHOLDER_*`` literals. A placeholder reaching a *running* allocator
+    means the substitution never happened — the deploy workflow is the only
+    thing that performs it, so a local ``terraform apply`` (a documented path
+    in lablink-template) bakes the literal straight into the instance.
+
+    Args:
+        value: The configured credential to inspect.
+
+    Returns:
+        True when the value is a sentinel and must not be trusted.
+    """
+    return value == MISSING_SECRET or value.startswith(PLACEHOLDER_SECRET_PREFIX)
+
 
 @dataclass
 class DatabaseConfig:

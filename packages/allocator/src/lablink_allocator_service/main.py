@@ -11,7 +11,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
 
 from lablink_allocator_service.get_config import get_config
-from lablink_allocator_service.conf.structured_config import MISSING_SECRET
+from lablink_allocator_service.conf.structured_config import is_unresolved_secret
 from lablink_allocator_service.db.vms import VmDatabase
 from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
@@ -119,16 +119,29 @@ os.environ["DATABASE_URL"] = (
     f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
 )
 
-# Validate that required secrets are configured
+# Validate that required secrets are configured.
+#
+# This runs after every deploy path converges — the config is already baked
+# into the instance — so it is the one place that sees what the allocator will
+# actually serve. Config-time validation cannot do this job: lablink-template
+# validates config.yaml *before* substituting its PLACEHOLDER_* sentinels, so
+# the placeholders are legitimate there and only suspicious here.
 _missing = []
-if cfg.app.admin_user == MISSING_SECRET:
+if is_unresolved_secret(cfg.app.admin_user):
     _missing.append("app.admin_user")
-if cfg.app.admin_password == MISSING_SECRET:
+if is_unresolved_secret(cfg.app.admin_password):
     _missing.append("app.admin_password")
+if is_unresolved_secret(cfg.db.password):
+    _missing.append("db.password")
 if _missing:
     raise SystemExit(
-        f"FATAL: Required secrets not configured: {', '.join(_missing)}. "
-        f"Set these in your config.yaml (injected from GitHub secrets in production)."
+        f"FATAL: Required secrets not configured: {', '.join(_missing)}.\n"
+        "These still hold a placeholder, so no real credential was ever "
+        "supplied. Refusing to start rather than serve an admin UI whose "
+        "password is a literal published in the deployment template.\n"
+        "Deploying via GitHub Actions substitutes them from the "
+        "ADMIN_PASSWORD/DB_PASSWORD repository secrets; a local "
+        "`terraform apply` does not — set real values in config.yaml first."
     )
 
 # Initialize variables
