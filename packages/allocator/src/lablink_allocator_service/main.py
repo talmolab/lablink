@@ -11,7 +11,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
 
 from lablink_allocator_service.get_config import get_config
-from lablink_allocator_service.conf.structured_config import MISSING_SECRET
+from lablink_allocator_service.conf.structured_config import is_unresolved_secret
 from lablink_allocator_service.db.vms import VmDatabase
 from lablink_allocator_service.db.schedules import ScheduleDatabase
 from lablink_allocator_service.db.metrics import MetricsDatabase
@@ -119,17 +119,40 @@ os.environ["DATABASE_URL"] = (
     f"postgresql://{cfg.db.user}:{cfg.db.password}@{cfg.db.host}:{cfg.db.port}/{cfg.db.dbname}"
 )
 
-# Validate that required secrets are configured
-_missing = []
-if cfg.app.admin_user == MISSING_SECRET:
-    _missing.append("app.admin_user")
-if cfg.app.admin_password == MISSING_SECRET:
-    _missing.append("app.admin_password")
-if _missing:
-    raise SystemExit(
-        f"FATAL: Required secrets not configured: {', '.join(_missing)}. "
-        f"Set these in your config.yaml (injected from GitHub secrets in production)."
-    )
+def verify_secrets_resolved() -> None:
+    """Refuse to start when a credential is still an unfilled placeholder.
+
+    Called from ``main()``, not at import: starting the service is the only
+    thing this must block, while *importing* this module is also how CI
+    smoke-tests the shipped image and how the tests build a Flask client —
+    neither of which supplies real credentials. Config-time validation cannot
+    do the job either, since lablink-template validates config.yaml *before*
+    substituting its PLACEHOLDER_* sentinels; the placeholders are legitimate
+    there and only suspicious once the allocator is about to serve them.
+
+    Raises:
+        SystemExit: If any required credential is still a sentinel.
+    """
+    missing = [
+        name
+        for name, value in (
+            ("app.admin_user", cfg.app.admin_user),
+            ("app.admin_password", cfg.app.admin_password),
+            ("db.password", cfg.db.password),
+        )
+        if is_unresolved_secret(value)
+    ]
+    if missing:
+        raise SystemExit(
+            f"FATAL: Required secrets not configured: {', '.join(missing)}.\n"
+            "These still hold a placeholder, so no real credential was ever "
+            "supplied. Refusing to start rather than serve an admin UI whose "
+            "password is a literal published in the deployment template.\n"
+            "Deploying via GitHub Actions substitutes them from the "
+            "ADMIN_PASSWORD/DB_PASSWORD repository secrets; a local "
+            "`terraform apply` does not — set real values in config.yaml first."
+        )
+
 
 # Initialize variables
 users = {cfg.app.admin_user: generate_password_hash(cfg.app.admin_password)}
@@ -238,6 +261,8 @@ def main():
     global scheduler_service, reboot_service, admin_session_expiry_service
     global operations_worker, operations_db
     global _startup_time
+
+    verify_secrets_resolved()
 
     try:
         _startup_time = time.monotonic()
