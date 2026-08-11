@@ -132,3 +132,14 @@ def test_null_docker_mimics_the_old_guard_result():
     result = NullDocker().compose(None, "ps")
     assert result.returncode == 1
     assert "No such container" in result.stderr
+
+
+def test_null_docker_logs_does_not_shell_out():
+    # logs() calls subprocess.run directly rather than routing through
+    # _run, so it needs its own override or a NullDocker would silently
+    # invoke the real `docker` binary.
+    with patch("lablink_cli.docker.subprocess.run") as run:
+        result = NullDocker().logs("c", tail=30)
+    run.assert_not_called()
+    assert result.returncode == 1
+    assert "No such container" in result.stderr

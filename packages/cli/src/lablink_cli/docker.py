@@ -341,6 +341,16 @@ class NullDocker(Docker):
     def volume_exists(self, name: str) -> bool:
         return False
 
+    def logs(
+        self,
+        name: str,
+        *,
+        tail: int | None = None,
+        merge_stderr: bool = False,
+        timeout: float | None = None,
+    ) -> Result:
+        return Result(returncode=1, stderr=self._NOT_FOUND)
+
     def follow_logs(
         self, name: str, *, since: str | None = None
     ) -> subprocess.Popen:
