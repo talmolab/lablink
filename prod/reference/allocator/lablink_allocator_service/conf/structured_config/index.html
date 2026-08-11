@@ -1969,6 +1969,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.PLACEHOLDER_SECRET_PREFIX" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;PLACEHOLDER_SECRET_PREFIX
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2951,6 +2962,34 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.is_unresolved_secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_unresolved_secret
+      
+    </span>
+  </a>
   
 </li>
         
@@ -5388,6 +5427,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.PLACEHOLDER_SECRET_PREFIX" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;PLACEHOLDER_SECRET_PREFIX
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6378,6 +6428,34 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lablink_allocator_service.conf.structured_config.is_unresolved_secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_unresolved_secret
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6450,6 +6528,26 @@ Allocator Service.</p>
   </span>
 
 <a href="#lablink_allocator_service.conf.structured_config.MISSING_SECRET" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="lablink_allocator_service.conf.structured_config.PLACEHOLDER_SECRET_PREFIX" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">PLACEHOLDER_SECRET_PREFIX</span> <span class="o">=</span> <span class="s1">&#39;PLACEHOLDER_&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#lablink_allocator_service.conf.structured_config.PLACEHOLDER_SECRET_PREFIX" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -8990,7 +9088,119 @@ Attributes:
     </div>
 
 </div>
+<h3 id="lablink_allocator_service.conf.structured_config-functions">Functions:<a href="#lablink_allocator_service.conf.structured_config-functions" class="headerlink" title="Permanent link">&para;</a></h3>
 
+<div class="doc doc-object doc-function">
+
+
+<h4 id="lablink_allocator_service.conf.structured_config.is_unresolved_secret" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">is_unresolved_secret</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
+
+<a href="#lablink_allocator_service.conf.structured_config.is_unresolved_secret" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>True if <em>value</em> is an unfilled sentinel rather than a real credential.</p>
+<p>Covers the schema default (<code>MISSING</code>) and the template's
+<code>PLACEHOLDER_*</code> literals. A placeholder reaching a <em>running</em> allocator
+means the substitution never happened — the deploy workflow is the only
+thing that performs it, so a local <code>terraform apply</code> (a documented path
+in lablink-template) bakes the literal straight into the instance.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The configured credential to inspect.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True when the value is a sentinel and must not be trusted.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/conf/structured_config.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_unresolved_secret</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;True if *value* is an unfilled sentinel rather than a real credential.</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21"></a>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="sd">    Covers the schema default (``MISSING``) and the template&#39;s</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="sd">    ``PLACEHOLDER_*`` literals. A placeholder reaching a *running* allocator</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">    means the substitution never happened — the deploy workflow is the only</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    thing that performs it, so a local ``terraform apply`` (a documented path</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">    in lablink-template) bakes the literal straight into the instance.</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        value: The configured credential to inspect.</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">        True when the value is a sentinel and must not be trusted.</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">return</span> <span class="n">value</span> <span class="o">==</span> <span class="n">MISSING_SECRET</span> <span class="ow">or</span> <span class="n">value</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">PLACEHOLDER_SECRET_PREFIX</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
 
 
 
