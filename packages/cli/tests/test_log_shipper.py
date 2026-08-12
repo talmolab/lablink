@@ -252,62 +252,6 @@ class TestShouldFlush:
         assert should_flush(buffer_len=1, elapsed_s=14.9) is False
 
 
-class TestInspectContainer:
-    def test_running(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import inspect_container
-
-        with patch("lablink_cli.log_shipper.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="running\n", stderr=""
-            )
-            assert inspect_container("lablink-client") == "running"
-
-    def test_exited(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import inspect_container
-
-        with patch("lablink_cli.log_shipper.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="exited\n", stderr=""
-            )
-            assert inspect_container("lablink-client") == "exited"
-
-    def test_restarting(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import inspect_container
-
-        with patch("lablink_cli.log_shipper.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="restarting\n", stderr=""
-            )
-            assert inspect_container("lablink-client") == "restarting"
-
-    def test_missing_returns_missing(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import inspect_container
-
-        with patch("lablink_cli.log_shipper.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="",
-                stderr="Error: No such object: lablink-client\n",
-            )
-            assert inspect_container("lablink-client") == "missing"
-
-    def test_daemon_error(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import inspect_container
-
-        with patch("lablink_cli.log_shipper.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="",
-                stderr="Cannot connect to the Docker daemon\n",
-            )
-            assert inspect_container("lablink-client") == "daemon_error"
-
-
 class TestParseDockerLine:
     def test_strips_nanoseconds(self):
         from lablink_cli.log_shipper import parse_docker_line
@@ -464,9 +408,11 @@ class TestRunShipper:
         monkeypatch.setattr(
             "lablink_cli.log_shipper.post_batch", fake_post_batch
         )
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = "missing"
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container",
-            MagicMock(return_value="missing"),
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
         # state_dir override so tests don't touch ~/.lablink
         monkeypatch.setattr(
@@ -518,9 +464,11 @@ class TestRunShipper:
         monkeypatch.setattr(
             "lablink_cli.log_shipper.post_batch", fake_post_batch
         )
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = "missing"
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container",
-            MagicMock(return_value="missing"),
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
         monkeypatch.setattr(
             "lablink_cli.log_shipper.STATE_FILE",
@@ -553,9 +501,11 @@ class TestRunShipper:
             "lablink_cli.log_shipper.post_batch",
             lambda **kw: "fatal",
         )
-        inspect = MagicMock(return_value="running")
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = "running"
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container", inspect
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
         monkeypatch.setattr(
             "lablink_cli.log_shipper.STATE_FILE",
@@ -603,9 +553,11 @@ class TestRunShipper:
         monkeypatch.setattr(
             "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
         )
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = "missing"
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container",
-            MagicMock(return_value="missing"),
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
 
         run_shipper(env_file, _sleep=lambda s: None)
@@ -642,16 +594,18 @@ class TestRunShipper:
         monkeypatch.setattr(
             "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
         )
-        inspect = MagicMock(return_value="exited")
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = "exited"
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container", inspect
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
 
         run_shipper(env_file, _sleep=lambda s: None)
 
         # Should give up after MAX_EXITED_CONSECUTIVE inspections — not loop
         # forever. Pre-fix this test would hang indefinitely.
-        assert inspect.call_count == MAX_EXITED_CONSECUTIVE
+        assert mock_docker.container_status.call_count == MAX_EXITED_CONSECUTIVE
 
     def test_restarting_resets_exited_counter(
         self, tmp_path, monkeypatch
@@ -688,16 +642,18 @@ class TestRunShipper:
             ["exited", "restarting"] * (MAX_EXITED_CONSECUTIVE + 2)
             + ["exited"] * MAX_EXITED_CONSECUTIVE
         )
-        inspect = MagicMock(side_effect=sequence)
+        mock_docker = MagicMock()
+        mock_docker.container_status.side_effect = sequence
         monkeypatch.setattr(
-            "lablink_cli.log_shipper.inspect_container", inspect
+            "lablink_cli.log_shipper.default_docker",
+            lambda: mock_docker,
         )
 
         run_shipper(env_file, _sleep=lambda s: None)
 
         # Total inspections = alternating prefix + N trailing exited.
         expected = 2 * (MAX_EXITED_CONSECUTIVE + 2) + MAX_EXITED_CONSECUTIVE
-        assert inspect.call_count == expected
+        assert mock_docker.container_status.call_count == expected
 
 
 class TestMainEntry:

@@ -398,14 +398,15 @@ def _check_client_registered() -> dict:
 def _check_client_container() -> dict:
     """Report the lablink-client container's state.
 
-    Doubles as the docker-daemon check: `inspect_container` returns
+    Doubles as the docker-daemon check: `container_status` returns
     "daemon_error" when the daemon is unreachable, so a separate probe would
     only duplicate the same `docker inspect` call.
     """
-    from lablink_cli.log_shipper import CONTAINER_NAME, inspect_container
+    from lablink_cli.docker import default_docker
+    from lablink_cli.log_shipper import CONTAINER_NAME
 
     result = {"check": "Client container", "status": "fail"}
-    status = inspect_container(CONTAINER_NAME)
+    status = default_docker().container_status(CONTAINER_NAME)
 
     if status == "daemon_error":
         result["detail"] = (

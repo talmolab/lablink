@@ -10,13 +10,20 @@ That is occasionally what an operator wants, but it must be opt-in.
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 
 def _completed(cmd, returncode=0, stdout="", stderr=""):
     return subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+
+
+def _mock_docker(status):
+    """A `default_docker()` stand-in whose container_status is fixed."""
+    docker = MagicMock()
+    docker.container_status.return_value = status
+    return docker
 
 
 def test_aborts_when_docker_missing(capsys):
@@ -39,8 +46,8 @@ def test_refuses_while_container_still_exists(capsys):
 
     with patch("lablink_cli.commands.reset_overlay.shutil.which",
                return_value="/usr/bin/docker"), \
-         patch("lablink_cli.commands.reset_overlay.inspect_container",
-               return_value="running"):
+         patch("lablink_cli.commands.reset_overlay.default_docker",
+               return_value=_mock_docker("running")):
         with pytest.raises(SystemExit) as exc:
             run_reset_overlay(yes=True)
 
@@ -60,8 +67,8 @@ def test_noop_when_volume_absent(capsys):
 
     with patch("lablink_cli.commands.reset_overlay.shutil.which",
                return_value="/usr/bin/docker"), \
-         patch("lablink_cli.commands.reset_overlay.inspect_container",
-               return_value="missing"), \
+         patch("lablink_cli.commands.reset_overlay.default_docker",
+               return_value=_mock_docker("missing")), \
          patch("lablink_cli.commands.reset_overlay.subprocess.run",
                side_effect=fake_run):
         run_reset_overlay(yes=True)
@@ -87,8 +94,8 @@ def test_removes_volume_and_explains_the_stale_node(capsys):
 
     with patch("lablink_cli.commands.reset_overlay.shutil.which",
                return_value="/usr/bin/docker"), \
-         patch("lablink_cli.commands.reset_overlay.inspect_container",
-               return_value="missing"), \
+         patch("lablink_cli.commands.reset_overlay.default_docker",
+               return_value=_mock_docker("missing")), \
          patch("lablink_cli.commands.reset_overlay.subprocess.run",
                side_effect=fake_run):
         run_reset_overlay(yes=True)
@@ -111,8 +118,8 @@ def test_prompt_abort_leaves_volume_alone(monkeypatch, capsys):
 
     with patch("lablink_cli.commands.reset_overlay.shutil.which",
                return_value="/usr/bin/docker"), \
-         patch("lablink_cli.commands.reset_overlay.inspect_container",
-               return_value="missing"), \
+         patch("lablink_cli.commands.reset_overlay.default_docker",
+               return_value=_mock_docker("missing")), \
          patch("lablink_cli.commands.reset_overlay.subprocess.run",
                side_effect=fake_run):
         run_reset_overlay(yes=False)
@@ -129,8 +136,8 @@ def test_daemon_error_aborts(capsys):
 
     with patch("lablink_cli.commands.reset_overlay.shutil.which",
                return_value="/usr/bin/docker"), \
-         patch("lablink_cli.commands.reset_overlay.inspect_container",
-               return_value="daemon_error"):
+         patch("lablink_cli.commands.reset_overlay.default_docker",
+               return_value=_mock_docker("daemon_error")):
         with pytest.raises(SystemExit) as exc:
             run_reset_overlay(yes=True)
 

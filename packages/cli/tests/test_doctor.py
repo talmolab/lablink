@@ -198,8 +198,10 @@ class TestCheckClientContainer:
     def _run(self, status):
         from lablink_cli.commands.doctor import _check_client_container
 
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = status
         with patch(
-            "lablink_cli.log_shipper.inspect_container", return_value=status
+            "lablink_cli.docker.default_docker", return_value=mock_docker
         ):
             return _check_client_container()
 

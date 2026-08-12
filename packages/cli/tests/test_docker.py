@@ -143,3 +143,58 @@ def test_null_docker_logs_does_not_shell_out():
     run.assert_not_called()
     assert result.returncode == 1
     assert "No such container" in result.stderr
+
+
+def test_log_shipper_no_longer_defines_inspect_container():
+    """The verb lives in the adapter now; log_shipper must not re-export it."""
+    import lablink_cli.log_shipper as ls
+
+    assert not hasattr(ls, "inspect_container")
+
+
+def test_container_status_running_moved_from_log_shipper():
+    # Ported from log_shipper.TestInspectContainer.test_running (Task 2) —
+    # same scenario as test_container_status_maps_running above, kept as a
+    # separate case per the task's "do not delete coverage" instruction.
+    with patch(
+        "lablink_cli.docker.subprocess.run",
+        return_value=_completed(0, stdout="running\n", stderr=""),
+    ):
+        assert Docker().container_status("lablink-client") == "running"
+
+
+def test_container_status_missing_moved_from_log_shipper():
+    # Ported from log_shipper.TestInspectContainer.test_missing_returns_missing.
+    with patch(
+        "lablink_cli.docker.subprocess.run",
+        return_value=_completed(
+            1, stdout="", stderr="Error: No such object: lablink-client\n"
+        ),
+    ):
+        assert Docker().container_status("lablink-client") == "missing"
+
+
+def test_container_status_maps_exited():
+    with patch(
+        "lablink_cli.docker.subprocess.run",
+        return_value=_completed(0, stdout="exited\n"),
+    ):
+        assert Docker().container_status("c") == "exited"
+
+
+def test_container_status_maps_restarting():
+    with patch(
+        "lablink_cli.docker.subprocess.run",
+        return_value=_completed(0, stdout="restarting\n"),
+    ):
+        assert Docker().container_status("c") == "restarting"
+
+
+def test_container_status_daemon_error_on_other_nonzero_stderr():
+    with patch(
+        "lablink_cli.docker.subprocess.run",
+        return_value=_completed(
+            1, stderr="Cannot connect to the Docker daemon\n"
+        ),
+    ):
+        assert Docker().container_status("c") == "daemon_error"

@@ -28,7 +28,8 @@ import typer
 from rich.console import Console
 
 from lablink_cli.commands.register import TAILSCALE_STATE_VOLUME
-from lablink_cli.log_shipper import CONTAINER_NAME, inspect_container
+from lablink_cli.docker import Docker, default_docker
+from lablink_cli.log_shipper import CONTAINER_NAME
 
 TAILNET_ADMIN_URL = "https://login.tailscale.com/admin/machines"
 
@@ -44,7 +45,8 @@ def run_reset_overlay(*, yes: bool) -> None:
         )
         raise SystemExit(1)
 
-    status = inspect_container(CONTAINER_NAME)
+    docker: Docker = default_docker()
+    status = docker.container_status(CONTAINER_NAME)
     if status == "daemon_error":
         console.print(
             "[red]Docker daemon is unreachable.[/red] Start Docker and "

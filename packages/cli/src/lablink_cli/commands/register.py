@@ -17,7 +17,7 @@ import psutil
 from rich.console import Console
 
 from lablink_cli import byo_detect
-from lablink_cli.log_shipper import inspect_container as inspect_container_for_register
+from lablink_cli.docker import default_docker
 from lablink_cli.api import (
     AllocatorAuthError,
     AllocatorConflictError,
@@ -363,7 +363,7 @@ def _resume(env_file: Path, console: Console) -> None:
 
     Note: container image is NOT re-pulled — that's `--force` territory.
     """
-    status = inspect_container_for_register("lablink-client")
+    status = default_docker().container_status("lablink-client")
     container_action: str | None = None
 
     if status == "missing":

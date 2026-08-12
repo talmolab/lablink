@@ -70,15 +70,18 @@ def _kwargs(env_file, **overrides):
 
 class TestResumePath:
     @patch("lablink_cli.commands.register._start_log_shipper")
-    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register.default_docker")
     @patch("lablink_cli.commands.register._shipper_alive")
     @patch("lablink_cli.commands.register.subprocess.run")
     def test_everything_running_is_noop(
-        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
+        self, mock_run, mock_alive, mock_default_docker, mock_spawn,
+        tmp_env_file
     ):
         from lablink_cli.commands.register import run_register
         tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
-        mock_inspect.return_value = "running"
+        mock_default_docker.return_value.container_status.return_value = (
+            "running"
+        )
         mock_alive.return_value = True
 
         run_register(**_kwargs(tmp_env_file))
@@ -94,15 +97,18 @@ class TestResumePath:
         assert run_cmds == []
 
     @patch("lablink_cli.commands.register._start_log_shipper")
-    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register.default_docker")
     @patch("lablink_cli.commands.register._shipper_alive")
     @patch("lablink_cli.commands.register.subprocess.run")
     def test_dead_shipper_revived_no_re_register(
-        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
+        self, mock_run, mock_alive, mock_default_docker, mock_spawn,
+        tmp_env_file
     ):
         from lablink_cli.commands.register import run_register
         tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
-        mock_inspect.return_value = "running"
+        mock_default_docker.return_value.container_status.return_value = (
+            "running"
+        )
         mock_alive.return_value = False
 
         run_register(**_kwargs(tmp_env_file))
@@ -112,15 +118,18 @@ class TestResumePath:
         assert "CLIENT_SECRET=s" in tmp_env_file.read_text()
 
     @patch("lablink_cli.commands.register._start_log_shipper")
-    @patch("lablink_cli.commands.register.inspect_container_for_register")
+    @patch("lablink_cli.commands.register.default_docker")
     @patch("lablink_cli.commands.register._shipper_alive")
     @patch("lablink_cli.commands.register.subprocess.run")
     def test_exited_container_restarted(
-        self, mock_run, mock_alive, mock_inspect, mock_spawn, tmp_env_file
+        self, mock_run, mock_alive, mock_default_docker, mock_spawn,
+        tmp_env_file
     ):
         from lablink_cli.commands.register import run_register
         tmp_env_file.write_text("CLIENT_ID=42\nCLIENT_SECRET=s\n")
-        mock_inspect.return_value = "exited"
+        mock_default_docker.return_value.container_status.return_value = (
+            "exited"
+        )
         mock_alive.return_value = False
         mock_run.return_value = MagicMock(returncode=0)
 
