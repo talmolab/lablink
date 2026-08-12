@@ -4,14 +4,14 @@ This walkthrough takes you from a clean install through a live allocator and bac
 
 !!! note "This is the AWS path"
     Everything below assumes the default `provider: aws` — the allocator on EC2,
-    client VMs provisioned by Terraform. To run the allocator on a machine you
+    client VMs provisioned by OpenTofu. To run the allocator on a machine you
     already have and register your own client boxes instead, follow
     [Bring-Your-Own Clients](byo-clients.md); it needs no AWS account and no
-    Terraform.
+    OpenTofu.
 
 ## Before you start
 
-Make sure you've completed [Installation](installation.md) and that `lablink doctor` reports clean values for "Terraform installed" and "AWS credentials". The other checks will light up as you go.
+Make sure you've completed [Installation](installation.md) and that `lablink doctor` reports clean values for "OpenTofu installed" and "AWS credentials". The other checks will light up as you go.
 
 ## Step 1: Configure
 
@@ -26,9 +26,9 @@ This launches an interactive TUI wizard that walks you through:
 - **Machine settings** — client VM instance type and AMI. Defaults come from the bundled `lablink-template` config.
 - **DNS / SSL** — optional Route 53 domain and ACM certificate configuration.
 
-The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablink setup`** to create the two AWS resources Terraform needs before it can run:
+The wizard writes `~/.lablink/config.yaml` and then **automatically runs `lablink setup`** to create the two AWS resources OpenTofu needs before it can run:
 
-1. An **S3 bucket** for Terraform state (versioned + encrypted).
+1. An **S3 bucket** for OpenTofu state (versioned + encrypted).
 2. A **DynamoDB table** for state locking.
 
 (Manual-provider configs skip that step — there's no remote state to bootstrap.)
@@ -54,7 +54,7 @@ All six AWS checks should now pass:
 ┌─────────────────────────┬────────┬─────────────────────────────────────┐
 │ Check                   │ Status │ Detail                              │
 ├─────────────────────────┼────────┼─────────────────────────────────────┤
-│ Terraform installed     │ PASS   │ v1.6.6 (/usr/local/bin/terraform)   │
+│ OpenTofu installed     │ PASS   │ v1.6.6 (/usr/local/bin/tofu)   │
 │ Config file             │ PASS   │ ~/.lablink/config.yaml              │
 │ Config validates        │ PASS   │ No errors                           │
 │ AWS credentials         │ PASS   │ Account: 123…, Identity: arn:…      │
@@ -73,18 +73,18 @@ lablink deploy
 
 This will:
 
-1. Download the pinned `lablink-template` Terraform files into `~/.lablink/cache/terraform/<version>/` (first run only).
+1. Download the pinned `lablink-template` OpenTofu files into `~/.lablink/cache/terraform/<version>/` (first run only).
 2. Copy them into a working directory at `~/.lablink/deploys/<deployment-name>/`.
-3. Prompt you once for an **admin username** (default `admin`) and **admin password**. These are injected into the Terraform variables — they are not stored in `config.yaml`.
-4. Run `terraform init` + `terraform apply`, showing the plan and asking for confirmation.
+3. Prompt you once for an **admin username** (default `admin`) and **admin password**. These are injected into the OpenTofu variables — they are not stored in `config.yaml`.
+4. Run `tofu init` + `tofu apply`, showing the plan and asking for confirmation.
 5. Wait for the allocator EC2 instance to come up and its `/api/health` endpoint to report `healthy`.
 
-Expect 2–5 minutes for Terraform + another 1–3 minutes for the allocator to finish its first-boot container start.
+Expect 2–5 minutes for OpenTofu + another 1–3 minutes for the allocator to finish its first-boot container start.
 
 !!! tip "Skip interactive confirmations"
-    Pass `-y` / `--yes` to skip Terraform plan confirmation. The admin credentials are still prompted for.
+    Pass `-y` / `--yes` to skip OpenTofu plan confirmation. The admin credentials are still prompted for.
 
-When deploy completes, note the `ec2_public_ip` in the Terraform output — that's your allocator URL.
+When deploy completes, note the `ec2_public_ip` in the OpenTofu output — that's your allocator URL.
 
 ## Step 4: Verify
 
@@ -94,7 +94,7 @@ lablink status
 
 This shows four sections:
 
-- **Terraform State** — outputs like `ec2_public_ip`, `ec2_public_dns`, and any DNS/ALB records.
+- **OpenTofu State** — outputs like `ec2_public_ip`, `ec2_public_dns`, and any DNS/ALB records.
 - **Health Checks** — DNS resolution (if you configured a domain), `/api/health` response, and SSL certificate expiry (if HTTPS is enabled).
 - **Client VMs** — per-VM state reported by the allocator (empty until you run `lablink client launch`).
 - **Cost Estimate** — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.
@@ -107,7 +107,7 @@ Open the allocator in a browser using `http://<ec2_public_ip>` (or your configur
 lablink client launch --num-vms 1
 ```
 
-The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own Terraform workspace (not the CLI's). Run `lablink status` again to see the new VM appear.
+The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own OpenTofu workspace (not the CLI's). Run `lablink status` again to see the new VM appear.
 
 ## Step 6: Tear down
 
@@ -117,7 +117,7 @@ When you're done, destroy everything the CLI created:
 lablink destroy
 ```
 
-This runs `terraform destroy` on the deployment workspace and removes the EC2 instance, security groups, key pair, and any ALB/Route 53 records Terraform owns. Client VMs launched through the allocator are destroyed along with the allocator.
+This runs `tofu destroy` on the deployment workspace and removes the EC2 instance, security groups, key pair, and any ALB/Route 53 records OpenTofu owns. Client VMs launched through the allocator are destroyed along with the allocator.
 
 !!! warning "Costs don't stop until destroy finishes"
     The allocator EC2 instance, EBS volume, and (if configured) ALB accrue charges while running. See [Cost Estimation](../cost-estimation.md).

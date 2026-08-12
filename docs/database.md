@@ -29,7 +29,7 @@ The schema is created once, at container start, by `generate-init-sql` writing
 
 ### `vms` Table
 
-The main table. One row per client machine, whether it was provisioned by Terraform
+The main table. One row per client machine, whether it was provisioned by OpenTofu
 or registered itself as a BYO box. The table name is configurable via
 `db.table_name` (default `vm_table`); this page calls it `vms`.
 
@@ -89,7 +89,7 @@ by `init.sql` — the one exception to the note above.
 
 `CloudInitLogs`, `DockerLogs`, and the `TerraformApply*`, `CloudInit*`, `Container*`
 and `TotalStartupDurationSeconds` timing columns, which break VM startup into its
-Terraform / cloud-init / container-start phases for bottleneck analysis.
+OpenTofu / cloud-init / container-start phases for bottleneck analysis.
 
 **Session metrics** — populated only when `monitoring.enabled` is true
 
@@ -120,7 +120,7 @@ if they haven't launched anything yet. It's maintained by the client's
 ### `operations` Table
 
 Tracks asynchronous provisioning work so the CLI and admin UI can poll progress
-instead of blocking on a long Terraform run.
+instead of blocking on a long OpenTofu run.
 
 | Column | Type | Description |
 |---|---|---|

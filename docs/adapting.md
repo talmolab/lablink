@@ -203,14 +203,14 @@ git commit -m "Configure LabLink for [your software]"
 git push
 ```
 
-#### Deploy via Terraform
+#### Deploy via OpenTofu
 
 ```bash
 cd lablink-infrastructure
 
-terraform init
+tofu init
 
-terraform apply \
+tofu apply \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=linux-amd64-latest-test"
 ```
@@ -219,7 +219,7 @@ terraform apply \
 
 1. Get allocator IP:
    ```bash
-   terraform output ec2_public_ip
+   tofu output ec2_public_ip
    ```
 
 2. Access web interface: `http://<ec2_ip>:80`

@@ -1,10 +1,10 @@
 # Prerequisites
 
-What you need depends on which deployment path you take. **An AWS account, the AWS CLI, Terraform, and the GitHub CLI are not universal requirements** — the manual provider runs the allocator and its clients on hardware you already own, with none of them.
+What you need depends on which deployment path you take. **An AWS account, the AWS CLI, OpenTofu, and the GitHub CLI are not universal requirements** — the manual provider runs the allocator and its clients on hardware you already own, with none of them.
 
 ## Pick your path first
 
-| Path | AWS account | Terraform | Docker | `gh` |
+| Path | AWS account | OpenTofu | Docker | `gh` |
 |---|---|---|---|---|
 | [**CLI, manual provider**](cli/byo-clients.md) — allocator and clients run as containers on machines you already have | No | No | **Yes** | No |
 | [**CLI, AWS provider**](cli/first-deployment.md) — EC2 provisioned from your own machine | Yes | Yes | No | No |
@@ -90,7 +90,7 @@ You'll need an AWS account with appropriate permissions to create:
 - EC2 instances
 - Security groups
 - Elastic IPs
-- S3 buckets (for Terraform state)
+- S3 buckets (for OpenTofu state)
 - IAM roles and policies
 
 **Cost Considerations**: See the [Cost Estimation](cost-estimation.md) guide for expected AWS costs.
@@ -139,27 +139,30 @@ Enter your:
 
 For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See [AWS Setup from Scratch](aws-setup.md#step-4-github-actions-oidc-configuration) for details.
 
-### Terraform
+### OpenTofu
 
-Required for the **CLI + AWS provider** path, which drives Terraform from your machine. Not needed for the template repo path — GitHub Actions runs Terraform there — and not needed at all for the manual provider.
+Required for the **CLI + AWS provider** path, which drives OpenTofu from your machine. Not needed for the template repo path — GitHub Actions runs OpenTofu there — and not needed at all for the manual provider.
 
 === "macOS"
     ```bash
-    brew tap hashicorp/tap
-    brew install hashicorp/tap/terraform
+    brew update
+    brew install opentofu
     ```
 
 === "Linux"
     ```bash
-    wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-    unzip terraform_1.6.6_linux_amd64.zip
-    sudo mv terraform /usr/local/bin/
+    curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
+    chmod +x install-opentofu.sh
+    ./install-opentofu.sh --install-method standalone
+    rm -f install-opentofu.sh
     ```
 
 === "Windows"
-    Download from [Terraform Downloads](https://www.terraform.io/downloads.html) and add to PATH
+    ```powershell
+    winget install --exact --id=OpenTofu.Tofu
+    ```
 
-**Version Requirement**: LabLink uses Terraform 1.6.6 (as specified in the CI workflow).
+**Version Requirement**: OpenTofu 1.10.0 or newer. `lablink doctor` enforces this floor — earlier releases vendor an `aws-sdk-go-v2` that can corrupt S3 state on an upload retry. CI and the allocator image pin 1.12.5.
 
 ## Template repo path only
 

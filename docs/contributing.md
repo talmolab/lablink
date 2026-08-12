@@ -57,7 +57,7 @@ This project adheres to a code of conduct that we expect all contributors to fol
 - Python 3.9 or higher
 - Docker and Docker Desktop running
 - AWS CLI (for testing infrastructure)
-- Terraform 1.6.6+ (for testing infrastructure)
+- OpenTofu 1.10+ (for testing infrastructure)
 - Git
 
 ### Local Setup
@@ -127,7 +127,7 @@ docker build -t lablink-client:dev -f packages/client/Dockerfile.dev .
 After deploying the allocator to AWS, cannot connect to PostgreSQL database.
 
 **Steps to Reproduce**:
-1. Deploy allocator with `terraform apply`
+1. Deploy allocator with `tofu apply`
 2. SSH into instance
 3. Try to access database: `psql -U lablink -d lablink_db`
 
@@ -137,7 +137,7 @@ After deploying the allocator to AWS, cannot connect to PostgreSQL database.
 
 **Environment**:
 - OS: Ubuntu 20.04
-- Terraform: 1.6.6
+- OpenTofu: 1.6.6
 - Image tag: linux-amd64-latest
 
 **Logs**:
@@ -169,7 +169,7 @@ After deploying the allocator to AWS, cannot connect to PostgreSQL database.
 Some research institutions use Azure instead of AWS and would benefit from LabLink.
 
 **Proposed Solution**:
-- Add Azure provider to Terraform configurations
+- Add Azure provider to OpenTofu configurations
 - Support Azure VMs alongside EC2
 - Document Azure-specific setup
 
@@ -308,7 +308,7 @@ def request_vm(email: str) -> dict[str, str]:
     return assign_vm(vm, email)
 ```
 
-### Terraform Style
+### OpenTofu Style
 
 - Use descriptive resource names
 - Add comments for complex logic
@@ -327,7 +327,7 @@ resource "aws_instance" "lablink_allocator" {
     Name        = "lablink-allocator-${var.environment}"
     Project     = "LabLink"
     Environment = var.environment
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
   }
 
   # Security group allowing HTTP and SSH
@@ -904,10 +904,10 @@ Use tabs for multi-option content:
 
 ```markdown
 === "macOS"
-    brew install terraform
+    brew install opentofu
 
 === "Linux"
-    wget https://releases.hashicorp.com/terraform/...
+    curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh
 ```
 
 Use Mermaid for diagrams (flowcharts, sequence diagrams, state diagrams, ER diagrams).

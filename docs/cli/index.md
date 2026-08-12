@@ -1,6 +1,6 @@
 # LabLink CLI
 
-The `lablink` command is a CLI-driven alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives Terraform from your own machine instead of GitHub Actions.
+The `lablink` command is a CLI-driven alternative to the [lablink-template](https://github.com/talmolab/lablink-template) repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives OpenTofu from your own machine instead of GitHub Actions.
 
 !!! note "Status: pre-PyPI"
     The CLI is not yet published to PyPI. For now, install it from source with `uv sync --all-packages` — see [Installation](installation.md). `uv tool install lablink` will be the path once the package is released.
@@ -12,7 +12,7 @@ config:
 
 | `provider` | Allocator runs on | Client machines | Needs AWS? |
 |---|---|---|---|
-| `aws` (default) | EC2, provisioned by Terraform | `lablink client launch` provisions them for you | Yes |
+| `aws` (default) | EC2, provisioned by OpenTofu | `lablink client launch` provisions them for you | Yes |
 | `manual` | docker-compose, on a machine you already have | you register your own boxes with `lablink client register` | No |
 
 Everything below compares the **AWS** path against the template repo. If you'd
@@ -26,9 +26,9 @@ Both paths deploy the same allocator service and manage the same set of AWS reso
 
 | | Template repo | CLI |
 |---|---|---|
-| What you maintain | A full repo forked from `lablink-template` (Dockerfile, Terraform `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
-| Customization surface | Every file in the repo — tweak AMIs, Docker images, Terraform resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL) |
-| Where Terraform runs | GitHub Actions | Your machine |
+| What you maintain | A full repo forked from `lablink-template` (Dockerfile, OpenTofu `.tf` files, GitHub Actions workflows, configs) | A single `config.yaml` |
+| Customization surface | Every file in the repo — tweak AMIs, Docker images, OpenTofu resources, CI workflow, secrets | Whatever the `config.yaml` schema exposes (instance type, region, DNS, SSL) |
+| Where OpenTofu runs | GitHub Actions | Your machine |
 | Where state lives | Shared S3 (per-repo) | Local S3 bucket you own |
 | How you trigger a deploy | Push to `main` / run workflow | `lablink deploy` |
 | Secrets management | GitHub repository secrets | AWS credentials on your machine, passwords prompted |
@@ -42,12 +42,12 @@ Pick the **CLI** when you want to:
 - Stand up a standard deployment without maintaining a fork of the template
 - Keep the surface small — one config file, no Dockerfile or `.tf` edits
 - Skip hopping between a GitHub repo, Actions logs, and local tooling
-- Drive Terraform directly from your laptop and see its output inline
+- Drive OpenTofu directly from your laptop and see its output inline
 
 Pick the **template repo** when you want to:
 
 - Bring your own Docker image, custom AMI baking, or your own entrypoint
-- Add or modify AWS resources Terraform doesn't provision by default
+- Add or modify AWS resources OpenTofu doesn't provision by default
 - Customize the GitHub Actions workflow (extra steps, different triggers, etc.)
 - Hand the deployment off to a team via GitHub permissions instead of sharing AWS credentials
 

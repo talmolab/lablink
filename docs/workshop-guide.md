@@ -121,7 +121,7 @@ New VMs are created without affecting existing running VMs. They'll be ready in 
 Tear down all VMs:
 
 1. Click **"Delete VMs"** in the admin panel
-2. Click **"Run terraform destroy"** and confirm
+2. Click **"Run tofu destroy"** and confirm
 
 ![Destroy All VMs](assets/images/admin-destroy-vms.png)
 
@@ -135,13 +135,13 @@ If you don't need LabLink running until your next workshop, destroy the allocato
 
 === "Via GitHub Actions"
 
-    Manually run the **Terraform Destroy** workflow from the Actions tab.
+    Manually run the **OpenTofu Destroy** workflow from the Actions tab.
 
-=== "Via Terraform"
+=== "Via OpenTofu"
 
     ```bash
     cd lablink-infrastructure
-    terraform destroy -var="resource_suffix=test"
+    tofu destroy -var="resource_suffix=test"
     ```
 
 See [Deployment](deployment.md#destroying-a-deployment) for details.

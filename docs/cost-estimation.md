@@ -68,9 +68,9 @@ For exact pricing, use the [AWS Pricing Calculator](https://calculator.aws/).
 
 ## Infrastructure Costs (Minimal)
 
-### S3 Bucket (Terraform State)
+### S3 Bucket (OpenTofu State)
 
-**Purpose**: Store Terraform state files
+**Purpose**: Store OpenTofu state files
 
 | Item | Usage | Monthly Cost |
 |------|-------|--------------|
@@ -121,7 +121,7 @@ Costs for running the allocator EC2 instance.
 | **t3.large** | 2 | 8 GB | $0.0832/hour | $60.74 |
 
 !!! note "This is not a config key"
-    The allocator's instance type is fixed at **t3.large** — it's a Terraform local in [lablink-template](https://github.com/talmolab/lablink-template)'s `lablink-infrastructure/main.tf`, exposed only as an output. There is nothing in `config.yaml` to change it. `machine.machine_type` sets the **client VM** type, not the allocator's.
+    The allocator's instance type is fixed at **t3.large** — it's a OpenTofu local in [lablink-template](https://github.com/talmolab/lablink-template)'s `lablink-infrastructure/main.tf`, exposed only as an output. There is nothing in `config.yaml` to change it. `machine.machine_type` sets the **client VM** type, not the allocator's.
 
 **Estimated Monthly Cost**: **$60.74** (if running 24/7)
 
@@ -349,7 +349,7 @@ resource "aws_instance" "lablink_allocator" {
     Name    = "lablink-allocator-${var.environment}"
     Project = "LabLink"
     Environment = var.environment
-    ManagedBy = "Terraform"
+    ManagedBy = "OpenTofu"
   }
 }
 ```

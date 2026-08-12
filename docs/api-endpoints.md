@@ -395,7 +395,7 @@ Receives and stores logs pushed from a VM.
 - **Code:** `404 Not Found` if the VM does not exist.
 - **Code:** `500 Internal Server Error` on failure.
 
-**Client Usage:** This endpoint is not called directly from any code in `packages/client`. The `log_shipper.sh` script, installed on each VM by the Terraform user-data script, tails the VM's `cloud-init` output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.
+**Client Usage:** This endpoint is not called directly from any code in `packages/client`. The `log_shipper.sh` script, installed on each VM by the OpenTofu user-data script, tails the VM's `cloud-init` output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.
 
 ## Admin API Endpoints
 
@@ -405,7 +405,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 
 **Endpoint:** `POST /api/launch`
 
-**Description:** Takes a number of VMs to create, generates a Terraform variables file, and runs `terraform apply` to provision the new instances.
+**Description:** Takes a number of VMs to create, generates a OpenTofu variables file, and runs `tofu apply` to provision the new instances.
 
 **Authentication:** HTTP Basic Auth
 
@@ -416,18 +416,18 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 **Success Response:**
 
 - **Code:** `200 OK`
-- **Content:** An HTML page (`dashboard.html`) displaying the Terraform output and a real-time status monitor for the VMs.
+- **Content:** An HTML page (`dashboard.html`) displaying the OpenTofu output and a real-time status monitor for the VMs.
 
 **Error Response:**
 
 - **Code:** `200 OK`
-- **Content:** An HTML page (`dashboard.html`) displaying the Terraform error output.
+- **Content:** An HTML page (`dashboard.html`) displaying the OpenTofu error output.
 
 ### Destroy All VMs
 
 **Endpoint:** `POST /destroy`
 
-**Description:** Runs `terraform destroy` to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the `vms` table in the database. **This is a destructive action.** Driven by `lablink client destroy`, and by `lablink destroy` as its first teardown step.
+**Description:** Runs `tofu destroy` to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the `vms` table in the database. **This is a destructive action.** Driven by `lablink client destroy`, and by `lablink destroy` as its first teardown step.
 
 **Authentication:** HTTP Basic Auth
 
@@ -436,12 +436,12 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 **Success Response:**
 
 - **Code:** `200 OK`
-- **Content:** An HTML page (`delete-dashboard.html`) displaying the Terraform output.
+- **Content:** An HTML page (`delete-dashboard.html`) displaying the OpenTofu output.
 
 **Error Response:**
 
 - **Code:** `200 OK`
-- **Content:** An HTML page (`delete-dashboard.html`) displaying the Terraform error output.
+- **Content:** An HTML page (`delete-dashboard.html`) displaying the OpenTofu error output.
 
 ### Get Status of All VMs
 
@@ -554,7 +554,7 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 ## Client Registration API
 
 Used by bring-your-own (BYO) client machines to enrol themselves under the
-`manual` provider. AWS-provisioned clients do not use these endpoints — Terraform
+`manual` provider. AWS-provisioned clients do not use these endpoints — OpenTofu
 supplies their credentials directly.
 
 Registration is what the CLI's `lablink client register` drives — see

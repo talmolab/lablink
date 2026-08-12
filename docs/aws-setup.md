@@ -11,7 +11,7 @@ This comprehensive guide walks you through setting up all required AWS resources
 To deploy LabLink, you'll need:
 
 1. AWS account with appropriate permissions
-2. S3 bucket for Terraform state
+2. S3 bucket for OpenTofu state
 3. Elastic IPs for each environment
 4. IAM role for GitHub Actions (OIDC)
 5. Optional: Route 53 hosted zone for DNS
@@ -221,7 +221,7 @@ aws iam attach-user-policy \
 
 ### 1.3 Create Access Keys
 
-For local Terraform usage:
+For local OpenTofu usage:
 
 ```bash
 aws iam create-access-key --user-name lablink-admin
@@ -239,7 +239,7 @@ aws configure
 # Enter output format (json)
 ```
 
-## Step 2: S3 Bucket for Terraform State
+## Step 2: S3 Bucket for OpenTofu State
 
 !!! tip "Automated Setup Available"
     If you created your repository from the [lablink-template](https://github.com/talmolab/lablink-template), you can run `scripts/setup-aws-infrastructure.sh` to automatically create the S3 bucket, DynamoDB lock table, and Route 53 hosted zone. The manual steps below are provided as reference.
@@ -347,7 +347,7 @@ aws ec2 create-tags \
   --tags Key=Name,Value=lablink-prod-eip
 ```
 
-### 3.4 Update Terraform Configuration
+### 3.4 Update OpenTofu Configuration
 
 **`lablink-infrastructure/main.tf`**:
 
@@ -368,7 +368,7 @@ resource "aws_eip_association" "lablink" {
 Use when deploying:
 
 ```bash
-terraform apply \
+tofu apply \
   -var="resource_suffix=test" \
   -var="allocated_eip=eipalloc-test-xxxxx"
 ```
@@ -560,18 +560,18 @@ aws iam attach-role-policy \
   --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
 ```
 
-**Note:** This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.
+**Note:** This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all OpenTofu operations succeed without permission errors.
 
 | Policy                     | Purpose                                         |
 | -------------------------- | ----------------------------------------------- |
 | `AmazonEC2FullAccess`      | EC2 instances, security groups, key pairs, EIPs |
-| `AmazonS3FullAccess`       | Terraform state                                 |
+| `AmazonS3FullAccess`       | OpenTofu state                                 |
 | `IAMFullAccess`            | Roles, instance profiles                        |
-| `AmazonDynamoDBFullAccess` | Terraform state locking                         |
+| `AmazonDynamoDBFullAccess` | OpenTofu state locking                         |
 
 #### Option B: AWS CLI - Create Custom Policy
 
-For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2 and ALB.
+For more restrictive permissions, create a custom policy that covers all LabLink OpenTofu resources including EC2 and ALB.
 
 Create `lablink-terraform-policy.json`:
 
@@ -699,12 +699,12 @@ Create `lablink-terraform-policy.json`:
 }
 ```
 
-**Note:** This policy covers all AWS services used by the LabLink Terraform configuration:
+**Note:** This policy covers all AWS services used by the LabLink OpenTofu configuration:
 
 | Service      | Purpose                                                             |
 | ------------ | ------------------------------------------------------------------- |
-| **S3**       | Terraform state storage                                             |
-| **DynamoDB** | Terraform state locking                                             |
+| **S3**       | OpenTofu state storage                                             |
+| **DynamoDB** | OpenTofu state locking                                             |
 | **EC2**      | Allocator and client VM instances, security groups, key pairs, EIPs |
 | **IAM**      | Instance profiles                                                   |
 | **Route53**  | DNS records for allocator endpoints                                 |
@@ -794,7 +794,7 @@ Four secrets are required for GitHub Actions workflows to deploy infrastructure 
 - Secrets are NOT copied when creating repos from the template
 - External users must configure their own AWS credentials, region, and passwords
 
-**Security:** The workflow automatically injects `ADMIN_PASSWORD` and `DB_PASSWORD` into configuration files before Terraform runs, replacing `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. This prevents passwords from appearing in Terraform logs.
+**Security:** The workflow automatically injects `ADMIN_PASSWORD` and `DB_PASSWORD` into configuration files before OpenTofu runs, replacing `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. This prevents passwords from appearing in OpenTofu logs.
 
 #### For Deployment Repositories (e.g., `sleap-lablink`)
 
@@ -863,7 +863,7 @@ The workflows already include the OIDC authentication step:
 Test by triggering a workflow:
 
 1. Go to **Actions** tab in GitHub
-2. Select a workflow (e.g., **Terraform Deploy**)
+2. Select a workflow (e.g., **OpenTofu Deploy**)
 3. Click **Run workflow**
 4. Check the logs for successful AWS authentication
 
@@ -959,7 +959,7 @@ machine:
 
 !!! note "The allocator's own AMI is not a config key"
     `config.yaml` sets only the **client VM** AMI. The allocator instance's AMI and
-    type are Terraform-side values in
+    type are OpenTofu-side values in
     [lablink-template](https://github.com/talmolab/lablink-template)'s
     `lablink-infrastructure/main.tf`. Adding an `allocator_instance:` block to
     `config.yaml` fails validation — the schema rejects unknown keys.
@@ -1029,7 +1029,7 @@ aws ec2 describe-images \
 
 ## Step 6: Security Groups (Optional Pre-Creation)
 
-Terraform creates security groups automatically, but you can pre-create them for more control.
+OpenTofu creates security groups automatically, but you can pre-create them for more control.
 
 ### Allocator Security Group
 
@@ -1083,7 +1083,7 @@ After deploying allocator, create A record:
 
 ```bash
 # Get allocator IP
-ALLOCATOR_IP=$(terraform output -raw ec2_public_ip)
+ALLOCATOR_IP=$(tofu output -raw ec2_public_ip)
 
 # Create/update DNS record
 aws route53 change-resource-record-sets \
@@ -1237,9 +1237,9 @@ After completing setup, verify:
 - [ ] Secrets Manager secrets created
 - [ ] Budget alerts configured
 
-**Terraform-Managed (Automatic):**
+**OpenTofu-Managed (Automatic):**
 
-The following resources are created automatically by Terraform during deployment:
+The following resources are created automatically by OpenTofu during deployment:
 
 - [ ] Application Load Balancer (ALB) with HTTPS listener
 - [ ] Security groups for allocator and ALB
@@ -1254,12 +1254,12 @@ aws s3 ls
 aws ec2 describe-regions
 ```
 
-### Test Terraform
+### Test OpenTofu
 
 ```bash
 cd lablink-allocator
-terraform init
-terraform validate
+tofu init
+tofu validate
 ```
 
 ### Test GitHub Actions
