@@ -161,12 +161,20 @@ generate_package_changelog(
     "packages/client"
 )
 
+generate_package_changelog(
+    "lablink-cli",
+    "cli",
+    "lablink-cli_v",
+    "packages/cli"
+)
+
 # Generate unified changelog index
 with mkdocs_gen_files.open("changelog.md", "w") as changelog:
     changelog.write("# Changelog\n\n")
-    changelog.write("LabLink consists of two independently versioned packages:\n\n")
+    changelog.write("LabLink consists of three independently versioned packages:\n\n")
     changelog.write("## Package Changelogs\n\n")
     changelog.write("- **[lablink-allocator-service](changelog-allocator.md)** - VM Allocator Service\n")
-    changelog.write("- **[lablink-client-service](changelog-client.md)** - Client Service\n\n")
+    changelog.write("- **[lablink-client-service](changelog-client.md)** - Client Service\n")
+    changelog.write("- **[lablink-cli](changelog-cli.md)** - Command-line interface\n\n")
     changelog.write("---\n\n")
     changelog.write("For release notes and downloads, see the [GitHub Releases page](https://github.com/talmolab/lablink/releases).\n")

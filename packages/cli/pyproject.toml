@@ -5,12 +5,15 @@ authors = [
   {name = "Talmo Pereira", email = "talmo@salk.edu"},
   {name = "Andrew Park", email = "hep003@ucsd.edu"},
 ]
-version = "0.1.0"
+version = "0.1.0a1"
 description = "CLI tool for deploying and managing LabLink infrastructure"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "lablink-allocator-service[config]",
+    # >=0.2.0: deploy_compose imports PUBLIC_HOSTNAME_HINT,
+    # is_valid_public_hostname and is_weak_admin_password, none of which
+    # exist in 0.1.2 — an unpinned resolve breaks `provider: manual`.
+    "lablink-allocator-service[config]>=0.2.0",
     "typer>=0.15",
     "textual>=3.0",
     "rich>=13.0",
