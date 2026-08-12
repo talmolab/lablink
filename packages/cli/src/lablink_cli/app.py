@@ -140,7 +140,7 @@ def configure(
 
     Launches a TUI wizard to generate or modify config.yaml,
     then automatically creates the AWS resources needed for
-    Terraform remote state (S3 bucket + DynamoDB lock table).
+    OpenTofu remote state (S3 bucket + DynamoDB lock table).
     Manual-provider configs skip the AWS setup step.
 
     With --template, generates the config a lablink-template repo commits
@@ -183,7 +183,7 @@ def configure(
 
         Console().print(
             f"[dim]Wrote {config_path} with placeholder passwords. "
-            "Commit it and push — the Terraform Deploy workflow "
+            "Commit it and push — the Deploy LabLink Infrastructure workflow "
             "substitutes your ADMIN_PASSWORD/DB_PASSWORD secrets.[/dim]"
         )
         return
@@ -215,7 +215,7 @@ def setup(
     """Provision provider-specific bootstrap resources.
 
     AWS provider: creates the S3 bucket and DynamoDB lock table used
-    for Terraform remote state. Automatically run during 'lablink
+    for OpenTofu remote state. Automatically run during 'lablink
     configure'; use this command to recreate the resources if they
     were deleted.
 
@@ -273,7 +273,7 @@ def deploy(
         "to rotate. Manual provider only.",
     ),
 ) -> None:
-    """Deploy LabLink infrastructure (AWS Terraform or docker-compose)."""
+    """Deploy LabLink infrastructure (AWS OpenTofu or docker-compose)."""
     cfg = _load_cfg(config)
     if cfg.provider == "manual":
         from lablink_cli.commands.deploy_compose import run_deploy_compose
@@ -361,7 +361,7 @@ def launch_client(
 ) -> None:
     """Launch client VMs via the allocator service.
 
-    AWS provider only: provisions client VMs through Terraform. For
+    AWS provider only: provisions client VMs through OpenTofu. For
     the manual provider, BYO operators run 'lablink client register' on each
     box instead; this command no-ops with a friendly message.
     """
@@ -416,7 +416,7 @@ def status(
 ) -> None:
     """Show deployment health and inventory.
 
-    AWS provider: HTTP/DNS/SSL health checks, Terraform state, client
+    AWS provider: HTTP/DNS/SSL health checks, OpenTofu state, client
     VM inventory, and a cost estimate. Manual provider: docker-compose
     container status and the allocator's HTTP health endpoint.
     """
@@ -466,7 +466,7 @@ def cleanup(
     """Remove deployment resources and local state.
 
     AWS provider: deletes orphaned EC2/IAM/EIP/SG resources and the
-    environment-specific Terraform state files. Manual provider: runs
+    environment-specific OpenTofu state files. Manual provider: runs
     'docker compose down --volumes' on the local stack and removes
     the compose working directory.
     """
@@ -796,7 +796,7 @@ def cache_clear(
         "--deployments",
         help=(
             "Clear the local deployment metrics cache "
-            "(~/.lablink/deployments/) instead of the Terraform template "
+            "(~/.lablink/deployments/) instead of the template "
             "cache."
         ),
     ),
@@ -817,7 +817,7 @@ def cache_clear(
 ) -> None:
     """Clear LabLink caches.
 
-    By default clears only the Terraform template cache (backwards-compatible
+    By default clears only the template cache (backwards-compatible
     with the original command). Use --deployments to clear the CLI-local
     deployment metrics cache, or --all to clear both. Combine --deployments
     with --stale to prune only in-progress records.

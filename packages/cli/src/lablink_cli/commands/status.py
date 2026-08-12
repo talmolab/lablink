@@ -396,7 +396,7 @@ def estimate_costs(
 def _render_terraform_state(
     deploy_dir: Path, aws_unavailable: bool = False
 ) -> dict:
-    """Read and display Terraform outputs. Returns outputs dict.
+    """Read and display OpenTofu outputs. Returns outputs dict.
 
     ``aws_unavailable`` changes only the empty-state wording: with dead
     credentials an S3-backend read fails, so "no state" would be a guess.
@@ -404,7 +404,7 @@ def _render_terraform_state(
     if not deploy_dir.exists():
         return {}
 
-    console.print("[bold]Terraform State[/bold]")
+    console.print("[bold]OpenTofu State[/bold]")
     outputs = get_terraform_outputs(deploy_dir)
     if outputs:
         state_table = Table(show_header=False)
@@ -422,7 +422,7 @@ def _render_terraform_state(
         )
     else:
         console.print(
-            "  [yellow]No Terraform state found[/yellow]"
+            "  [yellow]No OpenTofu state found[/yellow]"
         )
     console.print()
     return outputs
@@ -860,7 +860,7 @@ def _render_aws_credentials_error(
     )
     if err.is_auth:
         console.print(
-            "  [dim]Terraform state, VM inventory and live pricing are "
+            "  [dim]OpenTofu state, VM inventory and live pricing are "
             "unavailable until this is fixed.[/dim]"
         )
     else:

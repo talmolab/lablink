@@ -15,9 +15,9 @@ console = Console()
 
 
 # ------------------------------------------------------------------
-# Terraform output formatting
+# OpenTofu output formatting
 # ------------------------------------------------------------------
-# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
+# Matches OpenTofu's `Apply complete!` and `Destroy complete!` summary lines.
 _APPLY_SUMMARY_RE = re.compile(
     r"Apply complete!\s+Resources:\s+"
     r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
@@ -28,7 +28,7 @@ _DESTROY_SUMMARY_RE = re.compile(
 
 
 def summarize_terraform(output: str) -> str | None:
-    """Extract Terraform's apply/destroy summary line from raw output.
+    """Extract OpenTofu's apply/destroy summary line from raw output.
 
     Returns None when neither summary matches — a no-op apply, an
     interrupted run, or output captured before the trailing summary.
@@ -338,9 +338,9 @@ def get_deploy_dir(cfg: Config) -> Path:
 
 
 def get_allocator_url(cfg: Config) -> str:
-    """Determine the allocator base URL from terraform outputs or config.
+    """Determine the allocator base URL from OpenTofu outputs or config.
 
-    Manual provider has neither input: no Terraform state to read an IP
+    Manual provider has neither input: no OpenTofu state to read an IP
     from, and ``dns.enabled`` is meaningless for a compose stack. Both
     compose templates publish ``${HTTP_PORT}:5000`` on the host, and the
     CLI's manual paths already assume they run on that host (`status` and

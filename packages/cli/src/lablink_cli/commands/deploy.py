@@ -49,7 +49,7 @@ def _prepare_working_dir(
     template_version: str | None = None,
     terraform_bundle: str | None = None,
 ) -> Path:
-    """Set up the Terraform working directory.
+    """Set up the OpenTofu working directory.
 
     Downloads (or loads from cache/bundle) the template's .tf files,
     copies them into the deploy directory, and writes config/config.yaml.
@@ -253,7 +253,7 @@ def _prompt_passwords() -> dict[str, str]:
 
     console.print(
         "[bold]Credentials[/bold] "
-        "(not stored in config, passed to Terraform only)"
+        "(not stored in config, passed to OpenTofu only)"
     )
 
     admin_user = input("  Admin username [admin]: ").strip()
@@ -384,7 +384,7 @@ def run_deploy(
     # Prompt for credentials
     passwords = _prompt_passwords()
 
-    # Write credentials into deploy dir config for Terraform
+    # Write credentials into deploy dir config for OpenTofu
     # (deploy dir only, never persisted to ~/.lablink/)
     import yaml
 
@@ -421,13 +421,13 @@ def run_deploy(
     write_metrics(metrics_path, metrics)
 
     try:
-        # Terraform init
+        # OpenTofu init
         with phase_timer(
             metrics, "allocator_terraform_init_duration_seconds", metrics_path
         ):
             _terraform_init(deploy_dir, cfg)
 
-        # Terraform plan — pass deployment_name and environment
+        # OpenTofu plan — pass deployment_name and environment
         console.print("[bold]Step 2/3:[/bold] OpenTofu plan")
         with phase_timer(
             metrics, "allocator_terraform_plan_duration_seconds", metrics_path
@@ -460,7 +460,7 @@ def run_deploy(
                 raise SystemExit(0)
             console.print()
 
-        # Terraform apply
+        # OpenTofu apply
         console.print("[bold]Step 3/3:[/bold] OpenTofu apply")
         with phase_timer(
             metrics, "allocator_terraform_apply_duration_seconds", metrics_path
@@ -543,7 +543,7 @@ def run_deploy(
 
     except Exception as e:
         # Persist the failure so we have a record of what timed out / blew up.
-        # SystemExit (user cancellation, terraform exit code) is a BaseException
+        # SystemExit (user cancellation, tofu exit code) is a BaseException
         # subclass and intentionally NOT caught here — cancellation leaves the
         # file in 'in_progress' state, which is correct semantics.
         metrics.status = "failed"
@@ -714,7 +714,7 @@ def _terraform_destroy(
     *,
     verbose: bool = False,
 ) -> None:
-    """Refresh config, re-init terraform, destroy, and clean up."""
+    """Refresh config, re-init OpenTofu, destroy, and clean up."""
     import yaml
 
     config_path = deploy_dir / "config" / "config.yaml"
@@ -780,7 +780,7 @@ def run_destroy(
     )
     if not has_state:
         console.print(
-            "[red]No Terraform state found.[/red] "
+            "[red]No OpenTofu state found.[/red] "
             "Nothing to destroy."
         )
         raise SystemExit(1)
@@ -791,7 +791,7 @@ def run_destroy(
             "[bold red]LabLink Destroy[/bold red]\n"
             "This will tear down ALL LabLink infrastructure\n"
             "(client VMs via allocator, then the allocator "
-            "itself via Terraform).\n"
+            "itself via OpenTofu).\n"
             f"Deployment: {cfg.deployment_name}  |  "
             f"Environment: {cfg.environment}\n"
             f"Region: {cfg.app.region}  |  State: S3 (remote)",

@@ -29,7 +29,7 @@ class DeploymentMetrics:
     # Which deploy path produced this record. deployment_name alone does not
     # identify it: an operator can reuse one name across providers (observed:
     # a `sleap-lablink` config switched from aws to manual), and the AWS
-    # Terraform timings below are meaningless for a compose deploy. Records
+    # OpenTofu timings below are meaningless for a compose deploy. Records
     # written before this field existed are all AWS ones, which is why
     # readers default a missing value to "aws" rather than to None.
     provider: Optional[str] = None
@@ -41,10 +41,10 @@ class DeploymentMetrics:
     allocator_terraform_init_duration_seconds: Optional[float] = None
     allocator_terraform_plan_duration_seconds: Optional[float] = None
     allocator_terraform_apply_duration_seconds: Optional[float] = None
-    # The manual provider's equivalent of the three terraform phases above:
+    # The manual provider's equivalent of the three OpenTofu phases above:
     # one `docker compose up -d`, image pull included. Kept as its own field
     # rather than reusing the apply timing, which would make a compose deploy
-    # look like a Terraform one in the exported CSV.
+    # look like an OpenTofu one in the exported CSV.
     allocator_compose_up_duration_seconds: Optional[float] = None
     allocator_health_check_duration_seconds: Optional[float] = None
     allocator_total_deployment_duration_seconds: Optional[float] = None

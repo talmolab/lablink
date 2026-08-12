@@ -313,7 +313,7 @@ class TestRenderTerraformState:
 
         result = _render_terraform_state(deploy_dir)
         assert result == {}
-        assert "No Terraform state found" in capsys.readouterr().out
+        assert "No OpenTofu state found" in capsys.readouterr().out
 
     @patch("lablink_cli.commands.status.get_terraform_outputs")
     def test_empty_outputs_with_dead_credentials(
@@ -329,7 +329,7 @@ class TestRenderTerraformState:
         assert result == {}
         out = capsys.readouterr().out
         assert "unreadable" in out
-        assert "No Terraform state found" not in out
+        assert "No OpenTofu state found" not in out
 
 
 # ------------------------------------------------------------------

@@ -72,7 +72,7 @@ def check_credentials(session: boto3.Session) -> dict:
 
 
 # ------------------------------------------------------------------
-# Step 2: Create S3 bucket for Terraform state
+# Step 2: Create S3 bucket for OpenTofu state
 # ------------------------------------------------------------------
 def create_s3_bucket(
     session: boto3.Session, bucket_name: str, region: str
@@ -133,7 +133,7 @@ def create_s3_bucket(
 
 
 # ------------------------------------------------------------------
-# Step 3: Create DynamoDB table for Terraform state locking
+# Step 3: Create DynamoDB table for OpenTofu state locking
 # ------------------------------------------------------------------
 def create_dynamodb_table(
     session: boto3.Session, region: str
@@ -269,7 +269,7 @@ def run_setup(cfg: Config, config_path: Path | None = None) -> None:
     console.print(
         Panel(
             "[bold]LabLink Setup — Remote State[/bold]\n"
-            "Creates S3 + DynamoDB for Terraform state.",
+            "Creates S3 + DynamoDB for OpenTofu state.",
             border_style="cyan",
         )
     )
@@ -291,7 +291,7 @@ def run_setup(cfg: Config, config_path: Path | None = None) -> None:
 
     # Step 2: S3
     console.print(
-        "[bold]Step 2/3:[/bold] S3 bucket for Terraform state"
+        "[bold]Step 2/3:[/bold] S3 bucket for OpenTofu state"
     )
     create_s3_bucket(session, bucket_name, region)
     console.print()

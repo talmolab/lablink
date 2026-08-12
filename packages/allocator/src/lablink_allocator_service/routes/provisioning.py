@@ -128,7 +128,7 @@ def launch():
             ) from exc
         except subprocess.CalledProcessError as e:
             clean_err = strip_ansi(e.stderr or "").strip()
-            raise RuntimeError(f"Terraform failed: {clean_err}") from e
+            raise RuntimeError(f"OpenTofu failed: {clean_err}") from e
 
         for hostname, times in result.timings.items():
             start_time = datetime.fromisoformat(

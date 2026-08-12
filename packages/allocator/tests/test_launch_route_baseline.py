@@ -383,7 +383,7 @@ def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_head
         # fn() must be invoked while the subprocess.run/upload_to_s3/etc.
         # patches above are still active — calling it after this `with`
         # block exits would hit real, unmocked subprocess/AWS calls.
-        with pytest.raises(RuntimeError, match="Terraform failed: Error: boom"):
+        with pytest.raises(RuntimeError, match="OpenTofu failed: Error: boom"):
             fn()
 
 

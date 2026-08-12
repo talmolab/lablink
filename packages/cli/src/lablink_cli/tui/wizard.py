@@ -170,7 +170,7 @@ class ProviderScreen(Screen):
             )
             yield Label(
                 "Choose how client VMs are provisioned.\n"
-                "AWS provisions EC2 instances via Terraform.\n"
+                "AWS provisions EC2 instances via OpenTofu.\n"
                 "Manual (BYO) skips provisioning — you supply Linux GPU\n"
                 "boxes that register themselves with `lablink client register`.",
                 classes="step-description",
@@ -885,7 +885,7 @@ class DnsScreen(Screen):
                     )
 
                 yield Label(
-                    "Terraform-managed records",
+                    "OpenTofu-managed records",
                     classes="field-label",
                 )
                 with RadioSet(id="adv-dns-tfmanaged"):

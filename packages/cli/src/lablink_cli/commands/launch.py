@@ -93,7 +93,7 @@ def _report(
     label: str,
     verbose: bool,
 ) -> None:
-    """Print the success line and Terraform's resource summary, plus the
+    """Print the success line and OpenTofu's resource summary, plus the
     raw OpenTofu output under ``verbose``."""
     output = (result or {}).get("output", "")
     console.print(

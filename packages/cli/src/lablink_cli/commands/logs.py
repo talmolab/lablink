@@ -129,7 +129,10 @@ def _ssh_via_private_key(
     command: str,
     deploy_dir: Path,
 ) -> str | None:
-    """Try SSH with terraform private key. Returns stdout/stderr or None."""
+    """Try SSH with the OpenTofu-provisioned private key.
+
+    Returns stdout/stderr or None.
+    """
     ip = public_ip if public_ip != "—" else None
     if not ip:
         return None
@@ -189,7 +192,7 @@ def _run_ssh_command(
     """Run a command on the allocator via SSH.
 
     Tries ec2-instance-connect first, then falls back to direct SSH
-    using the terraform private key.
+    using the OpenTofu-provisioned private key.
     """
     return _ssh_via_instance_connect(
         instance_id, region, command

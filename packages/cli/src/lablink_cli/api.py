@@ -100,7 +100,7 @@ def authenticated_json_request(
     return json.loads(raw)
 
 # /destroy and /api/launch are async (they return a job id immediately;
-# the allocator runs Terraform on a background thread). Individual
+# the allocator runs OpenTofu on a background thread). Individual
 # requests (submit or poll) are fast, so a short per-request timeout
 # replaces the old single-request timeouts of up to 1800s;
 # _POLL_TIMEOUT_SECONDS is the new overall ceiling for how long we'll

@@ -147,7 +147,7 @@ def test_admin_delete_instance(client, admin_headers):
     """Test deleting an instance as an admin."""
     response = client.get("/admin/instances/delete", headers=admin_headers)
     assert response.status_code == 200
-    assert b"Run terraform destroy" in response.data
+    assert b"Run tofu destroy" in response.data
     assert b'href="/admin"' in response.data
     assert "Back to Admin Dashboard".encode() in response.data
 

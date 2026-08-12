@@ -467,7 +467,7 @@ def test_launch_apply_failure(
         assert resp.status_code == 302
 
         fn = mock_worker.submit.call_args.kwargs["fn"]
-        with pytest.raises(RuntimeError, match="Terraform failed: boom"):
+        with pytest.raises(RuntimeError, match="OpenTofu failed: boom"):
             fn()
 
     tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
@@ -912,7 +912,7 @@ def test_launch_json_apply_failure(
 
         fn = mock_worker.submit.call_args.kwargs["fn"]
         with pytest.raises(
-            RuntimeError, match="Terraform failed: Error: resource already exists"
+            RuntimeError, match="OpenTofu failed: Error: resource already exists"
         ):
             fn()
 
