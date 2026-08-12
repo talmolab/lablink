@@ -705,10 +705,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform" class="md-nav__link">
+  <a href="#opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform
+        OpenTofu
       
     </span>
   </a>
@@ -1699,6 +1699,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -4631,10 +4659,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform" class="md-nav__link">
+  <a href="#opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform
+        OpenTofu
       
     </span>
   </a>
@@ -4706,14 +4734,14 @@
 
 
 <h1 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h1>
-<p>What you need depends on which deployment path you take. <strong>An AWS account, the AWS CLI, Terraform, and the GitHub CLI are not universal requirements</strong> — the manual provider runs the allocator and its clients on hardware you already own, with none of them.</p>
+<p>What you need depends on which deployment path you take. <strong>An AWS account, the AWS CLI, OpenTofu, and the GitHub CLI are not universal requirements</strong> — the manual provider runs the allocator and its clients on hardware you already own, with none of them.</p>
 <h2 id="pick-your-path-first">Pick your path first<a class="headerlink" href="#pick-your-path-first" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Path</th>
 <th>AWS account</th>
-<th>Terraform</th>
+<th>OpenTofu</th>
 <th>Docker</th>
 <th><code>gh</code></th>
 </tr>
@@ -4808,7 +4836,7 @@
 <li>EC2 instances</li>
 <li>Security groups</li>
 <li>Elastic IPs</li>
-<li>S3 buckets (for Terraform state)</li>
+<li>S3 buckets (for OpenTofu state)</li>
 <li>IAM roles and policies</li>
 </ul>
 <p><strong>Cost Considerations</strong>: See the <a href="../cost-estimation/">Cost Estimation</a> guide for expected AWS costs.</p>
@@ -4848,51 +4876,53 @@
 </ul>
 <p><strong>Option 2: OIDC (GitHub Actions)</strong></p>
 <p>For automated deployments, you'll configure OpenID Connect (OIDC) to allow GitHub Actions to assume an IAM role without storing credentials. See <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup from Scratch</a> for details.</p>
-<h3 id="terraform">Terraform<a class="headerlink" href="#terraform" title="Permanent link">&para;</a></h3>
-<p>Required for the <strong>CLI + AWS provider</strong> path, which drives Terraform from your machine. Not needed for the template repo path — GitHub Actions runs Terraform there — and not needed at all for the manual provider.</p>
+<h3 id="opentofu">OpenTofu<a class="headerlink" href="#opentofu" title="Permanent link">&para;</a></h3>
+<p>Required for the <strong>CLI + AWS provider</strong> path, which drives OpenTofu from your machine. Not needed for the template repo path — GitHub Actions runs OpenTofu there — and not needed at all for the manual provider.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="4:3"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">macOS</label><label for="__tabbed_4_2">Linux</label><label for="__tabbed_4_3">Windows</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>brew<span class="w"> </span>tap<span class="w"> </span>hashicorp/tap
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>brew<span class="w"> </span>install<span class="w"> </span>hashicorp/tap/terraform
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>brew<span class="w"> </span>update
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>brew<span class="w"> </span>install<span class="w"> </span>opentofu
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>wget<span class="w"> </span>https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>unzip<span class="w"> </span>terraform_1.6.6_linux_amd64.zip
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>sudo<span class="w"> </span>mv<span class="w"> </span>terraform<span class="w"> </span>/usr/local/bin/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>curl<span class="w"> </span>--proto<span class="w"> </span><span class="s1">&#39;=https&#39;</span><span class="w"> </span>--tlsv1.2<span class="w"> </span>-fsSL<span class="w"> </span>https://get.opentofu.org/install-opentofu.sh<span class="w"> </span>-o<span class="w"> </span>install-opentofu.sh
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>chmod<span class="w"> </span>+x<span class="w"> </span>install-opentofu.sh
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>./install-opentofu.sh<span class="w"> </span>--install-method<span class="w"> </span>standalone
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>rm<span class="w"> </span>-f<span class="w"> </span>install-opentofu.sh
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<p>Download from <a href="https://www.terraform.io/downloads.html">Terraform Downloads</a> and add to PATH</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">winget</span> <span class="n">install</span> <span class="p">-</span><span class="o">-exact</span> <span class="p">-</span><span class="n">-id</span><span class="p">=</span><span class="n">OpenTofu</span><span class="p">.</span><span class="n">Tofu</span>
+</code></pre></div>
 </div>
 </div>
 </div>
-<p><strong>Version Requirement</strong>: LabLink uses Terraform 1.6.6 (as specified in the CI workflow).</p>
+<p><strong>Version Requirement</strong>: OpenTofu 1.10.0 or newer. <code>lablink doctor</code> enforces this floor — earlier releases vendor an <code>aws-sdk-go-v2</code> that can corrupt S3 state on an upload retry. CI and the allocator image pin 1.12.5.</p>
 <h2 id="template-repo-path-only">Template repo path only<a class="headerlink" href="#template-repo-path-only" title="Permanent link">&para;</a></h2>
 <h3 id="github-cli-gh">GitHub CLI (<code>gh</code>)<a class="headerlink" href="#github-cli-gh" title="Permanent link">&para;</a></h3>
 <p>The GitHub CLI is used by the setup scripts to configure repository secrets automatically.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="5:3"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">macOS</label><label for="__tabbed_5_2">Linux</label><label for="__tabbed_5_3">Windows</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>brew<span class="w"> </span>install<span class="w"> </span>gh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>brew<span class="w"> </span>install<span class="w"> </span>gh
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>gh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>gh
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>winget<span class="w"> </span>install<span class="w"> </span>GitHub.cli
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>winget<span class="w"> </span>install<span class="w"> </span>GitHub.cli
 </code></pre></div>
 </div>
 </div>
 </div>
 <p>Authenticate with GitHub:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>gh<span class="w"> </span>auth<span class="w"> </span>login
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>gh<span class="w"> </span>auth<span class="w"> </span>login
 </code></pre></div></p>
 <p>Verify installation:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>gh<span class="w"> </span>--version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>gh<span class="w"> </span>--version
 </code></pre></div></p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <p>Once you have the tools your path calls for:</p>

@@ -1290,15 +1290,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#method-2-manual-terraform-deployment" class="md-nav__link">
+  <a href="#method-2-manual-opentofu-deployment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Method 2: Manual Terraform Deployment
+        Method 2: Manual OpenTofu Deployment
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Method 2: Manual Terraform Deployment">
+    <nav class="md-nav" aria-label="Method 2: Manual OpenTofu Deployment">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1324,10 +1324,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-3-initialize-terraform" class="md-nav__link">
+  <a href="#step-3-initialize-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Initialize Terraform
+        Step 3: Initialize OpenTofu
       
     </span>
   </a>
@@ -1384,10 +1384,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-variables" class="md-nav__link">
+  <a href="#opentofu-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Variables
+        OpenTofu Variables
       
     </span>
   </a>
@@ -1568,10 +1568,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#via-terraform-cli" class="md-nav__link">
+  <a href="#via-opentofu-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Via Terraform CLI
+        Via OpenTofu CLI
       
     </span>
   </a>
@@ -1596,10 +1596,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#terraform-init-fails" class="md-nav__link">
+  <a href="#opentofu-init-fails" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Init Fails
+        OpenTofu Init Fails
       
     </span>
   </a>
@@ -1640,10 +1640,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-state-locked" class="md-nav__link">
+  <a href="#opentofu-state-locked" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform State Locked
+        OpenTofu State Locked
       
     </span>
   </a>
@@ -2025,6 +2025,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -4939,15 +4967,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#method-2-manual-terraform-deployment" class="md-nav__link">
+  <a href="#method-2-manual-opentofu-deployment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Method 2: Manual Terraform Deployment
+        Method 2: Manual OpenTofu Deployment
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Method 2: Manual Terraform Deployment">
+    <nav class="md-nav" aria-label="Method 2: Manual OpenTofu Deployment">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4973,10 +5001,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-3-initialize-terraform" class="md-nav__link">
+  <a href="#step-3-initialize-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Initialize Terraform
+        Step 3: Initialize OpenTofu
       
     </span>
   </a>
@@ -5033,10 +5061,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-variables" class="md-nav__link">
+  <a href="#opentofu-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Variables
+        OpenTofu Variables
       
     </span>
   </a>
@@ -5217,10 +5245,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#via-terraform-cli" class="md-nav__link">
+  <a href="#via-opentofu-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Via Terraform CLI
+        Via OpenTofu CLI
       
     </span>
   </a>
@@ -5245,10 +5273,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#terraform-init-fails" class="md-nav__link">
+  <a href="#opentofu-init-fails" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Init Fails
+        OpenTofu Init Fails
       
     </span>
   </a>
@@ -5289,10 +5317,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-state-locked" class="md-nav__link">
+  <a href="#opentofu-state-locked" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform State Locked
+        OpenTofu State Locked
       
     </span>
   </a>
@@ -5358,7 +5386,7 @@
 
 
 <h1 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h1>
-<p>This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (Terraform CLI) methods.</p>
+<p>This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (OpenTofu CLI) methods.</p>
 <h2 id="deployment-overview">Deployment Overview<a class="headerlink" href="#deployment-overview" title="Permanent link">&para;</a></h2>
 <p>LabLink supports four deployment environments:</p>
 <table>
@@ -5409,10 +5437,10 @@
     TestEnv --&gt; AutoDeploy[GitHub Actions&lt;br/&gt;Recommended]
     ProdEnv --&gt; ProdMethod{Infrastructure exists?}
 
-    DevMethod --&gt;|Quick &amp; easy| ManualDev[Manual Terraform&lt;br/&gt;Local state]
+    DevMethod --&gt;|Quick &amp; easy| ManualDev[Manual OpenTofu&lt;br/&gt;Local state]
     DevMethod --&gt;|CI/CD practice| GHActionsDev[GitHub Actions&lt;br/&gt;workflow_dispatch]
 
-    ProdMethod --&gt;|First time| ManualProd[Manual Terraform&lt;br/&gt;Careful setup]
+    ProdMethod --&gt;|First time| ManualProd[Manual OpenTofu&lt;br/&gt;Careful setup]
     ProdMethod --&gt;|Updates| GHActionsProd[GitHub Actions&lt;br/&gt;workflow_dispatch]
 
     ManualDev --&gt; DevNotes["✓ No S3 bucket needed&lt;br/&gt;✓ Fast iteration&lt;br/&gt;✗ State not shared"]
@@ -5432,8 +5460,8 @@
 <p>Before deploying, ensure you have:</p>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> AWS account configured (see <a href="../prerequisites/#aws-account">Prerequisites</a>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Terraform installed (see <a href="../prerequisites/#terraform">Prerequisites</a>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> S3 bucket for Terraform state (see <a href="../aws-setup/#step-2-s3-bucket-for-terraform-state">AWS Setup</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> OpenTofu installed (see <a href="../prerequisites/#opentofu">Prerequisites</a>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> S3 bucket for OpenTofu state (see <a href="../aws-setup/#step-2-s3-bucket-for-opentofu-state">AWS Setup</a>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> Elastic IP allocated for test/prod (see <a href="../aws-setup/#step-3-elastic-ip-allocation">AWS Setup</a>)</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> IAM roles configured for GitHub Actions (see <a href="../aws-setup/#step-4-github-actions-oidc-configuration">AWS Setup</a>)</li>
 </ul>
@@ -5454,7 +5482,7 @@
      Example: Generate a secure password using a password manager
    - <code>DB_PASSWORD</code>: Database password for PostgreSQL
      Example: Generate a secure password using a password manager</p>
-<p><strong>Security Note</strong>: The workflow automatically replaces <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> in config files with these secret values before Terraform runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary <code>CHANGEME_*</code> defaults and displays a warning.</p>
+<p><strong>Security Note</strong>: The workflow automatically replaces <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary <code>CHANGEME_*</code> defaults and displays a warning.</p>
 <ol>
 <li><strong>Verify OIDC Configuration</strong></li>
 </ol>
@@ -5472,12 +5500,12 @@
 </code></pre></div>
 <p>This automatically:
 1. Builds Docker images with <code>-test</code> tags
-2. Runs Terraform init with <code>backend-test.hcl</code>
+2. Runs OpenTofu init with <code>backend-test.hcl</code>
 3. Deploys to test environment
 4. Outputs allocator URL and SSH key</p>
 <p><strong>Monitor Progress</strong>:
 - Go to <strong>Actions</strong> tab in GitHub
-- Watch <code>Terraform Deploy</code> workflow
+- Watch <code>OpenTofu Deploy</code> workflow
 - Check logs for any errors</p>
 <p><strong>Access Deployment</strong>:
 - Allocator URL: Available in workflow output
@@ -5489,7 +5517,7 @@
 <p><strong>Navigate to Actions tab</strong> in GitHub</p>
 </li>
 <li>
-<p><strong>Select "Terraform Deploy" workflow</strong></p>
+<p><strong>Select "OpenTofu Deploy" workflow</strong></p>
 </li>
 <li>
 <p><strong>Click "Run workflow"</strong></p>
@@ -5524,20 +5552,20 @@ Production deployments use pinned image tags for reproducibility and require exp
 <ol>
 <li><strong>Checkout code</strong> from repository</li>
 <li><strong>Configure AWS credentials</strong> via OIDC</li>
-<li><strong>Setup Terraform</strong> (version 1.6.6)</li>
+<li><strong>Setup OpenTofu</strong> (version 1.6.6)</li>
 <li><strong>Determine environment</strong> from trigger</li>
 <li><strong>Inject password secrets</strong> - Replace placeholders in config files with GitHub secrets</li>
-<li><strong>Initialize Terraform</strong> with environment-specific backend</li>
-<li><strong>Validate</strong> Terraform configuration</li>
+<li><strong>Initialize OpenTofu</strong> with environment-specific backend</li>
+<li><strong>Validate</strong> OpenTofu configuration</li>
 <li><strong>Plan</strong> infrastructure changes</li>
 <li><strong>Apply</strong> changes to AWS</li>
 <li><strong>Save SSH key</strong> as artifact</li>
 <li><strong>Output</strong> deployment details</li>
 <li><strong>Destroy on failure</strong> (if apply fails)</li>
 </ol>
-<p><strong>Password Injection Step</strong>: Before Terraform runs, the workflow finds the config file and uses <code>sed</code> to replace <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> with values from GitHub secrets. This ensures passwords never appear in Terraform logs while maintaining secure configuration.</p>
-<h2 id="method-2-manual-terraform-deployment">Method 2: Manual Terraform Deployment<a class="headerlink" href="#method-2-manual-terraform-deployment" title="Permanent link">&para;</a></h2>
-<p>Deploy directly from your local machine using Terraform CLI.</p>
+<p><strong>Password Injection Step</strong>: Before OpenTofu runs, the workflow finds the config file and uses <code>sed</code> to replace <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code> with values from GitHub secrets. This ensures passwords never appear in OpenTofu logs while maintaining secure configuration.</p>
+<h2 id="method-2-manual-opentofu-deployment">Method 2: Manual OpenTofu Deployment<a class="headerlink" href="#method-2-manual-opentofu-deployment" title="Permanent link">&para;</a></h2>
+<p>Deploy directly from your local machine using OpenTofu CLI.</p>
 <h3 id="step-1-clone-template-repository">Step 1: Clone Template Repository<a class="headerlink" href="#step-1-clone-template-repository" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink-template.git
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>lablink-template/lablink-infrastructure
@@ -5557,30 +5585,30 @@ Production deployments use pinned image tags for reproducibility and require exp
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>aws<span class="w"> </span>sso<span class="w"> </span>login<span class="w"> </span>--profile<span class="w"> </span>your-sso-profile
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-sso-profile
 </code></pre></div></p>
-<h3 id="step-3-initialize-terraform">Step 3: Initialize Terraform<a class="headerlink" href="#step-3-initialize-terraform" title="Permanent link">&para;</a></h3>
+<h3 id="step-3-initialize-opentofu">Step 3: Initialize OpenTofu<a class="headerlink" href="#step-3-initialize-opentofu" title="Permanent link">&para;</a></h3>
 <p><strong>For dev environment (local state)</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>terraform<span class="w"> </span>init
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>tofu<span class="w"> </span>init
 </code></pre></div></p>
 <p><strong>For test/prod (remote state)</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Test</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-test.hcl
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-test.hcl
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Production</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-prod.hcl
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-prod.hcl
 </code></pre></div></p>
 <h3 id="step-4-plan-deployment">Step 4: Plan Deployment<a class="headerlink" href="#step-4-plan-deployment" title="Permanent link">&para;</a></h3>
 <p>Preview infrastructure changes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>terraform<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>tofu<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=linux-amd64-latest-test&quot;</span>
 </code></pre></div>
-<p>Review the plan output carefully. Terraform will show:
+<p>Review the plan output carefully. OpenTofu will show:
 - Resources to be created
 - Resources to be modified
 - Resources to be destroyed</p>
 <h3 id="step-5-apply-deployment">Step 5: Apply Deployment<a class="headerlink" href="#step-5-apply-deployment" title="Permanent link">&para;</a></h3>
 <p>Deploy the infrastructure:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=linux-amd64-latest-test&quot;</span>
 </code></pre></div>
@@ -5589,19 +5617,19 @@ Production deployments use pinned image tags for reproducibility and require exp
 <h3 id="step-6-get-outputs">Step 6: Get Outputs<a class="headerlink" href="#step-6-get-outputs" title="Permanent link">&para;</a></h3>
 <p>After deployment completes:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Get allocator URL</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_fqdn
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_fqdn
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Get public IP</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>terraform<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>tofu<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
 <a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
 <a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Save SSH key</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-dev-key.pem
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-dev-key.pem
 <a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-dev-key.pem
 </code></pre></div>
 <h3 id="step-7-verify-deployment">Step 7: Verify Deployment<a class="headerlink" href="#step-7-verify-deployment" title="Permanent link">&para;</a></h3>
 <p>Test the allocator:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Get the IP</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Test web interface</span>
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>curl<span class="w"> </span>http://<span class="nv">$ALLOCATOR_IP</span>:80
@@ -5609,7 +5637,7 @@ Production deployments use pinned image tags for reproducibility and require exp
 <a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># SSH into instance</span>
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-dev-key.pem<span class="w"> </span>ubuntu@<span class="nv">$ALLOCATOR_IP</span>
 </code></pre></div>
-<h2 id="terraform-variables">Terraform Variables<a class="headerlink" href="#terraform-variables" title="Permanent link">&para;</a></h2>
+<h2 id="opentofu-variables">OpenTofu Variables<a class="headerlink" href="#opentofu-variables" title="Permanent link">&para;</a></h2>
 <p>Key variables for customizing deployment:</p>
 <table>
 <thead>
@@ -5648,7 +5676,7 @@ Production deployments use pinned image tags for reproducibility and require exp
 </tbody>
 </table>
 <p><strong>Usage</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.0.0&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;instance_type=t2.small&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -5658,26 +5686,26 @@ Production deployments use pinned image tags for reproducibility and require exp
 <h3 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Local testing, rapid iteration</p>
 <p><strong>Configuration</strong>:
-- Terraform state: Local file
+- OpenTofu state: Local file
 - Image tag: <code>-test</code> versions
 - Instance type: <code>t2.micro</code> (cheapest)
 - No Elastic IP (dynamic)</p>
 <p><strong>Deploy</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>terraform<span class="w"> </span>init
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>tofu<span class="w"> </span>init
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=linux-amd64-latest-test&quot;</span>
 </code></pre></div></p>
 <h3 id="teststaging">Test/Staging<a class="headerlink" href="#teststaging" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Pre-production validation, integration testing</p>
 <p><strong>Configuration</strong>:
-- Terraform state: S3 bucket (<code>backend-test.hcl</code>)
+- OpenTofu state: S3 bucket (<code>backend-test.hcl</code>)
 - Image tag: <code>-test</code> versions
 - Instance type: Same as production
 - Elastic IP: Pre-allocated</p>
 <p><strong>Deploy</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-test.hcl
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-test.hcl
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=linux-amd64-latest-test&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocated_eip=eipalloc-test&quot;</span>
@@ -5685,14 +5713,14 @@ Production deployments use pinned image tags for reproducibility and require exp
 <h3 id="production">Production<a class="headerlink" href="#production" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Live workloads, stable releases</p>
 <p><strong>Configuration</strong>:
-- Terraform state: S3 bucket (<code>backend-prod.hcl</code>)
+- OpenTofu state: S3 bucket (<code>backend-prod.hcl</code>)
 - Image tag: Pinned versions (<code>v1.0.0</code>)
 - Instance type: Appropriately sized
 - Elastic IP: Pre-allocated
 - Monitoring and backups enabled</p>
 <p><strong>Deploy</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-prod.hcl
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-prod.hcl
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.0.0&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocated_eip=eipalloc-prod&quot;</span>
@@ -5704,7 +5732,7 @@ Production deployments use pinned image tags for reproducibility and require exp
 <h4 id="using-aws-route-53">Using AWS Route 53<a class="headerlink" href="#using-aws-route-53" title="Permanent link">&para;</a></h4>
 <p><strong>Quick Update</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Get IP</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Update Route 53 A record</span>
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>change-resource-record-sets<span class="w"> </span><span class="se">\</span>
@@ -5884,15 +5912,15 @@ Production deployments use pinned image tags for reproducibility and require exp
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
 <a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
 <a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Re-initialize if needed</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>terraform<span class="w"> </span>init<span class="w"> </span>-reconfigure
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>tofu<span class="w"> </span>init<span class="w"> </span>-reconfigure
 <a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>
 <a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="c1"># Plan changes</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>terraform<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>tofu<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=new-version&quot;</span>
 <a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>
 <a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="c1"># Apply changes</span>
-<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=new-version&quot;</span>
 </code></pre></div>
@@ -5906,10 +5934,10 @@ Production deployments use pinned image tags for reproducibility and require exp
 <li>Select environment</li>
 <li>Confirm destruction</li>
 </ol>
-<h3 id="via-terraform-cli">Via Terraform CLI<a class="headerlink" href="#via-terraform-cli" title="Permanent link">&para;</a></h3>
+<h3 id="via-opentofu-cli">Via OpenTofu CLI<a class="headerlink" href="#via-opentofu-cli" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
 <a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>terraform<span class="w"> </span>destroy<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=dummy&quot;</span><span class="w">  </span><span class="c1"># Still required</span>
 <a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
@@ -5921,19 +5949,19 @@ Production deployments use pinned image tags for reproducibility and require exp
 - SSH key pair
 - All associated resources</p>
 <p><strong>Not destroyed</strong>:
-- S3 bucket (Terraform state)
+- S3 bucket (OpenTofu state)
 - Elastic IPs (must be released manually)
 - Any client VMs created by the allocator</p>
 <h2 id="troubleshooting-deployments">Troubleshooting Deployments<a class="headerlink" href="#troubleshooting-deployments" title="Permanent link">&para;</a></h2>
-<h3 id="terraform-init-fails">Terraform Init Fails<a class="headerlink" href="#terraform-init-fails" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-init-fails">OpenTofu Init Fails<a class="headerlink" href="#opentofu-init-fails" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Backend configuration changed</code></p>
 <p><strong>Solution</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>terraform<span class="w"> </span>init<span class="w"> </span>-reconfigure
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>tofu<span class="w"> </span>init<span class="w"> </span>-reconfigure
 </code></pre></div></p>
 <h3 id="apply-fails-resource-already-exists">Apply Fails: Resource Already Exists<a class="headerlink" href="#apply-fails-resource-already-exists" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Error creating security group: ... already exists</code></p>
 <p><strong>Solution</strong>: Import existing resource or destroy manually:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>terraform<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>tofu<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
 </code></pre></div></p>
 <h3 id="ssh-key-not-working">SSH Key Not Working<a class="headerlink" href="#ssh-key-not-working" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Permission denied (publickey)</code></p>
@@ -5950,19 +5978,19 @@ Production deployments use pinned image tags for reproducibility and require exp
 1. Security group allows port 80 from your IP
 2. Instance has public IP
 3. Instance is running (<code>aws ec2 describe-instances</code>)</p>
-<h3 id="terraform-state-locked">Terraform State Locked<a class="headerlink" href="#terraform-state-locked" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-state-locked">OpenTofu State Locked<a class="headerlink" href="#opentofu-state-locked" title="Permanent link">&para;</a></h3>
 <p><strong>Error</strong>: <code>Error acquiring the state lock</code></p>
 <p><strong>Solution</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># If no other Terraform process is running:</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>terraform<span class="w"> </span>force-unlock<span class="w"> </span>&lt;lock-id&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># If no other OpenTofu process is running:</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>tofu<span class="w"> </span>force-unlock<span class="w"> </span>&lt;lock-id&gt;
 </code></pre></div></p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Use version control</strong>: Always commit Terraform configs before applying</li>
-<li><strong>Review plans</strong>: Always run <code>terraform plan</code> before <code>apply</code></li>
+<li><strong>Use version control</strong>: Always commit OpenTofu configs before applying</li>
+<li><strong>Review plans</strong>: Always run <code>tofu plan</code> before <code>apply</code></li>
 <li><strong>Pin versions</strong>: Use specific image tags in production</li>
 <li><strong>Separate environments</strong>: Never share state between dev/test/prod</li>
-<li><strong>Backup state</strong>: Enable S3 versioning for Terraform state</li>
+<li><strong>Backup state</strong>: Enable S3 versioning for OpenTofu state</li>
 <li><strong>Monitor costs</strong>: Set up AWS billing alerts</li>
 <li><strong>Document changes</strong>: Use descriptive commit messages</li>
 </ol>

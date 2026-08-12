@@ -1801,6 +1801,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4881,16 +4909,16 @@
 
     subgraph Artifacts["Build Artifacts"]
         DockerImages[Docker Images&lt;br/&gt;ghcr.io]
-        TerraformDeploy[Terraform Apply&lt;br/&gt;Infrastructure]
+        TofuDeploy[OpenTofu Apply&lt;br/&gt;Infrastructure]
     end
 
     Actions --&gt; DockerImages
-    Actions --&gt; TerraformDeploy
+    Actions --&gt; TofuDeploy
 
     subgraph AWS["AWS Cloud"]
         subgraph AllocatorInstance["Allocator EC2 Instance"]
             subgraph AllocatorContainer["Docker Container: lablink-allocator"]
-                Flask[Flask App&lt;br/&gt;Port 80&lt;br/&gt;&lt;br/&gt;• Web UI&lt;br/&gt;• API&lt;br/&gt;• Terraform]
+                Flask[Flask App&lt;br/&gt;Port 80&lt;br/&gt;&lt;br/&gt;• Web UI&lt;br/&gt;• API&lt;br/&gt;• OpenTofu]
                 PostgreSQL[(PostgreSQL DB&lt;br/&gt;Port 5432&lt;br/&gt;&lt;br/&gt;• VM table&lt;br/&gt;• Triggers&lt;br/&gt;• Listen/Notify)]
                 Flask &lt;--&gt; PostgreSQL
             end
@@ -4912,10 +4940,10 @@
         end
     end
 
-    TerraformDeploy --&gt; AllocatorInstance
+    TofuDeploy --&gt; AllocatorInstance
     DockerImages -.-&gt; AllocatorContainer
     DockerImages -.-&gt; ClientContainer
-    Flask --&gt;|spawns via&lt;br/&gt;Terraform| ClientInstances
+    Flask --&gt;|spawns via&lt;br/&gt;OpenTofu| ClientInstances
     Subscribe -.-&gt;|heartbeat,&lt;br/&gt;status updates| Flask
 
     style GitHub fill:#f0f0f0
@@ -4947,7 +4975,7 @@ added without touching core code. Two ship today:</p>
 <tbody>
 <tr>
 <td><code>aws</code></td>
-<td>Provisions EC2 client VMs with Terraform.</td>
+<td>Provisions EC2 client VMs with OpenTofu.</td>
 </tr>
 <tr>
 <td><code>manual</code></td>
@@ -4957,7 +4985,7 @@ added without touching core code. Two ship today:</p>
 </table>
 <p>Capability flags, not provider-type checks, gate the behaviour that differs:</p>
 <ul>
-<li><strong><code>can_provision_hosts</code></strong> — false for <code>manual</code>, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a Terraform output.</li>
+<li><strong><code>can_provision_hosts</code></strong> — false for <code>manual</code>, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a OpenTofu output.</li>
 <li><strong><code>can_recover_hosts</code></strong> — false for <code>manual</code>, so the auto-reboot loop skips BYO boxes instead of attempting AWS calls against machines it doesn't own.</li>
 </ul>
 <h3 id="client-connectivity-how-the-desktop-is-reached">Client connectivity — how the desktop is reached<a class="headerlink" href="#client-connectivity-how-the-desktop-is-reached" title="Permanent link">&para;</a></h3>
@@ -5002,7 +5030,7 @@ contract.</p>
 <li><strong>Flask</strong>: Web application framework</li>
 <li><strong>PostgreSQL</strong>: Relational database for VM state</li>
 <li><strong>SQLAlchemy</strong>: ORM for database operations</li>
-<li><strong>Terraform</strong>: Infrastructure provisioning</li>
+<li><strong>OpenTofu</strong>: Infrastructure provisioning</li>
 <li><strong>Docker</strong>: Containerization</li>
 </ul>
 <p><strong>Key Responsibilities</strong>:</p>
@@ -5043,7 +5071,7 @@ contract.</p>
 <li>
 <p><strong>Infrastructure Orchestration</strong>:</p>
 </li>
-<li>Spawns client VMs via Terraform</li>
+<li>Spawns client VMs via OpenTofu</li>
 <li>Manages AWS credentials</li>
 <li>
 <p>Handles security group configuration</p>
@@ -5185,7 +5213,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <h3 id="vm-state-machine">VM State Machine<a class="headerlink" href="#vm-state-machine" title="Permanent link">&para;</a></h3>
 <p>The <code>status</code> field in the <code>vms</code> table follows this lifecycle:</p>
 <div class="mermaid">stateDiagram-v2
-    [*] --&gt; available: VM Created&lt;br/&gt;(terraform apply)
+    [*] --&gt; available: VM Created&lt;br/&gt;(tofu apply)
 
     available --&gt; in_use: Software process starts&lt;br/&gt;(detected by update_inuse_status)
     in_use --&gt; available: Software process stops&lt;br/&gt;(task complete or crash)
@@ -5198,8 +5226,8 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
     rebooting --&gt; failed: Reboot fails&lt;br/&gt;(or stuck &gt; 10 min)
 
     failed --&gt; available: Admin intervention&lt;br/&gt;(manual reset)
-    failed --&gt; [*]: VM Destroyed&lt;br/&gt;(terraform destroy)
-    available --&gt; [*]: VM Destroyed&lt;br/&gt;(terraform destroy)
+    failed --&gt; [*]: VM Destroyed&lt;br/&gt;(tofu destroy)
+    available --&gt; [*]: VM Destroyed&lt;br/&gt;(tofu destroy)
     in_use --&gt; [*]: Force destroy&lt;br/&gt;(admin action)
 
     note right of available
@@ -5234,7 +5262,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <li><strong>rebooting → available</strong>: VM successfully reboots and re-initializes</li>
 <li><strong>rebooting → failed</strong>: Reboot fails or VM stuck in rebooting state &gt; 10 minutes</li>
 <li><strong>failed → available</strong>: Admin manually resets and fixes the VM</li>
-<li><strong>any → [*]</strong>: VM is destroyed via Terraform</li>
+<li><strong>any → [*]</strong>: VM is destroyed via OpenTofu</li>
 </ul>
 <p><strong>State Mapping to Database Columns</strong></p>
 <table>
@@ -5301,7 +5329,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <h4 id="storage">Storage<a class="headerlink" href="#storage" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
-<p><strong>S3 Buckets</strong>: Terraform state storage</p>
+<p><strong>S3 Buckets</strong>: OpenTofu state storage</p>
 </li>
 <li>
 <p>Separate state per environment (dev/test/prod)</p>
@@ -5357,19 +5385,19 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <div class="mermaid">sequenceDiagram
     actor Admin
     participant Flask as Flask App
-    participant Terraform
+    participant OpenTofu
     participant AWS as AWS EC2
     participant VM as Client VM Instance
     participant Docker as Docker Container
 
     Admin-&gt;&gt;Flask: POST /admin/create&lt;br/&gt;(instance_count)
-    Flask-&gt;&gt;Terraform: Execute terraform apply&lt;br/&gt;(subprocess)
+    Flask-&gt;&gt;OpenTofu: Execute tofu apply&lt;br/&gt;(subprocess)
 
-    Terraform-&gt;&gt;AWS: Create security group
-    Terraform-&gt;&gt;AWS: Generate SSH key pair
-    Terraform-&gt;&gt;AWS: Launch EC2 instance&lt;br/&gt;with user_data script
-    AWS--&gt;&gt;Terraform: Return instance details&lt;br/&gt;(hostname, IP, etc.)
-    Terraform--&gt;&gt;Flask: Provisioning complete
+    OpenTofu-&gt;&gt;AWS: Create security group
+    OpenTofu-&gt;&gt;AWS: Generate SSH key pair
+    OpenTofu-&gt;&gt;AWS: Launch EC2 instance&lt;br/&gt;with user_data script
+    AWS--&gt;&gt;OpenTofu: Return instance details&lt;br/&gt;(hostname, IP, etc.)
+    OpenTofu--&gt;&gt;Flask: Provisioning complete
 
     Note over VM: Boot sequence begins
     VM-&gt;&gt;VM: Execute user_data script
@@ -5411,7 +5439,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <th>Environment</th>
 <th>Purpose</th>
 <th>Image Tag</th>
-<th>Terraform Backend</th>
+<th>OpenTofu Backend</th>
 </tr>
 </thead>
 <tbody>
@@ -5437,7 +5465,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 </table>
 <p>Each environment has:</p>
 <ul>
-<li>Separate Terraform state</li>
+<li>Separate OpenTofu state</li>
 <li>Unique resource naming (<code>-dev</code>, <code>-test</code>, <code>-prod</code> suffix)</li>
 <li>Independent AWS resources</li>
 </ul>
@@ -5456,7 +5484,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <p>Pushes to GitHub Container Registry</p>
 </li>
 <li>
-<p><strong>Terraform Deploy</strong> (<code>lablink-allocator-terraform.yml</code>):</p>
+<p><strong>OpenTofu Deploy</strong> (<code>lablink-allocator-terraform.yml</code>):</p>
 </li>
 <li>
 <p>Triggers on branch push or manual dispatch</p>
@@ -5474,7 +5502,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 <h2 id="security-architecture">Security Architecture<a class="headerlink" href="#security-architecture" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Admin Authentication</strong>: HTTP Basic Auth for admin dashboard and management endpoints</li>
-<li><strong>API Token Authentication</strong>: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via Terraform/cloud-init at launch time.</li>
+<li><strong>API Token Authentication</strong>: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via OpenTofu/cloud-init at launch time.</li>
 <li><strong>OIDC Authentication</strong>: GitHub Actions authenticate to AWS without stored credentials</li>
 <li><strong>SSH Keys</strong>: Auto-generated per environment, ephemeral artifacts</li>
 <li><strong>Secrets</strong>: Managed via GitHub Secrets and AWS Secrets Manager</li>
@@ -5516,7 +5544,7 @@ longer uses <code>LISTEN</code>/<code>NOTIFY</code>; see
 </tr>
 <tr>
 <td>IaC</td>
-<td>Terraform</td>
+<td>OpenTofu</td>
 <td>Declarative, AWS support</td>
 </tr>
 <tr>

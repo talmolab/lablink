@@ -1612,6 +1612,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4508,7 +4536,7 @@
 <div class="tabbed-content">
 <div class="tabbed-block">
 <ul>
-<li><strong>Terraform 1.6+</strong> — the CLI drives Terraform under the hood. Install from <a href="https://developer.hashicorp.com/terraform/install">developer.hashicorp.com/terraform/install</a>.</li>
+<li><strong>OpenTofu 1.10+</strong> — the CLI drives OpenTofu under the hood. Install from <a href="https://opentofu.org/docs/intro/install/">opentofu.org/docs/intro/install</a>. Older releases vendor an <code>aws-sdk-go-v2</code> that can corrupt S3 state on an upload retry, so <code>lablink doctor</code> rejects them.</li>
 <li><strong>AWS credentials</strong> configured locally (either <code>aws configure</code> or <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> environment variables). See <a href="../../prerequisites/#configure-aws-credentials">Prerequisites</a>.</li>
 <li><strong>An AWS account</strong> with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See <a href="../../aws-setup/">AWS Setup (Manual)</a> for the full permission list.</li>
 </ul>
@@ -4516,7 +4544,7 @@
 <div class="tabbed-block">
 <ul>
 <li><strong>Docker</strong> and the <strong><code>docker compose</code> v2 plugin</strong>, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.</li>
-<li>No AWS account, no AWS credentials, and no Terraform — see <a href="../byo-clients/">Bring-Your-Own Clients</a>.</li>
+<li>No AWS account, no AWS credentials, and no OpenTofu — see <a href="../byo-clients/">Bring-Your-Own Clients</a>.</li>
 </ul>
 </div>
 </div>
@@ -4569,8 +4597,8 @@
 </thead>
 <tbody>
 <tr>
-<td>Terraform installed</td>
-<td><code>terraform</code> is on PATH and reports a version</td>
+<td>OpenTofu installed</td>
+<td><code>tofu</code> is on PATH and reports a version</td>
 </tr>
 <tr>
 <td>Config file</td>
@@ -4611,7 +4639,7 @@
 </tr>
 <tr>
 <td><code>~/.lablink/cache/terraform/&lt;version&gt;/</code></td>
-<td>Cached Terraform templates downloaded from the <code>lablink-template</code> repo</td>
+<td>Cached OpenTofu templates downloaded from the <code>lablink-template</code> repo</td>
 </tr>
 <tr>
 <td><code>~/.lablink/deployments/</code></td>
@@ -4619,7 +4647,7 @@
 </tr>
 <tr>
 <td><code>~/.lablink/deploys/&lt;name&gt;/</code></td>
-<td>Working directory Terraform runs in for each deployment</td>
+<td>Working directory OpenTofu runs in for each deployment</td>
 </tr>
 </tbody>
 </table>
@@ -4632,7 +4660,7 @@
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Template version</p>
-<p>The CLI pins a specific version of the <code>lablink-template</code> Terraform files. After upgrading the CLI, the first <code>lablink deploy</code> will download the new template version into <code>~/.lablink/cache/terraform/</code>.</p>
+<p>The CLI pins a specific version of the <code>lablink-template</code> OpenTofu files. After upgrading the CLI, the first <code>lablink deploy</code> will download the new template version into <code>~/.lablink/cache/terraform/</code>.</p>
 </div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>

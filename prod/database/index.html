@@ -2150,6 +2150,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -5592,7 +5620,7 @@ so there is no migration machinery. New schema goes in <code>generate_init_sql.p
 not into a runtime upgrade path.</p>
 </div>
 <h3 id="vms-table"><code>vms</code> Table<a class="headerlink" href="#vms-table" title="Permanent link">&para;</a></h3>
-<p>The main table. One row per client machine, whether it was provisioned by Terraform
+<p>The main table. One row per client machine, whether it was provisioned by OpenTofu
 or registered itself as a BYO box. The table name is configurable via
 <code>db.table_name</code> (default <code>vm_table</code>); this page calls it <code>vms</code>.</p>
 <p>It carries five groups of columns:</p>
@@ -5784,7 +5812,7 @@ by <code>init.sql</code> — the one exception to the note above.</p>
 <p><strong>Startup timings and logs</strong></p>
 <p><code>CloudInitLogs</code>, <code>DockerLogs</code>, and the <code>TerraformApply*</code>, <code>CloudInit*</code>, <code>Container*</code>
 and <code>TotalStartupDurationSeconds</code> timing columns, which break VM startup into its
-Terraform / cloud-init / container-start phases for bottleneck analysis.</p>
+OpenTofu / cloud-init / container-start phases for bottleneck analysis.</p>
 <p><strong>Session metrics</strong> — populated only when <code>monitoring.enabled</code> is true</p>
 <p>The <code>SessionMetrics*</code>, <code>SecondsIn*</code>, <code>SecondsToFirst*</code>, <code>Gpu*</code>, <code>Vram*</code> and
 <code>Training*</code> columns, plus <code>MaxLabeledFrames</code> — per-session time-in-software, GPU
@@ -5806,7 +5834,7 @@ if they haven't launched anything yet. It's maintained by the client's
 <code>update_inuse_status</code> service.</p>
 <h3 id="operations-table"><code>operations</code> Table<a class="headerlink" href="#operations-table" title="Permanent link">&para;</a></h3>
 <p>Tracks asynchronous provisioning work so the CLI and admin UI can poll progress
-instead of blocking on a long Terraform run.</p>
+instead of blocking on a long OpenTofu run.</p>
 <table>
 <thead>
 <tr>

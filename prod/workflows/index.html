@@ -1775,10 +1775,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tag-usage-in-terraform" class="md-nav__link">
+  <a href="#tag-usage-in-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tag Usage in Terraform
+        Tag Usage in OpenTofu
       
     </span>
   </a>
@@ -1879,15 +1879,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-deployment-workflow" class="md-nav__link">
+  <a href="#opentofu-deployment-workflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Deployment Workflow
+        OpenTofu Deployment Workflow
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Terraform Deployment Workflow">
+    <nav class="md-nav" aria-label="OpenTofu Deployment Workflow">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1958,10 +1958,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-terraform-initialization" class="md-nav__link">
+  <a href="#3-opentofu-initialization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Terraform Initialization
+        3. OpenTofu Initialization
       
     </span>
   </a>
@@ -2345,10 +2345,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-failures" class="md-nav__link">
+  <a href="#opentofu-failures" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Failures
+        OpenTofu Failures
       
     </span>
   </a>
@@ -2490,6 +2490,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -5660,10 +5688,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tag-usage-in-terraform" class="md-nav__link">
+  <a href="#tag-usage-in-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tag Usage in Terraform
+        Tag Usage in OpenTofu
       
     </span>
   </a>
@@ -5764,15 +5792,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-deployment-workflow" class="md-nav__link">
+  <a href="#opentofu-deployment-workflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Deployment Workflow
+        OpenTofu Deployment Workflow
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Terraform Deployment Workflow">
+    <nav class="md-nav" aria-label="OpenTofu Deployment Workflow">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5843,10 +5871,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-terraform-initialization" class="md-nav__link">
+  <a href="#3-opentofu-initialization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Terraform Initialization
+        3. OpenTofu Initialization
       
     </span>
   </a>
@@ -6230,10 +6258,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-failures" class="md-nav__link">
+  <a href="#opentofu-failures" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Failures
+        OpenTofu Failures
       
     </span>
   </a>
@@ -6297,7 +6325,7 @@
 <li>Testing and validation (linting, unit tests, Docker builds)</li>
 <li>Documentation deployment to GitHub Pages</li>
 </ul>
-<p><strong>Note</strong>: Infrastructure deployment workflows (Terraform) have been moved to the <a href="https://github.com/talmolab/lablink-template">LabLink Template Repository</a>.</p>
+<p><strong>Note</strong>: Infrastructure deployment workflows (OpenTofu) have been moved to the <a href="https://github.com/talmolab/lablink-template">LabLink Template Repository</a>.</p>
 <h3 id="cicd-pipeline-overview">CI/CD Pipeline Overview<a class="headerlink" href="#cicd-pipeline-overview" title="Permanent link">&para;</a></h3>
 <div class="mermaid">flowchart TB
     subgraph Triggers["Workflow Triggers"]
@@ -6793,7 +6821,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Test specific changes without pushing</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span><span class="nb">test</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># For CI testing with S3 backend (e.g., testing Terraform configurations)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># For CI testing with S3 backend (e.g., testing OpenTofu configurations)</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>lablink-images.yml<span class="w"> </span>-f<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>ci-test
 </code></pre></div>
 <h4 id="common-mistakes">Common Mistakes<a class="headerlink" href="#common-mistakes" title="Permanent link">&para;</a></h4>
@@ -6909,7 +6937,7 @@
 <li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.1.2</code> - Platform + version</li>
 <li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest</code> - Latest for platform</li>
 <li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64</code> - Platform tag</li>
-<li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6</code> - Metadata tag</li>
+<li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-tofu-1.12.5</code> - Metadata tag</li>
 <li><code>ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15</code> - Metadata tag</li>
 <li><code>ghcr.io/talmolab/lablink-allocator-image:&lt;sha&gt;</code> - Git commit SHA</li>
 <li><code>ghcr.io/talmolab/lablink-allocator-image:latest</code> - Latest stable</li>
@@ -6955,8 +6983,8 @@
 <p>Creates same tags as manual trigger except without version-specific tags (<code>0.1.2</code>, <code>linux-amd64-0.1.2</code>)</p>
 <p><strong>Pull requests / test branch (automatic):</strong></p>
 <p>Creates same tags as main but with <code>-test</code> suffix</p>
-<h4 id="tag-usage-in-terraform">Tag Usage in Terraform<a class="headerlink" href="#tag-usage-in-terraform" title="Permanent link">&para;</a></h4>
-<p>For production deployments, always use version-specific tags in your Terraform configuration:</p>
+<h4 id="tag-usage-in-opentofu">Tag Usage in OpenTofu<a class="headerlink" href="#tag-usage-in-opentofu" title="Permanent link">&para;</a></h4>
+<p>For production deployments, always use version-specific tags in your OpenTofu configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># terraform.tfvars or -var flags</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="na">allocator_image_tag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.2&quot;</span><span class="c1">  # Pin to specific version</span>
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="na">client_image_tag</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.2&quot;</span><span class="c1">  # Pin to specific version</span>
@@ -7138,10 +7166,10 @@
 <a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.event_name != &#39;pull_request&#39; }}</span>
 <a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.meta.outputs.tags }}</span>
 </code></pre></div>
-<h2 id="terraform-deployment-workflow">Terraform Deployment Workflow<a class="headerlink" href="#terraform-deployment-workflow" title="Permanent link">&para;</a></h2>
+<h2 id="opentofu-deployment-workflow">OpenTofu Deployment Workflow<a class="headerlink" href="#opentofu-deployment-workflow" title="Permanent link">&para;</a></h2>
 <p><strong>File</strong>: <code>.github/workflows/lablink-allocator-terraform.yml</code></p>
 <h3 id="purpose_3">Purpose<a class="headerlink" href="#purpose_3" title="Permanent link">&para;</a></h3>
-<p>Deploys LabLink infrastructure to AWS using Terraform.</p>
+<p>Deploys LabLink infrastructure to AWS using OpenTofu.</p>
 <h3 id="triggers_3">Triggers<a class="headerlink" href="#triggers_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Push to <code>test</code> branch</strong>: Automatic test deployment</li>
@@ -7189,47 +7217,47 @@
 <a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="nt">aws-region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">us-west-2</span>
 </code></pre></div>
 <p><strong>No AWS credentials stored in GitHub!</strong></p>
-<h4 id="3-terraform-initialization">3. Terraform Initialization<a class="headerlink" href="#3-terraform-initialization" title="Permanent link">&para;</a></h4>
+<h4 id="3-opentofu-initialization">3. OpenTofu Initialization<a class="headerlink" href="#3-opentofu-initialization" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Dev (local state)</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>terraform<span class="w"> </span>init
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>tofu<span class="w"> </span>init
 <a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
 <a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># Test/Prod (remote state)</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>terraform<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-&lt;env&gt;.hcl
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>tofu<span class="w"> </span>init<span class="w"> </span>-backend-config<span class="o">=</span>backend-&lt;env&gt;.hcl
 </code></pre></div>
 <h4 id="4-validation">4. Validation<a class="headerlink" href="#4-validation" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>terraform<span class="w"> </span>fmt<span class="w"> </span>-check<span class="w">  </span><span class="c1"># Check formatting</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>terraform<span class="w"> </span>validate<span class="w">    </span><span class="c1"># Validate syntax</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>tofu<span class="w"> </span>fmt<span class="w"> </span>-check<span class="w">  </span><span class="c1"># Check formatting</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>tofu<span class="w"> </span>validate<span class="w">    </span><span class="c1"># Validate syntax</span>
 </code></pre></div>
 <h4 id="5-planning">5. Planning<a class="headerlink" href="#5-planning" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>terraform<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>tofu<span class="w"> </span>plan<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
 </code></pre></div>
 <h4 id="6-application">6. Application<a class="headerlink" href="#6-application" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-auto-approve<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-auto-approve<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=&lt;env&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=&lt;tag&gt;&quot;</span>
 </code></pre></div>
 <h4 id="7-artifact-handling">7. Artifact Handling<a class="headerlink" href="#7-artifact-handling" title="Permanent link">&para;</a></h4>
 <ul>
-<li>Extracts SSH private key from Terraform output</li>
+<li>Extracts SSH private key from OpenTofu output</li>
 <li>Saves as artifact (expires in 1 day)</li>
 <li>Provides download link in workflow summary</li>
 </ul>
 <h4 id="8-failure-handling">8. Failure Handling<a class="headerlink" href="#8-failure-handling" title="Permanent link">&para;</a></h4>
-<p>If <code>terraform apply</code> fails:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-auto-approve
+<p>If <code>tofu apply</code> fails:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-auto-approve
 </code></pre></div>
 <p>Automatically cleans up partial deployments.</p>
 <h3 id="example-workflow-run_2">Example Workflow Run<a class="headerlink" href="#example-workflow-run_2" title="Permanent link">&para;</a></h3>
 <p><strong>Scenario</strong>: Deploy to production</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>1. Navigate to Actions → Terraform Deploy → Run workflow
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>1. Navigate to Actions → OpenTofu Deploy → Run workflow
 <a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>2. Select:
 <a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>   - Environment: prod
 <a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>   - Image tag: v1.0.0
 <a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>3. Workflow starts:
 <a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>   - Authenticates to AWS via OIDC
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>   - Initializes Terraform with backend-prod.hcl
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>   - Initializes OpenTofu with backend-prod.hcl
 <a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>   - Plans infrastructure
 <a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>   - Applies changes
 <a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>   - Saves SSH key to artifacts
@@ -7287,9 +7315,9 @@
 <h3 id="workflow-steps_2">Workflow Steps<a class="headerlink" href="#workflow-steps_2" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Authenticate to AWS via OIDC</li>
-<li>Initialize Terraform with correct backend</li>
+<li>Initialize OpenTofu with correct backend</li>
 <li>Plan destruction</li>
-<li>Execute <code>terraform destroy -auto-approve</code></li>
+<li>Execute <code>tofu destroy -auto-approve</code></li>
 <li>Output destroyed resources</li>
 </ol>
 <h3 id="example-usage">Example Usage<a class="headerlink" href="#example-usage" title="Permanent link">&para;</a></h3>
@@ -7301,7 +7329,7 @@
 <a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>   - EC2 instance
 <a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>   - Security group
 <a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a>   - SSH key pair
-<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>6. Terraform state updated
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>6. OpenTofu state updated
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Destructive Operation</p>
@@ -7426,12 +7454,12 @@
 <li>Trust policy includes GitHub OIDC provider</li>
 <li>Role has necessary permissions</li>
 </ul>
-<h3 id="terraform-failures">Terraform Failures<a class="headerlink" href="#terraform-failures" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-failures">OpenTofu Failures<a class="headerlink" href="#opentofu-failures" title="Permanent link">&para;</a></h3>
 <p><strong>Check</strong>:</p>
 <ul>
-<li>Terraform syntax (<code>terraform validate</code>)</li>
+<li>OpenTofu syntax (<code>tofu validate</code>)</li>
 <li>AWS resource limits</li>
-<li>Terraform state lock status</li>
+<li>OpenTofu state lock status</li>
 </ul>
 <h3 id="image-push-fails">Image Push Fails<a class="headerlink" href="#image-push-fails" title="Permanent link">&para;</a></h3>
 <p><strong>Check</strong>:</p>

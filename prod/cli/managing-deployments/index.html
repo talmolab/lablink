@@ -1656,6 +1656,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4592,7 +4620,7 @@ the manual workflow end to end.</p>
 <h2 id="launch-client-vms">Launch client VMs<a class="headerlink" href="#launch-client-vms" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
-<p>The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.</p>
+<p>The allocator runs its own OpenTofu workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need OpenTofu locally for this step.</p>
 <table>
 <thead>
 <tr>
@@ -4611,7 +4639,7 @@ the manual workflow end to end.</p>
 </tr>
 <tr>
 <td><code>-v</code>, <code>--verbose</code></td>
-<td>Show the full Terraform output instead of a summary.</td>
+<td>Show the full OpenTofu output instead of a summary.</td>
 </tr>
 </tbody>
 </table>
@@ -4621,7 +4649,7 @@ the manual workflow end to end.</p>
 <h2 id="check-status">Check status<a class="headerlink" href="#check-status" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
-<p>Shows Terraform outputs, health checks, per-VM state, and a cost estimate. This is the command to run when you want to know "is the allocator up and how much is this costing me?"</p>
+<p>Shows OpenTofu outputs, health checks, per-VM state, and a cost estimate. This is the command to run when you want to know "is the allocator up and how much is this costing me?"</p>
 <p>See <a href="../first-deployment/#step-4-verify">First Deployment</a> for what each section means.</p>
 <h2 id="follow-logs">Follow logs<a class="headerlink" href="#follow-logs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>lablink<span class="w"> </span>logs
@@ -4651,7 +4679,7 @@ the manual workflow end to end.</p>
 </tr>
 <tr>
 <td><code>--allocator</code></td>
-<td>Per-deploy metrics from the local cache at <code>~/.lablink/deployments/</code> (deploy duration, plus Terraform phase timings on AWS or <code>docker compose up</code> timing on the manual provider)</td>
+<td>Per-deploy metrics from the local cache at <code>~/.lablink/deployments/</code> (deploy duration, plus OpenTofu phase timings on AWS or <code>docker compose up</code> timing on the manual provider)</td>
 <td><strong>No</strong> — works after <code>lablink destroy</code></td>
 </tr>
 <tr>
@@ -4669,7 +4697,7 @@ with no config at all, <code>--allocator</code> exports the whole cache and says
 deployments it spans.</p>
 <p>Reusing one <code>deployment_name</code> across providers is why the provider is part of the
 scope: a name deployed first on AWS and later with <code>provider: manual</code> has records
-of both shapes in the cache, and the Terraform phase columns say nothing about a
+of both shapes in the cache, and the OpenTofu phase columns say nothing about a
 compose stack.</p>
 <p>Other flags:</p>
 <table>
@@ -4710,7 +4738,7 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 <h2 id="destroy-the-deployment">Destroy the deployment<a class="headerlink" href="#destroy-the-deployment" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
-<p>Runs <code>terraform destroy</code> against the deployment's working directory (<code>~/.lablink/deploys/&lt;name&gt;/</code>). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.</p>
+<p>Runs <code>tofu destroy</code> against the deployment's working directory (<code>~/.lablink/deploys/&lt;name&gt;/</code>). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.</p>
 <table>
 <thead>
 <tr>
@@ -4725,7 +4753,7 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 </tr>
 <tr>
 <td><code>-v</code>, <code>--verbose</code></td>
-<td>Show the full Terraform output instead of a summary.</td>
+<td>Show the full OpenTofu output instead of a summary.</td>
 </tr>
 <tr>
 <td><code>--keep-data</code></td>
@@ -4738,10 +4766,10 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lablink<span class="w"> </span>cleanup<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>lablink<span class="w"> </span>cleanup<span class="w">             </span><span class="c1"># actually delete</span>
 </code></pre></div>
-<p>It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific Terraform state files. <code>--dry-run</code> prints what would be deleted without touching AWS.</p>
+<p>It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific OpenTofu state files. <code>--dry-run</code> prints what would be deleted without touching AWS.</p>
 <h2 id="clear-local-caches">Clear local caches<a class="headerlink" href="#clear-local-caches" title="Permanent link">&para;</a></h2>
 <p>The CLI stores two caches you may want to clear occasionally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Clear the Terraform template cache (~/.lablink/cache/terraform/)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Clear the OpenTofu template cache (~/.lablink/cache/terraform/)</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>lablink<span class="w"> </span>cache-clear
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Clear the deployment metrics cache (~/.lablink/deployments/)</span>
@@ -4753,7 +4781,7 @@ for deployments running with <code>monitoring.enabled: true</code>. See
 <a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Only prune in-progress records (leftovers from plan-cancel or Ctrl-C)</span>
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>lablink<span class="w"> </span>cache-clear<span class="w"> </span>--deployments<span class="w"> </span>--stale
 </code></pre></div>
-<p>Clearing the Terraform template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back <code>lablink export-metrics --allocator</code>.</p>
+<p>Clearing the OpenTofu template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back <code>lablink export-metrics --allocator</code>.</p>
 <h2 id="switching-between-deployments">Switching between deployments<a class="headerlink" href="#switching-between-deployments" title="Permanent link">&para;</a></h2>
 <p>Keep multiple config files if you manage more than one deployment:</p>
 <p><code>--config</code> is a per-command option, not a root one — it goes <em>after</em> the command:</p>

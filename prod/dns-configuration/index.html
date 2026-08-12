@@ -1368,15 +1368,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-dns-management" class="md-nav__link">
+  <a href="#opentofu-dns-management" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform DNS Management
+        OpenTofu DNS Management
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Terraform DNS Management">
+    <nav class="md-nav" aria-label="OpenTofu DNS Management">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1998,6 +1998,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -4962,15 +4990,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terraform-dns-management" class="md-nav__link">
+  <a href="#opentofu-dns-management" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform DNS Management
+        OpenTofu DNS Management
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Terraform DNS Management">
+    <nav class="md-nav" aria-label="OpenTofu DNS Management">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5316,7 +5344,7 @@
 <h3 id="why-delegated-subdomain">Why Delegated Subdomain?<a class="headerlink" href="#why-delegated-subdomain" title="Permanent link">&para;</a></h3>
 <p>The main <code>sleap.ai</code> domain is managed in Cloudflare for the primary website. To avoid conflicts and allow AWS-based automation, we use NS delegation to hand off the <code>lablink.sleap.ai</code> subdomain to AWS Route53.</p>
 <p><strong>Benefits</strong>:
-- Terraform can manage DNS records automatically
+- OpenTofu can manage DNS records automatically
 - No Cloudflare API credentials needed
 - Separation of concerns (website vs LabLink infrastructure)
 - Let's Encrypt can validate domain ownership via DNS</p>
@@ -5356,7 +5384,7 @@
 <p><strong>Location</strong>: <code>lablink-infrastructure/config/config.yaml</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># true = Terraform manages Route53 records</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># true = OpenTofu manages Route53 records</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;test.lablink.sleap.ai&quot;</span><span class="w">    </span><span class="c1"># Full domain name for the allocator</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span><span class="w">   </span><span class="c1"># Optional: Route53 zone ID (skips lookup)</span>
 </code></pre></div>
@@ -5381,7 +5409,7 @@
 <td><code>terraform_managed</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>Let Terraform manage Route53 records. Set to <code>false</code> for external DNS (CloudFlare, etc.)</td>
+<td>Let OpenTofu manage Route53 records. Set to <code>false</code> for external DNS (CloudFlare, etc.)</td>
 </tr>
 <tr>
 <td><code>domain</code></td>
@@ -5406,14 +5434,14 @@
 </ul>
 <h3 id="zone-id-configuration">Zone ID Configuration<a class="headerlink" href="#zone-id-configuration" title="Permanent link">&para;</a></h3>
 <p><strong>Why hardcode zone_id?</strong></p>
-<p>The Terraform data source <code>aws_route53_zone</code> can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:</p>
+<p>The OpenTofu data source <code>aws_route53_zone</code> can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span><span class="w">  </span><span class="c1"># Forces use of lablink.sleap.ai zone</span>
 </code></pre></div>
 <p><strong>How to find your zone ID</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>aws<span class="w"> </span>route53<span class="w"> </span>list-hosted-zones<span class="w"> </span>--query<span class="w"> </span><span class="s2">&quot;HostedZones[?Name==&#39;lablink.sleap.ai.&#39;].Id&quot;</span><span class="w"> </span>--output<span class="w"> </span>text
 </code></pre></div></p>
-<h2 id="terraform-dns-management">Terraform DNS Management<a class="headerlink" href="#terraform-dns-management" title="Permanent link">&para;</a></h2>
+<h2 id="opentofu-dns-management">OpenTofu DNS Management<a class="headerlink" href="#opentofu-dns-management" title="Permanent link">&para;</a></h2>
 <h3 id="main-configuration">Main Configuration<a class="headerlink" href="#main-configuration" title="Permanent link">&para;</a></h3>
 <p><strong>Location</strong>: <code>lablink-infrastructure/main.tf</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># DNS configuration from config.yaml</span>
@@ -5477,7 +5505,7 @@
 <h2 id="dns-troubleshooting">DNS Troubleshooting<a class="headerlink" href="#dns-troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="issue-record-created-in-wrong-zone">Issue: Record Created in Wrong Zone<a class="headerlink" href="#issue-record-created-in-wrong-zone" title="Permanent link">&para;</a></h3>
 <p><strong>Symptom</strong>: DNS record appears in <code>sleap.ai</code> zone instead of <code>lablink.sleap.ai</code> zone</p>
-<p><strong>Cause</strong>: Terraform data source matched parent zone</p>
+<p><strong>Cause</strong>: OpenTofu data source matched parent zone</p>
 <p><strong>Solution</strong>: Add <code>zone_id</code> to config.yaml:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">zone_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Z010760118DSWF5IYKMOM&quot;</span>

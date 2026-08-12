@@ -1623,6 +1623,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4518,13 +4546,13 @@
 <div class="admonition note">
 <p class="admonition-title">This is the AWS path</p>
 <p>Everything below assumes the default <code>provider: aws</code> — the allocator on EC2,
-client VMs provisioned by Terraform. To run the allocator on a machine you
+client VMs provisioned by OpenTofu. To run the allocator on a machine you
 already have and register your own client boxes instead, follow
 <a href="../byo-clients/">Bring-Your-Own Clients</a>; it needs no AWS account and no
-Terraform.</p>
+OpenTofu.</p>
 </div>
 <h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
-<p>Make sure you've completed <a href="../installation/">Installation</a> and that <code>lablink doctor</code> reports clean values for "Terraform installed" and "AWS credentials". The other checks will light up as you go.</p>
+<p>Make sure you've completed <a href="../installation/">Installation</a> and that <code>lablink doctor</code> reports clean values for "OpenTofu installed" and "AWS credentials". The other checks will light up as you go.</p>
 <h2 id="step-1-configure">Step 1: Configure<a class="headerlink" href="#step-1-configure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lablink<span class="w"> </span>configure
 </code></pre></div>
@@ -4535,9 +4563,9 @@ Terraform.</p>
 <li><strong>Machine settings</strong> — client VM instance type and AMI. Defaults come from the bundled <code>lablink-template</code> config.</li>
 <li><strong>DNS / SSL</strong> — optional Route 53 domain and ACM certificate configuration.</li>
 </ul>
-<p>The wizard writes <code>~/.lablink/config.yaml</code> and then <strong>automatically runs <code>lablink setup</code></strong> to create the two AWS resources Terraform needs before it can run:</p>
+<p>The wizard writes <code>~/.lablink/config.yaml</code> and then <strong>automatically runs <code>lablink setup</code></strong> to create the two AWS resources OpenTofu needs before it can run:</p>
 <ol>
-<li>An <strong>S3 bucket</strong> for Terraform state (versioned + encrypted).</li>
+<li>An <strong>S3 bucket</strong> for OpenTofu state (versioned + encrypted).</li>
 <li>A <strong>DynamoDB table</strong> for state locking.</li>
 </ol>
 <p>(Manual-provider configs skip that step — there's no remote state to bootstrap.)</p>
@@ -4555,7 +4583,7 @@ Terraform.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌─────────────────────────┬────────┬─────────────────────────────────────┐
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│ Check                   │ Status │ Detail                              │
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├─────────────────────────┼────────┼─────────────────────────────────────┤
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│ Terraform installed     │ PASS   │ v1.6.6 (/usr/local/bin/terraform)   │
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│ OpenTofu installed     │ PASS   │ v1.6.6 (/usr/local/bin/tofu)   │
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│ Config file             │ PASS   │ ~/.lablink/config.yaml              │
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│ Config validates        │ PASS   │ No errors                           │
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│ AWS credentials         │ PASS   │ Account: 123…, Identity: arn:…      │
@@ -4569,24 +4597,24 @@ Terraform.</p>
 </code></pre></div>
 <p>This will:</p>
 <ol>
-<li>Download the pinned <code>lablink-template</code> Terraform files into <code>~/.lablink/cache/terraform/&lt;version&gt;/</code> (first run only).</li>
+<li>Download the pinned <code>lablink-template</code> OpenTofu files into <code>~/.lablink/cache/terraform/&lt;version&gt;/</code> (first run only).</li>
 <li>Copy them into a working directory at <code>~/.lablink/deploys/&lt;deployment-name&gt;/</code>.</li>
-<li>Prompt you once for an <strong>admin username</strong> (default <code>admin</code>) and <strong>admin password</strong>. These are injected into the Terraform variables — they are not stored in <code>config.yaml</code>.</li>
-<li>Run <code>terraform init</code> + <code>terraform apply</code>, showing the plan and asking for confirmation.</li>
+<li>Prompt you once for an <strong>admin username</strong> (default <code>admin</code>) and <strong>admin password</strong>. These are injected into the OpenTofu variables — they are not stored in <code>config.yaml</code>.</li>
+<li>Run <code>tofu init</code> + <code>tofu apply</code>, showing the plan and asking for confirmation.</li>
 <li>Wait for the allocator EC2 instance to come up and its <code>/api/health</code> endpoint to report <code>healthy</code>.</li>
 </ol>
-<p>Expect 2–5 minutes for Terraform + another 1–3 minutes for the allocator to finish its first-boot container start.</p>
+<p>Expect 2–5 minutes for OpenTofu + another 1–3 minutes for the allocator to finish its first-boot container start.</p>
 <div class="admonition tip">
 <p class="admonition-title">Skip interactive confirmations</p>
-<p>Pass <code>-y</code> / <code>--yes</code> to skip Terraform plan confirmation. The admin credentials are still prompted for.</p>
+<p>Pass <code>-y</code> / <code>--yes</code> to skip OpenTofu plan confirmation. The admin credentials are still prompted for.</p>
 </div>
-<p>When deploy completes, note the <code>ec2_public_ip</code> in the Terraform output — that's your allocator URL.</p>
+<p>When deploy completes, note the <code>ec2_public_ip</code> in the OpenTofu output — that's your allocator URL.</p>
 <h2 id="step-4-verify">Step 4: Verify<a class="headerlink" href="#step-4-verify" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink<span class="w"> </span>status
 </code></pre></div>
 <p>This shows four sections:</p>
 <ul>
-<li><strong>Terraform State</strong> — outputs like <code>ec2_public_ip</code>, <code>ec2_public_dns</code>, and any DNS/ALB records.</li>
+<li><strong>OpenTofu State</strong> — outputs like <code>ec2_public_ip</code>, <code>ec2_public_dns</code>, and any DNS/ALB records.</li>
 <li><strong>Health Checks</strong> — DNS resolution (if you configured a domain), <code>/api/health</code> response, and SSL certificate expiry (if HTTPS is enabled).</li>
 <li><strong>Client VMs</strong> — per-VM state reported by the allocator (empty until you run <code>lablink client launch</code>).</li>
 <li><strong>Cost Estimate</strong> — daily and monthly dollar estimates for the allocator, EBS, optional ALB/Route 53, and running client VMs.</li>
@@ -4595,12 +4623,12 @@ Terraform.</p>
 <h2 id="step-5-launch-a-client-vm">Step 5: Launch a client VM<a class="headerlink" href="#step-5-launch-a-client-vm" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>lablink<span class="w"> </span>client<span class="w"> </span>launch<span class="w"> </span>--num-vms<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
-<p>The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own Terraform workspace (not the CLI's). Run <code>lablink status</code> again to see the new VM appear.</p>
+<p>The CLI calls the allocator's create-VM endpoint, which provisions the instance via the allocator's own OpenTofu workspace (not the CLI's). Run <code>lablink status</code> again to see the new VM appear.</p>
 <h2 id="step-6-tear-down">Step 6: Tear down<a class="headerlink" href="#step-6-tear-down" title="Permanent link">&para;</a></h2>
 <p>When you're done, destroy everything the CLI created:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lablink<span class="w"> </span>destroy
 </code></pre></div>
-<p>This runs <code>terraform destroy</code> on the deployment workspace and removes the EC2 instance, security groups, key pair, and any ALB/Route 53 records Terraform owns. Client VMs launched through the allocator are destroyed along with the allocator.</p>
+<p>This runs <code>tofu destroy</code> on the deployment workspace and removes the EC2 instance, security groups, key pair, and any ALB/Route 53 records OpenTofu owns. Client VMs launched through the allocator are destroyed along with the allocator.</p>
 <div class="admonition warning">
 <p class="admonition-title">Costs don't stop until destroy finishes</p>
 <p>The allocator EC2 instance, EBS volume, and (if configured) ALB accrue charges while running. See <a href="../../cost-estimation/">Cost Estimation</a>.</p>

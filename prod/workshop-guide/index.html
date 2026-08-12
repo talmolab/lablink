@@ -1752,6 +1752,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4901,21 +4929,21 @@ destroys its disk.</p>
 <p>Tear down all VMs:</p>
 <ol>
 <li>Click <strong>"Delete VMs"</strong> in the admin panel</li>
-<li>Click <strong>"Run terraform destroy"</strong> and confirm</li>
+<li>Click <strong>"Run tofu destroy"</strong> and confirm</li>
 </ol>
 <p><img alt="Destroy All VMs" src="../assets/images/admin-destroy-vms.png" /></p>
 <p>This terminates all client EC2 instances and clears VM records from the database.</p>
 <h2 id="after-the-workshop">After the Workshop<a class="headerlink" href="#after-the-workshop" title="Permanent link">&para;</a></h2>
 <h3 id="destroy-the-allocator-optional">Destroy the Allocator (Optional)<a class="headerlink" href="#destroy-the-allocator-optional" title="Permanent link">&para;</a></h3>
 <p>If you don't need LabLink running until your next workshop, destroy the allocator infrastructure to stop incurring costs:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via Terraform</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via OpenTofu</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Manually run the <strong>Terraform Destroy</strong> workflow from the Actions tab.</p>
+<p>Manually run the <strong>OpenTofu Destroy</strong> workflow from the Actions tab.</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 </div>
 </div>

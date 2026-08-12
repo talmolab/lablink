@@ -1645,6 +1645,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4561,7 +4589,7 @@
 <p>The CLI's other deployment mode. Instead of provisioning EC2 instances, the
 allocator runs as a <strong>local docker-compose stack</strong> on a machine you already have,
 and the client machines are boxes you register yourself. No AWS account, no
-Terraform, no cloud bill.</p>
+OpenTofu, no cloud bill.</p>
 <p>Set <code>provider: manual</code> in your config and every command in the
 <a href="../../reference/cli/">CLI Reference</a> switches to this path.</p>
 <p>Beyond the split in <a href="../#two-providers">CLI Overview</a>, the practical
@@ -4576,7 +4604,7 @@ differences:</p>
 </thead>
 <tbody>
 <tr>
-<td>Needs Terraform</td>
+<td>Needs OpenTofu</td>
 <td>Yes</td>
 <td>No</td>
 </tr>
@@ -4594,7 +4622,7 @@ differences:</p>
 </table>
 <p>Good fits: a lab with GPU workstations already on a bench, a workshop on
 institution-owned machines, or a scheduler-hosted workload (e.g. Run:AI) you can't
-provision from Terraform.</p>
+provision from OpenTofu.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>docker</strong> and the <strong><code>docker compose</code> v2 plugin</strong> on the allocator host and on every client box.</li>

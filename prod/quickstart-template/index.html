@@ -1673,6 +1673,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4614,7 +4642,7 @@
 
 
 <h1 id="quickstart-template-repo">Quickstart: Template repo<a class="headerlink" href="#quickstart-template-repo" title="Permanent link">&para;</a></h1>
-<p>Deploy LabLink to AWS by creating a repository from <a href="https://github.com/talmolab/lablink-template">lablink-template</a> and pushing commits to <code>main</code>. GitHub Actions runs Terraform against shared S3-backed state. Best for workshops, shared environments, and production.</p>
+<p>Deploy LabLink to AWS by creating a repository from <a href="https://github.com/talmolab/lablink-template">lablink-template</a> and pushing commits to <code>main</code>. GitHub Actions runs OpenTofu against shared S3-backed state. Best for workshops, shared environments, and production.</p>
 <div class="admonition tip">
 <p class="admonition-title">Prefer a local flow?</p>
 <p>The <a href="../cli/first-deployment/">CLI quickstart</a> deploys the same infrastructure from your own machine with <code>lablink configure &amp;&amp; lablink deploy</code>. Both paths are equivalent — pick whichever fits your setup.</p>
@@ -4651,7 +4679,7 @@
 <p>The script will prompt you for:</p>
 <ul>
 <li>AWS region (e.g., <code>us-west-2</code>)</li>
-<li>S3 bucket name for Terraform state</li>
+<li>S3 bucket name for OpenTofu state</li>
 <li>GitHub repository (e.g., <code>YOUR_ORG/YOUR_REPO</code>)</li>
 <li>Optional DNS settings (Route 53)</li>
 </ul>
@@ -4659,7 +4687,7 @@
 <ul>
 <li>Creates an OIDC identity provider for GitHub Actions</li>
 <li>Creates an IAM role with required permissions</li>
-<li>Creates an S3 bucket for Terraform state (with versioning and encryption)</li>
+<li>Creates an S3 bucket for OpenTofu state (with versioning and encryption)</li>
 <li>Creates a DynamoDB table for state locking</li>
 <li>Optionally creates a Route 53 hosted zone</li>
 <li>Sets four GitHub repository secrets: <code>AWS_ROLE_ARN</code>, <code>AWS_REGION</code>, <code>ADMIN_PASSWORD</code>, <code>DB_PASSWORD</code></li>
@@ -4688,7 +4716,7 @@
 </div>
 </div>
 </div>
-<p>Both tools leave the passwords as <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. The Terraform Deploy workflow replaces them with the <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.</p>
+<p>Both tools leave the passwords as <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. The OpenTofu Deploy workflow replaces them with the <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.</p>
 <div class="admonition note">
 <p class="admonition-title">Re-running Configuration</p>
 <p>You can re-run either tool at any time to update settings; both load your existing values as the defaults.</p>
@@ -4709,7 +4737,7 @@
 <p>Monitor the deployment:</p>
 <ol>
 <li>Go to the <strong>Actions</strong> tab in your GitHub repository</li>
-<li>Run the <strong>Terraform Deploy</strong> workflow manually</li>
+<li>Run the <strong>OpenTofu Deploy</strong> workflow manually</li>
 <li>Wait for the workflow to complete (~2-5 minutes)</li>
 </ol>
 <div class="video-container">
@@ -4722,7 +4750,7 @@
 <p>The workflow will:</p>
 <ul>
 <li>Authenticate to AWS via OIDC</li>
-<li>Initialize Terraform with the S3 backend</li>
+<li>Initialize OpenTofu with the S3 backend</li>
 <li>Deploy the allocator EC2 instance, security groups, and SSH key pair</li>
 </ul>
 <h2 id="step-5-verify">Step 5: Verify<a class="headerlink" href="#step-5-verify" title="Permanent link">&para;</a></h2>
@@ -4736,7 +4764,7 @@
 <p>Once the deployment completes:</p>
 <h3 id="access-the-web-ui">Access the Web UI<a class="headerlink" href="#access-the-web-ui" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Find the allocator's public IP from the Terraform output in the GitHub Actions logs</li>
+<li>Find the allocator's public IP from the OpenTofu output in the GitHub Actions logs</li>
 <li>Navigate to <code>http://&lt;ec2_public_ip&gt;</code> in your browser</li>
 <li>Log in with username <code>admin</code> and the <code>ADMIN_PASSWORD</code> that was auto-generated during setup</li>
 </ol>
@@ -4752,7 +4780,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>./scripts/verify-deployment.sh
 </code></pre></div>
 <h3 id="ssh-check">SSH Check<a class="headerlink" href="#ssh-check" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Download the SSH key from OpenTofu output (via GitHub Actions artifacts or manually)</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Verify allocator is running</span>
@@ -4770,15 +4798,15 @@
 </div>
 
 <p>When you're done testing, destroy the infrastructure:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Via GitHub Actions</label><label for="__tabbed_2_2">Via Terraform</label><label for="__tabbed_2_3">Cleanup Orphaned Resources</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Via GitHub Actions</label><label for="__tabbed_2_2">Via OpenTofu</label><label for="__tabbed_2_3">Cleanup Orphaned Resources</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Manually run the <strong>Terraform Destroy</strong> workflow from the Actions tab.</p>
+<p>Manually run the <strong>OpenTofu Destroy</strong> workflow from the Actions tab.</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">

@@ -932,15 +932,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-s3-bucket-for-terraform-state" class="md-nav__link">
+  <a href="#step-2-s3-bucket-for-opentofu-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: S3 Bucket for Terraform State
+        Step 2: S3 Bucket for OpenTofu State
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 2: S3 Bucket for Terraform State">
+    <nav class="md-nav" aria-label="Step 2: S3 Bucket for OpenTofu State">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1049,10 +1049,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-update-terraform-configuration" class="md-nav__link">
+  <a href="#34-update-opentofu-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4 Update Terraform Configuration
+        3.4 Update OpenTofu Configuration
       
     </span>
   </a>
@@ -1717,10 +1717,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#test-terraform" class="md-nav__link">
+  <a href="#test-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Test Terraform
+        Test OpenTofu
       
     </span>
   </a>
@@ -2682,6 +2682,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -5757,15 +5785,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-s3-bucket-for-terraform-state" class="md-nav__link">
+  <a href="#step-2-s3-bucket-for-opentofu-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: S3 Bucket for Terraform State
+        Step 2: S3 Bucket for OpenTofu State
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 2: S3 Bucket for Terraform State">
+    <nav class="md-nav" aria-label="Step 2: S3 Bucket for OpenTofu State">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5874,10 +5902,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-update-terraform-configuration" class="md-nav__link">
+  <a href="#34-update-opentofu-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4 Update Terraform Configuration
+        3.4 Update OpenTofu Configuration
       
     </span>
   </a>
@@ -6542,10 +6570,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#test-terraform" class="md-nav__link">
+  <a href="#test-opentofu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Test Terraform
+        Test OpenTofu
       
     </span>
   </a>
@@ -6682,7 +6710,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <p>To deploy LabLink, you'll need:</p>
 <ol>
 <li>AWS account with appropriate permissions</li>
-<li>S3 bucket for Terraform state</li>
+<li>S3 bucket for OpenTofu state</li>
 <li>Elastic IPs for each environment</li>
 <li>IAM role for GitHub Actions (OIDC)</li>
 <li>Optional: Route 53 hosted zone for DNS</li>
@@ -6943,7 +6971,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/IAMFullAccess
 </code></pre></div>
 <h3 id="13-create-access-keys">1.3 Create Access Keys<a class="headerlink" href="#13-create-access-keys" title="Permanent link">&para;</a></h3>
-<p>For local Terraform usage:</p>
+<p>For local OpenTofu usage:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>aws<span class="w"> </span>iam<span class="w"> </span>create-access-key<span class="w"> </span>--user-name<span class="w"> </span>lablink-admin
 </code></pre></div>
 <p>Save the <code>AccessKeyId</code> and <code>SecretAccessKey</code> securely.</p>
@@ -6954,7 +6982,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Enter region (e.g., us-west-2)</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Enter output format (json)</span>
 </code></pre></div>
-<h2 id="step-2-s3-bucket-for-terraform-state">Step 2: S3 Bucket for Terraform State<a class="headerlink" href="#step-2-s3-bucket-for-terraform-state" title="Permanent link">&para;</a></h2>
+<h2 id="step-2-s3-bucket-for-opentofu-state">Step 2: S3 Bucket for OpenTofu State<a class="headerlink" href="#step-2-s3-bucket-for-opentofu-state" title="Permanent link">&para;</a></h2>
 <div class="admonition tip">
 <p class="admonition-title">Automated Setup Available</p>
 <p>If you created your repository from the <a href="https://github.com/talmolab/lablink-template">lablink-template</a>, you can run <code>scripts/setup-aws-infrastructure.sh</code> to automatically create the S3 bucket, DynamoDB lock table, and Route 53 hosted zone. The manual steps below are provided as reference.</p>
@@ -7029,7 +7057,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">  </span>--resources<span class="w"> </span>eipalloc-prod-xxxxx<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">  </span>--tags<span class="w"> </span><span class="nv">Key</span><span class="o">=</span>Name,Value<span class="o">=</span>lablink-prod-eip
 </code></pre></div>
-<h3 id="34-update-terraform-configuration">3.4 Update Terraform Configuration<a class="headerlink" href="#34-update-terraform-configuration" title="Permanent link">&para;</a></h3>
+<h3 id="34-update-opentofu-configuration">3.4 Update OpenTofu Configuration<a class="headerlink" href="#34-update-opentofu-configuration" title="Permanent link">&para;</a></h3>
 <p><strong><code>lablink-infrastructure/main.tf</code></strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kr">variable</span><span class="w"> </span><span class="nv">&quot;allocated_eip&quot;</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="na">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pre-allocated Elastic IP for production/test&quot;</span>
@@ -7044,7 +7072,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="p">}</span>
 </code></pre></div>
 <p>Use when deploying:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>terraform<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">&quot;allocated_eip=eipalloc-test-xxxxx&quot;</span>
 </code></pre></div>
@@ -7202,7 +7230,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a><span class="w">  </span>--role-name<span class="w"> </span>GitHubActionsLabLinkRole<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a><span class="w">  </span>--policy-arn<span class="w"> </span>arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
 </code></pre></div>
-<p><strong>Note:</strong> This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all Terraform operations succeed without permission errors.</p>
+<p><strong>Note:</strong> This approach uses 4 AWS managed policies that provide full access to the required services. While broader than strictly necessary, it ensures all OpenTofu operations succeed without permission errors.</p>
 <table>
 <thead>
 <tr>
@@ -7217,7 +7245,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 </tr>
 <tr>
 <td><code>AmazonS3FullAccess</code></td>
-<td>Terraform state</td>
+<td>OpenTofu state</td>
 </tr>
 <tr>
 <td><code>IAMFullAccess</code></td>
@@ -7225,12 +7253,12 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 </tr>
 <tr>
 <td><code>AmazonDynamoDBFullAccess</code></td>
-<td>Terraform state locking</td>
+<td>OpenTofu state locking</td>
 </tr>
 </tbody>
 </table>
 <h4 id="option-b-aws-cli-create-custom-policy">Option B: AWS CLI - Create Custom Policy<a class="headerlink" href="#option-b-aws-cli-create-custom-policy" title="Permanent link">&para;</a></h4>
-<p>For more restrictive permissions, create a custom policy that covers all LabLink Terraform resources including EC2 and ALB.</p>
+<p>For more restrictive permissions, create a custom policy that covers all LabLink OpenTofu resources including EC2 and ALB.</p>
 <p>Create <code>lablink-terraform-policy.json</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span>
 <a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
@@ -7354,7 +7382,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <a id="__codelineno-26-120" name="__codelineno-26-120" href="#__codelineno-26-120"></a><span class="w">  </span><span class="p">]</span>
 <a id="__codelineno-26-121" name="__codelineno-26-121" href="#__codelineno-26-121"></a><span class="p">}</span>
 </code></pre></div>
-<p><strong>Note:</strong> This policy covers all AWS services used by the LabLink Terraform configuration:</p>
+<p><strong>Note:</strong> This policy covers all AWS services used by the LabLink OpenTofu configuration:</p>
 <table>
 <thead>
 <tr>
@@ -7365,11 +7393,11 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <tbody>
 <tr>
 <td><strong>S3</strong></td>
-<td>Terraform state storage</td>
+<td>OpenTofu state storage</td>
 </tr>
 <tr>
 <td><strong>DynamoDB</strong></td>
-<td>Terraform state locking</td>
+<td>OpenTofu state locking</td>
 </tr>
 <tr>
 <td><strong>EC2</strong></td>
@@ -7475,7 +7503,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <li>Secrets are NOT copied when creating repos from the template</li>
 <li>External users must configure their own AWS credentials, region, and passwords</li>
 </ul>
-<p><strong>Security:</strong> The workflow automatically injects <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> into configuration files before Terraform runs, replacing <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. This prevents passwords from appearing in Terraform logs.</p>
+<p><strong>Security:</strong> The workflow automatically injects <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> into configuration files before OpenTofu runs, replacing <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. This prevents passwords from appearing in OpenTofu logs.</p>
 <h4 id="for-deployment-repositories-eg-sleap-lablink">For Deployment Repositories (e.g., <code>sleap-lablink</code>)<a class="headerlink" href="#for-deployment-repositories-eg-sleap-lablink" title="Permanent link">&para;</a></h4>
 <p>After creating a repository from the template:</p>
 <ol>
@@ -7532,7 +7560,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <p>Test by triggering a workflow:</p>
 <ol>
 <li>Go to <strong>Actions</strong> tab in GitHub</li>
-<li>Select a workflow (e.g., <strong>Terraform Deploy</strong>)</li>
+<li>Select a workflow (e.g., <strong>OpenTofu Deploy</strong>)</li>
 <li>Click <strong>Run workflow</strong></li>
 <li>Check the logs for successful AWS authentication</li>
 </ol>
@@ -7601,7 +7629,7 @@ This manual guide is provided as a reference for advanced users who prefer to cr
 <div class="admonition note">
 <p class="admonition-title">The allocator's own AMI is not a config key</p>
 <p><code>config.yaml</code> sets only the <strong>client VM</strong> AMI. The allocator instance's AMI and
-type are Terraform-side values in
+type are OpenTofu-side values in
 <a href="https://github.com/talmolab/lablink-template">lablink-template</a>'s
 <code>lablink-infrastructure/main.tf</code>. Adding an <code>allocator_instance:</code> block to
 <code>config.yaml</code> fails validation — the schema rejects unknown keys.</p>
@@ -7656,7 +7684,7 @@ type are Terraform-side values in
 </code></pre></div>
 <p><strong>Note:</strong> Standard AMIs require modifying user_data scripts to install Docker and NVIDIA drivers on first boot, increasing deployment time by ~5-10 minutes.</p>
 <h2 id="step-6-security-groups-optional-pre-creation">Step 6: Security Groups (Optional Pre-Creation)<a class="headerlink" href="#step-6-security-groups-optional-pre-creation" title="Permanent link">&para;</a></h2>
-<p>Terraform creates security groups automatically, but you can pre-create them for more control.</p>
+<p>OpenTofu creates security groups automatically, but you can pre-create them for more control.</p>
 <h3 id="allocator-security-group">Allocator Security Group<a class="headerlink" href="#allocator-security-group" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="c1"># Create security group</span>
 <a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="nv">ALLOCATOR_SG</span><span class="o">=</span><span class="k">$(</span>aws<span class="w"> </span>ec2<span class="w"> </span>create-security-group<span class="w"> </span><span class="se">\</span>
@@ -7697,7 +7725,7 @@ type are Terraform-side values in
 <h3 id="create-dns-records">Create DNS Records<a class="headerlink" href="#create-dns-records" title="Permanent link">&para;</a></h3>
 <p>After deploying allocator, create A record:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="c1"># Get allocator IP</span>
-<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="nv">ALLOCATOR_IP</span><span class="o">=</span><span class="k">$(</span>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>ec2_public_ip<span class="k">)</span>
 <a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a>
 <a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a><span class="c1"># Create/update DNS record</span>
 <a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a>aws<span class="w"> </span>route53<span class="w"> </span>change-resource-record-sets<span class="w"> </span><span class="se">\</span>
@@ -7820,8 +7848,8 @@ type are Terraform-side values in
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Secrets Manager secrets created</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Budget alerts configured</li>
 </ul>
-<p><strong>Terraform-Managed (Automatic):</strong></p>
-<p>The following resources are created automatically by Terraform during deployment:</p>
+<p><strong>OpenTofu-Managed (Automatic):</strong></p>
+<p>The following resources are created automatically by OpenTofu during deployment:</p>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Application Load Balancer (ALB) with HTTPS listener</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Security groups for allocator and ALB</li>
@@ -7832,10 +7860,10 @@ type are Terraform-side values in
 <a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>aws<span class="w"> </span>s3<span class="w"> </span>ls
 <a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-regions
 </code></pre></div>
-<h3 id="test-terraform">Test Terraform<a class="headerlink" href="#test-terraform" title="Permanent link">&para;</a></h3>
+<h3 id="test-opentofu">Test OpenTofu<a class="headerlink" href="#test-opentofu" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-allocator
-<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>terraform<span class="w"> </span>init
-<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>terraform<span class="w"> </span>validate
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>tofu<span class="w"> </span>init
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>tofu<span class="w"> </span>validate
 </code></pre></div>
 <h3 id="test-github-actions">Test GitHub Actions<a class="headerlink" href="#test-github-actions" title="Permanent link">&para;</a></h3>
 <p>Push a commit to trigger workflows:</p>

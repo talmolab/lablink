@@ -1579,6 +1579,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4426,7 +4454,7 @@
 
 
 <h1 id="lablink-cli">LabLink CLI<a class="headerlink" href="#lablink-cli" title="Permanent link">&para;</a></h1>
-<p>The <code>lablink</code> command is a CLI-driven alternative to the <a href="https://github.com/talmolab/lablink-template">lablink-template</a> repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives Terraform from your own machine instead of GitHub Actions.</p>
+<p>The <code>lablink</code> command is a CLI-driven alternative to the <a href="https://github.com/talmolab/lablink-template">lablink-template</a> repository. It deploys the same allocator infrastructure to AWS — cloud resources are identical either way — but drives OpenTofu from your own machine instead of GitHub Actions.</p>
 <div class="admonition note">
 <p class="admonition-title">Status: pre-PyPI</p>
 <p>The CLI is not yet published to PyPI. For now, install it from source with <code>uv sync --all-packages</code> — see <a href="installation/">Installation</a>. <code>uv tool install lablink</code> will be the path once the package is released.</p>
@@ -4446,7 +4474,7 @@ config:</p>
 <tbody>
 <tr>
 <td><code>aws</code> (default)</td>
-<td>EC2, provisioned by Terraform</td>
+<td>EC2, provisioned by OpenTofu</td>
 <td><code>lablink client launch</code> provisions them for you</td>
 <td>Yes</td>
 </tr>
@@ -4475,16 +4503,16 @@ server, a scheduler-hosted workload — see
 <tbody>
 <tr>
 <td>What you maintain</td>
-<td>A full repo forked from <code>lablink-template</code> (Dockerfile, Terraform <code>.tf</code> files, GitHub Actions workflows, configs)</td>
+<td>A full repo forked from <code>lablink-template</code> (Dockerfile, OpenTofu <code>.tf</code> files, GitHub Actions workflows, configs)</td>
 <td>A single <code>config.yaml</code></td>
 </tr>
 <tr>
 <td>Customization surface</td>
-<td>Every file in the repo — tweak AMIs, Docker images, Terraform resources, CI workflow, secrets</td>
+<td>Every file in the repo — tweak AMIs, Docker images, OpenTofu resources, CI workflow, secrets</td>
 <td>Whatever the <code>config.yaml</code> schema exposes (instance type, region, DNS, SSL)</td>
 </tr>
 <tr>
-<td>Where Terraform runs</td>
+<td>Where OpenTofu runs</td>
 <td>GitHub Actions</td>
 <td>Your machine</td>
 </tr>
@@ -4521,12 +4549,12 @@ server, a scheduler-hosted workload — see
 <li>Stand up a standard deployment without maintaining a fork of the template</li>
 <li>Keep the surface small — one config file, no Dockerfile or <code>.tf</code> edits</li>
 <li>Skip hopping between a GitHub repo, Actions logs, and local tooling</li>
-<li>Drive Terraform directly from your laptop and see its output inline</li>
+<li>Drive OpenTofu directly from your laptop and see its output inline</li>
 </ul>
 <p>Pick the <strong>template repo</strong> when you want to:</p>
 <ul>
 <li>Bring your own Docker image, custom AMI baking, or your own entrypoint</li>
-<li>Add or modify AWS resources Terraform doesn't provision by default</li>
+<li>Add or modify AWS resources OpenTofu doesn't provision by default</li>
 <li>Customize the GitHub Actions workflow (extra steps, different triggers, etc.)</li>
 <li>Hand the deployment off to a team via GitHub permissions instead of sharing AWS credentials</li>
 </ul>

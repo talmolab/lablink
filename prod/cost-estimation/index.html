@@ -1079,10 +1079,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#s3-bucket-terraform-state" class="md-nav__link">
+  <a href="#s3-bucket-opentofu-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        S3 Bucket (Terraform State)
+        S3 Bucket (OpenTofu State)
       
     </span>
   </a>
@@ -2015,6 +2015,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -4863,10 +4891,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#s3-bucket-terraform-state" class="md-nav__link">
+  <a href="#s3-bucket-opentofu-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        S3 Bucket (Terraform State)
+        S3 Bucket (OpenTofu State)
       
     </span>
   </a>
@@ -5415,8 +5443,8 @@
 <p>Prices shown are for <strong>us-west-2</strong> region as of January 2025. Check current AWS pricing for your region.</p>
 </div>
 <h2 id="infrastructure-costs-minimal">Infrastructure Costs (Minimal)<a class="headerlink" href="#infrastructure-costs-minimal" title="Permanent link">&para;</a></h2>
-<h3 id="s3-bucket-terraform-state">S3 Bucket (Terraform State)<a class="headerlink" href="#s3-bucket-terraform-state" title="Permanent link">&para;</a></h3>
-<p><strong>Purpose</strong>: Store Terraform state files</p>
+<h3 id="s3-bucket-opentofu-state">S3 Bucket (OpenTofu State)<a class="headerlink" href="#s3-bucket-opentofu-state" title="Permanent link">&para;</a></h3>
+<p><strong>Purpose</strong>: Store OpenTofu state files</p>
 <table>
 <thead>
 <tr>
@@ -5524,7 +5552,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">This is not a config key</p>
-<p>The allocator's instance type is fixed at <strong>t3.large</strong> — it's a Terraform local in <a href="https://github.com/talmolab/lablink-template">lablink-template</a>'s <code>lablink-infrastructure/main.tf</code>, exposed only as an output. There is nothing in <code>config.yaml</code> to change it. <code>machine.machine_type</code> sets the <strong>client VM</strong> type, not the allocator's.</p>
+<p>The allocator's instance type is fixed at <strong>t3.large</strong> — it's a OpenTofu local in <a href="https://github.com/talmolab/lablink-template">lablink-template</a>'s <code>lablink-infrastructure/main.tf</code>, exposed only as an output. There is nothing in <code>config.yaml</code> to change it. <code>machine.machine_type</code> sets the <strong>client VM</strong> type, not the allocator's.</p>
 </div>
 <p><strong>Estimated Monthly Cost</strong>: <strong>$60.74</strong> (if running 24/7)</p>
 <h4 id="cost-optimization">Cost Optimization<a class="headerlink" href="#cost-optimization" title="Permanent link">&para;</a></h4>
@@ -5837,7 +5865,7 @@
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="na">Name</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;lablink-allocator-${var.environment}&quot;</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="na">Project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;LabLink&quot;</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Terraform&quot;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;OpenTofu&quot;</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">}</span>
 </code></pre></div>

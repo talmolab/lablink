@@ -1678,6 +1678,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4651,7 +4679,7 @@
 <details class="note">
 <summary>Do I need an AWS account?</summary>
 <p>Only for the <code>aws</code> provider, which needs permissions to create EC2 instances, security groups and other resources.</p>
-<p>With <code>provider: manual</code> you need no AWS account, no Terraform and no <code>gh</code> — just Docker on the allocator host and on each client box. See <a href="../prerequisites/#pick-your-path-first">Prerequisites</a>.</p>
+<p>With <code>provider: manual</code> you need no AWS account, no OpenTofu and no <code>gh</code> — just Docker on the allocator host and on each client box. See <a href="../prerequisites/#pick-your-path-first">Prerequisites</a>.</p>
 </details>
 <details class="note">
 <summary>Can I run LabLink without AWS?</summary>
@@ -4675,7 +4703,7 @@
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;g5.xlarge&quot;</span><span class="w">  </span><span class="c1"># Change to desired instance type</span>
 </code></pre></div>
 <p>See <a href="../configuration/#machine-type-options">Configuration → Machine Type Options</a> for available types.</p>
-<p>Note this sets the <strong>client VM</strong> type. The allocator's own instance type is fixed at <code>t3.large</code> in Terraform and isn't a config key.</p>
+<p>Note this sets the <strong>client VM</strong> type. The allocator's own instance type is fixed at <code>t3.large</code> in OpenTofu and isn't a config key.</p>
 </details>
 <details class="note">
 <summary>How do I use my own research software?</summary>
@@ -4760,7 +4788,7 @@
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">email</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;you@example.com&quot;</span><span class="w">  </span><span class="c1"># required for Let&#39;s Encrypt</span>
 </code></pre></div>
 <p>Then run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>terraform<span class="w"> </span>apply
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>tofu<span class="w"> </span>apply
 </code></pre></div>
 <p>The allocator will obtain a trusted certificate and start serving HTTPS. You may need to clear your browser's HSTS cache.</p>
 </details>
@@ -4773,7 +4801,7 @@
 <th>Environment</th>
 <th>Purpose</th>
 <th>Image Tags</th>
-<th>Terraform State</th>
+<th>OpenTofu State</th>
 </tr>
 </thead>
 <tbody>
@@ -4813,17 +4841,17 @@
 </details>
 <details class="note">
 <summary>Can I deploy without GitHub Actions?</summary>
-<p>Yes — either <code>lablink deploy</code> from the CLI, or Terraform directly:</p>
+<p>Yes — either <code>lablink deploy</code> from the CLI, or OpenTofu directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>terraform<span class="w"> </span>init
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.0.0&quot;</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>tofu<span class="w"> </span>init
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.0.0&quot;</span>
 </code></pre></div>
-<p>See <a href="../deployment/#method-2-manual-terraform-deployment">Deployment → Method 2: Manual Terraform</a>.</p>
+<p>See <a href="../deployment/#method-2-manual-opentofu-deployment">Deployment → Method 2: Manual OpenTofu</a>.</p>
 </details>
 <details class="note">
 <summary>How do I update an existing deployment?</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>pull
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.1.0&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>tofu<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span><span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;allocator_image_tag=v1.1.0&quot;</span>
 </code></pre></div>
 <p>This replaces the EC2 instance with the new image.</p>
 </details>
@@ -4851,8 +4879,8 @@
 <summary>How do I destroy a deployment?</summary>
 <p><strong>Via GitHub Actions</strong> (template repo): Actions → "Destroy LabLink Infrastructure" (<code>terraform-destroy.yml</code>) → type <code>yes</code> to confirm and select the environment.</p>
 <p><strong>Via the CLI</strong>: <code>lablink destroy</code>.</p>
-<p><strong>Via Terraform</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span>
+<p><strong>Via OpenTofu</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>tofu<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=dev&quot;</span>
 </code></pre></div>
 </details>
 <details class="note">
@@ -4887,7 +4915,7 @@
 <summary>Client VMs aren't being created</summary>
 <ol>
 <li>AWS credentials resolve inside the allocator container</li>
-<li>Allocator container logs show the Terraform error</li>
+<li>Allocator container logs show the OpenTofu error</li>
 <li>The IAM role has EC2 permissions</li>
 </ol>
 <p>See <a href="../troubleshooting/#client-vms-aws-provider">Troubleshooting → Client VMs</a>.</p>
@@ -4967,8 +4995,8 @@
 <details class="note">
 <summary>How are SSH keys managed?</summary>
 <ul>
-<li>Terraform generates unique keys per environment</li>
-<li>Keys are stored in Terraform state</li>
+<li>OpenTofu generates unique keys per environment</li>
+<li>Keys are stored in OpenTofu state</li>
 <li>GitHub Actions exposes keys as temporary artifacts (1 day expiration)</li>
 <li>Rotate keys by destroying and recreating infrastructure</li>
 </ul>

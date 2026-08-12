@@ -1703,10 +1703,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-style" class="md-nav__link">
+  <a href="#opentofu-style" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Style
+        OpenTofu Style
       
     </span>
   </a>
@@ -2291,6 +2291,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -5361,10 +5389,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-style" class="md-nav__link">
+  <a href="#opentofu-style" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Style
+        OpenTofu Style
       
     </span>
   </a>
@@ -5940,7 +5968,7 @@
 <li>Python 3.9 or higher</li>
 <li>Docker and Docker Desktop running</li>
 <li>AWS CLI (for testing infrastructure)</li>
-<li>Terraform 1.6.6+ (for testing infrastructure)</li>
+<li>OpenTofu 1.10+ (for testing infrastructure)</li>
 <li>Git</li>
 </ul>
 <h3 id="local-setup">Local Setup<a class="headerlink" href="#local-setup" title="Permanent link">&para;</a></h3>
@@ -5998,7 +6026,7 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>After deploying the allocator to AWS, cannot connect to PostgreSQL database.
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="gs">**Steps to Reproduce**</span>:
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">1.</span> Deploy allocator with <span class="sb">`terraform apply`</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">1.</span> Deploy allocator with <span class="sb">`tofu apply`</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">2.</span> SSH into instance
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">3.</span> Try to access database: <span class="sb">`psql -U lablink -d lablink_db`</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
@@ -6008,7 +6036,7 @@
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="gs">**Environment**</span>:
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="k">-</span><span class="w"> </span>OS: Ubuntu 20.04
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="k">-</span><span class="w"> </span>Terraform: 1.6.6
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="k">-</span><span class="w"> </span>OpenTofu: 1.6.6
 <a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="k">-</span><span class="w"> </span>Image tag: linux-amd64-latest
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="gs">**Logs**</span>:
@@ -6034,7 +6062,7 @@
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>Some research institutions use Azure instead of AWS and would benefit from LabLink.
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="gs">**Proposed Solution**</span>:
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">-</span><span class="w"> </span>Add Azure provider to Terraform configurations
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">-</span><span class="w"> </span>Add Azure provider to OpenTofu configurations
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">-</span><span class="w"> </span>Support Azure VMs alongside EC2
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">-</span><span class="w"> </span>Document Azure-specific setup
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
@@ -6147,7 +6175,7 @@
 <a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a>
 <a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a>    <span class="k">return</span> <span class="n">assign_vm</span><span class="p">(</span><span class="n">vm</span><span class="p">,</span> <span class="n">email</span><span class="p">)</span>
 </code></pre></div>
-<h3 id="terraform-style">Terraform Style<a class="headerlink" href="#terraform-style" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-style">OpenTofu Style<a class="headerlink" href="#opentofu-style" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Use descriptive resource names</li>
 <li>Add comments for complex logic</li>
@@ -6164,7 +6192,7 @@
 <a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="na">Name</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;lablink-allocator-${var.environment}&quot;</span>
 <a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="na">Project</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;LabLink&quot;</span>
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Terraform&quot;</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="na">ManagedBy</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;OpenTofu&quot;</span>
 <a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
 <a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="c1">  # Security group allowing HTTP and SSH</span>
@@ -6682,10 +6710,10 @@
 </code></pre></div>
 <p>Use tabs for multi-option content:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>=== &quot;macOS&quot;
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>    brew install terraform
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>    brew install opentofu
 <a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
 <a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>=== &quot;Linux&quot;
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>    wget https://releases.hashicorp.com/terraform/...
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>    curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh
 </code></pre></div>
 <p>Use Mermaid for diagrams (flowcharts, sequence diagrams, state diagrams, ER diagrams).</p>
 <h3 id="versioning-documentation">Versioning Documentation<a class="headerlink" href="#versioning-documentation" title="Permanent link">&para;</a></h3>

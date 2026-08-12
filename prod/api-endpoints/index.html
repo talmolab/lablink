@@ -1995,6 +1995,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -5584,12 +5612,12 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <li><strong>Code:</strong> <code>404 Not Found</code> if the VM does not exist.</li>
 <li><strong>Code:</strong> <code>500 Internal Server Error</code> on failure.</li>
 </ul>
-<p><strong>Client Usage:</strong> This endpoint is not called directly from any code in <code>packages/client</code>. The <code>log_shipper.sh</code> script, installed on each VM by the Terraform user-data script, tails the VM's <code>cloud-init</code> output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.</p>
+<p><strong>Client Usage:</strong> This endpoint is not called directly from any code in <code>packages/client</code>. The <code>log_shipper.sh</code> script, installed on each VM by the OpenTofu user-data script, tails the VM's <code>cloud-init</code> output log and the client container's Docker logs, batches new lines, and POSTs them to this endpoint using the API token as a Bearer credential.</p>
 <h2 id="admin-api-endpoints">Admin API Endpoints<a class="headerlink" href="#admin-api-endpoints" title="Permanent link">&para;</a></h2>
 <p>These endpoints require HTTP Basic Authentication and are intended for administrators to manage the VM pool.</p>
 <h3 id="launch-vms">Launch VMs<a class="headerlink" href="#launch-vms" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>POST /api/launch</code></p>
-<p><strong>Description:</strong> Takes a number of VMs to create, generates a Terraform variables file, and runs <code>terraform apply</code> to provision the new instances.</p>
+<p><strong>Description:</strong> Takes a number of VMs to create, generates a OpenTofu variables file, and runs <code>tofu apply</code> to provision the new instances.</p>
 <p><strong>Authentication:</strong> HTTP Basic Auth</p>
 <p><strong>Request Body:</strong> <code>application/x-www-form-urlencoded</code></p>
 <ul>
@@ -5598,27 +5626,27 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the Terraform output and a real-time status monitor for the VMs.</li>
+<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the OpenTofu output and a real-time status monitor for the VMs.</li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the Terraform error output.</li>
+<li><strong>Content:</strong> An HTML page (<code>dashboard.html</code>) displaying the OpenTofu error output.</li>
 </ul>
 <h3 id="destroy-all-vms">Destroy All VMs<a class="headerlink" href="#destroy-all-vms" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>POST /destroy</code></p>
-<p><strong>Description:</strong> Runs <code>terraform destroy</code> to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the <code>vms</code> table in the database. <strong>This is a destructive action.</strong> Driven by <code>lablink client destroy</code>, and by <code>lablink destroy</code> as its first teardown step.</p>
+<p><strong>Description:</strong> Runs <code>tofu destroy</code> to terminate all EC2 instances and associated resources created by LabLink. It also clears all records from the <code>vms</code> table in the database. <strong>This is a destructive action.</strong> Driven by <code>lablink client destroy</code>, and by <code>lablink destroy</code> as its first teardown step.</p>
 <p><strong>Authentication:</strong> HTTP Basic Auth</p>
 <p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the Terraform output.</li>
+<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the OpenTofu output.</li>
 </ul>
 <p><strong>Error Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
-<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the Terraform error output.</li>
+<li><strong>Content:</strong> An HTML page (<code>delete-dashboard.html</code>) displaying the OpenTofu error output.</li>
 </ul>
 <h3 id="get-status-of-all-vms">Get Status of All VMs<a class="headerlink" href="#get-status-of-all-vms" title="Permanent link">&para;</a></h3>
 <p><strong>Endpoint:</strong> <code>GET /api/vm-status</code></p>
@@ -5702,7 +5730,7 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <hr />
 <h2 id="client-registration-api">Client Registration API<a class="headerlink" href="#client-registration-api" title="Permanent link">&para;</a></h2>
 <p>Used by bring-your-own (BYO) client machines to enrol themselves under the
-<code>manual</code> provider. AWS-provisioned clients do not use these endpoints — Terraform
+<code>manual</code> provider. AWS-provisioned clients do not use these endpoints — OpenTofu
 supplies their credentials directly.</p>
 <p>Registration is what the CLI's <code>lablink client register</code> drives — see
 <a href="../cli/byo-clients/#step-4-register-each-box">Bring-Your-Own Clients</a> for the

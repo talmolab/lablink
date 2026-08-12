@@ -1434,10 +1434,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-validation" class="md-nav__link">
+  <a href="#opentofu-validation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Validation
+        OpenTofu Validation
       
     </span>
   </a>
@@ -1545,10 +1545,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-variables-not-applied" class="md-nav__link">
+  <a href="#opentofu-variables-not-applied" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Variables Not Applied
+        OpenTofu Variables Not Applied
       
     </span>
   </a>
@@ -2142,6 +2142,34 @@
     
   
     Client Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
   
 
     
@@ -5373,10 +5401,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-validation" class="md-nav__link">
+  <a href="#opentofu-validation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Validation
+        OpenTofu Validation
       
     </span>
   </a>
@@ -5484,10 +5512,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#terraform-variables-not-applied" class="md-nav__link">
+  <a href="#opentofu-variables-not-applied" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terraform Variables Not Applied
+        OpenTofu Variables Not Applied
       
     </span>
   </a>
@@ -5625,7 +5653,7 @@
 <td>Simplest</td>
 </tr>
 <tr>
-<td><a href="#caddy-ssl">Let's Encrypt (Terraform DNS)</a></td>
+<td><a href="#caddy-ssl">Let's Encrypt (OpenTofu DNS)</a></td>
 <td>Auto via Caddy</td>
 <td>Route53</td>
 <td>5 certs/domain/week</td>
@@ -5661,7 +5689,7 @@
 <p><strong>Quick decision guide:</strong></p>
 <ul>
 <li><strong>No domain?</strong> Use <a href="#ip-only">IP Only</a></li>
-<li><strong>Have a domain + want free auto-SSL?</strong> Use <a href="#caddy-ssl">Let's Encrypt</a> (pick Terraform-managed vs manual DNS)</li>
+<li><strong>Have a domain + want free auto-SSL?</strong> Use <a href="#caddy-ssl">Let's Encrypt</a> (pick OpenTofu-managed vs manual DNS)</li>
 <li><strong>Domain in CloudFlare?</strong> Use <a href="#caddy-ssl">CloudFlare</a></li>
 <li><strong>Want enterprise-grade load balancing?</strong> Use <a href="#alb-with-acm">ACM + ALB</a></li>
 </ul>
@@ -5996,7 +6024,7 @@
 <td><code>terraform_managed</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>Let Terraform manage Route 53 records</td>
+<td>Let OpenTofu manage Route 53 records</td>
 </tr>
 <tr>
 <td><code>domain</code></td>
@@ -6153,7 +6181,7 @@
 <p><code>provider: "none"</code> serves unencrypted HTTP. Never use for production or sensitive data. See <a href="../security/#http-only-deployments-sslprovider-none">Security</a>.</p>
 </div>
 <h3 id="allocator-deployment-options-allocator">Allocator Deployment Options (<code>allocator</code>)<a class="headerlink" href="#allocator-deployment-options-allocator" title="Permanent link">&para;</a></h3>
-<p>Configuration for the allocator service Docker image used during infrastructure deployment. This section is consumed by Terraform, not by the allocator service itself.</p>
+<p>Configuration for the allocator service Docker image used during infrastructure deployment. This section is consumed by OpenTofu, not by the allocator service itself.</p>
 <table>
 <thead>
 <tr>
@@ -6181,7 +6209,7 @@
 <h3 id="bucket-name">Bucket Name<a class="headerlink" href="#bucket-name" title="Permanent link">&para;</a></h3>
 <p><strong>Option</strong>: <code>bucket_name</code>
 <strong>Default</strong>: <code>tf-state-lablink-allocator-bucket</code></p>
-<p>S3 bucket for Terraform state storage. Must be globally unique.</p>
+<p>S3 bucket for OpenTofu state storage. Must be globally unique.</p>
 <h3 id="startup-script-options-startup_script">Startup Script Options (<code>startup_script</code>)<a class="headerlink" href="#startup-script-options-startup_script" title="Permanent link">&para;</a></h3>
 <p>Controls a custom startup script to be run on client VMs after the container starts.</p>
 <table>
@@ -6455,7 +6483,7 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <p><strong>Important</strong>: The validator requires the filename to be <code>config.yaml</code> to enable Hydra's strict schema matching. Using a different filename will bypass schema validation.</p>
 <p><strong>Usage in CI/CD:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Validate before deployment</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>lablink-validate-config<span class="w"> </span>config/config.yaml<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>apply<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>lablink-validate-config<span class="w"> </span>config/config.yaml<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tofu<span class="w"> </span>apply<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
 </code></pre></div>
 <h3 id="check-syntax">Check Syntax<a class="headerlink" href="#check-syntax" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># YAML syntax check</span>
@@ -6466,10 +6494,10 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">cd</span><span class="w"> </span>packages/allocator
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>python<span class="w"> </span>src/lablink_allocator_service/main.py
 </code></pre></div>
-<h3 id="terraform-validation">Terraform Validation<a class="headerlink" href="#terraform-validation" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-validation">OpenTofu Validation<a class="headerlink" href="#opentofu-validation" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>terraform<span class="w"> </span>validate
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>terraform<span class="w"> </span>plan<span class="w">  </span><span class="c1"># Preview changes</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>tofu<span class="w"> </span>validate
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>tofu<span class="w"> </span>plan<span class="w">  </span><span class="c1"># Preview changes</span>
 </code></pre></div>
 <h2 id="common-configuration-patterns">Common Configuration Patterns<a class="headerlink" href="#common-configuration-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="use-your-own-research-software">Use Your Own Research Software<a class="headerlink" href="#use-your-own-research-software" title="Permanent link">&para;</a></h3>
@@ -6509,7 +6537,7 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <li><strong>Never commit secrets</strong>: Use environment variables or AWS Secrets Manager</li>
 <li><strong>Pin versions in production</strong>: Use specific image tags, not <code>:latest</code></li>
 <li><strong>Document custom values</strong>: Add comments explaining non-standard configurations</li>
-<li><strong>Test configuration changes</strong>: Validate with <code>terraform plan</code> before applying</li>
+<li><strong>Test configuration changes</strong>: Validate with <code>tofu plan</code> before applying</li>
 <li><strong>Use separate configs per environment</strong>: Don't reuse dev configs in production</li>
 </ol>
 <h2 id="troubleshooting-configuration">Troubleshooting Configuration<a class="headerlink" href="#troubleshooting-configuration" title="Permanent link">&para;</a></h2>
@@ -6522,9 +6550,9 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>lablink
 <a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nb">echo</span><span class="w"> </span><span class="nv">$DB_PASSWORD</span>
 </code></pre></div></p>
-<h3 id="terraform-variables-not-applied">Terraform Variables Not Applied<a class="headerlink" href="#terraform-variables-not-applied" title="Permanent link">&para;</a></h3>
+<h3 id="opentofu-variables-not-applied">OpenTofu Variables Not Applied<a class="headerlink" href="#opentofu-variables-not-applied" title="Permanent link">&para;</a></h3>
 <p>Ensure <code>-var</code> flags are passed:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>terraform<span class="w"> </span>plan<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>tofu<span class="w"> </span>plan<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=prod&quot;</span>
 </code></pre></div></p>
 <h2 id="full-configuration-examples">Full Configuration Examples<a class="headerlink" href="#full-configuration-examples" title="Permanent link">&para;</a></h2>
 <h3 id="ip-only">IP Only<a class="headerlink" href="#ip-only" title="Permanent link">&para;</a></h3>
@@ -6584,13 +6612,13 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 </code></pre></div>
 <h3 id="caddy-ssl">Caddy SSL<a class="headerlink" href="#caddy-ssl" title="Permanent link">&para;</a></h3>
 <p>Use Caddy as a reverse proxy with automatic SSL. Three options depending on your DNS provider and management preference.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Let's Encrypt (Terraform DNS)</label><label for="__tabbed_1_2">Let's Encrypt (Manual DNS)</label><label for="__tabbed_1_3">CloudFlare</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Let's Encrypt (OpenTofu DNS)</label><label for="__tabbed_1_2">Let's Encrypt (Manual DNS)</label><label for="__tabbed_1_3">CloudFlare</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Route53 DNS records managed automatically by Terraform. Caddy obtains Let's Encrypt certificates.</p>
+<p>Route53 DNS records managed automatically by OpenTofu. Caddy obtains Let's Encrypt certificates.</p>
 <div class="admonition warning">
 <p class="admonition-title">Rate limits</p>
-<p>Let's Encrypt allows <strong>5 certificates per exact domain every 7 days</strong>. Each <code>terraform apply</code> triggers a new certificate. For frequent testing, use <a href="#caddy-ssl">CloudFlare</a> or <a href="#ip-only">IP Only</a> instead.</p>
+<p>Let's Encrypt allows <strong>5 certificates per exact domain every 7 days</strong>. Each <code>tofu apply</code> triggers a new certificate. For frequent testing, use <a href="#caddy-ssl">CloudFlare</a> or <a href="#ip-only">IP Only</a> instead.</p>
 </div>
 <p><strong>Prerequisites:</strong></p>
 <ul>
@@ -6598,7 +6626,7 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 <li>Domain nameservers pointed to Route53</li>
 </ul>
 <p><strong>Access URL:</strong> <code>https://test.lablink.example.com</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># LabLink Configuration: Route53 + Let&#39;s Encrypt (Terraform-managed DNS)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># LabLink Configuration: Route53 + Let&#39;s Encrypt (OpenTofu-managed DNS)</span>
 <a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>
 <a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="nt">db</span><span class="p">:</span>
 <a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="nt">dbname</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lablink_db&quot;</span>
@@ -6646,10 +6674,10 @@ on your own machine. If your data cannot transit a third party in cleartext, use
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<p>Route53 DNS with manually created A records. Useful when you don't want Terraform managing DNS records.</p>
+<p>Route53 DNS with manually created A records. Useful when you don't want OpenTofu managing DNS records.</p>
 <div class="admonition warning">
 <p class="admonition-title">Rate limits</p>
-<p>Same Let's Encrypt rate limits apply. See the Terraform DNS tab for details.</p>
+<p>Same Let's Encrypt rate limits apply. See the OpenTofu DNS tab for details.</p>
 </div>
 <p><strong>Prerequisites:</strong></p>
 <ul>

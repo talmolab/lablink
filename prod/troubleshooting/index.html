@@ -1645,6 +1645,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../changelog-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="https://github.com/talmolab/lablink/releases" class="md-nav__link">
         
   
@@ -4563,7 +4591,7 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>lablink<span class="w"> </span>status<span class="w">          </span><span class="c1"># is the allocator up, and what does it think its VMs are doing</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>lablink<span class="w"> </span>client<span class="w"> </span>doctor<span class="w">   </span><span class="c1"># on a BYO client box: registration, container, log shipper</span>
 </code></pre></div>
-<p><code>lablink doctor</code> branches on your provider — Docker checks under <code>manual</code>, and Terraform, AWS credentials, S3 and AMI checks under <code>aws</code>. Most problems below are named in its output.</p>
+<p><code>lablink doctor</code> branches on your provider — Docker checks under <code>manual</code>, and OpenTofu, AWS credentials, S3 and AMI checks under <code>aws</code>. Most problems below are named in its output.</p>
 <div class="admonition info">
 <p class="admonition-title">Which port?</p>
 <p>The allocator container listens on <strong>5000</strong>. Ports 80 and 443 only answer when Caddy is running, which happens for <code>ssl.provider: letsencrypt</code> and <code>cloudflare</code> only. With <code>none</code> or <code>acm</code>, <code>curl localhost:80</code> on the instance will fail even though the allocator is perfectly healthy — use <code>curl localhost:5000</code>.</p>
@@ -4598,8 +4626,8 @@
    <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>~/lablink-key.pem<span class="w">      </span><span class="c1"># -rw-------</span>
 </code></pre></div></li>
-<li><strong>Wrong key</strong> — re-extract it from Terraform state.
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
+<li><strong>Wrong key</strong> — re-extract it from OpenTofu state.
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>tofu<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>private_key_pem<span class="w"> </span>&gt;<span class="w"> </span>~/lablink-key.pem
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/lablink-key.pem
 </code></pre></div></li>
 <li><strong>Wrong user</strong> — it's <code>ubuntu</code> on the Ubuntu AMIs LabLink uses, not <code>ec2-user</code>.</li>
@@ -4610,7 +4638,7 @@
 <p>Timeout means the packets aren't arriving at all — a closed port or a stopped instance, not an auth problem.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>aws<span class="w"> </span>ec2<span class="w"> </span>describe-instances<span class="w"> </span>--instance-ids<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--query<span class="w"> </span><span class="s1">&#39;Reservations[0].Instances[0].State.Name&#39;</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>aws<span class="w"> </span>ec2<span class="w"> </span>authorize-security-group-ingress<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--group-id<span class="w"> </span>&lt;sg-id&gt;<span class="w"> </span>--protocol<span class="w"> </span>tcp<span class="w"> </span>--port<span class="w"> </span><span class="m">22</span><span class="w"> </span>--cidr<span class="w"> </span><span class="m">0</span>.0.0.0/0
 </code></pre></div>
@@ -4618,21 +4646,21 @@
 </details>
 <h2 id="deploying-aws-provider">Deploying (AWS provider)<a class="headerlink" href="#deploying-aws-provider" title="Permanent link">&para;</a></h2>
 <details class="note">
-<summary>Terraform init fails: bucket does not exist</summary>
+<summary>OpenTofu init fails: bucket does not exist</summary>
 <p><code>lablink setup</code> creates the S3 state bucket and the DynamoDB lock table for you. If you skipped it, create the bucket by hand:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>aws<span class="w"> </span>s3<span class="w"> </span>mb<span class="w"> </span>s3://tf-state-lablink-allocator-bucket<span class="w"> </span>--region<span class="w"> </span>us-west-2
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-versioning<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--bucket<span class="w"> </span>tf-state-lablink-allocator-bucket<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--versioning-configuration<span class="w"> </span><span class="nv">Status</span><span class="o">=</span>Enabled
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>terraform<span class="w"> </span>init
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>tofu<span class="w"> </span>init
 </code></pre></div>
 </details>
 <details class="note">
 <summary>Error acquiring the state lock</summary>
-<p>A previous Terraform run died without releasing its DynamoDB lock.</p>
+<p>A previous OpenTofu run died without releasing its DynamoDB lock.</p>
 <p>First make sure nothing is actually still running:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>scan<span class="w"> </span>--table-name<span class="w"> </span>lock-table<span class="w"> </span>--region<span class="w"> </span>us-west-2
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>terraform
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>tofu
 </code></pre></div>
 <p>Entries with an <code>Info</code> field are real locks; the rest are digests. Copy the exact <code>LockID</code> — it does <strong>not</strong> always carry an <code>-md5</code> suffix — and delete it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>aws<span class="w"> </span>dynamodb<span class="w"> </span>delete-item<span class="w"> </span><span class="se">\</span>
@@ -4647,12 +4675,12 @@
 <li>Client VMs: <code>tf-state-lablink-allocator-bucket/&lt;env&gt;/client/terraform.tfstate</code></li>
 </ul>
 <p>If you get <code>AccessDeniedException: not authorized to perform: dynamodb:GetItem</code>, the allocator's IAM role is missing <code>dynamodb:GetItem</code>, <code>PutItem</code> and <code>DeleteItem</code> on <code>table/lock-table</code>. Add them and redeploy.</p>
-<p><strong>Prevention:</strong> let Terraform runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.</p>
+<p><strong>Prevention:</strong> let OpenTofu runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.</p>
 </details>
 <details class="note">
 <summary>Resource already exists</summary>
 <p>Either import it, delete it, or deploy under a different suffix:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>terraform<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>tofu<span class="w"> </span>import<span class="w"> </span>aws_security_group.lablink<span class="w"> </span>sg-xxxxx
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># or</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>aws<span class="w"> </span>ec2<span class="w"> </span>terminate-instances<span class="w"> </span>--instance-ids<span class="w"> </span>i-xxxxx
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># or change resource_suffix: -dev / -test / -prod</span>
@@ -4757,14 +4785,14 @@
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">&quot;ResourceRecordSets[?Name==&#39;&lt;your-domain&gt;.&#39;]&quot;</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
 <a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Does it match the actual IP?</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>terraform<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>tofu<span class="w"> </span>output<span class="w"> </span>allocator_public_ip
 <a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>dig<span class="w"> </span>&lt;your-domain&gt;<span class="w"> </span>+short
 </code></pre></div>
-<p>If the record is missing, re-run <code>terraform apply</code>. If it exists but isn't propagating, give it 5–15 minutes and flush your local cache (<code>sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder</code> on macOS, <code>sudo systemd-resolve --flush-caches</code> on Linux, <code>ipconfig /flushdns</code> on Windows).</p>
+<p>If the record is missing, re-run <code>tofu apply</code>. If it exists but isn't propagating, give it 5–15 minutes and flush your local cache (<code>sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder</code> on macOS, <code>sudo systemd-resolve --flush-caches</code> on Linux, <code>ipconfig /flushdns</code> on Windows).</p>
 </details>
 <details class="note">
 <summary>DNS record landed in the wrong hosted zone</summary>
-<p>Terraform's zone lookup matched the parent zone (e.g. <code>example.com</code> instead of <code>lablink.example.com</code>). Pin it explicitly:</p>
+<p>OpenTofu's zone lookup matched the parent zone (e.g. <code>example.com</code> instead of <code>lablink.example.com</code>). Pin it explicitly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">dns</span><span class="p">:</span>
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">terraform_managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -4776,7 +4804,7 @@
 <details class="note">
 <summary>Verifying a deployment end to end</summary>
 <p>The template repo ships a script that checks DNS, HTTP, and SSL together. It lives in <code>scripts/</code>, not <code>lablink-infrastructure/</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">          </span><span class="c1"># reads config.yaml + terraform outputs</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>./scripts/verify-deployment.sh<span class="w"> </span>prod<span class="w">          </span><span class="c1"># reads config.yaml + tofu outputs</span>
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>./scripts/verify-deployment.sh<span class="w"> </span>&lt;domain&gt;<span class="w"> </span>&lt;ip&gt;<span class="w"> </span><span class="c1"># or pass them explicitly</span>
 <a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>./scripts/verify-deployment.sh<span class="w"> </span>--ci<span class="w"> </span>prod<span class="w">     </span><span class="c1"># no ANSI colors, for CI logs</span>
 </code></pre></div>
@@ -4796,18 +4824,18 @@
 <summary>Clicking Create VMs does nothing</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;allocator-container&gt;
 <a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>terraform<span class="w"> </span>version
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>tofu<span class="w"> </span>version
 </code></pre></div>
 <p>If <code>get-caller-identity</code> fails, the allocator's IAM instance profile isn't attached or lacks EC2 permissions (<code>RunInstances</code>, <code>DescribeInstances</code>) and VPC permissions (<code>CreateSecurityGroup</code>).</p>
-<p>To run Terraform by hand inside the container:</p>
+<p>To run OpenTofu by hand inside the container:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>bash
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nb">cd</span><span class="w"> </span>/app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>terraform<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>plan
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>tofu<span class="w"> </span>init<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tofu<span class="w"> </span>plan
 </code></pre></div>
 </details>
 <details class="note">
 <summary>VM created but never appears in the allocator</summary>
-<p>Clients <strong>register themselves</strong> — the allocator does not insert rows when Terraform finishes. Each client posts to <code>/api/v1/clients/register</code>, and the allocator stores its hostname alongside an argon2 hash of a freshly minted <code>client_secret</code>. A VM that never registers is a VM that never reached that endpoint.</p>
+<p>Clients <strong>register themselves</strong> — the allocator does not insert rows when OpenTofu finishes. Each client posts to <code>/api/v1/clients/register</code>, and the allocator stores its hostname alongside an argon2 hash of a freshly minted <code>client_secret</code>. A VM that never registers is a VM that never reached that endpoint.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># What the allocator has</span>
 <a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;allocator-container&gt;<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname, status, inuse FROM vms;&quot;</span>
@@ -4937,7 +4965,7 @@
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Security group allows 22 and 5000, plus 80/443 if using Caddy</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> SSH key is mode 600</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> AWS credentials resolve (<code>aws sts get-caller-identity</code>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Terraform state not locked, S3 bucket exists</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> OpenTofu state not locked, S3 bucket exists</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Config passes validation — no unknown keys</li>
 </ul>
 <p><strong>Still stuck?</strong> Search <a href="https://github.com/talmolab/lablink/issues">existing issues</a>, then open a new one with the <code>lablink doctor</code> output, the relevant container logs, what you expected, and what you tried.</p>
