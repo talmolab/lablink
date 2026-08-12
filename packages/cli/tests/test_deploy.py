@@ -19,8 +19,8 @@ from lablink_cli.commands.deploy import (
     _destroy_client_vms,
     _poll_allocator_health,
     _prepare_working_dir,
-    _run_terraform,
-    _terraform_destroy,
+    _run_tofu,
+    _tofu_destroy,
     run_deploy,
     run_destroy,
 )
@@ -30,7 +30,7 @@ from lablink_cli.commands.deploy import (
 # _prepare_working_dir
 # ------------------------------------------------------------------
 class TestPrepareWorkingDir:
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_creates_directory(
@@ -53,7 +53,7 @@ class TestPrepareWorkingDir:
         assert (deploy_dir / "main.tf").exists()
         assert (deploy_dir / "user_data.sh").exists()
 
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_copies_hcl_files(
@@ -71,7 +71,7 @@ class TestPrepareWorkingDir:
         result = _prepare_working_dir(mock_cfg)
         assert (result / "backend-dev.hcl").exists()
 
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_no_region_string_replacement(
@@ -97,7 +97,7 @@ class TestPrepareWorkingDir:
 
 
 # ------------------------------------------------------------------
-# _run_terraform
+# _run_tofu
 # ------------------------------------------------------------------
 class TestRunTerraform:
     @patch("subprocess.Popen")
@@ -108,7 +108,7 @@ class TestRunTerraform:
         proc.returncode = 0
         mock_popen.return_value = proc
 
-        returncode = _run_terraform(["init"], cwd=tmp_path)
+        returncode = _run_tofu(["init"], cwd=tmp_path)
         assert returncode == 0
         mock_popen.assert_called_once()
         # This helper is the single funnel for every CLI invocation, so the
@@ -124,7 +124,7 @@ class TestRunTerraform:
         mock_popen.return_value = proc
 
         with pytest.raises(SystemExit):
-            _run_terraform(["apply"], cwd=tmp_path)
+            _run_tofu(["apply"], cwd=tmp_path)
 
     @patch("subprocess.Popen")
     def test_failure_no_check(self, mock_popen, tmp_path):
@@ -134,7 +134,7 @@ class TestRunTerraform:
         proc.returncode = 1
         mock_popen.return_value = proc
 
-        returncode = _run_terraform(
+        returncode = _run_tofu(
             ["output"], cwd=tmp_path, check=False
         )
         assert returncode == 1
@@ -300,12 +300,12 @@ class TestDestroyClientVms:
 
 
 # ------------------------------------------------------------------
-# _terraform_destroy
+# _tofu_destroy
 # ------------------------------------------------------------------
 class TestTerraformDestroy:
     @patch("lablink_cli.commands.deploy.shutil.rmtree")
-    @patch("lablink_cli.commands.deploy._run_terraform")
-    @patch("lablink_cli.commands.deploy._terraform_init")
+    @patch("lablink_cli.commands.deploy._run_tofu")
+    @patch("lablink_cli.commands.deploy._tofu_init")
     @patch(
         "lablink_cli.commands.deploy.config_to_dict",
         return_value={"app": {}, "db": {}},
@@ -326,7 +326,7 @@ class TestTerraformDestroy:
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("")
 
-        _terraform_destroy(deploy_dir, mock_cfg, "admin", "pass")
+        _tofu_destroy(deploy_dir, mock_cfg, "admin", "pass")
 
         mock_tf_init.assert_called_once_with(deploy_dir, mock_cfg)
         mock_tf_run.assert_called_once()
@@ -467,9 +467,9 @@ def _patch_deploy_deps(deploy_dir):
                 "admin_password": "pw",
             },
         ),
-        patch("lablink_cli.commands.deploy._terraform_init"),
+        patch("lablink_cli.commands.deploy._tofu_init"),
         patch(
-            "lablink_cli.commands.utils.get_terraform_outputs",
+            "lablink_cli.commands.utils.get_tofu_outputs",
             return_value={"ec2_public_ip": "1.2.3.4"},
         ),
         patch(
@@ -504,7 +504,7 @@ class TestRunDeployMetrics:
             for cm in _patch_deploy_deps(deploy_dir):
                 stack.enter_context(cm)
             stack.enter_context(
-                patch("lablink_cli.commands.deploy._run_terraform")
+                patch("lablink_cli.commands.deploy._run_tofu")
             )
             run_deploy(mock_cfg)
 
@@ -551,7 +551,7 @@ class TestRunDeployMetrics:
                 stack.enter_context(cm)
             stack.enter_context(
                 patch(
-                    "lablink_cli.commands.deploy._run_terraform",
+                    "lablink_cli.commands.deploy._run_tofu",
                     side_effect=fail_on_apply,
                 )
             )
@@ -585,7 +585,7 @@ class TestRunDeployMetrics:
 def _patch_destroy_deps(deploy_dir, stack):
     """Enter run_destroy dep mocks into ``stack`` and return a dict of the mocks.
 
-    Tests that need to assert against a mock (e.g. ``_terraform_destroy``) can
+    Tests that need to assert against a mock (e.g. ``_tofu_destroy``) can
     look it up by key instead of re-patching — avoids shadowing the shared
     patch with a redundant second one.
     """
@@ -612,7 +612,7 @@ def _patch_destroy_deps(deploy_dir, stack):
             patch("lablink_cli.commands.deploy._destroy_client_vms")
         ),
         "terraform_destroy": stack.enter_context(
-            patch("lablink_cli.commands.deploy._terraform_destroy")
+            patch("lablink_cli.commands.deploy._tofu_destroy")
         ),
     }
 
@@ -717,7 +717,7 @@ class TestRunDestroyExportPrompt:
         Regression guard: SystemExit inherits from BaseException, not
         Exception, so a plain `except Exception` would miss it and let the
         SystemExit propagate out of run_destroy — killing the destroy before
-        _terraform_destroy runs.
+        _tofu_destroy runs.
         """
         deploy_dir = tmp_path / "deploy"
         _setup_destroy_dir(deploy_dir)
@@ -793,7 +793,7 @@ class TestRunDeployYesFlag:
                 )
             )
             mock_tf = stack.enter_context(
-                patch("lablink_cli.commands.deploy._run_terraform")
+                patch("lablink_cli.commands.deploy._run_tofu")
             )
 
             run_deploy(mock_cfg, yes=True)

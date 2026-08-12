@@ -8,7 +8,7 @@ import pytest
 
 from lablink_allocator_service.utils.sg_audit import (
     SGAuditFailure,
-    audit_terraform_plan,
+    audit_tofu_plan,
 )
 
 
@@ -63,7 +63,7 @@ CLEAN_INGRESS = [
 def test_audit_passes_on_clean_plan():
     """SG-locked :6080 and :7070, plus :22 open to the world, is acceptable."""
     plan = _plan(_sg_change(["create"], {"ingress": CLEAN_INGRESS}))
-    audit_terraform_plan(plan)  # should not raise
+    audit_tofu_plan(plan)  # should not raise
 
 
 def test_audit_fails_on_public_6080():
@@ -77,7 +77,7 @@ def test_audit_fails_on_public_6080():
         }],
     }))
     with pytest.raises(SGAuditFailure, match="6080"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)
 
 
 def test_audit_fails_on_ipv6_public_7070():
@@ -91,7 +91,7 @@ def test_audit_fails_on_ipv6_public_7070():
         }],
     }))
     with pytest.raises(SGAuditFailure, match="7070"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)
 
 
 def test_audit_fails_when_public_cidr_is_one_of_many():
@@ -107,7 +107,7 @@ def test_audit_fails_when_public_cidr_is_one_of_many():
         }],
     }))
     with pytest.raises(SGAuditFailure, match="6080"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)
 
 
 def test_audit_passes_when_no_sg_change_in_plan():
@@ -126,19 +126,19 @@ def test_audit_passes_when_no_sg_change_in_plan():
             },
         },
     ]}
-    audit_terraform_plan(plan)  # should not raise
+    audit_tofu_plan(plan)  # should not raise
 
 
 def test_audit_passes_when_sg_is_noop():
     """A no-op SG change introduces no new exposure — skip the audit."""
     plan = _plan(_sg_change(["no-op"], {"ingress": CLEAN_INGRESS}))
-    audit_terraform_plan(plan)  # should not raise
+    audit_tofu_plan(plan)  # should not raise
 
 
 def test_audit_passes_when_sg_is_deleted():
     """A pure delete removes exposure; nothing to audit."""
     plan = _plan(_sg_change(["delete"], None))
-    audit_terraform_plan(plan)  # should not raise
+    audit_tofu_plan(plan)  # should not raise
 
 
 def test_audit_fails_when_create_has_no_ingress_field():
@@ -146,24 +146,24 @@ def test_audit_fails_when_create_has_no_ingress_field():
     Refuse rather than silently approve."""
     plan = _plan(_sg_change(["create"], {"name": "weird-no-ingress"}))
     with pytest.raises(SGAuditFailure, match="no 'ingress' field"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)
 
 
 def test_audit_fails_when_create_has_null_after():
     """Defensive: an SG create with no 'after' state is unparseable."""
     plan = _plan(_sg_change(["create"], None))
     with pytest.raises(SGAuditFailure, match="no 'after' state"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)
 
 
 def test_audit_fails_when_plan_is_not_a_dict():
     with pytest.raises(SGAuditFailure, match="not a dict"):
-        audit_terraform_plan("not a plan")
+        audit_tofu_plan("not a plan")
 
 
 def test_audit_fails_when_resource_changes_is_not_a_list():
     with pytest.raises(SGAuditFailure, match="resource_changes"):
-        audit_terraform_plan({"resource_changes": "not a list"})
+        audit_tofu_plan({"resource_changes": "not a list"})
 
 
 def test_audit_ignores_unprotected_ports():
@@ -178,7 +178,7 @@ def test_audit_ignores_unprotected_ports():
             "ipv6_cidr_blocks": [],
         }],
     }))
-    audit_terraform_plan(plan)  # should not raise
+    audit_tofu_plan(plan)  # should not raise
 
 
 def test_audit_handles_replace_action():
@@ -193,4 +193,4 @@ def test_audit_handles_replace_action():
         }],
     }))
     with pytest.raises(SGAuditFailure, match="6080"):
-        audit_terraform_plan(plan)
+        audit_tofu_plan(plan)

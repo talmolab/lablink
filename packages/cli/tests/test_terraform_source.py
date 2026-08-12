@@ -12,9 +12,9 @@ import pytest
 
 from lablink_cli import TEMPLATE_REPO, TEMPLATE_VERSION, TEMPLATE_SHA256
 from lablink_cli.terraform_source import (
-    get_terraform_files,
+    get_tofu_files,
     _download_tarball,
-    _extract_terraform_files,
+    _extract_tofu_files,
 )
 
 
@@ -95,7 +95,7 @@ class TestExtractTerraformFiles:
         tarball_data = _make_test_tarball(tmp_path)
         dest = tmp_path / "extracted"
 
-        _extract_terraform_files(tarball_data, dest)
+        _extract_tofu_files(tarball_data, dest)
 
         assert (dest / "main.tf").exists()
         assert (dest / "alb.tf").exists()
@@ -115,7 +115,7 @@ class TestExtractTerraformFiles:
         tarball_data = tar_buffer.getvalue()
         dest = tmp_path / "extracted"
 
-        _extract_terraform_files(tarball_data, dest)
+        _extract_tofu_files(tarball_data, dest)
 
         # Malicious file must not exist anywhere
         assert not (tmp_path / "etc" / "passwd").exists()
@@ -135,7 +135,7 @@ class TestExtractTerraformFiles:
         tarball_data = tar_buffer.getvalue()
         dest = tmp_path / "extracted"
 
-        _extract_terraform_files(tarball_data, dest)
+        _extract_tofu_files(tarball_data, dest)
 
         assert not (dest / "malware.exe").exists()
         assert (dest / "main.tf").exists()
@@ -151,7 +151,7 @@ class TestGetTerraformFiles:
             "lablink_cli.terraform_source.CACHE_DIR",
             tmp_path / "cache",
         ):
-            result = get_terraform_files("v0.1.0")
+            result = get_tofu_files("v0.1.0")
 
         mock_download.assert_called_once_with("v0.1.0", retries=3)
         assert (result / "main.tf").exists()
@@ -166,7 +166,7 @@ class TestGetTerraformFiles:
             "lablink_cli.terraform_source.CACHE_DIR",
             tmp_path / "cache",
         ):
-            result = get_terraform_files("v0.1.0")
+            result = get_tofu_files("v0.1.0")
 
         mock_download.assert_not_called()
         assert result == cache_dir
@@ -182,7 +182,7 @@ class TestGetTerraformFiles:
             "lablink_cli.terraform_source.CACHE_DIR",
             tmp_path / "cache",
         ):
-            result = get_terraform_files(
+            result = get_tofu_files(
                 "v0.1.0",
                 bundle_path=str(bundle_file),
                 skip_checksum=True,
@@ -210,7 +210,7 @@ class TestGetTerraformFiles:
             tmp_path / "cache",
         ):
             # Cache hit returns existing cache, bundle is not used
-            result = get_terraform_files(
+            result = get_tofu_files(
                 "v0.1.0",
                 bundle_path=str(bundle_file),
                 skip_checksum=True,
@@ -230,12 +230,12 @@ class TestIntegrationDownload:
             "lablink_cli.terraform_source.CACHE_DIR",
             tmp_path / "cache",
         ), patch("lablink_cli.terraform_source._verify_checksum"):
-            result = get_terraform_files(TEMPLATE_VERSION)
+            result = get_tofu_files(TEMPLATE_VERSION)
 
             # Expected files exist
             assert (result / "main.tf").exists()
             assert (result / "user_data.sh").exists()
 
             # Cache works on second call (no download)
-            result2 = get_terraform_files(TEMPLATE_VERSION)
+            result2 = get_tofu_files(TEMPLATE_VERSION)
             assert result == result2

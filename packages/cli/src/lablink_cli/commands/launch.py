@@ -22,7 +22,7 @@ from lablink_cli.commands.utils import (
     format_duration,
     get_allocator_url,
     resolve_admin_credentials,
-    summarize_terraform,
+    summarize_tofu,
 )
 
 console = Console()
@@ -99,7 +99,7 @@ def _report(
     console.print(
         f"[green]✓ {label}[/green]  [dim]({format_duration(elapsed)})[/dim]"
     )
-    summary = summarize_terraform(output)
+    summary = summarize_tofu(output)
     if summary:
         console.print(f"  {summary}")
     if verbose and output:

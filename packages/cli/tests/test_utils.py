@@ -19,30 +19,30 @@ from lablink_cli.commands.utils import (
     _classify_aws_error,
     _parse_instances,
     aws_credentials_error,
-    get_terraform_outputs,
+    get_tofu_outputs,
     TofuError,
     print_aws_error,
     query_ec2_instances,
     get_allocator_vm,
     get_client_vms,
     list_all_vms,
-    summarize_terraform,
+    summarize_tofu,
 )
 
 
 class TestSummarizeTerraform:
     def test_matches_apply_summary(self):
         output = "Apply complete! Resources: 3 added, 0 changed, 0 destroyed."
-        assert summarize_terraform(output) == (
+        assert summarize_tofu(output) == (
             "Resources: 3 added, 0 changed, 0 destroyed"
         )
 
     def test_matches_destroy_summary(self):
         output = "Destroy complete! Resources: 7 destroyed."
-        assert summarize_terraform(output) == "Resources: 7 destroyed"
+        assert summarize_tofu(output) == "Resources: 7 destroyed"
 
     def test_returns_none_when_no_summary(self):
-        assert summarize_terraform("terraform init\nno summary here") is None
+        assert summarize_tofu("terraform init\nno summary here") is None
 
 
 def _client_error(code: str) -> ClientError:
@@ -460,7 +460,7 @@ class TestVmHelpers:
 
 
 # ------------------------------------------------------------------
-# get_terraform_outputs
+# get_tofu_outputs
 # ------------------------------------------------------------------
 class TestGetTerraformOutputs:
     def test_valid_output(self, tmp_path):
@@ -470,7 +470,7 @@ class TestGetTerraformOutputs:
         })
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout=tf_output, returncode=0)
-            result = get_terraform_outputs(tmp_path)
+            result = get_tofu_outputs(tmp_path)
 
         assert result == {
             "ec2_public_ip": "10.0.0.1",
@@ -497,7 +497,7 @@ class TestGetTerraformOutputs:
                 1, "tofu", stderr=stderr
             )
             with pytest.raises(TofuError) as excinfo:
-                get_terraform_outputs(tmp_path)
+                get_tofu_outputs(tmp_path)
 
         msg = str(excinfo.value)
         assert "InvalidClientTokenId" in msg
@@ -509,13 +509,13 @@ class TestGetTerraformOutputs:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(TofuError, match="not found on PATH"):
-                get_terraform_outputs(tmp_path)
+                get_tofu_outputs(tmp_path)
 
     def test_invalid_json_raises(self, tmp_path):
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="not json", returncode=0)
             with pytest.raises(TofuError, match="could not parse"):
-                get_terraform_outputs(tmp_path)
+                get_tofu_outputs(tmp_path)
 
     def test_empty_output_is_not_an_error(self, tmp_path):
         """`tofu output -json` exits 0 with `{}` when the state declares no
@@ -523,6 +523,6 @@ class TestGetTerraformOutputs:
         empty result, not a failure."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="{}", returncode=0)
-            result = get_terraform_outputs(tmp_path)
+            result = get_tofu_outputs(tmp_path)
 
         assert result == {}

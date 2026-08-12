@@ -137,7 +137,7 @@ def launch():
             end_time = datetime.fromisoformat(
                 times["end_time"].replace("Z", "+00:00")
             )
-            main.database.update_terraform_timing(
+            main.database.update_tofu_timing(
                 hostname=hostname,
                 per_instance_seconds=float(times["seconds"]),
                 per_instance_start_time=start_time,

@@ -21,7 +21,7 @@ from lablink_cli.commands.utils import (
     get_allocator_url,
     get_deploy_dir,
     resolve_admin_credentials,
-    summarize_terraform,
+    summarize_tofu,
 )
 from lablink_cli.api import (
     AllocatorAPI,
@@ -38,7 +38,7 @@ from lablink_cli.deployment_metrics import (
     phase_timer,
     write_metrics,
 )
-from lablink_cli.terraform_source import get_terraform_files
+from lablink_cli.terraform_source import get_tofu_files
 
 console = Console()
 
@@ -66,7 +66,7 @@ def _prepare_working_dir(
             f"verification[/yellow]"
         )
 
-    tf_source = get_terraform_files(
+    tf_source = get_tofu_files(
         version,
         bundle_path=terraform_bundle,
         skip_checksum=skip_checksum,
@@ -123,7 +123,7 @@ def _prepare_working_dir(
     return deploy_dir
 
 
-def _run_terraform(
+def _run_tofu(
     args: list[str],
     cwd: Path,
     check: bool = True,
@@ -190,7 +190,7 @@ def _run_terraform(
                 f"  [green]✓ tofu {action}[/green]  "
                 f"[dim]({format_duration(elapsed)})[/dim]"
             )
-            summary = summarize_terraform(output)
+            summary = summarize_tofu(output)
             if summary:
                 console.print(f"  {summary}")
 
@@ -204,7 +204,7 @@ def _run_terraform(
     return proc.returncode
 
 
-def _terraform_init(
+def _tofu_init(
     deploy_dir: Path,
     cfg: Config,
 ) -> None:
@@ -242,7 +242,7 @@ def _terraform_init(
     ]
     if reconfigure:
         args.append("-reconfigure")
-    _run_terraform(args, cwd=deploy_dir)
+    _run_tofu(args, cwd=deploy_dir)
 
     console.print()
 
@@ -425,14 +425,14 @@ def run_deploy(
         with phase_timer(
             metrics, "allocator_terraform_init_duration_seconds", metrics_path
         ):
-            _terraform_init(deploy_dir, cfg)
+            _tofu_init(deploy_dir, cfg)
 
         # OpenTofu plan — pass deployment_name and environment
         console.print("[bold]Step 2/3:[/bold] OpenTofu plan")
         with phase_timer(
             metrics, "allocator_terraform_plan_duration_seconds", metrics_path
         ):
-            _run_terraform(
+            _run_tofu(
                 [
                     "plan",
                     f"-var=deployment_name={cfg.deployment_name}",
@@ -465,24 +465,24 @@ def run_deploy(
         with phase_timer(
             metrics, "allocator_terraform_apply_duration_seconds", metrics_path
         ):
-            _run_terraform(
+            _run_tofu(
                 ["apply", "-auto-approve", "tfplan"], cwd=deploy_dir
             )
         console.print()
 
         # Show outputs
         console.print("[bold]Deployment complete![/bold]")
-        _run_terraform(
+        _run_tofu(
             ["output"], cwd=deploy_dir, check=False
         )
         console.print()
 
         # --- Deployment timing ---
         from lablink_cli.commands.status import run_status
-        from lablink_cli.commands.utils import TofuError, get_terraform_outputs
+        from lablink_cli.commands.utils import TofuError, get_tofu_outputs
 
         try:
-            outputs = get_terraform_outputs(deploy_dir)
+            outputs = get_tofu_outputs(deploy_dir)
         except TofuError as e:
             # apply succeeded, so this is a read fault, not a failed deploy.
             console.print(f"  [yellow]Could not read outputs:[/yellow] {e}")
@@ -666,7 +666,7 @@ def _destroy_client_vms(
             f"[dim]({format_duration(elapsed)})[/dim]"
         )
         output = (result or {}).get("output", "")
-        summary = summarize_terraform(output)
+        summary = summarize_tofu(output)
         if summary:
             console.print(f"  {summary}")
         if verbose and output:
@@ -711,7 +711,7 @@ def _destroy_client_vms(
     console.print()
 
 
-def _terraform_destroy(
+def _tofu_destroy(
     deploy_dir: Path,
     cfg: Config,
     admin_user: str,
@@ -737,13 +737,13 @@ def _terraform_destroy(
         )
 
     if (deploy_dir / "backend.tf").exists():
-        _terraform_init(deploy_dir, cfg)
+        _tofu_init(deploy_dir, cfg)
 
     console.print(
         "[bold]Destroying allocator "
         "infrastructure...[/bold]"
     )
-    _run_terraform(
+    _run_tofu(
         [
             "destroy",
             "-auto-approve",
@@ -855,6 +855,6 @@ def run_destroy(
     console.print()
 
     _destroy_client_vms(cfg, admin_user, admin_pw, verbose=verbose)
-    _terraform_destroy(
+    _tofu_destroy(
         deploy_dir, cfg, admin_user, admin_pw, verbose=verbose
     )

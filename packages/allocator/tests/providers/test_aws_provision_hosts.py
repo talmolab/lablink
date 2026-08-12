@@ -104,8 +104,8 @@ def all_aws_mocks():
             "lablink_allocator_service.providers.aws.get_instance_names",
             return_value=["host-1"],
         ),
-        "audit_terraform_plan": patch(
-            "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        "audit_tofu_plan": patch(
+            "lablink_allocator_service.providers.aws.audit_tofu_plan",
             return_value=None,
         ),
     }
@@ -219,7 +219,7 @@ def test_provision_hosts_reports_progress_via_callback(aws_provider):
         "lablink_allocator_service.providers.aws.get_instance_names",
         return_value=["host-1", "host-2"],
     ), patch(
-        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        "lablink_allocator_service.providers.aws.audit_tofu_plan",
         return_value=None,
     ):
         aws_provider.provision_hosts(
@@ -297,7 +297,7 @@ def test_provision_hosts_skips_sg_id_off_ec2(aws_provider):
         "lablink_allocator_service.providers.aws.get_instance_names",
         return_value=[],
     ), patch(
-        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        "lablink_allocator_service.providers.aws.audit_tofu_plan",
         return_value=None,
     ):
         aws_provider.provision_hosts(count=1, spec=_make_spec())

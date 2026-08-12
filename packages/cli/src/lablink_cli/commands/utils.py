@@ -27,7 +27,7 @@ _DESTROY_SUMMARY_RE = re.compile(
 )
 
 
-def summarize_terraform(output: str) -> str | None:
+def summarize_tofu(output: str) -> str | None:
     """Extract OpenTofu's apply/destroy summary line from raw output.
 
     Returns None when neither summary matches — a no-op apply, an
@@ -345,7 +345,7 @@ def _clean_tofu_stderr(stderr: str) -> str:
     return " ".join(x for x in lines if x) or "tofu failed with no error output"
 
 
-def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
+def get_tofu_outputs(deploy_dir: Path) -> dict[str, str]:
     """Read OpenTofu outputs as a dict.
 
     An empty result means the state genuinely declares no outputs. It
@@ -417,7 +417,7 @@ def get_allocator_url(cfg: Config) -> str:
     outputs = {}
     if deploy_dir.exists():
         try:
-            outputs = get_terraform_outputs(deploy_dir)
+            outputs = get_tofu_outputs(deploy_dir)
         except TofuError:
             # Silent by design: the config-derived domain below is a
             # complete answer on its own, and this helper is called from

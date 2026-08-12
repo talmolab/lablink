@@ -26,7 +26,7 @@ from lablink_allocator_service.utils.aws_utils import (
     stop_start_ec2_instance,
     upload_to_s3,
 )
-from lablink_allocator_service.utils.sg_audit import audit_terraform_plan
+from lablink_allocator_service.utils.sg_audit import audit_tofu_plan
 from lablink_allocator_service.utils.terraform_utils import (
     get_instance_ids,
     get_instance_names,
@@ -179,7 +179,7 @@ class AWSProvider:
 
         Raises:
             RuntimeError: if terraform_dir is None
-            SGAuditFailure: propagated from audit_terraform_plan when
+            SGAuditFailure: propagated from audit_tofu_plan when
                 the plan would expose :6080 / :7070 to the internet
             subprocess.CalledProcessError: propagated from any
                 terraform invocation failure
@@ -250,7 +250,7 @@ class AWSProvider:
                 cwd=terraform_dir, check=True, capture_output=True, text=True,
             )
             plan_json = json.loads(show.stdout)
-            audit_terraform_plan(plan_json)  # may raise SGAuditFailure
+            audit_tofu_plan(plan_json)  # may raise SGAuditFailure
 
             resources_total = sum(
                 1

@@ -23,7 +23,7 @@ CACHE_DIR = Path.home() / ".lablink" / "cache" / "terraform"
 _ALLOWED_EXTENSIONS = {".tf", ".hcl", ".sh", ".yaml"}
 
 
-def get_terraform_files(
+def get_tofu_files(
     version: str,
     *,
     bundle_path: str | None = None,
@@ -67,7 +67,7 @@ def get_terraform_files(
         dir=CACHE_DIR.parent, prefix=".terraform-extract-"
     ))
     try:
-        _extract_terraform_files(tarball_data, tmp_dir)
+        _extract_tofu_files(tarball_data, tmp_dir)
 
         # Atomic move to final cache location
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +127,7 @@ def _verify_checksum(data: bytes, version: str) -> None:
         raise SystemExit(1)
 
 
-def _extract_terraform_files(data: bytes, dest: Path) -> None:
+def _extract_tofu_files(data: bytes, dest: Path) -> None:
     """Extract Terraform files from tarball with safety checks."""
     dest.mkdir(parents=True, exist_ok=True)
 

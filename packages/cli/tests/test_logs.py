@@ -56,7 +56,7 @@ class TestSshViaInstanceConnect:
 
 class TestSshViaPrivateKey:
     @patch("lablink_cli.commands.logs.subprocess.run")
-    @patch("lablink_cli.commands.logs.get_terraform_outputs")
+    @patch("lablink_cli.commands.logs.get_tofu_outputs")
     def test_success(self, mock_outputs, mock_run, tmp_path):
         mock_outputs.return_value = {
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\n"
@@ -71,7 +71,7 @@ class TestSshViaPrivateKey:
         )
         assert result == "log output"
 
-    @patch("lablink_cli.commands.logs.get_terraform_outputs")
+    @patch("lablink_cli.commands.logs.get_tofu_outputs")
     def test_no_private_key_returns_none(self, mock_outputs, tmp_path):
         mock_outputs.return_value = {}
         result = _ssh_via_private_key(
@@ -86,7 +86,7 @@ class TestSshViaPrivateKey:
         assert result is None
 
     @patch("lablink_cli.commands.logs.subprocess.run")
-    @patch("lablink_cli.commands.logs.get_terraform_outputs")
+    @patch("lablink_cli.commands.logs.get_tofu_outputs")
     def test_nonzero_exit_returns_stderr(self, mock_outputs, mock_run, tmp_path):
         mock_outputs.return_value = {
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\n"
@@ -102,7 +102,7 @@ class TestSshViaPrivateKey:
         assert "connection refused" in result
 
     @patch("lablink_cli.commands.logs.subprocess.run")
-    @patch("lablink_cli.commands.logs.get_terraform_outputs")
+    @patch("lablink_cli.commands.logs.get_tofu_outputs")
     def test_timeout_returns_none(self, mock_outputs, mock_run, tmp_path):
         mock_outputs.return_value = {
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----\n"

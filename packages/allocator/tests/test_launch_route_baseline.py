@@ -10,16 +10,16 @@ Today's /api/launch route inlines:
 - terraform.runtime.tfvars writes (14 specific keys)
 - terraform plan + show -json + apply (3 subprocess.run calls, plus a 4th
   from get_instance_timings: terraform output -json)
-- audit_terraform_plan (SG guard)
+- audit_tofu_plan (SG guard)
 - upload_to_s3 (state archival)
-- database.update_terraform_timing (DB write per host)
+- database.update_tofu_timing (DB write per host)
 
 After Tasks 5-6, /api/launch calls provider.provision_hosts(...) which
 performs the same effects polymorphically. These tests assert the
 behavior, not the exact code shape, so they survive both states.
 
 Post-Task-6 note: all AWS-specific calls (check_support_nvidia,
-upload_to_s3, audit_terraform_plan, subprocess.run for terraform) now
+upload_to_s3, audit_tofu_plan, subprocess.run for terraform) now
 execute inside AWSProvider.provision_hosts — patch them in the
 providers.aws namespace, not the main namespace.  get_instance_timings,
 get_instance_ids, and get_instance_names are also patched in the
@@ -200,7 +200,7 @@ def launch_setup(app, monkeypatch, tmp_path):
 
     fake_db = MagicMock()
     fake_db.get_row_count.return_value = 0
-    fake_db.update_terraform_timing = MagicMock()
+    fake_db.update_tofu_timing = MagicMock()
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     return {"tmp_path": tmp_path, "database": fake_db}
@@ -288,7 +288,7 @@ def test_launch_closure_calls_aws_utils_and_writes_timings(
     assert output == "apply success"
 
     db = launch_setup["database"]
-    assert db.update_terraform_timing.call_count == 1
+    assert db.update_tofu_timing.call_count == 1
 
 
 def test_launch_closure_runs_plan_show_apply_in_order(
@@ -333,7 +333,7 @@ def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_heade
     with the same user-facing message the old synchronous route produced,
     so it lands in operations.error with useful detail intact.
 
-    audit_terraform_plan runs between the `show -json` and `apply` calls
+    audit_tofu_plan runs between the `show -json` and `apply` calls
     inside provider.provision_hosts, so this must override just that one
     call while every other provider dependency stays mocked to the happy
     path — and the closure must be invoked in the SAME `with` block that
@@ -343,7 +343,7 @@ def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_heade
     from lablink_allocator_service.utils.sg_audit import SGAuditFailure
 
     with _provider_happy_path_patches(), patch(
-        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        "lablink_allocator_service.providers.aws.audit_tofu_plan",
         side_effect=SGAuditFailure("port 6080 exposed"),
     ), patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})

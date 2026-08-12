@@ -17,7 +17,7 @@ from lablink_cli.commands.utils import (
     AwsQueryError,
     get_allocator_url,
     get_deploy_dir,
-    get_terraform_outputs,
+    get_tofu_outputs,
     TofuError,
     list_all_vms,
     print_aws_error,
@@ -139,7 +139,7 @@ def _ssh_via_private_key(
         return None
 
     try:
-        outputs = get_terraform_outputs(deploy_dir)
+        outputs = get_tofu_outputs(deploy_dir)
     except TofuError as e:
         console.print(f"  [yellow]Could not read the SSH key:[/yellow] {e}")
         return None

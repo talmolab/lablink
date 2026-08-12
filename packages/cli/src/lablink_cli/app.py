@@ -718,7 +718,7 @@ def show_config(
         console.print("\n[green]Config is valid.[/green]")
 
 
-def _clear_terraform_cache(console) -> None:
+def _clear_template_cache(console) -> None:
     """Clear the Terraform template cache at ``terraform_source.CACHE_DIR``."""
     import shutil
 
@@ -830,12 +830,12 @@ def cache_clear(
         console.print("[yellow]--stale has no effect without --deployments.[/yellow]")
 
     if all_caches:
-        _clear_terraform_cache(console)
+        _clear_template_cache(console)
         _clear_deployments_cache(console)
     elif deployments:
         _clear_deployments_cache(console, stale_only=stale)
     else:
-        _clear_terraform_cache(console)
+        _clear_template_cache(console)
 
 
 @app.command("export-metrics", rich_help_panel="Operations")

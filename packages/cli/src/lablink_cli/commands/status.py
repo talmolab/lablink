@@ -26,7 +26,7 @@ from lablink_cli.commands.utils import (
     aws_credentials_error,
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
-    get_terraform_outputs,
+    get_tofu_outputs,
     TofuError,
     print_aws_error,
     resolve_from_saved_config,
@@ -394,7 +394,7 @@ def estimate_costs(
     return costs
 
 
-def _render_terraform_state(
+def _render_tofu_state(
     deploy_dir: Path, aws_unavailable: bool = False
 ) -> dict:
     """Read and display OpenTofu outputs. Returns outputs dict.
@@ -409,7 +409,7 @@ def _render_terraform_state(
 
     console.print("[bold]OpenTofu State[/bold]")
     try:
-        outputs = get_terraform_outputs(deploy_dir)
+        outputs = get_tofu_outputs(deploy_dir)
     except TofuError as e:
         if aws_unavailable:
             console.print(
@@ -914,7 +914,7 @@ def run_status(cfg: Config) -> None:
     # EC2, so let the real queries run and report for themselves —
     # _render_client_vms already handles AwsQueryError.
     aws_down = aws_error is not None and aws_error.is_auth
-    outputs = _render_terraform_state(deploy_dir, aws_unavailable=aws_down)
+    outputs = _render_tofu_state(deploy_dir, aws_unavailable=aws_down)
     # DNS/HTTP/SSL checks need no AWS credentials, so they still run.
     _render_health_checks(cfg, outputs)
     _render_client_vms(cfg, aws_unavailable=aws_down)

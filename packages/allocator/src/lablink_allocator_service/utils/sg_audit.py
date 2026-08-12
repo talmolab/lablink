@@ -22,7 +22,7 @@ _PUBLIC_V4 = "0.0.0.0/0"
 _PUBLIC_V6 = "::/0"
 
 
-def audit_terraform_plan(plan_json: Any) -> None:
+def audit_tofu_plan(plan_json: Any) -> None:
     """Walk every aws_security_group change in the JSON plan; refuse
     the apply if any post-change ingress rule on a protected port
     exposes 0.0.0.0/0 or ::/0.

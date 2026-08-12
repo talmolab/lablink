@@ -92,7 +92,7 @@ class TestRunStatus:
 
     @patch("lablink_cli.commands.status.estimate_costs")
     @patch("lablink_cli.commands.status.get_client_vms")
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     @patch("lablink_cli.commands.status._get_deploy_dir")
     def test_no_deployment(
         self, mock_deploy_dir, mock_outputs, mock_vms, mock_costs, mock_cfg, tmp_path
@@ -108,7 +108,7 @@ class TestRunStatus:
 
     @patch("lablink_cli.commands.status.estimate_costs")
     @patch("lablink_cli.commands.status.get_client_vms")
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     @patch("lablink_cli.commands.status._get_deploy_dir")
     def test_with_deployment(
         self, mock_deploy_dir, mock_outputs, mock_vms, mock_costs, mock_cfg, tmp_path
@@ -139,7 +139,7 @@ class TestRunStatus:
 
     @patch("lablink_cli.commands.status.estimate_costs")
     @patch("lablink_cli.commands.status.get_client_vms")
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     @patch("lablink_cli.commands.status._get_deploy_dir")
     def test_with_dns_and_ssl(
         self, mock_deploy_dir, mock_outputs, mock_vms, mock_costs, mock_cfg, tmp_path
@@ -167,7 +167,7 @@ class TestRunStatus:
 
     @patch("lablink_cli.commands.status.estimate_costs")
     @patch("lablink_cli.commands.status.get_client_vms")
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     @patch("lablink_cli.commands.status._get_deploy_dir")
     def test_with_stopped_vms(
         self, mock_deploy_dir, mock_outputs, mock_vms, mock_costs, mock_cfg, tmp_path

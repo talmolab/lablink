@@ -1054,7 +1054,7 @@ class VmDatabase:
             return dt.astimezone(timezone.utc).replace(tzinfo=None)
         return dt
 
-    def update_terraform_timing(
+    def update_tofu_timing(
         self,
         hostname: str,
         per_instance_seconds: float,
