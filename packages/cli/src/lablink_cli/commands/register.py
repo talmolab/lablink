@@ -387,9 +387,12 @@ def _resume(env_file: Path, console: Console, docker: Docker) -> None:
     if status in ("exited", "restarting"):
         start = docker.start_container("lablink-client")
         if not start.ok:
+            detail = (
+                start.stderr.strip()
+                or f"docker start exited {start.returncode}"
+            )
             console.print(
-                f"[red]docker start lablink-client failed:[/red] "
-                f"{start.stderr.strip() or start.returncode}"
+                f"[red]docker start lablink-client failed:[/red] {detail}"
             )
             raise SystemExit(1)
         container_action = "restarted"
@@ -714,6 +717,11 @@ def _exec_docker(cmd: list[str], console: Console, docker: Docker) -> None:
     )
     result = docker.run_detached(cmd)
     if not result.ok:
+        # `run_detached` streams, so stderr is empty on a real non-zero
+        # exit; it is populated only when the OS could not exec docker.
+        if result.stderr:
+            console.print(f"[red]Failed to exec docker: {result.stderr}[/red]")
+            raise SystemExit(1)
         console.print(
             f"[red]docker run exited {result.returncode}.[/red] "
             "Check `docker logs lablink-client`."

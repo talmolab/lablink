@@ -178,6 +178,27 @@ class TestResumePath:
         assert "Restarted container" in capsys.readouterr().out
         mock_spawn.assert_called_once()
 
+    def test_exited_container_start_failure_is_descriptive_when_stderr_empty(
+        self, tmp_path, capsys
+    ):
+        """`docker start` can fail with a non-zero exit and no stderr (e.g.
+        a daemon-level rejection). The fallback must describe the failure,
+        not print a bare, unexplained integer."""
+        from lablink_cli.commands.register import _resume
+        from rich.console import Console
+
+        class FailingStart(RegisterDocker):
+            def start_container(self, name):
+                return Result(returncode=1)
+
+        docker = FailingStart(status="exited")
+
+        with pytest.raises(SystemExit):
+            _resume(tmp_path / "client.env", Console(), docker)
+
+        out = capsys.readouterr().out
+        assert "docker start exited 1" in out
+
     def test_force_still_re_registers(
         self, tmp_env_file, successful_response,
     ):
@@ -851,6 +872,44 @@ class TestDockerMissing:
 
         # env file still written so user can install docker + re-run later
         assert tmp_env_file.exists()
+
+
+class TestExecDocker:
+    """`_exec_docker` must tell an OS-level exec failure (docker binary
+    couldn't even be spawned) apart from an ordinary non-zero container
+    exit — `run_detached` streams output, so `Result.stderr` is only ever
+    populated on the former (see `Docker._run`'s `except OSError` arm)."""
+
+    def test_reports_exec_failure_when_os_could_not_run_docker(self, capsys):
+        from lablink_cli.commands.register import _exec_docker
+        from rich.console import Console
+
+        docker = RegisterDocker(
+            run=Result(
+                returncode=1,
+                stderr="[Errno 13] Permission denied: 'docker'",
+            ),
+        )
+
+        with pytest.raises(SystemExit):
+            _exec_docker(["docker", "run", "-d", "img"], Console(), docker)
+
+        out = capsys.readouterr().out
+        assert "Failed to exec docker" in out
+        assert "Check `docker logs" not in out
+
+    def test_reports_nonzero_exit_when_stderr_empty(self, capsys):
+        from lablink_cli.commands.register import _exec_docker
+        from rich.console import Console
+
+        docker = RegisterDocker(run=Result(returncode=125))
+
+        with pytest.raises(SystemExit):
+            _exec_docker(["docker", "run", "-d", "img"], Console(), docker)
+
+        out = capsys.readouterr().out
+        assert "docker run exited 125" in out
+        assert "Check `docker logs" in out
 
 
 class TestForceFlag:
