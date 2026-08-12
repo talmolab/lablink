@@ -2,6 +2,15 @@
 requires = ["uv_build>=0.8.11,<0.12.0"]
 build-backend = "uv_build"
 
+[tool.uv.build-backend]
+# The terraform/ directory ships as package data, and a developer who has run
+# `tofu init` (or `terraform init`) in the source tree leaves a .terraform/
+# provider cache there — ~850 MB of platform-specific provider binaries. The
+# backend does not consult .gitignore, so without this the local wheel balloons
+# past PyPI's 100 MB per-file limit. CI builds from a clean checkout and never
+# hits it, which is exactly what makes it a trap.
+source-exclude = ["**/.terraform", "**/.terraform.lock.hcl"]
+
 [project]
 authors = [
   {name = "Elizabeth Berrigan", email = "eberrigan@salk.edu"},
@@ -27,7 +36,7 @@ description = "VM Allocator Service Package for Lablink"
 name = "lablink-allocator-service"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.1.2"
+version = "0.2.0"
 
 [project.optional-dependencies]
 config = []  # Config schema only (pure dataclasses, no heavy deps)

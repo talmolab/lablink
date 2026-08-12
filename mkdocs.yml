@@ -124,6 +124,7 @@ nav:
       - Changelog: changelog.md
       - Allocator Changelog: changelog-allocator.md
       - Client Changelog: changelog-client.md
+      - CLI Changelog: changelog-cli.md
       - Releases: https://github.com/talmolab/lablink/releases
   - Reference: reference/
 
