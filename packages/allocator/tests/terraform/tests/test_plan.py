@@ -61,7 +61,7 @@ def test_variables(plan):
     assert plan["variables"]["ssh_user"]["value"] == "ubuntu"
     assert (
         plan["variables"]["custom_startup_script_path"]["value"]
-        == "../../../tests/tofu/fixtures/custom-startup.sh"
+        == "../../../tests/terraform/fixtures/custom-startup.sh"
     )
     assert plan["variables"]["startup_max_attempts"]["value"] == 3
     assert plan["variables"]["startup_base_delay_seconds"]["value"] == 30

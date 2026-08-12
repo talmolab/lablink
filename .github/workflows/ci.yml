@@ -115,7 +115,7 @@ jobs:
 
       - name: Remove backend config for OpenTofu tests
         if: matrix.needs-tofu
-        working-directory: packages/allocator/src/lablink_allocator_service/tofu
+        working-directory: packages/allocator/src/lablink_allocator_service/terraform
         run: rm -f backend.tf
 
       - name: Run tests

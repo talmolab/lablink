@@ -309,7 +309,7 @@ jobs:
           (github.event_name == 'workflow_dispatch' && inputs.environment != 'prod')
         run: |
           echo "Running allocator pytest tests..."
-          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests --ignore=tests/tofu -v --tb=short'
+          docker run --rm ${{ steps.get_tag.outputs.image }} bash -c 'cd /app/lablink-allocator && source /app/.venv/bin/activate && pytest tests --ignore=tests/terraform -v --tb=short'
 
       - name: Verify allocator entry points are importable
         run: |
