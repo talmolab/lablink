@@ -1,7 +1,7 @@
-"""Tests for the SG audit module used pre-`terraform apply`.
+"""Tests for the SG audit module used pre-`tofu apply`.
 
 The audit consumes the structured JSON plan from
-``terraform show -json <planfile>``. Fixtures are parsed Python dicts
+``tofu show -json <planfile>``. Fixtures are parsed Python dicts
 that mirror that schema.
 """
 import pytest

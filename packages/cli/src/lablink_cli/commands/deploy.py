@@ -39,7 +39,7 @@ from lablink_cli.deployment_metrics import (
     phase_timer,
     write_metrics,
 )
-from lablink_cli.terraform_source import get_tofu_files
+from lablink_cli.tofu_source import get_tofu_files
 
 console = Console()
 
@@ -88,7 +88,7 @@ def _prepare_working_dir(
         shutil.copy2(user_data_src, deploy_dir / "user_data.sh")
 
     # Copy .terraform.lock.hcl if present (pins provider versions). The template
-    # ships no lock file today, and a Terraform-generated one must never be added:
+    # ships no lock file today, and a OpenTofu-generated one must never be added:
     # its entries are keyed registry.terraform.io/... while OpenTofu resolves
     # registry.opentofu.org/... and would reject the lock as unsatisfiable.
     lock_file = tf_source / ".terraform.lock.hcl"
@@ -424,14 +424,14 @@ def run_deploy(
     try:
         # OpenTofu init
         with phase_timer(
-            metrics, "allocator_terraform_init_duration_seconds", metrics_path
+            metrics, "allocator_tofu_init_duration_seconds", metrics_path
         ):
             _tofu_init(deploy_dir, cfg)
 
         # OpenTofu plan — pass deployment_name and environment
         console.print("[bold]Step 2/3:[/bold] OpenTofu plan")
         with phase_timer(
-            metrics, "allocator_terraform_plan_duration_seconds", metrics_path
+            metrics, "allocator_tofu_plan_duration_seconds", metrics_path
         ):
             _run_tofu(
                 [
@@ -464,7 +464,7 @@ def run_deploy(
         # OpenTofu apply
         console.print("[bold]Step 3/3:[/bold] OpenTofu apply")
         with phase_timer(
-            metrics, "allocator_terraform_apply_duration_seconds", metrics_path
+            metrics, "allocator_tofu_apply_duration_seconds", metrics_path
         ):
             _run_tofu(
                 ["apply", "-auto-approve", "tfplan"], cwd=deploy_dir
@@ -537,9 +537,9 @@ def run_deploy(
             sum(
                 v
                 for v in (
-                    metrics.allocator_terraform_init_duration_seconds,
-                    metrics.allocator_terraform_plan_duration_seconds,
-                    metrics.allocator_terraform_apply_duration_seconds,
+                    metrics.allocator_tofu_init_duration_seconds,
+                    metrics.allocator_tofu_plan_duration_seconds,
+                    metrics.allocator_tofu_apply_duration_seconds,
                     metrics.allocator_health_check_duration_seconds,
                 )
                 if v is not None

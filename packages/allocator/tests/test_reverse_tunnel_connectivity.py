@@ -26,7 +26,7 @@ def test_registry_resolves_the_strategy():
     from lablink_allocator_service.providers.registry import get_provider
 
     prov = get_provider(
-        "manual", region=None, terraform_dir=None, connectivity="reverse_tunnel"
+        "manual", region=None, tofu_dir=None, connectivity="reverse_tunnel"
     )
     assert prov.client_connectivity.name == "reverse_tunnel"
 

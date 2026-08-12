@@ -118,7 +118,7 @@ class TestDestroyVms:
 
     @patch("lablink_cli.api.time.sleep")
     @patch("lablink_cli.api.urlopen")
-    def test_terraform_failure_raises_allocator_error(
+    def test_tofu_failure_raises_allocator_error(
         self, mock_urlopen, mock_sleep
     ):
         mock_urlopen.side_effect = [
@@ -127,7 +127,7 @@ class TestDestroyVms:
                 {
                     "id": 9,
                     "status": "failed",
-                    "error": "Terraform failed: some real error",
+                    "error": "OpenTofu failed: some real error",
                 }
             ),
         ]

@@ -195,19 +195,19 @@ _FINISH_OPERATION_QUERY = """
 
 
 def test_finish_operation_succeeded(operations_db):
-    operations_db.finish_operation(4, status="succeeded", output="terraform output")
+    operations_db.finish_operation(4, status="succeeded", output="tofu output")
 
     args = operations_db.cursor.execute.call_args[0]
     assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
-    assert args[1] == ("succeeded", "terraform output", None, "succeeded", 4)
+    assert args[1] == ("succeeded", "tofu output", None, "succeeded", 4)
 
 
 def test_finish_operation_failed(operations_db):
-    operations_db.finish_operation(4, status="failed", error="terraform exploded")
+    operations_db.finish_operation(4, status="failed", error="tofu exploded")
 
     args = operations_db.cursor.execute.call_args[0]
     assert "".join(args[0].split()) == "".join(_FINISH_OPERATION_QUERY.split())
-    assert args[1] == ("failed", None, "terraform exploded", "failed", 4)
+    assert args[1] == ("failed", None, "tofu exploded", "failed", 4)
 
 
 def test_sweep_interrupted_operations_returns_count(operations_db):

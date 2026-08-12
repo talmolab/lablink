@@ -32,7 +32,7 @@ STATUS_STYLES = {
 # vendored SDK, not the release number. OpenTofu pinned aws-sdk-go-v2 v1.23.2
 # from 1.6.0 all the way through 1.9.x — older than the v1.24.0 the bug was
 # reported against, and well short of the v1.25.3 that carries the fix. 1.10.0
-# is the first release past it (v1.36.0). Do not "translate" Terraform's old
+# is the first release past it (v1.36.0). Do not "translate" OpenTofu's old
 # 1.9.0 floor across by number: OpenTofu 1.9 predates the fix.
 MIN_OPENTOFU_VERSION = (1, 10, 0)
 
@@ -100,7 +100,7 @@ def _check_opentofu() -> dict:
         )
         if proc.returncode == 0:
             info = json.loads(proc.stdout)
-            # OpenTofu keeps Terraform's key name here.
+            # OpenTofu keeps OpenTofu's key name here.
             version = info.get(
                 "terraform_version", "unknown"
             )

@@ -57,7 +57,7 @@ def get_provider(
     name: str | None,
     *,
     region: str,
-    terraform_dir: str,
+    tofu_dir: str,
     connectivity: str | None = None,
 ) -> ComputeProvider:
     name = name or DEFAULT_PROVIDER
@@ -77,7 +77,7 @@ def get_provider(
             )
         return cls(
             region=region,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
             client_connectivity=conn_cls(),
         )
-    return cls(region=region, terraform_dir=terraform_dir)
+    return cls(region=region, tofu_dir=tofu_dir)

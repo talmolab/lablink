@@ -32,10 +32,10 @@ def destroy_setup(app, monkeypatch, tmp_path):
     from lablink_allocator_service import main
     from lablink_allocator_service.providers.aws import AWSProvider
 
-    monkeypatch.setattr(main, "TERRAFORM_DIR", tmp_path)
+    monkeypatch.setattr(main, "TOFU_DIR", tmp_path)
     (tmp_path / "terraform.runtime.tfvars").write_text("# stub\n")
 
-    provider = AWSProvider(region="us-west-2", terraform_dir=str(tmp_path))
+    provider = AWSProvider(region="us-west-2", tofu_dir=str(tmp_path))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
 
     fake_db = MagicMock()
@@ -101,7 +101,7 @@ def test_admin_destroy_route_seals_before_destroy(
 
     def _run(cmd, **kwargs):
         # Record "destroy" once, on the first subprocess.run call
-        # (`terraform plan -destroy ...`) — the start of the destroy
+        # (`tofu plan -destroy ...`) — the start of the destroy
         # sequence — so call_order still reflects a single seal-then-destroy
         # ordering rather than one entry per plan/show call.
         if not call_order or call_order[-1] != "destroy":

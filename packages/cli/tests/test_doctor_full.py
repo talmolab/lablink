@@ -185,7 +185,7 @@ class TestRunDoctor:
         mock_s3,
         mock_ami,
     ):
-        mock_tf.return_value = {"check": "Terraform", "status": "pass", "detail": "ok"}
+        mock_tf.return_value = {"check": "OpenTofu", "status": "pass", "detail": "ok"}
         mock_cfg_exists.return_value = {
             "check": "Config", "status": "pass", "detail": "ok"
         }
@@ -217,7 +217,7 @@ class TestRunDoctor:
         mock_s3,
         mock_ami,
     ):
-        mock_tf.return_value = {"check": "Terraform", "status": "fail", "detail": ""}
+        mock_tf.return_value = {"check": "OpenTofu", "status": "fail", "detail": ""}
         mock_cfg_exists.return_value = {
             "check": "Config", "status": "pass", "detail": "",
         }

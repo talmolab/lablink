@@ -30,7 +30,7 @@ def run_scheduled_destroy(handles: list, metrics_db, provider) -> None:
 # This avoids pickling issues with the database connection
 def execute_scheduled_destruction_job(
     schedule_id: int,
-    terraform_dir: str,
+    tofu_dir: str,
 ):
     """
     Execute a scheduled destruction job.
@@ -46,7 +46,7 @@ def execute_scheduled_destruction_job(
 
     Args:
         schedule_id: ID of the scheduled destruction
-        terraform_dir: Path to Terraform directory
+        tofu_dir: Path to OpenTofu directory
     """
     from lablink_allocator_service.db.pool import make_pool
     from lablink_allocator_service.db.vms import VmDatabase
@@ -81,7 +81,7 @@ def execute_scheduled_destruction_job(
         provider = get_provider(
             cfg.provider,
             region=cfg.app.region,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
         logger.info(f"Executing scheduled destruction ID: {schedule_id}")
@@ -165,19 +165,19 @@ class ScheduledDestructionService:
         self,
         schedule_db: ScheduleDatabase,
         db_url: str,
-        terraform_dir: Optional[str] = None,
+        tofu_dir: Optional[str] = None,
     ):
         """Initialize the scheduler service.
 
         Args:
             schedule_db: ScheduleDatabase instance
             db_url: PostgreSQL connection URL for APScheduler job store
-            terraform_dir: Path to Terraform directory (optional, auto-detected if None)
+            tofu_dir: Path to OpenTofu directory (optional, auto-detected if None)
         """
         self.schedule_db: ScheduleDatabase = schedule_db
         self.db_url = db_url
 
-        self.terraform_dir = terraform_dir or os.path.join(
+        self.tofu_dir = tofu_dir or os.path.join(
             os.path.dirname(__file__), "terraform"
         )
 
@@ -298,7 +298,7 @@ class ScheduledDestructionService:
             trigger=trigger,
             args=[
                 schedule_id,
-                self.terraform_dir,
+                self.tofu_dir,
             ],
             id=job_id,
             name=f"Scheduled Destruction {schedule_id}",

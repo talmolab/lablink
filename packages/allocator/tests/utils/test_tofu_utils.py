@@ -3,7 +3,7 @@ import subprocess
 from unittest.mock import patch, mock_open
 import pytest
 
-from lablink_allocator_service.utils.terraform_utils import (
+from lablink_allocator_service.utils.tofu_utils import (
     get_ssh_private_key,
     get_instance_names,
     get_instance_ids,
@@ -19,7 +19,7 @@ def test_get_ssh_private_key_success(mock_run, mock_file, mock_chmod, tmp_path):
     mock_run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout="PRIVATE_KEY_CONTENT", stderr=""
     )
-    key_path = get_ssh_private_key("/fake/terraform/dir")
+    key_path = get_ssh_private_key("/fake/tofu/dir")
     assert key_path == "/tmp/lablink_key.pem"
     mock_file.assert_called_once_with("/tmp/lablink_key.pem", "w")
     mock_chmod.assert_called_once_with("/tmp/lablink_key.pem", 0o400)
@@ -32,9 +32,9 @@ def test_get_ssh_private_key_failure(mock_run):
         1, "tofu", stderr="error message"
     )
     with pytest.raises(
-        RuntimeError, match="Error running terraform output: error message"
+        RuntimeError, match="Error running tofu output: error message"
     ):
-        get_ssh_private_key("/fake/terraform/dir")
+        get_ssh_private_key("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -46,7 +46,7 @@ def test_get_instance_ids_success(mock_run):
         stdout=json.dumps(["i-12345", "i-67890"]),
         stderr="",
     )
-    ids = get_instance_ids("/fake/terraform/dir")
+    ids = get_instance_ids("/fake/tofu/dir")
     assert ids == ["i-12345", "i-67890"]
     mock_run.assert_called_once()
 
@@ -60,7 +60,7 @@ def test_get_instance_names_success(mock_run):
         stdout=json.dumps(["instance-1", "instance-2"]),
         stderr="",
     )
-    names = get_instance_names("/fake/terraform/dir")
+    names = get_instance_names("/fake/tofu/dir")
     assert names == ["instance-1", "instance-2"]
     mock_run.assert_called_once()
 
@@ -69,16 +69,16 @@ def test_get_instance_names_success(mock_run):
 def test_get_instance_ids_failure(mock_run):
     """Test handling failure when getting instance IDs."""
     mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
-    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
-        get_instance_ids("/fake/terraform/dir")
+    with pytest.raises(RuntimeError, match="Error running tofu output: error"):
+        get_instance_ids("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
 def test_get_instance_names_failure(mock_run):
     """Test handling failure when getting instance names."""
     mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
-    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
-        get_instance_names("/fake/terraform/dir")
+    with pytest.raises(RuntimeError, match="Error running tofu output: error"):
+        get_instance_names("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -88,7 +88,7 @@ def test_get_instance_ids_invalid_json(mock_run):
         args=[], returncode=0, stdout="not-json", stderr=""
     )
     with pytest.raises(RuntimeError, match="Error decoding JSON output"):
-        get_instance_ids("/fake/terraform/dir")
+        get_instance_ids("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -98,7 +98,7 @@ def test_get_instance_names_invalid_json(mock_run):
         args=[], returncode=0, stdout="not-json", stderr=""
     )
     with pytest.raises(RuntimeError, match="Error decoding JSON output"):
-        get_instance_names("/fake/terraform/dir")
+        get_instance_names("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -110,7 +110,7 @@ def test_get_instance_ids_not_a_list(mock_run):
     with pytest.raises(
         ValueError, match="Expected output to be a list of instance IDs"
     ):
-        get_instance_ids("/fake/terraform/dir")
+        get_instance_ids("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -125,7 +125,7 @@ def test_get_instance_names_not_a_list(mock_run):
     with pytest.raises(
         ValueError, match="Expected output to be a list of instance names"
     ):
-        get_instance_names("/fake/terraform/dir")
+        get_instance_names("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -140,15 +140,15 @@ def test_get_instance_timings_not_a_dict(mock_run):
     with pytest.raises(
         ValueError, match="Expected output to be a dictionary of launch times"
     ):
-        get_instance_timings("/fake/terraform/dir")
+        get_instance_timings("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
 def test_get_instance_timings_failure(mock_run):
     """Test handling failure when getting instance timings."""
     mock_run.side_effect = subprocess.CalledProcessError(1, "cmd", stderr="error")
-    with pytest.raises(RuntimeError, match="Error running terraform output: error"):
-        get_instance_timings("/fake/terraform/dir")
+    with pytest.raises(RuntimeError, match="Error running tofu output: error"):
+        get_instance_timings("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -158,7 +158,7 @@ def test_get_instance_timings_invalid_json(mock_run):
         args=[], returncode=0, stdout="not-json", stderr=""
     )
     with pytest.raises(RuntimeError, match="Error decoding JSON output"):
-        get_instance_timings("/fake/terraform/dir")
+        get_instance_timings("/fake/tofu/dir")
 
 
 @patch("subprocess.run")
@@ -170,6 +170,6 @@ def test_get_instance_timings_success(mock_run):
         stdout=json.dumps({"instance-1": "time-1", "instance-2": "time-2"}),
         stderr="",
     )
-    timings = get_instance_timings("/fake/terraform/dir")
+    timings = get_instance_timings("/fake/tofu/dir")
     assert timings == {"instance-1": "time-1", "instance-2": "time-2"}
     mock_run.assert_called_once()

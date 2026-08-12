@@ -173,7 +173,7 @@ jobs:
         run: |
           echo "Running test suite..."
           uv run pytest tests \
-            --ignore=tests/terraform \
+            --ignore=tests/tofu \
             --cov=src/${{ matrix.module }} \
             --cov-report=term-missing \
             --cov-fail-under=0

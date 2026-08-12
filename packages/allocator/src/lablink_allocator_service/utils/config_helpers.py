@@ -14,7 +14,7 @@ def get_allocator_url(cfg: DictConfig, allocator_ip: str) -> Tuple[str, str]:
     Build the allocator URL based on configuration.
 
     Priority order:
-    1. ALLOCATOR_FQDN environment variable (set by Terraform)
+    1. ALLOCATOR_FQDN environment variable (set by OpenTofu)
     2. DNS configuration from config
     3. IP address fallback
 
@@ -35,7 +35,7 @@ def get_allocator_url(cfg: DictConfig, allocator_ip: str) -> Tuple[str, str]:
         DNS disabled + No SSL:
             ("http://52.40.142.146", "http")
     """
-    # Priority 1: Check for ALLOCATOR_FQDN environment variable (set by Terraform)
+    # Priority 1: Check for ALLOCATOR_FQDN environment variable (set by OpenTofu)
     allocator_fqdn = os.getenv("ALLOCATOR_FQDN")
     if allocator_fqdn:
         # FQDN already includes protocol

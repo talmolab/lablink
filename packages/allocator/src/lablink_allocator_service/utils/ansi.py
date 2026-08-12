@@ -1,13 +1,13 @@
-"""ANSI escape-sequence stripping for terraform output and client VM logs.
+"""ANSI escape-sequence stripping for tofu output and client VM logs.
 
 Lives here rather than in main.py because three call sites across two
-blueprints need it (provisioning: terraform stdout/stderr; vm_telemetry:
+blueprints need it (provisioning: tofu stdout/stderr; vm_telemetry:
 client log ingestion) and it holds no state.
 """
 
 import re
 
-# CSI sequences plus the two-character escapes terraform emits for color.
+# CSI sequences plus the two-character escapes tofu emits for color.
 ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 

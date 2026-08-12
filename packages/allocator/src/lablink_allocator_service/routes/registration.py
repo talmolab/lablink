@@ -70,7 +70,7 @@ def register_client():
     prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
         main.cfg.get("provider", None),
         region=main.cfg.app.region,
-        terraform_dir=str(main.TERRAFORM_DIR),
+        tofu_dir=str(main.TOFU_DIR),
         connectivity=main.cfg.manual.connectivity,
     )
 
@@ -227,7 +227,7 @@ def register_client():
     }
 
     # cfg.machine settings the AWS path delivers as `docker run -e` flags
-    # in terraform/user_data.sh. The register response is the manual/BYO
+    # in tofu/user_data.sh. The register response is the manual/BYO
     # path's only equivalent channel, so ship them here and let the CLI
     # write them into the client's env file under the same names
     # client/start.sh already reads (lablink#405). `repository` is
@@ -320,7 +320,7 @@ def unregister_client(client_id):
     prov = current_app.config.get("LABLINK_PROVIDER") or get_provider(
         main.cfg.get("provider", None),
         region=main.cfg.app.region,
-        terraform_dir=str(main.TERRAFORM_DIR),
+        tofu_dir=str(main.TOFU_DIR),
         connectivity=main.cfg.manual.connectivity,
     )
     cleanup = getattr(prov.client_connectivity, "cleanup_client_identity", None)

@@ -1383,7 +1383,7 @@ class TestDockerRunMountsStartupScript:
 
         # The mount target inside the container MUST be the same path
         # start.sh:64 reads from — AWS already mounts /docker_scripts/
-        # via Terraform/user_data; the BYO path mirrors it so start.sh
+        # via OpenTofu/user_data; the BYO path mirrors it so start.sh
         # has a single, provider-independent contract.
         mount_args = [
             cmd[i + 1] for i, v in enumerate(cmd)

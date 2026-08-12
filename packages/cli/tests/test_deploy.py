@@ -1,4 +1,4 @@
-"""Tests for lablink_cli.commands.deploy Terraform orchestration."""
+"""Tests for lablink_cli.commands.deploy OpenTofu orchestration."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ class TestPrepareWorkingDir:
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
 
-        # Simulate cached terraform files
+        # Simulate cached tofu files
         tf_cache = tmp_path / "tf_cache"
         tf_cache.mkdir()
         (tf_cache / "main.tf").write_text('variable "region" {}')
@@ -99,7 +99,7 @@ class TestPrepareWorkingDir:
 # ------------------------------------------------------------------
 # _run_tofu
 # ------------------------------------------------------------------
-class TestRunTerraform:
+class TestRunTofu:
     @patch("subprocess.Popen")
     def test_success(self, mock_popen, tmp_path):
         proc = MagicMock()
@@ -302,7 +302,7 @@ class TestDestroyClientVms:
 # ------------------------------------------------------------------
 # _tofu_destroy
 # ------------------------------------------------------------------
-class TestTerraformDestroy:
+class TestTofuDestroy:
     @patch("lablink_cli.commands.deploy.shutil.rmtree")
     @patch("lablink_cli.commands.deploy._run_tofu")
     @patch("lablink_cli.commands.deploy._tofu_init")
@@ -519,9 +519,9 @@ class TestRunDeployMetrics:
         assert data["template_version"] is not None
         assert data["allocator_deploy_start_time"] is not None
         assert data["allocator_deploy_end_time"] is not None
-        assert data["allocator_terraform_init_duration_seconds"] is not None
-        assert data["allocator_terraform_plan_duration_seconds"] is not None
-        assert data["allocator_terraform_apply_duration_seconds"] is not None
+        assert data["allocator_tofu_init_duration_seconds"] is not None
+        assert data["allocator_tofu_plan_duration_seconds"] is not None
+        assert data["allocator_tofu_apply_duration_seconds"] is not None
         assert data["allocator_health_check_duration_seconds"] is not None
         assert data["allocator_total_deployment_duration_seconds"] is not None
         assert data["error"] is None
@@ -543,7 +543,7 @@ class TestRunDeployMetrics:
 
         def fail_on_apply(args, cwd=None, check=True):
             if args and args[0] == "apply":
-                raise RuntimeError("terraform apply blew up")
+                raise RuntimeError("tofu apply blew up")
             return 0
 
         with ExitStack() as stack:
@@ -555,7 +555,7 @@ class TestRunDeployMetrics:
                     side_effect=fail_on_apply,
                 )
             )
-            with pytest.raises(RuntimeError, match="terraform apply blew up"):
+            with pytest.raises(RuntimeError, match="tofu apply blew up"):
                 run_deploy(mock_cfg)
 
         cache_files = list(cache_dir.glob("*.json"))
@@ -563,16 +563,16 @@ class TestRunDeployMetrics:
 
         data = json.loads(cache_files[0].read_text())
         assert data["status"] == "failed"
-        assert "terraform apply blew up" in data["error"]
+        assert "tofu apply blew up" in data["error"]
         assert (
-            data["allocator_terraform_init_duration_seconds"] is not None
+            data["allocator_tofu_init_duration_seconds"] is not None
         ), "init succeeded — its duration should be persisted"
         assert (
-            data["allocator_terraform_plan_duration_seconds"] is not None
+            data["allocator_tofu_plan_duration_seconds"] is not None
         ), "plan succeeded — its duration should be persisted"
         # apply ran but raised — phase_timer's try/finally should still record duration
         assert (
-            data["allocator_terraform_apply_duration_seconds"] is not None
+            data["allocator_tofu_apply_duration_seconds"] is not None
         ), "apply duration should be recorded even on failure"
         assert (
             data["allocator_health_check_duration_seconds"] is None
@@ -611,7 +611,7 @@ def _patch_destroy_deps(deploy_dir, stack):
         "destroy_client_vms": stack.enter_context(
             patch("lablink_cli.commands.deploy._destroy_client_vms")
         ),
-        "terraform_destroy": stack.enter_context(
+        "tofu_destroy": stack.enter_context(
             patch("lablink_cli.commands.deploy._tofu_destroy")
         ),
     }
@@ -706,7 +706,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()
 
     def test_destroy_proceeds_when_export_raises_systemexit(
         self, mock_cfg, tmp_path
@@ -736,7 +736,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()
 
     def test_no_export_prompt_when_user_cancels_destroy(
         self, mock_cfg, tmp_path
@@ -767,7 +767,7 @@ class TestRunDestroyExportPrompt:
 # ------------------------------------------------------------------
 class TestRunDeployYesFlag:
     def test_yes_skips_apply_confirm(self, mock_cfg, tmp_path, monkeypatch):
-        """yes=True → no input() for apply-confirm; terraform apply still runs."""
+        """yes=True → no input() for apply-confirm; tofu apply still runs."""
         cache_dir = tmp_path / "cache"
         monkeypatch.setattr(
             deployment_metrics, "DEPLOYMENTS_DIR", cache_dir
@@ -804,7 +804,7 @@ class TestRunDeployYesFlag:
             if c.args and c.args[0] == ["apply", "-auto-approve", "tfplan"]
         ]
         assert len(apply_calls) == 1, (
-            f"expected one `terraform apply` call, got {mock_tf.call_args_list}"
+            f"expected one `tofu apply` call, got {mock_tf.call_args_list}"
         )
 
 
@@ -833,4 +833,4 @@ class TestRunDestroyYesFlag:
             run_destroy(mock_cfg, yes=True)
 
             mock_export.assert_called_once()
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()

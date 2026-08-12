@@ -262,7 +262,7 @@ class TestRunStatusAwsCredentialsFailure:
         assert "aws configure" in out
         # The two lies from the bug report must be gone.
         assert "No client VMs found" not in out
-        assert "No Terraform state found" not in out
+        assert "No OpenTofu state found" not in out
         # And we must not waste a doomed EC2 round-trip.
         mock_vms.assert_not_called()
 

@@ -83,7 +83,7 @@ class TestGetAllocatorUrl:
         assert result == ""
 
     def test_manual_provider_uses_localhost(self, mock_cfg):
-        """Manual provider short-circuits: no Terraform state, no DNS."""
+        """Manual provider short-circuits: no OpenTofu state, no DNS."""
         mock_cfg.provider = "manual"
 
         with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:

@@ -285,7 +285,7 @@ class TestBuildHealthUrl:
 # ------------------------------------------------------------------
 # _render_tofu_state
 # ------------------------------------------------------------------
-class TestRenderTerraformState:
+class TestRenderTofuState:
     @patch("lablink_cli.commands.status.get_tofu_outputs")
     def test_returns_outputs(self, mock_outputs, tmp_path):
         mock_outputs.return_value = {

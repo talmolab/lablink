@@ -198,7 +198,7 @@ class OperationsDatabase:
         """Mark any queued/running operation as interrupted.
 
         Called once at allocator startup: a row still queued/running means
-        the allocator process died mid-job last time, so the Terraform
+        the allocator process died mid-job last time, so the OpenTofu
         subprocess died with it. Returns the number of rows affected.
         """
         query = """

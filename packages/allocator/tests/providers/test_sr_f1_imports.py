@@ -7,11 +7,11 @@ PR B shipped a scoped version (protocol.py + registry.py only) and explicitly
 deferred full enforcement to "the provisioning-rewire PR" (PR D5).
 
 After D5, the only files in lablink_allocator_service/ that may import
-boto3 / botocore / aws_utils / terraform_utils are the AWS adapter layer:
+boto3 / botocore / aws_utils / tofu_utils are the AWS adapter layer:
     - providers/aws.py (the AWS provider itself)
     - providers/connectivity/allocator_proxied.py (AWS-specific connectivity)
     - utils/aws_utils.py (the AWS adapter — boto3 wrapper)
-    - utils/terraform_utils.py (the terraform adapter)
+    - utils/tofu_utils.py (the tofu adapter)
 
 Any other file importing those modules is an SR-F1 violation and means the
 AWS surface has leaked back into the core. The fix is to push the call
@@ -24,7 +24,7 @@ import pathlib
 import lablink_allocator_service as pkg
 
 _PKG_ROOT = pathlib.Path(pkg.__file__).parent
-_FORBIDDEN = ("boto3", "botocore", "aws_utils", "terraform_utils")
+_FORBIDDEN = ("boto3", "botocore", "aws_utils", "tofu_utils")
 
 # Files permitted to import AWS modules. Every entry is a debt — prefer
 # pushing AWS calls behind the provider seam over adding to this list.
@@ -32,7 +32,7 @@ _ALLOWED_PATHS = frozenset({
     "providers/aws.py",
     "providers/connectivity/allocator_proxied.py",
     "utils/aws_utils.py",
-    "utils/terraform_utils.py",
+    "utils/tofu_utils.py",
 })
 
 
@@ -62,7 +62,7 @@ def _is_aws_import(name: str) -> bool:
 
 def test_no_aws_imports_in_core():
     """Every .py under lablink_allocator_service/ outside the AWS adapter
-    layer must NOT directly import boto3 / botocore / aws_utils / terraform_utils.
+    layer must NOT directly import boto3 / botocore / aws_utils / tofu_utils.
     """
     leaks: list[tuple[str, list[str]]] = []
     for pyfile in _PKG_ROOT.rglob("*.py"):

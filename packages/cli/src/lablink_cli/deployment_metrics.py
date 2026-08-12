@@ -38,9 +38,9 @@ class DeploymentMetrics:
     ssl_enabled: Optional[bool] = None
     allocator_deploy_start_time: Optional[str] = None
     allocator_deploy_end_time: Optional[str] = None
-    allocator_terraform_init_duration_seconds: Optional[float] = None
-    allocator_terraform_plan_duration_seconds: Optional[float] = None
-    allocator_terraform_apply_duration_seconds: Optional[float] = None
+    allocator_tofu_init_duration_seconds: Optional[float] = None
+    allocator_tofu_plan_duration_seconds: Optional[float] = None
+    allocator_tofu_apply_duration_seconds: Optional[float] = None
     # The manual provider's equivalent of the three OpenTofu phases above:
     # one `docker compose up -d`, image pull included. Kept as its own field
     # rather than reusing the apply timing, which would make a compose deploy

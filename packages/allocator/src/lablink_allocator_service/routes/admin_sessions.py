@@ -63,7 +63,7 @@ def admin_connect_vm(hostname):
         provider = current_app.config.get("LABLINK_PROVIDER") or get_provider(
             main.cfg.provider,
             region=main.cfg.app.region,
-            terraform_dir=str(main.TERRAFORM_DIR),
+            tofu_dir=str(main.TOFU_DIR),
             connectivity=main.cfg.manual.connectivity,
         )
         try:

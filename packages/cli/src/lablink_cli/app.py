@@ -719,12 +719,12 @@ def show_config(
 
 
 def _clear_template_cache(console) -> None:
-    """Clear the Terraform template cache at ``terraform_source.CACHE_DIR``."""
+    """Clear the OpenTofu template cache at ``tofu_source.CACHE_DIR``."""
     import shutil
 
-    from lablink_cli import terraform_source
+    from lablink_cli import tofu_source
 
-    cache_dir = terraform_source.CACHE_DIR
+    cache_dir = tofu_source.CACHE_DIR
 
     if not cache_dir.exists():
         console.print("[dim]No cache to clear.[/dim]")
@@ -803,7 +803,7 @@ def cache_clear(
     all_caches: bool = typer.Option(
         False,
         "--all",
-        help=("Clear all LabLink caches (Terraform templates AND deployment metrics)."),
+        help=("Clear all LabLink caches (OpenTofu templates AND deployment metrics)."),
     ),
     stale: bool = typer.Option(
         False,

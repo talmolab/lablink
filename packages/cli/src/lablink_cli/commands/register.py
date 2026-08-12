@@ -579,7 +579,7 @@ def _build_docker_run(
             # unsuffixed name, which is exactly what we want.
             "-v", f"{TAILSCALE_STATE_VOLUME}:/var/lib/tailscale",
         ]
-    # Mount path mirrors the AWS terraform/user_data mount so the client
+    # Mount path mirrors the AWS tofu/user_data mount so the client
     # start.sh finds the script at /docker_scripts/custom-startup.sh
     # regardless of provider. Skipped when the allocator returned no
     # script — docker would refuse the run otherwise (bind src must

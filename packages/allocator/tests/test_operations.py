@@ -69,7 +69,7 @@ def test_submit_runs_fn_on_background_thread_and_marks_succeeded(
     worker, mock_database
 ):
     mock_database.create_operation.return_value = 1
-    fn = MagicMock(return_value="terraform output")
+    fn = MagicMock(return_value="tofu output")
 
     worker.submit(op_type="destroy", fn=fn, params=None, created_by="admin")
 
@@ -77,19 +77,19 @@ def test_submit_runs_fn_on_background_thread_and_marks_succeeded(
     mock_database.start_operation.assert_called_once_with(1)
     fn.assert_called_once()
     mock_database.finish_operation.assert_called_once_with(
-        1, status="succeeded", output="terraform output"
+        1, status="succeeded", output="tofu output"
     )
 
 
 def test_submit_marks_failed_when_fn_raises(worker, mock_database):
     mock_database.create_operation.return_value = 2
-    fn = MagicMock(side_effect=RuntimeError("terraform exploded"))
+    fn = MagicMock(side_effect=RuntimeError("tofu exploded"))
 
     worker.submit(op_type="apply", fn=fn, params=None, created_by="admin")
 
     assert _wait_until(lambda: mock_database.finish_operation.called)
     mock_database.finish_operation.assert_called_once_with(
-        2, status="failed", error="terraform exploded"
+        2, status="failed", error="tofu exploded"
     )
 
 
@@ -149,9 +149,9 @@ def test_progress_callback_write_failure_does_not_abort_operation(
     worker, mock_database
 ):
     """A transient DB error (e.g. pool exhaustion) while recording progress
-    must not propagate into fn — that would kill a live terraform
+    must not propagate into fn — that would kill a live tofu
     apply/destroy subprocess (see _run_streamed's except BaseException:
-    proc.kill()) over a failure that has nothing to do with terraform
+    proc.kill()) over a failure that has nothing to do with tofu
     itself. The callback should swallow it and let fn keep running."""
     mock_database.create_operation.return_value = 6
     mock_database.update_operation_progress.side_effect = RuntimeError(

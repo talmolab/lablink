@@ -1,6 +1,6 @@
 """Host provisioning and destruction, plus operation-job status reads.
 
-``/api/launch`` and ``/destroy`` do not run terraform inline — they submit a
+``/api/launch`` and ``/destroy`` do not run tofu inline — they submit a
 job to ``OperationsWorker`` and return 202 (or a redirect), and the admin
 dashboard polls ``/api/operations`` for progress. Both are capability-gated
 on the provider (``can_provision_hosts`` / ``can_destroy_hosts``) rather than
@@ -194,7 +194,7 @@ def destroy():
         except Exception as e:
             logger.warning("Could not bulk-seal session metrics: %s", e)
 
-        # destroy_hosts ignores the handles arg (terraform destroy operates
+        # destroy_hosts ignores the handles arg (tofu destroy operates
         # on the whole workspace); skip the list_hosts() call.
         try:
             result = provider.destroy_hosts(

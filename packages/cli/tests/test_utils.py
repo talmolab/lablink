@@ -1,4 +1,4 @@
-"""Tests for lablink_cli.commands.utils EC2 and terraform helpers."""
+"""Tests for lablink_cli.commands.utils EC2 and tofu helpers."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from lablink_cli.commands.utils import (
 )
 
 
-class TestSummarizeTerraform:
+class TestSummarizeTofu:
     def test_matches_apply_summary(self):
         output = "Apply complete! Resources: 3 added, 0 changed, 0 destroyed."
         assert summarize_tofu(output) == (
@@ -42,7 +42,7 @@ class TestSummarizeTerraform:
         assert summarize_tofu(output) == "Resources: 7 destroyed"
 
     def test_returns_none_when_no_summary(self):
-        assert summarize_tofu("terraform init\nno summary here") is None
+        assert summarize_tofu("tofu init\nno summary here") is None
 
 
 def _client_error(code: str) -> ClientError:
@@ -462,7 +462,7 @@ class TestVmHelpers:
 # ------------------------------------------------------------------
 # get_tofu_outputs
 # ------------------------------------------------------------------
-class TestGetTerraformOutputs:
+class TestGetTofuOutputs:
     def test_valid_output(self, tmp_path):
         tf_output = json.dumps({
             "ec2_public_ip": {"value": "10.0.0.1"},

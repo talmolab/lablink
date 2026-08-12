@@ -100,8 +100,8 @@ app.register_blueprint(registration_bp)
 app.register_blueprint(schedules_bp)
 app.register_blueprint(vm_telemetry_bp)
 
-# Define the terraform directory relative to this file (now inside the package)
-TERRAFORM_DIR = (Path(__file__).parent / "terraform").resolve()
+# Define the tofu directory relative to this file (now inside the package)
+TOFU_DIR = (Path(__file__).parent / "terraform").resolve()
 
 # Load the configuration
 cfg = get_config()
@@ -111,7 +111,7 @@ cfg = get_config()
 app.config["LABLINK_PROVIDER"] = get_provider(
     cfg.provider,
     region=cfg.app.region,
-    terraform_dir=str(TERRAFORM_DIR),
+    tofu_dir=str(TOFU_DIR),
     connectivity=cfg.manual.connectivity,
 )
 
@@ -150,7 +150,7 @@ def verify_secrets_resolved() -> None:
             "password is a literal published in the deployment template.\n"
             "Deploying via GitHub Actions substitutes them from the "
             "ADMIN_PASSWORD/DB_PASSWORD repository secrets; a local "
-            "`terraform apply` does not — set real values in config.yaml first."
+            "`tofu apply` does not — set real values in config.yaml first."
         )
 
 
@@ -162,7 +162,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "prod").strip().lower().replace(" ", "-")
 cloud_init_output_log_group = os.getenv("CLOUD_INIT_LOG_GROUP")
 
 # Deployment register-token (machine registration): one per allocator process,
-# re-injected via terraform on launch.
+# re-injected via tofu on launch.
 REGISTER_TOKEN = secrets.token_urlsafe(32)
 
 # Deployment agent-control token: allocator→client-agent (:7070) control
@@ -244,7 +244,7 @@ logger = logging.getLogger(__name__)
 # For deployments where the allocator can't provision hosts (BYO / manual
 # provider), surface the register-token in the container logs so
 # `lablink deploy` (compose mode) can extract it. AWS deployments get the
-# token via the Terraform output file instead.
+# token via the OpenTofu output file instead.
 #
 # Gate is the capability flag `can_provision_hosts`, not the provider
 # *type* — keeps Spec §7 clean (no provider-type equality branches in core).
@@ -288,7 +288,7 @@ def main():
         reboot_service = AutoRebootService(
             database=database,
             region=cfg.app.region,
-            terraform_dir=str(TERRAFORM_DIR),
+            tofu_dir=str(TOFU_DIR),
             provider=app.config.get("LABLINK_PROVIDER"),
         )
         reboot_service.start()
@@ -314,27 +314,27 @@ def main():
         operations_worker.start()
         logger.info("Operations worker started successfully")
 
-        # Terraform initialization — gated on the provider's capability flag
+        # OpenTofu initialization — gated on the provider's capability flag
         # (mirrors the policy at module top: branch on capability, not type).
-        # Manual/BYO providers don't provision hosts, so `terraform init` is
+        # Manual/BYO providers don't provision hosts, so `tofu init` is
         # irrelevant and the binary may not even be present in the image.
         provider = app.config["LABLINK_PROVIDER"]
         if not provider.can_provision_hosts:
             logger.info(
-                "Skipping terraform init: provider %s does not provision hosts.",
+                "Skipping tofu init: provider %s does not provision hosts.",
                 getattr(provider, "name", type(provider).__name__),
             )
-        elif not (TERRAFORM_DIR / "terraform.runtime.tfvars").exists():
-            logger.info("Initializing Terraform...")
+        elif not (TOFU_DIR / "terraform.runtime.tfvars").exists():
+            logger.info("Initializing OpenTofu...")
             if ENVIRONMENT not in ["prod", "test", "ci-test"]:
-                (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
+                (TOFU_DIR / "backend.tf").unlink(missing_ok=True)
                 subprocess.run(
                     ["tofu", "init"],
-                    cwd=TERRAFORM_DIR,
+                    cwd=TOFU_DIR,
                     check=True,
                 )
             else:
-                # Use bucket_name from config for client VM terraform state
+                # Use bucket_name from config for client VM tofu state
                 default_bucket = "tf-state-lablink-allocator-bucket"
                 bucket_name = (
                     cfg.bucket_name if hasattr(cfg, "bucket_name") else default_bucket
@@ -347,7 +347,7 @@ def main():
                 )
                 state_key = f"{deployment_name}/{ENVIRONMENT}/client/terraform.tfstate"
                 logger.info(
-                    f"Initializing Terraform with S3 backend: {bucket_name} "
+                    f"Initializing OpenTofu with S3 backend: {bucket_name} "
                     f"(key: {state_key})"
                 )
                 subprocess.run(
@@ -359,7 +359,7 @@ def main():
                         f"-backend-config=bucket={bucket_name}",
                         f"-backend-config=region={cfg.app.region}",
                     ],
-                    cwd=TERRAFORM_DIR,
+                    cwd=TOFU_DIR,
                     check=True,
                 )
 

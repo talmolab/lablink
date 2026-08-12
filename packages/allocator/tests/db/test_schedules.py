@@ -238,7 +238,7 @@ def test_update_scheduled_destruction_status_failed(schedule_db_instance):
     """Test updating status to failed with error message."""
     schedule_id = 2
     status = "failed"
-    execution_result = "Terraform destroy failed: timeout"
+    execution_result = "OpenTofu destroy failed: timeout"
 
     schedule_db_instance.update_scheduled_destruction_status(
         schedule_id=schedule_id,

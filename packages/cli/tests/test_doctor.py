@@ -26,7 +26,7 @@ class TestCheckOpenTofu:
     @patch("subprocess.run")
     @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_looks_for_tofu_not_terraform(self, mock_which, mock_run):
-        """The binary is `tofu`; a stray terraform on PATH must not satisfy it."""
+        """The binary is `tofu`; a stray tofu on PATH must not satisfy it."""
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout=json.dumps({"terraform_version": "1.12.5"}),
@@ -66,7 +66,7 @@ class TestCheckOpenTofu:
     @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_opentofu_1_9_is_rejected(self, _mock_which, mock_run):
         """OpenTofu 1.9 vendors aws-sdk-go-v2 v1.23.2 — pre-fix, despite the
-        version number matching the old Terraform floor."""
+        version number matching the old OpenTofu floor."""
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout=json.dumps({"terraform_version": "1.9.1"}),

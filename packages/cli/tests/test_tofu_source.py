@@ -1,4 +1,4 @@
-"""Tests for lablink_cli template constants and terraform_source."""
+"""Tests for lablink_cli template constants and tofu_source."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from urllib.error import URLError
 import pytest
 
 from lablink_cli import TEMPLATE_REPO, TEMPLATE_VERSION, TEMPLATE_SHA256
-from lablink_cli.terraform_source import (
+from lablink_cli.tofu_source import (
     get_tofu_files,
     _download_tarball,
     _extract_tofu_files,
@@ -53,7 +53,7 @@ def _make_test_tarball(tmp_path: Path) -> bytes:
 
 
 class TestDownloadTarball:
-    @patch("lablink_cli.terraform_source.urlopen")
+    @patch("lablink_cli.tofu_source.urlopen")
     def test_downloads_from_correct_url(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = b"fake tarball"
@@ -68,7 +68,7 @@ class TestDownloadTarball:
         assert "v0.1.0" in url
         assert result == b"fake tarball"
 
-    @patch("lablink_cli.terraform_source.urlopen")
+    @patch("lablink_cli.tofu_source.urlopen")
     def test_retries_on_failure(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = b"data"
@@ -83,14 +83,14 @@ class TestDownloadTarball:
         assert result == b"data"
         assert mock_urlopen.call_count == 3
 
-    @patch("lablink_cli.terraform_source.urlopen")
+    @patch("lablink_cli.tofu_source.urlopen")
     def test_raises_after_all_retries_exhausted(self, mock_urlopen):
         mock_urlopen.side_effect = URLError("network error")
         with pytest.raises(SystemExit):
             _download_tarball("v0.1.0", retries=3)
 
 
-class TestExtractTerraformFiles:
+class TestExtractTofuFiles:
     def test_extracts_expected_files(self, tmp_path):
         tarball_data = _make_test_tarball(tmp_path)
         dest = tmp_path / "extracted"
@@ -141,14 +141,14 @@ class TestExtractTerraformFiles:
         assert (dest / "main.tf").exists()
 
 
-class TestGetTerraformFiles:
-    @patch("lablink_cli.terraform_source._download_tarball")
-    @patch("lablink_cli.terraform_source._verify_checksum")
+class TestGetTofuFiles:
+    @patch("lablink_cli.tofu_source._download_tarball")
+    @patch("lablink_cli.tofu_source._verify_checksum")
     def test_cache_miss_downloads(self, mock_verify, mock_download, tmp_path):
         mock_download.return_value = _make_test_tarball(tmp_path)
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR",
+            "lablink_cli.tofu_source.CACHE_DIR",
             tmp_path / "cache",
         ):
             result = get_tofu_files("v0.1.0")
@@ -156,14 +156,14 @@ class TestGetTerraformFiles:
         mock_download.assert_called_once_with("v0.1.0", retries=3)
         assert (result / "main.tf").exists()
 
-    @patch("lablink_cli.terraform_source._download_tarball")
+    @patch("lablink_cli.tofu_source._download_tarball")
     def test_cache_hit_skips_download(self, mock_download, tmp_path):
         cache_dir = tmp_path / "cache" / "v0.1.0"
         cache_dir.mkdir(parents=True)
         (cache_dir / "main.tf").write_text("# cached")
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR",
+            "lablink_cli.tofu_source.CACHE_DIR",
             tmp_path / "cache",
         ):
             result = get_tofu_files("v0.1.0")
@@ -171,7 +171,7 @@ class TestGetTerraformFiles:
         mock_download.assert_not_called()
         assert result == cache_dir
 
-    @patch("lablink_cli.terraform_source._download_tarball")
+    @patch("lablink_cli.tofu_source._download_tarball")
     def test_bundle_path_extracts_local_tarball(self, mock_download, tmp_path):
         """--terraform-bundle should extract from local file, no download."""
         tarball_data = _make_test_tarball(tmp_path)
@@ -179,7 +179,7 @@ class TestGetTerraformFiles:
         bundle_file.write_bytes(tarball_data)
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR",
+            "lablink_cli.tofu_source.CACHE_DIR",
             tmp_path / "cache",
         ):
             result = get_tofu_files(
@@ -193,7 +193,7 @@ class TestGetTerraformFiles:
         assert (result / "alb.tf").exists()
         assert (result / "user_data.sh").exists()
 
-    @patch("lablink_cli.terraform_source._download_tarball")
+    @patch("lablink_cli.tofu_source._download_tarball")
     def test_bundle_path_ignores_cache(self, mock_download, tmp_path):
         """Bundle should work even when cache already exists."""
         # Pre-populate cache with different content
@@ -206,7 +206,7 @@ class TestGetTerraformFiles:
         bundle_file.write_bytes(tarball_data)
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR",
+            "lablink_cli.tofu_source.CACHE_DIR",
             tmp_path / "cache",
         ):
             # Cache hit returns existing cache, bundle is not used
@@ -227,9 +227,9 @@ class TestIntegrationDownload:
 
     def test_download_and_cache(self, tmp_path):
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR",
+            "lablink_cli.tofu_source.CACHE_DIR",
             tmp_path / "cache",
-        ), patch("lablink_cli.terraform_source._verify_checksum"):
+        ), patch("lablink_cli.tofu_source._verify_checksum"):
             result = get_tofu_files(TEMPLATE_VERSION)
 
             # Expected files exist

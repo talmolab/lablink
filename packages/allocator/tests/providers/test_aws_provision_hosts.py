@@ -1,5 +1,5 @@
 """AWSProvider.provision_hosts after wiring: should drive the same
-boto3/terraform calls /api/launch did, returning a ProvisionResult."""
+boto3/tofu calls /api/launch did, returning a ProvisionResult."""
 from __future__ import annotations
 
 import json
@@ -37,7 +37,7 @@ def _make_spec():
 
 @pytest.fixture
 def aws_provider(tmp_path):
-    return AWSProvider(region="us-west-2", terraform_dir=tmp_path)
+    return AWSProvider(region="us-west-2", tofu_dir=tmp_path)
 
 
 class _FakeCompletedPopen:
@@ -141,7 +141,7 @@ def test_provision_hosts_writes_runtime_tfvars(aws_provider, all_aws_mocks, tmp_
         assert f"{key} = " in content, f"missing key {key}"
 
 
-def test_provision_hosts_runs_terraform_plan_show_apply(
+def test_provision_hosts_runs_tofu_plan_show_apply(
     aws_provider, all_aws_mocks,
 ):
     aws_provider.provision_hosts(count=1, spec=_make_spec())
@@ -246,11 +246,11 @@ def test_provision_hosts_uploads_to_s3(aws_provider, all_aws_mocks):
     all_aws_mocks["upload_to_s3"].assert_called_once()
 
 
-def test_provision_hosts_passes_count_to_terraform(aws_provider, all_aws_mocks):
+def test_provision_hosts_passes_count_to_tofu(aws_provider, all_aws_mocks):
     aws_provider.provision_hosts(count=5, spec=_make_spec())
     cmds = [list(c.args[0]) for c in all_aws_mocks["subprocess_run"].call_args_list
             if c.args and isinstance(c.args[0], list)]
-    # Find any terraform invocation that has the instance_count var
+    # Find any tofu invocation that has the instance_count var
     has_count = any(
         any("-var=instance_count=5" == arg for arg in cmd)
         for cmd in cmds
@@ -260,7 +260,7 @@ def test_provision_hosts_passes_count_to_terraform(aws_provider, all_aws_mocks):
 
 def test_provision_hosts_skips_sg_id_off_ec2(aws_provider):
     """When current_instance_security_group raises NotOnEC2Error, the
-    -var=allocator_sg_id= flag should NOT be added to terraform commands."""
+    -var=allocator_sg_id= flag should NOT be added to tofu commands."""
     from lablink_allocator_service.utils.aws_utils import NotOnEC2Error
 
     def fake_subprocess(cmd, **kwargs):

@@ -407,7 +407,7 @@ def test_ssh_cold_reboot_success(monkeypatch):
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock()
@@ -432,7 +432,7 @@ def test_ssh_cold_reboot_exit_255(monkeypatch):
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock()
@@ -450,7 +450,7 @@ def test_ssh_cold_reboot_timeout(monkeypatch):
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock(side_effect=subprocess.TimeoutExpired("ssh", 30))
@@ -465,7 +465,7 @@ def test_ssh_cold_reboot_failure(monkeypatch):
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock()
@@ -483,7 +483,7 @@ def test_ssh_warm_reboot_success(monkeypatch):
     service = AutoRebootService(
         database=mock_db,
         region="us-west-2",
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock()
@@ -503,7 +503,7 @@ def test_ssh_warm_reboot_does_not_clean_cloud_init(monkeypatch):
     mock_db = MagicMock()
     service = AutoRebootService(
         database=mock_db,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     mock_run = MagicMock()
@@ -699,7 +699,7 @@ def test_check_and_reboot_releases_on_max_attempts(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -726,7 +726,7 @@ def test_check_and_reboot_below_max_does_not_release(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -754,7 +754,7 @@ def test_check_and_reboot_respects_cooldown(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -780,7 +780,7 @@ def test_check_and_reboot_triggers_reboot(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -807,7 +807,7 @@ def test_check_and_reboot_after_cooldown_expired(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -835,7 +835,7 @@ def test_check_and_reboot_naive_timestamp(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -848,7 +848,7 @@ def test_check_and_reboot_no_failed_vms(mock_reboot):
     mock_db = MagicMock()
     mock_db.get_failed_vms.return_value = []
 
-    service = AutoRebootService(database=mock_db, terraform_dir="/tmp/terraform")
+    service = AutoRebootService(database=mock_db, tofu_dir="/tmp/tofu")
     service._check_and_reboot()
 
     mock_reboot.assert_not_called()
@@ -860,7 +860,7 @@ def test_start_and_stop():
     service = AutoRebootService(
         database=mock_db,
         check_interval_seconds=1,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
 
     service.start()
@@ -892,7 +892,7 @@ def test_check_and_reboot_passes_assigned_true_for_assigned_vm(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 
@@ -918,7 +918,7 @@ def test_check_and_reboot_passes_assigned_false_for_unassigned_vm(mock_reboot):
         database=mock_db,
         max_attempts=3,
         cooldown_seconds=300,
-        terraform_dir="/tmp/terraform",
+        tofu_dir="/tmp/tofu",
     )
     service._check_and_reboot()
 

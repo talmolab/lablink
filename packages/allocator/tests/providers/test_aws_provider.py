@@ -10,7 +10,7 @@ from lablink_allocator_service.providers.protocol import (
 
 
 def make_provider():
-    return AWSProvider(region="us-west-2", terraform_dir="/tf")
+    return AWSProvider(region="us-west-2", tofu_dir="/tf")
 
 
 def test_satisfies_protocol_and_flags():
@@ -54,7 +54,7 @@ def test_recover_hosts_returns_false_if_any_recycle_fails():
     assert m.call_count == 2
 
 
-def test_list_hosts_maps_terraform_outputs():
+def test_list_hosts_maps_tofu_outputs():
     p = make_provider()
     with patch(
         "lablink_allocator_service.providers.aws.get_instance_ids",
@@ -73,11 +73,11 @@ def test_provision_hosts_and_destroy_hosts_are_both_wired():
     # Each should fail deep in the implementation, not with the manual-only
     # ProvisioningNotSupported.
     p = make_provider()
-    # destroy_hosts raises FileNotFoundError because terraform_dir="/tf"
+    # destroy_hosts raises FileNotFoundError because tofu_dir="/tf"
     # has no terraform.runtime.tfvars (no VMs were ever launched).
     with pytest.raises(FileNotFoundError):
         p.destroy_hosts([])
-    # provision_hosts hits a real implementation error (terraform_dir doesn't
+    # provision_hosts hits a real implementation error (tofu_dir doesn't
     # exist on disk, so the tfvars write fails) — not a "not wired" sentinel.
     with pytest.raises(Exception) as exc_info:
         p.provision_hosts(1, {"machine_type": "g4dn.xlarge"})
@@ -89,6 +89,6 @@ def test_provision_hosts_and_destroy_hosts_are_both_wired():
 def test_aws_provider_tolerant_constructor():
     from lablink_allocator_service.providers.aws import AWSProvider
     # extra/None kwargs must not raise (uniform registry call shape)
-    p = AWSProvider(region="us-west-2", terraform_dir="/tmp", client_connectivity=None)
+    p = AWSProvider(region="us-west-2", tofu_dir="/tmp", client_connectivity=None)
     assert p.name == "aws"
     assert p.client_connectivity is not None

@@ -1,12 +1,12 @@
 """Regression baseline for /destroy.
 
-Since the async rewrite (PR 2 of the async-terraform-worker roadmap), the
-route no longer runs terraform synchronously — it submits a job to
+Since the async rewrite (PR 2 of the async-tofu-worker roadmap), the
+route no longer runs tofu synchronously — it submits a job to
 OperationsWorker and returns immediately. These tests assert:
 - current_instance_security_group + NotOnEC2Error catch (in provider)
-- terraform plan -destroy -var-file=terraform.runtime.tfvars
-  [-var=allocator_sg_id=<sg>] (subprocess.run) + terraform show -json
-  (subprocess.run) + terraform apply -auto-approve <planfile> (streamed via
+- tofu plan -destroy -var-file=terraform.runtime.tfvars
+  [-var=allocator_sg_id=<sg>] (subprocess.run) + tofu show -json
+  (subprocess.run) + tofu apply -auto-approve <planfile> (streamed via
   subprocess.Popen) — via the captured closure, not the route directly
 - ANSI-strip of output (in provider, DestroyResult.stdout is already clean)
 - database.clear_database() after success, inside the closure
@@ -15,7 +15,7 @@ All AWS-specific calls (current_instance_security_group, subprocess.run /
 subprocess.Popen for the destroy plan+apply sequence) execute inside
 AWSProvider.destroy_hosts — patch them in the providers.aws namespace, not
 the main namespace. list_hosts() calls get_instance_ids / get_instance_names
-(terraform output), which must also be patched to avoid real terraform
+(tofu output), which must also be patched to avoid real tofu
 invocations.
 """
 from __future__ import annotations
@@ -41,8 +41,8 @@ class _FakeCompletedPopen:
 
 
 def _fake_run(cmd, **kwargs):
-    """subprocess.run side_effect: valid plan JSON for `terraform show
-    -json ...`, generic "OK" stdout for any other call (e.g. `terraform
+    """subprocess.run side_effect: valid plan JSON for `tofu show
+    -json ...`, generic "OK" stdout for any other call (e.g. `tofu
     plan -destroy ...`)."""
     result = MagicMock()
     result.stdout = '{"resource_changes": []}' if "show" in cmd else "OK"
@@ -58,10 +58,10 @@ def destroy_setup(app, monkeypatch, tmp_path):
     from lablink_allocator_service import main
     from lablink_allocator_service.providers.aws import AWSProvider
 
-    monkeypatch.setattr(main, "TERRAFORM_DIR", tmp_path)
+    monkeypatch.setattr(main, "TOFU_DIR", tmp_path)
     (tmp_path / "terraform.runtime.tfvars").write_text("# baseline-test stub\n")
 
-    provider = AWSProvider(region="us-west-2", terraform_dir=str(tmp_path))
+    provider = AWSProvider(region="us-west-2", tofu_dir=str(tmp_path))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
 
     fake_db = MagicMock()
@@ -137,7 +137,7 @@ def test_destroy_redirects_browser_client_with_job_id(client, admin_headers):
        return_value="sg-allocator-test")
 @patch("lablink_allocator_service.providers.aws.subprocess.Popen")
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
-def test_destroy_closure_runs_terraform_destroy_and_clears_db(
+def test_destroy_closure_runs_tofu_destroy_and_clears_db(
     mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     destroy_setup, client, admin_headers,
 ):
@@ -201,8 +201,8 @@ def test_destroy_closure_fails_when_no_runtime_tfvars(
     from lablink_allocator_service import main
     from lablink_allocator_service.providers.aws import AWSProvider
 
-    monkeypatch.setattr(main, "TERRAFORM_DIR", tmp_path)
-    provider = AWSProvider(region="us-west-2", terraform_dir=str(tmp_path))
+    monkeypatch.setattr(main, "TOFU_DIR", tmp_path)
+    provider = AWSProvider(region="us-west-2", tofu_dir=str(tmp_path))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
     fake_db = MagicMock()
     monkeypatch.setattr(main, "database", fake_db, raising=False)
@@ -227,7 +227,7 @@ def test_destroy_closure_fails_when_no_runtime_tfvars(
 @patch("lablink_allocator_service.providers.aws.get_instance_ids", return_value=[])
 @patch("lablink_allocator_service.providers.aws.current_instance_security_group",
        return_value="sg-allocator-test")
-def test_destroy_closure_wraps_terraform_failure(
+def test_destroy_closure_wraps_tofu_failure(
     mock_sg, mock_ids, mock_names, destroy_setup, client, admin_headers,
 ):
     import subprocess

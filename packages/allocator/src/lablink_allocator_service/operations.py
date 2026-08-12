@@ -1,7 +1,7 @@
-"""Background worker for on-demand Terraform apply/destroy operations.
+"""Background worker for on-demand OpenTofu apply/destroy operations.
 
 Runs each operation on its own daemon thread, off the Flask request
-thread, so a slow `terraform apply`/`destroy` doesn't hold an HTTP
+thread, so a slow `tofu apply`/`destroy` doesn't hold an HTTP
 connection open long enough to hit Cloudflare's edge timeout.
 """
 from __future__ import annotations
@@ -68,7 +68,7 @@ class OperationsWorker:
 
         def _progress_callback(completed: int, total: int) -> None:
             # Best-effort: a transient DB failure here must never abort a
-            # live terraform apply/destroy (which _run_streamed would do by
+            # live tofu apply/destroy (which _run_streamed would do by
             # killing the subprocess if this raised). Once a write fails,
             # stop trying for the rest of this operation rather than
             # hammering an already-struggling database on every resource.
@@ -98,7 +98,7 @@ class OperationsWorker:
                 operation_id, status="failed", error=str(e)
             )
             return
-        # Deliberately outside the try: if terraform genuinely succeeded but
+        # Deliberately outside the try: if tofu genuinely succeeded but
         # this final status write fails, folding it into the except above
         # would mislabel a successful run as "failed". Leaving the row at
         # "running" is the more honest outcome — it's picked up as

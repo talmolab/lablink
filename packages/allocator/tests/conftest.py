@@ -126,7 +126,7 @@ def app(monkeypatch, omega_config):
     from lablink_allocator_service.providers.aws import AWSProvider
     flask_app.config["LABLINK_PROVIDER"] = AWSProvider(
         region=omega_config.app.region,
-        terraform_dir=str(main.TERRAFORM_DIR),
+        tofu_dir=str(main.TOFU_DIR),
     )
 
     with flask_app.app_context():

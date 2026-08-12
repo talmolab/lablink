@@ -37,7 +37,7 @@ app:
 
 dns:
   enabled: true  # true = use DNS for allocator URL, false = IP-only access
-  terraform_managed: false  # false = manual DNS (CloudFlare, etc.), true = Terraform manages Route53 records
+  terraform_managed: false  # false = manual DNS (CloudFlare, etc.), true = OpenTofu manages Route53 records
   domain: "dev.lablink.sleap.ai"  # Full domain name for the allocator (supports sub-subdomains for environments)
   zone_id: ""  # (Optional) Route53 hosted zone ID to skip auto-lookup
 
@@ -51,10 +51,10 @@ ssl:
 
 allocator:
   # Docker image tag for the allocator service
-  # Used by infrastructure deployment (Terraform)
+  # Used by infrastructure deployment (OpenTofu)
   image_tag: "linux-amd64-latest-test"
 
-# S3 bucket for Terraform state (must be unique globally)
+# S3 bucket for OpenTofu state (must be unique globally)
 # Only used for test/prod environments with S3 backend (not used in dev)
 bucket_name: "tf-state-lablink-allocator-bucket"
 

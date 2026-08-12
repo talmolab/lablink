@@ -36,14 +36,14 @@ class ProvisionResult:
 
     handles: list[ClientHandle]
     timings: dict[str, dict]  # hostname -> {start_time, end_time, seconds}
-    apply_stdout: str  # ANSI-stripped Terraform apply output
+    apply_stdout: str  # ANSI-stripped OpenTofu apply output
 
 
 @dataclass
 class DestroyResult:
     """Result of provider.destroy_hosts(...)."""
 
-    stdout: str  # ANSI-stripped Terraform destroy output
+    stdout: str  # ANSI-stripped OpenTofu destroy output
 
 
 @dataclass

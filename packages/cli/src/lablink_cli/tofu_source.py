@@ -1,4 +1,4 @@
-"""Download and cache Terraform files from lablink-template releases."""
+"""Download and cache OpenTofu files from lablink-template releases."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def get_tofu_files(
     bundle_path: str | None = None,
     skip_checksum: bool = False,
 ) -> Path:
-    """Return path to cached Terraform files, downloading if needed.
+    """Return path to cached OpenTofu files, downloading if needed.
 
     Args:
         version: Git tag in the template repo (e.g. "v0.1.0").
@@ -128,7 +128,7 @@ def _verify_checksum(data: bytes, version: str) -> None:
 
 
 def _extract_tofu_files(data: bytes, dest: Path) -> None:
-    """Extract Terraform files from tarball with safety checks."""
+    """Extract OpenTofu files from tarball with safety checks."""
     dest.mkdir(parents=True, exist_ok=True)
 
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:

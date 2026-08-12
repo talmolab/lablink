@@ -1061,26 +1061,26 @@ class VmDatabase:
         per_instance_start_time: datetime,
         per_instance_end_time: datetime,
     ) -> None:
-        """Update the Terraform timing metrics for a VM.
+        """Update the OpenTofu timing metrics for a VM.
         Args:
             hostname (str): The hostname of the VM.
             per_instance_seconds (float): The total startup duration in seconds.
-            per_instance_start_time (datetime): The start time of the Terraform apply.
-            per_instance_end_time (datetime): The end time of the Terraform apply.
+            per_instance_start_time (datetime): The start time of the OpenTofu apply.
+            per_instance_end_time (datetime): The end time of the OpenTofu apply.
         """
 
         query = f"""
             INSERT INTO {self.table_name} (
                 hostname,
-                terraformapplydurationseconds,
-                terraformapplystarttime,
-                terraformapplyendtime
+                tofuapplydurationseconds,
+                tofuapplystarttime,
+                tofuapplyendtime
             )
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (hostname) DO UPDATE
-            SET terraformapplydurationseconds = EXCLUDED.terraformapplydurationseconds,
-                terraformapplystarttime = EXCLUDED.terraformapplystarttime,
-                terraformapplyendtime = EXCLUDED.terraformapplyendtime
+            SET tofuapplydurationseconds = EXCLUDED.tofuapplydurationseconds,
+                tofuapplystarttime = EXCLUDED.tofuapplystarttime,
+                tofuapplyendtime = EXCLUDED.tofuapplyendtime
         """
         with self._cursor as cursor:
             try:
@@ -1095,7 +1095,7 @@ class VmDatabase:
                 )
             except Exception as e:
                 logger.error(
-                    f"Failed to update Terraform timing for VM '{hostname}': {e}"
+                    f"Failed to update OpenTofu timing for VM '{hostname}': {e}"
                 )
                 raise
 
@@ -1148,7 +1148,7 @@ class VmDatabase:
         # values, so referencing the column being updated in the same
         # statement returns the OLD value. We must inline the new value
         # for any metric being set in this UPDATE.
-        terraform_expr = "COALESCE(TerraformApplyDurationSeconds, 0)"
+        terraform_expr = "COALESCE(TofuApplyDurationSeconds, 0)"
         cloud_init_expr = "COALESCE(CloudInitDurationSeconds, 0)"
         container_expr = "COALESCE(ContainerStartupDurationSeconds, 0)"
 

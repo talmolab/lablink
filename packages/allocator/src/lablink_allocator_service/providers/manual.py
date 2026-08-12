@@ -23,7 +23,7 @@ class ManualProvider:
     can_destroy_hosts = False
     can_recover_hosts = False
 
-    def __init__(self, *, region=None, terraform_dir=None,
+    def __init__(self, *, region=None, tofu_dir=None,
                  client_connectivity=None, **_):
         self.client_connectivity = (
             client_connectivity
