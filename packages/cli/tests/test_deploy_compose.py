@@ -8,6 +8,113 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lablink_cli.config.schema import Config
+from lablink_cli.docker import Docker, Result
+
+
+class ComposeDocker(Docker):
+    """Records compose invocations; reports no volumes and no containers."""
+
+    def __init__(self, *, volumes=(), compose=Result(0), logs=Result(0)):
+        self._volumes = set(volumes)
+        self._compose = compose
+        self._logs = logs
+        self.compose_calls = []
+        self.exec_calls = []
+        self.removed_volumes = []
+
+    def available(self):
+        return True
+
+    def require(self):
+        return None
+
+    def volume_exists(self, name):
+        return name in self._volumes
+
+    def remove_volume(self, name):
+        self.removed_volumes.append(name)
+        return Result(0)
+
+    def inspect_format(self, name, template):
+        return ""
+
+    def logs(self, name, *, tail=None, merge_stderr=False, timeout=None):
+        return self._logs
+
+    def compose(self, workdir, *args, capture=True):
+        self.compose_calls.append((str(workdir) if workdir else None, args))
+        return self._compose
+
+    def exec_in(self, container, argv):
+        self.exec_calls.append(list(argv))
+        return Result(0)
+
+
+class _ExecQueueDocker(ComposeDocker):
+    """ComposeDocker variant that answers `exec_in` from a fixed queue of
+    Results, in call order — needed for the funnel helpers, which can
+    issue more than one `docker exec` per call (a retry, then a status
+    lookup)."""
+
+    def __init__(self, exec_results):
+        super().__init__()
+        self._exec_results = list(exec_results)
+        self.exec_containers = []
+
+    def exec_in(self, container, argv):
+        self.exec_containers.append(container)
+        self.exec_calls.append(list(argv))
+        return self._exec_results.pop(0)
+
+
+class _LoggingDocker(ComposeDocker):
+    """ComposeDocker variant recording every `logs()` call's kwargs — for
+    the register-token/log-dump tests that pin merge_stderr=True."""
+
+    def __init__(self, *, logs=Result(0)):
+        super().__init__(logs=logs)
+        self.log_calls = []
+
+    def logs(self, name, *, tail=None, merge_stderr=False, timeout=None):
+        self.log_calls.append(
+            {"name": name, "tail": tail, "merge_stderr": merge_stderr}
+        )
+        return self._logs
+
+
+class _InspectDocker(ComposeDocker):
+    """ComposeDocker variant with a configurable `inspect_format` result,
+    and `volume_exists` call tracking — for `_pgdata_volume_name`'s two
+    branches (exact mount found vs. directory-basename fallback)."""
+
+    def __init__(self, *, inspect_result="", **kwargs):
+        super().__init__(**kwargs)
+        self._inspect_result = inspect_result
+        self.volume_exists_calls = []
+
+    def inspect_format(self, name, template):
+        return self._inspect_result
+
+    def volume_exists(self, name):
+        self.volume_exists_calls.append(name)
+        return super().volume_exists(name)
+
+
+def test_tailscale_state_volume_detected(tmp_path):
+    from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
+
+    fake = ComposeDocker(volumes={f"{tmp_path.name}_tailscale_state"})
+    assert _tailscale_state_volume_exists(tmp_path, docker=fake) is True
+
+
+def test_disable_funnel_is_silent_when_sidecar_absent(tmp_path):
+    from lablink_cli.commands.deploy_compose import _disable_funnel
+
+    fake = ComposeDocker()
+    _disable_funnel(docker=fake)          # must not raise
+    assert fake.exec_calls == [
+        ["tailscale", "funnel", "--https=443", "off"]
+    ]
 
 
 def _manual_cfg(
@@ -566,8 +673,7 @@ class TestLanDirectFunnelRejectedAtDeploy:
 
 
 class TestComposeUp:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_uses_remove_orphans(self, mock_run, tmp_path):
+    def test_uses_remove_orphans(self, tmp_path):
         """Regression: without --remove-orphans, a sidecar that's no
         longer declared in the rendered compose file (needs_sidecar
         became False) is left running untouched forever, still serving
@@ -575,178 +681,155 @@ class TestComposeUp:
         finding this guards against."""
         from lablink_cli.commands.deploy_compose import _compose_up
 
-        mock_run.return_value = MagicMock(returncode=0)
-        _compose_up(tmp_path)
-        cmd = mock_run.call_args[0][0]
-        assert cmd == ["docker", "compose", "up", "-d", "--remove-orphans"]
+        fake = ComposeDocker()
+        _compose_up(tmp_path, docker=fake)
+        _, args = fake.compose_calls[0]
+        assert args == ("up", "-d", "--remove-orphans")
 
 
 class TestFunnelStatusUrl:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_extracts_url_from_status_output(self, mock_run):
+    def test_extracts_url_from_status_output(self):
         from lablink_cli.commands.deploy_compose import _funnel_status_url
 
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout=(
-                "# Funnel on:\n"
-                "#     - https://lablink-allocator-sleap-lablink-3.tail9f6f81.ts.net\n"
-                "\n"
-                "https://lablink-allocator-sleap-lablink-3.tail9f6f81.ts.net "
-                "(Funnel on)\n"
-                "|-- / proxy http://127.0.0.1:5000\n"
-            ),
+        fake = _ExecQueueDocker(
+            [
+                Result(
+                    0,
+                    stdout=(
+                        "# Funnel on:\n"
+                        "#     - https://lablink-allocator-sleap-lablink-3."
+                        "tail9f6f81.ts.net\n"
+                        "\n"
+                        "https://lablink-allocator-sleap-lablink-3.tail9f6f81.ts.net "
+                        "(Funnel on)\n"
+                        "|-- / proxy http://127.0.0.1:5000\n"
+                    ),
+                )
+            ]
         )
         assert (
-            _funnel_status_url()
+            _funnel_status_url(docker=fake)
             == "https://lablink-allocator-sleap-lablink-3.tail9f6f81.ts.net"
         )
-        cmd = mock_run.call_args[0][0]
-        assert cmd == [
-            "docker",
-            "exec",
-            "lablink-allocator-tailscale",
-            "tailscale",
-            "funnel",
-            "status",
-        ]
+        assert fake.exec_calls == [["tailscale", "funnel", "status"]]
+        assert fake.exec_containers == ["lablink-allocator-tailscale"]
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_none_when_funnel_not_on(self, mock_run):
+    def test_returns_none_when_funnel_not_on(self):
         from lablink_cli.commands.deploy_compose import _funnel_status_url
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="Funnel off.\n")
-        assert _funnel_status_url() is None
+        fake = _ExecQueueDocker([Result(0, stdout="Funnel off.\n")])
+        assert _funnel_status_url(docker=fake) is None
 
 
 class TestEnableFunnel:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_already_enabled_or_newly_enabled_returns_success_and_url(
-        self, mock_run
-    ):
+    def test_already_enabled_or_newly_enabled_returns_success_and_url(self):
         from lablink_cli.commands.deploy_compose import _enable_funnel
 
-        bg_result = MagicMock(
-            returncode=0,
-            stdout="Available on the internet:\nhttps://x.tailnet.ts.net/\n",
-            stderr="",
+        fake = _ExecQueueDocker(
+            [
+                Result(
+                    0, stdout="Available on the internet:\nhttps://x.tailnet.ts.net/\n"
+                ),
+                Result(
+                    0,
+                    stdout="https://x.tailnet.ts.net (Funnel on)\n"
+                    "|-- / proxy http://127.0.0.1:5000\n",
+                ),
+            ]
         )
-        status_result = MagicMock(
-            returncode=0,
-            stdout="https://x.tailnet.ts.net (Funnel on)\n|-- / proxy http://127.0.0.1:5000\n",
-        )
-        mock_run.side_effect = [bg_result, status_result]
 
-        assert _enable_funnel() == (True, "https://x.tailnet.ts.net")
+        assert _enable_funnel(docker=fake) == (True, "https://x.tailnet.ts.net")
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_acl_not_granted_returns_false_and_prints_url(self, mock_run, capsys):
+    def test_acl_not_granted_returns_false_and_prints_url(self, capsys):
         from lablink_cli.commands.deploy_compose import _enable_funnel
 
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout="",
-            stderr=(
-                "Funnel is not enabled on your tailnet.\nTo enable, visit:"
-                "\n\n         https://login.tailscale.com/f/funnel?node=abc123\n"
-            ),
+        fake = _ExecQueueDocker(
+            [
+                Result(
+                    1,
+                    stderr=(
+                        "Funnel is not enabled on your tailnet.\nTo enable, visit:"
+                        "\n\n         https://login.tailscale.com/f/funnel?node=abc123\n"
+                    ),
+                )
+            ]
         )
-        assert _enable_funnel() == (False, None)
+        assert _enable_funnel(docker=fake) == (False, None)
         captured = capsys.readouterr()
         assert "login.tailscale.com/f/funnel" in captured.out
         # ACL-not-granted is a hard stop — never follows up with a status
         # lookup, since there's no URL to find.
-        assert mock_run.call_count == 1
+        assert len(fake.exec_calls) == 1
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_uses_correct_container_and_port(self, mock_run):
+    def test_uses_correct_container_and_port(self):
         from lablink_cli.commands.deploy_compose import _enable_funnel
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        _enable_funnel()
-        enable_cmd = mock_run.call_args_list[0][0][0]
-        assert enable_cmd == [
-            "docker",
-            "exec",
-            "lablink-allocator-tailscale",
-            "tailscale",
-            "funnel",
-            "--bg",
-            "5000",
-        ]
+        fake = _ExecQueueDocker([Result(0), Result(0)])
+        _enable_funnel(docker=fake)
+        assert fake.exec_calls[0] == ["tailscale", "funnel", "--bg", "5000"]
+        assert fake.exec_containers[0] == "lablink-allocator-tailscale"
 
     @patch("lablink_cli.commands.deploy_compose.time.sleep")
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_unexpected_failure_returns_false(self, mock_run, mock_sleep):
+    def test_unexpected_failure_returns_false(self, mock_sleep):
         from lablink_cli.commands.deploy_compose import (
             _enable_funnel,
             FUNNEL_ENABLE_MAX_ATTEMPTS,
         )
 
-        mock_run.return_value = MagicMock(
-            returncode=1, stdout="", stderr="some other docker error"
+        fake = _ExecQueueDocker(
+            [Result(1, stderr="some other docker error")]
+            * FUNNEL_ENABLE_MAX_ATTEMPTS
         )
-        assert _enable_funnel() == (False, None)
-        assert mock_run.call_count == FUNNEL_ENABLE_MAX_ATTEMPTS
+        assert _enable_funnel(docker=fake) == (False, None)
+        assert len(fake.exec_calls) == FUNNEL_ENABLE_MAX_ATTEMPTS
 
     @patch("lablink_cli.commands.deploy_compose.time.sleep")
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_retries_on_transient_failure_then_succeeds(self, mock_run, mock_sleep):
+    def test_retries_on_transient_failure_then_succeeds(self, mock_sleep):
         from lablink_cli.commands.deploy_compose import _enable_funnel
 
-        transient_fail = MagicMock(returncode=1, stdout="", stderr="not ready yet")
-        success = MagicMock(
-            returncode=0, stdout="Available on the internet:\n", stderr=""
+        fake = _ExecQueueDocker(
+            [
+                Result(1, stderr="not ready yet"),
+                Result(1, stderr="not ready yet"),
+                Result(0, stdout="Available on the internet:\n"),
+                Result(0, stdout="https://x.tailnet.ts.net (Funnel on)\n"),
+            ]
         )
-        status_result = MagicMock(
-            returncode=0, stdout="https://x.tailnet.ts.net (Funnel on)\n"
-        )
-        mock_run.side_effect = [transient_fail, transient_fail, success, status_result]
 
-        assert _enable_funnel() == (True, "https://x.tailnet.ts.net")
-        assert mock_run.call_count == 4
+        assert _enable_funnel(docker=fake) == (True, "https://x.tailnet.ts.net")
+        assert len(fake.exec_calls) == 4
         assert mock_sleep.call_count == 2
 
 
 class TestDisableFunnel:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_uses_correct_container_and_command(self, mock_run):
+    def test_uses_correct_container_and_command(self):
         from lablink_cli.commands.deploy_compose import _disable_funnel
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        _disable_funnel()
-        cmd = mock_run.call_args[0][0]
-        assert cmd == [
-            "docker",
-            "exec",
-            "lablink-allocator-tailscale",
-            "tailscale",
-            "funnel",
-            "--https=443",
-            "off",
-        ]
+        fake = ComposeDocker()
+        _disable_funnel(docker=fake)
+        assert fake.exec_calls == [["tailscale", "funnel", "--https=443", "off"]]
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_prints_message_on_success(self, mock_run, capsys):
+    def test_prints_message_on_success(self, capsys):
         from lablink_cli.commands.deploy_compose import _disable_funnel
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        _disable_funnel()
+        _disable_funnel(docker=ComposeDocker())
         assert "disabled" in capsys.readouterr().out.lower()
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_silent_and_no_exception_when_sidecar_missing(self, mock_run, capsys):
+    def test_silent_and_no_exception_when_sidecar_missing(self, capsys):
         """Best-effort: a fresh deployment that never enabled Funnel has
         no sidecar to disable it on — must not raise or print an error."""
         from lablink_cli.commands.deploy_compose import _disable_funnel
 
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout="",
-            stderr="Error response from daemon: No such container: "
-            "lablink-allocator-tailscale",
+        fake = _ExecQueueDocker(
+            [
+                Result(
+                    1,
+                    stderr="Error response from daemon: No such container: "
+                    "lablink-allocator-tailscale",
+                )
+            ]
         )
-        _disable_funnel()  # must not raise
+        _disable_funnel(docker=fake)  # must not raise
         out = capsys.readouterr().out
         assert "disabled" not in out.lower()
         assert "error" not in out.lower()
@@ -874,11 +957,11 @@ class TestRunDeployComposeFunnelWiring:
         with patch.object(
             deploy_compose,
             "_disable_funnel",
-            side_effect=lambda: call_order.append("disable"),
+            side_effect=lambda **_: call_order.append("disable"),
         ), patch.object(
             deploy_compose,
             "_compose_up",
-            side_effect=lambda target: call_order.append("compose_up"),
+            side_effect=lambda target, **_: call_order.append("compose_up"),
         ), patch.object(
             deploy_compose, "_health_poll"
         ), patch.object(
@@ -1087,47 +1170,39 @@ class TestDeployComposePreflight:
 
 
 class TestTailscaleStateVolumeExists:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_true_when_volume_found(self, mock_run, tmp_path):
+    def test_true_when_volume_found(self, tmp_path):
         from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
 
         target = tmp_path / "testlab"
         target.mkdir()
-        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        fake = ComposeDocker(volumes={"testlab_tailscale_state"})
 
-        assert _tailscale_state_volume_exists(target) is True
-        cmd = mock_run.call_args[0][0]
-        assert cmd == ["docker", "volume", "inspect", "testlab_tailscale_state"]
+        assert _tailscale_state_volume_exists(target, docker=fake) is True
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_false_when_volume_missing(self, mock_run, tmp_path):
+    def test_false_when_volume_missing(self, tmp_path):
         from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
 
         target = tmp_path / "testlab"
         target.mkdir()
-        mock_run.return_value = MagicMock(returncode=1, stdout="")
 
-        assert _tailscale_state_volume_exists(target) is False
+        assert _tailscale_state_volume_exists(target, docker=ComposeDocker()) is False
 
 
 class TestPgdataVolumeName:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_resolved_name_from_running_container(self, mock_run, tmp_path):
+    def test_returns_resolved_name_from_running_container(self, tmp_path):
         from lablink_cli.commands.deploy_compose import _pgdata_volume_name
 
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="sleap-lablink_allocator_pgdata\n"
+        fake = _InspectDocker(inspect_result="sleap-lablink_allocator_pgdata")
+
+        assert (
+            _pgdata_volume_name(tmp_path, docker=fake)
+            == "sleap-lablink_allocator_pgdata"
         )
+        # found on the first try, no directory-basename fallback needed
+        assert fake.volume_exists_calls == []
 
-        assert _pgdata_volume_name(tmp_path) == "sleap-lablink_allocator_pgdata"
-        cmd = mock_run.call_args[0][0]
-        assert cmd[:2] == ["docker", "inspect"]
-        assert "lablink-allocator" in cmd
-        mock_run.assert_called_once()  # found on the first try, no fallback needed
-
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
     def test_falls_back_to_directory_basename_guess_when_container_missing(
-        self, mock_run, tmp_path
+        self, tmp_path
     ):
         """Regression (P1 review finding): if the allocator container was
         already removed (e.g. an earlier manual `docker compose down`),
@@ -1139,34 +1214,28 @@ class TestPgdataVolumeName:
 
         target = tmp_path / "testlab"
         target.mkdir()
-        container_missing = MagicMock(returncode=1, stdout="")
-        guess_verified = MagicMock(returncode=0, stdout="")
-        mock_run.side_effect = [container_missing, guess_verified]
+        fake = _InspectDocker(volumes={"testlab_allocator_pgdata"})
 
-        assert _pgdata_volume_name(target) == "testlab_allocator_pgdata"
-        assert mock_run.call_count == 2
-        guess_cmd = mock_run.call_args_list[1][0][0]
-        assert guess_cmd == ["docker", "volume", "inspect", "testlab_allocator_pgdata"]
+        assert (
+            _pgdata_volume_name(target, docker=fake) == "testlab_allocator_pgdata"
+        )
+        assert fake.volume_exists_calls == ["testlab_allocator_pgdata"]
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_none_when_neither_container_nor_guess_finds_it(
-        self, mock_run, tmp_path
-    ):
+    def test_returns_none_when_neither_container_nor_guess_finds_it(self, tmp_path):
         """Genuinely nothing to remove — this deployment never actually
         created a volume (e.g. `docker compose up` never ran)."""
         from lablink_cli.commands.deploy_compose import _pgdata_volume_name
 
         target = tmp_path / "testlab"
         target.mkdir()
-        mock_run.return_value = MagicMock(returncode=1, stdout="")
+        fake = _InspectDocker()
 
-        assert _pgdata_volume_name(target) is None
-        assert mock_run.call_count == 2
+        assert _pgdata_volume_name(target, docker=fake) is None
+        assert fake.volume_exists_calls == ["testlab_allocator_pgdata"]
 
 
 class TestDestroyCompose:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_default_removes_pgdata_volume_by_name(self, mock_run, tmp_path):
+    def test_default_removes_pgdata_volume_by_name(self, tmp_path):
         """Default behavior wipes the Postgres volume — matches what
         "destroy" means for every other provider, and what most operators
         expect (a subsequent `lablink deploy` starts from an empty
@@ -1181,22 +1250,16 @@ class TestDestroyCompose:
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
 
-        inspect_result = MagicMock(returncode=0, stdout="testlab_allocator_pgdata\n")
-        down_result = MagicMock(returncode=0)
-        volume_rm_result = MagicMock(returncode=0)
-        mock_run.side_effect = [inspect_result, down_result, volume_rm_result]
+        fake = _InspectDocker(inspect_result="testlab_allocator_pgdata")
+        run_destroy_compose(
+            cfg, yes=True, workdir_root=tmp_path / "compose", docker=fake
+        )
 
-        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
-
-        assert mock_run.call_count == 3
-        inspect_cmd, down_cmd, rm_cmd = (c[0][0] for c in mock_run.call_args_list)
-        assert inspect_cmd[:2] == ["docker", "inspect"]
-        assert down_cmd == ["docker", "compose", "down"]
-        assert rm_cmd == ["docker", "volume", "rm", "testlab_allocator_pgdata"]
+        assert fake.compose_calls == [(str(workdir), ("down",))]
+        assert fake.removed_volumes == ["testlab_allocator_pgdata"]
         assert not workdir.exists()  # removed by default
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_falls_back_to_guess_when_container_not_found(self, mock_run, tmp_path):
+    def test_falls_back_to_guess_when_container_not_found(self, tmp_path):
         """Regression (P1 review finding): the allocator container being
         already removed must not silently skip volume removal — the
         directory-basename fallback (verified via `docker volume
@@ -1208,23 +1271,15 @@ class TestDestroyCompose:
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
 
-        container_missing = MagicMock(returncode=1, stdout="")
-        guess_verified = MagicMock(returncode=0, stdout="")
-        down_result = MagicMock(returncode=0)
-        volume_rm_result = MagicMock(returncode=0)
-        mock_run.side_effect = [
-            container_missing, guess_verified, down_result, volume_rm_result,
-        ]
+        fake = _InspectDocker(volumes={"testlab_allocator_pgdata"})
+        run_destroy_compose(
+            cfg, yes=True, workdir_root=tmp_path / "compose", docker=fake
+        )
 
-        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
-
-        assert mock_run.call_count == 4
-        rm_cmd = mock_run.call_args_list[3][0][0]
-        assert rm_cmd == ["docker", "volume", "rm", "testlab_allocator_pgdata"]
+        assert fake.removed_volumes == ["testlab_allocator_pgdata"]
         assert not workdir.exists()
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_skips_volume_rm_when_genuinely_nothing_found(self, mock_run, tmp_path):
+    def test_skips_volume_rm_when_genuinely_nothing_found(self, tmp_path):
         """Container missing AND the directory-basename guess doesn't
         exist either — genuinely nothing to remove (this deployment
         never actually created a volume); destroy still completes."""
@@ -1235,20 +1290,15 @@ class TestDestroyCompose:
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
 
-        container_missing = MagicMock(returncode=1, stdout="")
-        guess_not_found = MagicMock(returncode=1, stdout="")
-        down_result = MagicMock(returncode=0)
-        mock_run.side_effect = [container_missing, guess_not_found, down_result]
+        fake = _InspectDocker()
+        run_destroy_compose(
+            cfg, yes=True, workdir_root=tmp_path / "compose", docker=fake
+        )
 
-        run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
-
-        assert mock_run.call_count == 3  # no docker volume rm call
+        assert fake.removed_volumes == []  # no docker volume rm call
         assert not workdir.exists()
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_aborts_without_deleting_workdir_when_volume_rm_fails(
-        self, mock_run, tmp_path
-    ):
+    def test_aborts_without_deleting_workdir_when_volume_rm_fails(self, tmp_path):
         """Regression (P1 review finding): a resolved volume that
         `docker volume rm` fails to actually remove must not be reported
         as success — the workdir stays in place (rather than being
@@ -1262,36 +1312,40 @@ class TestDestroyCompose:
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
 
-        inspect_result = MagicMock(returncode=0, stdout="testlab_allocator_pgdata\n")
-        down_result = MagicMock(returncode=0)
-        volume_rm_failure = MagicMock(
-            returncode=1, stdout="", stderr="volume is in use"
-        )
-        mock_run.side_effect = [inspect_result, down_result, volume_rm_failure]
+        class _FailingRemoveDocker(_InspectDocker):
+            def remove_volume(self, name):
+                self.removed_volumes.append(name)
+                return Result(1, stderr="volume is in use")
+
+        fake = _FailingRemoveDocker(inspect_result="testlab_allocator_pgdata")
 
         with pytest.raises(SystemExit):
-            run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
+            run_destroy_compose(
+                cfg, yes=True, workdir_root=tmp_path / "compose", docker=fake
+            )
 
         assert workdir.exists()  # NOT removed — removal wasn't confirmed
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_keep_data_preserves_volumes_and_workdir(self, mock_run, tmp_path):
+    def test_keep_data_preserves_volumes_and_workdir(self, tmp_path):
         from lablink_cli.commands.deploy_compose import run_destroy_compose
 
         cfg = _manual_cfg()
         workdir = tmp_path / "compose" / "testlab"
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
-        mock_run.return_value = MagicMock(returncode=0)
 
+        fake = ComposeDocker()
         run_destroy_compose(
-            cfg, yes=True, keep_data=True, workdir_root=tmp_path / "compose"
+            cfg,
+            yes=True,
+            keep_data=True,
+            workdir_root=tmp_path / "compose",
+            docker=fake,
         )
 
         # No volume-name lookup and no volume rm — keep_data skips both.
-        mock_run.assert_called_once()
-        cmd = mock_run.call_args[0][0]
-        assert cmd == ["docker", "compose", "down"]
+        assert fake.compose_calls == [(str(workdir), ("down",))]
+        assert fake.removed_volumes == []
         assert workdir.exists()  # NOT removed with --keep-data
 
     def test_noop_when_workdir_missing(self, tmp_path):
@@ -1302,7 +1356,7 @@ class TestDestroyCompose:
         run_destroy_compose(cfg, yes=True, workdir_root=tmp_path / "compose")
 
     def test_destroy_compose_prints_unregister_reminder_on_success(
-        self, tmp_path, capsys, monkeypatch
+        self, tmp_path, capsys
     ):
         """After a successful manual destroy, remind the operator about BYO clients."""
         from lablink_cli.commands import deploy_compose
@@ -1313,18 +1367,15 @@ class TestDestroyCompose:
 
         cfg = _manual_cfg()
 
-        fake_run = MagicMock(return_value=MagicMock(returncode=0, stdout=""))
-        monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
-
         deploy_compose.run_destroy_compose(
-            cfg, yes=True, workdir_root=workdir_root,
+            cfg, yes=True, workdir_root=workdir_root, docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
         assert "lablink client unregister" in out
 
     def test_destroy_compose_skips_reminder_when_already_destroyed(
-        self, tmp_path, capsys, monkeypatch
+        self, tmp_path, capsys
     ):
         """Early-return path (no compose dir) → no reminder."""
         from lablink_cli.commands import deploy_compose
@@ -1340,9 +1391,7 @@ class TestDestroyCompose:
         out = capsys.readouterr().out
         assert "lablink client unregister" not in out
 
-    def test_destroy_compose_skips_reminder_on_failure(
-        self, tmp_path, capsys, monkeypatch
-    ):
+    def test_destroy_compose_skips_reminder_on_failure(self, tmp_path, capsys):
         """`docker compose down` failure → SystemExit, no reminder printed."""
         from lablink_cli.commands import deploy_compose
 
@@ -1352,12 +1401,12 @@ class TestDestroyCompose:
 
         cfg = _manual_cfg()
 
-        fake_run = MagicMock(return_value=MagicMock(returncode=1, stdout=""))
-        monkeypatch.setattr(deploy_compose.subprocess, "run", fake_run)
-
         with pytest.raises(SystemExit):
             deploy_compose.run_destroy_compose(
-                cfg, yes=True, workdir_root=workdir_root,
+                cfg,
+                yes=True,
+                workdir_root=workdir_root,
+                docker=ComposeDocker(compose=Result(1)),
             )
 
         out = capsys.readouterr().out
@@ -1378,7 +1427,7 @@ class TestPrintSummary:
         mock_extract.return_value = token
         mock_lan.return_value = "192.168.1.42"
 
-        _print_summary(_manual_cfg())
+        _print_summary(_manual_cfg(), docker=ComposeDocker())
 
         out = capsys.readouterr().out
         # The LAN URL must drive the copy-paste command.
@@ -1404,7 +1453,7 @@ class TestPrintSummary:
         mock_extract.return_value = "abc123def456ghi789jklmnop"
         mock_lan.return_value = None
 
-        _print_summary(_manual_cfg())
+        _print_summary(_manual_cfg(), docker=ComposeDocker())
 
         out = capsys.readouterr().out
         assert "--allocator-url http://localhost" in out
@@ -1424,7 +1473,7 @@ class TestPrintSummary:
         mock_extract.return_value = None
         mock_lan.return_value = "192.168.1.42"
 
-        _print_summary(_manual_cfg())
+        _print_summary(_manual_cfg(), docker=ComposeDocker())
 
         out = capsys.readouterr().out
         assert "--register-token <token>" in out
@@ -1454,7 +1503,8 @@ class TestPrintSummaryMeshOverlay:
         mock_lan.return_value = "192.168.1.42"
 
         _print_summary(
-            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net")
+            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net"),
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1477,7 +1527,7 @@ class TestPrintSummaryMeshOverlay:
         mock_extract.return_value = "tok"
         mock_lan.return_value = "192.168.1.42"
 
-        _print_summary(_manual_cfg(connectivity="lan_direct"))
+        _print_summary(_manual_cfg(connectivity="lan_direct"), docker=ComposeDocker())
 
         out = capsys.readouterr().out
         assert "on each BYO box on the same LAN" in out
@@ -1513,6 +1563,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url=real_url,
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1537,6 +1588,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url=real_url,
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1564,6 +1616,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url=None,
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1585,7 +1638,7 @@ class TestPrintSummaryFunnel:
         mock_extract.return_value = "tok"
         mock_lan.return_value = "192.168.1.42"
 
-        _print_summary(_manual_cfg(connectivity="mesh_overlay"))
+        _print_summary(_manual_cfg(connectivity="mesh_overlay"), docker=ComposeDocker())
 
         out = capsys.readouterr().out
         assert "Allocator URL (public)" not in out
@@ -1611,6 +1664,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url="https://lablink-allocator-testlab.example.ts.net",
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1637,6 +1691,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url=None,
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1663,6 +1718,7 @@ class TestPrintSummaryFunnel:
             ),
             funnel_active=True,
             funnel_url="https://lablink-allocator-testlab.example.ts.net",
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -1712,62 +1768,55 @@ class TestDetectLanIp:
 
 
 class TestExtractRegisterToken:
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_parses_uppercase_format(self, mock_run):
+    def test_parses_uppercase_format(self):
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="INFO root REGISTER_TOKEN=abc123def456ghi789jklmnop\n",
+        fake = ComposeDocker(
+            logs=Result(
+                0, stdout="INFO root REGISTER_TOKEN=abc123def456ghi789jklmnop\n"
+            )
         )
-        assert _extract_register_token() == "abc123def456ghi789jklmnop"
+        assert _extract_register_token(docker=fake) == "abc123def456ghi789jklmnop"
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_parses_lowercase_assignment_format(self, mock_run):
+    def test_parses_lowercase_assignment_format(self):
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout='register_token = "abc123def456ghi789jklmnop"\n',
+        fake = ComposeDocker(
+            logs=Result(0, stdout='register_token = "abc123def456ghi789jklmnop"\n')
         )
-        assert _extract_register_token() == "abc123def456ghi789jklmnop"
+        assert _extract_register_token(docker=fake) == "abc123def456ghi789jklmnop"
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_merges_stderr_into_stdout(self, mock_run):
+    def test_merges_stderr_into_stdout(self):
         """The allocator's REGISTER_TOKEN log line is emitted via Python
-        logging, which writes to stderr. `docker logs` preserves the
-        container's stdout/stderr split, so the extractor must invoke
-        `docker logs` with stderr merged into stdout — otherwise the
-        token line is captured into result.stderr and the regex (which
-        scans result.stdout) silently misses it. Regression guard."""
-        import subprocess as _subprocess
-
+        logging, which writes to stderr. `Docker.logs` preserves the
+        container's stdout/stderr split, so the extractor must request
+        `merge_stderr=True` — otherwise the token line is captured into
+        the stderr half and the regex (which scans stdout) silently
+        misses it. Regression guard."""
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="INFO root REGISTER_TOKEN=abc123def456ghi789jklmnop\n",
+        fake = _LoggingDocker(
+            logs=Result(
+                0, stdout="INFO root REGISTER_TOKEN=abc123def456ghi789jklmnop\n"
+            )
         )
-        _extract_register_token()
-        kwargs = mock_run.call_args.kwargs
-        assert kwargs.get("stderr") is _subprocess.STDOUT, (
-            "stderr must be merged into stdout via subprocess.STDOUT "
-            "so the logger's stderr output is searched too"
+        _extract_register_token(docker=fake)
+        assert fake.log_calls[0]["merge_stderr"] is True, (
+            "merge_stderr must be True so the logger's stderr output is "
+            "searched too"
         )
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_none_when_docker_fails(self, mock_run):
+    def test_returns_none_when_docker_fails(self):
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(returncode=1, stdout="")
-        assert _extract_register_token() is None
+        fake = ComposeDocker(logs=Result(1, stdout=""))
+        assert _extract_register_token(docker=fake) is None
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_returns_none_when_no_match(self, mock_run):
+    def test_returns_none_when_no_match(self):
         from lablink_cli.commands.deploy_compose import _extract_register_token
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="nothing relevant\n")
-        assert _extract_register_token() is None
+        fake = ComposeDocker(logs=Result(0, stdout="nothing relevant\n"))
+        assert _extract_register_token(docker=fake) is None
 
 
 class TestCanonicalUrlFile:
@@ -2471,21 +2520,20 @@ class TestRedactSecretsInLogDump:
         assert out.count("<redacted>") == 3
         assert "ordinary log line, must survive" in out
 
-    @patch("lablink_cli.commands.deploy_compose.subprocess.run")
-    def test_dump_merges_stderr_and_redacts(self, mock_run, capsys):
+    def test_dump_merges_stderr_and_redacts(self, capsys):
         """The allocator's Python logging goes to stderr, so the dump has to
         merge it — which is what makes the redaction load-bearing."""
-        import subprocess
-
         from lablink_cli.commands.deploy_compose import _print_last_log_lines
 
-        mock_run.return_value = MagicMock(
-            stdout="CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiLEAKED\nTraceback here\n",
-            returncode=0,
+        fake = _LoggingDocker(
+            logs=Result(
+                0,
+                stdout="CLOUDFLARE_TUNNEL_TOKEN:eyJhIjoiLEAKED\nTraceback here\n",
+            )
         )
-        _print_last_log_lines()
+        _print_last_log_lines(docker=fake)
 
-        assert mock_run.call_args.kwargs["stderr"] is subprocess.STDOUT
+        assert fake.log_calls[0]["merge_stderr"] is True
         out = capsys.readouterr().out
         assert "eyJhIjoiLEAKED" not in out
         assert "<redacted>" in out
@@ -2534,14 +2582,14 @@ class TestVerificationIsAWarningNotAFailure:
         mock_extract.return_value = "abc123def456ghi789jklmnop"
         mock_lan.return_value = "192.168.1.42"
 
-        _print_summary(self._cf_cfg())
+        _print_summary(self._cf_cfg(), docker=ComposeDocker())
         assert (
             "Allocator URL (public): https://lab.example.org"
             in capsys.readouterr().out
         )
 
         # ...and only for this mode.
-        _print_summary(_manual_cfg(participant_exposure="none"))
+        _print_summary(_manual_cfg(participant_exposure="none"), docker=ComposeDocker())
         assert "URL (public)" not in capsys.readouterr().out
 
     @patch("lablink_cli.commands.deploy_compose._verify_public_hostname")
@@ -2600,6 +2648,7 @@ class TestReverseTunnelDeploy:
             _manual_cfg(connectivity="reverse_tunnel"),
             funnel_active=True,
             funnel_url=real_url,
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -2634,7 +2683,8 @@ class TestReverseTunnelDeploy:
                 overlay_tailnet="example.ts.net",
                 participant_exposure="cloudflare_tunnel",
                 public_hostname="lab.example.org",
-            )
+            ),
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out
@@ -2659,7 +2709,8 @@ class TestReverseTunnelDeploy:
             _manual_cfg(
                 participant_exposure="cloudflare_tunnel",
                 public_hostname="lab.example.org",
-            )
+            ),
+            docker=ComposeDocker(),
         )
 
         out = capsys.readouterr().out

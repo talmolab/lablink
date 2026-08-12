@@ -12,8 +12,6 @@ These tests pin the guard so that protection cannot be quietly lost.
 
 import subprocess
 
-from unittest.mock import MagicMock, patch
-
 
 def test_docker_commands_never_reach_the_real_daemon():
     result = subprocess.run(
@@ -55,29 +53,48 @@ def test_non_docker_commands_still_run():
 
 def test_disable_funnel_is_a_silent_noop_under_the_guard():
     """_disable_funnel is documented best-effort, so the not-found result the
-    guard returns must leave it silent rather than erroring."""
+    guard returns must leave it silent rather than erroring. deploy_compose
+    now reaches the guard indirectly, through the default `Docker` adapter's
+    own `subprocess.run` call rather than one of its own."""
     from lablink_cli.commands.deploy_compose import _disable_funnel
+    from lablink_cli.docker import default_docker
 
-    _disable_funnel()  # must not raise
+    _disable_funnel(docker=default_docker())  # must not raise
 
 
 def test_tailscale_state_volume_lookup_is_deterministic(tmp_path):
     """Unmocked, this read the developer's real volumes — so whether a test
     saw an existing <name>_tailscale_state depended on their machine."""
     from lablink_cli.commands.deploy_compose import _tailscale_state_volume_exists
+    from lablink_cli.docker import default_docker
 
-    assert _tailscale_state_volume_exists(tmp_path / "sleap-lablink") is False
+    assert (
+        _tailscale_state_volume_exists(
+            tmp_path / "sleap-lablink", docker=default_docker()
+        )
+        is False
+    )
 
 
-def test_explicit_patches_still_take_precedence():
-    """Tests that mean to exercise a docker-invoking helper patch
-    subprocess.run in their own module; that must win over the guard."""
-    from lablink_cli.commands import deploy_compose as dc
+def test_docker_fake_still_takes_precedence():
+    """Now that deploy_compose is fully migrated onto the `Docker` adapter,
+    a test that injects its own fake bypasses the guard entirely —
+    dependency injection replaces subprocess-patching as the way a test
+    controls docker behavior instead of relying on the guard's blanket
+    not-found result."""
+    from lablink_cli.commands.deploy_compose import _disable_funnel
+    from lablink_cli.docker import Docker, Result
 
-    with patch.object(dc.subprocess, "run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        dc._disable_funnel()
-        assert mock_run.call_args[0][0] == [
-            "docker", "exec", "lablink-allocator-tailscale",
-            "tailscale", "funnel", "--https=443", "off",
-        ]
+    class _RecordingDocker(Docker):
+        def __init__(self):
+            self.exec_calls = []
+
+        def exec_in(self, container, argv):
+            self.exec_calls.append(list(argv))
+            return Result(0)
+
+    fake = _RecordingDocker()
+    _disable_funnel(docker=fake)
+    assert fake.exec_calls == [
+        ["tailscale", "funnel", "--https=443", "off"],
+    ]
