@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lablink_cli.config.schema import Config
-from lablink_cli.docker import Docker, Result
+from lablink_cli.docker import Docker, DockerUnavailable, Result
 
 
 class ComposeDocker(Docker):
@@ -1169,14 +1169,22 @@ class TestDeployComposePreflight:
         with pytest.raises(SystemExit):
             run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
 
-    @patch("lablink_cli.commands.deploy_compose.shutil.which")
-    def test_rejects_when_docker_missing(self, mock_which, tmp_path):
+    def test_rejects_when_docker_missing(self, tmp_path, capsys):
+        """Preflight is `docker.require()`, not `shutil.which` — inject a
+        fake whose `require()` raises so this actually exercises the
+        "Compose plugin" message instead of relying on a patch the
+        production code no longer consults."""
         from lablink_cli.commands.deploy_compose import run_deploy_compose
 
-        cfg = _manual_cfg()
-        mock_which.return_value = None
+        class Unavailable(ComposeDocker):
+            def require(self):
+                raise DockerUnavailable()
+
         with pytest.raises(SystemExit):
-            run_deploy_compose(cfg, yes=True, workdir_root=tmp_path)
+            run_deploy_compose(
+                _manual_cfg(), yes=True, workdir_root=tmp_path, docker=Unavailable()
+            )
+        assert "Compose plugin" in capsys.readouterr().out
 
 
 class TestTailscaleStateVolumeExists:

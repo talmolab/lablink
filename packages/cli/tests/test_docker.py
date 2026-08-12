@@ -16,6 +16,19 @@ from lablink_cli.docker import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _docker_on_path():
+    """Most tests below patch subprocess.run/Popen but not shutil.which, so
+    without this they depend on a real `docker` binary being on the test
+    machine's PATH to get past `require()` — confirmed by stripping PATH
+    and re-running this file (10 failures). Tests that deliberately assert
+    docker-absence patch `which` to None themselves; that inner `with`
+    takes precedence over this outer one for the duration of their block.
+    """
+    with patch("lablink_cli.docker.shutil.which", return_value="/usr/bin/docker"):
+        yield
+
+
 def _completed(returncode=0, stdout="", stderr=""):
     return subprocess.CompletedProcess(
         args=["docker"], returncode=returncode, stdout=stdout, stderr=stderr

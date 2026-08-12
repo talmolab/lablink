@@ -85,6 +85,19 @@ class Docker:
         - "exited"      -> container is stopped
         - "missing"     -> no container with that name exists
         - "daemon_error"-> docker daemon is unreachable
+
+        No ``require()`` guard, deliberately: a missing binary raises
+        ``FileNotFoundError`` from the ``subprocess.run`` call below, which
+        is an ``OSError`` and so is already caught by the ``except
+        (TimeoutExpired, OSError)`` clause and reported as "daemon_error" —
+        an ordinary return value, not a raised ``DockerUnavailable``.
+        ``doctor.py``'s client-side container check relies on exactly this:
+        it calls `container_status` as its *only* daemon probe (see
+        ``_check_client_container``'s docstring), so on the very machine
+        `doctor` exists to diagnose — one with no `docker` on PATH — adding
+        `require()` here would turn that diagnosis into an unhandled
+        traceback instead of the "Docker daemon unreachable" line it prints
+        today.
         """
         try:
             result = subprocess.run(
@@ -281,7 +294,14 @@ class Docker:
         """Run a fully-formed ``docker run`` argv, streaming to the terminal.
 
         Output is not captured — image pull progress is meant to be visible —
-        so the returned Result carries only the exit code.
+        so the returned Result carries only the exit code, except that
+        ``_run``'s ``except OSError`` arm still populates ``stderr`` with the
+        exec failure text when docker itself could not be started (e.g. the
+        binary vanished between `require()` and this call). `register.py`'s
+        `_exec_docker` depends on that: a non-empty `stderr` is how it tells
+        "could not start docker" apart from "the container ran and failed."
+        Do not "correct" this to always leave `stderr` empty — that would
+        silently regress that error message.
         """
         self.require()
         return self._run(list(argv), capture=False)
@@ -318,6 +338,19 @@ class NullDocker(Docker):
     This is what tests get by default. It is the honest model for a
     unit-test environment and it is what the callers already handle:
     best-effort teardown stays silent, existence checks report False.
+
+    That model is internally split, deliberately. ``path()``/``available()``
+    say "docker is not installed"; ``require()``/``_run()`` say "docker is
+    installed and idle — nothing exists." A real :class:`Docker` never
+    disagrees with itself that way: ``available() is False`` there implies
+    `require()` raises. Do not "fix" this split by making it consistent —
+    the present-but-empty half is what the existing test suite's
+    expectations are built on. The consequence: a test must not rely on
+    this default adapter to exercise docker-*absence* — a call site
+    branching on `require()` takes the docker-present path here while one
+    branching on `available()` takes the docker-absent path, in the same
+    test run. Inject a fake whose `require()` raises instead (see
+    `test_reset_overlay.py`/`test_unregister.py`).
     """
 
     _NOT_FOUND = (

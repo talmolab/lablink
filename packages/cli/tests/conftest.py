@@ -27,6 +27,13 @@ def _no_real_docker(request, monkeypatch):
 
     Tests marked ``integration`` opt out of both; they may legitimately want
     a real daemon.
+
+    This only keeps tests off the docker *daemon*, not off the host in
+    general: `register._start_log_shipper` spawns
+    `python -m lablink_cli.log_shipper` via a bare ``subprocess.Popen``
+    whose ``argv[0]`` is ``sys.executable``, not ``"docker"`` — this guard
+    does not (and should not) catch that. A test exercising that path that
+    forgets to mock `_start_log_shipper` spawns a real detached process.
     """
     if request.node.get_closest_marker("integration"):
         return
