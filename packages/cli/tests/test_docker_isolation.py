@@ -12,13 +12,14 @@ These tests pin the guard so that protection cannot be quietly lost.
 
 import subprocess
 
+import pytest
+
 
 def test_docker_commands_never_reach_the_real_daemon():
-    result = subprocess.run(
-        ["docker", "ps"], capture_output=True, text=True, check=False
-    )
-    assert result.returncode == 1
-    assert "docker disabled in tests" in result.stderr
+    with pytest.raises(AssertionError):
+        subprocess.run(
+            ["docker", "ps"], capture_output=True, text=True, check=False
+        )
 
 
 def test_state_mutating_docker_commands_are_intercepted_too():
@@ -30,17 +31,8 @@ def test_state_mutating_docker_commands_are_intercepted_too():
         ["docker", "rm", "-f", "lablink-client"],
         ["docker", "compose", "up", "-d"],
     ):
-        result = subprocess.run(argv, capture_output=True, text=True, check=False)
-        assert result.returncode == 1, argv
-        assert "docker disabled in tests" in result.stderr, argv
-
-
-def test_guard_respects_bytes_mode():
-    """register.py calls `docker start` without text=True and decodes stderr
-    itself, so the guard must hand back bytes there."""
-    result = subprocess.run(["docker", "start", "x"], capture_output=True, check=False)
-    assert isinstance(result.stderr, bytes)
-    assert b"docker disabled in tests" in result.stderr
+        with pytest.raises(AssertionError):
+            subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def test_non_docker_commands_still_run():
@@ -78,23 +70,24 @@ def test_tailscale_state_volume_lookup_is_deterministic(tmp_path):
 
 def test_explicit_subprocess_patch_overrides_the_autouse_guard():
     """Guard-precedence invariant: a test's own explicit patch of the real
-    `subprocess.run` still wins over the autouse guard's blanket patch. Now
-    that deploy_compose has no `subprocess` reference of its own, the one
-    place a docker call still reaches `subprocess.run` is inside the
-    `Docker` adapter — so drive a real helper through `default_docker()`
-    (not an injected fake) to keep the guard genuinely in the path, and
-    patch `lablink_cli.docker.subprocess.run` around it. If the guard ever
-    stopped yielding precedence to an explicit patch like this, every test
-    that patches "the docker call" to return specific output would
-    silently see the guard's canned not-found result instead."""
+    `subprocess.run` still wins over the autouse guard's blanket patch.
+
+    `default_docker()` is no help here anymore — under the new guard it
+    hands back the autouse fixture's `NullDocker`, whose `_run` never calls
+    `subprocess.run` at all. So this constructs a real `Docker()` directly,
+    the one place a docker call still reaches `subprocess.run`, and patches
+    `lablink_cli.docker.subprocess.run` around it. If the guard ever stopped
+    yielding precedence to an explicit patch like this, every test that
+    patches "the docker call" to return specific output would silently see
+    the guard's `AssertionError` instead."""
     from unittest.mock import MagicMock, patch
 
     from lablink_cli.commands.deploy_compose import _disable_funnel
-    from lablink_cli.docker import default_docker
+    from lablink_cli.docker import Docker
 
     with patch("lablink_cli.docker.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        _disable_funnel(docker=default_docker())
+        _disable_funnel(docker=Docker())
         assert mock_run.call_args[0][0] == [
             "docker", "exec", "lablink-allocator-tailscale",
             "tailscale", "funnel", "--https=443", "off",
