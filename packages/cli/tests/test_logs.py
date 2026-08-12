@@ -187,6 +187,20 @@ class TestFetchManualAllocatorLogs:
         assert "up" in result["docker_logs"]
         assert "slow query" in result["docker_logs"]
 
+    def test_docker_missing_from_path_does_not_raise(self):
+        """End-to-end with the real adapter (not the LogsDocker fake): a
+        docker binary genuinely absent from PATH must come back as a
+        friendly error dict, not an uncaught DockerUnavailable — the only
+        caller, the TUI's logs viewer, has no try/except around this call."""
+        with patch("lablink_cli.docker.shutil.which", return_value=None), patch(
+            "lablink_cli.docker.subprocess.run",
+            side_effect=FileNotFoundError("docker"),
+        ):
+            result = fetch_manual_allocator_logs(docker=Docker())
+
+        assert result["docker_logs"] is None
+        assert result["error"]
+
 
 # ------------------------------------------------------------------
 # Manual-provider TUI launcher (_run_logs_manual)

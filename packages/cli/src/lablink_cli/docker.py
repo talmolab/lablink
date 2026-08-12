@@ -199,8 +199,14 @@ class Docker:
         container's Python logging goes to stderr: capturing the streams
         separately and reading only stdout hides exactly the tracebacks the
         caller is looking for.
+
+        No ``require()`` guard — like :meth:`container_status`, a missing
+        binary already falls out of the ``except (TimeoutExpired, OSError)``
+        below (``FileNotFoundError`` is an ``OSError``) as an ordinary
+        failed ``Result``. Adding ``require()`` would only turn that
+        swallowed error into a raised ``DockerUnavailable``, which is what
+        callers relied on *not* happening pre-refactor.
         """
-        self.require()
         argv = ["docker", "logs"]
         if tail is not None:
             argv += ["--tail", str(tail)]

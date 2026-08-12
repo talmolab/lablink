@@ -105,6 +105,24 @@ def test_logs_merges_stderr_when_asked():
     assert "--tail" in run.call_args.args[0]
 
 
+def test_logs_swallows_missing_binary_as_a_failed_result():
+    """Like container_status, logs() has no require() guard: a docker
+    binary missing from PATH surfaces as an ordinary non-zero Result, not
+    a raised DockerUnavailable — callers that never expected an exception
+    here (fetch_manual_allocator_logs, and Task 7's log-tailing helpers)
+    depend on this. Patches shutil.which too so a real docker install on
+    the test machine can't mask a reintroduced require() call — that guard
+    checks PATH, not subprocess.run, so patching only subprocess.run isn't
+    enough to exercise it."""
+    with patch("lablink_cli.docker.shutil.which", return_value=None), patch(
+        "lablink_cli.docker.subprocess.run",
+        side_effect=FileNotFoundError("docker"),
+    ):
+        result = Docker().logs("c")
+    assert result.returncode == 1
+    assert not result.ok
+
+
 def test_compose_passes_workdir_as_cwd():
     with patch("lablink_cli.docker.subprocess.run") as run:
         run.return_value = _completed(0)
