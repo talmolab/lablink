@@ -479,9 +479,14 @@ def run_deploy(
 
         # --- Deployment timing ---
         from lablink_cli.commands.status import run_status
-        from lablink_cli.commands.utils import get_terraform_outputs
+        from lablink_cli.commands.utils import TofuError, get_terraform_outputs
 
-        outputs = get_terraform_outputs(deploy_dir)
+        try:
+            outputs = get_terraform_outputs(deploy_dir)
+        except TofuError as e:
+            # apply succeeded, so this is a read fault, not a failed deploy.
+            console.print(f"  [yellow]Could not read outputs:[/yellow] {e}")
+            outputs = {}
         ec2_ip = outputs.get("ec2_public_ip", "")
 
         # Phase 1: Poll the allocator for readiness. URL and timeout depend

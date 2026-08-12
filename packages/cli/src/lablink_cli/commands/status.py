@@ -27,6 +27,7 @@ from lablink_cli.commands.utils import (
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
     get_terraform_outputs,
+    TofuError,
     print_aws_error,
     resolve_from_saved_config,
 )
@@ -398,14 +399,28 @@ def _render_terraform_state(
 ) -> dict:
     """Read and display OpenTofu outputs. Returns outputs dict.
 
-    ``aws_unavailable`` changes only the empty-state wording: with dead
-    credentials an S3-backend read fails, so "no state" would be a guess.
+    ``aws_unavailable`` only picks the wording for a failed read: when
+    credentials are already known to be dead, the block printed above
+    carries the remedy, so repeating tofu's own STS complaint here adds
+    noise instead of information.
     """
     if not deploy_dir.exists():
         return {}
 
     console.print("[bold]OpenTofu State[/bold]")
-    outputs = get_terraform_outputs(deploy_dir)
+    try:
+        outputs = get_terraform_outputs(deploy_dir)
+    except TofuError as e:
+        if aws_unavailable:
+            console.print(
+                "  [yellow]State unreadable — see AWS credentials "
+                "above[/yellow]"
+            )
+        else:
+            console.print(f"  [yellow]State unreadable:[/yellow] {e}")
+        console.print()
+        return {}
+
     if outputs:
         state_table = Table(show_header=False)
         state_table.add_column("Key", style="bold")
@@ -415,11 +430,6 @@ def _render_terraform_state(
                 v = "(sensitive)"
             state_table.add_row(k, str(v))
         console.print(state_table)
-    elif aws_unavailable:
-        console.print(
-            "  [yellow]State unreadable — see AWS credentials "
-            "above[/yellow]"
-        )
     else:
         console.print(
             "  [yellow]No OpenTofu state found[/yellow]"

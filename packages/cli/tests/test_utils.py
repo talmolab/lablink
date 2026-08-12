@@ -20,6 +20,7 @@ from lablink_cli.commands.utils import (
     _parse_instances,
     aws_credentials_error,
     get_terraform_outputs,
+    TofuError,
     print_aws_error,
     query_ec2_instances,
     get_allocator_vm,
@@ -483,21 +484,43 @@ class TestGetTerraformOutputs:
             check=True,
         )
 
-    def test_subprocess_error(self, tmp_path):
+    def test_subprocess_error_raises_with_reason(self, tmp_path):
+        """A failed read must not masquerade as an absent deployment."""
+        stderr = (
+            "\x1b[31m\u2577\x1b[0m\n"
+            "\u2502 Error: validating provider credentials: "
+            "api error InvalidClientTokenId\n"
+            "\u2575\n"
+        )
         with patch("subprocess.run") as mock_run:
-            mock_run.side_effect = subprocess.CalledProcessError(1, "tofu")
-            result = get_terraform_outputs(tmp_path)
+            mock_run.side_effect = subprocess.CalledProcessError(
+                1, "tofu", stderr=stderr
+            )
+            with pytest.raises(TofuError) as excinfo:
+                get_terraform_outputs(tmp_path)
 
-        assert result == {}
+        msg = str(excinfo.value)
+        assert "InvalidClientTokenId" in msg
+        # ANSI and tofu's box drawing must not survive into the message.
+        assert "\x1b" not in msg
+        assert "\u2502" not in msg
 
-    def test_invalid_json(self, tmp_path):
+    def test_missing_binary_raises(self, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = FileNotFoundError()
+            with pytest.raises(TofuError, match="not found on PATH"):
+                get_terraform_outputs(tmp_path)
+
+    def test_invalid_json_raises(self, tmp_path):
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="not json", returncode=0)
-            result = get_terraform_outputs(tmp_path)
+            with pytest.raises(TofuError, match="could not parse"):
+                get_terraform_outputs(tmp_path)
 
-        assert result == {}
-
-    def test_empty_output(self, tmp_path):
+    def test_empty_output_is_not_an_error(self, tmp_path):
+        """`tofu output -json` exits 0 with `{}` when the state declares no
+        outputs — including in an uninitialised directory. That is a real
+        empty result, not a failure."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="{}", returncode=0)
             result = get_terraform_outputs(tmp_path)
