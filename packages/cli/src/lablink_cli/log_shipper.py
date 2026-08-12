@@ -13,7 +13,6 @@ import os
 import queue
 import re
 import signal
-import subprocess
 import sys
 import threading
 import time
@@ -25,7 +24,7 @@ from urllib.request import Request
 from urllib.request import urlopen as _stdlib_urlopen
 
 from lablink_cli.api import USER_AGENT
-from lablink_cli.docker import default_docker
+from lablink_cli.docker import Docker, default_docker
 
 
 def load_env(env_file: Path) -> dict[str, str]:
@@ -153,23 +152,6 @@ def parse_docker_line(line: str) -> tuple[str | None, str]:
     return f"{m.group(1)}Z", m.group(2)
 
 
-def open_docker_logs(
-    name: str, *, since: str | None
-) -> subprocess.Popen:
-    """Spawn ``docker logs --follow --timestamps [--since <ts>] <name>``."""
-    cmd = ["docker", "logs", "--follow", "--timestamps"]
-    if since:
-        cmd += ["--since", since]
-    cmd.append(name)
-    return subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,  # line-buffered
-    )
-
-
 LOG_SHIPPER_DIR = Path.home() / ".lablink"
 PID_FILE = LOG_SHIPPER_DIR / "log_shipper.pid"
 STATE_FILE = LOG_SHIPPER_DIR / "log_shipper.state"
@@ -258,8 +240,10 @@ def run_shipper(
     *,
     _line_iter: Callable | None = None,
     _sleep: Callable[[float], None] = time.sleep,
+    docker: Docker | None = None,
 ) -> None:
     """Main shipper loop. Returns when shipping should stop."""
+    docker = docker or default_docker()
     env = load_env(env_file)
     allocator_url = env["ALLOCATOR_URL"]
     vm_name = env["VM_NAME"]
@@ -278,7 +262,7 @@ def run_shipper(
             line_source = _line_iter()
             proc = None
         else:
-            proc = open_docker_logs(CONTAINER_NAME, since=since)
+            proc = docker.follow_logs(CONTAINER_NAME, since=since)
             line_source = _read_lines_from_popen(proc)
 
         buffer: list[str] = []
@@ -362,7 +346,7 @@ def run_shipper(
                 return
 
         # docker logs --follow exited. Inspect to decide what to do.
-        status = default_docker().container_status(CONTAINER_NAME)
+        status = docker.container_status(CONTAINER_NAME)
         self_log(
             SELF_LOG_FILE, f"docker logs ended; container status={status}"
         )

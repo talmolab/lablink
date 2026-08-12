@@ -277,34 +277,6 @@ class TestParseDockerLine:
         assert msg == "no timestamp here"
 
 
-class TestOpenDockerLogs:
-    def test_builds_command_with_since(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import open_docker_logs
-
-        with patch("lablink_cli.log_shipper.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = MagicMock()
-            open_docker_logs("lablink-client", since="2026-05-28T14:00:00Z")
-
-        cmd = mock_popen.call_args.args[0]
-        assert cmd[:3] == ["docker", "logs", "--follow"]
-        assert "--timestamps" in cmd
-        assert "--since" in cmd
-        assert "2026-05-28T14:00:00Z" in cmd
-        assert "lablink-client" in cmd
-
-    def test_omits_since_when_none(self):
-        from unittest.mock import MagicMock, patch
-        from lablink_cli.log_shipper import open_docker_logs
-
-        with patch("lablink_cli.log_shipper.subprocess.Popen") as mock_popen:
-            mock_popen.return_value = MagicMock()
-            open_docker_logs("lablink-client", since=None)
-
-        cmd = mock_popen.call_args.args[0]
-        assert "--since" not in cmd
-
-
 class TestReadLinesFromPopen:
     def test_yields_tick_while_source_is_idle(self):
         """A source that emits a burst then goes quiet must still tick.
@@ -541,7 +513,7 @@ class TestRunShipper:
         )
         captured_since: list[str | None] = []
 
-        def fake_open_logs(name, *, since):
+        def fake_follow_logs(name, *, since=None):
             captured_since.append(since)
             # Yield no lines, end immediately
             mock = MagicMock()
@@ -550,17 +522,11 @@ class TestRunShipper:
             mock.wait = MagicMock()
             return mock
 
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
-        )
         mock_docker = MagicMock()
+        mock_docker.follow_logs.side_effect = fake_follow_logs
         mock_docker.container_status.return_value = "missing"
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.default_docker",
-            lambda: mock_docker,
-        )
 
-        run_shipper(env_file, _sleep=lambda s: None)
+        run_shipper(env_file, _sleep=lambda s: None, docker=mock_docker)
 
         assert captured_since == ["2026-05-28T14:00:00Z"]
 
@@ -586,22 +552,16 @@ class TestRunShipper:
         )
 
         # Each docker-logs attach yields no lines (container is stopped).
-        def fake_open_logs(name, *, since):
+        def fake_follow_logs(name, *, since=None):
             mock = MagicMock()
             mock.stdout = iter([])
             return mock
 
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
-        )
         mock_docker = MagicMock()
+        mock_docker.follow_logs.side_effect = fake_follow_logs
         mock_docker.container_status.return_value = "exited"
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.default_docker",
-            lambda: mock_docker,
-        )
 
-        run_shipper(env_file, _sleep=lambda s: None)
+        run_shipper(env_file, _sleep=lambda s: None, docker=mock_docker)
 
         # Should give up after MAX_EXITED_CONSECUTIVE inspections — not loop
         # forever. Pre-fix this test would hang indefinitely.
@@ -627,14 +587,11 @@ class TestRunShipper:
             tmp_path / "log_shipper.log",
         )
 
-        def fake_open_logs(name, *, since):
+        def fake_follow_logs(name, *, since=None):
             mock = MagicMock()
             mock.stdout = iter([])
             return mock
 
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.open_docker_logs", fake_open_logs
-        )
         # Alternate: exited, restarting, exited, restarting, ..., then a run
         # of exited that should trigger the give-up. The intervening
         # "restarting" results should keep resetting the counter.
@@ -643,13 +600,10 @@ class TestRunShipper:
             + ["exited"] * MAX_EXITED_CONSECUTIVE
         )
         mock_docker = MagicMock()
+        mock_docker.follow_logs.side_effect = fake_follow_logs
         mock_docker.container_status.side_effect = sequence
-        monkeypatch.setattr(
-            "lablink_cli.log_shipper.default_docker",
-            lambda: mock_docker,
-        )
 
-        run_shipper(env_file, _sleep=lambda s: None)
+        run_shipper(env_file, _sleep=lambda s: None, docker=mock_docker)
 
         # Total inspections = alternating prefix + N trailing exited.
         expected = 2 * (MAX_EXITED_CONSECUTIVE + 2) + MAX_EXITED_CONSECUTIVE
@@ -703,3 +657,17 @@ class TestMainEntry:
 
         assert exc.value.code == 0
         assert not pid_file.exists()
+
+
+def test_run_shipper_takes_a_docker_adapter():
+    import inspect
+
+    from lablink_cli.log_shipper import run_shipper
+
+    assert "docker" in inspect.signature(run_shipper).parameters
+
+
+def test_open_docker_logs_is_gone():
+    import lablink_cli.log_shipper as ls
+
+    assert not hasattr(ls, "open_docker_logs")
