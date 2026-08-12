@@ -7,7 +7,6 @@ import json
 import os
 import socket
 import ssl
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -31,6 +30,7 @@ from lablink_cli.commands.utils import (
     print_aws_error,
     resolve_from_saved_config,
 )
+from lablink_cli.docker import Docker, default_docker
 
 console = Console()
 
@@ -754,8 +754,9 @@ def _public_url(workdir: Path) -> str | None:
     return candidate if candidate.startswith(("http://", "https://")) else None
 
 
-def _run_status_manual(cfg: Config) -> None:
+def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
     """Report compose stack health, allocator HTTP health, and BYO clients."""
+    docker = docker or default_docker()
     workdir = Path.home() / ".lablink" / "compose" / (
         cfg.deployment_name or "lablink"
     )
@@ -771,14 +772,8 @@ def _run_status_manual(cfg: Config) -> None:
         )
         return
 
-    ps = subprocess.run(
-        ["docker", "compose", "ps"],
-        cwd=workdir,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if ps.returncode == 0:
+    ps = docker.compose(workdir, "ps")
+    if ps.ok:
         console.print(ps.stdout)
 
     scheme = "https" if cfg.ssl.provider == "self_signed" else "http"

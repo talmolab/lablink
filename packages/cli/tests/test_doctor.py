@@ -10,6 +10,7 @@ from lablink_cli.commands.doctor import (
     _check_ami,
     _check_terraform,
 )
+from lablink_cli.docker import Docker, DockerUnavailable, Result
 
 
 # ------------------------------------------------------------------
@@ -166,6 +167,59 @@ class TestDoctorManual:
 
 
 # ------------------------------------------------------------------
+# _check_manual_prereqs
+# ------------------------------------------------------------------
+class _PrereqDocker(Docker):
+    def __init__(self, *, path=None, compose_result=Result(0)):
+        self._path = path
+        self._compose_result = compose_result
+
+    def path(self):
+        return self._path
+
+    def compose(self, workdir, *args, capture=True):
+        if isinstance(self._compose_result, Exception):
+            raise self._compose_result
+        return self._compose_result
+
+
+class TestCheckManualPrereqs:
+    def test_docker_and_compose_available(self, capsys):
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(
+            docker=_PrereqDocker(path="/usr/bin/docker", compose_result=Result(0))
+        )
+
+        out = capsys.readouterr().out
+        assert "docker: /usr/bin/docker" in out
+        assert "docker compose: available" in out
+
+    def test_docker_not_found(self, capsys):
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(docker=_PrereqDocker(path=None))
+
+        out = capsys.readouterr().out
+        assert "docker: not found" in out
+
+    def test_compose_missing_when_docker_vanishes_mid_check(self, capsys):
+        """`compose` still calls `require()`, so a docker that disappears
+        between the path check and the compose call surfaces as
+        DockerUnavailable, not a crash."""
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(
+            docker=_PrereqDocker(
+                path="/usr/bin/docker", compose_result=DockerUnavailable()
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert "docker compose: missing" in out
+
+
+# ------------------------------------------------------------------
 # Client-side checks (`lablink client doctor`)
 # ------------------------------------------------------------------
 class TestCheckClientRegistered:
@@ -200,10 +254,7 @@ class TestCheckClientContainer:
 
         mock_docker = MagicMock()
         mock_docker.container_status.return_value = status
-        with patch(
-            "lablink_cli.docker.default_docker", return_value=mock_docker
-        ):
-            return _check_client_container()
+        return _check_client_container(mock_docker)
 
     def test_running_passes(self):
         assert self._run("running")["status"] == "pass"

@@ -15,6 +15,23 @@ from lablink_cli.commands.status import (
     _resolve_manual_admin_credentials,
     _run_status_manual,
 )
+from lablink_cli.docker import Docker, Result
+
+
+class _ComposeDocker(Docker):
+    """Answers `compose(workdir, "ps")` with a fixed Result."""
+
+    def __init__(self, result=Result(0)):
+        self._result = result
+
+    def available(self):
+        return True
+
+    def require(self):
+        return None
+
+    def compose(self, workdir, *args, capture=True):
+        return self._result
 
 
 # ---- _resolve_manual_admin_credentials ----------------------------------
@@ -217,12 +234,10 @@ class TestRunStatusManual:
 
     @patch("lablink_cli.commands.status._fetch_registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.subprocess.run")
     @patch("lablink_cli.commands.status.Path.home")
     def test_renders_clients_when_present(
         self,
         mock_home,
-        mock_subproc,
         mock_health,
         mock_fetch,
         manual_cfg,
@@ -230,7 +245,6 @@ class TestRunStatusManual:
     ):
         mock_home.return_value = tmp_path
         _make_workdir(tmp_path, "mylab")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="ps output")
         mock_health.return_value = {"healthy": True, "detail": "ok"}
         mock_fetch.return_value = (
             [
@@ -248,19 +262,19 @@ class TestRunStatusManual:
             "",
         )
 
-        _run_status_manual(manual_cfg)
+        _run_status_manual(
+            manual_cfg, docker=_ComposeDocker(Result(0, stdout="ps output"))
+        )
 
         mock_fetch.assert_called_once()
         assert mock_fetch.call_args[0] == ("http://localhost", "admin", "pw123")
 
     @patch("lablink_cli.commands.status._fetch_registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.subprocess.run")
     @patch("lablink_cli.commands.status.Path.home")
     def test_handles_empty_client_list(
         self,
         mock_home,
-        mock_subproc,
         mock_health,
         mock_fetch,
         manual_cfg,
@@ -269,21 +283,18 @@ class TestRunStatusManual:
     ):
         mock_home.return_value = tmp_path
         _make_workdir(tmp_path, "mylab")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
         mock_health.return_value = {"healthy": True}
         mock_fetch.return_value = ([], "")
-        _run_status_manual(manual_cfg)
+        _run_status_manual(manual_cfg, docker=_ComposeDocker())
         out = capsys.readouterr().out
         assert "No clients registered yet" in out
 
     @patch("lablink_cli.commands.status._fetch_registered_clients")
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.subprocess.run")
     @patch("lablink_cli.commands.status.Path.home")
     def test_reports_fetch_failure(
         self,
         mock_home,
-        mock_subproc,
         mock_health,
         mock_fetch,
         manual_cfg,
@@ -292,24 +303,21 @@ class TestRunStatusManual:
     ):
         mock_home.return_value = tmp_path
         _make_workdir(tmp_path, "mylab")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
         mock_health.return_value = {"healthy": True}
         mock_fetch.return_value = (
             None,
             "HTTP 401 from http://localhost/api/v1/clients",
         )
-        _run_status_manual(manual_cfg)
+        _run_status_manual(manual_cfg, docker=_ComposeDocker())
         out = capsys.readouterr().out
         assert "Failed to list clients" in out
         assert "401" in out
 
     @patch("lablink_cli.commands.status.check_health_endpoint")
-    @patch("lablink_cli.commands.status.subprocess.run")
     @patch("lablink_cli.commands.status.Path.home")
     def test_warns_when_creds_missing(
         self,
         mock_home,
-        mock_subproc,
         mock_health,
         manual_cfg,
         tmp_path,
@@ -320,8 +328,7 @@ class TestRunStatusManual:
         # Wipe creds out of cfg and leave no config.yaml in the workdir.
         manual_cfg.app.admin_user = ""
         manual_cfg.app.admin_password = ""
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
         mock_health.return_value = {"healthy": True}
-        _run_status_manual(manual_cfg)
+        _run_status_manual(manual_cfg, docker=_ComposeDocker())
         out = capsys.readouterr().out
         assert "Admin credentials not found" in out

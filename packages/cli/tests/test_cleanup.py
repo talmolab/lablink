@@ -17,6 +17,7 @@ from lablink_cli.commands.cleanup import (
     cleanup_s3_env_state,
     cleanup_security_groups,
 )
+from lablink_cli.docker import Docker, Result
 
 
 # ------------------------------------------------------------------
@@ -500,10 +501,29 @@ class TestCleanupLocal:
 # ------------------------------------------------------------------
 # Manual-provider cleanup
 # ------------------------------------------------------------------
+class _ComposeDocker(Docker):
+    """Answers `compose(workdir, "down", "--volumes", ...)` with a fixed
+    Result and records every call."""
+
+    def __init__(self, result=Result(0)):
+        self._result = result
+        self.calls = []
+
+    def available(self):
+        return True
+
+    def require(self):
+        return None
+
+    def compose(self, workdir, *args, capture=True):
+        self.calls.append((workdir, args, capture))
+        return self._result
+
+
 class TestManualCleanup:
-    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    @patch("lablink_cli.commands.cleanup.default_docker")
     def test_manual_compose_down_and_remove_workdir(
-        self, mock_run, mock_cfg, tmp_path,
+        self, mock_default_docker, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.cleanup import run_cleanup
 
@@ -512,6 +532,8 @@ class TestManualCleanup:
         workdir = tmp_path / "compose" / "testlab"
         workdir.mkdir(parents=True)
         (workdir / "docker-compose.yml").write_text("")
+        fake_docker = _ComposeDocker()
+        mock_default_docker.return_value = fake_docker
 
         with patch(
             "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
@@ -519,20 +541,23 @@ class TestManualCleanup:
         ):
             run_cleanup(mock_cfg, dry_run=False)
 
-        mock_run.assert_called()
-        cmd = mock_run.call_args[0][0]
-        assert "down" in cmd
-        assert "--volumes" in cmd
+        assert len(fake_docker.calls) == 1
+        _, args, capture = fake_docker.calls[0]
+        assert "down" in args
+        assert "--volumes" in args
+        assert capture is False
         assert not workdir.exists()
 
-    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    @patch("lablink_cli.commands.cleanup.default_docker")
     def test_manual_no_workdir_is_noop(
-        self, mock_run, mock_cfg, tmp_path,
+        self, mock_default_docker, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.cleanup import run_cleanup
 
         mock_cfg.provider = "manual"
         mock_cfg.deployment_name = "missing-lab"
+        fake_docker = _ComposeDocker()
+        mock_default_docker.return_value = fake_docker
 
         with patch(
             "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
@@ -540,11 +565,11 @@ class TestManualCleanup:
         ):
             run_cleanup(mock_cfg, dry_run=False)
 
-        mock_run.assert_not_called()
+        assert fake_docker.calls == []
 
-    @patch("lablink_cli.commands.cleanup.subprocess.run")
+    @patch("lablink_cli.commands.cleanup.default_docker")
     def test_manual_dry_run_preserves_workdir(
-        self, mock_run, mock_cfg, tmp_path,
+        self, mock_default_docker, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.cleanup import run_cleanup
 
@@ -552,6 +577,8 @@ class TestManualCleanup:
         mock_cfg.deployment_name = "testlab"
         workdir = tmp_path / "compose" / "testlab"
         workdir.mkdir(parents=True)
+        fake_docker = _ComposeDocker()
+        mock_default_docker.return_value = fake_docker
 
         with patch(
             "lablink_cli.commands.cleanup.DEFAULT_COMPOSE_DIR",
@@ -559,5 +586,5 @@ class TestManualCleanup:
         ):
             run_cleanup(mock_cfg, dry_run=True)
 
-        mock_run.assert_not_called()
+        assert fake_docker.calls == []
         assert workdir.exists()
