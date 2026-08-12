@@ -30,7 +30,7 @@ services:
       # in this directory (empty when disabled), so this bind mount
       # always resolves. The allocator reads it at register time and
       # ships its base64 content to BYO clients via the register
-      # response — matching the AWS path where Terraform/user_data
+      # response — matching the AWS path where OpenTofu/user_data
       # delivers the same file to the client container.
       - ./custom-startup.sh:/config/custom-startup.sh:ro
       # The allocator's real public URL, written by `lablink deploy` after it

@@ -61,7 +61,7 @@ def submit_vm_details():
             provider = current_app.config.get("LABLINK_PROVIDER") or get_provider(
                 main.cfg.provider,
                 region=main.cfg.app.region,
-                terraform_dir=str(main.TERRAFORM_DIR),
+                tofu_dir=str(main.TOFU_DIR),
                 connectivity=main.cfg.manual.connectivity,
             )
             provider.client_connectivity.prepare_browser_session(

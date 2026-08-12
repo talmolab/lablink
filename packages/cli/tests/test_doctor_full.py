@@ -175,7 +175,7 @@ class TestRunDoctor:
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
-    @patch("lablink_cli.commands.doctor._check_terraform")
+    @patch("lablink_cli.commands.doctor._check_opentofu")
     def test_all_pass(
         self,
         mock_tf,
@@ -185,7 +185,7 @@ class TestRunDoctor:
         mock_s3,
         mock_ami,
     ):
-        mock_tf.return_value = {"check": "Terraform", "status": "pass", "detail": "ok"}
+        mock_tf.return_value = {"check": "OpenTofu", "status": "pass", "detail": "ok"}
         mock_cfg_exists.return_value = {
             "check": "Config", "status": "pass", "detail": "ok"
         }
@@ -207,7 +207,7 @@ class TestRunDoctor:
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
-    @patch("lablink_cli.commands.doctor._check_terraform")
+    @patch("lablink_cli.commands.doctor._check_opentofu")
     def test_some_fail(
         self,
         mock_tf,
@@ -217,7 +217,7 @@ class TestRunDoctor:
         mock_s3,
         mock_ami,
     ):
-        mock_tf.return_value = {"check": "Terraform", "status": "fail", "detail": ""}
+        mock_tf.return_value = {"check": "OpenTofu", "status": "fail", "detail": ""}
         mock_cfg_exists.return_value = {
             "check": "Config", "status": "pass", "detail": "",
         }

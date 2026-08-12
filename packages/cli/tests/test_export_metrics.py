@@ -31,7 +31,7 @@ class TestRunExportMetrics:
                     "inuse": False,
                     "healthy": "Healthy",
                     "status": "running",
-                    "terraformapplydurationseconds": 45.0,
+                    "tofuapplydurationseconds": 45.0,
                     "createdat": "2023-01-01T00:00:00",
                 },
                 {
@@ -40,7 +40,7 @@ class TestRunExportMetrics:
                     "inuse": True,
                     "healthy": "Healthy",
                     "status": "running",
-                    "terraformapplydurationseconds": 50.0,
+                    "tofuapplydurationseconds": 50.0,
                     "createdat": "2023-01-01T00:01:00",
                 },
             ],
@@ -75,7 +75,7 @@ class TestRunExportMetrics:
         assert len(rows) == 2
         assert rows[0]["hostname"] == "vm-1"
         assert rows[1]["hostname"] == "vm-2"
-        assert "terraformapplydurationseconds" in reader.fieldnames
+        assert "tofuapplydurationseconds" in reader.fieldnames
 
     def test_include_logs_flag(self, mock_cfg, tmp_path):
         """Test that include_logs=True sends include_logs=true in URL."""
@@ -266,7 +266,7 @@ class TestRunExportMetrics:
                 "inuse": False,
                 "healthy": "Healthy",
                 "status": "running",
-                "terraformapplydurationseconds": 45.0,
+                "tofuapplydurationseconds": 45.0,
                 "createdat": "2023-01-01T00:00:00",
             },
             {
@@ -275,7 +275,7 @@ class TestRunExportMetrics:
                 "inuse": True,
                 "healthy": "Healthy",
                 "status": "running",
-                "terraformapplydurationseconds": 50.0,
+                "tofuapplydurationseconds": 50.0,
                 "createdat": "2023-01-01T00:01:00",
             },
         ]
@@ -598,7 +598,7 @@ class TestExportMetricsFlags:
         """A reused deployment_name must not leak its AWS rows into BYO.
 
         The real case: a `sleap-lablink` config switched from aws to manual.
-        Name-scoping alone still matched the old AWS Terraform records.
+        Name-scoping alone still matched the old AWS OpenTofu records.
         """
         records = [
             {"deployment_name": "sleap-lablink", "region": "us-west-2"},

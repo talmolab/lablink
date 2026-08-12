@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 import boto3
 from botocore.exceptions import ClientError
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -26,7 +27,8 @@ from lablink_cli.commands.utils import (
     aws_credentials_error,
     get_client_vms,
     get_deploy_dir as _get_deploy_dir,
-    get_terraform_outputs,
+    get_tofu_outputs,
+    TofuError,
     print_aws_error,
     resolve_from_saved_config,
 )
@@ -393,19 +395,35 @@ def estimate_costs(
     return costs
 
 
-def _render_terraform_state(
+def _render_tofu_state(
     deploy_dir: Path, aws_unavailable: bool = False
 ) -> dict:
-    """Read and display Terraform outputs. Returns outputs dict.
+    """Read and display OpenTofu outputs. Returns outputs dict.
 
-    ``aws_unavailable`` changes only the empty-state wording: with dead
-    credentials an S3-backend read fails, so "no state" would be a guess.
+    ``aws_unavailable`` only picks the wording for a failed read: when
+    credentials are already known to be dead, the block printed above
+    carries the remedy, so repeating tofu's own STS complaint here adds
+    noise instead of information.
     """
     if not deploy_dir.exists():
         return {}
 
-    console.print("[bold]Terraform State[/bold]")
-    outputs = get_terraform_outputs(deploy_dir)
+    console.print("[bold]OpenTofu State[/bold]")
+    try:
+        outputs = get_tofu_outputs(deploy_dir)
+    except TofuError as e:
+        if aws_unavailable:
+            console.print(
+                "  [yellow]State unreadable — see AWS credentials "
+                "above[/yellow]"
+            )
+        else:
+            console.print(
+                f"  [yellow]State unreadable:[/yellow] {escape(str(e))}"
+            )
+        console.print()
+        return {}
+
     if outputs:
         state_table = Table(show_header=False)
         state_table.add_column("Key", style="bold")
@@ -415,14 +433,9 @@ def _render_terraform_state(
                 v = "(sensitive)"
             state_table.add_row(k, str(v))
         console.print(state_table)
-    elif aws_unavailable:
-        console.print(
-            "  [yellow]State unreadable — see AWS credentials "
-            "above[/yellow]"
-        )
     else:
         console.print(
-            "  [yellow]No Terraform state found[/yellow]"
+            "  [yellow]No OpenTofu state found[/yellow]"
         )
     console.print()
     return outputs
@@ -860,7 +873,7 @@ def _render_aws_credentials_error(
     )
     if err.is_auth:
         console.print(
-            "  [dim]Terraform state, VM inventory and live pricing are "
+            "  [dim]OpenTofu state, VM inventory and live pricing are "
             "unavailable until this is fixed.[/dim]"
         )
     else:
@@ -904,7 +917,7 @@ def run_status(cfg: Config) -> None:
     # EC2, so let the real queries run and report for themselves —
     # _render_client_vms already handles AwsQueryError.
     aws_down = aws_error is not None and aws_error.is_auth
-    outputs = _render_terraform_state(deploy_dir, aws_unavailable=aws_down)
+    outputs = _render_tofu_state(deploy_dir, aws_unavailable=aws_down)
     # DNS/HTTP/SSL checks need no AWS credentials, so they still run.
     _render_health_checks(cfg, outputs)
     _render_client_vms(cfg, aws_unavailable=aws_down)

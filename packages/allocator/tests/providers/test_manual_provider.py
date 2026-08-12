@@ -6,7 +6,7 @@ def test_manual_provider_flags_and_connectivity():
     from lablink_allocator_service.providers.connectivity.lan_direct import (
         LANDirectClientConnectivity,
     )
-    p = ManualProvider(region=None, terraform_dir=None)
+    p = ManualProvider(region=None, tofu_dir=None)
     assert p.name == "manual"
     assert p.can_provision_hosts is False
     assert p.can_destroy_hosts is False

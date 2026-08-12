@@ -1,8 +1,8 @@
-"""SG audit run before `terraform apply` in /api/launch.
+"""SG audit run before `tofu apply` in /api/launch.
 
 Refuses any client ingress on :6080 or :7070 that includes 0.0.0.0/0
 or ::/0. Inspects the structured JSON plan produced by
-``terraform show -json <planfile>`` rather than parsing the freeform
+``tofu show -json <planfile>`` rather than parsing the freeform
 text plan, so the audit is robust to provider rendering changes.
 
 Fails closed: if the plan JSON has an aws_security_group change with
@@ -22,13 +22,13 @@ _PUBLIC_V4 = "0.0.0.0/0"
 _PUBLIC_V6 = "::/0"
 
 
-def audit_terraform_plan(plan_json: Any) -> None:
+def audit_tofu_plan(plan_json: Any) -> None:
     """Walk every aws_security_group change in the JSON plan; refuse
     the apply if any post-change ingress rule on a protected port
     exposes 0.0.0.0/0 or ::/0.
 
     Args:
-        plan_json: parsed output of ``terraform show -json <planfile>``.
+        plan_json: parsed output of ``tofu show -json <planfile>``.
             Typed ``Any`` because ``json.loads`` can yield any shape;
             the function validates the top-level structure before use.
 

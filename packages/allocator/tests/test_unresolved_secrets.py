@@ -1,7 +1,7 @@
 """Tests for the unresolved-credential gate.
 
 lablink-template commits config.yaml with PLACEHOLDER_* credentials and its
-deploy workflow substitutes them from GitHub secrets. A local `terraform
+deploy workflow substitutes them from GitHub secrets. A local `tofu
 apply` -- a documented path in that repo's README -- performs no substitution,
 so the literal is baked into the instance and the allocator would otherwise
 serve an admin UI whose password is published in a public template.

@@ -63,12 +63,12 @@ def mock_scheduler():
 def scheduler_service(mock_schedule_db, mock_scheduler):
     """Fixture to create a ScheduledDestructionService instance."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"
-    terraform_dir = "/tmp/terraform"
+    tofu_dir = "/tmp/tofu"
 
     service = ScheduledDestructionService(
         schedule_db=mock_schedule_db,
         db_url=db_url,
-        terraform_dir=terraform_dir,
+        tofu_dir=tofu_dir,
     )
 
     # The service creates its own scheduler, so we need to replace it with our mock
@@ -100,18 +100,18 @@ def test_init_creates_scheduler(mock_schedule_db):
         mock_background_scheduler.assert_called()
 
 
-def test_init_custom_terraform_dir(mock_schedule_db):
-    """Test that custom terraform_dir is used when provided."""
+def test_init_custom_tofu_dir(mock_schedule_db):
+    """Test that custom tofu_dir is used when provided."""
     db_url = "postgresql://user:pass@localhost:5432/lablink"
-    custom_dir = "/custom/terraform/path"
+    custom_dir = "/custom/tofu/path"
 
     service = ScheduledDestructionService(
         schedule_db=mock_schedule_db,
         db_url=db_url,
-        terraform_dir=custom_dir,
+        tofu_dir=custom_dir,
     )
 
-    assert service.terraform_dir == custom_dir
+    assert service.tofu_dir == custom_dir
 
 
 def test_start_loads_scheduled_destructions(scheduler_service, mock_schedule_db):
@@ -175,9 +175,9 @@ def test_schedule_destruction_one_time(scheduler_service, mock_schedule_db):
     call_args = scheduler_service.scheduler.add_job.call_args
 
     assert call_args[1]["id"] == "destruction_42"
-    # Args now include only schedule_id and terraform_dir (no credentials)
+    # Args now include only schedule_id and tofu_dir (no credentials)
     assert call_args[1]["args"][0] == 42  # schedule_id is first arg
-    assert len(call_args[1]["args"]) == 2  # schedule_id + terraform_dir
+    assert len(call_args[1]["args"]) == 2  # schedule_id + tofu_dir
     assert schedule_id == 42
 
 
@@ -300,13 +300,13 @@ def test_execute_scheduled_destruction_success(
     """Test successful execution of scheduled destruction via standalone function.
 
     The job now dispatches through provider.destroy_hosts instead of calling
-    terraform directly.
+    tofu directly.
     """
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
     from lablink_allocator_service.providers.protocol import DestroyResult
 
     schedule_id = 42
-    terraform_dir = str(tmp_path / "terraform")
+    tofu_dir = str(tmp_path / "terraform")
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = True
@@ -336,7 +336,7 @@ def test_execute_scheduled_destruction_success(
 
         execute_scheduled_destruction_job(
             schedule_id=schedule_id,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
     # Verify the job's pool was closed exactly once, in the finally block
@@ -348,7 +348,7 @@ def test_execute_scheduled_destruction_success(
     assert first_call[1]["schedule_id"] == schedule_id
     assert first_call[1]["status"] == "executing"
 
-    # Verify provider.destroy_hosts was called (not subprocess/terraform directly)
+    # Verify provider.destroy_hosts was called (not subprocess/tofu directly)
     fake_provider.destroy_hosts.assert_called_once()
 
     # Verify database was cleared
@@ -367,7 +367,7 @@ def test_execute_scheduled_destruction_provider_cannot_destroy(
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
 
     schedule_id = 7
-    terraform_dir = str(tmp_path / "terraform")
+    tofu_dir = str(tmp_path / "terraform")
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = False
@@ -388,7 +388,7 @@ def test_execute_scheduled_destruction_provider_cannot_destroy(
 
         execute_scheduled_destruction_job(
             schedule_id=schedule_id,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
     # destroy_hosts must NOT have been called
@@ -407,14 +407,14 @@ def test_execute_scheduled_destruction_destroy_failure(
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
 
     schedule_id = 42
-    terraform_dir = str(tmp_path / "terraform")
+    tofu_dir = str(tmp_path / "terraform")
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = True
     fake_provider.list_hosts.return_value = []
     fake_provider.destroy_hosts.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd=["terraform", "destroy"],
+        cmd=["tofu", "destroy"],
         stderr="Error destroying resources",
     )
 
@@ -434,14 +434,14 @@ def test_execute_scheduled_destruction_destroy_failure(
 
         execute_scheduled_destruction_job(
             schedule_id=schedule_id,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
     # Verify status was updated to failed
     calls = mock_schedule_db.update_scheduled_destruction_status.call_args_list
     failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
     assert failed_call[1]["schedule_id"] == schedule_id
-    assert "Terraform destroy failed" in failed_call[1]["execution_result"]
+    assert "OpenTofu destroy failed" in failed_call[1]["execution_result"]
 
     # DB should NOT be cleared on failure
     fake_vm_db.clear_database.assert_not_called()
@@ -452,11 +452,11 @@ def test_execute_scheduled_destruction_skips_when_operation_in_progress(
 ):
     """A scheduled destruction must not run while an on-demand operation
     (submitted via /destroy or /api/launch) is queued/running — it would
-    race the same Terraform state."""
+    race the same OpenTofu state."""
     from lablink_allocator_service.scheduler import execute_scheduled_destruction_job
 
     schedule_id = 42
-    terraform_dir = str(tmp_path / "terraform")
+    tofu_dir = str(tmp_path / "terraform")
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = True
@@ -479,7 +479,7 @@ def test_execute_scheduled_destruction_skips_when_operation_in_progress(
 
         execute_scheduled_destruction_job(
             schedule_id=schedule_id,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
     # destroy_hosts must NOT have been called — the in-progress operation
@@ -504,7 +504,7 @@ def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
     from lablink_allocator_service.providers.protocol import DestroyResult
 
     schedule_id = 43
-    terraform_dir = str(tmp_path / "terraform")
+    tofu_dir = str(tmp_path / "terraform")
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = True
@@ -527,7 +527,7 @@ def test_execute_scheduled_destruction_proceeds_when_no_operation_in_progress(
 
         execute_scheduled_destruction_job(
             schedule_id=schedule_id,
-            terraform_dir=terraform_dir,
+            tofu_dir=tofu_dir,
         )
 
     fake_provider.destroy_hosts.assert_called_once()

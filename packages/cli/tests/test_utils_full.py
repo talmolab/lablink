@@ -32,7 +32,7 @@ class TestGetDeployDir:
 # get_allocator_url
 # ------------------------------------------------------------------
 class TestGetAllocatorUrl:
-    @patch("lablink_cli.commands.utils.get_terraform_outputs")
+    @patch("lablink_cli.commands.utils.get_tofu_outputs")
     def test_https_domain(self, mock_outputs, mock_cfg):
         mock_cfg.dns.enabled = True
         mock_cfg.dns.domain = "test.example.com"
@@ -45,7 +45,7 @@ class TestGetAllocatorUrl:
 
         assert result == "https://test.example.com"
 
-    @patch("lablink_cli.commands.utils.get_terraform_outputs")
+    @patch("lablink_cli.commands.utils.get_tofu_outputs")
     def test_http_domain(self, mock_outputs, mock_cfg):
         mock_cfg.dns.enabled = True
         mock_cfg.dns.domain = "test.example.com"
@@ -58,7 +58,7 @@ class TestGetAllocatorUrl:
 
         assert result == "http://test.example.com"
 
-    @patch("lablink_cli.commands.utils.get_terraform_outputs")
+    @patch("lablink_cli.commands.utils.get_tofu_outputs")
     def test_ip_fallback(self, mock_outputs, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
@@ -70,7 +70,7 @@ class TestGetAllocatorUrl:
 
         assert result == "http://1.2.3.4"
 
-    @patch("lablink_cli.commands.utils.get_terraform_outputs")
+    @patch("lablink_cli.commands.utils.get_tofu_outputs")
     def test_no_url(self, mock_outputs, mock_cfg):
         mock_cfg.dns.enabled = False
         mock_cfg.ssl.provider = "none"
@@ -83,7 +83,7 @@ class TestGetAllocatorUrl:
         assert result == ""
 
     def test_manual_provider_uses_localhost(self, mock_cfg):
-        """Manual provider short-circuits: no Terraform state, no DNS."""
+        """Manual provider short-circuits: no OpenTofu state, no DNS."""
         mock_cfg.provider = "manual"
 
         with patch("lablink_cli.commands.utils.get_deploy_dir") as mock_dir:

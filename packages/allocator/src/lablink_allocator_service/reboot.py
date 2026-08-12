@@ -27,7 +27,7 @@ class AutoRebootService:
     Args:
         database: VmDatabase instance for querying/updating VM state.
         region: AWS region where VMs are deployed.
-        terraform_dir: Path to the Terraform directory (for SSH key retrieval).
+        tofu_dir: Path to the OpenTofu directory (for SSH key retrieval).
         max_attempts: Maximum reboot attempts per VM before giving up.
         cooldown_seconds: Minimum seconds between reboots of the same VM.
         check_interval_seconds: How often to check for failed VMs.
@@ -37,7 +37,7 @@ class AutoRebootService:
         self,
         database: VmDatabase,
         region: str = "us-west-2",
-        terraform_dir: str = "",
+        tofu_dir: str = "",
         max_attempts: int = 3,
         cooldown_seconds: int = 300,
         check_interval_seconds: int = 60,
@@ -45,7 +45,7 @@ class AutoRebootService:
     ):
         self.database = database
         self.region = region
-        self.terraform_dir = terraform_dir
+        self.tofu_dir = tofu_dir
         self.max_attempts = max_attempts
         self.cooldown_seconds = cooldown_seconds
         self.check_interval_seconds = check_interval_seconds

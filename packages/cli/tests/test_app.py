@@ -173,7 +173,7 @@ class TestCacheClear:
     def test_cache_clear_no_cache_dir(self, tmp_path):
         nonexistent = tmp_path / "nonexistent"
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR", nonexistent
+            "lablink_cli.tofu_source.CACHE_DIR", nonexistent
         ):
             result = runner.invoke(app, ["cache-clear"])
         assert result.exit_code == 0
@@ -184,7 +184,7 @@ class TestCacheClear:
         cache_dir.mkdir()
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR", cache_dir
+            "lablink_cli.tofu_source.CACHE_DIR", cache_dir
         ):
             result = runner.invoke(app, ["cache-clear"])
         assert result.exit_code == 0
@@ -199,7 +199,7 @@ class TestCacheClear:
         (cache_dir / "v0.1.1" / "main.tf").write_text("# tf")
 
         with patch(
-            "lablink_cli.terraform_source.CACHE_DIR", cache_dir
+            "lablink_cli.tofu_source.CACHE_DIR", cache_dir
         ):
             result = runner.invoke(app, ["cache-clear"])
         assert result.exit_code == 0
@@ -252,10 +252,10 @@ class TestCacheClear:
         assert list(dep_dir.glob("*.json")) == []
         assert "cleared 2" in _plain(result.output).lower()
 
-    def test_cache_clear_deployments_does_not_touch_terraform(
+    def test_cache_clear_deployments_does_not_touch_template_cache(
         self, tmp_path
     ):
-        """--deployments should leave the Terraform template cache alone."""
+        """--deployments should leave the OpenTofu template cache alone."""
         tf_dir = tmp_path / "tf"
         tf_dir.mkdir()
         (tf_dir / "v0.1.0").mkdir()
@@ -266,7 +266,7 @@ class TestCacheClear:
         (dep_dir / "mylab.json").write_text('{"x":1}')
 
         with (
-            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch("lablink_cli.tofu_source.CACHE_DIR", tf_dir),
             patch(
                 "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
             ),
@@ -276,7 +276,7 @@ class TestCacheClear:
             )
 
         assert result.exit_code == 0
-        # Terraform cache untouched
+        # OpenTofu cache untouched
         assert (tf_dir / "v0.1.0" / "main.tf").exists()
         # Deployment cache wiped
         assert list(dep_dir.glob("*.json")) == []
@@ -295,7 +295,7 @@ class TestCacheClear:
         (dep_dir / "mylab.json").write_text('{"x":1}')
 
         with (
-            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch("lablink_cli.tofu_source.CACHE_DIR", tf_dir),
             patch(
                 "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
             ),
@@ -307,7 +307,7 @@ class TestCacheClear:
         assert (dep_dir / "mylab.json").exists()
 
     def test_cache_clear_all_removes_both(self, tmp_path):
-        """--all clears both the Terraform and deployment caches."""
+        """--all clears both the OpenTofu and deployment caches."""
         tf_dir = tmp_path / "tf"
         tf_dir.mkdir()
         (tf_dir / "v0.1.0").mkdir()
@@ -318,7 +318,7 @@ class TestCacheClear:
         (dep_dir / "mylab.json").write_text('{"x":1}')
 
         with (
-            patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir),
+            patch("lablink_cli.tofu_source.CACHE_DIR", tf_dir),
             patch(
                 "lablink_cli.deployment_metrics.DEPLOYMENTS_DIR", dep_dir
             ),
@@ -384,7 +384,7 @@ class TestCacheClear:
         (tf_dir / "v0.1.0").mkdir()
         (tf_dir / "v0.1.0" / "main.tf").write_text("# tf")
 
-        with patch("lablink_cli.terraform_source.CACHE_DIR", tf_dir):
+        with patch("lablink_cli.tofu_source.CACHE_DIR", tf_dir):
             result = runner.invoke(app, ["cache-clear", "--stale"])
 
         assert result.exit_code == 0
@@ -502,7 +502,7 @@ class TestDeployDispatch:
     @patch("lablink_cli.commands.deploy_compose.run_deploy_compose")
     @patch("lablink_cli.commands.deploy.run_deploy")
     @patch("lablink_cli.app._load_cfg")
-    def test_aws_dispatches_to_terraform(
+    def test_aws_dispatches_to_tofu(
         self, mock_load, mock_aws_run, mock_compose_run,
     ):
         from typer.testing import CliRunner
@@ -615,7 +615,7 @@ class TestConfigureTemplate:
     def test_output_survives_the_workflows_sed_injection(
         self, mock_wizard_cls, mock_run_setup, tmp_path, monkeypatch
     ):
-        """Replay terraform-deploy.yml's substitution against the real output.
+        """Replay tofu-deploy.yml's substitution against the real output.
 
         The workflow seds PLACEHOLDER_* to the GitHub secrets, then greps for
         a leftover PLACEHOLDER_ as its only safety net. A config carrying the

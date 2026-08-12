@@ -574,7 +574,7 @@ def test_get_all_vms_for_export_excludes_logs_by_default(db_instance):
             "status",
             "cloudinitlogs",
             "dockerlogs",
-            "terraformapplydurationseconds",
+            "tofuapplydurationseconds",
             "createdat",
         ]
         mock_get_columns.return_value = column_names
@@ -593,7 +593,7 @@ def test_get_all_vms_for_export_excludes_logs_by_default(db_instance):
             "inuse",
             "healthy",
             "status",
-            "terraformapplydurationseconds",
+            "tofuapplydurationseconds",
             "createdat",
         ]
         query_columns = ", ".join(expected_columns)

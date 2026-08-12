@@ -8,18 +8,18 @@ Today's /api/launch route inlines:
 - check_support_nvidia (boto3 / AWS metadata)
 - current_instance_security_group (IMDSv2)
 - terraform.runtime.tfvars writes (14 specific keys)
-- terraform plan + show -json + apply (3 subprocess.run calls, plus a 4th
-  from get_instance_timings: terraform output -json)
-- audit_terraform_plan (SG guard)
+- tofu plan + show -json + apply (3 subprocess.run calls, plus a 4th
+  from get_instance_timings: tofu output -json)
+- audit_tofu_plan (SG guard)
 - upload_to_s3 (state archival)
-- database.update_terraform_timing (DB write per host)
+- database.update_tofu_timing (DB write per host)
 
 After Tasks 5-6, /api/launch calls provider.provision_hosts(...) which
 performs the same effects polymorphically. These tests assert the
 behavior, not the exact code shape, so they survive both states.
 
 Post-Task-6 note: all AWS-specific calls (check_support_nvidia,
-upload_to_s3, audit_terraform_plan, subprocess.run for terraform) now
+upload_to_s3, audit_tofu_plan, subprocess.run for tofu) now
 execute inside AWSProvider.provision_hosts — patch them in the
 providers.aws namespace, not the main namespace.  get_instance_timings,
 get_instance_ids, and get_instance_names are also patched in the
@@ -34,7 +34,7 @@ import pytest
 
 
 # ---------------------------------------------------------------------------
-# Minimal clean plan JSON the SG auditor accepts (same shape as test_terraform_api.py)
+# Minimal clean plan JSON the SG auditor accepts (same shape as test_tofu_api.py)
 # ---------------------------------------------------------------------------
 _CLEAN_PLAN_JSON = json.dumps({
     "resource_changes": [
@@ -83,7 +83,7 @@ _TIMING_JSON = json.dumps(_TIMING_DATA)
 # Shared helper: build the three subprocess.run return values the provider needs
 # for plan/show/apply (called in providers.aws.subprocess).
 # get_instance_timings / get_instance_ids / get_instance_names are patched
-# separately since they call terraform_utils.subprocess.
+# separately since they call tofu_utils.subprocess.
 # ---------------------------------------------------------------------------
 
 class _FakeResult:
@@ -112,8 +112,8 @@ class _FakeCompletedPopen:
 def _provider_subprocess_side_effects(plan_json=_CLEAN_PLAN_JSON):
     """Return FakeResult objects in the order AWSProvider.provision_hosts
     calls subprocess.run:
-    1. terraform plan -no-color -out tfplan.binary ...
-    2. terraform show -json tfplan.binary
+    1. tofu plan -no-color -out tfplan.binary ...
+    2. tofu show -json tfplan.binary
     (apply now streams via subprocess.Popen — see _FakeCompletedPopen.)
     """
     return [
@@ -183,24 +183,24 @@ def launch_setup(app, monkeypatch, tmp_path):
 
     Post-Task-6: also replaces LABLINK_PROVIDER in app.config with a fresh
     AWSProvider pointing at tmp_path, so provision_hosts writes tfvars and
-    calls terraform in the tmp directory rather than the real TERRAFORM_DIR.
+    calls tofu in the tmp directory rather than the real TOFU_DIR.
     """
     from lablink_allocator_service import main
     from lablink_allocator_service.providers.aws import AWSProvider
 
-    monkeypatch.setattr(main, "TERRAFORM_DIR", tmp_path)
+    monkeypatch.setattr(main, "TOFU_DIR", tmp_path)
     monkeypatch.setattr(main, "allocator_ip", "1.2.3.4", raising=False)
     monkeypatch.setattr(main, "key_name", "test-key", raising=False)
     monkeypatch.setattr(main, "ENVIRONMENT", "test", raising=False)
 
     # Wire a fresh AWSProvider pointing at tmp_path so provision_hosts
-    # writes tfvars and runs terraform relative to tmp_path.
-    provider = AWSProvider(region="us-west-2", terraform_dir=str(tmp_path))
+    # writes tfvars and runs tofu relative to tmp_path.
+    provider = AWSProvider(region="us-west-2", tofu_dir=str(tmp_path))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
 
     fake_db = MagicMock()
     fake_db.get_row_count.return_value = 0
-    fake_db.update_terraform_timing = MagicMock()
+    fake_db.update_tofu_timing = MagicMock()
     monkeypatch.setattr(main, "database", fake_db, raising=False)
 
     return {"tmp_path": tmp_path, "database": fake_db}
@@ -211,7 +211,7 @@ def launch_setup(app, monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_launch_submits_job_and_returns_202(launch_setup, client, admin_headers):
-    """The route no longer blocks on Terraform — it submits a job and
+    """The route no longer blocks on OpenTofu — it submits a job and
     returns immediately with a job id.
 
     `main.operations_worker` is patched here (like every other test below)
@@ -241,7 +241,7 @@ def test_launch_redirects_browser_client_with_job_id(
     launch_setup, client, admin_headers,
 ):
     """A non-JSON (browser form) submit gets a redirect carrying the job id,
-    not a rendered terraform-output page."""
+    not a rendered tofu-output page."""
     with _provider_happy_path_patches(), patch(
         "lablink_allocator_service.main.operations_worker"
     ) as mock_worker:
@@ -288,13 +288,13 @@ def test_launch_closure_calls_aws_utils_and_writes_timings(
     assert output == "apply success"
 
     db = launch_setup["database"]
-    assert db.update_terraform_timing.call_count == 1
+    assert db.update_tofu_timing.call_count == 1
 
 
 def test_launch_closure_runs_plan_show_apply_in_order(
     launch_setup, client, admin_headers,
 ):
-    """Baseline preserved: terraform plan -> show -json -> apply, in order."""
+    """Baseline preserved: tofu plan -> show -json -> apply, in order."""
     from unittest.mock import patch
 
     with _provider_happy_path_patches() as mocks, patch(
@@ -306,7 +306,7 @@ def test_launch_closure_runs_plan_show_apply_in_order(
 
         def index_of(cmds, verb):
             for i, cmd in enumerate(cmds):
-                if cmd and cmd[0] == "terraform" and verb in cmd:
+                if cmd and cmd[0] == "tofu" and verb in cmd:
                     return i
             return -1
 
@@ -333,7 +333,7 @@ def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_heade
     with the same user-facing message the old synchronous route produced,
     so it lands in operations.error with useful detail intact.
 
-    audit_terraform_plan runs between the `show -json` and `apply` calls
+    audit_tofu_plan runs between the `show -json` and `apply` calls
     inside provider.provision_hosts, so this must override just that one
     call while every other provider dependency stays mocked to the happy
     path — and the closure must be invoked in the SAME `with` block that
@@ -343,7 +343,7 @@ def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_heade
     from lablink_allocator_service.utils.sg_audit import SGAuditFailure
 
     with _provider_happy_path_patches(), patch(
-        "lablink_allocator_service.providers.aws.audit_terraform_plan",
+        "lablink_allocator_service.providers.aws.audit_tofu_plan",
         side_effect=SGAuditFailure("port 6080 exposed"),
     ), patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         client.post("/api/launch", headers=admin_headers, data={"num_vms": "1"})
@@ -355,7 +355,7 @@ def test_launch_closure_wraps_sg_audit_failure(launch_setup, client, admin_heade
             fn()
 
 
-def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_headers):
+def test_launch_closure_wraps_tofu_failure(launch_setup, client, admin_headers):
     """CalledProcessError inside the closure is reformatted with the
     ANSI-stripped stderr, matching the old synchronous route's error text."""
     import subprocess
@@ -372,7 +372,7 @@ def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_head
     ), patch(
         "lablink_allocator_service.providers.aws.subprocess.run",
         side_effect=subprocess.CalledProcessError(
-            1, ["terraform", "apply"], stderr="\x1b[31mError: boom\x1b[0m",
+            1, ["tofu", "apply"], stderr="\x1b[31mError: boom\x1b[0m",
         ),
     ), patch(
         "lablink_allocator_service.main.operations_worker"
@@ -383,7 +383,7 @@ def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_head
         # fn() must be invoked while the subprocess.run/upload_to_s3/etc.
         # patches above are still active — calling it after this `with`
         # block exits would hit real, unmocked subprocess/AWS calls.
-        with pytest.raises(RuntimeError, match="Terraform failed: Error: boom"):
+        with pytest.raises(RuntimeError, match="OpenTofu failed: Error: boom"):
             fn()
 
 
@@ -494,7 +494,7 @@ def test_launch_closure_base64_encodes_success_check(
     built by `launch()` itself before `provider.provision_hosts(...)` is
     even called, so a fake provider that just records its `spec` kwarg is
     enough to verify main.py's own encoding line — no need to also exercise
-    AWSProvider's terraform/AWS plumbing.
+    AWSProvider's tofu/AWS plumbing.
     """
     import base64
 

@@ -118,7 +118,7 @@ def _export_allocator_metrics(
     attempt for every deployment the operator has ever run — so an unfiltered
     export puts other deployments' rows in a file named for this one.
     ``provider`` is part of the scope because a name can be reused across
-    providers, and an AWS record's Terraform phase columns say nothing about a
+    providers, and an AWS record's OpenTofu phase columns say nothing about a
     compose stack. Records predating that field are AWS ones, hence the
     ``"aws"`` default.
 

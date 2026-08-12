@@ -488,7 +488,7 @@ def run_deploy_compose(
     # deploy still leaves a record on disk, same as the AWS path. Started
     # here, after the confirmation gate, so an aborted "Proceed?" leaves no
     # in_progress file behind at all. region/template_version stay None:
-    # there is no region and no Terraform template in a compose deploy.
+    # there is no region and no OpenTofu template in a compose deploy.
     deploy_start_dt = datetime.now(timezone.utc)
     metrics = DeploymentMetrics(
         deployment_name=cfg.deployment_name,

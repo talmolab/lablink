@@ -72,18 +72,18 @@ jobs:
             python-version: "3.10"
             working-directory: packages/client
             test-command: "uv run pytest tests --cov=src/lablink_client_service --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-fail-under=90"
-            needs-terraform: false
+            needs-tofu: false
           - package: lablink-allocator
             python-version: "3.10"
             working-directory: packages/allocator
             test-command: "uv run pytest tests --maxfail=1 --disable-warnings --cov=. --cov-report=xml --cov-report=term --cov-fail-under=90"
-            needs-terraform: true
+            needs-tofu: true
 
           - package: lablink-cli
             python-version: "3.11"
             working-directory: packages/cli
             test-command: "uv run pytest tests --cov=src/lablink_cli --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html"
-            needs-terraform: false
+            needs-tofu: false
 
     steps:
       - name: Checkout code
@@ -94,27 +94,27 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Configure AWS credentials for Terraform tests
-        if: matrix.needs-terraform
+      - name: Configure AWS credentials for OpenTofu tests
+        if: matrix.needs-tofu
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
 
-      - name: Setup Terraform
-        if: matrix.needs-terraform
-        uses: hashicorp/setup-terraform@v4
+      - name: Setup OpenTofu
+        if: matrix.needs-tofu
+        uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: 1.9.8
-          terraform_wrapper: false
+          tofu_version: 1.12.5
+          tofu_wrapper: false
 
       - name: Install dependencies
         working-directory: ${{ matrix.working-directory }}
         run: |
           uv sync --all-extras
 
-      - name: Remove backend config for Terraform tests
-        if: matrix.needs-terraform
+      - name: Remove backend config for OpenTofu tests
+        if: matrix.needs-tofu
         working-directory: packages/allocator/src/lablink_allocator_service/terraform
         run: rm -f backend.tf
 

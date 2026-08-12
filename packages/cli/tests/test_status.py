@@ -12,7 +12,7 @@ from lablink_cli.commands.status import (
     _render_client_vms,
     _render_cost_estimate,
     _render_health_checks,
-    _render_terraform_state,
+    _render_tofu_state,
     check_dns,
     check_health_endpoint,
     check_http,
@@ -283,10 +283,10 @@ class TestBuildHealthUrl:
 
 
 # ------------------------------------------------------------------
-# _render_terraform_state
+# _render_tofu_state
 # ------------------------------------------------------------------
-class TestRenderTerraformState:
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+class TestRenderTofuState:
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     def test_returns_outputs(self, mock_outputs, tmp_path):
         mock_outputs.return_value = {
             "ec2_public_ip": "1.2.3.4",
@@ -295,41 +295,82 @@ class TestRenderTerraformState:
         deploy_dir = tmp_path / "deploy"
         deploy_dir.mkdir()
 
-        result = _render_terraform_state(deploy_dir)
+        result = _render_tofu_state(deploy_dir)
         assert result["ec2_public_ip"] == "1.2.3.4"
 
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     def test_no_deploy_dir(self, mock_outputs, tmp_path):
         deploy_dir = tmp_path / "nonexistent"
-        result = _render_terraform_state(deploy_dir)
+        result = _render_tofu_state(deploy_dir)
         assert result == {}
         mock_outputs.assert_not_called()
 
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     def test_empty_outputs(self, mock_outputs, tmp_path, capsys):
         mock_outputs.return_value = {}
         deploy_dir = tmp_path / "deploy"
         deploy_dir.mkdir()
 
-        result = _render_terraform_state(deploy_dir)
+        result = _render_tofu_state(deploy_dir)
         assert result == {}
-        assert "No Terraform state found" in capsys.readouterr().out
+        assert "No OpenTofu state found" in capsys.readouterr().out
 
-    @patch("lablink_cli.commands.status.get_terraform_outputs")
-    def test_empty_outputs_with_dead_credentials(
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
+    def test_read_failure_with_dead_credentials_points_at_the_creds(
         self, mock_outputs, tmp_path, capsys
     ):
-        """An S3-backend read needs credentials, so "no state" would be a
-        guess when they're broken."""
-        mock_outputs.return_value = {}
+        """The credentials block printed above already carries the remedy,
+        so repeating tofu's STS complaint here is noise."""
+        from lablink_cli.commands.utils import TofuError
+
+        mock_outputs.side_effect = TofuError("api error InvalidClientTokenId")
         deploy_dir = tmp_path / "deploy"
         deploy_dir.mkdir()
 
-        result = _render_terraform_state(deploy_dir, aws_unavailable=True)
+        result = _render_tofu_state(deploy_dir, aws_unavailable=True)
         assert result == {}
         out = capsys.readouterr().out
-        assert "unreadable" in out
-        assert "No Terraform state found" not in out
+        assert "see AWS credentials above" in out
+        assert "No OpenTofu state found" not in out
+
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
+    def test_error_containing_rich_markup_does_not_abort(
+        self, mock_outputs, tmp_path, capsys
+    ):
+        """tofu names files in brackets, and `[/var/...]` reads to Rich as a
+        closing tag with no opening tag — which raises MarkupError and kills
+        the command that was trying to report the problem."""
+        from lablink_cli.commands.utils import TofuError
+
+        mock_outputs.side_effect = TofuError(
+            "Error: cannot read [/var/lib/state] here"
+        )
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_tofu_state(deploy_dir)
+
+        assert result == {}
+        assert "[/var/lib/state]" in capsys.readouterr().out
+
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
+    def test_read_failure_without_creds_problem_shows_the_reason(
+        self, mock_outputs, tmp_path, capsys
+    ):
+        """A non-auth failure (held lock, uninitialised backend) has no
+        block above it, so the reason has to be printed here rather than
+        reported as an absent deployment."""
+        from lablink_cli.commands.utils import TofuError
+
+        mock_outputs.side_effect = TofuError("Error acquiring the state lock")
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_tofu_state(deploy_dir)
+        assert result == {}
+        out = capsys.readouterr().out
+        assert "Error acquiring the state lock" in out
+        assert "No OpenTofu state found" not in out
 
 
 # ------------------------------------------------------------------

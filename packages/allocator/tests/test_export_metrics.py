@@ -16,7 +16,7 @@ def test_export_metrics_success(client, admin_headers, monkeypatch):
             "inuse": False,
             "healthy": "Healthy",
             "status": "running",
-            "terraformapplydurationseconds": 45.0,
+            "tofuapplydurationseconds": 45.0,
             "createdat": "2023-01-01T00:00:00",
         },
         {
@@ -25,7 +25,7 @@ def test_export_metrics_success(client, admin_headers, monkeypatch):
             "inuse": True,
             "healthy": "Healthy",
             "status": "running",
-            "terraformapplydurationseconds": 50.0,
+            "tofuapplydurationseconds": 50.0,
             "createdat": "2023-01-01T00:01:00",
         },
     ]
@@ -117,8 +117,8 @@ def test_export_metrics_datetime_serialization(
     fake_db.get_all_vms_for_export.return_value = [
         {
             "hostname": "vm-1",
-            "terraformapplystarttime": datetime(2023, 1, 1, 12, 0, 0),
-            "terraformapplyendtime": datetime(2023, 1, 1, 12, 2, 0),
+            "tofuapplystarttime": datetime(2023, 1, 1, 12, 0, 0),
+            "tofuapplyendtime": datetime(2023, 1, 1, 12, 2, 0),
             "createdat": datetime(2023, 1, 1, 10, 0, 0),
         },
     ]
@@ -131,6 +131,6 @@ def test_export_metrics_datetime_serialization(
     assert resp.status_code == 200
     result = resp.get_json()
     vm = result["vms"][0]
-    assert vm["terraformapplystarttime"] == "2023-01-01T12:00:00"
-    assert vm["terraformapplyendtime"] == "2023-01-01T12:02:00"
+    assert vm["tofuapplystarttime"] == "2023-01-01T12:00:00"
+    assert vm["tofuapplyendtime"] == "2023-01-01T12:02:00"
     assert vm["createdat"] == "2023-01-01T10:00:00"

@@ -8,27 +8,27 @@ POST_ENDPOINT = "/api/launch"
 DESTROY_ENDPOINT = "/destroy"
 
 # ---------------------------------------------------------------------------
-# Helper: wire a fresh AWSProvider to a given terraform_dir and inject it into
+# Helper: wire a fresh AWSProvider to a given tofu_dir and inject it into
 # app.config["LABLINK_PROVIDER"] so the refactored /api/launch route calls
 # provision_hosts on the right directory.
 # ---------------------------------------------------------------------------
 
-def _wire_aws_provider(monkeypatch, terraform_dir, region="us-west-2"):
+def _wire_aws_provider(monkeypatch, tofu_dir, region="us-west-2"):
     """Replace LABLINK_PROVIDER in app.config with an AWSProvider that uses
-    terraform_dir.  Must be called after the monkeypatch for TERRAFORM_DIR
+    tofu_dir.  Must be called after the monkeypatch for TOFU_DIR
     so the two are in sync."""
     from lablink_allocator_service import main
     from lablink_allocator_service.providers.aws import AWSProvider
 
-    provider = AWSProvider(region=region, terraform_dir=str(terraform_dir))
+    provider = AWSProvider(region=region, tofu_dir=str(tofu_dir))
     monkeypatch.setitem(main.app.config, "LABLINK_PROVIDER", provider)
 
 JSON_ACCEPT = {"Accept": "application/json"}
 
 # JSON plan the SG audit accepts: protected ports :6080 / :7070 are
 # allocator-only, :22 is public. The /api/launch handler runs
-# `terraform plan -out=...` then `terraform show -json` then audit
-# then `terraform apply <planfile>` then `terraform output -json`,
+# `tofu plan -out=...` then `tofu show -json` then audit
+# then `tofu apply <planfile>` then `tofu output -json`,
 # so subprocess.run side_effect lists must produce four results in
 # that order — and the second result's .stdout must be a JSON string
 # the audit accepts.
@@ -108,11 +108,11 @@ def test_launch_vm_success(
     tmp_path,
 ):
     """Test successful VM launch with some VMs already launched before."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    # Create a fake tofu directory
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     # Mock Global Variables in "main.py"
     monkeypatch.setattr(
@@ -130,22 +130,22 @@ def test_launch_vm_success(
         "lablink_allocator_service.main.ENVIRONMENT", "test", raising=False
     )
 
-    # Fake terraform calls (plan + show + apply; get_instance_* are patched)
+    # Fake tofu calls (plan + show + apply; get_instance_* are patched)
     class R:
         def __init__(self, out="OK"):
             self.stdout, self.stderr = out, ""
             self.returncode = 0
 
     mock_run.side_effect = [
-        R("OK"),                             # terraform plan -out (writes plan file)
-        R(CLEAN_PLAN_JSON),                  # terraform show -json (feeds the SG audit)
+        R("OK"),                             # tofu plan -out (writes plan file)
+        R(CLEAN_PLAN_JSON),                  # tofu show -json (feeds the SG audit)
     ]
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="\x1b[32mapply success\x1b[0m\n", returncode=0,
     )
 
     # Call route -- now async: it submits a job and returns immediately
-    # instead of running terraform inline. Capture and invoke the closure
+    # instead of running tofu inline. Capture and invoke the closure
     # (still within the scope of the @patch decorators above) to exercise
     # the same provision_hosts call the background thread would make.
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -167,14 +167,14 @@ def test_launch_vm_success(
     assert "-no-color" in plan_cmd_list
     assert "-out" in plan_cmd_list
     assert "-var=instance_count=5" in plan_cmd_list
-    assert plan_kwargs["cwd"] == terraform_dir
+    assert plan_kwargs["cwd"] == tofu_dir
 
     # Check show -json call (reads the plan back for the audit)
     show_args, show_kwargs = mock_run.call_args_list[1]
     show_cmd_list = show_args[0]
     assert show_cmd_list[1] == "show"
     assert "-json" in show_cmd_list
-    assert show_kwargs["cwd"] == terraform_dir
+    assert show_kwargs["cwd"] == tofu_dir
 
     # Check apply call (applies the saved plan file; vars are baked in;
     # now streamed via Popen instead of subprocess.run)
@@ -183,7 +183,7 @@ def test_launch_vm_success(
     apply_cmd_list = apply_args[0]
     assert "apply" in apply_cmd_list
     assert not any(a.startswith("-var=") for a in apply_cmd_list)
-    assert apply_kwargs["cwd"] == terraform_dir
+    assert apply_kwargs["cwd"] == tofu_dir
 
     expected_lines = [
         'allocator_ip = "1.2.3.4"',
@@ -197,7 +197,7 @@ def test_launch_vm_success(
     ]
 
     # Assert tf vars
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (tofu_dir / "terraform.runtime.tfvars").read_text()
     missing = [line for line in expected_lines if line not in tfvars]
     assert not missing, f"Missing lines in tfvars: {missing}"
 
@@ -205,7 +205,7 @@ def test_launch_vm_success(
     mock_upload_to_s3.assert_called_once_with(
         bucket_name="test-bucket",
         region="us-west-2",
-        local_path=terraform_dir / "terraform.runtime.tfvars",
+        local_path=tofu_dir / "terraform.runtime.tfvars",
         env="test",
         deployment_name="test-lablink",
     )
@@ -239,12 +239,12 @@ def test_launch_vm_appends_allocator_sg_id_var(
     tmp_path,
 ):
     """When running on EC2, the allocator's own SG id is appended as a
-    -var to terraform apply so client SG ingress can lock down to it."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
-                        terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    -var to tofu apply so client SG ingress can lock down to it."""
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR",
+                        tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -266,8 +266,8 @@ def test_launch_vm_appends_allocator_sg_id_var(
             self.stdout, self.stderr, self.returncode = out, "", 0
 
     mock_run.side_effect = [
-        R("OK"),               # terraform plan -out
-        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("OK"),               # tofu plan -out
+        R(CLEAN_PLAN_JSON),    # tofu show -json
     ]
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="apply ok\n", returncode=0,
@@ -282,7 +282,7 @@ def test_launch_vm_appends_allocator_sg_id_var(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-    # The allocator-SG var is supplied via terraform plan; apply runs
+    # The allocator-SG var is supplied via tofu plan; apply runs
     # off the saved plan file and never sees -var flags directly.
     plan_args, _ = mock_run.call_args_list[0]
     plan_cmd_list = plan_args[0]
@@ -324,18 +324,18 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
     tmp_path,
 ):
     """Outside EC2 (IMDSv2 unreachable), the allocator_sg_id var is
-    skipped — the apply command still goes through. Terraform itself
+    skipped — the apply command still goes through. OpenTofu itself
     will fail with a missing-variable error in that case, which is the
     correct signal that the deploy is mis-configured for dev."""
     from lablink_allocator_service.utils.aws_utils import NotOnEC2Error
 
     mock_current_sg.side_effect = NotOnEC2Error("no IMDS")
 
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR",
-                        terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR",
+                        tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -357,8 +357,8 @@ def test_launch_vm_skips_sg_var_when_not_on_ec2(
             self.stdout, self.stderr, self.returncode = out, "", 0
 
     mock_run.side_effect = [
-        R("OK"),               # terraform plan -out
-        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("OK"),               # tofu plan -out
+        R(CLEAN_PLAN_JSON),    # tofu show -json
     ]
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="apply ok\n", returncode=0,
@@ -394,10 +394,10 @@ def test_launch_missing_allocator_outputs_returns_error(
 ):
     """Missing allocator outputs redirects to /admin/instances with an
     error code instead of rendering the old dashboard template inline."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
@@ -412,7 +412,7 @@ def test_launch_missing_allocator_outputs_returns_error(
     resp = client.post(POST_ENDPOINT, headers=admin_headers, data={"num_vms": "1"})
     assert resp.status_code == 302
     assert resp.headers["Location"] == "/admin/instances?error=allocator_outputs_missing"
-    assert not (terraform_dir / "terraform.runtime.tfvars").exists()
+    assert not (tofu_dir / "terraform.runtime.tfvars").exists()
 
 
 @patch("lablink_allocator_service.providers.aws.check_support_nvidia", return_value=False)
@@ -423,11 +423,11 @@ def test_launch_apply_failure(
     monkeypatch, tmp_path,
 ):
     """Test VM launch failure during apply."""
-    # Create a fake terraform directory
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    # Create a fake tofu directory
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
@@ -467,10 +467,10 @@ def test_launch_apply_failure(
         assert resp.status_code == 302
 
         fn = mock_worker.submit.call_args.kwargs["fn"]
-        with pytest.raises(RuntimeError, match="Terraform failed: boom"):
+        with pytest.raises(RuntimeError, match="OpenTofu failed: boom"):
             fn()
 
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (tofu_dir / "terraform.runtime.tfvars").read_text()
     assert 'gpu_support = "false"' in tfvars
 
 
@@ -483,11 +483,11 @@ def test_launch_apply_failure(
 def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                          client, admin_headers, monkeypatch, tmp_path):
     """Test successful VM destruction via a plan+apply destroy sequence."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    (tofu_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     def fake_run(cmd, **kwargs):
         result = MagicMock()
@@ -518,9 +518,9 @@ def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     # plan -destroy, then show -json (2 subprocess.run calls)
     assert mock_run.call_count == 2
     plan_args, plan_kwargs = mock_run.call_args_list[0]
-    assert plan_args[0][:3] == ["terraform", "plan", "-destroy"]
+    assert plan_args[0][:3] == ["tofu", "plan", "-destroy"]
     assert "-var-file=terraform.runtime.tfvars" in plan_args[0]
-    assert plan_kwargs["cwd"] == terraform_dir
+    assert plan_kwargs["cwd"] == tofu_dir
 
     show_args, _ = mock_run.call_args_list[1]
     assert show_args[0][1] == "show"
@@ -528,8 +528,8 @@ def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     # apply (of the saved destroy plan) streams via Popen
     mock_popen.assert_called_once()
     popen_args, popen_kwargs = mock_popen.call_args
-    assert popen_args[0][:2] == ["terraform", "apply"]
-    assert popen_kwargs["cwd"] == terraform_dir
+    assert popen_args[0][:2] == ["tofu", "apply"]
+    assert popen_kwargs["cwd"] == tofu_dir
 
     # DB cleared exactly once
     fake_db.clear_database.assert_called_once()
@@ -543,11 +543,11 @@ def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_destroy_failure(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                          client, admin_headers, monkeypatch, tmp_path):
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    (tofu_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     def fake_run(cmd, **kwargs):
         result = MagicMock()
@@ -610,11 +610,11 @@ def test_launch_missing_num_vms(client, admin_headers):
 def test_destroy_json_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
                                client, admin_headers, monkeypatch, tmp_path):
     """Test successful destroy returns JSON when Accept header is set."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    (tofu_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     def fake_run(cmd, **kwargs):
         result = MagicMock()
@@ -655,16 +655,16 @@ def test_destroy_json_success(mock_run, mock_popen, mock_sg, mock_ids, mock_name
 @patch("lablink_allocator_service.providers.aws.subprocess.run")
 def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
                                client, admin_headers, monkeypatch, tmp_path):
-    """Test terraform destroy failure returns JSON 500 when Accept header is set."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    (terraform_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    """Test tofu destroy failure returns JSON 500 when Accept header is set."""
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    (tofu_dir / "terraform.runtime.tfvars").write_text("num_vms = 2")
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd=["terraform", "destroy"],
+        cmd=["tofu", "destroy"],
         stderr="\x1b[31mfailed to destroy\x1b[0m",
     )
 
@@ -674,7 +674,7 @@ def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
         resp = client.post(DESTROY_ENDPOINT, headers=headers)
 
         # Submission itself succeeds immediately (job queued); the
-        # terraform failure only surfaces once the closure runs.
+        # tofu failure only surfaces once the closure runs.
         assert resp.status_code == 202
         body = json.loads(resp.data)
         assert body["status"] == "queued"
@@ -691,11 +691,11 @@ def test_destroy_no_tfvars(mock_ids, mock_names,
     """Test destroy closure raises RuntimeError when tfvars does not exist
     (no VMs launched) -- this now surfaces only when the background thread
     runs the closure, not synchronously from the route."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
     # Do NOT create terraform.runtime.tfvars
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1
@@ -713,10 +713,10 @@ def test_destroy_no_tfvars_json(mock_ids, mock_names,
                                  client, admin_headers, monkeypatch, tmp_path):
     """Test destroy closure raises RuntimeError (JSON client) when tfvars
     does not exist -- submission itself still succeeds immediately."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
 
     headers = {**admin_headers, **JSON_ACCEPT}
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -756,10 +756,10 @@ def test_launch_json_success(
     tmp_path,
 ):
     """Test successful VM launch returns JSON when Accept header is set."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -779,8 +779,8 @@ def test_launch_json_success(
             self.returncode = 0
 
     mock_run.side_effect = [
-        R("OK"),               # terraform plan -out
-        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("OK"),               # tofu plan -out
+        R(CLEAN_PLAN_JSON),    # tofu show -json
     ]
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="apply success", returncode=0,
@@ -834,10 +834,10 @@ def test_launch_json_missing_allocator_outputs(
     client, admin_headers, monkeypatch, tmp_path
 ):
     """Test missing allocator outputs returns JSON 500."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=lambda: 0),
@@ -864,11 +864,11 @@ def test_launch_json_apply_failure(
     mock_run, mock_popen, mock_check_support_nvidia, client, admin_headers,
     monkeypatch, tmp_path,
 ):
-    """Test Terraform apply failure returns JSON 500."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    """Test OpenTofu apply failure returns JSON 500."""
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=lambda: 0),
@@ -905,14 +905,14 @@ def test_launch_json_apply_failure(
         resp = client.post(POST_ENDPOINT, headers=headers, data={"num_vms": "1"})
 
         # Submission itself succeeds immediately (job queued); the
-        # terraform failure only surfaces once the closure runs.
+        # tofu failure only surfaces once the closure runs.
         assert resp.status_code == 202
         body = json.loads(resp.data)
         assert body["status"] == "queued"
 
         fn = mock_worker.submit.call_args.kwargs["fn"]
         with pytest.raises(
-            RuntimeError, match="Terraform failed: Error: resource already exists"
+            RuntimeError, match="OpenTofu failed: Error: resource already exists"
         ):
             fn()
 
@@ -932,10 +932,10 @@ def test_launch_json_unexpected_error(
     tmp_path,
 ):
     """Test unexpected error (e.g. S3 failure) returns JSON 500."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -957,8 +957,8 @@ def test_launch_json_unexpected_error(
     # plan + show return a clean (audit-passing) plan; apply succeeds;
     # the S3 upload then blows up with AccessDenied (the path under test).
     mock_run.side_effect = [
-        R("OK"),               # terraform plan -out
-        R(CLEAN_PLAN_JSON),    # terraform show -json
+        R("OK"),               # tofu plan -out
+        R(CLEAN_PLAN_JSON),    # tofu show -json
     ]
     mock_popen.return_value = _FakeCompletedPopen(
         stdout_text="apply success\n", returncode=0,
@@ -1023,15 +1023,15 @@ def test_launch_aborts_on_sg_audit_failure(
     monkeypatch,
     tmp_path,
 ):
-    """If terraform plan shows a violating ingress on a protected
-    port, /api/launch aborts with 400 and never invokes terraform
+    """If tofu plan shows a violating ingress on a protected
+    port, /api/launch aborts with 400 and never invokes tofu
     apply. The gate is the whole point of Task 19."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
     monkeypatch.setattr(
-        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+        "lablink_allocator_service.main.TOFU_DIR", tofu_dir
     )
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -1055,8 +1055,8 @@ def test_launch_aborts_on_sg_audit_failure(
     # Plan succeeds (writes the file); show returns the violating JSON;
     # the audit then aborts the flow before apply is ever invoked.
     mock_run.side_effect = [
-        R("OK"),                  # terraform plan -out
-        R(VIOLATING_PLAN_JSON),   # terraform show -json (fed to audit)
+        R("OK"),                  # tofu plan -out
+        R(VIOLATING_PLAN_JSON),   # tofu show -json (fed to audit)
     ]
 
     headers = {**admin_headers, **JSON_ACCEPT}
@@ -1101,12 +1101,12 @@ def test_launch_aborts_on_sg_audit_failure_html(
 ):
     """Same gate, browser path: a violating plan returns 400 with an
     HTML error message that names the offending port."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
     monkeypatch.setattr(
-        "lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir
+        "lablink_allocator_service.main.TOFU_DIR", tofu_dir
     )
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -1128,8 +1128,8 @@ def test_launch_aborts_on_sg_audit_failure_html(
             self.stdout, self.stderr, self.returncode = out, "", 0
 
     mock_run.side_effect = [
-        R("OK"),                  # terraform plan -out
-        R(VIOLATING_PLAN_JSON),   # terraform show -json (fed to audit)
+        R("OK"),                  # tofu plan -out
+        R(VIOLATING_PLAN_JSON),   # tofu show -json (fed to audit)
     ]
 
     with patch("lablink_allocator_service.main.operations_worker") as mock_worker:
@@ -1178,10 +1178,10 @@ def test_launch_writes_register_token_to_tfvars(
     tmp_path,
 ):
     """launch() must write register_token = "..." into terraform.runtime.tfvars."""
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -1223,7 +1223,7 @@ def test_launch_writes_register_token_to_tfvars(
         fn = mock_worker.submit.call_args.kwargs["fn"]
         fn()
 
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (tofu_dir / "terraform.runtime.tfvars").read_text()
     assert 'register_token = "test-register-token-value"' in tfvars
     assert 'agent_token = "test-agent-token-value"' in tfvars
 
@@ -1256,10 +1256,10 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     the bundled user_data. Guards the D1 shipping-blocker wiring: if the
     AGENT_TOKEN tfvars thread is ever removed, every /api/session/start 500s.
     """
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr("lablink_allocator_service.main.TERRAFORM_DIR", terraform_dir)
-    _wire_aws_provider(monkeypatch, terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr("lablink_allocator_service.main.TOFU_DIR", tofu_dir)
+    _wire_aws_provider(monkeypatch, tofu_dir)
     monkeypatch.setattr(
         "lablink_allocator_service.main.database",
         MagicMock(get_row_count=MagicMock(return_value=0)),
@@ -1300,7 +1300,7 @@ def test_launch_writes_agent_token_to_tfvars_additively(
 
     from lablink_allocator_service import main
 
-    tfvars = (terraform_dir / "terraform.runtime.tfvars").read_text()
+    tfvars = (tofu_dir / "terraform.runtime.tfvars").read_text()
     # agent_token carries main.AGENT_TOKEN ...
     assert f'agent_token = "{main.AGENT_TOKEN}"' in tfvars
     assert 'agent_token = "test-agent-token-value"' in tfvars
@@ -1308,14 +1308,14 @@ def test_launch_writes_agent_token_to_tfvars_additively(
     assert "api_token" not in tfvars
 
 
-def test_terraform_threads_agent_token_through_user_data():
-    """Static-content guard for the AGENT_TOKEN Terraform wiring.
+def test_tofu_threads_agent_token_through_user_data():
+    """Static-content guard for the AGENT_TOKEN OpenTofu wiring.
 
     Catches typos/renames in the templatefile var name, variables.tf,
     or user_data.sh's docker-run `-e` line that would slip past both
-    `terraform validate` (HCL only) and the runtime tfvars-write test
+    `tofu validate` (HCL only) and the runtime tfvars-write test
     above (which only pins the .tfvars line). After PR D4, api_token is
-    retired from the terraform template — only agent_token remains.
+    retired from the tofu template — only agent_token remains.
     """
     import re
     from pathlib import Path
@@ -1335,7 +1335,7 @@ def test_terraform_threads_agent_token_through_user_data():
     assert re.search(r"agent_token\s*=\s*var\.agent_token", main_tf)
     # injected on the client docker run
     assert '-e AGENT_TOKEN="${agent_token}"' in user_data
-    # After PR D4, api_token is retired from the bundled terraform template.
+    # After PR D4, api_token is retired from the bundled tofu template.
     assert '-e API_TOKEN="${api_token}"' not in user_data
 
 
@@ -1344,9 +1344,9 @@ def test_run_launch_forwards_progress_callback_to_provider(
 ):
     from lablink_allocator_service import main
 
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr(main, "TERRAFORM_DIR", terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr(main, "TOFU_DIR", tofu_dir)
 
     fake_provider = MagicMock()
     fake_provider.can_provision_hosts = True
@@ -1386,9 +1386,9 @@ def test_run_destroy_forwards_progress_callback_to_provider(
 ):
     from lablink_allocator_service import main
 
-    terraform_dir = tmp_path / "terraform"
-    terraform_dir.mkdir()
-    monkeypatch.setattr(main, "TERRAFORM_DIR", terraform_dir)
+    tofu_dir = tmp_path / "terraform"
+    tofu_dir.mkdir()
+    monkeypatch.setattr(main, "TOFU_DIR", tofu_dir)
 
     fake_provider = MagicMock()
     fake_provider.can_destroy_hosts = True

@@ -932,7 +932,7 @@ def test_manual_path_overrides_an_inherited_aws_dns_config():
 
 def test_aws_path_still_reaches_the_dns_ssl_screen():
     """Regression guard: the skip above must be scoped to the manual path.
-    The AWS path genuinely provisions DNS and TLS via Terraform."""
+    The AWS path genuinely provisions DNS and TLS via OpenTofu."""
     import asyncio
 
     cfg, app = _build_cfg_and_app()

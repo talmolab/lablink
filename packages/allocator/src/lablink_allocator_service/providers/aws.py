@@ -26,20 +26,20 @@ from lablink_allocator_service.utils.aws_utils import (
     stop_start_ec2_instance,
     upload_to_s3,
 )
-from lablink_allocator_service.utils.sg_audit import audit_terraform_plan
-from lablink_allocator_service.utils.terraform_utils import (
+from lablink_allocator_service.utils.sg_audit import audit_tofu_plan
+from lablink_allocator_service.utils.tofu_utils import (
     get_instance_ids,
     get_instance_names,
     get_instance_timings,
     get_ssh_private_key,
 )
 
-# Matches Terraform's per-resource completion lines in `apply`/`destroy`
+# Matches OpenTofu's per-resource completion lines in `apply`/`destroy`
 # streamed output (see _run_streamed below). Matched against an
-# ANSI-stripped copy of each line, since `terraform apply`/`destroy` (run
+# ANSI-stripped copy of each line, since `tofu apply`/`destroy` (run
 # without -no-color) include color codes around resource names/durations.
 #
-# The duration Terraform prints is NOT always plain seconds: under a
+# The duration OpenTofu prints is NOT always plain seconds: under a
 # minute it's "12s", but a minute or longer it's "5m2s", and past an hour
 # "1h2m3s" — found via a real destroy where 5 VMs each took 5-7 minutes,
 # so a \d+s-only pattern silently never matched their completion lines
@@ -115,9 +115,9 @@ class AWSProvider:
     can_destroy_hosts = True
     can_recover_hosts = True
 
-    def __init__(self, *, region=None, terraform_dir=None, **_):
+    def __init__(self, *, region=None, tofu_dir=None, **_):
         self._region = region
-        self._terraform_dir = terraform_dir
+        self._tofu_dir = tofu_dir
         self.client_connectivity = AllocatorProxiedClientConnectivity()
 
     def recover_hosts(self, handles: list[ClientHandle]) -> bool:
@@ -138,9 +138,9 @@ class AWSProvider:
         """Return (instance_id, public_ip, ssh_key_path) for *hostname*.
 
         Looks up the EC2 instance by Name tag, fetches its public IP, and
-        reads the SSH private key from the Terraform state directory.  Any
+        reads the SSH private key from the OpenTofu state directory.  Any
         component may be None if unavailable (instance not found, no public
-        IP, or terraform_dir not set / key file absent).
+        IP, or tofu_dir not set / key file absent).
         """
         instance_id = get_instance_id_by_name(hostname, region=self._region)
         if not instance_id:
@@ -149,17 +149,17 @@ class AWSProvider:
         ip = get_instance_public_ip(instance_id, region=self._region)
 
         key_path: str | None = None
-        if self._terraform_dir:
+        if self._tofu_dir:
             try:
-                key_path = get_ssh_private_key(self._terraform_dir)
+                key_path = get_ssh_private_key(self._tofu_dir)
             except Exception:
                 pass
 
         return (instance_id, ip, key_path)
 
     def list_hosts(self) -> list[ClientHandle]:
-        ids = get_instance_ids(terraform_dir=self._terraform_dir)
-        names = get_instance_names(terraform_dir=self._terraform_dir)
+        ids = get_instance_ids(tofu_dir=self._tofu_dir)
+        names = get_instance_names(tofu_dir=self._tofu_dir)
         return [
             ClientHandle(id=i, hostname=n, provider_metadata={"region": self._region})
             for i, n in zip(ids, names)
@@ -171,25 +171,25 @@ class AWSProvider:
         spec: dict,
         progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> ProvisionResult:
-        """Run `terraform plan + audit + apply` for `count` new client hosts.
+        """Run `tofu plan + audit + apply` for `count` new client hosts.
 
         Moves the inline logic that used to live in main.py's /api/launch
         handler behind the provider seam (SR-F1). `spec` is a dict of
         runtime values that used to be assembled inline in the route.
 
         Raises:
-            RuntimeError: if terraform_dir is None
-            SGAuditFailure: propagated from audit_terraform_plan when
+            RuntimeError: if tofu_dir is None
+            SGAuditFailure: propagated from audit_tofu_plan when
                 the plan would expose :6080 / :7070 to the internet
             subprocess.CalledProcessError: propagated from any
-                terraform invocation failure
+                tofu invocation failure
         """
-        if self._terraform_dir is None:
+        if self._tofu_dir is None:
             raise RuntimeError(
-                "AWSProvider not configured with terraform_dir — cannot provision."
+                "AWSProvider not configured with tofu_dir — cannot provision."
             )
-        terraform_dir = Path(self._terraform_dir)
-        runtime_file = terraform_dir / "terraform.runtime.tfvars"
+        tofu_dir = Path(self._tofu_dir)
+        runtime_file = tofu_dir / "terraform.runtime.tfvars"
 
         # GPU detection (moved from main.py)
         gpu_support_bool = check_support_nvidia(
@@ -239,18 +239,18 @@ class AWSProvider:
 
         # Plan + audit + apply sequence (verbatim from main.py:542-602)
         plan_file = "tfplan.binary"
-        plan_file_path = terraform_dir / plan_file
+        plan_file_path = tofu_dir / plan_file
         try:
             subprocess.run(
-                ["terraform", "plan", "-no-color", "-out", plan_file, *tf_vars],
-                cwd=terraform_dir, check=True, capture_output=True, text=True,
+                ["tofu", "plan", "-no-color", "-out", plan_file, *tf_vars],
+                cwd=tofu_dir, check=True, capture_output=True, text=True,
             )
             show = subprocess.run(
-                ["terraform", "show", "-json", plan_file],
-                cwd=terraform_dir, check=True, capture_output=True, text=True,
+                ["tofu", "show", "-json", plan_file],
+                cwd=tofu_dir, check=True, capture_output=True, text=True,
             )
             plan_json = json.loads(show.stdout)
-            audit_terraform_plan(plan_json)  # may raise SGAuditFailure
+            audit_tofu_plan(plan_json)  # may raise SGAuditFailure
 
             resources_total = sum(
                 1
@@ -269,8 +269,8 @@ class AWSProvider:
                     progress_callback(completed, resources_total)
 
             apply_result = _run_streamed(
-                ["terraform", "apply", "-auto-approve", plan_file],
-                cwd=terraform_dir,
+                ["tofu", "apply", "-auto-approve", plan_file],
+                cwd=tofu_dir,
                 resource_complete_re=_CREATE_COMPLETE_RE,
                 on_resource_complete=_on_resource_complete,
             )
@@ -289,9 +289,9 @@ class AWSProvider:
         )
 
         # Read back the freshly-created instances + timings
-        ids = get_instance_ids(terraform_dir=str(terraform_dir))
-        names = get_instance_names(terraform_dir=str(terraform_dir))
-        timings = get_instance_timings(terraform_dir=str(terraform_dir))
+        ids = get_instance_ids(tofu_dir=str(tofu_dir))
+        names = get_instance_names(tofu_dir=str(tofu_dir))
+        timings = get_instance_timings(tofu_dir=str(tofu_dir))
 
         handles = [
             ClientHandle(
@@ -311,21 +311,21 @@ class AWSProvider:
     ) -> DestroyResult:
         """Plan, then apply, a full-workspace destroy. `handles` is
         accepted for protocol consistency but not used for per-handle
-        filtering — Terraform destroy operates against the whole state
+        filtering — OpenTofu destroy operates against the whole state
         file. Mirrors provision_hosts's plan+show+apply sequence (added
         so resources_total can be computed exactly the same way
         provision_hosts computes it for creates) instead of the single
-        `terraform destroy` call this method used before.
+        `tofu destroy` call this method used before.
 
         Raises FileNotFoundError if no runtime tfvars exists (signals
         "no client VMs were ever launched" — route handler maps this to 404).
         """
-        if self._terraform_dir is None:
+        if self._tofu_dir is None:
             raise RuntimeError(
-                "AWSProvider not configured with terraform_dir — cannot destroy."
+                "AWSProvider not configured with tofu_dir — cannot destroy."
             )
-        terraform_dir = Path(self._terraform_dir)
-        runtime_file = terraform_dir / "terraform.runtime.tfvars"
+        tofu_dir = Path(self._tofu_dir)
+        runtime_file = tofu_dir / "terraform.runtime.tfvars"
         if not runtime_file.exists():
             raise FileNotFoundError(
                 "tfvars does not exist — no client VMs were launched"
@@ -340,16 +340,16 @@ class AWSProvider:
             pass
 
         plan_file = "tfplan-destroy.binary"
-        plan_file_path = terraform_dir / plan_file
+        plan_file_path = tofu_dir / plan_file
         try:
             subprocess.run(
-                ["terraform", "plan", "-destroy", "-no-color",
+                ["tofu", "plan", "-destroy", "-no-color",
                  "-out", plan_file, *var_args],
-                cwd=terraform_dir, check=True, capture_output=True, text=True,
+                cwd=tofu_dir, check=True, capture_output=True, text=True,
             )
             show = subprocess.run(
-                ["terraform", "show", "-json", plan_file],
-                cwd=terraform_dir, check=True, capture_output=True, text=True,
+                ["tofu", "show", "-json", plan_file],
+                cwd=tofu_dir, check=True, capture_output=True, text=True,
             )
             plan_json = json.loads(show.stdout)
             resources_total = sum(
@@ -369,8 +369,8 @@ class AWSProvider:
                     progress_callback(completed, resources_total)
 
             result = _run_streamed(
-                ["terraform", "apply", "-auto-approve", plan_file],
-                cwd=terraform_dir,
+                ["tofu", "apply", "-auto-approve", plan_file],
+                cwd=tofu_dir,
                 resource_complete_re=_DESTROY_COMPLETE_RE,
                 on_resource_complete=_on_resource_complete,
             )

@@ -1,5 +1,5 @@
-"""AWSProvider.destroy_hosts after wiring: runs a `terraform plan -destroy`
-+ `terraform show -json` + `terraform apply <planfile>` sequence (+
+"""AWSProvider.destroy_hosts after wiring: runs a `tofu plan -destroy`
++ `tofu show -json` + `tofu apply <planfile>` sequence (+
 allocator_sg_id var on EC2), returns a DestroyResult with ANSI-stripped
 stdout, and reports progress via progress_callback."""
 from __future__ import annotations
@@ -34,13 +34,13 @@ class _FakeCompletedPopen:
 def aws_provider_with_tfvars(tmp_path):
     """Provider with a stub runtime tfvars file present (so destroy proceeds)."""
     (tmp_path / "terraform.runtime.tfvars").write_text("# stub\n")
-    return AWSProvider(region="us-west-2", terraform_dir=tmp_path)
+    return AWSProvider(region="us-west-2", tofu_dir=tmp_path)
 
 
 def _fake_run_factory(show_json='{"resource_changes": []}'):
     """Builds a subprocess.run side_effect that returns valid plan JSON for
-    the `terraform show -json ...` call and a generic "OK" stdout for any
-    other call (e.g. `terraform plan -destroy ...`)."""
+    the `tofu show -json ...` call and a generic "OK" stdout for any
+    other call (e.g. `tofu plan -destroy ...`)."""
 
     def fake_run(cmd, **kwargs):
         result = MagicMock()
@@ -69,7 +69,7 @@ def test_destroy_hosts_returns_destroy_result(aws_provider_with_tfvars):
     assert "Destroy complete" in result.stdout
 
 
-def test_destroy_hosts_runs_terraform_destroy_with_sg_var_on_ec2(
+def test_destroy_hosts_runs_tofu_destroy_with_sg_var_on_ec2(
     aws_provider_with_tfvars,
 ):
     handles = [ClientHandle(id="i-1", hostname="h-1")]
@@ -87,13 +87,13 @@ def test_destroy_hosts_runs_terraform_destroy_with_sg_var_on_ec2(
 
     # plan -destroy carries the var-file and sg var.
     plan_cmd = run_mock.call_args_list[0].args[0]
-    assert plan_cmd[:3] == ["terraform", "plan", "-destroy"]
+    assert plan_cmd[:3] == ["tofu", "plan", "-destroy"]
     assert "-var-file=terraform.runtime.tfvars" in plan_cmd
     assert "-var=allocator_sg_id=sg-allocator" in plan_cmd
 
     # apply (of the saved destroy plan) streams via Popen.
     apply_cmd = popen_mock.call_args.args[0]
-    assert apply_cmd[:2] == ["terraform", "apply"]
+    assert apply_cmd[:2] == ["tofu", "apply"]
     assert "-auto-approve" in apply_cmd
 
 
@@ -115,7 +115,7 @@ def test_destroy_hosts_skips_sg_var_off_ec2(aws_provider_with_tfvars):
 
 
 def test_destroy_hosts_ansi_strips_stdout(aws_provider_with_tfvars):
-    """ANSI escape codes in terraform output should be removed."""
+    """ANSI escape codes in tofu output should be removed."""
     ansi_output = "\x1b[32mDestroy complete!\x1b[0m"
 
     def fake_run(cmd, **kwargs):
@@ -146,7 +146,7 @@ def test_destroy_hosts_raises_filenotfound_when_no_tfvars(tmp_path):
     """Provider raises FileNotFoundError when runtime tfvars is missing —
     the route's pre-refactor `has_runtime_tfvars` check maps to this."""
     # tmp_path is empty — no terraform.runtime.tfvars
-    p = AWSProvider(region="us-west-2", terraform_dir=tmp_path)
+    p = AWSProvider(region="us-west-2", tofu_dir=tmp_path)
     with pytest.raises(FileNotFoundError):
         p.destroy_hosts([])
 

@@ -10,9 +10,9 @@ from pathlib import Path
 @pytest.fixture(scope="module")
 def plan(fixture_dir):
     """
-    Fixture to validate the Terraform plan using the provided fixtures.
+    Fixture to validate the OpenTofu plan using the provided fixtures.
     """
-    # Find the Terraform directory in the package (not in tests)
+    # Find the OpenTofu directory in the package (not in tests)
     pkg_root = (
         Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
     )
@@ -21,15 +21,15 @@ def plan(fixture_dir):
 
     # Initialize and create the plan
     subprocess.run(
-        ["terraform", "init", "-input=false", "-no-color"], cwd=base_dir, check=True
+        ["tofu", "init", "-input=false", "-no-color"], cwd=base_dir, check=True
     )
     subprocess.run(
-        ["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"],
+        ["tofu", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"],
         cwd=base_dir,
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -40,7 +40,7 @@ def plan(fixture_dir):
 
 
 def test_variables(plan):
-    """Test Terraform variables."""
+    """Test OpenTofu variables."""
     assert plan["variables"]["instance_count"]["value"] == 3
     assert plan["variables"]["allocator_ip"]["value"] == "10.0.0.1"
     assert plan["variables"]["machine_type"]["value"] == "t2.micro"
@@ -149,7 +149,7 @@ def test_vm_count(plan):
 
 
 def test_lablink_vm(plan):
-    """Test Terraform resources for EC2 instances."""
+    """Test OpenTofu resources for EC2 instances."""
     instances = _collect_resources(plan, "aws_instance", "lablink_vm")
 
     sorted_instances = sorted(instances.items(), key=lambda x: _numeric_sort_key(x[0]))
@@ -209,7 +209,7 @@ def test_lablink_key_pair(plan):
 
 
 def test_output(plan):
-    """Test Terraform outputs exist in planned values."""
+    """Test OpenTofu outputs exist in planned values."""
     outs = plan.get("planned_values", {}).get("outputs", {}) or {}
     # Just assert keys exist (values may be unknown at plan time)
     for k in [
@@ -277,7 +277,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -288,7 +288,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -310,7 +310,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
 
 
 def test_variable_interpolation_in_custom_startup_script(fixture_dir):
-    """Test that variables in the custom startup script are not interpolated by Terraform."""
+    """Test that variables in the custom startup script are not interpolated by OpenTofu."""
     pkg_root = (
         Path(__file__).parent.parent.parent.parent / "src/lablink_allocator_service"
     )
@@ -320,7 +320,7 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -331,7 +331,7 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -365,7 +365,7 @@ def test_missing_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -376,7 +376,7 @@ def test_missing_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,

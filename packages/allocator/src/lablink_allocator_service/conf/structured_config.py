@@ -22,7 +22,7 @@ def is_unresolved_secret(value: str) -> bool:
     Covers the schema default (``MISSING``) and the template's
     ``PLACEHOLDER_*`` literals. A placeholder reaching a *running* allocator
     means the substitution never happened — the deploy workflow is the only
-    thing that performs it, so a local ``terraform apply`` (a documented path
+    thing that performs it, so a local ``tofu apply`` (a documented path
     in lablink-template) bakes the literal straight into the instance.
 
     Args:
@@ -106,8 +106,8 @@ class DNSConfig:
 
     Attributes:
         enabled (bool): Whether DNS is enabled. If False, only IP addresses are used.
-        terraform_managed (bool): Whether Terraform creates/destroys DNS records.
-            - True: Terraform manages Route53 DNS records (creates and destroys)
+        terraform_managed (bool): Whether OpenTofu creates/destroys DNS records.
+            - True: OpenTofu manages Route53 DNS records (creates and destroys)
             - False: External DNS management (CloudFlare, manual Route53, etc.)
         domain (str): Full domain name for the allocator
             (e.g., "lablink.sleap.ai", "test.lablink.sleap.ai").
@@ -161,7 +161,7 @@ class SSLConfig:
 class AllocatorConfig:
     """Configuration for allocator service deployment.
 
-    This section is used by infrastructure deployment (Terraform) to specify
+    This section is used by infrastructure deployment (OpenTofu) to specify
     which Docker image tag to use for the allocator service. The allocator
     service itself doesn't use this field, but it must be present in the
     schema to accept infrastructure configuration files.
@@ -290,7 +290,7 @@ class Config:
             lowercase kebab-case.
         environment (str): Deployment environment (dev, test, ci-test, prod).
         provider (str): VM provisioning provider. One of:
-            - "aws": EC2 via Terraform (the existing behavior).
+            - "aws": EC2 via OpenTofu (the existing behavior).
             - "manual": no automated provisioning — BYO clients
               register themselves via `lablink client register`.
         db (DatabaseConfig): The database configuration.
@@ -300,7 +300,7 @@ class Config:
         eip (EIPConfig): The EIP management configuration.
         ssl (SSLConfig): The SSL certificate configuration.
         allocator (AllocatorConfig): The allocator deployment configuration.
-        bucket_name (str): The S3 bucket name for Terraform state.
+        bucket_name (str): The S3 bucket name for OpenTofu state.
     """
 
     deployment_name: str = field(default="")

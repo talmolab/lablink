@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 
 from rich.console import Console
+from rich.markup import escape
 
 from lablink_allocator_service.conf.structured_config import Config
 
@@ -17,7 +18,8 @@ from lablink_cli.commands.utils import (
     AwsQueryError,
     get_allocator_url,
     get_deploy_dir,
-    get_terraform_outputs,
+    get_tofu_outputs,
+    TofuError,
     list_all_vms,
     print_aws_error,
     resolve_admin_credentials,
@@ -129,12 +131,21 @@ def _ssh_via_private_key(
     command: str,
     deploy_dir: Path,
 ) -> str | None:
-    """Try SSH with terraform private key. Returns stdout/stderr or None."""
+    """Try SSH with the OpenTofu-provisioned private key.
+
+    Returns stdout/stderr or None.
+    """
     ip = public_ip if public_ip != "—" else None
     if not ip:
         return None
 
-    outputs = get_terraform_outputs(deploy_dir)
+    try:
+        outputs = get_tofu_outputs(deploy_dir)
+    except TofuError as e:
+        console.print(
+            f"  [yellow]Could not read the SSH key:[/yellow] {escape(str(e))}"
+        )
+        return None
     private_key_pem = outputs.get("private_key_pem", "")
     if not private_key_pem:
         return None
@@ -189,7 +200,7 @@ def _run_ssh_command(
     """Run a command on the allocator via SSH.
 
     Tries ec2-instance-connect first, then falls back to direct SSH
-    using the terraform private key.
+    using the OpenTofu-provisioned private key.
     """
     return _ssh_via_instance_connect(
         instance_id, region, command

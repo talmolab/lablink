@@ -1,4 +1,4 @@
-"""Download and cache Terraform files from lablink-template releases."""
+"""Download and cache OpenTofu files from lablink-template releases."""
 
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ CACHE_DIR = Path.home() / ".lablink" / "cache" / "terraform"
 _ALLOWED_EXTENSIONS = {".tf", ".hcl", ".sh", ".yaml"}
 
 
-def get_terraform_files(
+def get_tofu_files(
     version: str,
     *,
     bundle_path: str | None = None,
     skip_checksum: bool = False,
 ) -> Path:
-    """Return path to cached Terraform files, downloading if needed.
+    """Return path to cached OpenTofu files, downloading if needed.
 
     Args:
         version: Git tag in the template repo (e.g. "v0.1.0").
@@ -67,7 +67,7 @@ def get_terraform_files(
         dir=CACHE_DIR.parent, prefix=".terraform-extract-"
     ))
     try:
-        _extract_terraform_files(tarball_data, tmp_dir)
+        _extract_tofu_files(tarball_data, tmp_dir)
 
         # Atomic move to final cache location
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,8 +127,8 @@ def _verify_checksum(data: bytes, version: str) -> None:
         raise SystemExit(1)
 
 
-def _extract_terraform_files(data: bytes, dest: Path) -> None:
-    """Extract Terraform files from tarball with safety checks."""
+def _extract_tofu_files(data: bytes, dest: Path) -> None:
+    """Extract OpenTofu files from tarball with safety checks."""
     dest.mkdir(parents=True, exist_ok=True)
 
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:

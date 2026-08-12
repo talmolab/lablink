@@ -1,4 +1,4 @@
-"""Tests for lablink_cli.commands.deploy Terraform orchestration."""
+"""Tests for lablink_cli.commands.deploy OpenTofu orchestration."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from lablink_cli.commands.deploy import (
     _destroy_client_vms,
     _poll_allocator_health,
     _prepare_working_dir,
-    _run_terraform,
-    _terraform_destroy,
+    _run_tofu,
+    _tofu_destroy,
     run_deploy,
     run_destroy,
 )
@@ -30,7 +30,7 @@ from lablink_cli.commands.deploy import (
 # _prepare_working_dir
 # ------------------------------------------------------------------
 class TestPrepareWorkingDir:
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_creates_directory(
@@ -39,7 +39,7 @@ class TestPrepareWorkingDir:
         deploy_dir = tmp_path / "deploy"
         mock_deploy_dir.return_value = deploy_dir
 
-        # Simulate cached terraform files
+        # Simulate cached tofu files
         tf_cache = tmp_path / "tf_cache"
         tf_cache.mkdir()
         (tf_cache / "main.tf").write_text('variable "region" {}')
@@ -53,7 +53,7 @@ class TestPrepareWorkingDir:
         assert (deploy_dir / "main.tf").exists()
         assert (deploy_dir / "user_data.sh").exists()
 
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_copies_hcl_files(
@@ -71,7 +71,7 @@ class TestPrepareWorkingDir:
         result = _prepare_working_dir(mock_cfg)
         assert (result / "backend-dev.hcl").exists()
 
-    @patch("lablink_cli.commands.deploy.get_terraform_files")
+    @patch("lablink_cli.commands.deploy.get_tofu_files")
     @patch("lablink_cli.commands.deploy.get_deploy_dir")
     @patch("lablink_cli.commands.deploy.save_config")
     def test_no_region_string_replacement(
@@ -97,9 +97,9 @@ class TestPrepareWorkingDir:
 
 
 # ------------------------------------------------------------------
-# _run_terraform
+# _run_tofu
 # ------------------------------------------------------------------
-class TestRunTerraform:
+class TestRunTofu:
     @patch("subprocess.Popen")
     def test_success(self, mock_popen, tmp_path):
         proc = MagicMock()
@@ -108,9 +108,12 @@ class TestRunTerraform:
         proc.returncode = 0
         mock_popen.return_value = proc
 
-        returncode = _run_terraform(["init"], cwd=tmp_path)
+        returncode = _run_tofu(["init"], cwd=tmp_path)
         assert returncode == 0
         mock_popen.assert_called_once()
+        # This helper is the single funnel for every CLI invocation, so the
+        # binary name is pinned here rather than in each caller's test.
+        assert mock_popen.call_args[0][0] == ["tofu", "init"]
 
     @patch("subprocess.Popen")
     def test_failure_raises(self, mock_popen, tmp_path):
@@ -121,7 +124,7 @@ class TestRunTerraform:
         mock_popen.return_value = proc
 
         with pytest.raises(SystemExit):
-            _run_terraform(["apply"], cwd=tmp_path)
+            _run_tofu(["apply"], cwd=tmp_path)
 
     @patch("subprocess.Popen")
     def test_failure_no_check(self, mock_popen, tmp_path):
@@ -131,7 +134,7 @@ class TestRunTerraform:
         proc.returncode = 1
         mock_popen.return_value = proc
 
-        returncode = _run_terraform(
+        returncode = _run_tofu(
             ["output"], cwd=tmp_path, check=False
         )
         assert returncode == 1
@@ -297,12 +300,12 @@ class TestDestroyClientVms:
 
 
 # ------------------------------------------------------------------
-# _terraform_destroy
+# _tofu_destroy
 # ------------------------------------------------------------------
-class TestTerraformDestroy:
+class TestTofuDestroy:
     @patch("lablink_cli.commands.deploy.shutil.rmtree")
-    @patch("lablink_cli.commands.deploy._run_terraform")
-    @patch("lablink_cli.commands.deploy._terraform_init")
+    @patch("lablink_cli.commands.deploy._run_tofu")
+    @patch("lablink_cli.commands.deploy._tofu_init")
     @patch(
         "lablink_cli.commands.deploy.config_to_dict",
         return_value={"app": {}, "db": {}},
@@ -323,7 +326,7 @@ class TestTerraformDestroy:
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("")
 
-        _terraform_destroy(deploy_dir, mock_cfg, "admin", "pass")
+        _tofu_destroy(deploy_dir, mock_cfg, "admin", "pass")
 
         mock_tf_init.assert_called_once_with(deploy_dir, mock_cfg)
         mock_tf_run.assert_called_once()
@@ -464,9 +467,9 @@ def _patch_deploy_deps(deploy_dir):
                 "admin_password": "pw",
             },
         ),
-        patch("lablink_cli.commands.deploy._terraform_init"),
+        patch("lablink_cli.commands.deploy._tofu_init"),
         patch(
-            "lablink_cli.commands.utils.get_terraform_outputs",
+            "lablink_cli.commands.utils.get_tofu_outputs",
             return_value={"ec2_public_ip": "1.2.3.4"},
         ),
         patch(
@@ -501,7 +504,7 @@ class TestRunDeployMetrics:
             for cm in _patch_deploy_deps(deploy_dir):
                 stack.enter_context(cm)
             stack.enter_context(
-                patch("lablink_cli.commands.deploy._run_terraform")
+                patch("lablink_cli.commands.deploy._run_tofu")
             )
             run_deploy(mock_cfg)
 
@@ -516,9 +519,9 @@ class TestRunDeployMetrics:
         assert data["template_version"] is not None
         assert data["allocator_deploy_start_time"] is not None
         assert data["allocator_deploy_end_time"] is not None
-        assert data["allocator_terraform_init_duration_seconds"] is not None
-        assert data["allocator_terraform_plan_duration_seconds"] is not None
-        assert data["allocator_terraform_apply_duration_seconds"] is not None
+        assert data["allocator_tofu_init_duration_seconds"] is not None
+        assert data["allocator_tofu_plan_duration_seconds"] is not None
+        assert data["allocator_tofu_apply_duration_seconds"] is not None
         assert data["allocator_health_check_duration_seconds"] is not None
         assert data["allocator_total_deployment_duration_seconds"] is not None
         assert data["error"] is None
@@ -540,7 +543,7 @@ class TestRunDeployMetrics:
 
         def fail_on_apply(args, cwd=None, check=True):
             if args and args[0] == "apply":
-                raise RuntimeError("terraform apply blew up")
+                raise RuntimeError("tofu apply blew up")
             return 0
 
         with ExitStack() as stack:
@@ -548,11 +551,11 @@ class TestRunDeployMetrics:
                 stack.enter_context(cm)
             stack.enter_context(
                 patch(
-                    "lablink_cli.commands.deploy._run_terraform",
+                    "lablink_cli.commands.deploy._run_tofu",
                     side_effect=fail_on_apply,
                 )
             )
-            with pytest.raises(RuntimeError, match="terraform apply blew up"):
+            with pytest.raises(RuntimeError, match="tofu apply blew up"):
                 run_deploy(mock_cfg)
 
         cache_files = list(cache_dir.glob("*.json"))
@@ -560,16 +563,16 @@ class TestRunDeployMetrics:
 
         data = json.loads(cache_files[0].read_text())
         assert data["status"] == "failed"
-        assert "terraform apply blew up" in data["error"]
+        assert "tofu apply blew up" in data["error"]
         assert (
-            data["allocator_terraform_init_duration_seconds"] is not None
+            data["allocator_tofu_init_duration_seconds"] is not None
         ), "init succeeded — its duration should be persisted"
         assert (
-            data["allocator_terraform_plan_duration_seconds"] is not None
+            data["allocator_tofu_plan_duration_seconds"] is not None
         ), "plan succeeded — its duration should be persisted"
         # apply ran but raised — phase_timer's try/finally should still record duration
         assert (
-            data["allocator_terraform_apply_duration_seconds"] is not None
+            data["allocator_tofu_apply_duration_seconds"] is not None
         ), "apply duration should be recorded even on failure"
         assert (
             data["allocator_health_check_duration_seconds"] is None
@@ -582,7 +585,7 @@ class TestRunDeployMetrics:
 def _patch_destroy_deps(deploy_dir, stack):
     """Enter run_destroy dep mocks into ``stack`` and return a dict of the mocks.
 
-    Tests that need to assert against a mock (e.g. ``_terraform_destroy``) can
+    Tests that need to assert against a mock (e.g. ``_tofu_destroy``) can
     look it up by key instead of re-patching — avoids shadowing the shared
     patch with a redundant second one.
     """
@@ -608,8 +611,8 @@ def _patch_destroy_deps(deploy_dir, stack):
         "destroy_client_vms": stack.enter_context(
             patch("lablink_cli.commands.deploy._destroy_client_vms")
         ),
-        "terraform_destroy": stack.enter_context(
-            patch("lablink_cli.commands.deploy._terraform_destroy")
+        "tofu_destroy": stack.enter_context(
+            patch("lablink_cli.commands.deploy._tofu_destroy")
         ),
     }
 
@@ -703,7 +706,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()
 
     def test_destroy_proceeds_when_export_raises_systemexit(
         self, mock_cfg, tmp_path
@@ -714,7 +717,7 @@ class TestRunDestroyExportPrompt:
         Regression guard: SystemExit inherits from BaseException, not
         Exception, so a plain `except Exception` would miss it and let the
         SystemExit propagate out of run_destroy — killing the destroy before
-        _terraform_destroy runs.
+        _tofu_destroy runs.
         """
         deploy_dir = tmp_path / "deploy"
         _setup_destroy_dir(deploy_dir)
@@ -733,7 +736,7 @@ class TestRunDestroyExportPrompt:
 
             run_destroy(mock_cfg)
 
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()
 
     def test_no_export_prompt_when_user_cancels_destroy(
         self, mock_cfg, tmp_path
@@ -764,7 +767,7 @@ class TestRunDestroyExportPrompt:
 # ------------------------------------------------------------------
 class TestRunDeployYesFlag:
     def test_yes_skips_apply_confirm(self, mock_cfg, tmp_path, monkeypatch):
-        """yes=True → no input() for apply-confirm; terraform apply still runs."""
+        """yes=True → no input() for apply-confirm; tofu apply still runs."""
         cache_dir = tmp_path / "cache"
         monkeypatch.setattr(
             deployment_metrics, "DEPLOYMENTS_DIR", cache_dir
@@ -790,7 +793,7 @@ class TestRunDeployYesFlag:
                 )
             )
             mock_tf = stack.enter_context(
-                patch("lablink_cli.commands.deploy._run_terraform")
+                patch("lablink_cli.commands.deploy._run_tofu")
             )
 
             run_deploy(mock_cfg, yes=True)
@@ -801,7 +804,7 @@ class TestRunDeployYesFlag:
             if c.args and c.args[0] == ["apply", "-auto-approve", "tfplan"]
         ]
         assert len(apply_calls) == 1, (
-            f"expected one `terraform apply` call, got {mock_tf.call_args_list}"
+            f"expected one `tofu apply` call, got {mock_tf.call_args_list}"
         )
 
 
@@ -830,4 +833,4 @@ class TestRunDestroyYesFlag:
             run_destroy(mock_cfg, yes=True)
 
             mock_export.assert_called_once()
-            mocks["terraform_destroy"].assert_called_once()
+            mocks["tofu_destroy"].assert_called_once()

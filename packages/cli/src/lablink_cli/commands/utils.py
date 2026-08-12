@@ -15,9 +15,9 @@ console = Console()
 
 
 # ------------------------------------------------------------------
-# Terraform output formatting
+# OpenTofu output formatting
 # ------------------------------------------------------------------
-# Matches Terraform's `Apply complete!` and `Destroy complete!` summary lines.
+# Matches OpenTofu's `Apply complete!` and `Destroy complete!` summary lines.
 _APPLY_SUMMARY_RE = re.compile(
     r"Apply complete!\s+Resources:\s+"
     r"(\d+)\s+added,\s+(\d+)\s+changed,\s+(\d+)\s+destroyed",
@@ -27,8 +27,8 @@ _DESTROY_SUMMARY_RE = re.compile(
 )
 
 
-def summarize_terraform(output: str) -> str | None:
-    """Extract Terraform's apply/destroy summary line from raw output.
+def summarize_tofu(output: str) -> str | None:
+    """Extract OpenTofu's apply/destroy summary line from raw output.
 
     Returns None when neither summary matches — a no-op apply, an
     interrupted run, or output captured before the trailing summary.
@@ -307,23 +307,83 @@ def list_all_vms(cfg: Config) -> list[dict]:
     return vms
 
 
-def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
-    """Read terraform outputs as a dict."""
+class TofuError(Exception):
+    """``tofu`` ran but produced no usable output.
+
+    Carries the tool's own stderr, because the useful part of the
+    diagnosis — expired credentials, an uninitialised backend, a held
+    state lock — only ever appears there.
+    """
+
+
+# tofu draws errors in an ANSI-coloured box; neither survives usefully in a
+# one-line CLI message.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_BOX_CHARS = "╷│╵╶╴─"
+
+
+def _clean_tofu_stderr(stderr: str) -> str:
+    """Reduce tofu's boxed, coloured error output to its headline.
+
+    tofu prints ``Error: <headline>`` followed by a blank line and then
+    several paragraphs of general explanation that read the same for
+    every occurrence of that error. Only the headline identifies the
+    actual fault, so the trailing prose is dropped.
+    """
+    lines = [
+        line.strip().lstrip(_BOX_CHARS).strip()
+        for line in _ANSI_RE.sub("", stderr or "").splitlines()
+    ]
+    for i, line in enumerate(lines):
+        if line.startswith("Error:"):
+            headline = [line]
+            for following in lines[i + 1:]:
+                if not following:
+                    break
+                headline.append(following)
+            return " ".join(headline)
+    return " ".join(x for x in lines if x) or "tofu failed with no error output"
+
+
+def get_tofu_outputs(deploy_dir: Path) -> dict[str, str]:
+    """Read OpenTofu outputs as a dict.
+
+    An empty result means the state genuinely declares no outputs. It
+    never means "the read failed": ``tofu output -json`` exits 0 and
+    prints ``{}`` even in an uninitialised directory with no state, so a
+    non-zero exit is always a real fault and is raised rather than
+    flattened into an empty dict. Reporting a failed read as "no
+    outputs" sends the operator looking for a missing deployment when
+    the actual problem is usually their credentials.
+
+    Raises:
+        TofuError: tofu is missing, exited non-zero, or emitted JSON
+            that could not be parsed.
+    """
     try:
         result = subprocess.run(
-            ["terraform", "output", "-json"],
+            ["tofu", "output", "-json"],
             cwd=deploy_dir,
             capture_output=True,
             text=True,
             check=True,
         )
+    except FileNotFoundError as e:
+        raise TofuError(
+            "tofu not found on PATH — run `lablink doctor`"
+        ) from e
+    except subprocess.CalledProcessError as e:
+        raise TofuError(_clean_tofu_stderr(e.stderr)) from e
+
+    try:
         raw = json.loads(result.stdout)
-        return {
-            k: v.get("value", "")
-            for k, v in raw.items()
-        }
-    except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return {}
+    except json.JSONDecodeError as e:
+        raise TofuError(f"could not parse tofu output as JSON: {e}") from e
+
+    return {
+        k: v.get("value", "")
+        for k, v in raw.items()
+    }
 
 
 def get_deploy_dir(cfg: Config) -> Path:
@@ -338,9 +398,9 @@ def get_deploy_dir(cfg: Config) -> Path:
 
 
 def get_allocator_url(cfg: Config) -> str:
-    """Determine the allocator base URL from terraform outputs or config.
+    """Determine the allocator base URL from OpenTofu outputs or config.
 
-    Manual provider has neither input: no Terraform state to read an IP
+    Manual provider has neither input: no OpenTofu state to read an IP
     from, and ``dns.enabled`` is meaningless for a compose stack. Both
     compose templates publish ``${HTTP_PORT}:5000`` on the host, and the
     CLI's manual paths already assume they run on that host (`status` and
@@ -356,7 +416,13 @@ def get_allocator_url(cfg: Config) -> str:
     deploy_dir = get_deploy_dir(cfg)
     outputs = {}
     if deploy_dir.exists():
-        outputs = get_terraform_outputs(deploy_dir)
+        try:
+            outputs = get_tofu_outputs(deploy_dir)
+        except TofuError:
+            # Silent by design: the config-derived domain below is a
+            # complete answer on its own, and this helper is called from
+            # deep inside other commands that report the failure properly.
+            pass
 
     ip = outputs.get("ec2_public_ip", "")
     domain = cfg.dns.domain if cfg.dns.enabled else ""

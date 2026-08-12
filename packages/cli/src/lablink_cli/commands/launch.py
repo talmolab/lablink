@@ -22,7 +22,7 @@ from lablink_cli.commands.utils import (
     format_duration,
     get_allocator_url,
     resolve_admin_credentials,
-    summarize_terraform,
+    summarize_tofu,
 )
 
 console = Console()
@@ -93,22 +93,22 @@ def _report(
     label: str,
     verbose: bool,
 ) -> None:
-    """Print the success line and Terraform's resource summary, plus the
-    raw Terraform output under ``verbose``."""
+    """Print the success line and OpenTofu's resource summary, plus the
+    raw OpenTofu output under ``verbose``."""
     output = (result or {}).get("output", "")
     console.print(
         f"[green]✓ {label}[/green]  [dim]({format_duration(elapsed)})[/dim]"
     )
-    summary = summarize_terraform(output)
+    summary = summarize_tofu(output)
     if summary:
         console.print(f"  {summary}")
     if verbose and output:
         console.print()
-        console.print("[bold]Terraform output:[/bold]")
-        console.print(output)
+        console.print("[bold]OpenTofu output:[/bold]")
+        console.print(output, markup=False)
     elif output:
         console.print(
-            "  [dim]Pass --verbose to see full Terraform output.[/dim]"
+            "  [dim]Pass --verbose to see full OpenTofu output.[/dim]"
         )
 
 
@@ -178,7 +178,7 @@ def run_client_destroy(
     Args:
         cfg: Loaded LabLink config.
         yes: Skip the confirmation prompt.
-        verbose: Print the allocator's full Terraform output.
+        verbose: Print the allocator's full OpenTofu output.
     """
     if cfg.provider == "manual":
         console.print(

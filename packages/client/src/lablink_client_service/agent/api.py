@@ -9,9 +9,9 @@ would in fact terminate Xvnc — its reset path is unsupported).
 
 Auth: Bearer = deployment-wide agent-control token AGENT_TOKEN (same
 value the allocator generates at startup and bakes into the client
-VM's docker env via Terraform). Any caller who knows the token
+VM's docker env via OpenTofu). Any caller who knows the token
 can rotate the password; that's adequate because the token is only
-ever set on the client VM by Terraform and only ever sent by the
+ever set on the client VM by OpenTofu and only ever sent by the
 allocator. /healthz is unauthenticated for ALB / Docker healthchecks.
 """
 import logging

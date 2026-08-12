@@ -1,6 +1,6 @@
 """Host provisioning and destruction, plus operation-job status reads.
 
-``/api/launch`` and ``/destroy`` do not run terraform inline — they submit a
+``/api/launch`` and ``/destroy`` do not run tofu inline — they submit a
 job to ``OperationsWorker`` and return 202 (or a redirect), and the admin
 dashboard polls ``/api/operations`` for progress. Both are capability-gated
 on the provider (``can_provision_hosts`` / ``can_destroy_hosts``) rather than
@@ -128,7 +128,7 @@ def launch():
             ) from exc
         except subprocess.CalledProcessError as e:
             clean_err = strip_ansi(e.stderr or "").strip()
-            raise RuntimeError(f"Terraform failed: {clean_err}") from e
+            raise RuntimeError(f"OpenTofu failed: {clean_err}") from e
 
         for hostname, times in result.timings.items():
             start_time = datetime.fromisoformat(
@@ -137,7 +137,7 @@ def launch():
             end_time = datetime.fromisoformat(
                 times["end_time"].replace("Z", "+00:00")
             )
-            main.database.update_terraform_timing(
+            main.database.update_tofu_timing(
                 hostname=hostname,
                 per_instance_seconds=float(times["seconds"]),
                 per_instance_start_time=start_time,
@@ -194,7 +194,7 @@ def destroy():
         except Exception as e:
             logger.warning("Could not bulk-seal session metrics: %s", e)
 
-        # destroy_hosts ignores the handles arg (terraform destroy operates
+        # destroy_hosts ignores the handles arg (tofu destroy operates
         # on the whole workspace); skip the list_hosts() call.
         try:
             result = provider.destroy_hosts(

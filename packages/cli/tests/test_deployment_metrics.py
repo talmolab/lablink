@@ -62,7 +62,7 @@ def test_write_and_read_roundtrip(cache_dir):
         template_version="v0.2.0",
         ssl_enabled=True,
         allocator_deploy_start_time=dt.isoformat(),
-        allocator_terraform_init_duration_seconds=4.8,
+        allocator_tofu_init_duration_seconds=4.8,
         status="success",
     )
     write_metrics(cache_path_for("prod-lab", dt), metrics)
@@ -72,7 +72,7 @@ def test_write_and_read_roundtrip(cache_dir):
     row = loaded[0]
     assert row["deployment_name"] == "prod-lab"
     assert row["region"] == "us-east-1"
-    assert row["allocator_terraform_init_duration_seconds"] == 4.8
+    assert row["allocator_tofu_init_duration_seconds"] == 4.8
     assert row["status"] == "success"
 
 
@@ -103,13 +103,13 @@ def test_phase_timer_records_duration_and_persists(cache_dir, monkeypatch):
     )
 
     with phase_timer(
-        metrics, "allocator_terraform_init_duration_seconds", target
+        metrics, "allocator_tofu_init_duration_seconds", target
     ):
         pass
 
-    assert metrics.allocator_terraform_init_duration_seconds == 5.5
+    assert metrics.allocator_tofu_init_duration_seconds == 5.5
     on_disk = json.loads(target.read_text())
-    assert on_disk["allocator_terraform_init_duration_seconds"] == 5.5
+    assert on_disk["allocator_tofu_init_duration_seconds"] == 5.5
 
 
 def test_phase_timer_persists_on_exception(cache_dir, monkeypatch):
@@ -124,10 +124,10 @@ def test_phase_timer_persists_on_exception(cache_dir, monkeypatch):
 
     with pytest.raises(RuntimeError):
         with phase_timer(
-            metrics, "allocator_terraform_apply_duration_seconds", target
+            metrics, "allocator_tofu_apply_duration_seconds", target
         ):
             raise RuntimeError("apply failed")
 
-    assert metrics.allocator_terraform_apply_duration_seconds == 2.0
+    assert metrics.allocator_tofu_apply_duration_seconds == 2.0
     on_disk = json.loads(target.read_text())
-    assert on_disk["allocator_terraform_apply_duration_seconds"] == 2.0
+    assert on_disk["allocator_tofu_apply_duration_seconds"] == 2.0

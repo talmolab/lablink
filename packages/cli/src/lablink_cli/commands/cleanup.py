@@ -408,8 +408,8 @@ def cleanup_s3_env_state(
     bucket_name: str,
     dry_run: bool,
 ) -> None:
-    """Delete environment-specific Terraform state files from S3."""
-    console.print("[bold]S3 Terraform State[/bold]")
+    """Delete environment-specific OpenTofu state files from S3."""
+    console.print("[bold]S3 OpenTofu State[/bold]")
     s3 = session.client("s3")
 
     try:
@@ -514,7 +514,7 @@ def cleanup_dynamodb_env_locks(
 # Local state
 # ------------------------------------------------------------------
 def cleanup_local(cfg: Config, dry_run: bool) -> None:
-    """Delete local Terraform working directory."""
+    """Delete local OpenTofu working directory."""
     console.print("[bold]Local State[/bold]")
     deploy_dir = _get_deploy_dir(cfg)
     if deploy_dir.exists():
@@ -569,7 +569,7 @@ def run_cleanup(
     check_credentials(session)
     ec2 = session.client("ec2")
 
-    # AWS resources matching current Terraform
+    # AWS resources matching current OpenTofu
     cleanup_ec2_instances(ec2, region, deployment_name, environment, dry_run)
     console.print()
     cleanup_security_groups(ec2, deployment_name, environment, dry_run)

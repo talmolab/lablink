@@ -147,7 +147,7 @@ def test_admin_delete_instance(client, admin_headers):
     """Test deleting an instance as an admin."""
     response = client.get("/admin/instances/delete", headers=admin_headers)
     assert response.status_code == 200
-    assert b"Run terraform destroy" in response.data
+    assert b"Run tofu destroy" in response.data
     assert b'href="/admin"' in response.data
     assert "Back to Admin Dashboard".encode() in response.data
 
@@ -307,7 +307,7 @@ def test_view_instances_banner_absent_without_job_param(
 def test_instances_html_escapes_operation_output_and_error(
     mock_database, client, admin_headers,
 ):
-    """op.output/op.error (terraform stdout/stderr) must be HTML-escaped
+    """op.output/op.error (tofu stdout/stderr) must be HTML-escaped
     before going into innerHTML, not interpolated raw — XSS risk otherwise."""
     mock_database.get_all_vms.return_value = []
 

@@ -92,7 +92,7 @@ def prepare_browser_session(
 
     `agent_token` is the deployment agent-control token (`main.AGENT_TOKEN`);
     the client agent receives the same value as its AGENT_TOKEN env via the
-    Terraform user_data and validates it on every /api/session/start call.
+    OpenTofu user_data and validates it on every /api/session/start call.
     Passed explicitly rather than read from env so this function has no
     hidden global dependency for tests.
 
