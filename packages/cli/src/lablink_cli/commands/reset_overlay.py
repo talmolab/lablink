@@ -21,30 +21,31 @@ untidiness here is what made lablink#404 hard to read.
 
 from __future__ import annotations
 
-import shutil
-import subprocess
-
 import typer
 from rich.console import Console
 
 from lablink_cli.commands.register import TAILSCALE_STATE_VOLUME
-from lablink_cli.log_shipper import CONTAINER_NAME, inspect_container
+from lablink_cli.docker import Docker, DockerUnavailable, default_docker
+from lablink_cli.log_shipper import CONTAINER_NAME
 
 TAILNET_ADMIN_URL = "https://login.tailscale.com/admin/machines"
 
 
-def run_reset_overlay(*, yes: bool) -> None:
+def run_reset_overlay(*, yes: bool, docker: Docker | None = None) -> None:
     """Remove the persisted tailscaled state volume for the BYO client."""
+    docker = docker or default_docker()
     console = Console()
 
-    if shutil.which("docker") is None:
+    try:
+        docker.require()
+    except DockerUnavailable:
         console.print(
             "[red]docker is not on PATH.[/red] There is nothing for this "
             "command to remove without it."
         )
         raise SystemExit(1)
 
-    status = inspect_container(CONTAINER_NAME)
+    status = docker.container_status(CONTAINER_NAME)
     if status == "daemon_error":
         console.print(
             "[red]Docker daemon is unreachable.[/red] Start Docker and "
@@ -64,7 +65,7 @@ def run_reset_overlay(*, yes: bool) -> None:
         )
         raise SystemExit(1)
 
-    if not _volume_exists():
+    if not docker.volume_exists(TAILSCALE_STATE_VOLUME):
         console.print(
             "Nothing to reset — no persisted overlay identity on this box."
         )
@@ -80,17 +81,11 @@ def run_reset_overlay(*, yes: bool) -> None:
             console.print("Aborted.")
             return
 
-    result = subprocess.run(
-        ["docker", "volume", "rm", TAILSCALE_STATE_VOLUME],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
+    result = docker.remove_volume(TAILSCALE_STATE_VOLUME)
+    if not result.ok:
         console.print(
             f"[red]Could not remove {TAILSCALE_STATE_VOLUME}: "
-            f"{stderr or '(no stderr)'}[/red]"
+            f"{result.stderr.strip() or '(no stderr)'}[/red]"
         )
         raise SystemExit(1)
 
@@ -112,18 +107,3 @@ def run_reset_overlay(*, yes: bool) -> None:
         "The client reports whichever name it actually receives, so a "
         "suffixed name still works."
     )
-
-
-def _volume_exists() -> bool:
-    """True if the tailscaled state volume is present.
-
-    `docker volume inspect` exits non-zero for an unknown volume, which is
-    the only signal needed — a `lan_direct` box never had one.
-    """
-    result = subprocess.run(
-        ["docker", "volume", "inspect", TAILSCALE_STATE_VOLUME],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0

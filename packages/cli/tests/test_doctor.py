@@ -10,6 +10,7 @@ from lablink_cli.commands.doctor import (
     _check_ami,
     _check_terraform,
 )
+from lablink_cli.docker import Docker, DockerUnavailable, Result
 
 
 # ------------------------------------------------------------------
@@ -142,27 +143,79 @@ class TestLoadConfigSafe:
 # run_doctor — manual provider dispatch
 # ------------------------------------------------------------------
 class TestDoctorManual:
-    @patch("lablink_cli.commands.doctor.subprocess.run")
-    @patch("lablink_cli.commands.doctor.shutil.which")
     @patch("lablink_cli.commands.doctor._load_config_safe")
-    def test_manual_provider_checks_docker(
-        self, mock_load, mock_which, mock_subproc, capsys,
-    ):
+    def test_manual_provider_checks_docker(self, mock_load, capsys):
+        """run_doctor() with provider='manual' dispatches to
+        _check_manual_prereqs(), which calls neither `doctor.shutil.which`
+        nor `doctor.subprocess.run` — it goes through the Docker adapter
+        (conftest's autouse fixture swaps in NullDocker). Assert on the
+        lines NullDocker's "absent" answers actually produce, rather than
+        patching two targets the code path never touches."""
         from lablink_cli.commands.doctor import run_doctor
         from lablink_cli.config.schema import Config
 
         cfg = Config()
         cfg.provider = "manual"
         mock_load.return_value = cfg
-        mock_which.side_effect = lambda name: f"/usr/bin/{name}"
-        mock_subproc.return_value = MagicMock(
-            returncode=0,
-            stdout="docker compose version 2.x",
-            stderr="",
-        )
+
         run_doctor()
+
         out = capsys.readouterr().out
-        assert "docker" in out.lower()
+        assert "docker: not found" in out
+        assert "docker compose: missing" in out
+
+
+# ------------------------------------------------------------------
+# _check_manual_prereqs
+# ------------------------------------------------------------------
+class _PrereqDocker(Docker):
+    def __init__(self, *, path=None, compose_result=Result(0)):
+        self._path = path
+        self._compose_result = compose_result
+
+    def path(self):
+        return self._path
+
+    def compose(self, workdir, *args, capture=True):
+        if isinstance(self._compose_result, Exception):
+            raise self._compose_result
+        return self._compose_result
+
+
+class TestCheckManualPrereqs:
+    def test_docker_and_compose_available(self, capsys):
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(
+            docker=_PrereqDocker(path="/usr/bin/docker", compose_result=Result(0))
+        )
+
+        out = capsys.readouterr().out
+        assert "docker: /usr/bin/docker" in out
+        assert "docker compose: available" in out
+
+    def test_docker_not_found(self, capsys):
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(docker=_PrereqDocker(path=None))
+
+        out = capsys.readouterr().out
+        assert "docker: not found" in out
+
+    def test_compose_missing_when_docker_vanishes_mid_check(self, capsys):
+        """`compose` still calls `require()`, so a docker that disappears
+        between the path check and the compose call surfaces as
+        DockerUnavailable, not a crash."""
+        from lablink_cli.commands.doctor import _check_manual_prereqs
+
+        _check_manual_prereqs(
+            docker=_PrereqDocker(
+                path="/usr/bin/docker", compose_result=DockerUnavailable()
+            )
+        )
+
+        out = capsys.readouterr().out
+        assert "docker compose: missing" in out
 
 
 # ------------------------------------------------------------------
@@ -198,10 +251,9 @@ class TestCheckClientContainer:
     def _run(self, status):
         from lablink_cli.commands.doctor import _check_client_container
 
-        with patch(
-            "lablink_cli.log_shipper.inspect_container", return_value=status
-        ):
-            return _check_client_container()
+        mock_docker = MagicMock()
+        mock_docker.container_status.return_value = status
+        return _check_client_container(mock_docker)
 
     def test_running_passes(self):
         assert self._run("running")["status"] == "pass"

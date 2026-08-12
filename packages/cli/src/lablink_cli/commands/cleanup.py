@@ -7,7 +7,6 @@ Manual provider: the local docker-compose stack and working directory.
 from __future__ import annotations
 
 import shutil
-import subprocess
 from pathlib import Path
 
 import boto3
@@ -25,6 +24,7 @@ from lablink_cli.commands.setup import (
 from lablink_cli.commands.utils import (
     get_deploy_dir as _get_deploy_dir,
 )
+from lablink_cli.docker import Docker, default_docker
 
 console = Console()
 
@@ -613,12 +613,15 @@ def run_cleanup(
 # ------------------------------------------------------------------
 # Manual-provider cleanup
 # ------------------------------------------------------------------
-def _run_cleanup_manual(cfg: Config, *, dry_run: bool) -> None:
+def _run_cleanup_manual(
+    cfg: Config, *, dry_run: bool, docker: Docker | None = None
+) -> None:
     """Tear down a local docker-compose allocator stack.
 
     Runs `docker compose down --volumes` in the deployment workdir and
     then removes the workdir itself. No AWS API calls are made.
     """
+    docker = docker or default_docker()
     workdir = DEFAULT_COMPOSE_DIR / (cfg.deployment_name or "lablink")
 
     console.print(
@@ -639,10 +642,6 @@ def _run_cleanup_manual(cfg: Config, *, dry_run: bool) -> None:
         console.print(f"[yellow]Would remove:[/yellow] {workdir}")
         return
 
-    subprocess.run(
-        ["docker", "compose", "down", "--volumes"],
-        cwd=workdir,
-        check=False,
-    )
+    docker.compose(workdir, "down", "--volumes", capture=False)
     shutil.rmtree(workdir)
     console.print(f"[green]Cleaned {workdir}.[/green]")

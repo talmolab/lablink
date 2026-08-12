@@ -8,7 +8,9 @@ from unittest.mock import MagicMock, patch
 from lablink_cli.commands.logs import (
     _ssh_via_instance_connect,
     _ssh_via_private_key,
+    fetch_manual_allocator_logs,
 )
+from lablink_cli.docker import Docker, Result
 
 
 class TestSshViaInstanceConnect:
@@ -119,81 +121,85 @@ class TestSshViaPrivateKey:
 # ------------------------------------------------------------------
 # fetch_manual_allocator_logs — local docker container
 # ------------------------------------------------------------------
+class LogsDocker(Docker):
+    def __init__(self, result):
+        self._result = result
+
+    def available(self):
+        return True
+
+    def require(self):
+        return None
+
+    def logs(self, name, *, tail=None, merge_stderr=False, timeout=None):
+        return self._result
+
+
+def test_manual_allocator_logs_returns_output():
+    out = fetch_manual_allocator_logs(docker=LogsDocker(Result(0, stdout="hi")))
+    assert out["docker_logs"] == "hi"
+    assert out["error"] is None
+
+
+def test_manual_allocator_logs_explains_missing_container():
+    fake = LogsDocker(Result(1, stderr="Error: No such container: x"))
+    out = fetch_manual_allocator_logs(docker=fake)
+    assert "not running" in out["error"]
+
+
 class TestFetchManualAllocatorLogs:
-    @patch("lablink_cli.commands.logs.subprocess.run")
-    def test_success_returns_docker_logs(self, mock_run):
-        from lablink_cli.commands.logs import fetch_manual_allocator_logs
-
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="line 1\nline 2\n", stderr=""
+    def test_success_returns_docker_logs(self):
+        result = fetch_manual_allocator_logs(
+            docker=LogsDocker(Result(0, stdout="line 1\nline 2\n"))
         )
-
-        result = fetch_manual_allocator_logs()
 
         assert result["error"] is None
         assert result["cloud_init_logs"] is None
         assert result["docker_logs"] == "line 1\nline 2"
-        # Calls `docker logs --tail N lablink-allocator`.
-        cmd = mock_run.call_args.args[0]
-        assert cmd[:2] == ["docker", "logs"]
-        assert "--tail" in cmd
-        assert "lablink-allocator" in cmd
 
-    @patch("lablink_cli.commands.logs.subprocess.run")
-    def test_no_such_container_returns_friendly_error(self, mock_run):
-        from lablink_cli.commands.logs import fetch_manual_allocator_logs
-
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout="",
-            stderr="Error: No such container: lablink-allocator\n",
+    def test_no_such_container_returns_friendly_error(self):
+        result = fetch_manual_allocator_logs(
+            docker=LogsDocker(
+                Result(1, stderr="Error: No such container: lablink-allocator\n")
+            )
         )
-
-        result = fetch_manual_allocator_logs()
 
         assert result["docker_logs"] is None
         assert "lablink-allocator container is not running" in result["error"]
 
-    @patch("lablink_cli.commands.logs.subprocess.run")
-    def test_other_nonzero_returns_stderr(self, mock_run):
-        from lablink_cli.commands.logs import fetch_manual_allocator_logs
-
-        mock_run.return_value = MagicMock(
-            returncode=2, stdout="", stderr="permission denied\n"
+    def test_other_nonzero_returns_stderr(self):
+        result = fetch_manual_allocator_logs(
+            docker=LogsDocker(Result(2, stderr="permission denied\n"))
         )
-
-        result = fetch_manual_allocator_logs()
 
         assert result["docker_logs"] is None
         assert "permission denied" in result["error"]
 
-    @patch("lablink_cli.commands.logs.subprocess.run")
-    def test_docker_missing_returns_error(self, mock_run):
-        from lablink_cli.commands.logs import fetch_manual_allocator_logs
-
-        mock_run.side_effect = FileNotFoundError("docker")
-
-        result = fetch_manual_allocator_logs()
-
-        assert result["docker_logs"] is None
-        assert "docker logs failed" in result["error"]
-
-    @patch("lablink_cli.commands.logs.subprocess.run")
-    def test_merges_stdout_and_stderr(self, mock_run):
+    def test_merges_stdout_and_stderr(self):
         """Container can write to both stdout and stderr; the TUI shows one
         chronological view."""
-        from lablink_cli.commands.logs import fetch_manual_allocator_logs
-
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="[info] up\n",
-            stderr="[warn] slow query\n",
+        result = fetch_manual_allocator_logs(
+            docker=LogsDocker(
+                Result(0, stdout="[info] up\n", stderr="[warn] slow query\n")
+            )
         )
-
-        result = fetch_manual_allocator_logs()
 
         assert "up" in result["docker_logs"]
         assert "slow query" in result["docker_logs"]
+
+    def test_docker_missing_from_path_does_not_raise(self):
+        """End-to-end with the real adapter (not the LogsDocker fake): a
+        docker binary genuinely absent from PATH must come back as a
+        friendly error dict, not an uncaught DockerUnavailable — the only
+        caller, the TUI's logs viewer, has no try/except around this call."""
+        with patch("lablink_cli.docker.shutil.which", return_value=None), patch(
+            "lablink_cli.docker.subprocess.run",
+            side_effect=FileNotFoundError("docker"),
+        ):
+            result = fetch_manual_allocator_logs(docker=Docker())
+
+        assert result["docker_logs"] is None
+        assert result["error"]
 
 
 # ------------------------------------------------------------------

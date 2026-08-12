@@ -17,7 +17,6 @@ from __future__ import annotations
 import re
 import shutil
 import socket
-import subprocess
 import time
 from datetime import datetime, timezone
 from importlib import resources
@@ -35,6 +34,7 @@ from lablink_cli.deployment_metrics import (
     phase_timer,
     write_metrics,
 )
+from lablink_cli.docker import Docker, DockerUnavailable, default_docker
 
 DEFAULT_COMPOSE_DIR = Path.home() / ".lablink" / "compose"
 DEFAULT_HTTP_PORT = "80"
@@ -109,7 +109,7 @@ def _needs_tailscale_sidecar(cfg: Config) -> bool:
     )
 
 
-def _tailscale_state_volume_exists(target: Path) -> bool:
+def _tailscale_state_volume_exists(target: Path, *, docker: Docker) -> bool:
     """True if this deployment's `tailscale_state` volume already exists.
 
     Default `lablink destroy` preserves this volume (it carries the
@@ -125,13 +125,7 @@ def _tailscale_state_volume_exists(target: Path) -> bool:
     inspect`, safe because target.name is regex-constrained to Compose's
     own project-name character set).
     """
-    result = subprocess.run(
-        ["docker", "volume", "inspect", f"{target.name}_tailscale_state"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0
+    return docker.volume_exists(f"{target.name}_tailscale_state")
 
 
 def render_compose_dir(
@@ -297,6 +291,7 @@ def run_deploy_compose(
     workdir_root: Path | None = None,
     tailscale_authkey: str | None = None,
     cloudflare_tunnel_token: str | None = None,
+    docker: Docker | None = None,
 ) -> None:
     """Bring up the allocator stack via docker-compose.
 
@@ -323,6 +318,7 @@ def run_deploy_compose(
     is no state-volume equivalent here: the tunnel's identity lives in
     Cloudflare's account, and the token is the only local copy.
     """
+    docker = docker or default_docker()
     target = compose_workdir(cfg, workdir_root)
 
     needs_sidecar = _needs_tailscale_sidecar(cfg)
@@ -337,7 +333,7 @@ def run_deploy_compose(
         if (
             not tailscale_authkey
             and not previous_authkey
-            and not _tailscale_state_volume_exists(target)
+            and not _tailscale_state_volume_exists(target, docker=docker)
         ):
             console.print(
                 "[red]A Tailscale sidecar is needed (manual.connectivity "
@@ -436,7 +432,9 @@ def run_deploy_compose(
         raise SystemExit(1)
 
     # Preflight: docker on PATH.
-    if shutil.which("docker") is None:
+    try:
+        docker.require()
+    except DockerUnavailable:
         console.print(
             "[red]docker not found on PATH.[/red] "
             "Install Docker Engine + the Compose plugin "
@@ -524,16 +522,16 @@ def run_deploy_compose(
         # since Funnel persists in the sidecar's own state regardless of
         # whether _enable_funnel keeps getting called. See _disable_funnel.
         if cfg.manual.participant_exposure != "tailscale_funnel":
-            _disable_funnel()
+            _disable_funnel(docker=docker)
 
         with phase_timer(
             metrics, "allocator_compose_up_duration_seconds", metrics_path
         ):
-            _compose_up(target)
+            _compose_up(target, docker=docker)
         with phase_timer(
             metrics, "allocator_health_check_duration_seconds", metrics_path
         ):
-            _health_poll()
+            _health_poll(docker=docker)
 
         # Disable again, now that the sidecar (if the compose file still
         # declares one) is guaranteed running. The call above can silently
@@ -546,12 +544,12 @@ def run_deploy_compose(
         # actually clears it. Harmless no-op if the sidecar was removed as
         # an orphan instead (nothing to disable).
         if cfg.manual.participant_exposure != "tailscale_funnel":
-            _disable_funnel()
+            _disable_funnel(docker=docker)
 
         funnel_ok = True
         funnel_url = None
         if cfg.manual.participant_exposure == "tailscale_funnel":
-            funnel_ok, funnel_url = _enable_funnel()
+            funnel_ok, funnel_url = _enable_funnel(docker=docker)
             if funnel_url:
                 _write_canonical_url(target, funnel_url)
 
@@ -565,7 +563,7 @@ def run_deploy_compose(
                     "tunnel's public hostname in Cloudflare does not point at "
                     "http://localhost:5000."
                 )
-                _print_last_log_lines()
+                _print_last_log_lines(docker=docker)
     except (Exception, SystemExit) as e:
         # SystemExit IS caught here, unlike the AWS path where it means "user
         # cancelled" and in_progress is the honest state. Nothing in this
@@ -601,7 +599,9 @@ def run_deploy_compose(
         metrics.error = "tailscale funnel could not be enabled"
     write_metrics(metrics_path, metrics)
 
-    _print_summary(cfg, funnel_active=funnel_active, funnel_url=funnel_url)
+    _print_summary(
+        cfg, funnel_active=funnel_active, funnel_url=funnel_url, docker=docker
+    )
 
     if not funnel_ok:
         raise SystemExit(1)
@@ -646,22 +646,18 @@ def _verify_public_hostname(hostname: str) -> bool:
     return False
 
 
-def _compose_up(target: Path) -> None:
+def _compose_up(target: Path, *, docker: Docker) -> None:
     console.print("[bold]docker compose up -d …[/bold]")
-    result = subprocess.run(
-        # --remove-orphans: if needs_sidecar just became False (connectivity
-        # switched off mesh_overlay AND participant_exposure switched off
-        # tailscale_funnel), the freshly-rendered compose file no longer
-        # declares the tailscale service — without this flag, `docker
-        # compose up` leaves that now-undeclared container running
-        # untouched, forever. _disable_funnel() (called before this, in
-        # run_deploy_compose) already clears its Funnel state first, so
-        # this just ensures the container itself doesn't linger too.
-        ["docker", "compose", "up", "-d", "--remove-orphans"],
-        cwd=target,
-        check=False,
-    )
-    if result.returncode != 0:
+    # --remove-orphans: if needs_sidecar just became False (connectivity
+    # switched off mesh_overlay AND participant_exposure switched off
+    # tailscale_funnel), the freshly-rendered compose file no longer
+    # declares the tailscale service — without this flag, `docker
+    # compose up` leaves that now-undeclared container running
+    # untouched, forever. _disable_funnel() (called before this, in
+    # run_deploy_compose) already clears its Funnel state first, so
+    # this just ensures the container itself doesn't linger too.
+    result = docker.compose(target, "up", "-d", "--remove-orphans", capture=False)
+    if not result.ok:
         console.print("[red]docker compose up failed.[/red]")
         raise SystemExit(result.returncode or 1)
 
@@ -691,7 +687,7 @@ def _write_canonical_url(target: Path, url: str) -> None:
 FUNNEL_STATUS_URL_RE = re.compile(r"(https://\S+)\s*\(Funnel on\)")
 
 
-def _funnel_status_url() -> str | None:
+def _funnel_status_url(*, docker: Docker) -> str | None:
     """Query the sidecar for the public URL Tailscale Funnel is actually
     serving right now, via `tailscale funnel status`.
 
@@ -703,24 +699,15 @@ def _funnel_status_url() -> str | None:
     repeated deploy/destroy cycles). Returns None if Funnel isn't active
     or the output didn't match the expected format.
     """
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            TAILSCALE_SIDECAR_CONTAINER_NAME,
-            "tailscale",
-            "funnel",
-            "status",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = docker.exec_in(
+        TAILSCALE_SIDECAR_CONTAINER_NAME,
+        ["tailscale", "funnel", "status"],
     )
     match = FUNNEL_STATUS_URL_RE.search(result.stdout)
     return match.group(1) if match else None
 
 
-def _enable_funnel() -> tuple[bool, str | None]:
+def _enable_funnel(*, docker: Docker) -> tuple[bool, str | None]:
     """Idempotently enable Tailscale Funnel on the allocator's own nginx
     port, via the sidecar container.
 
@@ -751,19 +738,9 @@ def _enable_funnel() -> tuple[bool, str | None]:
     when this returns False.
     """
     for attempt in range(1, FUNNEL_ENABLE_MAX_ATTEMPTS + 1):
-        result = subprocess.run(
-            [
-                "docker",
-                "exec",
-                TAILSCALE_SIDECAR_CONTAINER_NAME,
-                "tailscale",
-                "funnel",
-                "--bg",
-                str(ALLOCATOR_INTERNAL_PORT),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
+        result = docker.exec_in(
+            TAILSCALE_SIDECAR_CONTAINER_NAME,
+            ["tailscale", "funnel", "--bg", str(ALLOCATOR_INTERNAL_PORT)],
         )
         output = result.stdout + result.stderr
         if FUNNEL_ACL_NOT_GRANTED_MARKER in output:
@@ -779,7 +756,7 @@ def _enable_funnel() -> tuple[bool, str | None]:
                 "[green]Tailscale Funnel enabled for participant access.[/green]"
             )
             console.print(output.strip())
-            return True, _funnel_status_url()
+            return True, _funnel_status_url(docker=docker)
         if attempt < FUNNEL_ENABLE_MAX_ATTEMPTS:
             time.sleep(FUNNEL_ENABLE_RETRY_DELAY_SECONDS)
             continue
@@ -791,7 +768,7 @@ def _enable_funnel() -> tuple[bool, str | None]:
         return False, None
 
 
-def _disable_funnel() -> None:
+def _disable_funnel(*, docker: Docker) -> None:
     """Explicitly clear Tailscale Funnel's serve config on the sidecar,
     best-effort.
 
@@ -817,25 +794,15 @@ def _disable_funnel() -> None:
     exist at all (e.g. a fresh deployment that never enabled Funnel),
     there is nothing to disable and no error is surfaced.
     """
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            TAILSCALE_SIDECAR_CONTAINER_NAME,
-            "tailscale",
-            "funnel",
-            "--https=443",
-            "off",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
+    result = docker.exec_in(
+        TAILSCALE_SIDECAR_CONTAINER_NAME,
+        ["tailscale", "funnel", "--https=443", "off"],
     )
-    if result.returncode == 0:
+    if result.ok:
         console.print("[dim]Tailscale Funnel disabled.[/dim]")
 
 
-def _health_poll() -> None:
+def _health_poll(*, docker: Docker) -> None:
     """Poll the allocator's /api/health on localhost until healthy."""
     # Manual provider is HTTP-only; the host port comes from the rendered
     # .env, which defaults to DEFAULT_HTTP_PORT.
@@ -859,7 +826,7 @@ def _health_poll() -> None:
         "[yellow]Allocator did not become healthy within "
         f"{HEALTH_POLL_TIMEOUT_SECONDS}s.[/yellow]"
     )
-    _print_last_log_lines()
+    _print_last_log_lines(docker=docker)
     raise SystemExit(1)
 
 
@@ -882,27 +849,25 @@ def _redact_secrets(text: str) -> str:
     )
 
 
-def _print_last_log_lines(lines: int = 30) -> None:
-    result = subprocess.run(
-        ["docker", "logs", "--tail", str(lines), ALLOCATOR_CONTAINER_NAME],
-        # Merge stderr: the allocator's Python logging goes there (see
-        # _extract_register_token), so capturing the streams separately and
-        # printing only stdout hid the very tracebacks this dump exists to
-        # surface. Merging is also why the redaction above is load-bearing.
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
+def _print_last_log_lines(lines: int = 30, *, docker: Docker) -> None:
+    # Merge stderr: the allocator's Python logging goes there (see
+    # _extract_register_token), so capturing the streams separately and
+    # printing only stdout hid the very tracebacks this dump exists to
+    # surface. Merging is also why the redaction above is load-bearing.
+    result = docker.logs(ALLOCATOR_CONTAINER_NAME, tail=lines, merge_stderr=True)
     if result.stdout:
         console.print("[dim]Last allocator log lines:[/dim]")
         console.print(_redact_secrets(result.stdout))
 
 
 def _print_summary(
-    cfg: Config, *, funnel_active: bool = False, funnel_url: str | None = None
+    cfg: Config,
+    *,
+    funnel_active: bool = False,
+    funnel_url: str | None = None,
+    docker: Docker,
 ) -> None:
-    register_token = _extract_register_token()
+    register_token = _extract_register_token(docker=docker)
     # Manual provider is HTTP-only; preflight rejects anything else.
     local_url = "http://localhost"
     lan_ip = _detect_lan_ip()
@@ -1084,27 +1049,18 @@ def _detect_lan_ip() -> str | None:
     return ip
 
 
-def _extract_register_token() -> str | None:
+def _extract_register_token(*, docker: Docker) -> str | None:
     """Parse the register_token from the allocator's startup logs.
 
     The allocator logs `REGISTER_TOKEN=<token>` at startup (grep for
     `REGISTER_TOKEN=%s` in `lablink_allocator_service/main.py`).
     Also tolerate the `register_token = "..."` form just in case.
 
-    Python's `logging.basicConfig` writes to stderr, and `docker logs`
-    preserves the container's stdout/stderr split — so we MUST merge
-    both streams here (via `stderr=subprocess.STDOUT`), otherwise the
-    token line is captured into `.stderr` and the search of `.stdout`
-    silently misses it.
+    Python's `logging.basicConfig` writes to stderr, so `merge_stderr=True`
+    is required here too — see `Docker.logs`.
     """
-    result = subprocess.run(
-        ["docker", "logs", ALLOCATOR_CONTAINER_NAME],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
+    result = docker.logs(ALLOCATOR_CONTAINER_NAME, merge_stderr=True)
+    if not result.ok:
         return None
     for pattern in (
         r'REGISTER_TOKEN\s*=\s*"?([A-Za-z0-9_\-]{20,})"?',
@@ -1116,7 +1072,7 @@ def _extract_register_token() -> str | None:
     return None
 
 
-def _pgdata_volume_name(target: Path) -> str | None:
+def _pgdata_volume_name(target: Path, *, docker: Docker) -> str | None:
     """Resolve the Docker volume currently backing the allocator's Postgres data.
 
     Tries the running container's actual mount first (exact, no guessing).
@@ -1134,31 +1090,16 @@ def _pgdata_volume_name(target: Path) -> str | None:
     Returns None only if no volume can be found by either method — i.e.
     this deployment never actually created one.
     """
-    result = subprocess.run(
-        [
-            "docker",
-            "inspect",
-            ALLOCATOR_CONTAINER_NAME,
-            "--format",
-            '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}'
-            "{{.Name}}{{end}}{{end}}",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
+    name = docker.inspect_format(
+        ALLOCATOR_CONTAINER_NAME,
+        '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}'
+        "{{.Name}}{{end}}{{end}}",
     )
-    name = result.stdout.strip()
     if name:
         return name
 
     candidate = f"{target.name}_allocator_pgdata"
-    check = subprocess.run(
-        ["docker", "volume", "inspect", candidate],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return candidate if check.returncode == 0 else None
+    return candidate if docker.volume_exists(candidate) else None
 
 
 def run_destroy_compose(
@@ -1167,6 +1108,7 @@ def run_destroy_compose(
     yes: bool = False,
     keep_data: bool = False,
     workdir_root: Path | None = None,
+    docker: Docker | None = None,
 ) -> None:
     """Tear down a manual-provider compose stack.
 
@@ -1195,6 +1137,7 @@ def run_destroy_compose(
     `yes=True` skips the interactive confirmation prompt.
     `workdir_root` overrides `DEFAULT_COMPOSE_DIR` (used by tests).
     """
+    docker = docker or default_docker()
     target = compose_workdir(cfg, workdir_root)
 
     if not target.exists():
@@ -1219,22 +1162,17 @@ def run_destroy_compose(
             console.print("Aborted.")
             raise SystemExit(1)
 
-    pgdata_volume = None if keep_data else _pgdata_volume_name(target)
+    pgdata_volume = None if keep_data else _pgdata_volume_name(target, docker=docker)
 
-    result = subprocess.run(["docker", "compose", "down"], cwd=target, check=False)
-    if result.returncode != 0:
+    result = docker.compose(target, "down", capture=False)
+    if not result.ok:
         console.print("[red]docker compose down failed.[/red]")
         raise SystemExit(result.returncode or 1)
 
     if not keep_data:
         if pgdata_volume:
-            rm_result = subprocess.run(
-                ["docker", "volume", "rm", pgdata_volume],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if rm_result.returncode != 0:
+            rm_result = docker.remove_volume(pgdata_volume)
+            if not rm_result.ok:
                 console.print(
                     f"[red]Failed to remove Postgres volume "
                     f"{pgdata_volume}:[/red] {rm_result.stderr.strip()}\n"

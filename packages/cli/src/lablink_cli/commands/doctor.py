@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from lablink_cli.docker import Docker, DockerUnavailable, default_docker
+
 console = Console()
 
 DEFAULT_CONFIG = Path.home() / ".lablink" / "config.yaml"
@@ -318,33 +320,28 @@ def _render_checks(
     return all_pass
 
 
-def _check_manual_prereqs() -> None:
+def _check_manual_prereqs(*, docker: Docker | None = None) -> None:
     """Check that docker + docker compose are available (manual provider)."""
-    for tool in ("docker",):
-        path = shutil.which(tool)
-        if path:
-            console.print(f"[green]✓[/green] {tool}: {path}")
-        else:
-            console.print(f"[red]✗[/red] {tool}: not found")
+    docker = docker or default_docker()
+
+    docker_path = docker.path()
+    if docker_path:
+        console.print(f"[green]✓[/green] docker: {docker_path}")
+    else:
+        console.print("[red]✗[/red] docker: not found")
 
     # docker-compose v2 is a subcommand, not a separate binary
     try:
-        result = subprocess.run(
-            ["docker", "compose", "version"],
-            capture_output=True,
-            text=True,
-            check=False,
+        result = docker.compose(None, "version")
+    except DockerUnavailable:
+        console.print(
+            "[red]✗[/red] docker compose: missing "
+            "(install the Compose plugin)"
         )
-        if result.returncode == 0:
-            console.print(
-                "[green]✓[/green] docker compose: available"
-            )
-        else:
-            console.print(
-                "[red]✗[/red] docker compose: missing "
-                "(install the Compose plugin)"
-            )
-    except FileNotFoundError:
+        return
+    if result.ok:
+        console.print("[green]✓[/green] docker compose: available")
+    else:
         console.print(
             "[red]✗[/red] docker compose: missing "
             "(install the Compose plugin)"
@@ -395,17 +392,17 @@ def _check_client_registered() -> dict:
     return result
 
 
-def _check_client_container() -> dict:
+def _check_client_container(docker: Docker) -> dict:
     """Report the lablink-client container's state.
 
-    Doubles as the docker-daemon check: `inspect_container` returns
+    Doubles as the docker-daemon check: `container_status` returns
     "daemon_error" when the daemon is unreachable, so a separate probe would
     only duplicate the same `docker inspect` call.
     """
-    from lablink_cli.log_shipper import CONTAINER_NAME, inspect_container
+    from lablink_cli.log_shipper import CONTAINER_NAME
 
     result = {"check": "Client container", "status": "fail"}
-    status = inspect_container(CONTAINER_NAME)
+    status = docker.container_status(CONTAINER_NAME)
 
     if status == "daemon_error":
         result["detail"] = (
@@ -489,8 +486,9 @@ def _check_log_shipper(now: float | None = None) -> dict:
     return result
 
 
-def run_client_doctor() -> None:
+def run_client_doctor(*, docker: Docker | None = None) -> None:
     """Run the BYO-client checks and print a results table."""
+    docker = docker or default_docker()
     console.print()
     console.print(
         Panel(
@@ -503,7 +501,7 @@ def run_client_doctor() -> None:
 
     checks = [
         _check_client_registered(),
-        _check_client_container(),
+        _check_client_container(docker),
         _check_log_shipper(),
     ]
 

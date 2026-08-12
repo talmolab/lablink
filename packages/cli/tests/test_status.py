@@ -18,6 +18,7 @@ from lablink_cli.commands.status import (
     check_http,
     estimate_costs,
 )
+from lablink_cli.docker import Docker, Result
 
 
 # ------------------------------------------------------------------
@@ -469,11 +470,29 @@ class TestRenderCostEstimate:
 # ------------------------------------------------------------------
 # Manual-provider status
 # ------------------------------------------------------------------
+class _ComposeDocker(Docker):
+    """Answers `compose(workdir, "ps")` with a fixed Result."""
+
+    def __init__(self, result=Result(0)):
+        self._result = result
+        self.calls = []
+
+    def available(self):
+        return True
+
+    def require(self):
+        return None
+
+    def compose(self, workdir, *args, capture=True):
+        self.calls.append((workdir, args, capture))
+        return self._result
+
+
 class TestManualStatus:
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_manual_reports_compose_health(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.status import run_status
 
@@ -483,9 +502,8 @@ class TestManualStatus:
         # "no compose stack" branch.
         workdir = tmp_path / ".lablink" / "compose" / "testlab"
         workdir.mkdir(parents=True)
-        mock_subproc.return_value = MagicMock(
-            returncode=0,
-            stdout="NAME              STATUS\nlablink-allocator running",
+        mock_default_docker.return_value = _ComposeDocker(
+            Result(0, stdout="NAME              STATUS\nlablink-allocator running")
         )
         mock_health.return_value = {"healthy": True, "detail": ""}
 
@@ -495,28 +513,30 @@ class TestManualStatus:
         out = capsys.readouterr().out
         assert "allocator" in out.lower()
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_manual_no_compose_stack(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.status import run_status
 
         mock_cfg.provider = "manual"
         mock_cfg.deployment_name = "missing-lab"
+        fake_docker = _ComposeDocker()
+        mock_default_docker.return_value = fake_docker
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
             run_status(mock_cfg)
 
         out = capsys.readouterr().out
         assert "No compose stack" in out
-        mock_subproc.assert_not_called()
+        assert fake_docker.calls == []
         mock_health.assert_not_called()
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_manual_allocator_unhealthy(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.status import run_status
 
@@ -524,9 +544,7 @@ class TestManualStatus:
         mock_cfg.deployment_name = "testlab"
         workdir = tmp_path / ".lablink" / "compose" / "testlab"
         workdir.mkdir(parents=True)
-        mock_subproc.return_value = MagicMock(
-            returncode=0, stdout="",
-        )
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": False, "detail": "starting"}
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
@@ -535,10 +553,10 @@ class TestManualStatus:
         out = capsys.readouterr().out
         assert "not healthy" in out.lower()
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_manual_self_signed_uses_https(
-        self, mock_health, mock_subproc, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.status import run_status
 
@@ -547,7 +565,7 @@ class TestManualStatus:
         mock_cfg.ssl.provider = "self_signed"
         workdir = tmp_path / ".lablink" / "compose" / "testlab"
         workdir.mkdir(parents=True)
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
@@ -571,10 +589,10 @@ class TestManualStatusPublicUrl:
             (wd / "allocator-url").write_text(url)
         return wd
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_shows_funnel_url_and_checks_it(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         from lablink_cli.commands.status import run_status
 
@@ -582,7 +600,7 @@ class TestManualStatusPublicUrl:
         mock_cfg.deployment_name = "testlab"
         mock_cfg.manual.participant_exposure = "tailscale_funnel"
         self._workdir(tmp_path, "https://lablink-allocator-testlab.example.ts.net\n")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
@@ -596,10 +614,10 @@ class TestManualStatusPublicUrl:
         assert "https://lablink-allocator-testlab.example.ts.net" in probed
         assert any("localhost" in p for p in probed)
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_reports_unreachable_funnel_url(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         """A dead Funnel is invisible to a localhost probe — the whole reason
         to check the public URL separately."""
@@ -609,7 +627,7 @@ class TestManualStatusPublicUrl:
         mock_cfg.deployment_name = "testlab"
         mock_cfg.manual.participant_exposure = "tailscale_funnel"
         self._workdir(tmp_path, "https://lablink-allocator-testlab.example.ts.net")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.side_effect = [
             {"healthy": True, "detail": ""},                      # localhost
             {"healthy": False, "detail": "connection refused"},   # funnel
@@ -622,10 +640,10 @@ class TestManualStatusPublicUrl:
         assert "Not reachable" in out
         assert "connection refused" in out
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_no_public_url_line_when_not_exposed(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         """Non-Funnel deployments stage the file empty; nothing extra printed
         and no second probe fired."""
@@ -635,7 +653,7 @@ class TestManualStatusPublicUrl:
         mock_cfg.deployment_name = "testlab"
         mock_cfg.manual.participant_exposure = "none"
         self._workdir(tmp_path, "")
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):
@@ -644,10 +662,10 @@ class TestManualStatusPublicUrl:
         assert "Public URL" not in capsys.readouterr().out
         assert mock_health.call_count == 1
 
-    @patch("lablink_cli.commands.status.subprocess.run")
+    @patch("lablink_cli.commands.status.default_docker")
     @patch("lablink_cli.commands.status.check_health_endpoint")
     def test_missing_file_is_not_an_error(
-        self, mock_health, mock_subproc, capsys, mock_cfg, tmp_path,
+        self, mock_health, mock_default_docker, capsys, mock_cfg, tmp_path,
     ):
         """A deployment dir rendered by an older CLI has no such file."""
         from lablink_cli.commands.status import run_status
@@ -656,7 +674,7 @@ class TestManualStatusPublicUrl:
         mock_cfg.deployment_name = "testlab"
         mock_cfg.manual.participant_exposure = "none"
         self._workdir(tmp_path, None)
-        mock_subproc.return_value = MagicMock(returncode=0, stdout="")
+        mock_default_docker.return_value = _ComposeDocker(Result(0, stdout=""))
         mock_health.return_value = {"healthy": True, "detail": ""}
 
         with patch("lablink_cli.commands.status.Path.home", return_value=tmp_path):

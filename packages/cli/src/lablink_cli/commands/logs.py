@@ -22,6 +22,7 @@ from lablink_cli.commands.utils import (
     print_aws_error,
     resolve_admin_credentials,
 )
+from lablink_cli.docker import Docker, default_docker
 
 console = Console()
 
@@ -248,33 +249,19 @@ def fetch_allocator_logs(
 _MANUAL_ALLOCATOR_TAIL = 2000
 
 
-def fetch_manual_allocator_logs() -> dict:
+def fetch_manual_allocator_logs(*, docker: Docker | None = None) -> dict:
     """Snapshot the local lablink-allocator container's logs.
 
     Mirrors :func:`fetch_allocator_logs` / :func:`fetch_client_logs`
     contract (cloud_init_logs, docker_logs, error keys) so the TUI can
     treat manual + AWS uniformly.
     """
-    try:
-        result = subprocess.run(
-            [
-                "docker", "logs",
-                "--tail", str(_MANUAL_ALLOCATOR_TAIL),
-                "lablink-allocator",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return {
-            "cloud_init_logs": None,
-            "docker_logs": None,
-            "error": f"docker logs failed: {e}",
-        }
-
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
+    docker = docker or default_docker()
+    result = docker.logs(
+        "lablink-allocator", tail=_MANUAL_ALLOCATOR_TAIL, timeout=30
+    )
+    if not result.ok:
+        stderr = result.stderr.strip()
         if "No such container" in stderr:
             err = (
                 "lablink-allocator container is not running. "
@@ -282,11 +269,7 @@ def fetch_manual_allocator_logs() -> dict:
             )
         else:
             err = stderr or f"docker logs exited {result.returncode}"
-        return {
-            "cloud_init_logs": None,
-            "docker_logs": None,
-            "error": err,
-        }
+        return {"cloud_init_logs": None, "docker_logs": None, "error": err}
 
     # docker writes the container's own stdout to its stdout, stderr to its
     # stderr — merge them so the TUI shows everything chronologically.
