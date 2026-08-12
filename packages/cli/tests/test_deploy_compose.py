@@ -42,7 +42,12 @@ class ComposeDocker(Docker):
         return self._logs
 
     def compose(self, workdir, *args, capture=True):
-        self.compose_calls.append((str(workdir) if workdir else None, args))
+        # `capture` is recorded (not just workdir/args) because it is the
+        # exact property that must stay False at both `_compose_up` and
+        # `run_destroy_compose`'s "down" call — those are deliberately
+        # per-call-site streamed output, not something a future edit
+        # should be free to unify or flip without a test noticing.
+        self.compose_calls.append((str(workdir) if workdir else None, args, capture))
         return self._compose
 
     def exec_in(self, container, argv):
@@ -91,8 +96,10 @@ class _InspectDocker(ComposeDocker):
         super().__init__(**kwargs)
         self._inspect_result = inspect_result
         self.volume_exists_calls = []
+        self.inspect_calls = []
 
     def inspect_format(self, name, template):
+        self.inspect_calls.append((name, template))
         return self._inspect_result
 
     def volume_exists(self, name):
@@ -683,8 +690,11 @@ class TestComposeUp:
 
         fake = ComposeDocker()
         _compose_up(tmp_path, docker=fake)
-        _, args = fake.compose_calls[0]
+        _, args, capture = fake.compose_calls[0]
         assert args == ("up", "-d", "--remove-orphans")
+        # Streamed to the terminal deliberately — the operator watches
+        # deploy progress. Must not silently become buffered-and-discarded.
+        assert capture is False
 
 
 class TestFunnelStatusUrl:
@@ -1190,7 +1200,10 @@ class TestTailscaleStateVolumeExists:
 
 class TestPgdataVolumeName:
     def test_returns_resolved_name_from_running_container(self, tmp_path):
-        from lablink_cli.commands.deploy_compose import _pgdata_volume_name
+        from lablink_cli.commands.deploy_compose import (
+            ALLOCATOR_CONTAINER_NAME,
+            _pgdata_volume_name,
+        )
 
         fake = _InspectDocker(inspect_result="sleap-lablink_allocator_pgdata")
 
@@ -1198,6 +1211,11 @@ class TestPgdataVolumeName:
             _pgdata_volume_name(tmp_path, docker=fake)
             == "sleap-lablink_allocator_pgdata"
         )
+        # Pins the container name and the Postgres-mount Go-template — a
+        # wrong container or a broken template would still return the
+        # canned inspect_result above without this assertion.
+        assert fake.inspect_calls[0][0] == ALLOCATOR_CONTAINER_NAME
+        assert '"/var/lib/postgresql"' in fake.inspect_calls[0][1]
         # found on the first try, no directory-basename fallback needed
         assert fake.volume_exists_calls == []
 
@@ -1255,7 +1273,10 @@ class TestDestroyCompose:
             cfg, yes=True, workdir_root=tmp_path / "compose", docker=fake
         )
 
-        assert fake.compose_calls == [(str(workdir), ("down",))]
+        # capture=False: streamed to the terminal deliberately, so the
+        # operator watches teardown progress. Must not silently flip to
+        # buffered-and-discarded.
+        assert fake.compose_calls == [(str(workdir), ("down",), False)]
         assert fake.removed_volumes == ["testlab_allocator_pgdata"]
         assert not workdir.exists()  # removed by default
 
@@ -1344,7 +1365,7 @@ class TestDestroyCompose:
         )
 
         # No volume-name lookup and no volume rm — keep_data skips both.
-        assert fake.compose_calls == [(str(workdir), ("down",))]
+        assert fake.compose_calls == [(str(workdir), ("down",), False)]
         assert fake.removed_volumes == []
         assert workdir.exists()  # NOT removed with --keep-data
 
