@@ -476,7 +476,7 @@ class TestGetTerraformOutputs:
             "private_key_pem": "-----BEGIN RSA PRIVATE KEY-----",
         }
         mock_run.assert_called_once_with(
-            ["terraform", "output", "-json"],
+            ["tofu", "output", "-json"],
             cwd=tmp_path,
             capture_output=True,
             text=True,
@@ -485,7 +485,7 @@ class TestGetTerraformOutputs:
 
     def test_subprocess_error(self, tmp_path):
         with patch("subprocess.run") as mock_run:
-            mock_run.side_effect = subprocess.CalledProcessError(1, "terraform")
+            mock_run.side_effect = subprocess.CalledProcessError(1, "tofu")
             result = get_terraform_outputs(tmp_path)
 
         assert result == {}

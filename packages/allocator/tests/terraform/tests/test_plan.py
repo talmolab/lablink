@@ -21,15 +21,15 @@ def plan(fixture_dir):
 
     # Initialize and create the plan
     subprocess.run(
-        ["terraform", "init", "-input=false", "-no-color"], cwd=base_dir, check=True
+        ["tofu", "init", "-input=false", "-no-color"], cwd=base_dir, check=True
     )
     subprocess.run(
-        ["terraform", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"],
+        ["tofu", "plan", f"-var-file={var_path}", "-out=plan.tfplan", "-no-color"],
         cwd=base_dir,
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -277,7 +277,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -288,7 +288,7 @@ def test_multiline_special_chars_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -320,7 +320,7 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -331,7 +331,7 @@ def test_variable_interpolation_in_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,
@@ -365,7 +365,7 @@ def test_missing_custom_startup_script(fixture_dir):
 
     subprocess.run(
         [
-            "terraform",
+            "tofu",
             "plan",
             f"-var-file={var_path}",
             f"-var=custom_startup_script_path={script_path}",
@@ -376,7 +376,7 @@ def test_missing_custom_startup_script(fixture_dir):
         check=True,
     )
     result = subprocess.run(
-        ["terraform", "show", "-json", "plan.tfplan"],
+        ["tofu", "show", "-json", "plan.tfplan"],
         cwd=base_dir,
         check=True,
         capture_output=True,

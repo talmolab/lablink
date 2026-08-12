@@ -242,11 +242,11 @@ class AWSProvider:
         plan_file_path = terraform_dir / plan_file
         try:
             subprocess.run(
-                ["terraform", "plan", "-no-color", "-out", plan_file, *tf_vars],
+                ["tofu", "plan", "-no-color", "-out", plan_file, *tf_vars],
                 cwd=terraform_dir, check=True, capture_output=True, text=True,
             )
             show = subprocess.run(
-                ["terraform", "show", "-json", plan_file],
+                ["tofu", "show", "-json", plan_file],
                 cwd=terraform_dir, check=True, capture_output=True, text=True,
             )
             plan_json = json.loads(show.stdout)
@@ -269,7 +269,7 @@ class AWSProvider:
                     progress_callback(completed, resources_total)
 
             apply_result = _run_streamed(
-                ["terraform", "apply", "-auto-approve", plan_file],
+                ["tofu", "apply", "-auto-approve", plan_file],
                 cwd=terraform_dir,
                 resource_complete_re=_CREATE_COMPLETE_RE,
                 on_resource_complete=_on_resource_complete,
@@ -343,12 +343,12 @@ class AWSProvider:
         plan_file_path = terraform_dir / plan_file
         try:
             subprocess.run(
-                ["terraform", "plan", "-destroy", "-no-color",
+                ["tofu", "plan", "-destroy", "-no-color",
                  "-out", plan_file, *var_args],
                 cwd=terraform_dir, check=True, capture_output=True, text=True,
             )
             show = subprocess.run(
-                ["terraform", "show", "-json", plan_file],
+                ["tofu", "show", "-json", plan_file],
                 cwd=terraform_dir, check=True, capture_output=True, text=True,
             )
             plan_json = json.loads(show.stdout)
@@ -369,7 +369,7 @@ class AWSProvider:
                     progress_callback(completed, resources_total)
 
             result = _run_streamed(
-                ["terraform", "apply", "-auto-approve", plan_file],
+                ["tofu", "apply", "-auto-approve", plan_file],
                 cwd=terraform_dir,
                 resource_complete_re=_DESTROY_COMPLETE_RE,
                 on_resource_complete=_on_resource_complete,

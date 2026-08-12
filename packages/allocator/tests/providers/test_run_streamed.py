@@ -71,7 +71,7 @@ def test_run_streamed_invokes_callback_per_matching_line():
         return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
     ):
         result = _run_streamed(
-            ["terraform", "apply"],
+            ["tofu", "apply"],
             cwd="/tmp",
             resource_complete_re=_CREATE_COMPLETE_RE,
             on_resource_complete=lambda: calls.append(1),
@@ -96,7 +96,7 @@ def test_run_streamed_strips_ansi_before_matching():
         return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
     ):
         _run_streamed(
-            ["terraform", "apply"],
+            ["tofu", "apply"],
             cwd="/tmp",
             resource_complete_re=_CREATE_COMPLETE_RE,
             on_resource_complete=lambda: calls.append(1),
@@ -113,7 +113,7 @@ def test_run_streamed_raises_on_nonzero_exit_with_stdout_stderr_populated():
     ):
         with pytest.raises(subprocess.CalledProcessError) as exc_info:
             _run_streamed(
-                ["terraform", "apply"],
+                ["tofu", "apply"],
                 cwd="/tmp",
                 resource_complete_re=_CREATE_COMPLETE_RE,
             )
@@ -128,7 +128,7 @@ def test_run_streamed_works_with_no_callback():
         return_value=_FakePopen(stdout_text="line one\n", returncode=0),
     ):
         result = _run_streamed(
-            ["terraform", "apply"],
+            ["tofu", "apply"],
             cwd="/tmp",
             resource_complete_re=_CREATE_COMPLETE_RE,
         )
@@ -159,7 +159,7 @@ def test_run_streamed_matches_multi_minute_durations():
         return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
     ):
         _run_streamed(
-            ["terraform", "apply"],
+            ["tofu", "apply"],
             cwd="/tmp",
             resource_complete_re=_DESTROY_COMPLETE_RE,
             on_resource_complete=lambda: calls.append(1),
@@ -183,7 +183,7 @@ def test_run_streamed_matches_multi_minute_durations_for_create_too():
         return_value=_FakePopen(stdout_text=stdout_text, returncode=0),
     ):
         _run_streamed(
-            ["terraform", "apply"],
+            ["tofu", "apply"],
             cwd="/tmp",
             resource_complete_re=_CREATE_COMPLETE_RE,
             on_resource_complete=lambda: calls.append(1),
@@ -235,7 +235,7 @@ def test_run_streamed_kills_process_and_still_cleans_up_when_callback_raises():
     ):
         with pytest.raises(RuntimeError) as exc_info:
             _run_streamed(
-                ["terraform", "apply"],
+                ["tofu", "apply"],
                 cwd="/tmp",
                 resource_complete_re=_CREATE_COMPLETE_RE,
                 on_resource_complete=_on_complete,

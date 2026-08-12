@@ -111,6 +111,9 @@ class TestRunTerraform:
         returncode = _run_terraform(["init"], cwd=tmp_path)
         assert returncode == 0
         mock_popen.assert_called_once()
+        # This helper is the single funnel for every CLI invocation, so the
+        # binary name is pinned here rather than in each caller's test.
+        assert mock_popen.call_args[0][0] == ["tofu", "init"]
 
     @patch("subprocess.Popen")
     def test_failure_raises(self, mock_popen, tmp_path):

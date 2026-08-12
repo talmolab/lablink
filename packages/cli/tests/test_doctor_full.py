@@ -175,7 +175,7 @@ class TestRunDoctor:
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
-    @patch("lablink_cli.commands.doctor._check_terraform")
+    @patch("lablink_cli.commands.doctor._check_opentofu")
     def test_all_pass(
         self,
         mock_tf,
@@ -207,7 +207,7 @@ class TestRunDoctor:
     @patch("lablink_cli.commands.doctor._check_aws_credentials")
     @patch("lablink_cli.commands.doctor._check_config_valid")
     @patch("lablink_cli.commands.doctor._check_config_exists")
-    @patch("lablink_cli.commands.doctor._check_terraform")
+    @patch("lablink_cli.commands.doctor._check_opentofu")
     def test_some_fail(
         self,
         mock_tf,

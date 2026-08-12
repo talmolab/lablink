@@ -1,4 +1,4 @@
-"""Deploy and destroy LabLink infrastructure with Terraform."""
+"""Deploy and destroy LabLink infrastructure with OpenTofu."""
 
 from __future__ import annotations
 
@@ -86,7 +86,10 @@ def _prepare_working_dir(
     if user_data_src.exists():
         shutil.copy2(user_data_src, deploy_dir / "user_data.sh")
 
-    # Copy .terraform.lock.hcl if present (pins provider versions)
+    # Copy .terraform.lock.hcl if present (pins provider versions). The template
+    # ships no lock file today, and a Terraform-generated one must never be added:
+    # its entries are keyed registry.terraform.io/... while OpenTofu resolves
+    # registry.opentofu.org/... and would reject the lock as unsatisfiable.
     lock_file = tf_source / ".terraform.lock.hcl"
     if lock_file.exists():
         shutil.copy2(
@@ -127,7 +130,7 @@ def _run_terraform(
     *,
     verbose: bool = True,
 ) -> int:
-    """Run a terraform command.
+    """Run an OpenTofu command.
 
     verbose=True (default): live-stream output line-by-line. Existing
     callers (deploy, init) rely on this for progress visibility.
@@ -135,7 +138,7 @@ def _run_terraform(
     summary on success. On failure, dump the buffered output so the
     operator can diagnose.
     """
-    cmd = ["terraform"] + args
+    cmd = ["tofu"] + args
 
     if verbose:
         console.print(
@@ -163,7 +166,7 @@ def _run_terraform(
         started = time.monotonic()
         captured: list[str] = []
         with console.status(
-            f"  [bold]terraform {action}[/bold]...", spinner="dots"
+            f"  [bold]tofu {action}[/bold]...", spinner="dots"
         ):
             proc = subprocess.Popen(
                 cmd,
@@ -184,7 +187,7 @@ def _run_terraform(
             console.print(output)
         else:
             console.print(
-                f"  [green]✓ terraform {action}[/green]  "
+                f"  [green]✓ tofu {action}[/green]  "
                 f"[dim]({format_duration(elapsed)})[/dim]"
             )
             summary = summarize_terraform(output)
@@ -193,7 +196,7 @@ def _run_terraform(
 
     if check and proc.returncode != 0:
         console.print(
-            f"\n  [red]terraform {args[0]} failed "
+            f"\n  [red]tofu {args[0]} failed "
             f"(exit code {proc.returncode})[/red]"
         )
         raise SystemExit(proc.returncode)
@@ -205,8 +208,8 @@ def _terraform_init(
     deploy_dir: Path,
     cfg: Config,
 ) -> None:
-    """Run terraform init with S3 remote backend."""
-    console.print("[bold]Step 1/3:[/bold] Terraform init")
+    """Run OpenTofu init with S3 remote backend."""
+    console.print("[bold]Step 1/3:[/bold] OpenTofu init")
 
     # Use -reconfigure if .terraform already exists (avoids
     # "backend configuration changed" errors).
@@ -425,7 +428,7 @@ def run_deploy(
             _terraform_init(deploy_dir, cfg)
 
         # Terraform plan — pass deployment_name and environment
-        console.print("[bold]Step 2/3:[/bold] Terraform plan")
+        console.print("[bold]Step 2/3:[/bold] OpenTofu plan")
         with phase_timer(
             metrics, "allocator_terraform_plan_duration_seconds", metrics_path
         ):
@@ -458,7 +461,7 @@ def run_deploy(
             console.print()
 
         # Terraform apply
-        console.print("[bold]Step 3/3:[/bold] Terraform apply")
+        console.print("[bold]Step 3/3:[/bold] OpenTofu apply")
         with phase_timer(
             metrics, "allocator_terraform_apply_duration_seconds", metrics_path
         ):
@@ -513,7 +516,7 @@ def run_deploy(
                 )
         else:
             console.print(
-                "[yellow]No EC2 IP found in Terraform outputs."
+                "[yellow]No EC2 IP found in OpenTofu outputs."
                 " Skipping health check.[/yellow]"
             )
             poll_result = {"healthy": False, "elapsed": 0, "timed_out": True}
@@ -663,11 +666,11 @@ def _destroy_client_vms(
             console.print(f"  {summary}")
         if verbose and output:
             console.print()
-            console.print("[bold]Allocator's terraform output:[/bold]")
+            console.print("[bold]Allocator's OpenTofu output:[/bold]")
             console.print(output)
         elif output:
             console.print(
-                "  [dim]Pass --verbose to see full Terraform output.[/dim]"
+                "  [dim]Pass --verbose to see full OpenTofu output.[/dim]"
             )
     except AllocatorAuthError:
         console.print(
@@ -683,7 +686,7 @@ def _destroy_client_vms(
         )
         console.print(
             "  Continuing with allocator "
-            "terraform destroy..."
+            "tofu destroy..."
         )
     except AllocatorUnavailableError as e:
         console.print(
@@ -692,7 +695,7 @@ def _destroy_client_vms(
         )
         console.print(
             "  Continuing with allocator "
-            "terraform destroy..."
+            "tofu destroy..."
         )
     except AllocatorError as e:
         console.print(

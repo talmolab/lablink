@@ -308,10 +308,10 @@ def list_all_vms(cfg: Config) -> list[dict]:
 
 
 def get_terraform_outputs(deploy_dir: Path) -> dict[str, str]:
-    """Read terraform outputs as a dict."""
+    """Read OpenTofu outputs as a dict."""
     try:
         result = subprocess.run(
-            ["terraform", "output", "-json"],
+            ["tofu", "output", "-json"],
             cwd=deploy_dir,
             capture_output=True,
             text=True,

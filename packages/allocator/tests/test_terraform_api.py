@@ -518,7 +518,7 @@ def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     # plan -destroy, then show -json (2 subprocess.run calls)
     assert mock_run.call_count == 2
     plan_args, plan_kwargs = mock_run.call_args_list[0]
-    assert plan_args[0][:3] == ["terraform", "plan", "-destroy"]
+    assert plan_args[0][:3] == ["tofu", "plan", "-destroy"]
     assert "-var-file=terraform.runtime.tfvars" in plan_args[0]
     assert plan_kwargs["cwd"] == terraform_dir
 
@@ -528,7 +528,7 @@ def test_destroy_success(mock_run, mock_popen, mock_sg, mock_ids, mock_names,
     # apply (of the saved destroy plan) streams via Popen
     mock_popen.assert_called_once()
     popen_args, popen_kwargs = mock_popen.call_args
-    assert popen_args[0][:2] == ["terraform", "apply"]
+    assert popen_args[0][:2] == ["tofu", "apply"]
     assert popen_kwargs["cwd"] == terraform_dir
 
     # DB cleared exactly once
@@ -664,7 +664,7 @@ def test_destroy_json_failure(mock_run, mock_sg, mock_ids, mock_names,
 
     mock_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd=["terraform", "destroy"],
+        cmd=["tofu", "destroy"],
         stderr="\x1b[31mfailed to destroy\x1b[0m",
     )
 

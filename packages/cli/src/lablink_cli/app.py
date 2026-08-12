@@ -315,7 +315,7 @@ def destroy(
         False,
         "--verbose",
         "-v",
-        help="Show the full Terraform output instead of a summary.",
+        help="Show the full OpenTofu output instead of a summary.",
     ),
     keep_data: bool = typer.Option(
         False,
@@ -356,7 +356,7 @@ def launch_client(
         False,
         "--verbose",
         "-v",
-        help="Show the full Terraform output instead of a summary.",
+        help="Show the full OpenTofu output instead of a summary.",
     ),
 ) -> None:
     """Launch client VMs via the allocator service.
@@ -389,12 +389,12 @@ def destroy_client(
         False,
         "--verbose",
         "-v",
-        help="Show the full Terraform output instead of a summary.",
+        help="Show the full OpenTofu output instead of a summary.",
     ),
 ) -> None:
     """Destroy all client VMs via the allocator service.
 
-    AWS provider only: the allocator runs 'terraform destroy' over its own
+    AWS provider only: the allocator runs 'tofu destroy' over its own
     workspace and clears the VM table. Leaves the allocator itself running
     — use 'lablink destroy' to tear down the whole deployment. For the
     manual provider, BYO operators run 'lablink client unregister' on each

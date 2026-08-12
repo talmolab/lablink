@@ -29,7 +29,7 @@ def test_get_ssh_private_key_success(mock_run, mock_file, mock_chmod, tmp_path):
 def test_get_ssh_private_key_failure(mock_run):
     """Test handling failure when getting SSH private key."""
     mock_run.side_effect = subprocess.CalledProcessError(
-        1, "terraform", stderr="error message"
+        1, "tofu", stderr="error message"
     )
     with pytest.raises(
         RuntimeError, match="Error running terraform output: error message"
@@ -41,7 +41,7 @@ def test_get_ssh_private_key_failure(mock_run):
 def test_get_instance_ids_success(mock_run):
     """Test getting instance IDs successfully."""
     mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-json", "vm_instance_ids"],
+        args=["tofu", "output", "-json", "vm_instance_ids"],
         returncode=0,
         stdout=json.dumps(["i-12345", "i-67890"]),
         stderr="",
@@ -55,7 +55,7 @@ def test_get_instance_ids_success(mock_run):
 def test_get_instance_names_success(mock_run):
     """Test getting instance names successfully."""
     mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-json", "vm_instance_names"],
+        args=["tofu", "output", "-json", "vm_instance_names"],
         returncode=0,
         stdout=json.dumps(["instance-1", "instance-2"]),
         stderr="",
@@ -165,7 +165,7 @@ def test_get_instance_timings_invalid_json(mock_run):
 def test_get_instance_timings_success(mock_run):
     """Test getting instance timings successfully."""
     mock_run.return_value = subprocess.CompletedProcess(
-        args=["terraform", "output", "-json", "instance_terraform_apply_times"],
+        args=["tofu", "output", "-json", "instance_terraform_apply_times"],
         returncode=0,
         stdout=json.dumps({"instance-1": "time-1", "instance-2": "time-2"}),
         stderr="",

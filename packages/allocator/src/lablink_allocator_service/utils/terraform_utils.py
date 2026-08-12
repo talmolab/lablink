@@ -19,7 +19,7 @@ def get_ssh_private_key(terraform_dir: str) -> str:
     terraform_dir = Path(terraform_dir)
     try:
         result = subprocess.run(
-            ["terraform", "output", "-raw", "lablink_private_key_pem"],
+            ["tofu", "output", "-raw", "lablink_private_key_pem"],
             cwd=terraform_dir,
             capture_output=True,
             text=True,
@@ -48,7 +48,7 @@ def get_instance_ids(terraform_dir: str) -> list:
     terraform_dir = Path(terraform_dir)
     try:
         result = subprocess.run(
-            ["terraform", "output", "-json", "vm_instance_ids"],
+            ["tofu", "output", "-json", "vm_instance_ids"],
             cwd=terraform_dir,
             capture_output=True,
             text=True,
@@ -79,7 +79,7 @@ def get_instance_names(terraform_dir: str) -> list:
     terraform_dir = Path(terraform_dir)
     try:
         result = subprocess.run(
-            ["terraform", "output", "-json", "vm_instance_names"],
+            ["tofu", "output", "-json", "vm_instance_names"],
             cwd=terraform_dir,
             capture_output=True,
             text=True,
@@ -110,7 +110,7 @@ def get_instance_timings(terraform_dir: str) -> dict:
     terraform_dir = Path(terraform_dir)
     try:
         result = subprocess.run(
-            ["terraform", "output", "-json", "instance_terraform_apply_times"],
+            ["tofu", "output", "-json", "instance_terraform_apply_times"],
             cwd=terraform_dir,
             capture_output=True,
             text=True,

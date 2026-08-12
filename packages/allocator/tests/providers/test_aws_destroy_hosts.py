@@ -87,13 +87,13 @@ def test_destroy_hosts_runs_terraform_destroy_with_sg_var_on_ec2(
 
     # plan -destroy carries the var-file and sg var.
     plan_cmd = run_mock.call_args_list[0].args[0]
-    assert plan_cmd[:3] == ["terraform", "plan", "-destroy"]
+    assert plan_cmd[:3] == ["tofu", "plan", "-destroy"]
     assert "-var-file=terraform.runtime.tfvars" in plan_cmd
     assert "-var=allocator_sg_id=sg-allocator" in plan_cmd
 
     # apply (of the saved destroy plan) streams via Popen.
     apply_cmd = popen_mock.call_args.args[0]
-    assert apply_cmd[:2] == ["terraform", "apply"]
+    assert apply_cmd[:2] == ["tofu", "apply"]
     assert "-auto-approve" in apply_cmd
 
 

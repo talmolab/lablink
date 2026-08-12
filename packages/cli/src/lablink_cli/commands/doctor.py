@@ -24,28 +24,37 @@ STATUS_STYLES = {
     "warn": "[yellow]WARN[/yellow]",
 }
 
-# Terraform's S3 backend corrupts state below this version: an aws-sdk-go-v2 bug
-# leaves the PutObject body non-seekable, so a retried state upload fails with
-# "failed to rewind transport stream for retry" *after* apply/destroy has already
-# run. Fixed in the 1.8.0 line (hashicorp/terraform#34528, PR #34796); we require
-# 1.9.0 to match the version the allocator image ships.
-MIN_TERRAFORM_VERSION = (1, 9, 0)
+# The S3 backend corrupts state below this version: an aws-sdk-go-v2 bug leaves
+# the PutObject body non-seekable, so a retried state upload fails with "failed
+# to rewind transport stream for retry" *after* apply/destroy has already run.
+#
+# The fix was a pure SDK bump (aws/aws-sdk-go-v2#2485), so what matters is the
+# vendored SDK, not the release number. OpenTofu pinned aws-sdk-go-v2 v1.23.2
+# from 1.6.0 all the way through 1.9.x — older than the v1.24.0 the bug was
+# reported against, and well short of the v1.25.3 that carries the fix. 1.10.0
+# is the first release past it (v1.36.0). Do not "translate" Terraform's old
+# 1.9.0 floor across by number: OpenTofu 1.9 predates the fix.
+MIN_OPENTOFU_VERSION = (1, 10, 0)
 
 
 def _parse_version(version: str) -> tuple[int, ...] | None:
     """Parse a dotted version string into a comparable tuple.
 
     Args:
-        version: Version string such as ``"1.9.8"``. Pre-release suffixes
+        version: Version string such as ``"1.12.5"``. Pre-release suffixes
             (``"1.10.0-beta1"``) are truncated at the first hyphen.
 
     Returns:
-        Tuple of integers, or None if the string is not parseable.
+        Tuple of at least three integers, or None if the string is not
+        parseable.
     """
     try:
-        return tuple(int(part) for part in version.split("-")[0].split("."))
+        parts = tuple(int(part) for part in version.split("-")[0].split("."))
     except (AttributeError, ValueError):
         return None
+    # Pad to three components so "1.10" compares equal to "1.10.0" instead of
+    # sorting below it — the minimum below sits exactly on a .0 boundary.
+    return parts + (0,) * (3 - len(parts))
 
 
 def _load_config_safe():
@@ -70,39 +79,40 @@ def _load_config_safe():
         return None
 
 
-def _check_terraform() -> dict:
-    """Check that terraform is installed and return version."""
-    result = {"check": "Terraform installed", "status": "fail"}
+def _check_opentofu() -> dict:
+    """Check that OpenTofu is installed and return version."""
+    result = {"check": "OpenTofu installed", "status": "fail"}
 
-    path = shutil.which("terraform")
+    path = shutil.which("tofu")
     if not path:
         result["detail"] = (
-            "terraform not found on PATH. "
-            "Install from https://developer.hashicorp.com/terraform/install"
+            "tofu not found on PATH. "
+            "Install from https://opentofu.org/docs/intro/install/"
         )
         return result
 
     try:
         proc = subprocess.run(
-            ["terraform", "version", "-json"],
+            ["tofu", "version", "-json"],
             capture_output=True,
             text=True,
             timeout=10,
         )
         if proc.returncode == 0:
             info = json.loads(proc.stdout)
+            # OpenTofu keeps Terraform's key name here.
             version = info.get(
                 "terraform_version", "unknown"
             )
             parsed = _parse_version(version)
-            minimum = ".".join(str(p) for p in MIN_TERRAFORM_VERSION)
-            if parsed is not None and parsed < MIN_TERRAFORM_VERSION:
+            minimum = ".".join(str(p) for p in MIN_OPENTOFU_VERSION)
+            if parsed is not None and parsed < MIN_OPENTOFU_VERSION:
                 result["status"] = "fail"
                 result["detail"] = (
                     f"v{version} ({path}) is too old — need {minimum}+. "
-                    "Older versions corrupt Terraform state on S3 upload "
-                    "retries instead of failing cleanly "
-                    "(hashicorp/terraform#34528)."
+                    "Older versions vendor an aws-sdk-go-v2 that corrupts "
+                    "state on S3 upload retries instead of failing cleanly "
+                    "(aws/aws-sdk-go-v2#2485)."
                 )
             else:
                 result["status"] = "pass"
@@ -195,7 +205,7 @@ def _check_config_valid() -> tuple[dict, object | None]:
 
 
 def _check_s3_bucket(cfg) -> dict:
-    """Check that the S3 bucket for Terraform state exists."""
+    """Check that the S3 bucket for OpenTofu state exists."""
     result = {"check": "S3 state bucket", "status": "fail"}
 
     if cfg is None:
@@ -261,8 +271,8 @@ def _check_aws_prereqs() -> None:
     """Run the AWS-specific pre-flight checks and print a results table."""
     checks: list[dict] = []
 
-    # 1. Terraform
-    checks.append(_check_terraform())
+    # 1. OpenTofu
+    checks.append(_check_opentofu())
 
     # 2. Config file exists
     checks.append(_check_config_exists())

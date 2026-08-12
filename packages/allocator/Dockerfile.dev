@@ -16,9 +16,9 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y curl unzip && \
-    curl -fsSL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip -o /tmp/terraform.zip && \
-    unzip /tmp/terraform.zip -d /usr/local/bin && \
-    rm /tmp/terraform.zip && \
+    curl -fsSL https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_linux_amd64.zip -o /tmp/tofu.zip && \
+    unzip -j /tmp/tofu.zip tofu -d /usr/local/bin && \
+    rm /tmp/tofu.zip && \
     rm -rf /var/lib/apt/lists/*
 
 # nginx is the only network-facing process in this container.

@@ -148,7 +148,7 @@ def test_provision_hosts_runs_terraform_plan_show_apply(
 
     def find(cmds, verb):
         for i, cmd in enumerate(cmds):
-            if cmd and cmd[0] == "terraform" and verb in cmd:
+            if cmd and cmd[0] == "tofu" and verb in cmd:
                 return i
         return -1
 

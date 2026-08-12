@@ -157,13 +157,13 @@ def test_destroy_closure_runs_terraform_destroy_and_clears_db(
 
     # plan -destroy carries the var-file and sg var.
     plan_cmd = mock_run.call_args_list[0].args[0]
-    assert plan_cmd[:3] == ["terraform", "plan", "-destroy"]
+    assert plan_cmd[:3] == ["tofu", "plan", "-destroy"]
     assert "-var-file=terraform.runtime.tfvars" in plan_cmd
     assert any("allocator_sg_id" in arg for arg in plan_cmd)
 
     # apply (of the saved destroy plan) streams via Popen.
     apply_cmd = mock_popen.call_args.args[0]
-    assert apply_cmd[:2] == ["terraform", "apply"]
+    assert apply_cmd[:2] == ["tofu", "apply"]
     assert "-auto-approve" in apply_cmd
 
     destroy_setup["database"].clear_database.assert_called_once()
@@ -235,7 +235,7 @@ def test_destroy_closure_wraps_terraform_failure(
     with patch(
         "lablink_allocator_service.providers.aws.subprocess.run",
         side_effect=subprocess.CalledProcessError(
-            1, ["terraform", "destroy"], stderr="\x1b[31mError: boom\x1b[0m",
+            1, ["tofu", "destroy"], stderr="\x1b[31mError: boom\x1b[0m",
         ),
     ), patch("lablink_allocator_service.main.operations_worker") as mock_worker:
         mock_worker.submit.return_value = 1

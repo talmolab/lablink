@@ -414,7 +414,7 @@ def test_execute_scheduled_destruction_destroy_failure(
     fake_provider.list_hosts.return_value = []
     fake_provider.destroy_hosts.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd=["terraform", "destroy"],
+        cmd=["tofu", "destroy"],
         stderr="Error destroying resources",
     )
 
@@ -441,7 +441,7 @@ def test_execute_scheduled_destruction_destroy_failure(
     calls = mock_schedule_db.update_scheduled_destruction_status.call_args_list
     failed_call = [c for c in calls if c[1].get("status") == "failed"][0]
     assert failed_call[1]["schedule_id"] == schedule_id
-    assert "Terraform destroy failed" in failed_call[1]["execution_result"]
+    assert "OpenTofu destroy failed" in failed_call[1]["execution_result"]
 
     # DB should NOT be cleared on failure
     fake_vm_db.clear_database.assert_not_called()

@@ -8,61 +8,87 @@ from unittest.mock import MagicMock, patch
 
 from lablink_cli.commands.doctor import (
     _check_ami,
-    _check_terraform,
+    _check_opentofu,
 )
 from lablink_cli.docker import Docker, DockerUnavailable, Result
 
 
 # ------------------------------------------------------------------
-# _check_terraform
+# _check_opentofu
 # ------------------------------------------------------------------
-class TestCheckTerraform:
+class TestCheckOpenTofu:
     @patch("shutil.which", return_value=None)
     def test_not_installed(self, _mock_which):
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "fail"
         assert "not found" in result["detail"]
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
+    def test_looks_for_tofu_not_terraform(self, mock_which, mock_run):
+        """The binary is `tofu`; a stray terraform on PATH must not satisfy it."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({"terraform_version": "1.12.5"}),
+        )
+
+        _check_opentofu()
+        mock_which.assert_called_once_with("tofu")
+        assert mock_run.call_args[0][0] == ["tofu", "version", "-json"]
+
+    @patch("subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_installed_with_version(self, _mock_which, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout=json.dumps({"terraform_version": "1.9.8"}),
+            stdout=json.dumps({"terraform_version": "1.12.5"}),
         )
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "pass"
-        assert "1.9.8" in result["detail"]
+        assert "1.12.5" in result["detail"]
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_version_below_minimum_fails(self, _mock_which, mock_run):
-        """Below 1.9.0 the S3 backend can corrupt state — refuse, don't warn."""
+        """Below 1.10.0 the S3 backend can corrupt state — refuse, don't warn."""
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout=json.dumps({"terraform_version": "1.6.6"}),
         )
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "fail"
-        assert "1.9.0+" in result["detail"]
-        assert "34528" in result["detail"]
+        assert "1.10.0+" in result["detail"]
+        assert "2485" in result["detail"]
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
-    def test_newer_major_minor_passes(self, _mock_which, mock_run):
-        """A two-component version must not crash the tuple comparison."""
+    @patch("shutil.which", return_value="/usr/bin/tofu")
+    def test_opentofu_1_9_is_rejected(self, _mock_which, mock_run):
+        """OpenTofu 1.9 vendors aws-sdk-go-v2 v1.23.2 — pre-fix, despite the
+        version number matching the old Terraform floor."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({"terraform_version": "1.9.1"}),
+        )
+
+        result = _check_opentofu()
+        assert result["status"] == "fail"
+
+    @patch("subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
+    def test_two_component_minimum_passes(self, _mock_which, mock_run):
+        """"1.10" means 1.10.0 and must clear the floor, not sort below it."""
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout=json.dumps({"terraform_version": "1.10"}),
         )
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "pass"
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_unparseable_version_passes(self, _mock_which, mock_run):
         """An unrecognised version string must not block the operator."""
         mock_run.return_value = MagicMock(
@@ -70,25 +96,25 @@ class TestCheckTerraform:
             stdout=json.dumps({"terraform_version": "unknown"}),
         )
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "pass"
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_version_check_fails(self, _mock_which, mock_run):
         mock_run.return_value = MagicMock(returncode=1, stdout="")
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "warn"
 
     @patch("subprocess.run")
-    @patch("shutil.which", return_value="/usr/bin/terraform")
+    @patch("shutil.which", return_value="/usr/bin/tofu")
     def test_timeout(self, _mock_which, mock_run):
         import subprocess
 
-        mock_run.side_effect = subprocess.TimeoutExpired("terraform", 10)
+        mock_run.side_effect = subprocess.TimeoutExpired("tofu", 10)
 
-        result = _check_terraform()
+        result = _check_opentofu()
         assert result["status"] == "warn"
 
 

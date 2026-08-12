@@ -329,7 +329,7 @@ def main():
             if ENVIRONMENT not in ["prod", "test", "ci-test"]:
                 (TERRAFORM_DIR / "backend.tf").unlink(missing_ok=True)
                 subprocess.run(
-                    ["terraform", "init"],
+                    ["tofu", "init"],
                     cwd=TERRAFORM_DIR,
                     check=True,
                 )
@@ -352,7 +352,7 @@ def main():
                 )
                 subprocess.run(
                     [
-                        "terraform",
+                        "tofu",
                         "init",
                         f"-backend-config=backend-client-{ENVIRONMENT}.hcl",
                         f"-backend-config=key={state_key}",

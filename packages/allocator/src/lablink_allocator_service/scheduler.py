@@ -136,7 +136,7 @@ def execute_scheduled_destruction_job(
         logger.info(f"Scheduled destruction {schedule_id} completed successfully")
 
     except subprocess.CalledProcessError as e:
-        error_msg = f"Terraform destroy failed: {e.stderr}"
+        error_msg = f"OpenTofu destroy failed: {e.stderr}"
         logger.error(error_msg)
 
         schedule_db.update_scheduled_destruction_status(

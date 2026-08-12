@@ -306,7 +306,7 @@ def test_launch_closure_runs_plan_show_apply_in_order(
 
         def index_of(cmds, verb):
             for i, cmd in enumerate(cmds):
-                if cmd and cmd[0] == "terraform" and verb in cmd:
+                if cmd and cmd[0] == "tofu" and verb in cmd:
                     return i
             return -1
 
@@ -372,7 +372,7 @@ def test_launch_closure_wraps_terraform_failure(launch_setup, client, admin_head
     ), patch(
         "lablink_allocator_service.providers.aws.subprocess.run",
         side_effect=subprocess.CalledProcessError(
-            1, ["terraform", "apply"], stderr="\x1b[31mError: boom\x1b[0m",
+            1, ["tofu", "apply"], stderr="\x1b[31mError: boom\x1b[0m",
         ),
     ), patch(
         "lablink_allocator_service.main.operations_worker"
