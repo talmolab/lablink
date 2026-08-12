@@ -86,7 +86,6 @@ class Docker:
         - "missing"     -> no container with that name exists
         - "daemon_error"-> docker daemon is unreachable
         """
-        self.require()
         try:
             result = subprocess.run(
                 ["docker", "inspect", name, "--format", "{{.State.Status}}"],

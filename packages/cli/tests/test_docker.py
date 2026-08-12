@@ -69,6 +69,19 @@ def test_container_status_daemon_error_on_timeout():
         assert Docker().container_status("c") == "daemon_error"
 
 
+def test_container_status_daemon_error_when_docker_binary_missing():
+    """Restored behavior: unlike other verbs, container_status has no
+    require() guard. Its own subprocess.TimeoutExpired/OSError handler
+    already covers a missing binary, mapping it to "daemon_error" — a
+    normal return value, not a raised DockerUnavailable.
+    """
+    with patch("lablink_cli.docker.shutil.which", return_value=None), patch(
+        "lablink_cli.docker.subprocess.run",
+        side_effect=FileNotFoundError("docker"),
+    ):
+        assert Docker().container_status("c") == "daemon_error"
+
+
 def test_inspect_format_returns_empty_when_absent():
     with patch("lablink_cli.docker.subprocess.run", return_value=_completed(1)):
         assert Docker().inspect_format("c", "{{.Id}}") == ""
