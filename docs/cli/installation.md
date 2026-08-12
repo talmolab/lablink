@@ -15,13 +15,13 @@ Before installing, make sure you have:
 The rest depends on which provider you deploy with.
 
 === "`provider: aws`"
-    - **Terraform 1.6+** — the CLI drives Terraform under the hood. Install from [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install).
+    - **OpenTofu 1.10+** — the CLI drives OpenTofu under the hood. Install from [opentofu.org/docs/intro/install](https://opentofu.org/docs/intro/install/). Older releases vendor an `aws-sdk-go-v2` that can corrupt S3 state on an upload retry, so `lablink doctor` rejects them.
     - **AWS credentials** configured locally (either `aws configure` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables). See [Prerequisites](../prerequisites.md#configure-aws-credentials).
     - **An AWS account** with permissions to create EC2, S3, DynamoDB, IAM, and (optionally) Route 53 resources. See [AWS Setup (Manual)](../aws-setup.md) for the full permission list.
 
 === "`provider: manual`"
     - **Docker** and the **`docker compose` v2 plugin**, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.
-    - No AWS account, no AWS credentials, and no Terraform — see [Bring-Your-Own Clients](byo-clients.md).
+    - No AWS account, no AWS credentials, and no OpenTofu — see [Bring-Your-Own Clients](byo-clients.md).
 
 ## Install from source
 
@@ -87,7 +87,7 @@ It checks:
 
 | Check | What it verifies |
 |---|---|
-| Terraform installed | `terraform` is on PATH and reports a version |
+| OpenTofu installed | `tofu` is on PATH and reports a version |
 | Config file | `~/.lablink/config.yaml` exists |
 | Config validates | The config parses and passes schema validation |
 | AWS credentials | `sts:GetCallerIdentity` succeeds for the configured region |
@@ -103,9 +103,9 @@ The CLI stores state under `~/.lablink/`:
 | Path | Purpose |
 |---|---|
 | `~/.lablink/config.yaml` | Default config file written by `lablink configure` |
-| `~/.lablink/cache/terraform/<version>/` | Cached Terraform templates downloaded from the `lablink-template` repo |
+| `~/.lablink/cache/terraform/<version>/` | Cached OpenTofu templates downloaded from the `lablink-template` repo |
 | `~/.lablink/deployments/` | Per-deploy metrics records (readable by `lablink export-metrics --allocator`) |
-| `~/.lablink/deploys/<name>/` | Working directory Terraform runs in for each deployment |
+| `~/.lablink/deploys/<name>/` | Working directory OpenTofu runs in for each deployment |
 
 Pass `--config /path/to/config.yaml` to any command to use a different config file.
 
@@ -120,7 +120,7 @@ uv sync --all-packages
 ```
 
 !!! note "Template version"
-    The CLI pins a specific version of the `lablink-template` Terraform files. After upgrading the CLI, the first `lablink deploy` will download the new template version into `~/.lablink/cache/terraform/`.
+    The CLI pins a specific version of the `lablink-template` OpenTofu files. After upgrading the CLI, the first `lablink deploy` will download the new template version into `~/.lablink/cache/terraform/`.
 
 ## Next steps
 

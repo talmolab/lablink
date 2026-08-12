@@ -17,7 +17,7 @@ LabLink uses AWS Route53 for DNS management with a delegated subdomain structure
 The main `sleap.ai` domain is managed in Cloudflare for the primary website. To avoid conflicts and allow AWS-based automation, we use NS delegation to hand off the `lablink.sleap.ai` subdomain to AWS Route53.
 
 **Benefits**:
-- Terraform can manage DNS records automatically
+- OpenTofu can manage DNS records automatically
 - No Cloudflare API credentials needed
 - Separation of concerns (website vs LabLink infrastructure)
 - Let's Encrypt can validate domain ownership via DNS
@@ -75,7 +75,7 @@ dig NS lablink.sleap.ai
 ```yaml
 dns:
   enabled: true
-  terraform_managed: true            # true = Terraform manages Route53 records
+  terraform_managed: true            # true = OpenTofu manages Route53 records
   domain: "test.lablink.sleap.ai"    # Full domain name for the allocator
   zone_id: "Z010760118DSWF5IYKMOM"   # Optional: Route53 zone ID (skips lookup)
 ```
@@ -85,7 +85,7 @@ dns:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable DNS-based URLs |
-| `terraform_managed` | boolean | `true` | Let Terraform manage Route53 records. Set to `false` for external DNS (CloudFlare, etc.) |
+| `terraform_managed` | boolean | `true` | Let OpenTofu manage Route53 records. Set to `false` for external DNS (CloudFlare, etc.) |
 | `domain` | string | `""` | Full domain name (e.g., `lablink.sleap.ai` or `test.lablink.sleap.ai`) |
 | `zone_id` | string | `""` | Route53 zone ID (optional, skips lookup if provided) |
 
@@ -101,7 +101,7 @@ Specify the full domain name directly in the `domain` field. This supports:
 
 **Why hardcode zone_id?**
 
-The Terraform data source `aws_route53_zone` can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:
+The OpenTofu data source `aws_route53_zone` can incorrectly match parent zones when searching by domain name. To ensure the correct zone is always used, we hardcode the zone ID in the config:
 
 ```yaml
 dns:
@@ -113,7 +113,7 @@ dns:
 aws route53 list-hosted-zones --query "HostedZones[?Name=='lablink.sleap.ai.'].Id" --output text
 ```
 
-## Terraform DNS Management
+## OpenTofu DNS Management
 
 ### Main Configuration
 
@@ -201,7 +201,7 @@ Common issues:
 
 **Symptom**: DNS record appears in `sleap.ai` zone instead of `lablink.sleap.ai` zone
 
-**Cause**: Terraform data source matched parent zone
+**Cause**: OpenTofu data source matched parent zone
 
 **Solution**: Add `zone_id` to config.yaml:
 ```yaml

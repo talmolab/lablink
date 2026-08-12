@@ -25,7 +25,7 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 ??? note "Do I need an AWS account?"
     Only for the `aws` provider, which needs permissions to create EC2 instances, security groups and other resources.
 
-    With `provider: manual` you need no AWS account, no Terraform and no `gh` — just Docker on the allocator host and on each client box. See [Prerequisites](prerequisites.md#pick-your-path-first).
+    With `provider: manual` you need no AWS account, no OpenTofu and no `gh` — just Docker on the allocator host and on each client box. See [Prerequisites](prerequisites.md#pick-your-path-first).
 
 ??? note "Can I run LabLink without AWS?"
     Yes — that's the `manual` provider. The allocator runs as a docker-compose stack on a machine you already have, and you register your own client boxes with `lablink client register` rather than provisioning them.
@@ -50,7 +50,7 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 
     See [Configuration → Machine Type Options](configuration.md#machine-type-options) for available types.
 
-    Note this sets the **client VM** type. The allocator's own instance type is fixed at `t3.large` in Terraform and isn't a config key.
+    Note this sets the **client VM** type. The allocator's own instance type is fixed at `t3.large` in OpenTofu and isn't a config key.
 
 ??? note "How do I use my own research software?"
     1. Create a Docker image with your software
@@ -144,7 +144,7 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     Then run:
 
     ```bash
-    terraform apply
+    tofu apply
     ```
 
     The allocator will obtain a trusted certificate and start serving HTTPS. You may need to clear your browser's HSTS cache.
@@ -152,7 +152,7 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 ## Deployment
 
 ??? note "What's the difference between dev, test, and prod environments?"
-    | Environment | Purpose | Image Tags | Terraform State |
+    | Environment | Purpose | Image Tags | OpenTofu State |
     |-------------|---------|------------|-----------------|
     | **dev** | Local development | `-test` | Local file |
     | **test** | Staging/pre-prod | `-test` | S3 bucket |
@@ -171,20 +171,20 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     **Never use `:latest` in production.**
 
 ??? note "Can I deploy without GitHub Actions?"
-    Yes — either `lablink deploy` from the CLI, or Terraform directly:
+    Yes — either `lablink deploy` from the CLI, or OpenTofu directly:
 
     ```bash
     cd lablink-infrastructure
-    terraform init
-    terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.0.0"
+    tofu init
+    tofu apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.0.0"
     ```
 
-    See [Deployment → Method 2: Manual Terraform](deployment.md#method-2-manual-terraform-deployment).
+    See [Deployment → Method 2: Manual OpenTofu](deployment.md#method-2-manual-opentofu-deployment).
 
 ??? note "How do I update an existing deployment?"
     ```bash
     git pull
-    terraform apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.1.0"
+    tofu apply -var="resource_suffix=prod" -var="allocator_image_tag=v1.1.0"
     ```
 
     This replaces the EC2 instance with the new image.
@@ -220,10 +220,10 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 
     **Via the CLI**: `lablink destroy`.
 
-    **Via Terraform**:
+    **Via OpenTofu**:
 
     ```bash
-    terraform destroy -var="resource_suffix=dev"
+    tofu destroy -var="resource_suffix=dev"
     ```
 
 ??? note "What happens if I destroy the allocator?"
@@ -255,7 +255,7 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
 
 ??? note "Client VMs aren't being created"
     1. AWS credentials resolve inside the allocator container
-    2. Allocator container logs show the Terraform error
+    2. Allocator container logs show the OpenTofu error
     3. The IAM role has EC2 permissions
 
     See [Troubleshooting → Client VMs](troubleshooting.md#client-vms-aws-provider).
@@ -329,8 +329,8 @@ Common questions about LabLink. If something here doesn't resolve your problem, 
     **Never commit credentials to version control.**
 
 ??? note "How are SSH keys managed?"
-    - Terraform generates unique keys per environment
-    - Keys are stored in Terraform state
+    - OpenTofu generates unique keys per environment
+    - Keys are stored in OpenTofu state
     - GitHub Actions exposes keys as temporary artifacts (1 day expiration)
     - Rotate keys by destroying and recreating infrastructure
 

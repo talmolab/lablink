@@ -40,7 +40,7 @@ lablink configure [--config PATH] [--template]
 
 Launches a TUI wizard that generates or edits `config.yaml`. On an AWS-provider
 config it then automatically runs [`setup`](#setup) to create the resources
-Terraform needs for remote state (S3 bucket + DynamoDB lock table). Manual-provider
+OpenTofu needs for remote state (S3 bucket + DynamoDB lock table). Manual-provider
 configs skip that step — there is nothing to bootstrap.
 
 The wizard is idempotent: re-run it any time to edit a config, and it loads your
@@ -64,7 +64,7 @@ lablink configure --template
 
 It differs from a normal run in three ways:
 
-- Writes `lablink-infrastructure/config/config.yaml` — the file the Terraform
+- Writes `lablink-infrastructure/config/config.yaml` — the file the OpenTofu
   Deploy workflow reads — instead of `~/.lablink/config.yaml`.
 - Writes `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in place of
   real passwords, which the workflow substitutes with your `ADMIN_PASSWORD` and
@@ -98,7 +98,7 @@ lablink setup [--config PATH]
 ```
 
 **AWS provider:** creates the S3 bucket (versioned + encrypted) and DynamoDB lock
-table used for Terraform remote state. Automatically run during
+table used for OpenTofu remote state. Automatically run during
 [`configure`](#configure) — use this command on its own to recreate the resources
 if they were deleted out of band.
 
@@ -125,11 +125,11 @@ Takes no options. The checks it runs depend on the provider in your config:
 
 | Check | Passes when |
 |---|---|
-| Terraform installed | The `terraform` binary is on `PATH` |
+| OpenTofu installed | The `tofu` binary is on `PATH` |
 | Config file | `config.yaml` exists at the resolved path |
 | Config validates | The file merges cleanly against the schema |
 | AWS credentials | STS can resolve an identity in the configured region |
-| S3 state bucket | The Terraform state bucket exists |
+| S3 state bucket | The OpenTofu state bucket exists |
 | AMI for region | The CLI has an AMI mapping for the configured region |
 
 **Manual provider** — checks that `docker` is on `PATH` and that the
@@ -144,16 +144,16 @@ tell you what's missing. Exit code is non-zero if any check fails.
 
 ### `deploy`
 
-Deploy LabLink infrastructure (AWS Terraform or docker-compose).
+Deploy LabLink infrastructure (AWS OpenTofu or docker-compose).
 
 ```bash
 lablink deploy [--config PATH] [--template-version V] [--terraform-bundle PATH] [--yes]
                [--tailscale-authkey KEY] [--cloudflare-tunnel-token TOKEN]
 ```
 
-**AWS provider:** downloads the pinned `lablink-template` Terraform files (or uses a
-cached / bundled copy), renders your config into Terraform variables, and runs
-`terraform apply`.
+**AWS provider:** downloads the pinned `lablink-template` OpenTofu files (or uses a
+cached / bundled copy), renders your config into OpenTofu variables, and runs
+`tofu apply`.
 
 **Manual provider:** renders a `docker-compose.yml`, a `.env`, and your
 `config.yaml` into `~/.lablink/compose/<deployment_name>/` and runs
@@ -162,7 +162,7 @@ Postgres), plus a Tailscale sidecar when the configuration needs one. Postgres d
 lives in a named volume.
 
 Either way it prompts once for an admin username (default `admin`) and an admin
-password. Neither is stored in `config.yaml` — they are passed to Terraform /
+password. Neither is stored in `config.yaml` — they are passed to OpenTofu /
 the container only.
 
 | Option | Description |
@@ -187,9 +187,9 @@ Tear down LabLink infrastructure.
 lablink destroy [--config PATH] [--yes] [--verbose] [--keep-data]
 ```
 
-**AWS provider:** runs `terraform destroy` against the deployment's working
+**AWS provider:** runs `tofu destroy` against the deployment's working
 directory. Removes the allocator EC2 instance, security groups, key pair, and any
-ALB/Route 53 records Terraform owns. Client VMs owned by the allocator are
+ALB/Route 53 records OpenTofu owns. Client VMs owned by the allocator are
 destroyed along with it.
 
 The S3 state bucket and DynamoDB lock table are **not** removed — reuse them on the
@@ -202,7 +202,7 @@ Postgres data volume.
 |---|---|
 | `-c`, `--config PATH` | Path to `config.yaml`. |
 | `-y`, `--yes` | Skip confirmation prompts. Password prompts still appear. |
-| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 | `--keep-data` | Preserve the Postgres data volume instead of the default full wipe, so registration history and sessions survive a later redeploy. **Manual provider only** — ignored for AWS. |
 
 ---
@@ -224,7 +224,7 @@ lablink client launch --num-vms N [--config PATH] [--verbose]
 ```
 
 **AWS provider only.** Calls the allocator's create-VM endpoint; the allocator
-provisions the VMs in its own Terraform workspace, so Terraform is not required
+provisions the VMs in its own OpenTofu workspace, so OpenTofu is not required
 locally for this command.
 
 Under the manual provider this command no-ops with a message pointing you at
@@ -234,7 +234,7 @@ Under the manual provider this command no-ops with a message pointing you at
 |---|---|
 | `-n`, `--num-vms N` | Number of client VMs to launch. **Required.** |
 | `-c`, `--config PATH` | Path to `config.yaml`. |
-| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 
 ---
 
@@ -247,7 +247,7 @@ lablink client destroy [--config PATH] [--yes] [--verbose]
 ```
 
 **AWS provider only.** Calls the allocator's destroy endpoint; the allocator runs
-`terraform destroy` over its own workspace, so Terraform is not required locally.
+`tofu destroy` over its own workspace, so OpenTofu is not required locally.
 
 This is the CLI equivalent of the admin UI's **Delete Instances** page. It leaves
 the allocator running — use [`destroy`](#destroy) to tear down the whole
@@ -269,7 +269,7 @@ Under the manual provider this command no-ops with a message pointing you at
 |---|---|
 | `-c`, `--config PATH` | Path to `config.yaml`. |
 | `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
-| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 
 ---
 
@@ -391,7 +391,7 @@ Run it **on a client box**, not on the allocator host. Three checks:
 Most failures are fixed by re-running [`client register`](#client-register).
 
 Distinct from the top-level [`doctor`](#doctor), which checks *operator-side*
-prerequisites before a deploy (docker under the manual provider; Terraform, AWS
+prerequisites before a deploy (docker under the manual provider; OpenTofu, AWS
 credentials, S3 and AMI under the AWS provider).
 
 ---
@@ -408,13 +408,13 @@ lablink status [--config PATH]
 
 **AWS provider** shows four sections:
 
-1. **Terraform State** — outputs like `ec2_public_ip`, `ec2_public_dns`, DNS/ALB records.
+1. **OpenTofu State** — outputs like `ec2_public_ip`, `ec2_public_dns`, DNS/ALB records.
 2. **Health Checks** — DNS resolution, allocator `/api/health`, SSL cert expiry (if HTTPS is enabled).
 3. **Client VMs** — per-VM state and current hourly burn rate.
 4. **Cost Estimate** — daily and monthly dollar estimates, pulled from the AWS Pricing API with a fallback table.
 
 If your AWS credentials are missing or expired, an **AWS credentials** section is
-printed first with the reason and how to authenticate. The Terraform state and
+printed first with the reason and how to authenticate. The OpenTofu state and
 Client VM sections then say they're unavailable rather than showing an empty
 result, and costs fall back to the built-in price table.
 
@@ -541,7 +541,7 @@ lablink cleanup [--dry-run] [--config PATH]
 
 **AWS provider:** deletes orphaned EC2/IAM/EIP/security-group resources tagged with
 your deployment name — the kind of leftovers a failed or interrupted `destroy`
-leaves behind — plus the environment-specific Terraform state files.
+leaves behind — plus the environment-specific OpenTofu state files.
 
 **Manual provider:** runs `docker compose down --volumes` on the local stack and
 removes the compose working directory.
@@ -561,14 +561,14 @@ Clear LabLink caches.
 lablink cache-clear [--deployments] [--all] [--stale]
 ```
 
-By default clears the Terraform template cache at `~/.lablink/cache/terraform/`.
+By default clears the OpenTofu template cache at `~/.lablink/cache/terraform/`.
 With `--deployments`, clears the deployment metrics cache at
 `~/.lablink/deployments/` instead. With `--all`, clears both.
 
 | Option | Description |
 |---|---|
-| `--deployments` | Clear the deployment metrics cache instead of the Terraform template cache. |
-| `--all` | Clear all LabLink caches (Terraform templates and deployment metrics). |
+| `--deployments` | Clear the deployment metrics cache instead of the OpenTofu template cache. |
+| `--all` | Clear all LabLink caches (OpenTofu templates and deployment metrics). |
 | `--stale` | With `--deployments`, delete only `in_progress` records (leftovers from plan-cancel or Ctrl-C). Ignored without `--deployments`. |
 
 ---

@@ -14,16 +14,16 @@ graph TB
 
     subgraph Artifacts["Build Artifacts"]
         DockerImages[Docker Images<br/>ghcr.io]
-        TerraformDeploy[Terraform Apply<br/>Infrastructure]
+        TofuDeploy[OpenTofu Apply<br/>Infrastructure]
     end
 
     Actions --> DockerImages
-    Actions --> TerraformDeploy
+    Actions --> TofuDeploy
 
     subgraph AWS["AWS Cloud"]
         subgraph AllocatorInstance["Allocator EC2 Instance"]
             subgraph AllocatorContainer["Docker Container: lablink-allocator"]
-                Flask[Flask App<br/>Port 80<br/><br/>• Web UI<br/>• API<br/>• Terraform]
+                Flask[Flask App<br/>Port 80<br/><br/>• Web UI<br/>• API<br/>• OpenTofu]
                 PostgreSQL[(PostgreSQL DB<br/>Port 5432<br/><br/>• VM table<br/>• Triggers<br/>• Listen/Notify)]
                 Flask <--> PostgreSQL
             end
@@ -45,10 +45,10 @@ graph TB
         end
     end
 
-    TerraformDeploy --> AllocatorInstance
+    TofuDeploy --> AllocatorInstance
     DockerImages -.-> AllocatorContainer
     DockerImages -.-> ClientContainer
-    Flask -->|spawns via<br/>Terraform| ClientInstances
+    Flask -->|spawns via<br/>OpenTofu| ClientInstances
     Subscribe -.->|heartbeat,<br/>status updates| Flask
 
     style GitHub fill:#f0f0f0
@@ -78,12 +78,12 @@ added without touching core code. Two ship today:
 
 | `provider` | Behaviour |
 |---|---|
-| `aws` | Provisions EC2 client VMs with Terraform. |
+| `aws` | Provisions EC2 client VMs with OpenTofu. |
 | `manual` | Provisions nothing. Machines you already own register themselves via `POST /api/v1/clients/register`. |
 
 Capability flags, not provider-type checks, gate the behaviour that differs:
 
-- **`can_provision_hosts`** — false for `manual`, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a Terraform output.
+- **`can_provision_hosts`** — false for `manual`, which is why that deployment surfaces its register token in the container logs for the CLI to pick up, rather than passing it through a OpenTofu output.
 - **`can_recover_hosts`** — false for `manual`, so the auto-reboot loop skips BYO boxes instead of attempting AWS calls against machines it doesn't own.
 
 ### Client connectivity — how the desktop is reached
@@ -120,7 +120,7 @@ contract.
 - **Flask**: Web application framework
 - **PostgreSQL**: Relational database for VM state
 - **SQLAlchemy**: ORM for database operations
-- **Terraform**: Infrastructure provisioning
+- **OpenTofu**: Infrastructure provisioning
 - **Docker**: Containerization
 
 **Key Responsibilities**:
@@ -148,7 +148,7 @@ contract.
    - Claims seats atomically with `FOR UPDATE SKIP LOCKED`
 
 4. **Infrastructure Orchestration**:
-   - Spawns client VMs via Terraform
+   - Spawns client VMs via OpenTofu
    - Manages AWS credentials
    - Handles security group configuration
 
@@ -261,7 +261,7 @@ The `status` field in the `vms` table follows this lifecycle:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> available: VM Created<br/>(terraform apply)
+    [*] --> available: VM Created<br/>(tofu apply)
 
     available --> in_use: Software process starts<br/>(detected by update_inuse_status)
     in_use --> available: Software process stops<br/>(task complete or crash)
@@ -274,8 +274,8 @@ stateDiagram-v2
     rebooting --> failed: Reboot fails<br/>(or stuck > 10 min)
 
     failed --> available: Admin intervention<br/>(manual reset)
-    failed --> [*]: VM Destroyed<br/>(terraform destroy)
-    available --> [*]: VM Destroyed<br/>(terraform destroy)
+    failed --> [*]: VM Destroyed<br/>(tofu destroy)
+    available --> [*]: VM Destroyed<br/>(tofu destroy)
     in_use --> [*]: Force destroy<br/>(admin action)
 
     note right of available
@@ -312,7 +312,7 @@ stateDiagram-v2
 - **rebooting → available**: VM successfully reboots and re-initializes
 - **rebooting → failed**: Reboot fails or VM stuck in rebooting state > 10 minutes
 - **failed → available**: Admin manually resets and fixes the VM
-- **any → [*]**: VM is destroyed via Terraform
+- **any → [*]**: VM is destroyed via OpenTofu
 
 **State Mapping to Database Columns**
 
@@ -347,7 +347,7 @@ stateDiagram-v2
 
 #### Storage
 
-- **S3 Buckets**: Terraform state storage
+- **S3 Buckets**: OpenTofu state storage
 
   - Separate state per environment (dev/test/prod)
   - Versioning enabled
@@ -405,19 +405,19 @@ sequenceDiagram
 sequenceDiagram
     actor Admin
     participant Flask as Flask App
-    participant Terraform
+    participant OpenTofu
     participant AWS as AWS EC2
     participant VM as Client VM Instance
     participant Docker as Docker Container
 
     Admin->>Flask: POST /admin/create<br/>(instance_count)
-    Flask->>Terraform: Execute terraform apply<br/>(subprocess)
+    Flask->>OpenTofu: Execute tofu apply<br/>(subprocess)
 
-    Terraform->>AWS: Create security group
-    Terraform->>AWS: Generate SSH key pair
-    Terraform->>AWS: Launch EC2 instance<br/>with user_data script
-    AWS-->>Terraform: Return instance details<br/>(hostname, IP, etc.)
-    Terraform-->>Flask: Provisioning complete
+    OpenTofu->>AWS: Create security group
+    OpenTofu->>AWS: Generate SSH key pair
+    OpenTofu->>AWS: Launch EC2 instance<br/>with user_data script
+    AWS-->>OpenTofu: Return instance details<br/>(hostname, IP, etc.)
+    OpenTofu-->>Flask: Provisioning complete
 
     Note over VM: Boot sequence begins
     VM->>VM: Execute user_data script
@@ -461,7 +461,7 @@ sequenceDiagram
 
 LabLink supports multiple isolated environments:
 
-| Environment | Purpose           | Image Tag   | Terraform Backend  |
+| Environment | Purpose           | Image Tag   | OpenTofu Backend  |
 | ----------- | ----------------- | ----------- | ------------------ |
 | `dev`       | Local development | `*-test`    | Local state        |
 | `test`      | Staging/testing   | `*-test`    | `backend-test.hcl` |
@@ -469,7 +469,7 @@ LabLink supports multiple isolated environments:
 
 Each environment has:
 
-- Separate Terraform state
+- Separate OpenTofu state
 - Unique resource naming (`-dev`, `-test`, `-prod` suffix)
 - Independent AWS resources
 
@@ -485,7 +485,7 @@ See [Workflows](workflows.md) for detailed CI/CD architecture.
    - Builds allocator and client Docker images
    - Pushes to GitHub Container Registry
 
-2. **Terraform Deploy** (`lablink-allocator-terraform.yml`):
+2. **OpenTofu Deploy** (`lablink-allocator-terraform.yml`):
 
    - Triggers on branch push or manual dispatch
    - Applies infrastructure changes
@@ -498,7 +498,7 @@ See [Workflows](workflows.md) for detailed CI/CD architecture.
 ## Security Architecture
 
 - **Admin Authentication**: HTTP Basic Auth for admin dashboard and management endpoints
-- **API Token Authentication**: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via Terraform/cloud-init at launch time.
+- **API Token Authentication**: Auto-generated bearer token for all machine-to-machine endpoints (client VM → allocator). Token is distributed to VMs via OpenTofu/cloud-init at launch time.
 - **OIDC Authentication**: GitHub Actions authenticate to AWS without stored credentials
 - **SSH Keys**: Auto-generated per environment, ephemeral artifacts
 - **Secrets**: Managed via GitHub Secrets and AWS Secrets Manager
@@ -526,7 +526,7 @@ See [Security](security.md) for detailed security considerations.
 | ------------- | --------------- | ---------------------------------- |
 | Web Framework | Flask           | Lightweight, Python ecosystem      |
 | Database      | PostgreSQL      | ACID compliance, `SKIP LOCKED` for race-free seat claims |
-| IaC           | Terraform       | Declarative, AWS support           |
+| IaC           | OpenTofu       | Declarative, AWS support           |
 | Containers    | Docker          | Portability, dependency isolation  |
 | CI/CD         | GitHub Actions  | Native GitHub integration          |
 | Config        | Hydra/OmegaConf | Structured configs, easy overrides |

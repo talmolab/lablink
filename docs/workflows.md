@@ -11,7 +11,7 @@ LabLink uses GitHub Actions for continuous integration and deployment. The workf
 - Testing and validation (linting, unit tests, Docker builds)
 - Documentation deployment to GitHub Pages
 
-**Note**: Infrastructure deployment workflows (Terraform) have been moved to the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
+**Note**: Infrastructure deployment workflows (OpenTofu) have been moved to the [LabLink Template Repository](https://github.com/talmolab/lablink-template).
 
 ### CI/CD Pipeline Overview
 
@@ -425,7 +425,7 @@ git push origin main
 # Test specific changes without pushing
 gh workflow run lablink-images.yml -f environment=test
 
-# For CI testing with S3 backend (e.g., testing Terraform configurations)
+# For CI testing with S3 backend (e.g., testing OpenTofu configurations)
 gh workflow run lablink-images.yml -f environment=ci-test
 ```
 
@@ -500,7 +500,7 @@ Creates images tagged with:
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-0.1.2` - Platform + version
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-latest` - Latest for platform
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64` - Platform tag
-- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-terraform-1.4.6` - Metadata tag
+- `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-tofu-1.12.5` - Metadata tag
 - `ghcr.io/talmolab/lablink-allocator-image:linux-amd64-postgres-15` - Metadata tag
 - `ghcr.io/talmolab/lablink-allocator-image:<sha>` - Git commit SHA
 - `ghcr.io/talmolab/lablink-allocator-image:latest` - Latest stable
@@ -560,9 +560,9 @@ Creates same tags as manual trigger except without version-specific tags (`0.1.2
 
 Creates same tags as main but with `-test` suffix
 
-#### Tag Usage in Terraform
+#### Tag Usage in OpenTofu
 
-For production deployments, always use version-specific tags in your Terraform configuration:
+For production deployments, always use version-specific tags in your OpenTofu configuration:
 
 ```hcl
 # terraform.tfvars or -var flags
@@ -695,13 +695,13 @@ To modify image building:
     tags: ${{ steps.meta.outputs.tags }}
 ```
 
-## Terraform Deployment Workflow
+## OpenTofu Deployment Workflow
 
 **File**: `.github/workflows/lablink-allocator-terraform.yml`
 
 ### Purpose
 
-Deploys LabLink infrastructure to AWS using Terraform.
+Deploys LabLink infrastructure to AWS using OpenTofu.
 
 ### Triggers
 
@@ -742,27 +742,27 @@ Uses OpenID Connect (OIDC) to assume IAM role:
 
 **No AWS credentials stored in GitHub!**
 
-#### 3. Terraform Initialization
+#### 3. OpenTofu Initialization
 
 ```bash
 # Dev (local state)
-terraform init
+tofu init
 
 # Test/Prod (remote state)
-terraform init -backend-config=backend-<env>.hcl
+tofu init -backend-config=backend-<env>.hcl
 ```
 
 #### 4. Validation
 
 ```bash
-terraform fmt -check  # Check formatting
-terraform validate    # Validate syntax
+tofu fmt -check  # Check formatting
+tofu validate    # Validate syntax
 ```
 
 #### 5. Planning
 
 ```bash
-terraform plan \
+tofu plan \
   -var="resource_suffix=<env>" \
   -var="allocator_image_tag=<tag>"
 ```
@@ -770,23 +770,23 @@ terraform plan \
 #### 6. Application
 
 ```bash
-terraform apply -auto-approve \
+tofu apply -auto-approve \
   -var="resource_suffix=<env>" \
   -var="allocator_image_tag=<tag>"
 ```
 
 #### 7. Artifact Handling
 
-- Extracts SSH private key from Terraform output
+- Extracts SSH private key from OpenTofu output
 - Saves as artifact (expires in 1 day)
 - Provides download link in workflow summary
 
 #### 8. Failure Handling
 
-If `terraform apply` fails:
+If `tofu apply` fails:
 
 ```bash
-terraform destroy -auto-approve
+tofu destroy -auto-approve
 ```
 
 Automatically cleans up partial deployments.
@@ -796,13 +796,13 @@ Automatically cleans up partial deployments.
 **Scenario**: Deploy to production
 
 ```
-1. Navigate to Actions → Terraform Deploy → Run workflow
+1. Navigate to Actions → OpenTofu Deploy → Run workflow
 2. Select:
    - Environment: prod
    - Image tag: v1.0.0
 3. Workflow starts:
    - Authenticates to AWS via OIDC
-   - Initializes Terraform with backend-prod.hcl
+   - Initializes OpenTofu with backend-prod.hcl
    - Plans infrastructure
    - Applies changes
    - Saves SSH key to artifacts
@@ -858,9 +858,9 @@ Safely destroy LabLink infrastructure for an environment.
 ### Workflow Steps
 
 1. Authenticate to AWS via OIDC
-2. Initialize Terraform with correct backend
+2. Initialize OpenTofu with correct backend
 3. Plan destruction
-4. Execute `terraform destroy -auto-approve`
+4. Execute `tofu destroy -auto-approve`
 5. Output destroyed resources
 
 ### Example Usage
@@ -874,7 +874,7 @@ Safely destroy LabLink infrastructure for an environment.
    - EC2 instance
    - Security group
    - SSH key pair
-6. Terraform state updated
+6. OpenTofu state updated
 ```
 
 !!! warning "Destructive Operation"
@@ -992,13 +992,13 @@ Access in workflows:
 - Trust policy includes GitHub OIDC provider
 - Role has necessary permissions
 
-### Terraform Failures
+### OpenTofu Failures
 
 **Check**:
 
-- Terraform syntax (`terraform validate`)
+- OpenTofu syntax (`tofu validate`)
 - AWS resource limits
-- Terraform state lock status
+- OpenTofu state lock status
 
 ### Image Push Fails
 

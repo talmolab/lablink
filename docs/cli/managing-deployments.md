@@ -16,13 +16,13 @@ Every command on this page reads `~/.lablink/config.yaml` by default. Pass `--co
 lablink client launch --num-vms 5
 ```
 
-The allocator runs its own Terraform workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need Terraform locally for this step.
+The allocator runs its own OpenTofu workspace inside the EC2 instance — the CLI only hits its HTTP API, so you don't need OpenTofu locally for this step.
 
 | Flag | Description |
 |---|---|
 | `-n`, `--num-vms` | Number of client VMs to launch. Required. |
 | `-c`, `--config` | Override the default config path. |
-| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 
 Watch `lablink status` to see the VMs transition from pending → running.
 
@@ -35,7 +35,7 @@ Under the manual provider this no-ops; you add boxes with
 lablink status
 ```
 
-Shows Terraform outputs, health checks, per-VM state, and a cost estimate. This is the command to run when you want to know "is the allocator up and how much is this costing me?"
+Shows OpenTofu outputs, health checks, per-VM state, and a cost estimate. This is the command to run when you want to know "is the allocator up and how much is this costing me?"
 
 See [First Deployment](first-deployment.md#step-4-verify) for what each section means.
 
@@ -61,7 +61,7 @@ Writes deployment metrics to disk for offline analysis. Two sources:
 | Flag | Data | Requires allocator running? |
 |---|---|---|
 | `--client` | Per-VM metrics pulled from the allocator's API (boot time, health status, logs) | Yes |
-| `--allocator` | Per-deploy metrics from the local cache at `~/.lablink/deployments/` (deploy duration, plus Terraform phase timings on AWS or `docker compose up` timing on the manual provider) | **No** — works after `lablink destroy` |
+| `--allocator` | Per-deploy metrics from the local cache at `~/.lablink/deployments/` (deploy duration, plus OpenTofu phase timings on AWS or `docker compose up` timing on the manual provider) | **No** — works after `lablink destroy` |
 | *(no flag)* | Both | Yes |
 
 Allocator metrics are **scoped to the deployment and provider in your config**.
@@ -73,7 +73,7 @@ deployments it spans.
 
 Reusing one `deployment_name` across providers is why the provider is part of the
 scope: a name deployed first on AWS and later with `provider: manual` has records
-of both shapes in the cache, and the Terraform phase columns say nothing about a
+of both shapes in the cache, and the OpenTofu phase columns say nothing about a
 compose stack.
 
 Other flags:
@@ -114,12 +114,12 @@ Pretty-prints `~/.lablink/config.yaml` with syntax highlighting and runs schema 
 lablink destroy
 ```
 
-Runs `terraform destroy` against the deployment's working directory (`~/.lablink/deploys/<name>/`). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.
+Runs `tofu destroy` against the deployment's working directory (`~/.lablink/deploys/<name>/`). Tears down the allocator EC2 instance, security groups, key pair, and any ALB/Route 53 records. Client VMs owned by the allocator are destroyed along with it.
 
 | Flag | Description |
 |---|---|
 | `-y`, `--yes` | Skip the confirmation prompt. Password prompts still appear. |
-| `-v`, `--verbose` | Show the full Terraform output instead of a summary. |
+| `-v`, `--verbose` | Show the full OpenTofu output instead of a summary. |
 | `--keep-data` | **Manual provider only** — preserve the Postgres data volume instead of the default full wipe. Ignored for AWS. |
 
 ## Cleanup orphaned resources
@@ -131,14 +131,14 @@ lablink cleanup --dry-run   # preview
 lablink cleanup             # actually delete
 ```
 
-It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific Terraform state files. `--dry-run` prints what would be deleted without touching AWS.
+It targets EC2/IAM/EIP/security-group resources tagged with your deployment name, plus the environment-specific OpenTofu state files. `--dry-run` prints what would be deleted without touching AWS.
 
 ## Clear local caches
 
 The CLI stores two caches you may want to clear occasionally:
 
 ```bash
-# Clear the Terraform template cache (~/.lablink/cache/terraform/)
+# Clear the OpenTofu template cache (~/.lablink/cache/terraform/)
 lablink cache-clear
 
 # Clear the deployment metrics cache (~/.lablink/deployments/)
@@ -151,7 +151,7 @@ lablink cache-clear --all
 lablink cache-clear --deployments --stale
 ```
 
-Clearing the Terraform template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back `lablink export-metrics --allocator`.
+Clearing the OpenTofu template cache forces the next deploy to re-download templates. Clearing the deployments cache removes the per-deploy records that back `lablink export-metrics --allocator`.
 
 ## Switching between deployments
 

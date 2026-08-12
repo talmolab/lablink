@@ -17,7 +17,7 @@ Complete, copy-paste-ready `config.yaml` files for common deployment scenarios.
 | Scenario | SSL | DNS Required | Rate Limits | Extra Cost | Complexity |
 |----------|-----|-------------|-------------|------------|------------|
 | [IP Only](#ip-only) | None | No | None | None | Simplest |
-| [Let's Encrypt (Terraform DNS)](#caddy-ssl) | Auto via Caddy | Route53 | 5 certs/domain/week | None | Medium |
+| [Let's Encrypt (OpenTofu DNS)](#caddy-ssl) | Auto via Caddy | Route53 | 5 certs/domain/week | None | Medium |
 | [Let's Encrypt (Manual DNS)](#caddy-ssl) | Auto via Caddy | Route53 (manual) | 5 certs/domain/week | None | Medium |
 | [CloudFlare](#caddy-ssl) | CloudFlare proxy | CloudFlare | None | None | Medium |
 | [ACM + ALB](#alb-with-acm) | AWS-managed | Route53 | None | ~$20/month | Higher |
@@ -25,7 +25,7 @@ Complete, copy-paste-ready `config.yaml` files for common deployment scenarios.
 **Quick decision guide:**
 
 - **No domain?** Use [IP Only](#ip-only)
-- **Have a domain + want free auto-SSL?** Use [Let's Encrypt](#caddy-ssl) (pick Terraform-managed vs manual DNS)
+- **Have a domain + want free auto-SSL?** Use [Let's Encrypt](#caddy-ssl) (pick OpenTofu-managed vs manual DNS)
 - **Domain in CloudFlare?** Use [CloudFlare](#caddy-ssl)
 - **Want enterprise-grade load balancing?** Use [ACM + ALB](#alb-with-acm)
 
@@ -230,7 +230,7 @@ Controls DNS configuration for allocator hostname.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable DNS-based URLs |
-| `terraform_managed` | boolean | `true` | Let Terraform manage Route 53 records |
+| `terraform_managed` | boolean | `true` | Let OpenTofu manage Route 53 records |
 | `domain` | string | `""` | Full domain name (e.g., `lablink.sleap.ai` or `test.lablink.sleap.ai`) |
 | `zone_id` | string | `""` | Route 53 zone ID (optional, skips lookup if provided) |
 
@@ -358,7 +358,7 @@ Access via `https://your-domain.com` - browser shows secure padlock.
 
 ### Allocator Deployment Options (`allocator`)
 
-Configuration for the allocator service Docker image used during infrastructure deployment. This section is consumed by Terraform, not by the allocator service itself.
+Configuration for the allocator service Docker image used during infrastructure deployment. This section is consumed by OpenTofu, not by the allocator service itself.
 
 | Option      | Type   | Default                | Description                                 |
 |-------------|--------|------------------------|---------------------------------------------|
@@ -375,7 +375,7 @@ Example tags:
 **Option**: `bucket_name`
 **Default**: `tf-state-lablink-allocator-bucket`
 
-S3 bucket for Terraform state storage. Must be globally unique.
+S3 bucket for OpenTofu state storage. Must be globally unique.
 
 ### Startup Script Options (`startup_script`)
 
@@ -585,7 +585,7 @@ The validator checks:
 
 ```bash
 # Validate before deployment
-lablink-validate-config config/config.yaml && terraform apply || exit 1
+lablink-validate-config config/config.yaml && tofu apply || exit 1
 ```
 
 ### Check Syntax
@@ -603,12 +603,12 @@ cd packages/allocator
 python src/lablink_allocator_service/main.py
 ```
 
-### Terraform Validation
+### OpenTofu Validation
 
 ```bash
 cd lablink-infrastructure
-terraform validate
-terraform plan  # Preview changes
+tofu validate
+tofu plan  # Preview changes
 ```
 
 ## Common Configuration Patterns
@@ -666,7 +666,7 @@ db:
 1. **Never commit secrets**: Use environment variables or AWS Secrets Manager
 2. **Pin versions in production**: Use specific image tags, not `:latest`
 3. **Document custom values**: Add comments explaining non-standard configurations
-4. **Test configuration changes**: Validate with `terraform plan` before applying
+4. **Test configuration changes**: Validate with `tofu plan` before applying
 5. **Use separate configs per environment**: Don't reuse dev configs in production
 
 ## Troubleshooting Configuration
@@ -686,11 +686,11 @@ env | grep -i lablink
 echo $DB_PASSWORD
 ```
 
-### Terraform Variables Not Applied
+### OpenTofu Variables Not Applied
 
 Ensure `-var` flags are passed:
 ```bash
-terraform plan -var="resource_suffix=prod"
+tofu plan -var="resource_suffix=prod"
 ```
 
 ## Full Configuration Examples
@@ -759,12 +759,12 @@ bucket_name: "tf-state-lablink-YOURORG"
 
 Use Caddy as a reverse proxy with automatic SSL. Three options depending on your DNS provider and management preference.
 
-=== "Let's Encrypt (Terraform DNS)"
+=== "Let's Encrypt (OpenTofu DNS)"
 
-    Route53 DNS records managed automatically by Terraform. Caddy obtains Let's Encrypt certificates.
+    Route53 DNS records managed automatically by OpenTofu. Caddy obtains Let's Encrypt certificates.
 
     !!! warning "Rate limits"
-        Let's Encrypt allows **5 certificates per exact domain every 7 days**. Each `terraform apply` triggers a new certificate. For frequent testing, use [CloudFlare](#caddy-ssl) or [IP Only](#ip-only) instead.
+        Let's Encrypt allows **5 certificates per exact domain every 7 days**. Each `tofu apply` triggers a new certificate. For frequent testing, use [CloudFlare](#caddy-ssl) or [IP Only](#ip-only) instead.
 
     **Prerequisites:**
 
@@ -774,7 +774,7 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     **Access URL:** `https://test.lablink.example.com`
 
     ```yaml
-    # LabLink Configuration: Route53 + Let's Encrypt (Terraform-managed DNS)
+    # LabLink Configuration: Route53 + Let's Encrypt (OpenTofu-managed DNS)
 
     db:
       dbname: "lablink_db"
@@ -823,10 +823,10 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
 
 === "Let's Encrypt (Manual DNS)"
 
-    Route53 DNS with manually created A records. Useful when you don't want Terraform managing DNS records.
+    Route53 DNS with manually created A records. Useful when you don't want OpenTofu managing DNS records.
 
     !!! warning "Rate limits"
-        Same Let's Encrypt rate limits apply. See the Terraform DNS tab for details.
+        Same Let's Encrypt rate limits apply. See the OpenTofu DNS tab for details.
 
     **Prerequisites:**
 

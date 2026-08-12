@@ -8,7 +8,7 @@ lablink status          # is the allocator up, and what does it think its VMs ar
 lablink client doctor   # on a BYO client box: registration, container, log shipper
 ```
 
-`lablink doctor` branches on your provider — Docker checks under `manual`, and Terraform, AWS credentials, S3 and AMI checks under `aws`. Most problems below are named in its output.
+`lablink doctor` branches on your provider — Docker checks under `manual`, and OpenTofu, AWS credentials, S3 and AMI checks under `aws`. Most problems below are named in its output.
 
 !!! info "Which port?"
     The allocator container listens on **5000**. Ports 80 and 443 only answer when Caddy is running, which happens for `ssl.provider: letsencrypt` and `cloudflare` only. With `none` or `acm`, `curl localhost:80` on the instance will fail even though the allocator is perfectly healthy — use `curl localhost:5000`.
@@ -52,9 +52,9 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
        chmod 600 ~/lablink-key.pem
        ls -l ~/lablink-key.pem      # -rw-------
        ```
-    2. **Wrong key** — re-extract it from Terraform state.
+    2. **Wrong key** — re-extract it from OpenTofu state.
        ```bash
-       terraform output -raw private_key_pem > ~/lablink-key.pem
+       tofu output -raw private_key_pem > ~/lablink-key.pem
        chmod 600 ~/lablink-key.pem
        ```
     3. **Wrong user** — it's `ubuntu` on the Ubuntu AMIs LabLink uses, not `ec2-user`.
@@ -65,7 +65,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     ```bash
     aws ec2 describe-instances --instance-ids <id> \
       --query 'Reservations[0].Instances[0].State.Name'
-    terraform output allocator_public_ip
+    tofu output allocator_public_ip
     aws ec2 authorize-security-group-ingress \
       --group-id <sg-id> --protocol tcp --port 22 --cidr 0.0.0.0/0
     ```
@@ -74,7 +74,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
 ## Deploying (AWS provider)
 
-??? note "Terraform init fails: bucket does not exist"
+??? note "OpenTofu init fails: bucket does not exist"
     `lablink setup` creates the S3 state bucket and the DynamoDB lock table for you. If you skipped it, create the bucket by hand:
 
     ```bash
@@ -82,17 +82,17 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     aws s3api put-bucket-versioning \
       --bucket tf-state-lablink-allocator-bucket \
       --versioning-configuration Status=Enabled
-    terraform init
+    tofu init
     ```
 
 ??? note "Error acquiring the state lock"
-    A previous Terraform run died without releasing its DynamoDB lock.
+    A previous OpenTofu run died without releasing its DynamoDB lock.
 
     First make sure nothing is actually still running:
 
     ```bash
     aws dynamodb scan --table-name lock-table --region us-west-2
-    ps aux | grep terraform
+    ps aux | grep tofu
     ```
 
     Entries with an `Info` field are real locks; the rest are digests. Copy the exact `LockID` — it does **not** always carry an `-md5` suffix — and delete it:
@@ -113,13 +113,13 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
 
     If you get `AccessDeniedException: not authorized to perform: dynamodb:GetItem`, the allocator's IAM role is missing `dynamodb:GetItem`, `PutItem` and `DeleteItem` on `table/lock-table`. Add them and redeploy.
 
-    **Prevention:** let Terraform runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.
+    **Prevention:** let OpenTofu runs finish. Don't terminate instances from the console mid-apply, and use the destroy workflow rather than deleting resources by hand.
 
 ??? note "Resource already exists"
     Either import it, delete it, or deploy under a different suffix:
 
     ```bash
-    terraform import aws_security_group.lablink sg-xxxxx
+    tofu import aws_security_group.lablink sg-xxxxx
     # or
     aws ec2 terminate-instances --instance-ids i-xxxxx
     # or change resource_suffix: -dev / -test / -prod
@@ -229,14 +229,14 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
       --query "ResourceRecordSets[?Name=='<your-domain>.']"
 
     # Does it match the actual IP?
-    terraform output allocator_public_ip
+    tofu output allocator_public_ip
     dig <your-domain> +short
     ```
 
-    If the record is missing, re-run `terraform apply`. If it exists but isn't propagating, give it 5–15 minutes and flush your local cache (`sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` on macOS, `sudo systemd-resolve --flush-caches` on Linux, `ipconfig /flushdns` on Windows).
+    If the record is missing, re-run `tofu apply`. If it exists but isn't propagating, give it 5–15 minutes and flush your local cache (`sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` on macOS, `sudo systemd-resolve --flush-caches` on Linux, `ipconfig /flushdns` on Windows).
 
 ??? note "DNS record landed in the wrong hosted zone"
-    Terraform's zone lookup matched the parent zone (e.g. `example.com` instead of `lablink.example.com`). Pin it explicitly:
+    OpenTofu's zone lookup matched the parent zone (e.g. `example.com` instead of `lablink.example.com`). Pin it explicitly:
 
     ```yaml
     dns:
@@ -252,7 +252,7 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     The template repo ships a script that checks DNS, HTTP, and SSL together. It lives in `scripts/`, not `lablink-infrastructure/`:
 
     ```bash
-    ./scripts/verify-deployment.sh prod          # reads config.yaml + terraform outputs
+    ./scripts/verify-deployment.sh prod          # reads config.yaml + tofu outputs
     ./scripts/verify-deployment.sh <domain> <ip> # or pass them explicitly
     ./scripts/verify-deployment.sh --ci prod     # no ANSI colors, for CI logs
     ```
@@ -277,21 +277,21 @@ lablink client doctor   # on a BYO client box: registration, container, log ship
     ```bash
     sudo docker logs -f <allocator-container>
     sudo docker exec <allocator-container> aws sts get-caller-identity
-    sudo docker exec <allocator-container> terraform version
+    sudo docker exec <allocator-container> tofu version
     ```
 
     If `get-caller-identity` fails, the allocator's IAM instance profile isn't attached or lacks EC2 permissions (`RunInstances`, `DescribeInstances`) and VPC permissions (`CreateSecurityGroup`).
 
-    To run Terraform by hand inside the container:
+    To run OpenTofu by hand inside the container:
 
     ```bash
     sudo docker exec -it <allocator-container> bash
     cd /app/.venv/lib/python*/site-packages/lablink_allocator_service/terraform
-    terraform init && terraform plan
+    tofu init && tofu plan
     ```
 
 ??? note "VM created but never appears in the allocator"
-    Clients **register themselves** — the allocator does not insert rows when Terraform finishes. Each client posts to `/api/v1/clients/register`, and the allocator stores its hostname alongside an argon2 hash of a freshly minted `client_secret`. A VM that never registers is a VM that never reached that endpoint.
+    Clients **register themselves** — the allocator does not insert rows when OpenTofu finishes. Each client posts to `/api/v1/clients/register`, and the allocator stores its hostname alongside an argon2 hash of a freshly minted `client_secret`. A VM that never registers is a VM that never reached that endpoint.
 
     ```bash
     # What the allocator has
@@ -441,7 +441,7 @@ sudo docker exec <container> aws sts get-caller-identity
 - [ ] Security group allows 22 and 5000, plus 80/443 if using Caddy
 - [ ] SSH key is mode 600
 - [ ] AWS credentials resolve (`aws sts get-caller-identity`)
-- [ ] Terraform state not locked, S3 bucket exists
+- [ ] OpenTofu state not locked, S3 bucket exists
 - [ ] Config passes validation — no unknown keys
 
 **Still stuck?** Search [existing issues](https://github.com/talmolab/lablink/issues), then open a new one with the `lablink doctor` output, the relevant container logs, what you expected, and what you tried.

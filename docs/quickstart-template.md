@@ -1,6 +1,6 @@
 # Quickstart: Template repo
 
-Deploy LabLink to AWS by creating a repository from [lablink-template](https://github.com/talmolab/lablink-template) and pushing commits to `main`. GitHub Actions runs Terraform against shared S3-backed state. Best for workshops, shared environments, and production.
+Deploy LabLink to AWS by creating a repository from [lablink-template](https://github.com/talmolab/lablink-template) and pushing commits to `main`. GitHub Actions runs OpenTofu against shared S3-backed state. Best for workshops, shared environments, and production.
 
 !!! tip "Prefer a local flow?"
     The [CLI quickstart](cli/first-deployment.md) deploys the same infrastructure from your own machine with `lablink configure && lablink deploy`. Both paths are equivalent — pick whichever fits your setup.
@@ -47,7 +47,7 @@ Run the setup script to create all required AWS resources and configure GitHub s
 The script will prompt you for:
 
 - AWS region (e.g., `us-west-2`)
-- S3 bucket name for Terraform state
+- S3 bucket name for OpenTofu state
 - GitHub repository (e.g., `YOUR_ORG/YOUR_REPO`)
 - Optional DNS settings (Route 53)
 
@@ -55,7 +55,7 @@ It automatically:
 
 - Creates an OIDC identity provider for GitHub Actions
 - Creates an IAM role with required permissions
-- Creates an S3 bucket for Terraform state (with versioning and encryption)
+- Creates an S3 bucket for OpenTofu state (with versioning and encryption)
 - Creates a DynamoDB table for state locking
 - Optionally creates a Route 53 hosted zone
 - Sets four GitHub repository secrets: `AWS_ROLE_ARN`, `AWS_REGION`, `ADMIN_PASSWORD`, `DB_PASSWORD`
@@ -89,7 +89,7 @@ Either tool below writes the same `lablink-infrastructure/config/config.yaml`, w
 
     `--template` is what makes it write the repo's config file instead of `~/.lablink/config.yaml`, fill in the password placeholders the deploy workflow expects, and skip the AWS state setup that Step 2 already did. See the [CLI reference](reference/cli.md#configuring-a-template-repo) for details.
 
-Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. The Terraform Deploy workflow replaces them with the `ADMIN_PASSWORD` and `DB_PASSWORD` secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.
+Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. The OpenTofu Deploy workflow replaces them with the `ADMIN_PASSWORD` and `DB_PASSWORD` secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.
 
 !!! note "Re-running Configuration"
     You can re-run either tool at any time to update settings; both load your existing values as the defaults.
@@ -114,7 +114,7 @@ git push
 Monitor the deployment:
 
 1. Go to the **Actions** tab in your GitHub repository
-2. Run the **Terraform Deploy** workflow manually
+2. Run the **OpenTofu Deploy** workflow manually
 4. Wait for the workflow to complete (~2-5 minutes)
 
 <div class="video-container">
@@ -127,7 +127,7 @@ Monitor the deployment:
 The workflow will:
 
 - Authenticate to AWS via OIDC
-- Initialize Terraform with the S3 backend
+- Initialize OpenTofu with the S3 backend
 - Deploy the allocator EC2 instance, security groups, and SSH key pair
 
 ## Step 5: Verify
@@ -143,7 +143,7 @@ Once the deployment completes:
 
 ### Access the Web UI
 
-1. Find the allocator's public IP from the Terraform output in the GitHub Actions logs
+1. Find the allocator's public IP from the OpenTofu output in the GitHub Actions logs
 2. Navigate to `http://<ec2_public_ip>` in your browser
 3. Log in with username `admin` and the `ADMIN_PASSWORD` that was auto-generated during setup
 
@@ -165,7 +165,7 @@ The template includes a verification script:
 ### SSH Check
 
 ```bash
-# Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)
+# Download the SSH key from OpenTofu output (via GitHub Actions artifacts or manually)
 ssh -i ~/lablink-key.pem ubuntu@<ec2_public_ip>
 
 # Verify allocator is running
@@ -188,14 +188,14 @@ When you're done testing, destroy the infrastructure:
 
 === "Via GitHub Actions"
 
-    Manually run the **Terraform Destroy** workflow from the Actions tab.
+    Manually run the **OpenTofu Destroy** workflow from the Actions tab.
 
-=== "Via Terraform"
+=== "Via OpenTofu"
 
     ```bash
     cd lablink-infrastructure
     scripts/init-terraform.sh test
-    terraform destroy -var="resource_suffix=test"
+    tofu destroy -var="resource_suffix=test"
     ```
 
 === "Cleanup Orphaned Resources"

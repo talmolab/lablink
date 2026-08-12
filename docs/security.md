@@ -8,7 +8,7 @@ LabLink implements multiple security layers:
 
 - **Authentication**: Admin interface password protection, bearer token for machine-to-machine API
 - **Authorization**: OIDC for GitHub Actions, IAM roles for AWS
-- **Encryption**: HTTPS (optional), encrypted Terraform state
+- **Encryption**: HTTPS (optional), encrypted OpenTofu state
 - **Network**: Security groups restrict access
 - **Secrets**: Environment variables, AWS Secrets Manager
 
@@ -74,7 +74,7 @@ For GitHub Actions deployments, add the `ADMIN_PASSWORD` secret to your reposito
 4. Value: Your secure password
 5. Click **Add secret**
 
-The deployment workflow automatically injects this secret into configuration files before Terraform apply, preventing passwords from appearing in logs.
+The deployment workflow automatically injects this secret into configuration files before OpenTofu apply, preventing passwords from appearing in logs.
 
 **Method 2: Manual configuration**
 
@@ -117,7 +117,7 @@ For GitHub Actions deployments, add the `DB_PASSWORD` secret to your repository:
 4. Value: Your secure database password
 5. Click **Add secret**
 
-The deployment workflow automatically injects this secret into configuration files before Terraform apply, preventing passwords from appearing in logs.
+The deployment workflow automatically injects this secret into configuration files before OpenTofu apply, preventing passwords from appearing in logs.
 
 **Method 2: Manual configuration**
 
@@ -161,7 +161,7 @@ OpenID Connect (OIDC) allows GitHub Actions to authenticate to AWS **without sto
 3. Action presents token to AWS STS
 4. AWS validates token against IAM role trust policy
 5. AWS issues temporary AWS credentials
-6. Action uses credentials for Terraform operations
+6. Action uses credentials for OpenTofu operations
 7. Credentials expire automatically
 ```
 
@@ -410,7 +410,7 @@ If you must run without SSL alongside potentially sensitive data:
 
 1. **Restrict access to your IP only**:
    ```hcl
-   # In Terraform security group
+   # In OpenTofu security group
    ingress {
      from_port   = 80
      to_port     = 80
@@ -440,7 +440,7 @@ To switch a deployment from HTTP-only to HTTPS:
 
 2. Redeploy:
    ```bash
-   terraform apply
+   tofu apply
    ```
 
 3. Wait for Let's Encrypt certificate (30-60 seconds)
@@ -528,7 +528,7 @@ For CI/CD workflows, GitHub Secrets provide secure password storage.
 
 **How it works**:
 
-The deployment workflow automatically injects secrets into configuration files before Terraform runs:
+The deployment workflow automatically injects secrets into configuration files before OpenTofu runs:
 
 ```yaml
 - name: Inject Password Secrets
@@ -540,13 +540,13 @@ The deployment workflow automatically injects secrets into configuration files b
     sed -i "s/PLACEHOLDER_DB_PASSWORD/${DB_PASSWORD}/g" "$CONFIG_FILE"
 ```
 
-This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with actual values from secrets, preventing passwords from appearing in Terraform logs.
+This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with actual values from secrets, preventing passwords from appearing in OpenTofu logs.
 
 **Pros**:
 - Integrated with GitHub Actions
 - Encrypted at rest and in transit
 - Not visible in workflow logs
-- Prevents password exposure in Terraform apply output
+- Prevents password exposure in OpenTofu apply output
 
 **Cons**:
 - Only available in workflows
@@ -556,7 +556,7 @@ This replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in conf
 
 ### Key Generation
 
-Terraform generates SSH keys automatically:
+OpenTofu generates SSH keys automatically:
 
 ```hcl
 resource "tls_private_key" "lablink_key" {
@@ -575,7 +575,7 @@ resource "aws_key_pair" "lablink_key_pair" {
 - 4096-bit RSA (strong)
 
 **Bad**:
-- Stored in Terraform state (plaintext)
+- Stored in OpenTofu state (plaintext)
 - Artifacts expire (GitHub Actions)
 
 ### Key Permissions
@@ -598,8 +598,8 @@ Rotate keys regularly:
 
 ```bash
 # Destroy and recreate infrastructure
-terraform destroy -var="resource_suffix=dev"
-terraform apply -var="resource_suffix=dev"
+tofu destroy -var="resource_suffix=dev"
+tofu apply -var="resource_suffix=dev"
 
 # New keys generated automatically
 ```
@@ -621,7 +621,7 @@ terraform apply -var="resource_suffix=dev"
 
 ### Encryption at Rest
 
-#### Terraform State
+#### OpenTofu State
 
 S3 bucket encryption (AES-256):
 ```bash
@@ -799,20 +799,20 @@ This section covers SSH access to LabLink allocator and client EC2 instances for
 
 ### SSH Key Management
 
-Terraform automatically generates SSH key pairs during deployment:
+OpenTofu automatically generates SSH key pairs during deployment:
 
 - **Algorithm**: RSA, 4096 bits
 - **Naming**: `lablink-<environment>-key` (e.g., `lablink-dev-key`, `lablink-prod-key`)
 
 #### Retrieving SSH Keys
 
-**From Terraform Output:**
+**From OpenTofu Output:**
 
 ```bash
 cd lablink-infrastructure
 
 # Save to file
-terraform output -raw private_key_pem > ~/lablink-dev-key.pem
+tofu output -raw private_key_pem > ~/lablink-dev-key.pem
 
 # Set proper permissions
 chmod 600 ~/lablink-dev-key.pem
@@ -835,7 +835,7 @@ chmod 600 ~/lablink-dev-key.pem
 ```bash
 # Get allocator IP
 cd lablink-infrastructure
-terraform output ec2_public_ip
+tofu output ec2_public_ip
 
 # SSH in (default user: ubuntu)
 ssh -i ~/lablink-dev-key.pem ubuntu@<allocator-public-ip>

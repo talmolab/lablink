@@ -3,7 +3,7 @@
 The CLI's other deployment mode. Instead of provisioning EC2 instances, the
 allocator runs as a **local docker-compose stack** on a machine you already have,
 and the client machines are boxes you register yourself. No AWS account, no
-Terraform, no cloud bill.
+OpenTofu, no cloud bill.
 
 Set `provider: manual` in your config and every command in the
 [CLI Reference](../reference/cli.md) switches to this path.
@@ -13,13 +13,13 @@ differences:
 
 | | AWS provider | Manual provider |
 |---|---|---|
-| Needs Terraform | Yes | No |
+| Needs OpenTofu | Yes | No |
 | Needs docker locally | No | **Yes** (allocator + clients are containers) |
 | Cost | Per-hour EC2 + EBS + optional ALB | Your own hardware |
 
 Good fits: a lab with GPU workstations already on a bench, a workshop on
 institution-owned machines, or a scheduler-hosted workload (e.g. Run:AI) you can't
-provision from Terraform.
+provision from OpenTofu.
 
 ## Prerequisites
 

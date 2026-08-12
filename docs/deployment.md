@@ -1,6 +1,6 @@
 # Deployment
 
-This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (Terraform CLI) methods.
+This guide covers deploying LabLink to AWS using both automated (GitHub Actions) and manual (OpenTofu CLI) methods.
 
 ## Deployment Overview
 
@@ -27,10 +27,10 @@ flowchart TD
     TestEnv --> AutoDeploy[GitHub Actions<br/>Recommended]
     ProdEnv --> ProdMethod{Infrastructure exists?}
 
-    DevMethod -->|Quick & easy| ManualDev[Manual Terraform<br/>Local state]
+    DevMethod -->|Quick & easy| ManualDev[Manual OpenTofu<br/>Local state]
     DevMethod -->|CI/CD practice| GHActionsDev[GitHub Actions<br/>workflow_dispatch]
 
-    ProdMethod -->|First time| ManualProd[Manual Terraform<br/>Careful setup]
+    ProdMethod -->|First time| ManualProd[Manual OpenTofu<br/>Careful setup]
     ProdMethod -->|Updates| GHActionsProd[GitHub Actions<br/>workflow_dispatch]
 
     ManualDev --> DevNotes["✓ No S3 bucket needed<br/>✓ Fast iteration<br/>✗ State not shared"]
@@ -53,8 +53,8 @@ flowchart TD
 Before deploying, ensure you have:
 
 - [x] AWS account configured (see [Prerequisites](prerequisites.md#aws-account))
-- [x] Terraform installed (see [Prerequisites](prerequisites.md#terraform))
-- [x] S3 bucket for Terraform state (see [AWS Setup](aws-setup.md#step-2-s3-bucket-for-terraform-state))
+- [x] OpenTofu installed (see [Prerequisites](prerequisites.md#opentofu))
+- [x] S3 bucket for OpenTofu state (see [AWS Setup](aws-setup.md#step-2-s3-bucket-for-opentofu-state))
 - [x] Elastic IP allocated for test/prod (see [AWS Setup](aws-setup.md#step-3-elastic-ip-allocation))
 - [x] IAM roles configured for GitHub Actions (see [AWS Setup](aws-setup.md#step-4-github-actions-oidc-configuration))
 
@@ -79,7 +79,7 @@ Automated deployment via CI/CD pipelines.
    - `DB_PASSWORD`: Database password for PostgreSQL
      Example: Generate a secure password using a password manager
 
-   **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before Terraform runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
+   **Security Note**: The workflow automatically replaces `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in config files with these secret values before OpenTofu runs, preventing passwords from appearing in logs. If these secrets are not set, the workflow uses temporary `CHANGEME_*` defaults and displays a warning.
 
 2. **Verify OIDC Configuration**
 
@@ -102,13 +102,13 @@ git push origin test
 
 This automatically:
 1. Builds Docker images with `-test` tags
-2. Runs Terraform init with `backend-test.hcl`
+2. Runs OpenTofu init with `backend-test.hcl`
 3. Deploys to test environment
 4. Outputs allocator URL and SSH key
 
 **Monitor Progress**:
 - Go to **Actions** tab in GitHub
-- Watch `Terraform Deploy` workflow
+- Watch `OpenTofu Deploy` workflow
 - Check logs for any errors
 
 **Access Deployment**:
@@ -121,7 +121,7 @@ This automatically:
 
 1. **Navigate to Actions tab** in GitHub
 
-2. **Select "Terraform Deploy" workflow**
+2. **Select "OpenTofu Deploy" workflow**
 
 3. **Click "Run workflow"**
 
@@ -152,22 +152,22 @@ The GitHub Actions workflow (`.github/workflows/lablink-allocator-terraform.yml`
 
 1. **Checkout code** from repository
 2. **Configure AWS credentials** via OIDC
-3. **Setup Terraform** (version 1.6.6)
+3. **Setup OpenTofu** (version 1.6.6)
 4. **Determine environment** from trigger
 5. **Inject password secrets** - Replace placeholders in config files with GitHub secrets
-6. **Initialize Terraform** with environment-specific backend
-7. **Validate** Terraform configuration
+6. **Initialize OpenTofu** with environment-specific backend
+7. **Validate** OpenTofu configuration
 8. **Plan** infrastructure changes
 9. **Apply** changes to AWS
 10. **Save SSH key** as artifact
 11. **Output** deployment details
 12. **Destroy on failure** (if apply fails)
 
-**Password Injection Step**: Before Terraform runs, the workflow finds the config file and uses `sed` to replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` with values from GitHub secrets. This ensures passwords never appear in Terraform logs while maintaining secure configuration.
+**Password Injection Step**: Before OpenTofu runs, the workflow finds the config file and uses `sed` to replace `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` with values from GitHub secrets. This ensures passwords never appear in OpenTofu logs while maintaining secure configuration.
 
-## Method 2: Manual Terraform Deployment
+## Method 2: Manual OpenTofu Deployment
 
-Deploy directly from your local machine using Terraform CLI.
+Deploy directly from your local machine using OpenTofu CLI.
 
 ### Step 1: Clone Template Repository
 
@@ -199,20 +199,20 @@ aws sso login --profile your-sso-profile
 export AWS_PROFILE=your-sso-profile
 ```
 
-### Step 3: Initialize Terraform
+### Step 3: Initialize OpenTofu
 
 **For dev environment (local state)**:
 ```bash
-terraform init
+tofu init
 ```
 
 **For test/prod (remote state)**:
 ```bash
 # Test
-terraform init -backend-config=backend-test.hcl
+tofu init -backend-config=backend-test.hcl
 
 # Production
-terraform init -backend-config=backend-prod.hcl
+tofu init -backend-config=backend-prod.hcl
 ```
 
 ### Step 4: Plan Deployment
@@ -220,12 +220,12 @@ terraform init -backend-config=backend-prod.hcl
 Preview infrastructure changes:
 
 ```bash
-terraform plan \
+tofu plan \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=linux-amd64-latest-test"
 ```
 
-Review the plan output carefully. Terraform will show:
+Review the plan output carefully. OpenTofu will show:
 - Resources to be created
 - Resources to be modified
 - Resources to be destroyed
@@ -235,7 +235,7 @@ Review the plan output carefully. Terraform will show:
 Deploy the infrastructure:
 
 ```bash
-terraform apply \
+tofu apply \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=linux-amd64-latest-test"
 ```
@@ -250,13 +250,13 @@ After deployment completes:
 
 ```bash
 # Get allocator URL
-terraform output allocator_fqdn
+tofu output allocator_fqdn
 
 # Get public IP
-terraform output ec2_public_ip
+tofu output ec2_public_ip
 
 # Save SSH key
-terraform output -raw private_key_pem > ~/lablink-dev-key.pem
+tofu output -raw private_key_pem > ~/lablink-dev-key.pem
 chmod 600 ~/lablink-dev-key.pem
 ```
 
@@ -266,7 +266,7 @@ Test the allocator:
 
 ```bash
 # Get the IP
-ALLOCATOR_IP=$(terraform output -raw ec2_public_ip)
+ALLOCATOR_IP=$(tofu output -raw ec2_public_ip)
 
 # Test web interface
 curl http://$ALLOCATOR_IP:80
@@ -275,7 +275,7 @@ curl http://$ALLOCATOR_IP:80
 ssh -i ~/lablink-dev-key.pem ubuntu@$ALLOCATOR_IP
 ```
 
-## Terraform Variables
+## OpenTofu Variables
 
 Key variables for customizing deployment:
 
@@ -288,7 +288,7 @@ Key variables for customizing deployment:
 
 **Usage**:
 ```bash
-terraform apply \
+tofu apply \
   -var="resource_suffix=prod" \
   -var="allocator_image_tag=v1.0.0" \
   -var="instance_type=t2.small" \
@@ -302,15 +302,15 @@ terraform apply \
 **Purpose**: Local testing, rapid iteration
 
 **Configuration**:
-- Terraform state: Local file
+- OpenTofu state: Local file
 - Image tag: `-test` versions
 - Instance type: `t2.micro` (cheapest)
 - No Elastic IP (dynamic)
 
 **Deploy**:
 ```bash
-terraform init
-terraform apply \
+tofu init
+tofu apply \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=linux-amd64-latest-test"
 ```
@@ -320,15 +320,15 @@ terraform apply \
 **Purpose**: Pre-production validation, integration testing
 
 **Configuration**:
-- Terraform state: S3 bucket (`backend-test.hcl`)
+- OpenTofu state: S3 bucket (`backend-test.hcl`)
 - Image tag: `-test` versions
 - Instance type: Same as production
 - Elastic IP: Pre-allocated
 
 **Deploy**:
 ```bash
-terraform init -backend-config=backend-test.hcl
-terraform apply \
+tofu init -backend-config=backend-test.hcl
+tofu apply \
   -var="resource_suffix=test" \
   -var="allocator_image_tag=linux-amd64-latest-test" \
   -var="allocated_eip=eipalloc-test"
@@ -339,7 +339,7 @@ terraform apply \
 **Purpose**: Live workloads, stable releases
 
 **Configuration**:
-- Terraform state: S3 bucket (`backend-prod.hcl`)
+- OpenTofu state: S3 bucket (`backend-prod.hcl`)
 - Image tag: Pinned versions (`v1.0.0`)
 - Instance type: Appropriately sized
 - Elastic IP: Pre-allocated
@@ -347,8 +347,8 @@ terraform apply \
 
 **Deploy**:
 ```bash
-terraform init -backend-config=backend-prod.hcl
-terraform apply \
+tofu init -backend-config=backend-prod.hcl
+tofu apply \
   -var="resource_suffix=prod" \
   -var="allocator_image_tag=v1.0.0" \
   -var="allocated_eip=eipalloc-prod"
@@ -367,7 +367,7 @@ Point a custom domain to your allocator for easier access.
 **Quick Update**:
 ```bash
 # Get IP
-ALLOCATOR_IP=$(terraform output -raw ec2_public_ip)
+ALLOCATOR_IP=$(tofu output -raw ec2_public_ip)
 
 # Update Route 53 A record
 aws route53 change-resource-record-sets \
@@ -537,15 +537,15 @@ To update an existing deployment with new configuration or image:
 git pull origin main
 
 # Re-initialize if needed
-terraform init -reconfigure
+tofu init -reconfigure
 
 # Plan changes
-terraform plan \
+tofu plan \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=new-version"
 
 # Apply changes
-terraform apply \
+tofu apply \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=new-version"
 ```
@@ -563,12 +563,12 @@ Use the destroy workflow:
 3. Select environment
 4. Confirm destruction
 
-### Via Terraform CLI
+### Via OpenTofu CLI
 
 ```bash
 cd lablink-infrastructure
 
-terraform destroy \
+tofu destroy \
   -var="resource_suffix=dev" \
   -var="allocator_image_tag=dummy"  # Still required
 
@@ -582,19 +582,19 @@ terraform destroy \
 - All associated resources
 
 **Not destroyed**:
-- S3 bucket (Terraform state)
+- S3 bucket (OpenTofu state)
 - Elastic IPs (must be released manually)
 - Any client VMs created by the allocator
 
 ## Troubleshooting Deployments
 
-### Terraform Init Fails
+### OpenTofu Init Fails
 
 **Error**: `Backend configuration changed`
 
 **Solution**:
 ```bash
-terraform init -reconfigure
+tofu init -reconfigure
 ```
 
 ### Apply Fails: Resource Already Exists
@@ -603,7 +603,7 @@ terraform init -reconfigure
 
 **Solution**: Import existing resource or destroy manually:
 ```bash
-terraform import aws_security_group.lablink sg-xxxxx
+tofu import aws_security_group.lablink sg-xxxxx
 ```
 
 ### SSH Key Not Working
@@ -627,23 +627,23 @@ chmod 600 ~/lablink-key.pem
 2. Instance has public IP
 3. Instance is running (`aws ec2 describe-instances`)
 
-### Terraform State Locked
+### OpenTofu State Locked
 
 **Error**: `Error acquiring the state lock`
 
 **Solution**:
 ```bash
-# If no other Terraform process is running:
-terraform force-unlock <lock-id>
+# If no other OpenTofu process is running:
+tofu force-unlock <lock-id>
 ```
 
 ## Best Practices
 
-1. **Use version control**: Always commit Terraform configs before applying
-2. **Review plans**: Always run `terraform plan` before `apply`
+1. **Use version control**: Always commit OpenTofu configs before applying
+2. **Review plans**: Always run `tofu plan` before `apply`
 3. **Pin versions**: Use specific image tags in production
 4. **Separate environments**: Never share state between dev/test/prod
-5. **Backup state**: Enable S3 versioning for Terraform state
+5. **Backup state**: Enable S3 versioning for OpenTofu state
 6. **Monitor costs**: Set up AWS billing alerts
 7. **Document changes**: Use descriptive commit messages
 
