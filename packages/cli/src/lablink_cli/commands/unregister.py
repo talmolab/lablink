@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import shutil
 import ssl
-import subprocess
 from pathlib import Path
 from typing import Optional
 from urllib.error import HTTPError, URLError
@@ -14,6 +12,7 @@ import typer
 from rich.console import Console
 
 from lablink_cli.api import USER_AGENT
+from lablink_cli.docker import Docker, DockerUnavailable, default_docker
 
 DEFAULT_ENV_FILE = Path.home() / ".lablink" / "client.env"
 
@@ -23,9 +22,11 @@ def run_unregister(
     env_file: Optional[Path],
     insecure: bool,
     yes: bool,
+    docker: Docker | None = None,
 ) -> None:
     """Best-effort allocator notify, then local cleanup. Always exits 0
     once the user has confirmed; partial failures don't block."""
+    docker = docker or default_docker()
     console = Console()
     env_file = env_file or DEFAULT_ENV_FILE
 
@@ -69,14 +70,16 @@ def run_unregister(
         )
 
     # Docker container removal
-    if shutil.which("docker") is None:
+    try:
+        docker.require()
+    except DockerUnavailable:
         console.print(
             "[yellow]docker not on PATH — skipping container "
             "removal. Remove `lablink-client` manually if it ever "
             "comes back.[/yellow]"
         )
     else:
-        _exec_docker_rm(console)
+        _exec_docker_rm(console, docker)
 
     # Env file deletion (terminal step)
     try:
@@ -159,7 +162,7 @@ def _notify_deregister(
         return False
 
 
-def _exec_docker_rm(console: Console) -> bool:
+def _exec_docker_rm(console: Console, docker: Docker) -> bool:
     """Run `docker rm -f lablink-client`. Returns True on success or
     when the container is already absent. Never raises.
 
@@ -175,21 +178,11 @@ def _exec_docker_rm(console: Console) -> bool:
     unregister/register reuses the same node and keeps the unsuffixed name.
     `lablink client reset-overlay` is the opt-in path for discarding it.
     """
-    try:
-        result = subprocess.run(
-            ["docker", "rm", "-f", "lablink-client"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError as e:
-        console.print(f"[yellow]docker rm failed: {e}.[/yellow]")
-        return False
-    if result.returncode == 0:
+    result = docker.remove_container("lablink-client", force=True)
+    if result.ok:
         return True
-    stderr = (result.stderr or "").strip()
     console.print(
         f"[yellow]docker rm exited {result.returncode}: "
-        f"{stderr or '(no stderr)'}.[/yellow]"
+        f"{result.stderr.strip() or '(no stderr)'}.[/yellow]"
     )
     return False
