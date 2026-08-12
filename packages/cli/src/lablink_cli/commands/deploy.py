@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
@@ -156,7 +157,7 @@ def _run_tofu(
         if proc.stdout:
             for line in proc.stdout:
                 console.print(
-                    f"  {line}", end="", highlight=False
+                    f"  {line}", end="", highlight=False, markup=False
                 )
 
         proc.wait()
@@ -184,7 +185,7 @@ def _run_tofu(
 
         if proc.returncode != 0:
             # On failure, dump everything so the operator can diagnose.
-            console.print(output)
+            console.print(output, markup=False)
         else:
             console.print(
                 f"  [green]✓ tofu {action}[/green]  "
@@ -485,7 +486,9 @@ def run_deploy(
             outputs = get_tofu_outputs(deploy_dir)
         except TofuError as e:
             # apply succeeded, so this is a read fault, not a failed deploy.
-            console.print(f"  [yellow]Could not read outputs:[/yellow] {e}")
+            console.print(
+                f"  [yellow]Could not read outputs:[/yellow] {escape(str(e))}"
+            )
             outputs = {}
         ec2_ip = outputs.get("ec2_public_ip", "")
 
@@ -672,7 +675,7 @@ def _destroy_client_vms(
         if verbose and output:
             console.print()
             console.print("[bold]Allocator's OpenTofu output:[/bold]")
-            console.print(output)
+            console.print(output, markup=False)
         elif output:
             console.print(
                 "  [dim]Pass --verbose to see full OpenTofu output.[/dim]"

@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 
 from rich.console import Console
+from rich.markup import escape
 
 from lablink_allocator_service.conf.structured_config import Config
 
@@ -141,7 +142,9 @@ def _ssh_via_private_key(
     try:
         outputs = get_tofu_outputs(deploy_dir)
     except TofuError as e:
-        console.print(f"  [yellow]Could not read the SSH key:[/yellow] {e}")
+        console.print(
+            f"  [yellow]Could not read the SSH key:[/yellow] {escape(str(e))}"
+        )
         return None
     private_key_pem = outputs.get("private_key_pem", "")
     if not private_key_pem:

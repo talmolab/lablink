@@ -105,7 +105,7 @@ def _report(
     if verbose and output:
         console.print()
         console.print("[bold]OpenTofu output:[/bold]")
-        console.print(output)
+        console.print(output, markup=False)
     elif output:
         console.print(
             "  [dim]Pass --verbose to see full OpenTofu output.[/dim]"

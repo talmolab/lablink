@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 import boto3
 from botocore.exceptions import ClientError
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -417,7 +418,9 @@ def _render_tofu_state(
                 "above[/yellow]"
             )
         else:
-            console.print(f"  [yellow]State unreadable:[/yellow] {e}")
+            console.print(
+                f"  [yellow]State unreadable:[/yellow] {escape(str(e))}"
+            )
         console.print()
         return {}
 

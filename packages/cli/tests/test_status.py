@@ -334,6 +334,26 @@ class TestRenderTerraformState:
         assert "No OpenTofu state found" not in out
 
     @patch("lablink_cli.commands.status.get_tofu_outputs")
+    def test_error_containing_rich_markup_does_not_abort(
+        self, mock_outputs, tmp_path, capsys
+    ):
+        """tofu names files in brackets, and `[/var/...]` reads to Rich as a
+        closing tag with no opening tag — which raises MarkupError and kills
+        the command that was trying to report the problem."""
+        from lablink_cli.commands.utils import TofuError
+
+        mock_outputs.side_effect = TofuError(
+            "Error: cannot read [/var/lib/state] here"
+        )
+        deploy_dir = tmp_path / "deploy"
+        deploy_dir.mkdir()
+
+        result = _render_tofu_state(deploy_dir)
+
+        assert result == {}
+        assert "[/var/lib/state]" in capsys.readouterr().out
+
+    @patch("lablink_cli.commands.status.get_tofu_outputs")
     def test_read_failure_without_creds_problem_shows_the_reason(
         self, mock_outputs, tmp_path, capsys
     ):
