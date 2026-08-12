@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -17,7 +16,12 @@ import psutil
 from rich.console import Console
 
 from lablink_cli import byo_detect
-from lablink_cli.docker import default_docker
+from lablink_cli.docker import (
+    Docker,
+    DockerDaemonError,
+    DockerUnavailable,
+    default_docker,
+)
 from lablink_cli.api import (
     AllocatorAuthError,
     AllocatorConflictError,
@@ -93,6 +97,7 @@ def run_register(
     tailscale_authkey: str | None = None,
     run_locally: bool = True,
     reverse_tunnel: bool = False,
+    docker: Docker | None = None,
 ) -> None:
     """Orchestrate registration. Exits non-zero on any user-facing error.
 
@@ -119,6 +124,7 @@ def run_register(
       same run-locally/hand-off shape as mesh-overlay.
     """
     console = Console()
+    docker = docker or default_docker()
     env_file = env_file or DEFAULT_ENV_FILE
 
     if reverse_tunnel and overlay_hostname is not None:
@@ -182,7 +188,7 @@ def run_register(
         and env_file.exists()
         and not force
     ):
-        _resume(env_file, console)
+        _resume(env_file, console, docker)
         return
 
     if remote_mode:
@@ -329,7 +335,7 @@ def run_register(
 
     # Step 6: GPU runtime pre-flight (only when --gpus all will be added)
     if resolved_gpu_present:
-        _verify_gpu_runtime(console)
+        _verify_gpu_runtime(docker)
 
     # Step 7 + 8: docker run (always)
     startup_script_path = _write_startup_script(response)
@@ -340,7 +346,7 @@ def run_register(
     console.print(
         f"[green]Registered as client #{response['client_id']}[/green]"
     )
-    _exec_docker(cmd, console)
+    _exec_docker(cmd, console, docker)
     if overlay_hostname is not None:
         console.print(
             "[dim]This container joins Tailscale as "
@@ -355,7 +361,7 @@ def run_register(
     _start_log_shipper(env_file, console)
 
 
-def _resume(env_file: Path, console: Console) -> None:
+def _resume(env_file: Path, console: Console, docker: Docker) -> None:
     """Re-run mode for an already-registered host.
 
     Does NOT mint a new client_secret. Restarts the container if stopped,
@@ -363,7 +369,7 @@ def _resume(env_file: Path, console: Console) -> None:
 
     Note: container image is NOT re-pulled — that's `--force` territory.
     """
-    status = default_docker().container_status("lablink-client")
+    status = docker.container_status("lablink-client")
     container_action: str | None = None
 
     if status == "missing":
@@ -379,19 +385,14 @@ def _resume(env_file: Path, console: Console) -> None:
         )
         raise SystemExit(1)
     if status in ("exited", "restarting"):
-        try:
-            subprocess.run(
-                ["docker", "start", "lablink-client"],
-                check=True,
-                capture_output=True,
-            )
-            container_action = "restarted"
-        except subprocess.CalledProcessError as e:
+        start = docker.start_container("lablink-client")
+        if not start.ok:
             console.print(
                 f"[red]docker start lablink-client failed:[/red] "
-                f"{e.stderr.decode().strip() if e.stderr else e}"
+                f"{start.stderr.strip() or start.returncode}"
             )
-            raise SystemExit(1) from e
+            raise SystemExit(1)
+        container_action = "restarted"
 
     shipper_action: str | None = None
     if _shipper_alive():
@@ -626,7 +627,7 @@ def _build_docker_run(
     return cmd
 
 
-def _verify_gpu_runtime(console: Console) -> None:
+def _verify_gpu_runtime(docker: Docker) -> None:
     """Refuse to launch a GPU container on a host whose docker daemon
     uses the systemd cgroup driver.
 
@@ -642,16 +643,13 @@ def _verify_gpu_runtime(console: Console) -> None:
     signal — a synchronous nvidia-smi smoke test would pass and then fail
     later, after the env file + container already exist.
     """
-    if shutil.which("docker") is None:
-        # _exec_docker will report this with the right error; skip here.
+    if not docker.available():
+        # run_detached will report this with the right error; skip here.
         return
+    console = Console()
     try:
-        result = subprocess.run(
-            ["docker", "info", "--format", "{{.CgroupDriver}}"],
-            capture_output=True, text=True, check=True, timeout=10,
-        )
-        driver = result.stdout.strip()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        driver = docker.daemon_info("{{.CgroupDriver}}")
+    except DockerDaemonError as e:
         console.print(
             f"[red]Could not query docker daemon: {e}[/red]\n"
             "Verify docker is running and re-run "
@@ -699,30 +697,23 @@ def _verify_gpu_runtime(console: Console) -> None:
     raise SystemExit(1)
 
 
-def _exec_docker(cmd: list[str], console: Console) -> None:
-    if shutil.which("docker") is None:
+def _exec_docker(cmd: list[str], console: Console, docker: Docker) -> None:
+    try:
+        docker.require()
+    except DockerUnavailable:
         console.print(
             "[red]docker not found on PATH.[/red] Install Docker "
             "and re-run `lablink client register --force`."
         )
         raise SystemExit(1)
     # Remove any existing container with the target name. Quiet on
-    # success (rm prints the container id); we don't care if it didn't
-    # exist (rc != 0 in that case — ignored).
-    subprocess.run(
-        ["docker", "rm", "-f", "lablink-client"],
-        capture_output=True,
-        check=False,
-    )
+    # success; we don't care if it didn't exist.
+    docker.remove_container("lablink-client", force=True)
     console.print(
         f"Starting client container (image: {cmd[-1]}) …"
     )
-    try:
-        result = subprocess.run(cmd, check=False)
-    except OSError as e:
-        console.print(f"[red]Failed to exec docker: {e}[/red]")
-        raise SystemExit(1) from e
-    if result.returncode != 0:
+    result = docker.run_detached(cmd)
+    if not result.ok:
         console.print(
             f"[red]docker run exited {result.returncode}.[/red] "
             "Check `docker logs lablink-client`."
