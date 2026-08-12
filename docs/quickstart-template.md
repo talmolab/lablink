@@ -68,18 +68,31 @@ It automatically:
 
 After setup completes, the script automatically runs `./scripts/configure.sh` to generate your deployment configuration.
 
-The configure script prompts for:
+Either tool below writes the same `lablink-infrastructure/config/config.yaml`, with the same prompts — instance type and AMI settings, DNS and SSL configuration. Pick whichever you prefer.
 
-- Instance type and AMI settings
-- DNS and SSL configuration
+=== "Shell script (no install)"
 
-It generates `lablink-infrastructure/config/config.yaml` with your settings.
-
-!!! note "Re-running Configuration"
-    You can re-run the configuration script at any time to update settings:
     ```bash
     ./scripts/configure.sh
     ```
+
+    Included in the template repo, so there is nothing extra to install.
+
+=== "TUI wizard (recommended)"
+
+    ```bash
+    uv tool install lablink-cli
+    lablink configure --template
+    ```
+
+    The same interactive wizard the [CLI quickstart](cli/first-deployment.md) uses — arrow-key menus, live validation, and a built-in editor for custom startup scripts. Run it from your repository root.
+
+    `--template` is what makes it write the repo's config file instead of `~/.lablink/config.yaml`, fill in the password placeholders the deploy workflow expects, and skip the AWS state setup that Step 2 already did. See the [CLI reference](reference/cli.md#configuring-a-template-repo) for details.
+
+Both tools leave the passwords as `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD`. The Terraform Deploy workflow replaces them with the `ADMIN_PASSWORD` and `DB_PASSWORD` secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.
+
+!!! note "Re-running Configuration"
+    You can re-run either tool at any time to update settings; both load your existing values as the defaults.
 
 ## Step 4: Commit and Deploy
 

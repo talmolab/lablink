@@ -35,7 +35,7 @@ one notes its manual-provider behavior inline. For the two modes side by side se
 Create or edit the LabLink configuration.
 
 ```bash
-lablink configure [--config PATH]
+lablink configure [--config PATH] [--template]
 ```
 
 Launches a TUI wizard that generates or edits `config.yaml`. On an AWS-provider
@@ -49,6 +49,43 @@ existing values as the defaults.
 | Option | Description |
 |---|---|
 | `-c`, `--config PATH` | Path to `config.yaml`. Default: `~/.lablink/config.yaml`. |
+| `--template` | Configure a [template repo](../quickstart-template.md) checkout instead of the local deployment. |
+
+#### Configuring a template repo
+
+`--template` points the same wizard at a
+[lablink-template](https://github.com/talmolab/lablink-template) checkout, so
+deployments driven by GitHub Actions get the TUI too rather than only the
+`scripts/configure.sh` prompts. Run it from the repository root:
+
+```bash
+lablink configure --template
+```
+
+It differs from a normal run in three ways:
+
+- Writes `lablink-infrastructure/config/config.yaml` — the file the Terraform
+  Deploy workflow reads — instead of `~/.lablink/config.yaml`.
+- Writes `PLACEHOLDER_ADMIN_PASSWORD` and `PLACEHOLDER_DB_PASSWORD` in place of
+  real passwords, which the workflow substitutes with your `ADMIN_PASSWORD` and
+  `DB_PASSWORD` repository secrets at deploy time. **The generated file is safe
+  to commit; it never contains a password.**
+- Skips the automatic [`setup`](#setup) step, because the template's
+  `scripts/setup.sh` already created the state bucket and lock table.
+
+Commit the result and push to deploy:
+
+```bash
+git add lablink-infrastructure/config/config.yaml
+git commit -m "Update deployment configuration"
+git push
+```
+
+!!! warning "Don't hand-edit the password fields"
+    Leave the two `PLACEHOLDER_*` values exactly as written. The deploy workflow
+    matches them literally, and its safety check only catches placeholders left
+    *un*-substituted — a config with real-looking passwords in those fields
+    passes the check and deploys without ever reading your secrets.
 
 ---
 
