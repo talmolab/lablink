@@ -4671,17 +4671,27 @@
 </div>
 <h2 id="step-3-configure">Step 3: Configure<a class="headerlink" href="#step-3-configure" title="Permanent link">&para;</a></h2>
 <p>After setup completes, the script automatically runs <code>./scripts/configure.sh</code> to generate your deployment configuration.</p>
-<p>The configure script prompts for:</p>
-<ul>
-<li>Instance type and AMI settings</li>
-<li>DNS and SSL configuration</li>
-</ul>
-<p>It generates <code>lablink-infrastructure/config/config.yaml</code> with your settings.</p>
+<p>Either tool below writes the same <code>lablink-infrastructure/config/config.yaml</code>, with the same prompts — instance type and AMI settings, DNS and SSL configuration. Pick whichever you prefer.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Shell script (no install)</label><label for="__tabbed_1_2">TUI wizard (recommended)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./scripts/configure.sh
+</code></pre></div>
+<p>Included in the template repo, so there is nothing extra to install.</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>lablink-cli
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>lablink<span class="w"> </span>configure<span class="w"> </span>--template
+</code></pre></div>
+<p>The same interactive wizard the <a href="../cli/first-deployment/">CLI quickstart</a> uses — arrow-key menus, live validation, and a built-in editor for custom startup scripts. Run it from your repository root.</p>
+<p><code>--template</code> is what makes it write the repo's config file instead of <code>~/.lablink/config.yaml</code>, fill in the password placeholders the deploy workflow expects, and skip the AWS state setup that Step 2 already did. See the <a href="../reference/cli/#configuring-a-template-repo">CLI reference</a> for details.</p>
+</div>
+</div>
+</div>
+<p>Both tools leave the passwords as <code>PLACEHOLDER_ADMIN_PASSWORD</code> and <code>PLACEHOLDER_DB_PASSWORD</code>. The Terraform Deploy workflow replaces them with the <code>ADMIN_PASSWORD</code> and <code>DB_PASSWORD</code> secrets that Step 2 created, so the config file is safe to commit — and you should leave those two values alone.</p>
 <div class="admonition note">
 <p class="admonition-title">Re-running Configuration</p>
-<p>You can re-run the configuration script at any time to update settings:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./scripts/configure.sh
-</code></pre></div></p>
+<p>You can re-run either tool at any time to update settings; both load your existing values as the defaults.</p>
 </div>
 <h2 id="step-4-commit-and-deploy">Step 4: Commit and Deploy<a class="headerlink" href="#step-4-commit-and-deploy" title="Permanent link">&para;</a></h2>
 <div class="video-container">
@@ -4692,9 +4702,9 @@
 </div>
 
 <p>Commit your configuration and push to the <code>main</code> branch:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add deployment configuration&quot;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>push
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add deployment configuration&quot;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>push
 </code></pre></div>
 <p>Monitor the deployment:</p>
 <ol>
@@ -4739,17 +4749,17 @@
 </ol>
 <h3 id="verify-deployment-script-optional">Verify Deployment Script (Optional)<a class="headerlink" href="#verify-deployment-script-optional" title="Permanent link">&para;</a></h3>
 <p>The template includes a verification script:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>./scripts/verify-deployment.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>./scripts/verify-deployment.sh
 </code></pre></div>
 <h3 id="ssh-check">SSH Check<a class="headerlink" href="#ssh-check" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Verify allocator is running</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Check VMs registered in database</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Download the SSH key from Terraform output (via GitHub Actions artifacts or manually)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>ssh<span class="w"> </span>-i<span class="w"> </span>~/lablink-key.pem<span class="w"> </span>ubuntu@&lt;ec2_public_ip&gt;
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Verify allocator is running</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>sudo<span class="w"> </span>docker<span class="w"> </span>ps
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Check VMs registered in database</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>sudo<span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="k">$(</span>sudo<span class="w"> </span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="k">)</span><span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>lablink<span class="w"> </span>-d<span class="w"> </span>lablink_db<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT hostname FROM vms;&quot;</span>
 </code></pre></div>
 <h2 id="step-6-cleanup">Step 6: Cleanup<a class="headerlink" href="#step-6-cleanup" title="Permanent link">&para;</a></h2>
 <div class="video-container">
@@ -4760,20 +4770,20 @@
 </div>
 
 <p>When you're done testing, destroy the infrastructure:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Via GitHub Actions</label><label for="__tabbed_1_2">Via Terraform</label><label for="__tabbed_1_3">Cleanup Orphaned Resources</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Via GitHub Actions</label><label for="__tabbed_2_2">Via Terraform</label><label for="__tabbed_2_3">Cleanup Orphaned Resources</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Manually run the <strong>Terraform Destroy</strong> workflow from the Actions tab.</p>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>scripts/init-terraform.sh<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;resource_suffix=test&quot;</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>If resources were left behind (e.g., from a failed destroy), use the cleanup script:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>scripts/cleanup-orphaned-resources.sh<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
 </div>
 </div>
