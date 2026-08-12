@@ -3224,10 +3224,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.terraform_dir" class="md-nav__link">
+  <a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.tofu_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tofu_dir
       
     </span>
   </a>
@@ -3655,14 +3655,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/terraform_utils/" class="md-nav__link">
+      <a href="../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4673,10 +4673,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.terraform_dir" class="md-nav__link">
+  <a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.tofu_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tofu_dir
       
     </span>
   </a>
@@ -4882,7 +4882,7 @@
 
 
 <h4 id="lablink_allocator_service.scheduler.ScheduledDestructionService" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ScheduledDestructionService</span><span class="p">(</span><span class="n">schedule_db</span><span class="p">,</span> <span class="n">db_url</span><span class="p">,</span> <span class="n">terraform_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">ScheduledDestructionService</span><span class="p">(</span><span class="n">schedule_db</span><span class="p">,</span> <span class="n">db_url</span><span class="p">,</span> <span class="n">tofu_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.scheduler.ScheduledDestructionService" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -4939,14 +4939,14 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>terraform_dir</code>
+                <code>tofu_dir</code>
             </td>
             <td>
                   <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to Terraform directory (optional, auto-detected if None)</p>
+                <p>Path to OpenTofu directory (optional, auto-detected if None)</p>
               </div>
             </td>
             <td>
@@ -5005,19 +5005,19 @@
 <a id="__codelineno-0-165" name="__codelineno-0-165"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-166" name="__codelineno-0-166"></a>    <span class="n">schedule_db</span><span class="p">:</span> <span class="n">ScheduleDatabase</span><span class="p">,</span>
 <a id="__codelineno-0-167" name="__codelineno-0-167"></a>    <span class="n">db_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-168" name="__codelineno-0-168"></a>    <span class="n">terraform_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>    <span class="n">tofu_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-169" name="__codelineno-0-169"></a><span class="p">):</span>
 <a id="__codelineno-0-170" name="__codelineno-0-170"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize the scheduler service.</span>
 <a id="__codelineno-0-171" name="__codelineno-0-171"></a>
 <a id="__codelineno-0-172" name="__codelineno-0-172"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="sd">        schedule_db: ScheduleDatabase instance</span>
 <a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="sd">        db_url: PostgreSQL connection URL for APScheduler job store</span>
-<a id="__codelineno-0-175" name="__codelineno-0-175"></a><span class="sd">        terraform_dir: Path to Terraform directory (optional, auto-detected if None)</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a><span class="sd">        tofu_dir: Path to OpenTofu directory (optional, auto-detected if None)</span>
 <a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-177" name="__codelineno-0-177"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">schedule_db</span><span class="p">:</span> <span class="n">ScheduleDatabase</span> <span class="o">=</span> <span class="n">schedule_db</span>
 <a id="__codelineno-0-178" name="__codelineno-0-178"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">db_url</span> <span class="o">=</span> <span class="n">db_url</span>
 <a id="__codelineno-0-179" name="__codelineno-0-179"></a>
-<a id="__codelineno-0-180" name="__codelineno-0-180"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
 <a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;terraform&quot;</span>
 <a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="p">)</span>
 <a id="__codelineno-0-183" name="__codelineno-0-183"></a>
@@ -5115,14 +5115,14 @@
 
 
 
-<h6 id="lablink_allocator_service.scheduler.ScheduledDestructionService.terraform_dir" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;terraform&#39;</span><span class="p">)</span></code>
+<h6 id="lablink_allocator_service.scheduler.ScheduledDestructionService.tofu_dir" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;terraform&#39;</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
-<a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.terraform_dir" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.scheduler.ScheduledDestructionService.tofu_dir" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
@@ -5503,7 +5503,7 @@
 
 
 <h4 id="lablink_allocator_service.scheduler.execute_scheduled_destruction_job" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">execute_scheduled_destruction_job</span><span class="p">(</span><span class="n">schedule_id</span><span class="p">,</span> <span class="n">terraform_dir</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">execute_scheduled_destruction_job</span><span class="p">(</span><span class="n">schedule_id</span><span class="p">,</span> <span class="n">tofu_dir</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.scheduler.execute_scheduled_destruction_job" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -5549,14 +5549,14 @@ lives in one place.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>terraform_dir</code>
+                <code>tofu_dir</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to Terraform directory</p>
+                <p>Path to OpenTofu directory</p>
               </div>
             </td>
             <td>
@@ -5700,7 +5700,7 @@ lives in one place.</p>
 <span class="normal"><a href="#__codelineno-0-159">159</a></span>
 <span class="normal"><a href="#__codelineno-0-160">160</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="k">def</span><span class="w"> </span><span class="nf">execute_scheduled_destruction_job</span><span class="p">(</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="n">schedule_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">terraform_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">tofu_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="p">):</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="sd">    Execute a scheduled destruction job.</span>
@@ -5716,7 +5716,7 @@ lives in one place.</p>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="sd">        schedule_id: ID of the scheduled destruction</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">        terraform_dir: Path to Terraform directory</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">        tofu_dir: Path to OpenTofu directory</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service.db.pool</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_pool</span>
 <a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">lablink_allocator_service.db.vms</span><span class="w"> </span><span class="kn">import</span> <span class="n">VmDatabase</span>
@@ -5751,7 +5751,7 @@ lives in one place.</p>
 <a id="__codelineno-0-81" name="__codelineno-0-81"></a>        <span class="n">provider</span> <span class="o">=</span> <span class="n">get_provider</span><span class="p">(</span>
 <a id="__codelineno-0-82" name="__codelineno-0-82"></a>            <span class="n">cfg</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
 <a id="__codelineno-0-83" name="__codelineno-0-83"></a>            <span class="n">region</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>            <span class="n">terraform_dir</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>            <span class="n">tofu_dir</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span>
 <a id="__codelineno-0-85" name="__codelineno-0-85"></a>        <span class="p">)</span>
 <a id="__codelineno-0-86" name="__codelineno-0-86"></a>
 <a id="__codelineno-0-87" name="__codelineno-0-87"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Executing scheduled destruction ID: </span><span class="si">{</span><span class="n">schedule_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -5806,7 +5806,7 @@ lives in one place.</p>
 <a id="__codelineno-0-136" name="__codelineno-0-136"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scheduled destruction </span><span class="si">{</span><span class="n">schedule_id</span><span class="si">}</span><span class="s2"> completed successfully&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-139" name="__codelineno-0-139"></a>        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Terraform destroy failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">stderr</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;OpenTofu destroy failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">stderr</span><span class="si">}</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-140" name="__codelineno-0-140"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a>
 <a id="__codelineno-0-142" name="__codelineno-0-142"></a>        <span class="n">schedule_db</span><span class="o">.</span><span class="n">update_scheduled_destruction_status</span><span class="p">(</span>

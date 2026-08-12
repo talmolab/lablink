@@ -3532,14 +3532,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -5049,7 +5049,7 @@ Returns only operator-safe columns (no secrets, no log blobs).</p>
 <a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="n">prov</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_provider</span><span class="p">(</span>
 <a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
 <a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="n">region</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TERRAFORM_DIR</span><span class="p">),</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TOFU_DIR</span><span class="p">),</span>
 <a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">manual</span><span class="o">.</span><span class="n">connectivity</span><span class="p">,</span>
 <a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="p">)</span>
 <a id="__codelineno-0-76" name="__codelineno-0-76"></a>
@@ -5206,7 +5206,7 @@ Returns only operator-safe columns (no secrets, no log blobs).</p>
 <a id="__codelineno-0-227" name="__codelineno-0-227"></a>    <span class="p">}</span>
 <a id="__codelineno-0-228" name="__codelineno-0-228"></a>
 <a id="__codelineno-0-229" name="__codelineno-0-229"></a>    <span class="c1"># cfg.machine settings the AWS path delivers as `docker run -e` flags</span>
-<a id="__codelineno-0-230" name="__codelineno-0-230"></a>    <span class="c1"># in terraform/user_data.sh. The register response is the manual/BYO</span>
+<a id="__codelineno-0-230" name="__codelineno-0-230"></a>    <span class="c1"># in tofu/user_data.sh. The register response is the manual/BYO</span>
 <a id="__codelineno-0-231" name="__codelineno-0-231"></a>    <span class="c1"># path&#39;s only equivalent channel, so ship them here and let the CLI</span>
 <a id="__codelineno-0-232" name="__codelineno-0-232"></a>    <span class="c1"># write them into the client&#39;s env file under the same names</span>
 <a id="__codelineno-0-233" name="__codelineno-0-233"></a>    <span class="c1"># client/start.sh already reads (lablink#405). `repository` is</span>
@@ -5493,7 +5493,7 @@ away.</p>
 <a id="__codelineno-0-320" name="__codelineno-0-320"></a>    <span class="n">prov</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_provider</span><span class="p">(</span>
 <a id="__codelineno-0-321" name="__codelineno-0-321"></a>        <span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
 <a id="__codelineno-0-322" name="__codelineno-0-322"></a>        <span class="n">region</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
-<a id="__codelineno-0-323" name="__codelineno-0-323"></a>        <span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TERRAFORM_DIR</span><span class="p">),</span>
+<a id="__codelineno-0-323" name="__codelineno-0-323"></a>        <span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TOFU_DIR</span><span class="p">),</span>
 <a id="__codelineno-0-324" name="__codelineno-0-324"></a>        <span class="n">connectivity</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">manual</span><span class="o">.</span><span class="n">connectivity</span><span class="p">,</span>
 <a id="__codelineno-0-325" name="__codelineno-0-325"></a>    <span class="p">)</span>
 <a id="__codelineno-0-326" name="__codelineno-0-326"></a>    <span class="n">cleanup</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">prov</span><span class="o">.</span><span class="n">client_connectivity</span><span class="p">,</span> <span class="s2">&quot;cleanup_client_identity&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>

@@ -4484,14 +4484,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -6577,7 +6577,7 @@ Allocator Service.</p>
 
 
         <p>Configuration for allocator service deployment.</p>
-<p>This section is used by infrastructure deployment (Terraform) to specify
+<p>This section is used by infrastructure deployment (OpenTofu) to specify
 which Docker image tag to use for the allocator service. The allocator
 service itself doesn't use this field, but it must be present in the
 schema to accept infrastructure configuration files.</p>
@@ -6955,7 +6955,7 @@ lowercase kebab-case.</p>
             <td>
               <div class="doc-md-description">
                 <p>VM provisioning provider. One of:
-- "aws": EC2 via Terraform (the existing behavior).
+- "aws": EC2 via OpenTofu (the existing behavior).
 - "manual": no automated provisioning — BYO clients
   register themselves via <code>lablink client register</code>.</p>
               </div>
@@ -7113,7 +7113,7 @@ lowercase kebab-case.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The S3 bucket name for Terraform state.</p>
+                <p>The S3 bucket name for OpenTofu state.</p>
               </div>
             </td>
           </tr>
@@ -7504,8 +7504,8 @@ DNS can be disabled entirely, or configured with external DNS providers.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether Terraform creates/destroys DNS records.
-- True: Terraform manages Route53 DNS records (creates and destroys)
+                <p>Whether OpenTofu creates/destroys DNS records.
+- True: OpenTofu manages Route53 DNS records (creates and destroys)
 - False: External DNS management (CloudFlare, manual Route53, etc.)</p>
               </div>
             </td>
@@ -9105,7 +9105,7 @@ Attributes:
 <p>Covers the schema default (<code>MISSING</code>) and the template's
 <code>PLACEHOLDER_*</code> literals. A placeholder reaching a <em>running</em> allocator
 means the substitution never happened — the deploy workflow is the only
-thing that performs it, so a local <code>terraform apply</code> (a documented path
+thing that performs it, so a local <code>tofu apply</code> (a documented path
 in lablink-template) bakes the literal straight into the instance.</p>
 
 
@@ -9186,7 +9186,7 @@ in lablink-template) bakes the literal straight into the instance.</p>
 <a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="sd">    Covers the schema default (``MISSING``) and the template&#39;s</span>
 <a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="sd">    ``PLACEHOLDER_*`` literals. A placeholder reaching a *running* allocator</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">    means the substitution never happened — the deploy workflow is the only</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    thing that performs it, so a local ``terraform apply`` (a documented path</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    thing that performs it, so a local ``tofu apply`` (a documented path</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">    in lablink-template) bakes the literal straight into the instance.</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">    Args:</span>

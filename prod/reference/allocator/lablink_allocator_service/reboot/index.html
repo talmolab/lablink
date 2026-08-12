@@ -2796,10 +2796,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.reboot.AutoRebootService.terraform_dir" class="md-nav__link">
+  <a href="#lablink_allocator_service.reboot.AutoRebootService.tofu_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tofu_dir
       
     </span>
   </a>
@@ -3627,14 +3627,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/terraform_utils/" class="md-nav__link">
+      <a href="../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4678,10 +4678,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.reboot.AutoRebootService.terraform_dir" class="md-nav__link">
+  <a href="#lablink_allocator_service.reboot.AutoRebootService.tofu_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;terraform_dir
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tofu_dir
       
     </span>
   </a>
@@ -4835,7 +4835,7 @@ cold) when SSH is unavailable.</p>
 
 
 <h4 id="lablink_allocator_service.reboot.AutoRebootService" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">AutoRebootService</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="s1">&#39;us-west-2&#39;</span><span class="p">,</span> <span class="n">terraform_dir</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">cooldown_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">check_interval_seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">AutoRebootService</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="s1">&#39;us-west-2&#39;</span><span class="p">,</span> <span class="n">tofu_dir</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">cooldown_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">check_interval_seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.reboot.AutoRebootService" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -4892,14 +4892,14 @@ cold) when SSH is unavailable.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>terraform_dir</code>
+                <code>tofu_dir</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to the Terraform directory (for SSH key retrieval).</p>
+                <p>Path to the OpenTofu directory (for SSH key retrieval).</p>
               </div>
             </td>
             <td>
@@ -4988,7 +4988,7 @@ cold) when SSH is unavailable.</p>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">database</span><span class="p">:</span> <span class="n">VmDatabase</span><span class="p">,</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;us-west-2&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">terraform_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">tofu_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">cooldown_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
 <a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">check_interval_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
@@ -4996,7 +4996,7 @@ cold) when SSH is unavailable.</p>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="p">):</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">region</span> <span class="o">=</span> <span class="n">region</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">tofu_dir</span>
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">max_attempts</span> <span class="o">=</span> <span class="n">max_attempts</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cooldown_seconds</span> <span class="o">=</span> <span class="n">cooldown_seconds</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">check_interval_seconds</span> <span class="o">=</span> <span class="n">check_interval_seconds</span>
@@ -5140,14 +5140,14 @@ cold) when SSH is unavailable.</p>
 
 
 
-<h6 id="lablink_allocator_service.reboot.AutoRebootService.terraform_dir" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span></code>
+<h6 id="lablink_allocator_service.reboot.AutoRebootService.tofu_dir" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <code class="highlight language-python"><span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">tofu_dir</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
-<a href="#lablink_allocator_service.reboot.AutoRebootService.terraform_dir" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.reboot.AutoRebootService.tofu_dir" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">

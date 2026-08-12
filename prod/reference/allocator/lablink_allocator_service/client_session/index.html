@@ -3583,14 +3583,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/terraform_utils/" class="md-nav__link">
+      <a href="../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4893,7 +4893,7 @@ columns on the VM row. Must be called inside the seat-assignment
 transaction so failures roll back.</p>
 <p><code>agent_token</code> is the deployment agent-control token (<code>main.AGENT_TOKEN</code>);
 the client agent receives the same value as its AGENT_TOKEN env via the
-Terraform user_data and validates it on every /api/session/start call.
+OpenTofu user_data and validates it on every /api/session/start call.
 Passed explicitly rather than read from env so this function has no
 hidden global dependency for tests.</p>
 <p><code>fallback_fn</code> is an optional callable <code>(hostname: str) -&gt; str</code> that
@@ -4974,7 +4974,7 @@ When omitted and no stored IP exists, :exc:<code>RotationFailed</code> is raised
 <a id="__codelineno-0-92" name="__codelineno-0-92"></a>
 <a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">    `agent_token` is the deployment agent-control token (`main.AGENT_TOKEN`);</span>
 <a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="sd">    the client agent receives the same value as its AGENT_TOKEN env via the</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    Terraform user_data and validates it on every /api/session/start call.</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">    OpenTofu user_data and validates it on every /api/session/start call.</span>
 <a id="__codelineno-0-96" name="__codelineno-0-96"></a><span class="sd">    Passed explicitly rather than read from env so this function has no</span>
 <a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="sd">    hidden global dependency for tests.</span>
 <a id="__codelineno-0-98" name="__codelineno-0-98"></a>

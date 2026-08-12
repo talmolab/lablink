@@ -3532,14 +3532,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4852,7 +4852,7 @@ that already owns a running seat keeps it rather than consuming a second.</p>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>            <span class="n">provider</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LABLINK_PROVIDER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_provider</span><span class="p">(</span>
 <a id="__codelineno-0-62" name="__codelineno-0-62"></a>                <span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
 <a id="__codelineno-0-63" name="__codelineno-0-63"></a>                <span class="n">region</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>                <span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TERRAFORM_DIR</span><span class="p">),</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>                <span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">TOFU_DIR</span><span class="p">),</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>                <span class="n">connectivity</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">manual</span><span class="o">.</span><span class="n">connectivity</span><span class="p">,</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="p">)</span>
 <a id="__codelineno-0-67" name="__codelineno-0-67"></a>            <span class="n">provider</span><span class="o">.</span><span class="n">client_connectivity</span><span class="o">.</span><span class="n">prepare_browser_session</span><span class="p">(</span>

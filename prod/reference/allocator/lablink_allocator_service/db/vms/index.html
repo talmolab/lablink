@@ -2732,10 +2732,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.db.vms.VmDatabase.update_terraform_timing" class="md-nav__link">
+  <a href="#lablink_allocator_service.db.vms.VmDatabase.update_tofu_timing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_terraform_timing
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_tofu_timing
       
     </span>
   </a>
@@ -4089,14 +4089,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -5586,10 +5586,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.db.vms.VmDatabase.update_terraform_timing" class="md-nav__link">
+  <a href="#lablink_allocator_service.db.vms.VmDatabase.update_tofu_timing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_terraform_timing
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_tofu_timing
       
     </span>
   </a>
@@ -10273,20 +10273,20 @@ Single statement under autocommit isolation — no migration.</p>
 <div class="doc doc-object doc-function">
 
 
-<h6 id="lablink_allocator_service.db.vms.VmDatabase.update_terraform_timing" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">update_terraform_timing</span><span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">per_instance_seconds</span><span class="p">,</span> <span class="n">per_instance_start_time</span><span class="p">,</span> <span class="n">per_instance_end_time</span><span class="p">)</span></code>
+<h6 id="lablink_allocator_service.db.vms.VmDatabase.update_tofu_timing" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">update_tofu_timing</span><span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">per_instance_seconds</span><span class="p">,</span> <span class="n">per_instance_start_time</span><span class="p">,</span> <span class="n">per_instance_end_time</span><span class="p">)</span></code>
 
-<a href="#lablink_allocator_service.db.vms.VmDatabase.update_terraform_timing" class="headerlink" title="Permanent link">&para;</a></h6>
+<a href="#lablink_allocator_service.db.vms.VmDatabase.update_tofu_timing" class="headerlink" title="Permanent link">&para;</a></h6>
 
 
     <div class="doc doc-contents ">
 
-        <p>Update the Terraform timing metrics for a VM.
+        <p>Update the OpenTofu timing metrics for a VM.
 Args:
     hostname (str): The hostname of the VM.
     per_instance_seconds (float): The total startup duration in seconds.
-    per_instance_start_time (datetime): The start time of the Terraform apply.
-    per_instance_end_time (datetime): The end time of the Terraform apply.</p>
+    per_instance_start_time (datetime): The start time of the OpenTofu apply.
+    per_instance_end_time (datetime): The end time of the OpenTofu apply.</p>
 
 
             <details class="mkdocstrings-source">
@@ -10334,33 +10334,33 @@ Args:
 <span class="normal"><a href="#__codelineno-0-1097">1097</a></span>
 <span class="normal"><a href="#__codelineno-0-1098">1098</a></span>
 <span class="normal"><a href="#__codelineno-0-1099">1099</a></span>
-<span class="normal"><a href="#__codelineno-0-1100">1100</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1057" name="__codelineno-0-1057"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_terraform_timing</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-1100">1100</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1057" name="__codelineno-0-1057"></a><span class="k">def</span><span class="w"> </span><span class="nf">update_tofu_timing</span><span class="p">(</span>
 <a id="__codelineno-0-1058" name="__codelineno-0-1058"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-1059" name="__codelineno-0-1059"></a>    <span class="n">hostname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
 <a id="__codelineno-0-1060" name="__codelineno-0-1060"></a>    <span class="n">per_instance_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <a id="__codelineno-0-1061" name="__codelineno-0-1061"></a>    <span class="n">per_instance_start_time</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
 <a id="__codelineno-0-1062" name="__codelineno-0-1062"></a>    <span class="n">per_instance_end_time</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
 <a id="__codelineno-0-1063" name="__codelineno-0-1063"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-1064" name="__codelineno-0-1064"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the Terraform timing metrics for a VM.</span>
+<a id="__codelineno-0-1064" name="__codelineno-0-1064"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the OpenTofu timing metrics for a VM.</span>
 <a id="__codelineno-0-1065" name="__codelineno-0-1065"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-1066" name="__codelineno-0-1066"></a><span class="sd">        hostname (str): The hostname of the VM.</span>
 <a id="__codelineno-0-1067" name="__codelineno-0-1067"></a><span class="sd">        per_instance_seconds (float): The total startup duration in seconds.</span>
-<a id="__codelineno-0-1068" name="__codelineno-0-1068"></a><span class="sd">        per_instance_start_time (datetime): The start time of the Terraform apply.</span>
-<a id="__codelineno-0-1069" name="__codelineno-0-1069"></a><span class="sd">        per_instance_end_time (datetime): The end time of the Terraform apply.</span>
+<a id="__codelineno-0-1068" name="__codelineno-0-1068"></a><span class="sd">        per_instance_start_time (datetime): The start time of the OpenTofu apply.</span>
+<a id="__codelineno-0-1069" name="__codelineno-0-1069"></a><span class="sd">        per_instance_end_time (datetime): The end time of the OpenTofu apply.</span>
 <a id="__codelineno-0-1070" name="__codelineno-0-1070"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-1071" name="__codelineno-0-1071"></a>
 <a id="__codelineno-0-1072" name="__codelineno-0-1072"></a>    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-1073" name="__codelineno-0-1073"></a><span class="s2">        INSERT INTO </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> (</span>
 <a id="__codelineno-0-1074" name="__codelineno-0-1074"></a><span class="s2">            hostname,</span>
-<a id="__codelineno-0-1075" name="__codelineno-0-1075"></a><span class="s2">            terraformapplydurationseconds,</span>
-<a id="__codelineno-0-1076" name="__codelineno-0-1076"></a><span class="s2">            terraformapplystarttime,</span>
-<a id="__codelineno-0-1077" name="__codelineno-0-1077"></a><span class="s2">            terraformapplyendtime</span>
+<a id="__codelineno-0-1075" name="__codelineno-0-1075"></a><span class="s2">            tofuapplydurationseconds,</span>
+<a id="__codelineno-0-1076" name="__codelineno-0-1076"></a><span class="s2">            tofuapplystarttime,</span>
+<a id="__codelineno-0-1077" name="__codelineno-0-1077"></a><span class="s2">            tofuapplyendtime</span>
 <a id="__codelineno-0-1078" name="__codelineno-0-1078"></a><span class="s2">        )</span>
 <a id="__codelineno-0-1079" name="__codelineno-0-1079"></a><span class="s2">        VALUES (%s, %s, %s, %s)</span>
 <a id="__codelineno-0-1080" name="__codelineno-0-1080"></a><span class="s2">        ON CONFLICT (hostname) DO UPDATE</span>
-<a id="__codelineno-0-1081" name="__codelineno-0-1081"></a><span class="s2">        SET terraformapplydurationseconds = EXCLUDED.terraformapplydurationseconds,</span>
-<a id="__codelineno-0-1082" name="__codelineno-0-1082"></a><span class="s2">            terraformapplystarttime = EXCLUDED.terraformapplystarttime,</span>
-<a id="__codelineno-0-1083" name="__codelineno-0-1083"></a><span class="s2">            terraformapplyendtime = EXCLUDED.terraformapplyendtime</span>
+<a id="__codelineno-0-1081" name="__codelineno-0-1081"></a><span class="s2">        SET tofuapplydurationseconds = EXCLUDED.tofuapplydurationseconds,</span>
+<a id="__codelineno-0-1082" name="__codelineno-0-1082"></a><span class="s2">            tofuapplystarttime = EXCLUDED.tofuapplystarttime,</span>
+<a id="__codelineno-0-1083" name="__codelineno-0-1083"></a><span class="s2">            tofuapplyendtime = EXCLUDED.tofuapplyendtime</span>
 <a id="__codelineno-0-1084" name="__codelineno-0-1084"></a><span class="s2">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-1085" name="__codelineno-0-1085"></a>    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="k">as</span> <span class="n">cursor</span><span class="p">:</span>
 <a id="__codelineno-0-1086" name="__codelineno-0-1086"></a>        <span class="k">try</span><span class="p">:</span>
@@ -10375,7 +10375,7 @@ Args:
 <a id="__codelineno-0-1095" name="__codelineno-0-1095"></a>            <span class="p">)</span>
 <a id="__codelineno-0-1096" name="__codelineno-0-1096"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
 <a id="__codelineno-0-1097" name="__codelineno-0-1097"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-<a id="__codelineno-0-1098" name="__codelineno-0-1098"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to update Terraform timing for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1098" name="__codelineno-0-1098"></a>                <span class="sa">f</span><span class="s2">&quot;Failed to update OpenTofu timing for VM &#39;</span><span class="si">{</span><span class="n">hostname</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-1099" name="__codelineno-0-1099"></a>            <span class="p">)</span>
 <a id="__codelineno-0-1100" name="__codelineno-0-1100"></a>            <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
@@ -10721,7 +10721,7 @@ Supported keys:
 <a id="__codelineno-0-1148" name="__codelineno-0-1148"></a>    <span class="c1"># values, so referencing the column being updated in the same</span>
 <a id="__codelineno-0-1149" name="__codelineno-0-1149"></a>    <span class="c1"># statement returns the OLD value. We must inline the new value</span>
 <a id="__codelineno-0-1150" name="__codelineno-0-1150"></a>    <span class="c1"># for any metric being set in this UPDATE.</span>
-<a id="__codelineno-0-1151" name="__codelineno-0-1151"></a>    <span class="n">terraform_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(TerraformApplyDurationSeconds, 0)&quot;</span>
+<a id="__codelineno-0-1151" name="__codelineno-0-1151"></a>    <span class="n">terraform_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(TofuApplyDurationSeconds, 0)&quot;</span>
 <a id="__codelineno-0-1152" name="__codelineno-0-1152"></a>    <span class="n">cloud_init_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(CloudInitDurationSeconds, 0)&quot;</span>
 <a id="__codelineno-0-1153" name="__codelineno-0-1153"></a>    <span class="n">container_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(ContainerStartupDurationSeconds, 0)&quot;</span>
 <a id="__codelineno-0-1154" name="__codelineno-0-1154"></a>

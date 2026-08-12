@@ -3543,14 +3543,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4615,7 +4615,7 @@
     <div class="doc doc-contents first">
 
         <p>Host provisioning and destruction, plus operation-job status reads.</p>
-<p><code>/api/launch</code> and <code>/destroy</code> do not run terraform inline — they submit a
+<p><code>/api/launch</code> and <code>/destroy</code> do not run tofu inline — they submit a
 job to <code>OperationsWorker</code> and return 202 (or a redirect), and the admin
 dashboard polls <code>/api/operations</code> for progress. Both are capability-gated
 on the provider (<code>can_provision_hosts</code> / <code>can_destroy_hosts</code>) rather than
@@ -4788,7 +4788,7 @@ redirect back to /admin/instances otherwise (the dashboard's HTML forms).</p>
 <a id="__codelineno-0-194" name="__codelineno-0-194"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
 <a id="__codelineno-0-195" name="__codelineno-0-195"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Could not bulk-seal session metrics: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 <a id="__codelineno-0-196" name="__codelineno-0-196"></a>
-<a id="__codelineno-0-197" name="__codelineno-0-197"></a>        <span class="c1"># destroy_hosts ignores the handles arg (terraform destroy operates</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>        <span class="c1"># destroy_hosts ignores the handles arg (tofu destroy operates</span>
 <a id="__codelineno-0-198" name="__codelineno-0-198"></a>        <span class="c1"># on the whole workspace); skip the list_hosts() call.</span>
 <a id="__codelineno-0-199" name="__codelineno-0-199"></a>        <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-200" name="__codelineno-0-200"></a>            <span class="n">result</span> <span class="o">=</span> <span class="n">provider</span><span class="o">.</span><span class="n">destroy_hosts</span><span class="p">(</span>
@@ -5109,7 +5109,7 @@ redirect back to /admin/instances otherwise (the dashboard's HTML forms).</p>
 <a id="__codelineno-0-128" name="__codelineno-0-128"></a>            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 <a id="__codelineno-0-129" name="__codelineno-0-129"></a>        <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
 <a id="__codelineno-0-130" name="__codelineno-0-130"></a>            <span class="n">clean_err</span> <span class="o">=</span> <span class="n">strip_ansi</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">stderr</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-<a id="__codelineno-0-131" name="__codelineno-0-131"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Terraform failed: </span><span class="si">{</span><span class="n">clean_err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;OpenTofu failed: </span><span class="si">{</span><span class="n">clean_err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 <a id="__codelineno-0-132" name="__codelineno-0-132"></a>
 <a id="__codelineno-0-133" name="__codelineno-0-133"></a>        <span class="k">for</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">times</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">timings</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 <a id="__codelineno-0-134" name="__codelineno-0-134"></a>            <span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span>
@@ -5118,7 +5118,7 @@ redirect back to /admin/instances otherwise (the dashboard's HTML forms).</p>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a>            <span class="n">end_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a>                <span class="n">times</span><span class="p">[</span><span class="s2">&quot;end_time&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;Z&quot;</span><span class="p">,</span> <span class="s2">&quot;+00:00&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a>            <span class="p">)</span>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a>            <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">update_terraform_timing</span><span class="p">(</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>            <span class="n">main</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">update_tofu_timing</span><span class="p">(</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a>                <span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">,</span>
 <a id="__codelineno-0-142" name="__codelineno-0-142"></a>                <span class="n">per_instance_seconds</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="s2">&quot;seconds&quot;</span><span class="p">]),</span>
 <a id="__codelineno-0-143" name="__codelineno-0-143"></a>                <span class="n">per_instance_start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span>

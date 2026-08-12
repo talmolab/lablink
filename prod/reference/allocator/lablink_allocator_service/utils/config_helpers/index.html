@@ -3532,14 +3532,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../terraform_utils/" class="md-nav__link">
+      <a href="../tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4782,7 +4782,7 @@ already yields the right scheme, is completely unaffected.</p>
 
         <p>Build the allocator URL based on configuration.</p>
 <p>Priority order:
-1. ALLOCATOR_FQDN environment variable (set by Terraform)
+1. ALLOCATOR_FQDN environment variable (set by OpenTofu)
 2. DNS configuration from config
 3. IP address fallback</p>
 
@@ -4940,7 +4940,7 @@ already yields the right scheme, is completely unaffected.</p>
 <a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="sd">    Build the allocator URL based on configuration.</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15"></a>
 <a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="sd">    Priority order:</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">    1. ALLOCATOR_FQDN environment variable (set by Terraform)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">    1. ALLOCATOR_FQDN environment variable (set by OpenTofu)</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="sd">    2. DNS configuration from config</span>
 <a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    3. IP address fallback</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a>
@@ -4961,7 +4961,7 @@ already yields the right scheme, is completely unaffected.</p>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">        DNS disabled + No SSL:</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="sd">            (&quot;http://52.40.142.146&quot;, &quot;http&quot;)</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Priority 1: Check for ALLOCATOR_FQDN environment variable (set by Terraform)</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Priority 1: Check for ALLOCATOR_FQDN environment variable (set by OpenTofu)</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">allocator_fqdn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ALLOCATOR_FQDN&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="k">if</span> <span class="n">allocator_fqdn</span><span class="p">:</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="c1"># FQDN already includes protocol</span>

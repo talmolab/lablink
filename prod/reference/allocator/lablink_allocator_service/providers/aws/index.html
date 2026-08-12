@@ -3621,14 +3621,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utils/terraform_utils/" class="md-nav__link">
+      <a href="../../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4796,7 +4796,7 @@
 
 
 <h4 id="lablink_allocator_service.providers.aws.AWSProvider" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">AWSProvider</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">terraform_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">AWSProvider</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tofu_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span></code>
 
 <a href="#lablink_allocator_service.providers.aws.AWSProvider" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -4817,9 +4817,9 @@
                     <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-118">118</a></span>
 <span class="normal"><a href="#__codelineno-0-119">119</a></span>
 <span class="normal"><a href="#__codelineno-0-120">120</a></span>
-<span class="normal"><a href="#__codelineno-0-121">121</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">terraform_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tofu_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <a id="__codelineno-0-119" name="__codelineno-0-119"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_region</span> <span class="o">=</span> <span class="n">region</span>
-<a id="__codelineno-0-120" name="__codelineno-0-120"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span> <span class="o">=</span> <span class="n">terraform_dir</span>
+<a id="__codelineno-0-120" name="__codelineno-0-120"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span> <span class="o">=</span> <span class="n">tofu_dir</span>
 <a id="__codelineno-0-121" name="__codelineno-0-121"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">client_connectivity</span> <span class="o">=</span> <span class="n">AllocatorProxiedClientConnectivity</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
                   </details>
@@ -4954,11 +4954,11 @@
 
         <p>Plan, then apply, a full-workspace destroy. <code>handles</code> is
 accepted for protocol consistency but not used for per-handle
-filtering — Terraform destroy operates against the whole state
+filtering — OpenTofu destroy operates against the whole state
 file. Mirrors provision_hosts's plan+show+apply sequence (added
 so resources_total can be computed exactly the same way
 provision_hosts computes it for creates) instead of the single
-<code>terraform destroy</code> call this method used before.</p>
+<code>tofu destroy</code> call this method used before.</p>
 <p>Raises FileNotFoundError if no runtime tfvars exists (signals
 "no client VMs were ever launched" — route handler maps this to 404).</p>
 
@@ -5045,21 +5045,21 @@ provision_hosts computes it for creates) instead of the single
 <a id="__codelineno-0-311" name="__codelineno-0-311"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DestroyResult</span><span class="p">:</span>
 <a id="__codelineno-0-312" name="__codelineno-0-312"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Plan, then apply, a full-workspace destroy. `handles` is</span>
 <a id="__codelineno-0-313" name="__codelineno-0-313"></a><span class="sd">    accepted for protocol consistency but not used for per-handle</span>
-<a id="__codelineno-0-314" name="__codelineno-0-314"></a><span class="sd">    filtering — Terraform destroy operates against the whole state</span>
+<a id="__codelineno-0-314" name="__codelineno-0-314"></a><span class="sd">    filtering — OpenTofu destroy operates against the whole state</span>
 <a id="__codelineno-0-315" name="__codelineno-0-315"></a><span class="sd">    file. Mirrors provision_hosts&#39;s plan+show+apply sequence (added</span>
 <a id="__codelineno-0-316" name="__codelineno-0-316"></a><span class="sd">    so resources_total can be computed exactly the same way</span>
 <a id="__codelineno-0-317" name="__codelineno-0-317"></a><span class="sd">    provision_hosts computes it for creates) instead of the single</span>
-<a id="__codelineno-0-318" name="__codelineno-0-318"></a><span class="sd">    `terraform destroy` call this method used before.</span>
+<a id="__codelineno-0-318" name="__codelineno-0-318"></a><span class="sd">    `tofu destroy` call this method used before.</span>
 <a id="__codelineno-0-319" name="__codelineno-0-319"></a>
 <a id="__codelineno-0-320" name="__codelineno-0-320"></a><span class="sd">    Raises FileNotFoundError if no runtime tfvars exists (signals</span>
 <a id="__codelineno-0-321" name="__codelineno-0-321"></a><span class="sd">    &quot;no client VMs were ever launched&quot; — route handler maps this to 404).</span>
 <a id="__codelineno-0-322" name="__codelineno-0-322"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-323" name="__codelineno-0-323"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-323" name="__codelineno-0-323"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-324" name="__codelineno-0-324"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-<a id="__codelineno-0-325" name="__codelineno-0-325"></a>            <span class="s2">&quot;AWSProvider not configured with terraform_dir — cannot destroy.&quot;</span>
+<a id="__codelineno-0-325" name="__codelineno-0-325"></a>            <span class="s2">&quot;AWSProvider not configured with tofu_dir — cannot destroy.&quot;</span>
 <a id="__codelineno-0-326" name="__codelineno-0-326"></a>        <span class="p">)</span>
-<a id="__codelineno-0-327" name="__codelineno-0-327"></a>    <span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">)</span>
-<a id="__codelineno-0-328" name="__codelineno-0-328"></a>    <span class="n">runtime_file</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span>
+<a id="__codelineno-0-327" name="__codelineno-0-327"></a>    <span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">)</span>
+<a id="__codelineno-0-328" name="__codelineno-0-328"></a>    <span class="n">runtime_file</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span>
 <a id="__codelineno-0-329" name="__codelineno-0-329"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">runtime_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
 <a id="__codelineno-0-330" name="__codelineno-0-330"></a>        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
 <a id="__codelineno-0-331" name="__codelineno-0-331"></a>            <span class="s2">&quot;tfvars does not exist — no client VMs were launched&quot;</span>
@@ -5074,16 +5074,16 @@ provision_hosts computes it for creates) instead of the single
 <a id="__codelineno-0-340" name="__codelineno-0-340"></a>        <span class="k">pass</span>
 <a id="__codelineno-0-341" name="__codelineno-0-341"></a>
 <a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="n">plan_file</span> <span class="o">=</span> <span class="s2">&quot;tfplan-destroy.binary&quot;</span>
-<a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">plan_file_path</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="o">/</span> <span class="n">plan_file</span>
+<a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">plan_file_path</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="o">/</span> <span class="n">plan_file</span>
 <a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-345" name="__codelineno-0-345"></a>        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-346" name="__codelineno-0-346"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;-destroy&quot;</span><span class="p">,</span> <span class="s2">&quot;-no-color&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-346" name="__codelineno-0-346"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;-destroy&quot;</span><span class="p">,</span> <span class="s2">&quot;-no-color&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-347" name="__codelineno-0-347"></a>             <span class="s2">&quot;-out&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">,</span> <span class="o">*</span><span class="n">var_args</span><span class="p">],</span>
-<a id="__codelineno-0-348" name="__codelineno-0-348"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-348" name="__codelineno-0-348"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-349" name="__codelineno-0-349"></a>        <span class="p">)</span>
 <a id="__codelineno-0-350" name="__codelineno-0-350"></a>        <span class="n">show</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-351" name="__codelineno-0-351"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;show&quot;</span><span class="p">,</span> <span class="s2">&quot;-json&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
-<a id="__codelineno-0-352" name="__codelineno-0-352"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-351" name="__codelineno-0-351"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;show&quot;</span><span class="p">,</span> <span class="s2">&quot;-json&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
+<a id="__codelineno-0-352" name="__codelineno-0-352"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-353" name="__codelineno-0-353"></a>        <span class="p">)</span>
 <a id="__codelineno-0-354" name="__codelineno-0-354"></a>        <span class="n">plan_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">show</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
 <a id="__codelineno-0-355" name="__codelineno-0-355"></a>        <span class="n">resources_total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
@@ -5103,8 +5103,8 @@ provision_hosts computes it for creates) instead of the single
 <a id="__codelineno-0-369" name="__codelineno-0-369"></a>                <span class="n">progress_callback</span><span class="p">(</span><span class="n">completed</span><span class="p">,</span> <span class="n">resources_total</span><span class="p">)</span>
 <a id="__codelineno-0-370" name="__codelineno-0-370"></a>
 <a id="__codelineno-0-371" name="__codelineno-0-371"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">_run_streamed</span><span class="p">(</span>
-<a id="__codelineno-0-372" name="__codelineno-0-372"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;apply&quot;</span><span class="p">,</span> <span class="s2">&quot;-auto-approve&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
-<a id="__codelineno-0-373" name="__codelineno-0-373"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span>
+<a id="__codelineno-0-372" name="__codelineno-0-372"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;apply&quot;</span><span class="p">,</span> <span class="s2">&quot;-auto-approve&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
+<a id="__codelineno-0-373" name="__codelineno-0-373"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span>
 <a id="__codelineno-0-374" name="__codelineno-0-374"></a>            <span class="n">resource_complete_re</span><span class="o">=</span><span class="n">_DESTROY_COMPLETE_RE</span><span class="p">,</span>
 <a id="__codelineno-0-375" name="__codelineno-0-375"></a>            <span class="n">on_resource_complete</span><span class="o">=</span><span class="n">_on_resource_complete</span><span class="p">,</span>
 <a id="__codelineno-0-376" name="__codelineno-0-376"></a>        <span class="p">)</span>
@@ -5131,9 +5131,9 @@ provision_hosts computes it for creates) instead of the single
 
         <p>Return (instance_id, public_ip, ssh_key_path) for <em>hostname</em>.</p>
 <p>Looks up the EC2 instance by Name tag, fetches its public IP, and
-reads the SSH private key from the Terraform state directory.  Any
+reads the SSH private key from the OpenTofu state directory.  Any
 component may be None if unavailable (instance not found, no public
-IP, or terraform_dir not set / key file absent).</p>
+IP, or tofu_dir not set / key file absent).</p>
 
 
             <details class="mkdocstrings-source">
@@ -5167,9 +5167,9 @@ IP, or terraform_dir not set / key file absent).</p>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return (instance_id, public_ip, ssh_key_path) for *hostname*.</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a>
 <a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    Looks up the EC2 instance by Name tag, fetches its public IP, and</span>
-<a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">    reads the SSH private key from the Terraform state directory.  Any</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">    reads the SSH private key from the OpenTofu state directory.  Any</span>
 <a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    component may be None if unavailable (instance not found, no public</span>
-<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    IP, or terraform_dir not set / key file absent).</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    IP, or tofu_dir not set / key file absent).</span>
 <a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-145" name="__codelineno-0-145"></a>    <span class="n">instance_id</span> <span class="o">=</span> <span class="n">get_instance_id_by_name</span><span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_region</span><span class="p">)</span>
 <a id="__codelineno-0-146" name="__codelineno-0-146"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">instance_id</span><span class="p">:</span>
@@ -5178,9 +5178,9 @@ IP, or terraform_dir not set / key file absent).</p>
 <a id="__codelineno-0-149" name="__codelineno-0-149"></a>    <span class="n">ip</span> <span class="o">=</span> <span class="n">get_instance_public_ip</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_region</span><span class="p">)</span>
 <a id="__codelineno-0-150" name="__codelineno-0-150"></a>
 <a id="__codelineno-0-151" name="__codelineno-0-151"></a>    <span class="n">key_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">:</span>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">:</span>
 <a id="__codelineno-0-153" name="__codelineno-0-153"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-154" name="__codelineno-0-154"></a>            <span class="n">key_path</span> <span class="o">=</span> <span class="n">get_ssh_private_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">)</span>
+<a id="__codelineno-0-154" name="__codelineno-0-154"></a>            <span class="n">key_path</span> <span class="o">=</span> <span class="n">get_ssh_private_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">)</span>
 <a id="__codelineno-0-155" name="__codelineno-0-155"></a>        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
 <a id="__codelineno-0-156" name="__codelineno-0-156"></a>            <span class="k">pass</span>
 <a id="__codelineno-0-157" name="__codelineno-0-157"></a>
@@ -5212,8 +5212,8 @@ IP, or terraform_dir not set / key file absent).</p>
 <span class="normal"><a href="#__codelineno-0-164">164</a></span>
 <span class="normal"><a href="#__codelineno-0-165">165</a></span>
 <span class="normal"><a href="#__codelineno-0-166">166</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="k">def</span><span class="w"> </span><span class="nf">list_hosts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ClientHandle</span><span class="p">]:</span>
-<a id="__codelineno-0-161" name="__codelineno-0-161"></a>    <span class="n">ids</span> <span class="o">=</span> <span class="n">get_instance_ids</span><span class="p">(</span><span class="n">terraform_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">)</span>
-<a id="__codelineno-0-162" name="__codelineno-0-162"></a>    <span class="n">names</span> <span class="o">=</span> <span class="n">get_instance_names</span><span class="p">(</span><span class="n">terraform_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">)</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>    <span class="n">ids</span> <span class="o">=</span> <span class="n">get_instance_ids</span><span class="p">(</span><span class="n">tofu_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">)</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>    <span class="n">names</span> <span class="o">=</span> <span class="n">get_instance_names</span><span class="p">(</span><span class="n">tofu_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">)</span>
 <a id="__codelineno-0-163" name="__codelineno-0-163"></a>    <span class="k">return</span> <span class="p">[</span>
 <a id="__codelineno-0-164" name="__codelineno-0-164"></a>        <span class="n">ClientHandle</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">hostname</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">provider_metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;region&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_region</span><span class="p">})</span>
 <a id="__codelineno-0-165" name="__codelineno-0-165"></a>        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
@@ -5235,7 +5235,7 @@ IP, or terraform_dir not set / key file absent).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Run <code>terraform plan + audit + apply</code> for <code>count</code> new client hosts.</p>
+        <p>Run <code>tofu plan + audit + apply</code> for <code>count</code> new client hosts.</p>
 <p>Moves the inline logic that used to live in main.py's /api/launch
 handler behind the provider seam (SR-F1). <code>spec</code> is a dict of
 runtime values that used to be assembled inline in the route.</p>
@@ -5256,7 +5256,7 @@ runtime values that used to be assembled inline in the route.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>if terraform_dir is None</p>
+                <p>if tofu_dir is None</p>
               </div>
             </td>
           </tr>
@@ -5266,7 +5266,7 @@ runtime values that used to be assembled inline in the route.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>propagated from audit_terraform_plan when
+                <p>propagated from audit_tofu_plan when
 the plan would expose :6080 / :7070 to the internet</p>
               </div>
             </td>
@@ -5278,7 +5278,7 @@ the plan would expose :6080 / :7070 to the internet</p>
             <td>
               <div class="doc-md-description">
                 <p>propagated from any
-terraform invocation failure</p>
+tofu invocation failure</p>
               </div>
             </td>
           </tr>
@@ -5431,25 +5431,25 @@ terraform invocation failure</p>
 <a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="n">spec</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
 <a id="__codelineno-0-172" name="__codelineno-0-172"></a>    <span class="n">progress_callback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProvisionResult</span><span class="p">:</span>
-<a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Run `terraform plan + audit + apply` for `count` new client hosts.</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Run `tofu plan + audit + apply` for `count` new client hosts.</span>
 <a id="__codelineno-0-175" name="__codelineno-0-175"></a>
 <a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="sd">    Moves the inline logic that used to live in main.py&#39;s /api/launch</span>
 <a id="__codelineno-0-177" name="__codelineno-0-177"></a><span class="sd">    handler behind the provider seam (SR-F1). `spec` is a dict of</span>
 <a id="__codelineno-0-178" name="__codelineno-0-178"></a><span class="sd">    runtime values that used to be assembled inline in the route.</span>
 <a id="__codelineno-0-179" name="__codelineno-0-179"></a>
 <a id="__codelineno-0-180" name="__codelineno-0-180"></a><span class="sd">    Raises:</span>
-<a id="__codelineno-0-181" name="__codelineno-0-181"></a><span class="sd">        RuntimeError: if terraform_dir is None</span>
-<a id="__codelineno-0-182" name="__codelineno-0-182"></a><span class="sd">        SGAuditFailure: propagated from audit_terraform_plan when</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a><span class="sd">        RuntimeError: if tofu_dir is None</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a><span class="sd">        SGAuditFailure: propagated from audit_tofu_plan when</span>
 <a id="__codelineno-0-183" name="__codelineno-0-183"></a><span class="sd">            the plan would expose :6080 / :7070 to the internet</span>
 <a id="__codelineno-0-184" name="__codelineno-0-184"></a><span class="sd">        subprocess.CalledProcessError: propagated from any</span>
-<a id="__codelineno-0-185" name="__codelineno-0-185"></a><span class="sd">            terraform invocation failure</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a><span class="sd">            tofu invocation failure</span>
 <a id="__codelineno-0-186" name="__codelineno-0-186"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-188" name="__codelineno-0-188"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-<a id="__codelineno-0-189" name="__codelineno-0-189"></a>            <span class="s2">&quot;AWSProvider not configured with terraform_dir — cannot provision.&quot;</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>            <span class="s2">&quot;AWSProvider not configured with tofu_dir — cannot provision.&quot;</span>
 <a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="p">)</span>
-<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="n">terraform_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_terraform_dir</span><span class="p">)</span>
-<a id="__codelineno-0-192" name="__codelineno-0-192"></a>    <span class="n">runtime_file</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="n">tofu_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tofu_dir</span><span class="p">)</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>    <span class="n">runtime_file</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="o">/</span> <span class="s2">&quot;terraform.runtime.tfvars&quot;</span>
 <a id="__codelineno-0-193" name="__codelineno-0-193"></a>
 <a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="c1"># GPU detection (moved from main.py)</span>
 <a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="n">gpu_support_bool</span> <span class="o">=</span> <span class="n">check_support_nvidia</span><span class="p">(</span>
@@ -5499,18 +5499,18 @@ terraform invocation failure</p>
 <a id="__codelineno-0-239" name="__codelineno-0-239"></a>
 <a id="__codelineno-0-240" name="__codelineno-0-240"></a>    <span class="c1"># Plan + audit + apply sequence (verbatim from main.py:542-602)</span>
 <a id="__codelineno-0-241" name="__codelineno-0-241"></a>    <span class="n">plan_file</span> <span class="o">=</span> <span class="s2">&quot;tfplan.binary&quot;</span>
-<a id="__codelineno-0-242" name="__codelineno-0-242"></a>    <span class="n">plan_file_path</span> <span class="o">=</span> <span class="n">terraform_dir</span> <span class="o">/</span> <span class="n">plan_file</span>
+<a id="__codelineno-0-242" name="__codelineno-0-242"></a>    <span class="n">plan_file_path</span> <span class="o">=</span> <span class="n">tofu_dir</span> <span class="o">/</span> <span class="n">plan_file</span>
 <a id="__codelineno-0-243" name="__codelineno-0-243"></a>    <span class="k">try</span><span class="p">:</span>
 <a id="__codelineno-0-244" name="__codelineno-0-244"></a>        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-245" name="__codelineno-0-245"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;-no-color&quot;</span><span class="p">,</span> <span class="s2">&quot;-out&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">,</span> <span class="o">*</span><span class="n">tf_vars</span><span class="p">],</span>
-<a id="__codelineno-0-246" name="__codelineno-0-246"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-245" name="__codelineno-0-245"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;-no-color&quot;</span><span class="p">,</span> <span class="s2">&quot;-out&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">,</span> <span class="o">*</span><span class="n">tf_vars</span><span class="p">],</span>
+<a id="__codelineno-0-246" name="__codelineno-0-246"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-247" name="__codelineno-0-247"></a>        <span class="p">)</span>
 <a id="__codelineno-0-248" name="__codelineno-0-248"></a>        <span class="n">show</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-249" name="__codelineno-0-249"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;show&quot;</span><span class="p">,</span> <span class="s2">&quot;-json&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
-<a id="__codelineno-0-250" name="__codelineno-0-250"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-249" name="__codelineno-0-249"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;show&quot;</span><span class="p">,</span> <span class="s2">&quot;-json&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
+<a id="__codelineno-0-250" name="__codelineno-0-250"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-251" name="__codelineno-0-251"></a>        <span class="p">)</span>
 <a id="__codelineno-0-252" name="__codelineno-0-252"></a>        <span class="n">plan_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">show</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
-<a id="__codelineno-0-253" name="__codelineno-0-253"></a>        <span class="n">audit_terraform_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">)</span>  <span class="c1"># may raise SGAuditFailure</span>
+<a id="__codelineno-0-253" name="__codelineno-0-253"></a>        <span class="n">audit_tofu_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">)</span>  <span class="c1"># may raise SGAuditFailure</span>
 <a id="__codelineno-0-254" name="__codelineno-0-254"></a>
 <a id="__codelineno-0-255" name="__codelineno-0-255"></a>        <span class="n">resources_total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
 <a id="__codelineno-0-256" name="__codelineno-0-256"></a>            <span class="mi">1</span>
@@ -5529,8 +5529,8 @@ terraform invocation failure</p>
 <a id="__codelineno-0-269" name="__codelineno-0-269"></a>                <span class="n">progress_callback</span><span class="p">(</span><span class="n">completed</span><span class="p">,</span> <span class="n">resources_total</span><span class="p">)</span>
 <a id="__codelineno-0-270" name="__codelineno-0-270"></a>
 <a id="__codelineno-0-271" name="__codelineno-0-271"></a>        <span class="n">apply_result</span> <span class="o">=</span> <span class="n">_run_streamed</span><span class="p">(</span>
-<a id="__codelineno-0-272" name="__codelineno-0-272"></a>            <span class="p">[</span><span class="s2">&quot;terraform&quot;</span><span class="p">,</span> <span class="s2">&quot;apply&quot;</span><span class="p">,</span> <span class="s2">&quot;-auto-approve&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
-<a id="__codelineno-0-273" name="__codelineno-0-273"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">terraform_dir</span><span class="p">,</span>
+<a id="__codelineno-0-272" name="__codelineno-0-272"></a>            <span class="p">[</span><span class="s2">&quot;tofu&quot;</span><span class="p">,</span> <span class="s2">&quot;apply&quot;</span><span class="p">,</span> <span class="s2">&quot;-auto-approve&quot;</span><span class="p">,</span> <span class="n">plan_file</span><span class="p">],</span>
+<a id="__codelineno-0-273" name="__codelineno-0-273"></a>            <span class="n">cwd</span><span class="o">=</span><span class="n">tofu_dir</span><span class="p">,</span>
 <a id="__codelineno-0-274" name="__codelineno-0-274"></a>            <span class="n">resource_complete_re</span><span class="o">=</span><span class="n">_CREATE_COMPLETE_RE</span><span class="p">,</span>
 <a id="__codelineno-0-275" name="__codelineno-0-275"></a>            <span class="n">on_resource_complete</span><span class="o">=</span><span class="n">_on_resource_complete</span><span class="p">,</span>
 <a id="__codelineno-0-276" name="__codelineno-0-276"></a>        <span class="p">)</span>
@@ -5549,9 +5549,9 @@ terraform invocation failure</p>
 <a id="__codelineno-0-289" name="__codelineno-0-289"></a>    <span class="p">)</span>
 <a id="__codelineno-0-290" name="__codelineno-0-290"></a>
 <a id="__codelineno-0-291" name="__codelineno-0-291"></a>    <span class="c1"># Read back the freshly-created instances + timings</span>
-<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">ids</span> <span class="o">=</span> <span class="n">get_instance_ids</span><span class="p">(</span><span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">terraform_dir</span><span class="p">))</span>
-<a id="__codelineno-0-293" name="__codelineno-0-293"></a>    <span class="n">names</span> <span class="o">=</span> <span class="n">get_instance_names</span><span class="p">(</span><span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">terraform_dir</span><span class="p">))</span>
-<a id="__codelineno-0-294" name="__codelineno-0-294"></a>    <span class="n">timings</span> <span class="o">=</span> <span class="n">get_instance_timings</span><span class="p">(</span><span class="n">terraform_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">terraform_dir</span><span class="p">))</span>
+<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">ids</span> <span class="o">=</span> <span class="n">get_instance_ids</span><span class="p">(</span><span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">tofu_dir</span><span class="p">))</span>
+<a id="__codelineno-0-293" name="__codelineno-0-293"></a>    <span class="n">names</span> <span class="o">=</span> <span class="n">get_instance_names</span><span class="p">(</span><span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">tofu_dir</span><span class="p">))</span>
+<a id="__codelineno-0-294" name="__codelineno-0-294"></a>    <span class="n">timings</span> <span class="o">=</span> <span class="n">get_instance_timings</span><span class="p">(</span><span class="n">tofu_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">tofu_dir</span><span class="p">))</span>
 <a id="__codelineno-0-295" name="__codelineno-0-295"></a>
 <a id="__codelineno-0-296" name="__codelineno-0-296"></a>    <span class="n">handles</span> <span class="o">=</span> <span class="p">[</span>
 <a id="__codelineno-0-297" name="__codelineno-0-297"></a>        <span class="n">ClientHandle</span><span class="p">(</span>

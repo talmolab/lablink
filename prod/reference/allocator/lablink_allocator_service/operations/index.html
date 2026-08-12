@@ -3561,14 +3561,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/terraform_utils/" class="md-nav__link">
+      <a href="../utils/tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4650,9 +4650,9 @@
 
     <div class="doc doc-contents first">
 
-        <p>Background worker for on-demand Terraform apply/destroy operations.</p>
+        <p>Background worker for on-demand OpenTofu apply/destroy operations.</p>
 <p>Runs each operation on its own daemon thread, off the Flask request
-thread, so a slow <code>terraform apply</code>/<code>destroy</code> doesn't hold an HTTP
+thread, so a slow <code>tofu apply</code>/<code>destroy</code> doesn't hold an HTTP
 connection open long enough to hit Cloudflare's edge timeout.</p>
 
 

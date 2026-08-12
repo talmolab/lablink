@@ -16,7 +16,7 @@
         <link rel="prev" href="../log_tail/">
       
       
-        <link rel="next" href="../terraform_utils/">
+        <link rel="next" href="../tofu_utils/">
       
       
         
@@ -3480,10 +3480,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.sg_audit.audit_terraform_plan" class="md-nav__link">
+  <a href="#lablink_allocator_service.utils.sg_audit.audit_tofu_plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;audit_terraform_plan
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;audit_tofu_plan
       
     </span>
   </a>
@@ -3516,14 +3516,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../terraform_utils/" class="md-nav__link">
+      <a href="../tofu_utils/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    terraform_utils
+    tofu_utils
   
 
     
@@ -4505,10 +4505,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lablink_allocator_service.utils.sg_audit.audit_terraform_plan" class="md-nav__link">
+  <a href="#lablink_allocator_service.utils.sg_audit.audit_tofu_plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;audit_terraform_plan
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;audit_tofu_plan
       
     </span>
   </a>
@@ -4560,10 +4560,10 @@
 
     <div class="doc doc-contents first">
 
-        <p>SG audit run before <code>terraform apply</code> in /api/launch.</p>
+        <p>SG audit run before <code>tofu apply</code> in /api/launch.</p>
 <p>Refuses any client ingress on :6080 or :7070 that includes 0.0.0.0/0
 or ::/0. Inspects the structured JSON plan produced by
-<code>terraform show -json &lt;planfile&gt;</code> rather than parsing the freeform
+<code>tofu show -json &lt;planfile&gt;</code> rather than parsing the freeform
 text plan, so the audit is robust to provider rendering changes.</p>
 <p>Fails closed: if the plan JSON has an aws_security_group change with
 no usable <code>after.ingress</code> field, the audit refuses rather than
@@ -4644,10 +4644,10 @@ when the plan can't be interpreted (fail-closed semantics).</p>
 <div class="doc doc-object doc-function">
 
 
-<h4 id="lablink_allocator_service.utils.sg_audit.audit_terraform_plan" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">audit_terraform_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">)</span></code>
+<h4 id="lablink_allocator_service.utils.sg_audit.audit_tofu_plan" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">audit_tofu_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">)</span></code>
 
-<a href="#lablink_allocator_service.utils.sg_audit.audit_terraform_plan" class="headerlink" title="Permanent link">&para;</a></h4>
+<a href="#lablink_allocator_service.utils.sg_audit.audit_tofu_plan" class="headerlink" title="Permanent link">&para;</a></h4>
 
 
     <div class="doc doc-contents ">
@@ -4677,7 +4677,7 @@ exposes 0.0.0.0/0 or ::/0.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>parsed output of <code>terraform show -json &lt;planfile&gt;</code>.
+                <p>parsed output of <code>tofu show -json &lt;planfile&gt;</code>.
 Typed <code>Any</code> because <code>json.loads</code> can yield any shape;
 the function validates the top-level structure before use.</p>
               </div>
@@ -4796,13 +4796,13 @@ no parseable ingress in its 'after' state (fail closed).</p>
 <span class="normal"><a href="#__codelineno-0-101">101</a></span>
 <span class="normal"><a href="#__codelineno-0-102">102</a></span>
 <span class="normal"><a href="#__codelineno-0-103">103</a></span>
-<span class="normal"><a href="#__codelineno-0-104">104</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="k">def</span><span class="w"> </span><span class="nf">audit_terraform_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-104">104</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="k">def</span><span class="w"> </span><span class="nf">audit_tofu_plan</span><span class="p">(</span><span class="n">plan_json</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Walk every aws_security_group change in the JSON plan; refuse</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    the apply if any post-change ingress rule on a protected port</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">    exposes 0.0.0.0/0 or ::/0.</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">        plan_json: parsed output of ``terraform show -json &lt;planfile&gt;``.</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">        plan_json: parsed output of ``tofu show -json &lt;planfile&gt;``.</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">            Typed ``Any`` because ``json.loads`` can yield any shape;</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">            the function validates the top-level structure before use.</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>
