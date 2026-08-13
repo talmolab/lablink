@@ -59,12 +59,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Pager. Absent, git falls back to dumping the whole of `git log` /
     # `git diff` straight into the scrollback, and man pages lose paging.
     less \
-    # git is installed, so `git clone git@github.com:...` looks like it should
-    # work; without an ssh client it fails on any private or SSH-remote repo.
-    openssh-client \
-    # Reachability triage from inside the container, which is the only vantage
-    # point that tells apart a dead mesh-overlay/tunnel path from a dead app.
-    iputils-ping \
     # Text editor -- the image shipped none at all, not even vi. micro's
     # defaults match GUI muscle memory and it takes mouse input in a terminal.
     micro \
