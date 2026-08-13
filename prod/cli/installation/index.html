@@ -788,6 +788,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install-from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install from PyPI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install-from-source" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4434,6 +4445,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install-from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install from PyPI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install-from-source" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4520,10 +4542,14 @@
 
 
 <h1 id="installing-the-cli">Installing the CLI<a class="headerlink" href="#installing-the-cli" title="Permanent link">&para;</a></h1>
-<p>The <code>lablink</code> command is distributed with the <a href="https://github.com/talmolab/lablink">LabLink repository</a> as one of three packages in a <code>uv</code> workspace (<code>packages/allocator</code>, <code>packages/client</code>, <code>packages/cli</code>). Until the CLI is published to PyPI, install it from source with <code>uv sync --all-packages</code>.</p>
+<p>The <code>lablink</code> command is published to PyPI as <a href="https://pypi.org/project/lablink-cli/"><code>lablink-cli</code></a>. Install it as a standalone tool to deploy and manage LabLink, or <a href="#install-from-source">from source</a> if you intend to work on the CLI itself — it is also one of three packages in this repo's <code>uv</code> workspace (<code>packages/allocator</code>, <code>packages/client</code>, <code>packages/cli</code>).</p>
 <div class="admonition note">
-<p class="admonition-title">PyPI coming soon</p>
-<p>Once published, <code>uv tool install lablink</code> (or <code>pip install lablink</code>) will be the recommended install. For now, use the workspace install below.</p>
+<p class="admonition-title">The package and the command have different names</p>
+<p>The PyPI package is <strong><code>lablink-cli</code></strong>; the command it installs is <strong><code>lablink</code></strong>. There is no <code>lablink</code> package on PyPI, so <code>pip install lablink</code> will fail.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Pre-release</p>
+<p>The published version is a pre-release (<code>0.1.0a1</code>). Expect rough edges, and pin an exact version (<code>lablink-cli==0.1.0a1</code>) if you need a reproducible install.</p>
 </div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before installing, make sure you have:</p>
@@ -4549,18 +4575,26 @@
 </div>
 </div>
 </div>
+<h2 id="install-from-pypi">Install from PyPI<a class="headerlink" href="#install-from-pypi" title="Permanent link">&para;</a></h2>
+<p>This is the path for using the CLI. Install it as a standalone tool:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>lablink-cli
+</code></pre></div>
+<p>That puts <code>lablink</code> on your <code>PATH</code> in its own isolated environment, which is what you want for a command-line tool — it cannot collide with another project's dependencies. Verify it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lablink<span class="w"> </span>--version
+</code></pre></div>
+<p><code>pip install lablink-cli</code> works too, into whichever environment is currently active. No <code>--pre</code> flag is needed despite the alpha version: it is the only release right now, so both installers select it. Once a stable release exists, plain installs will prefer that instead, and you would need <code>--pre</code> to keep getting alphas.</p>
 <h2 id="install-from-source">Install from source<a class="headerlink" href="#install-from-source" title="Permanent link">&para;</a></h2>
-<p>Clone the repo and run <code>uv sync --all-packages</code> at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on <code>lablink-allocator-service</code>, which uv resolves from the workspace automatically.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
+<p>Use this if you intend to modify the CLI. Clone the repo and run <code>uv sync --all-packages</code> at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on <code>lablink-allocator-service</code>, which uv resolves from the workspace automatically.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/talmolab/lablink.git
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>lablink
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
 </code></pre></div>
 <p>uv creates <code>.venv/</code> on first sync. Run the CLI either directly through uv:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>--help
 </code></pre></div>
 <p>…or by activating the venv:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>lablink<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>lablink<span class="w"> </span>--help
 </code></pre></div>
 <p>You should see the grouped command list (Setup, Deployment, Operations, Maintenance) — the same panels Typer prints for <code>--help</code>.</p>
 <div class="admonition tip">
@@ -4569,23 +4603,24 @@
 </div>
 <h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permanent link">&para;</a></h2>
 <p>Once installed, run <code>lablink</code> with no arguments to confirm everything is wired up:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lablink
 </code></pre></div>
+<p>If you installed from source rather than PyPI, use <code>uv run lablink</code> instead, or activate the venv first.</p>
 <p>On a fresh install (no config yet), you'll see a <strong>Getting started</strong> panel pointing at the next three commands:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>╭─ Getting started ──────────────────────────────────────╮
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>│ Welcome to LabLink. First-time setup:                  │
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│                                                        │
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│   1. lablink configure   create config + AWS state…    │
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│   2. lablink doctor      verify prerequisites          │
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│   3. lablink deploy      deploy the allocator          │
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│                                                        │
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>│ For the full command list, run &#39;lablink --help&#39;.       │
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>╰────────────────────────────────────────────────────────╯
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>╭─ Getting started ──────────────────────────────────────╮
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>│ Welcome to LabLink. First-time setup:                  │
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│                                                        │
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│   1. lablink configure   create config + AWS state…    │
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│   2. lablink doctor      verify prerequisites          │
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>│   3. lablink deploy      deploy the allocator          │
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>│                                                        │
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│ For the full command list, run &#39;lablink --help&#39;.       │
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>╰────────────────────────────────────────────────────────╯
 </code></pre></div>
 <p>If you instead see the full command list (Setup / Deployment / Operations / Maintenance panels), it means <code>~/.lablink/config.yaml</code> already exists from a previous run — that's fine, skip ahead to <a href="../first-deployment/#step-1-configure">Step 1: Configure</a>.</p>
 <h2 id="check-your-environment">Check your environment<a class="headerlink" href="#check-your-environment" title="Permanent link">&para;</a></h2>
 <p>Run <code>lablink doctor</code> to validate prerequisites end-to-end:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>lablink<span class="w"> </span>doctor
 </code></pre></div>
 <p>It checks:</p>
 <table>
@@ -4653,10 +4688,13 @@
 </table>
 <p>Pass <code>--config /path/to/config.yaml</code> to any command to use a different config file.</p>
 <h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
-<p>Pull the latest source and re-sync:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
+<p>If you installed from PyPI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>lablink-cli<span class="w">   </span><span class="c1"># or: pip install --upgrade lablink-cli</span>
+</code></pre></div>
+<p>If you installed from source, pull and re-sync:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>lablink
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Template version</p>
