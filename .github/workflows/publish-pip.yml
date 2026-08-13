@@ -191,11 +191,40 @@ jobs:
           echo "Build artifacts:"
           ls -lh dist/
 
+      # Makes re-runs idempotent. PyPI forbids file-name reuse, so a second
+      # run over an already-published version dies in `uv publish` with
+      # 400 "File already exists" — hit by re-running a flaky publish, or by
+      # creating the GitHub Release after the tag push already published.
+      #
+      # Deliberately not `uv publish --check-url`: that compares local and
+      # remote hashes, and `uv build` is not byte-reproducible (two builds of
+      # identical source differ), so on a re-run it fails with "Local file and
+      # index file do not match" — the same failure wearing a scarier name.
+      # Asking PyPI whether the version exists sidesteps the hashes entirely.
+      - name: Check whether this version is already on PyPI
+        id: already_published
+        if: |
+          steps.should_run.outputs.should_run == 'true' &&
+          (github.event_name != 'workflow_dispatch' ||
+           inputs.dry_run == false)
+        run: |
+          VERSION=$(grep '^version = ' ${{ matrix.dir }}/pyproject.toml | cut -d'"' -f2)
+          URL="https://pypi.org/pypi/${{ matrix.package }}/${VERSION}/json"
+          if curl -sfL --max-time 30 -o /dev/null "$URL"; then
+            echo "published=true" >> $GITHUB_OUTPUT
+            echo "⏭️  ${{ matrix.package }} ${VERSION} is already on PyPI — skipping upload."
+            echo "    Versions are immutable there; publish a new version to ship changes."
+          else
+            echo "published=false" >> $GITHUB_OUTPUT
+            echo "${{ matrix.package }} ${VERSION} is not on PyPI yet."
+          fi
+
       # PUBLISH (unless dry run)
       - name: Publish to PyPI
         id: publish
         if: |
           steps.should_run.outputs.should_run == 'true' &&
+          steps.already_published.outputs.published != 'true' &&
           (github.event_name != 'workflow_dispatch' ||
            inputs.dry_run == false)
         run: |
