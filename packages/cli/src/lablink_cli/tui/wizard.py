@@ -573,6 +573,26 @@ class RegionScreen(Screen):
                 yield Button("Next", variant="primary", id="next")
         yield Footer()
 
+    def on_mount(self) -> None:
+        """Highlight the region the config already names.
+
+        OptionList highlights index 0 on its own, so without this the screen
+        shows us-east-1 as the current choice no matter what the config says.
+        An operator whose deployment lives elsewhere then either accepts a row
+        that misreports their setting, or presses Enter on it and silently
+        moves app.region — along with machine.ami_id, which is region-scoped.
+        In --template mode this is how a config ends up naming a region that
+        holds none of the resources lablink-template's setup.sh just created.
+
+        A region absent from AWS_REGIONS clears the highlight rather than
+        pointing at an unrelated row: nothing on this screen represents it.
+        """
+        region_ids = [r["id"] for r in AWS_REGIONS]
+        configured = self.app.config.app.region
+        self.query_one("#region-list", OptionList).highlighted = (
+            region_ids.index(configured) if configured in region_ids else None
+        )
+
     @on(OptionList.OptionSelected)
     def _select(self, event: OptionList.OptionSelected) -> None:
         region = str(event.option.id)

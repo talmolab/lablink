@@ -972,3 +972,78 @@ def test_connectivity_screen_cloudflare_hostname_is_stripped():
         public_hostname="  lab.example.org  ",
     )
     assert cfg.manual.public_hostname == "lab.example.org"
+
+
+# ---------------------------------------------------------------------------
+# RegionScreen — the configured region must be visible, and stay put
+# ---------------------------------------------------------------------------
+def _drive_region_screen(configured_region: str) -> tuple[str | None, str, str]:
+    """Push RegionScreen over *configured_region*, then press Next.
+
+    Returns the highlighted option's region id (None if nothing is
+    highlighted), plus cfg.app.region and cfg.machine.ami_id afterwards, so a
+    test can assert both what the screen showed and what it left behind.
+    """
+    from lablink_cli.config.schema import Config
+    from lablink_cli.tui.wizard import ConfigWizard, RegionScreen
+
+    cfg = Config()
+    cfg.app.region = configured_region
+    cfg.machine.ami_id = "ami-sentinel"
+    app = ConfigWizard(existing_config=cfg)
+    highlighted: list[str | None] = []
+
+    async def _run() -> None:
+        from textual.widgets import OptionList
+
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = RegionScreen()
+            app.push_screen(screen)
+            await pilot.pause()
+            await pilot.pause()
+            option_list = screen.query_one("#region-list", OptionList)
+            index = option_list.highlighted
+            highlighted.append(
+                None
+                if index is None
+                else str(option_list.get_option_at_index(index).id)
+            )
+            # Advance without touching the list, the way a user who accepts
+            # the shown region would.
+            screen._next()
+            await pilot.pause()
+
+    asyncio.run(_run())
+    return highlighted[0], cfg.app.region, cfg.machine.ami_id
+
+
+def test_region_screen_highlights_the_configured_region():
+    """The region already in the config must be the highlighted option."""
+    highlighted, _, _ = _drive_region_screen("ap-northeast-1")
+    assert highlighted == "ap-northeast-1"
+
+
+def test_region_screen_highlights_configured_region_not_just_the_first():
+    """Guards against 'highlighted' defaulting to index 0 and looking correct."""
+    highlighted, _, _ = _drive_region_screen("eu-central-1")
+    assert highlighted == "eu-central-1"
+
+
+def test_region_screen_untouched_leaves_region_and_ami_alone():
+    """Pre-selecting must not fire OptionSelected and rewrite the config.
+
+    Highlighting is a display concern. If it triggered the selection handler,
+    machine.ami_id would be remapped on every visit to the screen — silently
+    replacing an AMI the operator may have set deliberately.
+    """
+    _, region, ami_id = _drive_region_screen("us-east-2")
+    assert region == "us-east-2"
+    assert ami_id == "ami-sentinel"
+
+
+def test_region_screen_tolerates_a_region_outside_the_list():
+    """A config naming a region the wizard does not offer must not crash it."""
+    highlighted, region, _ = _drive_region_screen("sa-east-1")
+    assert highlighted is None
+    assert region == "sa-east-1"
