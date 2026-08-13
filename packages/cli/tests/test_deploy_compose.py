@@ -1674,6 +1674,45 @@ class TestPrintSummaryFunnel:
 
     @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
     @patch("lablink_cli.commands.deploy_compose._extract_register_token")
+    def test_admin_url_precedence(self, mock_extract, mock_lan, capsys):
+        """Admin URL is public > LAN > localhost.
+
+        The public-wins case is the one worth pinning: it's a deliberate
+        choice, not a fallback accident, and "keep admin off the public
+        exposure" is a plausible-sounding change someone makes later without
+        realising it was decided. Note there is no lan_direct case to test —
+        the preflight rejects participant_exposure != none with lan_direct,
+        so a public URL and LAN-direct connectivity can never coexist.
+        """
+        from lablink_cli.commands.deploy_compose import _print_summary
+
+        mock_extract.return_value = "tok"
+        funnel = "https://lablink-allocator-testlab-2.example.ts.net"
+
+        # Funnel up: public wins even though a LAN IP was detected.
+        mock_lan.return_value = "192.168.1.42"
+        _print_summary(
+            _manual_cfg(connectivity="mesh_overlay", overlay_tailnet="example.ts.net"),
+            funnel_active=True,
+            funnel_url=funnel,
+            docker=ComposeDocker(),
+        )
+        assert f"Admin URL:             {funnel}/admin" in capsys.readouterr().out
+
+        # No public exposure: the LAN IP, not localhost.
+        _print_summary(_manual_cfg(), docker=ComposeDocker())
+        out = capsys.readouterr().out
+        assert "Admin URL:             http://192.168.1.42/admin" in out
+
+        # No public exposure and LAN detection failed: localhost is the
+        # last resort, so the line always resolves to something clickable.
+        mock_lan.return_value = None
+        _print_summary(_manual_cfg(), docker=ComposeDocker())
+        out = capsys.readouterr().out
+        assert "Admin URL:             http://localhost/admin" in out
+
+    @patch("lablink_cli.commands.deploy_compose._detect_lan_ip")
+    @patch("lablink_cli.commands.deploy_compose._extract_register_token")
     def test_no_localhost_warning_when_funnel_substituted(
         self, mock_extract, mock_lan, capsys
     ):

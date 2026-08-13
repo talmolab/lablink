@@ -916,6 +916,15 @@ def _print_summary(
             "  Allocator URL (LAN):   (no LAN IP detected — pass the "
             "operator host's reachable address manually)"
         )
+    # public_url and lan_direct are mutually exclusive (preflight above), so
+    # this chain encodes the connectivity rule without re-reading it.
+    admin_url = public_url or lan_url or local_url
+    # soft_wrap: a real Funnel URL plus the column prefix overruns 80 cols.
+    console.print(
+        f"  Admin URL:             {admin_url}/admin",
+        soft_wrap=True,
+        highlight=False,
+    )
     console.print(f"  Admin user:            {cfg.app.admin_user}")
     if register_token:
         console.print(f"  Register token:        {register_token}")
