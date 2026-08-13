@@ -382,12 +382,17 @@ class LogsApp(App):
         status.update(f"[dim]{text}[/dim]")
 
     def _refresh_status(self) -> None:
-        """Redraw the status bar from last-fetch time and auto-fetch state."""
+        """Redraw the status bar from auto-fetch state and last-fetch time.
+
+        Auto-fetch state leads because a narrow terminal truncates the bar
+        from the right — the state is what the user needs to see, so the
+        timestamp is the part that should be sacrificed.
+        """
         auto = (
             f"auto {_AUTO_REFRESH_SECONDS:g}s" if self._auto else "auto off"
         )
         self._set_status(
-            f"Last fetched: {self._last_fetched or '—'} · {auto}"
+            f"{auto} · last fetched {self._last_fetched or '—'}"
         )
 
     def action_refresh(self) -> None:
