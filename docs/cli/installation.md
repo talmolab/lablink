@@ -1,9 +1,12 @@
 # Installing the CLI
 
-The `lablink` command is distributed with the [LabLink repository](https://github.com/talmolab/lablink) as one of three packages in a `uv` workspace (`packages/allocator`, `packages/client`, `packages/cli`). Until the CLI is published to PyPI, install it from source with `uv sync --all-packages`.
+The `lablink` command is published to PyPI as [`lablink-cli`](https://pypi.org/project/lablink-cli/). Install it as a standalone tool to deploy and manage LabLink, or [from source](#install-from-source) if you intend to work on the CLI itself — it is also one of three packages in this repo's `uv` workspace (`packages/allocator`, `packages/client`, `packages/cli`).
 
-!!! note "PyPI coming soon"
-    Once published, `uv tool install lablink` (or `pip install lablink`) will be the recommended install. For now, use the workspace install below.
+!!! note "The package and the command have different names"
+    The PyPI package is **`lablink-cli`**; the command it installs is **`lablink`**. There is no `lablink` package on PyPI, so `pip install lablink` will fail.
+
+!!! warning "Pre-release"
+    The published version is a pre-release (`0.1.0a1`). Expect rough edges, and pin an exact version (`lablink-cli==0.1.0a1`) if you need a reproducible install.
 
 ## Prerequisites
 
@@ -23,9 +26,25 @@ The rest depends on which provider you deploy with.
     - **Docker** and the **`docker compose` v2 plugin**, on the allocator host and on every client box. The allocator runs as a compose stack and each client runs the client container.
     - No AWS account, no AWS credentials, and no OpenTofu — see [Bring-Your-Own Clients](byo-clients.md).
 
+## Install from PyPI
+
+This is the path for using the CLI. Install it as a standalone tool:
+
+```bash
+uv tool install lablink-cli
+```
+
+That puts `lablink` on your `PATH` in its own isolated environment, which is what you want for a command-line tool — it cannot collide with another project's dependencies. Verify it:
+
+```bash
+lablink --version
+```
+
+`pip install lablink-cli` works too, into whichever environment is currently active. No `--pre` flag is needed despite the alpha version: it is the only release right now, so both installers select it. Once a stable release exists, plain installs will prefer that instead, and you would need `--pre` to keep getting alphas.
+
 ## Install from source
 
-Clone the repo and run `uv sync --all-packages` at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on `lablink-allocator-service`, which uv resolves from the workspace automatically.
+Use this if you intend to modify the CLI. Clone the repo and run `uv sync --all-packages` at the root. This installs all three workspace packages (allocator, client, CLI) as editable — the CLI depends on `lablink-allocator-service`, which uv resolves from the workspace automatically.
 
 ```bash
 git clone https://github.com/talmolab/lablink.git
@@ -56,8 +75,10 @@ You should see the grouped command list (Setup, Deployment, Operations, Maintena
 Once installed, run `lablink` with no arguments to confirm everything is wired up:
 
 ```bash
-uv run lablink
+lablink
 ```
+
+If you installed from source rather than PyPI, use `uv run lablink` instead, or activate the venv first.
 
 On a fresh install (no config yet), you'll see a **Getting started** panel pointing at the next three commands:
 
@@ -111,7 +132,13 @@ Pass `--config /path/to/config.yaml` to any command to use a different config fi
 
 ## Upgrading
 
-Pull the latest source and re-sync:
+If you installed from PyPI:
+
+```bash
+uv tool upgrade lablink-cli   # or: pip install --upgrade lablink-cli
+```
+
+If you installed from source, pull and re-sync:
 
 ```bash
 cd lablink
