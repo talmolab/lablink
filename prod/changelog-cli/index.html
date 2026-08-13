@@ -1560,10 +1560,93 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#recent-commits" class="md-nav__link">
+  <a href="#features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Recent commits
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010a1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0a1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0a1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refactoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refactoring
       
     </span>
   </a>
@@ -4386,10 +4469,93 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#recent-commits" class="md-nav__link">
+  <a href="#features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Recent commits
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010a1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0a1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0a1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refactoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refactoring
       
     </span>
   </a>
@@ -4422,30 +4588,81 @@
 <p>All notable changes to <strong>lablink-cli</strong> will be documented here.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
-<p>No releases yet.</p>
-<h3 id="recent-commits">Recent commits<a class="headerlink" href="#recent-commits" title="Permanent link">&para;</a></h3>
+<h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
 <ul>
-<li>chore: bump package versions for the OpenTofu release (#448)</li>
-<li>refactor: switch the AWS provisioning path from Terraform to OpenTofu (#446)</li>
-<li>feat(cli): add <code>lablink configure --template</code> so template repos get the TUI (#442)</li>
-<li>refactor(cli): route every docker call through one adapter (#445)</li>
-<li>refactor: cut duplicated caches, HTTP plumbing, and command-file prose (#441)</li>
-<li>feat(cli): add <code>lablink client destroy</code> for tearing down the client fleet (#440)</li>
+<li>feat(cli): auto-fetch logs in the <code>lablink logs</code> viewer (#451)</li>
+</ul>
+<h2 id="010a1"><a href="https://github.com/talmolab/lablink/releases/tag/lablink-cli_v0.1.0a1">0.1.0a1</a><a class="headerlink" href="#010a1" title="Permanent link">&para;</a></h2>
+<h3 id="bug-fixes">Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h3>
+<ul>
 <li>fix: bump Terraform to 1.9.8 to stop S3 backend state corruption (#437)</li>
 <li>fix(cli): make metrics export work on the manual/BYO path (#435)</li>
 <li>fix(cli): poll the public hostname instead of checking it once (#433)</li>
-<li>feat(cli): add <code>lablink client doctor</code> for BYO client health (#430)</li>
 <li>fix(cli): flush the BYO log shipper's buffer when the container goes quiet (#428)</li>
-<li>docs: bring CLI reference and guides up to parity with the shipped CLI (#427)</li>
-<li>docs: correct stale and nonexistent references across READMEs and guides (#426)</li>
-<li>feat: publish the allocator at an admin-chosen hostname via Cloudflare Tunnel (#420)</li>
-<li>feat: reverse_tunnel connectivity — client dials out over the allocator's existing HTTPS address (#419)</li>
 <li>fix(cli): persist the client's tailscaled state; add <code>client reset-overlay</code> (#413)</li>
 <li>fix(allocator): stop library modules configuring logging at import time (#410)</li>
 <li>fix(allocator+cli): clone the configured repository on BYO clients (#405) (#408)</li>
 <li>fix(allocator+cli): report the real public URL behind Tailscale Funnel (#396) (#403)</li>
 <li>fix(cli): report auth failures instead of empty results (#400)</li>
+<li>fix(cli): wizard layout unusable on small terminals — collapsed radio options, oversized editors (#399)</li>
+<li>fix(cli): revoke SG rules before delete to avoid DependencyViolation (#394)</li>
+<li>fix(cli): lablink cleanup must never release a persistent EIP (#393)</li>
+<li>fix(cli): lablink destroy wipes the Postgres data volume by default (#391)</li>
+<li>fix(cli): bump pinned lablink-template to v0.2.2 (Cloudflare Full SSL) (#375)</li>
+<li>fix(cli): wizard Advanced form was clipped — EIP strategy radio unreachable (#373)</li>
+<li>fix(cli): send product User-Agent so Cloudflare-proxied allocators don't 403 (#371)</li>
+<li>fix(cli): SSL-aware deploy health check, zone_id auto-save, drop db password prompt (#347)</li>
 </ul>
+<h3 id="chores">Chores<a class="headerlink" href="#chores" title="Permanent link">&para;</a></h3>
+<ul>
+<li>chore: bump package versions for the OpenTofu release (#448)</li>
+<li>chore: bump terraform version (#365)</li>
+<li>chore: prepare lablink-cli for PyPI release (#328)</li>
+</ul>
+<h3 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>docs: bring CLI reference and guides up to parity with the shipped CLI (#427)</li>
+<li>docs: correct stale and nonexistent references across READMEs and guides (#426)</li>
+</ul>
+<h3 id="features_1">Features<a class="headerlink" href="#features_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>feat(cli): add <code>lablink configure --template</code> so template repos get the TUI (#442)</li>
+<li>feat(cli): add <code>lablink client destroy</code> for tearing down the client fleet (#440)</li>
+<li>feat(cli): add <code>lablink client doctor</code> for BYO client health (#430)</li>
+<li>feat: publish the allocator at an admin-chosen hostname via Cloudflare Tunnel (#420)</li>
+<li>feat: reverse_tunnel connectivity — client dials out over the allocator's existing HTTPS address (#419)</li>
+<li>feat(allocator+cli): real-time progress tracking for launch/destroy operations (#398)</li>
+<li>feat: expose self-hosted allocator to participants via Tailscale Funnel (#390)</li>
+<li>feat: retry client startup script with backoff + success check (#392)</li>
+<li>feat: add mesh-overlay connectivity for off-LAN manual clients (#387)</li>
+<li>feat(cli): poll operations instead of blocking on /destroy and /api/launch (PR 3/6) (#385)</li>
+<li>feat(cli): wizard DNS step gets Guided/Advanced toggle, Cloudflare picks persistent EIP (#369)</li>
+<li>feat: wizard monitoring toggle + sync lablink stats with admin UI (#368)</li>
+<li>feat: Tier 1 monitoring &amp; stats (opt-in, disabled by default) (#366)</li>
+<li>feat(cli): first-run welcome panel + health-poll spinner + 300s timeout (#336)</li>
+<li>feat(cli): show lablink-template version in --version output (#335)</li>
+<li>feat: -y/--yes auto-accept flag + grouped CLI help (#325)</li>
+<li>feat(cli): allocator deployment metrics + --client/--allocator export flags (#317) (#320)</li>
+</ul>
+<h3 id="other-changes">Other Changes<a class="headerlink" href="#other-changes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Refactor: Cleanup dead/duplicate code (#395)</li>
+<li>ship startup script to manual/BYO clients via register response (#364)</li>
+<li>cli: ship manual BYO docker container logs to allocator (#362)</li>
+<li>PR D4: retire API_TOKEN (unify M2M auth on client_secret) (#358)</li>
+<li>PR D3: operator-side manual mode (configure wizard + compose deploy) (#357)</li>
+<li>PR D2: lablink register CLI for manual BYO clients (#354)</li>
+<li>PR A: swap CRD → KasmVNC on the AWS path (nginx-fronted, allocator-proxied WS) (#344)</li>
+</ul>
+<h3 id="refactoring">Refactoring<a class="headerlink" href="#refactoring" title="Permanent link">&para;</a></h3>
+<ul>
+<li>refactor: switch the AWS provisioning path from Terraform to OpenTofu (#446)</li>
+<li>refactor(cli): route every docker call through one adapter (#445)</li>
+<li>refactor: cut duplicated caches, HTTP plumbing, and command-file prose (#441)</li>
+<li>refactor: remove monitoring feature (schema, CLI cost branch, docs) (#346)</li>
+</ul>
+<hr />
+<p>For more details, see the <a href="https://github.com/talmolab/lablink/releases?q=lablink-cli">GitHub Releases page</a>.</p>
 
 
 
