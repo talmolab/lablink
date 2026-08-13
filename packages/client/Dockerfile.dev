@@ -101,6 +101,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # fd-find installs its binary as `fdfind`; see Dockerfile.
 RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
 
+# Drop micro's MimeType claims so mousepad wins text/*; see Dockerfile for why
+# the cache rebuild is required.
+RUN grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: no MimeType line in micro.desktop -- the package may have changed; review this patch"; exit 1; }; \
+    sed -i '/^MimeType=/d' /usr/share/applications/micro.desktop; \
+    ! grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: sed did not remove MimeType from micro.desktop"; exit 1; }; \
+    update-desktop-database /usr/share/applications
+
 # Tailscale — joined at container start (start.sh) only when a
 # mesh-overlay client was registered with TAILSCALE_AUTHKEY set;
 # lan_direct/allocator_proxied clients never invoke `tailscale up`.

@@ -236,33 +236,20 @@ ScrollingOnOutput=FALSE
 ScrollingBar=TERMINAL_SCROLLBAR_RIGHT
 TERMINALRC
 
-# Default applications for a double-click in Thunar and for xdg-open.
+# Images only. Chrome's .deb claims png/jpeg/gif and outranks ristretto, so a
+# double-clicked frame opens a whole browser window instead of a viewer --
+# painful when flipping through labelled frames. Every other type sorts itself
+# out: GIO resolves an unclaimed type through its parent, so once the Dockerfile
+# drops micro's MimeType line, mousepad wins all of text/* via text/plain and
+# ristretto already wins bmp/tiff/svg unaided. Nothing to pin for those.
 #
-# Pinned because both defaults are wrong when left to mimeinfo.cache ordering.
-# Chrome's .deb registers itself for image/png and image/jpeg, so an image
-# opens a whole browser window rather than a viewer -- painful when flipping
-# through labelled frames. And micro's .desktop claims text/plain plus most
-# source types with Terminal=true, which outranks mousepad and turns a
-# double-clicked config file into a terminal editor. micro stays the $EDITOR
-# for terminal work; a double-click in a graphical session should land in the
-# graphical app. application/x-yaml has no registered handler at all.
+# webp is deliberately absent -- ristretto's .desktop does not claim it, so it
+# stays with Chrome rather than being pointed at an app that never declared it.
 cat > "${CONFIG_HOME}/.config/mimeapps.list" <<'MIMEAPPS'
 [Default Applications]
-text/plain=org.xfce.mousepad.desktop
-text/markdown=org.xfce.mousepad.desktop
-text/csv=org.xfce.mousepad.desktop
-text/x-python=org.xfce.mousepad.desktop
-text/x-shellscript=org.xfce.mousepad.desktop
-text/x-log=org.xfce.mousepad.desktop
-application/json=org.xfce.mousepad.desktop
-application/x-yaml=org.xfce.mousepad.desktop
-text/x-yaml=org.xfce.mousepad.desktop
 image/png=org.xfce.ristretto.desktop
 image/jpeg=org.xfce.ristretto.desktop
 image/gif=org.xfce.ristretto.desktop
-image/bmp=org.xfce.ristretto.desktop
-image/tiff=org.xfce.ristretto.desktop
-image/webp=org.xfce.ristretto.desktop
 MIMEAPPS
 
 echo "desktop-config: wrote configuration under ${XFCONF}"

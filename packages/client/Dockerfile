@@ -12,9 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # of U+FFFD. C.UTF-8 is built into glibc 2.35, so no `locales` package needed.
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-# Anything that shells out to an editor (git commit, crontab -e, visudo) reads
-# these and otherwise falls through to a hardcoded vi that isn't installed.
-# /etc/profile never sets them, so unlike PATH this survives into login shells.
+# Otherwise anything shelling out to an editor hits a hardcoded vi that is not
+# installed. /etc/profile never sets these, so unlike PATH they reach subshells.
 ENV EDITOR=micro VISUAL=micro
 
 # Set NVIDIA driver capabilities
@@ -66,17 +65,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Reachability triage from inside the container, which is the only vantage
     # point that tells apart a dead mesh-overlay/tunnel path from a dead app.
     iputils-ping \
-    # Text editor. The image shipped none at all -- not even vi -- so `git
-    # commit` without -m, `crontab -e`, and every "now edit this file"
-    # instruction dead-ended. micro is chosen over nano/vim because its
-    # defaults are the shortcuts students already know (Ctrl+S save, Ctrl+Q
-    # quit, Ctrl+C/Ctrl+V copy/paste) and it handles mouse click-to-position
-    # and drag-select inside xfce4-terminal. One Go binary, ~13 MB.
+    # Text editor -- the image shipped none at all, not even vi. micro's
+    # defaults match GUI muscle memory and it takes mouse input in a terminal.
     micro \
-    # micro copies through the X11 CLIPBOARD selection via xclip. Without it
-    # Ctrl+C only fills micro's own internal buffer, so a copy never reaches
-    # KasmVNC's clipboard bridge and can't be pasted into Chrome or onto the
-    # student's own machine. 53 KB.
+    # micro copies via the X11 CLIPBOARD selection; without xclip Ctrl+C never
+    # reaches KasmVNC's clipboard bridge, so nothing pastes outside micro.
     xclip \
     # XFCE apps and plugins named individually rather than via xfce4-goodies:
     # that metapackage costs 92 MB and 82 packages, most of it ~25 panel
@@ -85,15 +78,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # libnotify call silently does nothing.
     xfce4-whiskermenu-plugin \
     xfce4-notifyd \
-    # GUI counterparts to the terminal tools above, for students who never
-    # open a terminal: no editor or image viewer existed, and archives could
-    # only be unpacked from the command line. thunar-archive-plugin is the
-    # piece that puts "Extract Here" in Thunar's context menu -- xarchiver on
-    # its own only installs a standalone app.
-    #
-    # These do NOT win their mime types by default: Chrome's .deb claims
-    # image/png and image/jpeg, and micro's .desktop claims text/plain with
-    # Terminal=true. desktop-config.sh pins mimeapps.list to override both.
+    # GUI counterparts to the terminal tools above, for students who never open
+    # a terminal: no editor or image viewer existed, and archives could only be
+    # unpacked from the command line. thunar-archive-plugin is what puts
+    # "Extract Here" and "Create Archive" in Thunar's context menu -- xarchiver
+    # alone only installs a standalone app. Images need a mime pin to beat
+    # Chrome; see desktop-config.sh.
     mousepad \
     ristretto \
     xarchiver \
@@ -153,6 +143,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # a student who types `fd` would get "command not found" for something that
 # is installed.
 RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
+
+# micro's .desktop claims text/plain plus ~15 source types with Terminal=true,
+# outranking mousepad -- a double-clicked .py would open a terminal editor in a
+# graphical session. Dropping MimeType beats pinning each type: GIO resolves an
+# unclaimed type through its parent, so mousepad wins all of text/* via
+# text/plain alone. micro is unaffected as $EDITOR or from the shell. The cache
+# rebuild is mandatory -- without it mimeinfo.cache serves the old claims.
+RUN grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: no MimeType line in micro.desktop -- the package may have changed; review this patch"; exit 1; }; \
+    sed -i '/^MimeType=/d' /usr/share/applications/micro.desktop; \
+    ! grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: sed did not remove MimeType from micro.desktop"; exit 1; }; \
+    update-desktop-database /usr/share/applications
 
 # Tailscale — joined at container start (start.sh) only when a
 # mesh-overlay client was registered with TAILSCALE_AUTHKEY set;
