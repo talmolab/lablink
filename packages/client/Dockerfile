@@ -12,6 +12,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 # of U+FFFD. C.UTF-8 is built into glibc 2.35, so no `locales` package needed.
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
+# Otherwise anything shelling out to an editor hits a hardcoded vi that is not
+# installed. /etc/profile never sets these, so unlike PATH they reach subshells.
+ENV EDITOR=micro VISUAL=micro
+
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
@@ -45,20 +49,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     desktop-base \
     xfce4-terminal \
-    # Terminal tooling. Small, and the two search tools are what students
-    # actually reach for in a repository. ~9 MB total.
+    # Terminal tooling. All small, and the two search tools are what students
+    # actually reach for in a repository.
     ripgrep \
     fd-find \
     htop \
     tree \
     jq \
-    # Named directly instead of via xfce4-goodies. That metapackage pulls
-    # ~25 panel plugins plus mousepad, ristretto, xfburn and xfce4-dict --
-    # 92 MB and 82 packages for the two things this desktop actually uses.
+    # Pager. Absent, git falls back to dumping the whole of `git log` /
+    # `git diff` straight into the scrollback, and man pages lose paging.
+    less \
+    # Text editor -- the image shipped none at all, not even vi. micro's
+    # defaults match GUI muscle memory and it takes mouse input in a terminal.
+    micro \
+    # micro copies via the X11 CLIPBOARD selection; without xclip Ctrl+C never
+    # reaches KasmVNC's clipboard bridge, so nothing pastes outside micro.
+    xclip \
+    # XFCE apps and plugins named individually rather than via xfce4-goodies:
+    # that metapackage costs 92 MB and 82 packages, most of it ~25 panel
+    # plugins plus xfburn and xfce4-dict that this desktop never uses.
     # notifyd is dbus-activated and needs no configuration; without it any
     # libnotify call silently does nothing.
     xfce4-whiskermenu-plugin \
     xfce4-notifyd \
+    # GUI counterparts to the terminal tools above, for students who never open
+    # a terminal: no editor or image viewer existed, and archives could only be
+    # unpacked from the command line. thunar-archive-plugin is what puts
+    # "Extract Here" and "Create Archive" in Thunar's context menu -- xarchiver
+    # alone only installs a standalone app. Images need a mime pin to beat
+    # Chrome; see desktop-config.sh.
+    mousepad \
+    ristretto \
+    xarchiver \
+    thunar-archive-plugin \
     # Ubuntu 24.04's own theme. Yaru ships xfwm4 window decorations as well
     # as the GTK theme and icons, so the desktop is themed end to end rather
     # than GTK-only with fallback borders.
@@ -114,6 +137,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # a student who types `fd` would get "command not found" for something that
 # is installed.
 RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
+
+# micro's .desktop claims text/plain plus ~15 source types with Terminal=true,
+# outranking mousepad -- a double-clicked .py would open a terminal editor in a
+# graphical session. Dropping MimeType beats pinning each type: GIO resolves an
+# unclaimed type through its parent, so mousepad wins all of text/* via
+# text/plain alone. micro is unaffected as $EDITOR or from the shell. The cache
+# rebuild is mandatory -- without it mimeinfo.cache serves the old claims.
+RUN grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: no MimeType line in micro.desktop -- the package may have changed; review this patch"; exit 1; }; \
+    sed -i '/^MimeType=/d' /usr/share/applications/micro.desktop; \
+    ! grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: sed did not remove MimeType from micro.desktop"; exit 1; }; \
+    update-desktop-database /usr/share/applications
 
 # Tailscale — joined at container start (start.sh) only when a
 # mesh-overlay client was registered with TAILSCALE_AUTHKEY set;

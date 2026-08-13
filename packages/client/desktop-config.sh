@@ -168,7 +168,7 @@ category-show-name=true
 position-search-alternate=true
 position-commands-alternate=true
 recent-items-max=10
-favorites=xfce4-terminal.desktop,google-chrome.desktop,Thunar.desktop
+favorites=xfce4-terminal.desktop,google-chrome.desktop,Thunar.desktop,org.xfce.mousepad.desktop
 WHISKERRC
 
 # Window-management keybindings, set explicitly rather than inherited.
@@ -235,5 +235,21 @@ ScrollingLines=10000
 ScrollingOnOutput=FALSE
 ScrollingBar=TERMINAL_SCROLLBAR_RIGHT
 TERMINALRC
+
+# Images only. Chrome's .deb claims png/jpeg/gif and outranks ristretto, so a
+# double-clicked frame opens a whole browser window instead of a viewer --
+# painful when flipping through labelled frames. Every other type sorts itself
+# out: GIO resolves an unclaimed type through its parent, so once the Dockerfile
+# drops micro's MimeType line, mousepad wins all of text/* via text/plain and
+# ristretto already wins bmp/tiff/svg unaided. Nothing to pin for those.
+#
+# webp is deliberately absent -- ristretto's .desktop does not claim it, so it
+# stays with Chrome rather than being pointed at an app that never declared it.
+cat > "${CONFIG_HOME}/.config/mimeapps.list" <<'MIMEAPPS'
+[Default Applications]
+image/png=org.xfce.ristretto.desktop
+image/jpeg=org.xfce.ristretto.desktop
+image/gif=org.xfce.ristretto.desktop
+MIMEAPPS
 
 echo "desktop-config: wrote configuration under ${XFCONF}"

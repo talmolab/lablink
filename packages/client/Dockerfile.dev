@@ -12,6 +12,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # of U+FFFD. C.UTF-8 is built into glibc 2.35, so no `locales` package needed.
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
+# Editor for anything that shells out to one -- see Dockerfile for why.
+ENV EDITOR=micro VISUAL=micro
+
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
@@ -46,8 +49,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     htop \
     tree \
     jq \
+    less \
+    micro \
+    xclip \
     xfce4-whiskermenu-plugin \
     xfce4-notifyd \
+    mousepad \
+    ristretto \
+    xarchiver \
+    thunar-archive-plugin \
     yaru-theme-gtk \
     yaru-theme-icon \
     fonts-ubuntu \
@@ -88,6 +98,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # fd-find installs its binary as `fdfind`; see Dockerfile.
 RUN ln -s "$(command -v fdfind)" /usr/local/bin/fd
+
+# Drop micro's MimeType claims so mousepad wins text/*; see Dockerfile for why
+# the cache rebuild is required.
+RUN grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: no MimeType line in micro.desktop -- the package may have changed; review this patch"; exit 1; }; \
+    sed -i '/^MimeType=/d' /usr/share/applications/micro.desktop; \
+    ! grep -q '^MimeType=' /usr/share/applications/micro.desktop \
+        || { echo "ERROR: sed did not remove MimeType from micro.desktop"; exit 1; }; \
+    update-desktop-database /usr/share/applications
 
 # Tailscale — joined at container start (start.sh) only when a
 # mesh-overlay client was registered with TAILSCALE_AUTHKEY set;
