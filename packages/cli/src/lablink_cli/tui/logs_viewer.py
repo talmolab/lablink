@@ -22,11 +22,8 @@ from textual.widgets import (
 
 from lablink_allocator_service.conf.structured_config import Config
 
-# Cadence for auto-fetch. The timer is self-clocking — the next tick is armed
-# only once the previous fetch has settled — so fetches can never overlap and a
-# slow SSH round-trip backs the cadence off on its own. That is also why this
-# is a constant and not a flag: it needs no tuning for slow links.
-_AUTO_REFRESH_SECONDS = 5.0
+# Self-clocking; see _schedule_next_fetch.
+_AUTO_REFRESH_SECONDS = 5
 
 
 class VMListItem(ListItem):
@@ -198,8 +195,7 @@ class LogsApp(App):
         log_output.write(
             "[dim]Select a VM from the list to view its logs.[/dim]"
         )
-        # Surface the auto-fetch cadence before the first fetch, so it is
-        # discoverable without waiting for a tick.
+        # Show cadence before the first tick.
         self._refresh_status()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
@@ -363,12 +359,11 @@ class LogsApp(App):
             self._auto_timer = None
 
     def _schedule_next_fetch(self) -> None:
-        """Arm the next auto-fetch tick, if auto-fetch is on.
+        """Arm the next tick. Cancels first, so at most one is outstanding.
 
-        Self-clocking rather than ``set_interval``: the next tick is armed
-        only after the previous fetch settles, so fetches cannot overlap.
-        Cancelling first keeps this idempotent — at most one timer is ever
-        outstanding, however many times it is called.
+        Self-clocking rather than ``set_interval``: armed only once the
+        previous fetch settles, so fetches cannot overlap and a slow SSH
+        round-trip backs the cadence off instead of stacking up.
         """
         self._cancel_auto_timer()
         if self._auto and self._selected_vm:
@@ -382,18 +377,9 @@ class LogsApp(App):
         status.update(f"[dim]{text}[/dim]")
 
     def _refresh_status(self) -> None:
-        """Redraw the status bar from auto-fetch state and last-fetch time.
-
-        Auto-fetch state leads because a narrow terminal truncates the bar
-        from the right — the state is what the user needs to see, so the
-        timestamp is the part that should be sacrificed.
-        """
-        auto = (
-            f"auto {_AUTO_REFRESH_SECONDS:g}s" if self._auto else "auto off"
-        )
-        self._set_status(
-            f"{auto} · last fetched {self._last_fetched or '—'}"
-        )
+        """Redraw the status bar. State leads so truncation eats the clock."""
+        auto = f"auto {_AUTO_REFRESH_SECONDS}s" if self._auto else "auto off"
+        self._set_status(f"{auto} · last fetched {self._last_fetched or '—'}")
 
     def action_refresh(self) -> None:
         """Refresh logs for the selected VM."""
