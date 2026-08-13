@@ -108,8 +108,12 @@ class LogsApp(App):
         border-top: solid $primary-lighten-3;
     }
 
+    /* height must cover the border AND a content row: Textual sizes with
+       border-box, so `height: 1` here spent its only row on border-top and
+       left the text zero rows to render in. */
     #status-bar {
-        height: 1;
+        height: 2;
+        width: 1fr;
         padding: 0 1;
         color: $text-muted;
         border-top: solid $primary-lighten-3;
