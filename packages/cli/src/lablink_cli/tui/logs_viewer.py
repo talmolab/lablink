@@ -9,6 +9,7 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.timer import Timer
 from textual.widgets import (
     Footer,
     Header,
@@ -20,6 +21,9 @@ from textual.widgets import (
 )
 
 from lablink_allocator_service.conf.structured_config import Config
+
+# Self-clocking; see _schedule_next_fetch.
+_AUTO_REFRESH_SECONDS = 5
 
 
 class VMListItem(ListItem):
@@ -44,6 +48,7 @@ class LogsApp(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
+        Binding("a", "toggle_auto", "Auto-fetch"),
         Binding("1", "show_cloud_init", "Cloud-Init"),
         Binding("2", "show_docker", "Docker"),
     ]
@@ -100,8 +105,12 @@ class LogsApp(App):
         border-top: solid $primary-lighten-3;
     }
 
+    /* height must cover the border AND a content row: Textual sizes with
+       border-box, so `height: 1` here spent its only row on border-top and
+       left the text zero rows to render in. */
     #status-bar {
-        height: 1;
+        height: 2;
+        width: 1fr;
         padding: 0 1;
         color: $text-muted;
         border-top: solid $primary-lighten-3;
@@ -131,6 +140,9 @@ class LogsApp(App):
         # themselves); default to docker and skip the cloud-init tab UI.
         self._current_tab = "docker" if manual else "cloud_init"
         self._cached_logs: dict | None = None
+        self._auto = True
+        self._auto_timer: Timer | None = None
+        self._last_fetched: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -183,6 +195,8 @@ class LogsApp(App):
         log_output.write(
             "[dim]Select a VM from the list to view its logs.[/dim]"
         )
+        # Show cadence before the first tick.
+        self._refresh_status()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle VM selection."""
@@ -190,6 +204,9 @@ class LogsApp(App):
         if isinstance(item, VMListItem):
             self._selected_vm = item.vm
             self._cached_logs = None
+            # Drop the tick queued for the previous VM; the fetch below
+            # re-arms the timer against the new selection.
+            self._cancel_auto_timer()
             self._update_vm_info()
             # Clear log panel immediately and show loading state
             log_output = self.query_one("#log-output", RichLog)
@@ -275,63 +292,109 @@ class LogsApp(App):
         if not vm:
             return
 
-        if vm["vm_type"] == "client":
-            if not self._allocator_url:
-                logs = {
-                    "cloud_init_logs": None,
-                    "docker_logs": None,
-                    "error": (
-                        "Allocator URL not available. "
-                        "Cannot fetch client logs."
-                    ),
-                }
+        try:
+            if vm["vm_type"] == "client":
+                if not self._allocator_url:
+                    logs = {
+                        "cloud_init_logs": None,
+                        "docker_logs": None,
+                        "error": (
+                            "Allocator URL not available. "
+                            "Cannot fetch client logs."
+                        ),
+                    }
+                else:
+                    from lablink_cli.commands.logs import fetch_client_logs
+
+                    logs = fetch_client_logs(
+                        allocator_url=self._allocator_url,
+                        hostname=vm["name"],
+                        admin_user=self._admin_user,
+                        admin_pw=self._admin_pw,
+                        ssl_provider=self._cfg.ssl.provider,
+                    )
             else:
-                from lablink_cli.commands.logs import fetch_client_logs
+                # Manual provider's allocator is a local docker container, not
+                # an EC2 instance — bypass SSH and read `docker logs` directly.
+                if self._manual:
+                    from lablink_cli.commands.logs import (
+                        fetch_manual_allocator_logs,
+                    )
 
-                logs = fetch_client_logs(
-                    allocator_url=self._allocator_url,
-                    hostname=vm["name"],
-                    admin_user=self._admin_user,
-                    admin_pw=self._admin_pw,
-                    ssl_provider=self._cfg.ssl.provider,
-                )
-        else:
-            # Manual provider's allocator is a local docker container, not
-            # an EC2 instance — bypass SSH and read `docker logs` directly.
-            if self._manual:
-                from lablink_cli.commands.logs import (
-                    fetch_manual_allocator_logs,
-                )
+                    logs = fetch_manual_allocator_logs()
+                else:
+                    from lablink_cli.commands.logs import fetch_allocator_logs
 
-                logs = fetch_manual_allocator_logs()
-            else:
-                from lablink_cli.commands.logs import fetch_allocator_logs
+                    logs = fetch_allocator_logs(
+                        instance_id=vm["instance_id"],
+                        public_ip=vm.get("public_ip", "—"),
+                        region=self._cfg.app.region,
+                        deploy_dir=self._deploy_dir,
+                    )
 
-                logs = fetch_allocator_logs(
-                    instance_id=vm["instance_id"],
-                    public_ip=vm.get("public_ip", "—"),
-                    region=self._cfg.app.region,
-                    deploy_dir=self._deploy_dir,
-                )
+            # Guard: discard results if user selected a different VM while
+            # fetching
+            if self._selected_vm is not vm:
+                return
 
-        # Guard: discard results if user selected a different VM while fetching
-        if self._selected_vm is not vm:
-            return
+            # Repaint only on change. _display_logs clears and rewrites the
+            # RichLog, and auto_scroll drags the view to the bottom — so an
+            # unconditional repaint every tick would yank you off whatever you
+            # had scrolled up to read. Most ticks find nothing new.
+            unchanged = logs == self._cached_logs
+            self._cached_logs = logs
+            self._last_fetched = datetime.now().strftime("%H:%M:%S")
+            if not unchanged:
+                self.call_from_thread(self._display_logs)
+            self.call_from_thread(self._refresh_status)
+        finally:
+            # Re-arm even if the fetch raised, or one transient error would
+            # kill auto-fetch for the rest of the session.
+            self.call_from_thread(self._schedule_next_fetch)
 
-        self._cached_logs = logs
-        now = datetime.now().strftime("%H:%M:%S")
-        self.call_from_thread(self._display_logs)
-        self.call_from_thread(self._set_status, f"Last fetched: {now}")
+    def _cancel_auto_timer(self) -> None:
+        """Drop any queued auto-fetch tick."""
+        if self._auto_timer is not None:
+            self._auto_timer.stop()
+            self._auto_timer = None
+
+    def _schedule_next_fetch(self) -> None:
+        """Arm the next tick. Cancels first, so at most one is outstanding.
+
+        Self-clocking rather than ``set_interval``: armed only once the
+        previous fetch settles, so fetches cannot overlap and a slow SSH
+        round-trip backs the cadence off instead of stacking up.
+        """
+        self._cancel_auto_timer()
+        if self._auto and self._selected_vm:
+            self._auto_timer = self.set_timer(
+                _AUTO_REFRESH_SECONDS, self._fetch_logs
+            )
 
     def _set_status(self, text: str) -> None:
         """Update the status bar."""
         status = self.query_one("#status-bar", Label)
         status.update(f"[dim]{text}[/dim]")
 
+    def _refresh_status(self) -> None:
+        """Redraw the status bar. State leads so truncation eats the clock."""
+        auto = f"auto {_AUTO_REFRESH_SECONDS}s" if self._auto else "auto off"
+        self._set_status(f"{auto} · last fetched {self._last_fetched or '—'}")
+
     def action_refresh(self) -> None:
         """Refresh logs for the selected VM."""
         if self._selected_vm:
             self._fetch_logs()
+
+    def action_toggle_auto(self) -> None:
+        """Turn auto-fetch on or off."""
+        self._auto = not self._auto
+        if self._auto:
+            # Fetch now; completing that fetch arms the timer.
+            self._fetch_logs()
+        else:
+            self._cancel_auto_timer()
+        self._refresh_status()
 
     def action_show_cloud_init(self) -> None:
         """Switch to cloud-init log tab."""
