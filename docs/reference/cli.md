@@ -440,8 +440,16 @@ lablink logs [--config PATH]
 ```
 
 **AWS provider:** opens a Textual-based viewer that streams cloud-init and
-container logs from the allocator and any running client VMs. Use `q` to quit, `/`
-to search, `n`/`N` for next/previous match.
+container logs from the allocator and any running client VMs. Logs auto-fetch
+every 5 seconds for the selected VM; the status bar shows the last fetch time and
+the current cadence. Use `a` to toggle auto-fetch off (and back on), `r` to fetch
+once now, `1`/`2` to switch between the cloud-init and container tabs, and `q` to
+quit.
+
+The view only repaints when the logs actually changed, so scrolling back through
+an error is not interrupted by a tick that found nothing new. Each tick is armed
+only after the previous fetch finishes, so a slow allocator SSH round-trip
+stretches the cadence instead of stacking up connections.
 
 **Manual provider:** tails the local `lablink-allocator` container's logs. Per-VM
 client logs are not centralized in this mode — run `docker logs lablink-client` on
