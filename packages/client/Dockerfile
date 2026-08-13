@@ -12,6 +12,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 # of U+FFFD. C.UTF-8 is built into glibc 2.35, so no `locales` package needed.
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
+# Anything that shells out to an editor (git commit, crontab -e, visudo) reads
+# these and otherwise falls through to a hardcoded vi that isn't installed.
+# /etc/profile never sets them, so unlike PATH this survives into login shells.
+ENV EDITOR=micro VISUAL=micro
+
 # Set NVIDIA driver capabilities
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
@@ -45,20 +50,54 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     desktop-base \
     xfce4-terminal \
-    # Terminal tooling. Small, and the two search tools are what students
-    # actually reach for in a repository. ~9 MB total.
+    # Terminal tooling. All small, and the two search tools are what students
+    # actually reach for in a repository.
     ripgrep \
     fd-find \
     htop \
     tree \
     jq \
-    # Named directly instead of via xfce4-goodies. That metapackage pulls
-    # ~25 panel plugins plus mousepad, ristretto, xfburn and xfce4-dict --
-    # 92 MB and 82 packages for the two things this desktop actually uses.
+    # Pager. Absent, git falls back to dumping the whole of `git log` /
+    # `git diff` straight into the scrollback, and man pages lose paging.
+    less \
+    # git is installed, so `git clone git@github.com:...` looks like it should
+    # work; without an ssh client it fails on any private or SSH-remote repo.
+    openssh-client \
+    # Reachability triage from inside the container, which is the only vantage
+    # point that tells apart a dead mesh-overlay/tunnel path from a dead app.
+    iputils-ping \
+    # Text editor. The image shipped none at all -- not even vi -- so `git
+    # commit` without -m, `crontab -e`, and every "now edit this file"
+    # instruction dead-ended. micro is chosen over nano/vim because its
+    # defaults are the shortcuts students already know (Ctrl+S save, Ctrl+Q
+    # quit, Ctrl+C/Ctrl+V copy/paste) and it handles mouse click-to-position
+    # and drag-select inside xfce4-terminal. One Go binary, ~13 MB.
+    micro \
+    # micro copies through the X11 CLIPBOARD selection via xclip. Without it
+    # Ctrl+C only fills micro's own internal buffer, so a copy never reaches
+    # KasmVNC's clipboard bridge and can't be pasted into Chrome or onto the
+    # student's own machine. 53 KB.
+    xclip \
+    # XFCE apps and plugins named individually rather than via xfce4-goodies:
+    # that metapackage costs 92 MB and 82 packages, most of it ~25 panel
+    # plugins plus xfburn and xfce4-dict that this desktop never uses.
     # notifyd is dbus-activated and needs no configuration; without it any
     # libnotify call silently does nothing.
     xfce4-whiskermenu-plugin \
     xfce4-notifyd \
+    # GUI counterparts to the terminal tools above, for students who never
+    # open a terminal: no editor or image viewer existed, and archives could
+    # only be unpacked from the command line. thunar-archive-plugin is the
+    # piece that puts "Extract Here" in Thunar's context menu -- xarchiver on
+    # its own only installs a standalone app.
+    #
+    # These do NOT win their mime types by default: Chrome's .deb claims
+    # image/png and image/jpeg, and micro's .desktop claims text/plain with
+    # Terminal=true. desktop-config.sh pins mimeapps.list to override both.
+    mousepad \
+    ristretto \
+    xarchiver \
+    thunar-archive-plugin \
     # Ubuntu 24.04's own theme. Yaru ships xfwm4 window decorations as well
     # as the GTK theme and icons, so the desktop is themed end to end rather
     # than GTK-only with fallback borders.
