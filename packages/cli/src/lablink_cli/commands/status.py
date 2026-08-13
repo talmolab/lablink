@@ -457,13 +457,7 @@ def _build_health_url(cfg: Config, outputs: dict) -> str:
 
 
 def _print_admin_url(base_url: str) -> None:
-    """Print the admin page URL.
-
-    Printed regardless of health — the URL comes from config/state, not from
-    the service answering, and it's exactly what you want to keep retrying
-    while DNS or SSL is still propagating. Skipped only when there's no URL
-    to build one from (nothing deployed).
-    """
+    """Print the admin page URL, if we could build one."""
     if base_url:
         console.print(f"[bold]Admin URL:[/bold] {base_url.rstrip('/')}/admin")
 
@@ -835,8 +829,7 @@ def _run_status_manual(cfg: Config, *, docker: Docker | None = None) -> None:
                 f"{f' — {detail}' if detail else ''}[/yellow]"
             )
 
-    # Same precedence as the deploy summary's admin line, minus the LAN term
-    # — this path never detects a LAN IP, so it degrades to localhost.
+    # No LAN detection on this path — degrades to localhost.
     _print_admin_url(public_url or base_url)
 
     console.print()

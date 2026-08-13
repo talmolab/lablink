@@ -916,11 +916,8 @@ def _print_summary(
             "  Allocator URL (LAN):   (no LAN IP detected — pass the "
             "operator host's reachable address manually)"
         )
-    # Where the operator administers from. public_url and lan_direct
-    # connectivity are mutually exclusive (see the preflight above), so this
-    # chain already encodes "LAN IP for a LAN deployment, public URL
-    # otherwise" without re-reading cfg.manual.connectivity. local_url is the
-    # last resort for a host whose LAN IP we couldn't detect.
+    # public_url and lan_direct are mutually exclusive (preflight above), so
+    # this chain encodes the connectivity rule without re-reading it.
     admin_url = public_url or lan_url or local_url
     # soft_wrap: a real Funnel URL plus the column prefix overruns 80 cols.
     console.print(
