@@ -480,7 +480,21 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 **URL Parameters:**
 
 - `hostname` (string, required): The hostname of the VM.
-  **Request Body:** None
+
+**Query Parameters:**
+
+- `errors_only` (boolean, optional, default `false`): When `true`, both
+  `cloud_init_logs` and `docker_logs` are reduced to their error lines —
+  lines carrying an uppercase level token (`ERROR`, `CRITICAL`, `FATAL`, plus
+  cloudflared's `ERR`/`FTL` and postgres' `PANIC`), together with any
+  traceback that follows them. Matching is case-sensitive so the client
+  startup script's `--retry-all-errors` and `status=error` lines are not
+  treated as errors, and a short denylist suppresses client reporting-path
+  failures that do not affect the VM's usability (GPU-health and
+  in-use-status report failures, and session-metrics push failures). A stream
+  with no error lines becomes `""`, not `null`.
+
+**Request Body:** None
 
 **Success Response:**
 
@@ -489,7 +503,9 @@ These endpoints require HTTP Basic Authentication and are intended for administr
   ```json
   {
     "hostname": "lablink-vm-prod-1",
-    "logs": "Starting cloud-init...\n..."
+    "cloud_init_logs": "Starting cloud-init...\n...",
+    "docker_logs": "[start] ALLOCATOR_HOST: ...\n...",
+    "logs": "Starting cloud-init...\n...\n[start] ALLOCATOR_HOST: ...\n..."
   }
   ```
 
@@ -508,6 +524,13 @@ These endpoints require HTTP Basic Authentication and are intended for administr
 **Authentication:** Admin HTTP Basic
 
 **URL Parameters:** None
+
+**Query Parameters:**
+
+- `errors_only` (boolean, optional, default `false`): As on
+  `GET /api/vm-logs/<hostname>` — reduces `docker_logs` to its error lines.
+  `error` still reports only a genuinely missing log file; a log with no
+  error lines returns `docker_logs: ""` with `error: null`.
 
 **Request Body:** None
 

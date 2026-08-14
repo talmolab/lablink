@@ -14,6 +14,7 @@ from flask import Blueprint, jsonify, request
 
 from lablink_allocator_service.auth import auth, require_client_secret
 from lablink_allocator_service.utils.ansi import strip_ansi
+from lablink_allocator_service.utils.log_filter import filter_errors
 
 bp = Blueprint("vm_telemetry", __name__)
 logger = logging.getLogger(__name__)
@@ -201,6 +202,11 @@ def get_vm_logs_by_hostname(hostname):
 
         cloud_init_logs = (logs_data or {}).get("cloud_init_logs")
         docker_logs = (logs_data or {}).get("docker_logs")
+
+        # Same spelling as routes/metrics.py:122's include_logs flag.
+        if request.args.get("errors_only", "false").lower() == "true":
+            cloud_init_logs = filter_errors(cloud_init_logs)
+            docker_logs = filter_errors(docker_logs)
 
         return jsonify({
             "hostname": hostname,
