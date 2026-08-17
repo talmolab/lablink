@@ -819,37 +819,37 @@ Access in workflows:
 
 ## Troubleshooting Workflows
 
-### Workflow Won't Trigger
+??? note "Workflow won't trigger"
 
-**Check**:
+    **Check**:
 
-- Workflow file syntax (use YAML validator)
-- Trigger conditions match your action
-- Workflows enabled in repository settings
+    - Workflow file syntax (use YAML validator)
+    - Trigger conditions match your action
+    - Workflows enabled in repository settings
 
-### AWS Authentication Fails
+??? note "AWS authentication fails"
 
-**Check**:
+    **Check**:
 
-- IAM role ARN is correct
-- Trust policy includes GitHub OIDC provider
-- Role has necessary permissions
+    - IAM role ARN is correct
+    - Trust policy includes GitHub OIDC provider
+    - Role has necessary permissions
 
-### OpenTofu Failures
+??? note "OpenTofu failures"
 
-**Check**:
+    **Check**:
 
-- OpenTofu syntax (`tofu validate`)
-- AWS resource limits
-- OpenTofu state lock status
+    - OpenTofu syntax (`tofu validate`)
+    - AWS resource limits
+    - OpenTofu state lock status
 
-### Image Push Fails
+??? note "Image push fails"
 
-**Check**:
+    **Check**:
 
-- GHCR authentication (should be automatic)
-- Image size limits
-- Registry permissions
+    - GHCR authentication (should be automatic)
+    - Image size limits
+    - Registry permissions
 
 ## Next Steps
 
