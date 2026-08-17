@@ -104,6 +104,23 @@ def test_x11_socket_dir_notice_is_not_an_error():
     assert filter_errors("\n".join([xserv, ice, real])) == real
 
 
+def test_glib_critical_desktop_noise_is_not_an_error():
+    """GLib's g_critical prints `<domain>-CRITICAL **:`; the hyphen is a
+    word boundary, so the level regex matches CRITICAL. On this desktop
+    stack it is XFCE apps hitting assertions in the no-system-dbus
+    container while running fine -- observed live 2026-08-17 as the sole
+    line in the errors-only view of a healthy VM. A bare CRITICAL from a
+    real logger does not carry the GLib format and must survive."""
+    glib = (
+        "2026-08-17T18:42:12Z [xstartup] (xfdesktop:176): "
+        "GLib-GObject-CRITICAL **: 18:42:12.006: g_object_unref: "
+        "assertion 'G_IS_OBJECT (object)' failed"
+    )
+    assert not is_error_line(glib)
+    real = "2026-08-17 18:42:13 - app - CRITICAL - disk full"
+    assert filter_errors("\n".join([glib, real])) == real
+
+
 def test_a_real_gpu_failure_is_not_suppressed():
     """check_gpu.py's `nvidia-smi failed:` branch is the one that sets
     status=Unhealthy, and its body carries nvidia-smi's own stderr -- the

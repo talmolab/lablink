@@ -69,17 +69,30 @@ BENIGN_CLIENT_PATTERNS: tuple[str, ...] = (
     "Push failed; will retry next interval",  # monitoring/__main__.py:174
 )
 
-# Uppercase `ERROR` printed by third-party programs in the client's desktop
-# stack -- not a log level, just the word. `euid != 0` is the X11/ICE
-# transport refusing to create its socket dir because the container runs
-# non-root, which is expected and harmless; it is the whole errors-only view
-# on an otherwise-healthy VM (observed live 2026-08-17):
+# Uppercase level tokens printed by third-party programs in the client's
+# desktop stack where they do not mean "a service failed". Each entry was
+# observed on a live VM before being added -- never guessed at. These
+# strings live in X.Org / libICE / GLib, not our source, so they are NOT
+# drift-checked.
+#
+# `ERROR: euid != 0` is the X11/ICE transport refusing to create its socket
+# dir because the container runs non-root; expected and harmless (observed
+# live 2026-08-17):
 #   [kasmvnc]  _XSERVTransmkdir: ERROR: euid != 0,directory /tmp/.X11-unix ...
 #   [xstartup] _IceTransmkdir: ERROR: euid != 0,directory /tmp/.ICE-unix ...
-# These strings live in X.Org / libICE, not our source, so they are NOT
-# drift-checked. Add a new entry when a desktop-stack line proves noisy.
+#
+# `-CRITICAL **:` is GLib's g_critical format (`<domain>-CRITICAL **:`,
+# e.g. GLib-GObject-CRITICAL, Gtk-CRITICAL). In this container it is XFCE
+# apps hitting assertions in the no-system-dbus environment while running
+# fine; the hyphen before CRITICAL is a word boundary, so the level regex
+# matches it (observed live 2026-08-17):
+#   [xstartup] (xfdesktop:176): GLib-GObject-CRITICAL **: ...
+#     g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+# Only GLib-based programs emit this format, and none of our services log
+# through GLib, so a real error can never carry it.
 BENIGN_NOISE_PATTERNS: tuple[str, ...] = (
     "ERROR: euid != 0",  # _XSERVTransmkdir / _IceTransmkdir socket-dir notice
+    "-CRITICAL **:",  # GLib g_critical from XFCE desktop apps
 )
 
 
