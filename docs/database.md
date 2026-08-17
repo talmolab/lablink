@@ -2,6 +2,12 @@
 
 This guide covers the PostgreSQL database used by LabLink, including schema, management tasks, and troubleshooting.
 
+!!! note "Who this page is for"
+    This is an internal reference for LabLink contributors and for
+    troubleshooting a running deployment. If you are deploying LabLink for
+    your research software, the only database setting you touch is
+    `db.password` — see [Configuration](configuration.md#database-options-db).
+
 ## Database Overview
 
 LabLink uses **PostgreSQL** for:
@@ -344,132 +350,6 @@ Only delete after VM instance is terminated in AWS.
 TRUNCATE TABLE vms;
 ```
 
-## Database Backup
-
-### Manual Backup
-
-```bash
-# SSH into allocator
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-
-# Backup database
-sudo docker exec <container-id> pg_dump -U lablink lablink_db > lablink_backup.sql
-
-# Download backup
-scp -i ~/lablink-key.pem ubuntu@<allocator-ip>:~/lablink_backup.sql ./
-```
-
-### Automated Backup Script
-
-**`backup.sh`**:
-
-```bash
-#!/bin/bash
-
-CONTAINER_ID=$(sudo docker ps --filter "ancestor=ghcr.io/talmolab/lablink-allocator-image" --format "{{.ID}}")
-BACKUP_DIR="/home/ubuntu/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p $BACKUP_DIR
-
-sudo docker exec $CONTAINER_ID pg_dump -U lablink lablink_db > $BACKUP_DIR/lablink_$DATE.sql
-
-# Upload to S3
-aws s3 cp $BACKUP_DIR/lablink_$DATE.sql s3://lablink-backups/
-
-# Keep only last 7 days locally
-find $BACKUP_DIR -name "lablink_*.sql" -mtime +7 -delete
-
-echo "Backup complete: lablink_$DATE.sql"
-```
-
-**Setup cron job**:
-
-```bash
-# Edit crontab
-crontab -e
-
-# Add daily backup at 2 AM
-0 2 * * * /home/ubuntu/backup.sh >> /var/log/lablink-backup.log 2>&1
-```
-
-### Restore from Backup
-
-```bash
-# SSH into allocator
-ssh -i ~/lablink-key.pem ubuntu@<allocator-ip>
-
-# Copy backup to instance
-scp -i ~/lablink-key.pem lablink_backup.sql ubuntu@<allocator-ip>:~/
-
-# Restore database
-sudo docker exec -i <container-id> psql -U lablink lablink_db < lablink_backup.sql
-```
-
-## Database Maintenance
-
-### Vacuum Database
-
-Remove dead tuples and reclaim space:
-
-```sql
--- Analyze and vacuum
-VACUUM ANALYZE vms;
-
--- Full vacuum (more aggressive, requires exclusive lock)
-VACUUM FULL vms;
-```
-
-### Reindex
-
-Rebuild indexes for performance:
-
-```sql
-REINDEX TABLE vms;
-```
-
-### Check Database Size
-
-```sql
-SELECT pg_size_pretty(pg_database_size('lablink_db'));
-```
-
-### Check Table Size
-
-```sql
-SELECT
-  schemaname,
-  tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-```
-
-### View Active Connections
-
-```sql
-SELECT
-  pid,
-  usename,
-  application_name,
-  client_addr,
-  state,
-  query
-FROM pg_stat_activity
-WHERE datname = 'lablink_db';
-```
-
-### Kill Idle Connections
-
-```sql
-SELECT pg_terminate_backend(pid)
-FROM pg_stat_activity
-WHERE datname = 'lablink_db'
-  AND state = 'idle'
-  AND state_change < NOW() - INTERVAL '10 minutes';
-```
-
 ## Troubleshooting
 
 ### PostgreSQL Won't Start
@@ -530,41 +410,6 @@ Should include:
 host    all             all             0.0.0.0/0            md5
 ```
 
-### Database Performance Issues
-
-**Check slow queries**:
-
-```sql
-SELECT
-  pid,
-  now() - pg_stat_activity.query_start AS duration,
-  query
-FROM pg_stat_activity
-WHERE state = 'active'
-  AND now() - pg_stat_activity.query_start > interval '5 seconds'
-ORDER BY duration DESC;
-```
-
-**Enable query logging**:
-
-```bash
-# In postgresql.conf
-log_min_duration_statement = 1000  # Log queries > 1 second
-```
-
-**Add indexes**:
-
-```sql
--- Index on email for faster lookups
-CREATE INDEX idx_vms_email ON vms(email);
-
--- Index on status
-CREATE INDEX idx_vms_status ON vms(status);
-
--- Composite index
-CREATE INDEX idx_vms_status_email ON vms(status, email);
-```
-
 ### Restart PostgreSQL
 
 Known issue requiring manual restart after first boot:
@@ -583,51 +428,11 @@ sudo docker exec -it <container-id> bash
 pg_isready -U lablink
 ```
 
-## Security Best Practices
+## Security
 
-1. **Change default password**: See [Security](security.md#database-password)
-2. **Use SSL connections**: Configure `sslmode=require`
-3. **Restrict pg_hba.conf**: Limit to specific IPs/VPCs
-4. **Regular backups**: Automate daily backups
-5. **Monitor access logs**: Review connection attempts
-
-## Performance Tuning
-
-### Configuration Recommendations
-
-For allocator with 2GB RAM:
-
-```
-# postgresql.conf
-shared_buffers = 512MB
-effective_cache_size = 1GB
-maintenance_work_mem = 128MB
-checkpoint_completion_target = 0.9
-wal_buffers = 16MB
-default_statistics_target = 100
-random_page_cost = 1.1
-effective_io_concurrency = 200
-work_mem = 5MB
-min_wal_size = 1GB
-max_wal_size = 4GB
-```
-
-### Connection Pooling
-
-For high-concurrency, use pgBouncer:
-
-```yaml
-# docker-compose.yml
-services:
-  pgbouncer:
-    image: pgbouncer/pgbouncer
-    environment:
-      DATABASES_HOST: localhost
-      DATABASES_PORT: 5432
-      DATABASES_DBNAME: lablink_db
-    ports:
-      - "6432:6432"
-```
+The database is reachable only from inside the allocator container
+(`localhost:5432`), so the one thing to do is **change the default
+password** — see [Security](security.md#database-password).
 
 ## Next Steps
 
@@ -652,13 +457,4 @@ WHERE status = 'running' AND useremail IS NULL AND adminreservedat IS NULL;
 -- Release a seat back to the pool
 UPDATE vms SET useremail = NULL, sessionid = NULL, browsertoken = NULL
 WHERE hostname = 'i-xxxxx';
-
--- Backup
-pg_dump -U lablink lablink_db > backup.sql
-
--- Restore
-psql -U lablink lablink_db < backup.sql
-
--- Vacuum
-VACUUM ANALYZE vms;
 ```
