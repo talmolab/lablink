@@ -22,7 +22,8 @@ Your Docker image should contain:
 
 1. Base OS (Ubuntu, Debian, etc.)
 2. Your research software and dependencies
-3. LabLink client service (optional, for health monitoring)
+3. LabLink client service — required for the VM to report status, become
+   assignable to participants, and serve the in-browser desktop
 
 #### Option A: Extend LabLink Client Base
 
@@ -46,15 +47,24 @@ COPY your_software/ /home/client/your_software/
 
 #### Option B: Build from Scratch
 
+!!! warning "Prefer Option A"
+    LabLink runs your image with its own entrypoint and expects it to do what
+    the base image's `start.sh` does: report `status=running` back to the
+    allocator, run the client agent (health reporting and assignment), and
+    serve the KasmVNC desktop. A from-scratch image that skips these will pull
+    and start, but the VM never becomes assignable and has no in-browser
+    desktop. Only build from scratch if you use LabLink purely as a VM
+    launcher and access machines over SSH.
+
 Create a completely custom image:
 
 **`Dockerfile`**:
 ```dockerfile
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 # Install basic dependencies
 RUN apt-get update && apt-get install -y \
-    python3.9 \
+    python3 \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -65,10 +75,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # Install your research software
 RUN uv pip install --system your-research-package
 
-# Optional: Include LabLink client for monitoring
-COPY --from=ghcr.io/talmolab/lablink-client-base-image:latest \
-    /app/lablink-client-service \
-    /app/lablink-client-service
+# Optional: Include LabLink client service for health monitoring
+RUN uv pip install --system lablink-client-service
 
 # Your startup script
 COPY entrypoint.sh /entrypoint.sh
@@ -94,32 +102,15 @@ docker push ghcr.io/your-org/your-research-image:latest
 !!! tip "GitHub Container Registry"
     Use GitHub Container Registry (ghcr.io) for free image hosting. See [GitHub Packages](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
-### Step 2: Prepare Your Code Repository
+### Step 2: Prepare Your Code Repository (Optional)
 
-If your research code lives in a Git repository, LabLink can automatically clone it onto each VM.
+If you set `machine.repository`, LabLink clones that Git repository onto each
+VM's desktop — useful for tutorial notebooks, example data, or scripts
+participants should find waiting for them. There is no required layout; any
+public repository works.
 
-**Requirements**:
-- Public repository (or configure SSH keys for private)
-- Code that can run non-interactively
-- Dependencies installable via package manager
-
-**Example Repository Structure**:
-```
-your-research-repo/
-├── README.md
-├── requirements.txt
-├── setup.py (or pyproject.toml)
-├── your_package/
-│   ├── __init__.py
-│   ├── main.py
-│   └── analysis.py
-├── configs/
-│   └── default_config.yaml
-└── scripts/
-    └── run_analysis.sh
-```
-
-**Entrypoint**: Ensure your code has a clear entrypoint (script, main function, etc.)
+Skip this step if your Docker image from Step 1 is self-contained — VMs work
+fine without a repository.
 
 ### Step 3: Update LabLink Configuration
 
@@ -131,7 +122,7 @@ Edit the allocator configuration to use your custom image and repository.
 machine:
   machine_type: "g4dn.xlarge"  # Choose appropriate instance type
   image: "ghcr.io/your-org/your-research-image:latest"
-  ami_id: "ami-067cc81f948e50e06"  # Ubuntu 20.04 + Docker (us-west-2)
+  ami_id: "ami-0601752c11b394251"  # Ubuntu 24.04 + Docker + NVIDIA (us-west-2)
   repository: "https://github.com/your-org/your-research-code.git"
   software: "your-software-name"
 
@@ -191,42 +182,22 @@ open http://localhost:5000
 
 ### Step 5: Deploy to AWS
 
-Once local testing succeeds, deploy to AWS.
+Once local testing succeeds, deploy using either standard path — you don't
+need to build your own infrastructure repository:
 
-#### Update Configuration
+- **CLI** ([CLI Quickstart](quickstart.md)): run `lablink deploy` with your
+  `config.yaml`. No repository to own.
+- **Template repo** ([Template Quickstart](quickstart-template.md)): create a
+  repository from
+  [lablink-template](https://github.com/talmolab/lablink-template), commit
+  your `config/config.yaml` changes, and GitHub Actions runs OpenTofu for you.
 
-Commit your configuration changes:
+Then verify:
 
-```bash
-git add lablink-infrastructure/config/config.yaml
-git commit -m "Configure LabLink for [your software]"
-git push
-```
-
-#### Deploy via OpenTofu
-
-```bash
-cd lablink-infrastructure
-
-tofu init
-
-tofu apply \
-  -var="resource_suffix=dev" \
-  -var="allocator_image_tag=linux-amd64-latest-test"
-```
-
-#### Verify Deployment
-
-1. Get allocator IP:
-   ```bash
-   tofu output ec2_public_ip
-   ```
-
-2. Access web interface: `http://<ec2_ip>:80`
-
-3. Create client VMs via admin interface
-
-4. Monitor VM creation and status
+1. Open the allocator admin page (the CLI prints the URL; the template flow
+   shows the allocator IP in the GitHub Actions logs)
+2. Create client VMs via the admin interface
+3. Monitor VM creation and status
 
 ## Advanced Customization
 
@@ -236,7 +207,7 @@ For faster VM startup, create a custom AMI with your software pre-installed:
 
 ```bash
 # Launch base instance
-aws ec2 run-instances --image-id ami-067cc81f948e50e06 ...
+aws ec2 run-instances --image-id ami-0601752c11b394251 ...
 
 # SSH in and install your software
 ssh -i key.pem ubuntu@<instance-ip>
@@ -302,18 +273,17 @@ machine:
 
 ### Private Docker Registries
 
-Use private registries (Docker Hub, ECR):
+Private registries are **not supported out of the box**. The client VM's
+startup script runs an unauthenticated `docker pull`, and that script ships
+inside the allocator package — it is not user-editable in either deployment
+path. A private image fails at pull time.
 
-1. Store registry credentials in AWS Secrets Manager
-2. Update user data script to authenticate:
-   ```bash
-   aws ecr get-login-password --region us-west-2 | \
-     docker login --username AWS --password-stdin <account>.dkr.ecr.us-west-2.amazonaws.com
-   ```
-3. Reference private image:
-   ```yaml
-   image: "<account>.dkr.ecr.us-west-2.amazonaws.com/your-image:latest"
-   ```
+Your options:
+
+- **Make the image public** (e.g., a public ghcr.io package) — recommended
+- **Bake registry credentials into a custom AMI**: pre-configure `docker login`
+  or a credential helper (such as the ECR credential helper) on the AMI, then
+  set `machine.ami_id` to it (see [Custom AMI](#custom-ami))
 
 ### Custom Health Checks
 
@@ -355,11 +325,11 @@ Complete example for a PyTorch training workflow.
 ### Dockerfile
 
 ```dockerfile
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
 
 # Install Python and dependencies
 RUN apt-get update && apt-get install -y \
-    python3.9 git \
+    python3 git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -367,7 +337,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # Install PyTorch
 RUN uv pip install --system torch torchvision torchaudio \
-    --index-url https://download.pytorch.org/whl/cu118
+    --index-url https://download.pytorch.org/whl/cu128
 
 # Install your training code dependencies
 COPY requirements.txt /app/
@@ -389,7 +359,7 @@ machine:
   image: "ghcr.io/your-org/pytorch-training:latest"
   repository: "https://github.com/your-org/training-data.git"
   software: "pytorch-training"
-  ami_id: "ami-067cc81f948e50e06"
+  ami_id: "ami-0601752c11b394251"
 ```
 
 ### Training Script
