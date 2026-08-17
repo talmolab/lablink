@@ -357,7 +357,9 @@ fi
 # in parallel (see lablink#376). Retry re-runs the WHOLE script, so it
 # must be safe to run more than once (e.g. `uv tool install` already is).
 if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-startup.sh" ]; then
-  sudo chmod +x /docker_scripts/custom-startup.sh
+  # No chmod +x: the script is only ever invoked via `bash .../custom-startup.sh`
+  # below, and the mount is read-only, so a chmod just logs
+  # "chmod: ... Read-only file system" on every boot.
 
   MAX_ATTEMPTS="${STARTUP_MAX_ATTEMPTS:-1}"
   [ "$MAX_ATTEMPTS" -lt 1 ] 2>/dev/null && MAX_ATTEMPTS=1
@@ -428,6 +430,11 @@ mkdir -p /home/client/.vnc
   echo '#!/bin/sh'
   echo 'unset SESSION_MANAGER'
   echo 'unset DBUS_SESSION_BUS_ADDRESS'
+  # No accessibility bus exists in this container, so every GTK app the
+  # session spawns logs "dbind-WARNING **: AT-SPI: Error retrieving
+  # accessibility bus address" -- a dozen-plus lines per boot. NO_AT_BRIDGE=1
+  # tells GTK not to look for one.
+  echo 'export NO_AT_BRIDGE=1'
   echo 'exec dbus-launch --exit-with-session xfce4-session'
 } > /home/client/.vnc/xstartup
 chmod +x /home/client/.vnc/xstartup
@@ -436,6 +443,21 @@ chmod +x /home/client/.vnc/xstartup
 # runs /usr/lib/kasmvncserver/select-de.sh unless this sentinel exists; in
 # a non-tty container, select-de.sh has no stdin and aborts the launch.
 touch /home/client/.vnc/.de-was-selected
+
+# Pre-create the X11 and ICE socket directories. This container runs as the
+# non-root `client` user, so when Xvnc and libICE start they cannot create
+# these themselves and X.Org's trans_mkdir logs, at boot on every VM:
+#   [kasmvnc]  _XSERVTransmkdir: ERROR: euid != 0,directory /tmp/.X11-unix ...
+#   [xstartup] _IceTransmkdir: ERROR: euid != 0,directory /tmp/.ICE-unix ...
+# It is benign -- Xvnc serves over the websocket port and local X clients
+# reach DISPLAY :1 over TCP -- but the lines carry the literal word ERROR,
+# so an errors-only log view shows nothing else on a healthy VM. Creating
+# the dirs root:root with the sticky bit (the standard /tmp/.X11-unix state)
+# makes trans_mkdir accept them silently. sudo is available to this user
+# (see the tailscaled launch above). Also lets the X1-socket wait below
+# succeed instead of spinning for its full timeout.
+sudo mkdir -p /tmp/.X11-unix /tmp/.ICE-unix
+sudo chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
 
 # Inert, retained pending a separate cleanup. kasmvnc.yaml is read only by
 # the kasmvncserver Perl wrapper, which we bypass to exec Xvnc directly
@@ -688,8 +710,9 @@ fi
 CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 
-# Send container startup completion to allocator
-curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
+# Send container startup completion to allocator. -sS: without it curl dumps
+# its progress table ("% Total  % Received ...") into the boot log.
+curl -sS -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $CLIENT_SECRET" \
   -d "{
