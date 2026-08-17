@@ -154,33 +154,22 @@ Costs for running research workload VMs.
 
 #### Cost Optimization Strategies
 
-**Option 1: Spot Instances** (Up to 90% savings)
-
-```hcl
-# terraform/main.tf
-resource "aws_instance" "client" {
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      max_price = "0.20"  # Max price you're willing to pay
-    }
-  }
-}
-```
-
-- **g4dn.xlarge Spot**: ~$0.158/hour (vs $0.526 on-demand)
-- **Savings**: 70%
-- **Risk**: Can be terminated if capacity needed
-
-**Option 2: Terminate After Use**
+**Option 1: Terminate After Use**
 - Only run VMs when actively working
 - Cost: Per-hour usage only
 
 **Example**: 10 VMs × 8 hours = 80 hours × $0.526 = **$42.08**
 
-**Option 3: Right-Size Instance Types**
+**Option 2: Right-Size Instance Types**
 - Use smallest instance that meets requirements
 - Test on smaller instances first
+
+!!! note "What about Spot Instances?"
+    LabLink does not currently support Spot Instances for client VMs. The
+    client-VM Terraform ships inside the allocator container image, so there is
+    no configuration key or user-editable file to enable spot pricing — it
+    would require modifying the allocator's bundled Terraform and rebuilding
+    the image.
 
 #### CPU-Only Instance Types (Non-GPU)
 
@@ -200,10 +189,10 @@ For non-GPU workloads:
 
 | Volume Type | Allocator | Client VM | Price/GB-Month |
 |-------------|-----------|-----------|----------------|
-| **gp3** | 30 GB | 100 GB | $0.08 |
+| **gp3** | 20 GB | 80 GB | $0.08 |
 
-**Allocator**: 30 GB × $0.08 = **$2.40/month**
-**Client VM**: 100 GB × $0.08 = **$8.00/month per VM**
+**Allocator**: 20 GB × $0.08 = **$1.60/month**
+**Client VM**: 80 GB × $0.08 = **$6.40/month per VM**
 
 **Note**: EBS charges apply even for stopped instances. Terminate to avoid charges.
 
@@ -257,9 +246,9 @@ If using resources across regions:
 - Infrastructure: $0.05/month
 - Allocator: 40 hours × $0.0832 = $3.33
 - Client VMs: 2 × 40 hours × $0.526 = $42.08
-- Storage: $2.40 (allocator) + $16.00 (2 clients) = $18.40
+- Storage: $1.60 (allocator) + $12.80 (2 clients) = $14.40
 
-**Total**: **~$64/month**
+**Total**: **~$60/month**
 
 ### Scenario 2: Light Production Use
 
@@ -272,41 +261,41 @@ If using resources across regions:
 - Infrastructure: $0.95/month (with Route 53)
 - Allocator: $60.74/month
 - Client VMs: 5 × 160 hours × $0.526 = $420.80
-- Storage: $2.40 + (5 × $8.00) = $42.40
+- Storage: $1.60 + (5 × $6.40) = $33.60
 
-**Total**: **~$525/month**
+**Total**: **~$516/month**
 
 ### Scenario 3: Heavy Production Use
 
 **Setup**:
 - 1 allocator (t3.large, 24/7)
-- 20 client VMs (g4dn.xlarge, Spot Instances)
+- 20 client VMs (g4dn.xlarge)
 - VMs running 320 hours/month each
 
 **Costs**:
 - Infrastructure: $0.95/month
 - Allocator: $60.74/month
-- Client VMs: 20 × 320 hours × $0.158 (Spot) = $1,011.20
-- Storage: $2.40 + (20 × $8.00) = $162.40
+- Client VMs: 20 × 320 hours × $0.526 = $3,366.40
+- Storage: $1.60 + (20 × $6.40) = $129.60
 
-**Total**: **~$1,235/month**
+**Total**: **~$3,558/month**
 
-**Savings vs On-Demand**: the same client VMs on-demand would be 20 × 320 × $0.526 = $3,366.40, so Spot saves **~$2,355/month** on that line. A Reserved Instance or Savings Plan on the allocator would trim the $60.74 further.
+At this scale, a Reserved Instance or Savings Plan on the always-on allocator trims the $60.74, but the client VMs dominate — terminating them promptly when idle matters far more.
 
 ### Scenario 4: Minimal (Cost-Conscious)
 
 **Setup**:
 - 1 allocator (t3.large)
-- 3 client VMs (g4dn.xlarge, Spot)
+- 3 client VMs (g4dn.xlarge)
 - Only running when actively working (40 hours/month)
 
 **Costs**:
 - Infrastructure: $0.05/month
 - Allocator: 40 hours × $0.0832 = $3.33
-- Client VMs: 3 × 40 hours × $0.158 (Spot) = $18.96
+- Client VMs: 3 × 40 hours × $0.526 = $63.12
 - Storage: Minimal (terminate when done) = $0.50
 
-**Total**: **~$23/month**
+**Total**: **~$67/month**
 
 ## Cost Monitoring
 
@@ -358,7 +347,6 @@ View costs by tag in Cost Explorer.
 
 ## Cost Optimization Checklist
 
-- [ ] Use Spot Instances for client VMs (70-90% savings)
 - [ ] Terminate VMs when not in use
 - [ ] Use Reserved Instances for always-on allocators (75% savings)
 - [ ] Right-size instance types (don't over-provision)
@@ -411,7 +399,7 @@ New AWS accounts get 12 months of free tier:
 
 | Service | Monthly Cost (5 VMs) | Setup Complexity |
 |---------|----------------------|------------------|
-| **LabLink** | ~$525 | Moderate |
+| **LabLink** | ~$516 | Moderate |
 | **AWS Batch** | ~$500+ | High |
 | **SageMaker** | ~$600+ | Moderate |
 | **Cloud GPUs (vast.ai)** | ~$200-400 | Low |
