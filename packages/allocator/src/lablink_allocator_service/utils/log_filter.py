@@ -10,7 +10,10 @@ So the rule matches the level markers those producers actually emit --
 Python's uppercase `%(levelname)s` tokens, cloudflared's zerolog
 three-letter levels (`ERR`/`FTL`) and postgres' `PANIC`. It is a
 recall-first rule; what keeps it honest is being case-sensitive, plus a
-short denylist. See _ERROR_RE and BENIGN_ERROR_PATTERNS.
+short denylist. The denylist has two halves: BENIGN_CLIENT_PATTERNS (our
+own retry-exhausted reporting lines) and BENIGN_NOISE_PATTERNS (the literal
+word `ERROR` printed by third-party desktop-stack programs, e.g. the X11
+`euid != 0` socket-dir notice). See _ERROR_RE and BENIGN_ERROR_PATTERNS.
 
 Flask-free on purpose, like log_tail.py next door: the rule is the part
 worth testing, and keeping it out of the route modules lets it test
@@ -48,7 +51,7 @@ _PREFIX_RE = re.compile(
     r"^(?:\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}\S*\s+)?(?:\[(?P<tag>[\w.-]+)\]\s?)?"
 )
 
-# ERROR-level lines from the client's reporting path: a report was lost
+# ERROR-level lines from the client's own reporting path: a report was lost
 # after its retries were exhausted, which does not affect the VM's own
 # usability -- the desktop is still serving and the student is unaffected.
 # Suppressed here rather than downgraded at the source because client code
@@ -57,11 +60,32 @@ _PREFIX_RE = re.compile(
 # already-running VM on allocator restart. Substring-matched against the
 # whole line, so the `[tag] ` prefix and the f-string tails do not matter.
 # A real failure diagnosis never belongs here (see test_log_filter.py's
-# drift test, and the nvidia-smi entry this list used to carry).
-BENIGN_ERROR_PATTERNS: tuple[str, ...] = (
+# drift test, and the nvidia-smi entry this list used to carry). Because
+# these are our own strings, the drift test asserts each still exists in the
+# client source, so a rename fails loudly instead of silently un-suppressing.
+BENIGN_CLIENT_PATTERNS: tuple[str, ...] = (
     "Failed to report GPU health after",  # check_gpu.py:112
     "Failed to update in-use status after",  # update_inuse_status.py:114
     "Push failed; will retry next interval",  # monitoring/__main__.py:174
+)
+
+# Uppercase `ERROR` printed by third-party programs in the client's desktop
+# stack -- not a log level, just the word. `euid != 0` is the X11/ICE
+# transport refusing to create its socket dir because the container runs
+# non-root, which is expected and harmless; it is the whole errors-only view
+# on an otherwise-healthy VM (observed live 2026-08-17):
+#   [kasmvnc]  _XSERVTransmkdir: ERROR: euid != 0,directory /tmp/.X11-unix ...
+#   [xstartup] _IceTransmkdir: ERROR: euid != 0,directory /tmp/.ICE-unix ...
+# These strings live in X.Org / libICE, not our source, so they are NOT
+# drift-checked. Add a new entry when a desktop-stack line proves noisy.
+BENIGN_NOISE_PATTERNS: tuple[str, ...] = (
+    "ERROR: euid != 0",  # _XSERVTransmkdir / _IceTransmkdir socket-dir notice
+)
+
+# is_error_line() and the suppression test check the union; only
+# BENIGN_CLIENT_PATTERNS is drift-checked against the client source.
+BENIGN_ERROR_PATTERNS: tuple[str, ...] = (
+    BENIGN_CLIENT_PATTERNS + BENIGN_NOISE_PATTERNS
 )
 
 

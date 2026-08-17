@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from lablink_allocator_service.utils.log_filter import (
+    BENIGN_CLIENT_PATTERNS,
     BENIGN_ERROR_PATTERNS,
     filter_errors,
     is_error_line,
@@ -67,11 +68,38 @@ def test_every_benign_pattern_is_suppressed(pattern):
 
 
 @pytest.mark.skipif(not CLIENT_SRC.exists(), reason="client package not in checkout")
-@pytest.mark.parametrize("pattern", BENIGN_ERROR_PATTERNS)
+@pytest.mark.parametrize("pattern", BENIGN_CLIENT_PATTERNS)
 def test_benign_pattern_still_exists_in_client_source(pattern):
-    """A renamed client log message must fail here, not drift silently."""
+    """A renamed client log message must fail here, not drift silently.
+
+    Only BENIGN_CLIENT_PATTERNS are ours; BENIGN_NOISE_PATTERNS come from
+    third-party binaries (X11/ICE) and are deliberately not drift-checked.
+    """
     hits = [p for p in CLIENT_SRC.rglob("*.py") if pattern in p.read_text()]
     assert hits, f"{pattern!r} no longer appears in the client source"
+
+
+def test_x11_socket_dir_notice_is_not_an_error():
+    """The X11/ICE transport prints the literal word `ERROR` when it cannot
+    make its socket dir as non-root -- benign, and on a healthy VM it is the
+    entire errors-only view. Both real lines (observed live 2026-08-17)
+    share the `ERROR: euid != 0` substring."""
+    xserv = (
+        "2026-08-17T16:41:00Z [kasmvnc] _XSERVTransmkdir: ERROR: euid != 0,"
+        "directory /tmp/.X11-unix will not be created."
+    )
+    ice = (
+        "2026-08-17T16:41:01Z [xstartup] _IceTransmkdir: ERROR: euid != 0,"
+        "directory /tmp/.ICE-unix will not be created."
+    )
+    assert not is_error_line(xserv)
+    assert not is_error_line(ice)
+    # A real client ERROR (Hydra format `[LEVEL]`) still survives alongside.
+    real = (
+        "2026-08-17T16:41:02Z [check_gpu] [2026-08-17 16:41:02,505]"
+        "[lablink_client_service.check_gpu][ERROR] - GPU status: Unhealthy"
+    )
+    assert filter_errors("\n".join([xserv, ice, real])) == real
 
 
 def test_a_real_gpu_failure_is_not_suppressed():
