@@ -1034,10 +1034,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-prepare-your-code-repository" class="md-nav__link">
+  <a href="#step-2-prepare-your-code-repository-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: Prepare Your Code Repository
+        Step 2: Prepare Your Code Repository (Optional)
       
     </span>
   </a>
@@ -1113,45 +1113,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Deploy to AWS">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#update-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Update Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#deploy-via-opentofu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Deploy via OpenTofu
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verify-deployment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verify Deployment
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -4885,10 +4846,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-prepare-your-code-repository" class="md-nav__link">
+  <a href="#step-2-prepare-your-code-repository-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: Prepare Your Code Repository
+        Step 2: Prepare Your Code Repository (Optional)
       
     </span>
   </a>
@@ -4964,45 +4925,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Deploy to AWS">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#update-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Update Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#deploy-via-opentofu" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Deploy via OpenTofu
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verify-deployment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verify Deployment
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -5265,7 +5187,8 @@
 <ol>
 <li>Base OS (Ubuntu, Debian, etc.)</li>
 <li>Your research software and dependencies</li>
-<li>LabLink client service (optional, for health monitoring)</li>
+<li>LabLink client service — required for the VM to report status, become
+   assignable to participants, and serve the in-browser desktop</li>
 </ol>
 <h4 id="option-a-extend-lablink-client-base">Option A: Extend LabLink Client Base<a class="headerlink" href="#option-a-extend-lablink-client-base" title="Permanent link">&para;</a></h4>
 <p>Build on top of the existing LabLink client image:</p>
@@ -5284,13 +5207,23 @@
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">COPY</span><span class="w"> </span>your_software/<span class="w"> </span>/home/client/your_software/
 </code></pre></div></p>
 <h4 id="option-b-build-from-scratch">Option B: Build from Scratch<a class="headerlink" href="#option-b-build-from-scratch" title="Permanent link">&para;</a></h4>
+<div class="admonition warning">
+<p class="admonition-title">Prefer Option A</p>
+<p>LabLink runs your image with its own entrypoint and expects it to do what
+the base image's <code>start.sh</code> does: report <code>status=running</code> back to the
+allocator, run the client agent (health reporting and assignment), and
+serve the KasmVNC desktop. A from-scratch image that skips these will pull
+and start, but the VM never becomes assignable and has no in-browser
+desktop. Only build from scratch if you use LabLink purely as a VM
+launcher and access machines over SSH.</p>
+</div>
 <p>Create a completely custom image:</p>
 <p><strong><code>Dockerfile</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ubuntu:20.04</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">ubuntu:24.04</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c"># Install basic dependencies</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>python3.9<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>python3<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>git<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
@@ -5301,16 +5234,14 @@
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c"># Install your research software</span>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>your-research-package
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c"># Optional: Include LabLink client for monitoring</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>ghcr.io/talmolab/lablink-client-base-image:latest<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span>/app/lablink-client-service<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span>/app/lablink-client-service
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="c"># Your startup script</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="k">COPY</span><span class="w"> </span>entrypoint.sh<span class="w"> </span>/entrypoint.sh
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="k">RUN</span><span class="w"> </span>chmod<span class="w"> </span>+x<span class="w"> </span>/entrypoint.sh
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="k">ENTRYPOINT</span><span class="w"> </span><span class="p">[</span><span class="s2">"/entrypoint.sh"</span><span class="p">]</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c"># Optional: Include LabLink client service for health monitoring</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>lablink-client-service
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c"># Your startup script</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="k">COPY</span><span class="w"> </span>entrypoint.sh<span class="w"> </span>/entrypoint.sh
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="k">RUN</span><span class="w"> </span>chmod<span class="w"> </span>+x<span class="w"> </span>/entrypoint.sh
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="k">ENTRYPOINT</span><span class="w"> </span><span class="p">[</span><span class="s2">"/entrypoint.sh"</span><span class="p">]</span>
 </code></pre></div></p>
 <h4 id="build-and-push">Build and Push<a class="headerlink" href="#build-and-push" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Build your image</span>
@@ -5327,38 +5258,24 @@
 <p class="admonition-title">GitHub Container Registry</p>
 <p>Use GitHub Container Registry (ghcr.io) for free image hosting. See <a href="https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry">GitHub Packages</a>.</p>
 </div>
-<h3 id="step-2-prepare-your-code-repository">Step 2: Prepare Your Code Repository<a class="headerlink" href="#step-2-prepare-your-code-repository" title="Permanent link">&para;</a></h3>
-<p>If your research code lives in a Git repository, LabLink can automatically clone it onto each VM.</p>
-<p><strong>Requirements</strong>:
-- Public repository (or configure SSH keys for private)
-- Code that can run non-interactively
-- Dependencies installable via package manager</p>
-<p><strong>Example Repository Structure</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>your-research-repo/
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>├── README.md
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>├── requirements.txt
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>├── setup.py (or pyproject.toml)
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>├── your_package/
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│   ├── __init__.py
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│   ├── main.py
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│   └── analysis.py
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>├── configs/
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>│   └── default_config.yaml
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>└── scripts/
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    └── run_analysis.sh
-</code></pre></div></p>
-<p><strong>Entrypoint</strong>: Ensure your code has a clear entrypoint (script, main function, etc.)</p>
+<h3 id="step-2-prepare-your-code-repository-optional">Step 2: Prepare Your Code Repository (Optional)<a class="headerlink" href="#step-2-prepare-your-code-repository-optional" title="Permanent link">&para;</a></h3>
+<p>If you set <code>machine.repository</code>, LabLink clones that Git repository onto each
+VM's desktop — useful for tutorial notebooks, example data, or scripts
+participants should find waiting for them. There is no required layout; any
+public repository works.</p>
+<p>Skip this step if your Docker image from Step 1 is self-contained — VMs work
+fine without a repository.</p>
 <h3 id="step-3-update-lablink-configuration">Step 3: Update LabLink Configuration<a class="headerlink" href="#step-3-update-lablink-configuration" title="Permanent link">&para;</a></h3>
 <p>Edit the allocator configuration to use your custom image and repository.</p>
 <p><strong><code>lablink-infrastructure/config/config.yaml</code></strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g4dn.xlarge"</span><span class="w">  </span><span class="c1"># Choose appropriate instance type</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image:latest"</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-067cc81f948e50e06"</span><span class="w">  </span><span class="c1"># Ubuntu 20.04 + Docker (us-west-2)</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="s">"https://github.com/your-org/your-research-code.git"</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-name"</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># ... rest of config</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g4dn.xlarge"</span><span class="w">  </span><span class="c1"># Choose appropriate instance type</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image:latest"</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-0601752c11b394251"</span><span class="w">  </span><span class="c1"># Ubuntu 24.04 + Docker + NVIDIA (us-west-2)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="s">"https://github.com/your-org/your-research-code.git"</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-name"</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># ... rest of config</span>
 </code></pre></div>
 <p><strong>Key Fields</strong>:</p>
 <ul>
@@ -5370,14 +5287,14 @@
 <h3 id="step-4-test-locally">Step 4: Test Locally<a class="headerlink" href="#step-4-test-locally" title="Permanent link">&para;</a></h3>
 <p>Before deploying to AWS, test your setup locally.</p>
 <h4 id="run-your-docker-image">Run Your Docker Image<a class="headerlink" href="#run-your-docker-image" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--name<span class="w"> </span>test-client<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_HOST</span><span class="o">=</span>localhost<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_PORT</span><span class="o">=</span><span class="m">5000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>ghcr.io/your-org/your-research-image:latest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--name<span class="w"> </span>test-client<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_HOST</span><span class="o">=</span>localhost<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_PORT</span><span class="o">=</span><span class="m">5000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/your-org/your-research-image:latest
 </code></pre></div>
 <h4 id="check-logs">Check Logs<a class="headerlink" href="#check-logs" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>test-client
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>test-client
 </code></pre></div>
 <p>Verify:
 - Image starts without errors
@@ -5385,73 +5302,57 @@
 - Your code runs as expected</p>
 <h4 id="test-full-stack">Test Full Stack<a class="headerlink" href="#test-full-stack" title="Permanent link">&para;</a></h4>
 <p>Run both allocator and your client locally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Terminal 1: Start allocator</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>-p<span class="w"> </span><span class="m">5000</span>:5000<span class="w"> </span>--name<span class="w"> </span>allocator<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>ghcr.io/talmolab/lablink-allocator-image:latest
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Terminal 2: Start your client</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>client<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_HOST</span><span class="o">=</span>host.docker.internal<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_PORT</span><span class="o">=</span><span class="m">5000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span>ghcr.io/your-org/your-research-image:latest
-<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
-<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="c1"># Check allocator web UI</span>
-<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>open<span class="w"> </span>http://localhost:5000
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Terminal 1: Start allocator</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>-p<span class="w"> </span><span class="m">5000</span>:5000<span class="w"> </span>--name<span class="w"> </span>allocator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>ghcr.io/talmolab/lablink-allocator-image:latest
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Terminal 2: Start your client</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>client<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_HOST</span><span class="o">=</span>host.docker.internal<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">ALLOCATOR_PORT</span><span class="o">=</span><span class="m">5000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span>ghcr.io/your-org/your-research-image:latest
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Check allocator web UI</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>open<span class="w"> </span>http://localhost:5000
 </code></pre></div>
 <h3 id="step-5-deploy-to-aws">Step 5: Deploy to AWS<a class="headerlink" href="#step-5-deploy-to-aws" title="Permanent link">&para;</a></h3>
-<p>Once local testing succeeds, deploy to AWS.</p>
-<h4 id="update-configuration">Update Configuration<a class="headerlink" href="#update-configuration" title="Permanent link">&para;</a></h4>
-<p>Commit your configuration changes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>add<span class="w"> </span>lablink-infrastructure/config/config.yaml
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Configure LabLink for [your software]"</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>push
-</code></pre></div>
-<h4 id="deploy-via-opentofu">Deploy via OpenTofu<a class="headerlink" href="#deploy-via-opentofu" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>lablink-infrastructure
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>tofu<span class="w"> </span>init
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>tofu<span class="w"> </span>apply<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"resource_suffix=dev"</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span>-var<span class="o">=</span><span class="s2">"allocator_image_tag=linux-amd64-latest-test"</span>
-</code></pre></div>
-<h4 id="verify-deployment">Verify Deployment<a class="headerlink" href="#verify-deployment" title="Permanent link">&para;</a></h4>
+<p>Once local testing succeeds, deploy using either standard path — you don't
+need to build your own infrastructure repository:</p>
+<ul>
+<li><strong>CLI</strong> (<a href="../quickstart/">CLI Quickstart</a>): run <code>lablink deploy</code> with your
+  <code>config.yaml</code>. No repository to own.</li>
+<li><strong>Template repo</strong> (<a href="../quickstart-template/">Template Quickstart</a>): create a
+  repository from
+  <a href="https://github.com/talmolab/lablink-template">lablink-template</a>, commit
+  your <code>config/config.yaml</code> changes, and GitHub Actions runs OpenTofu for you.</li>
+</ul>
+<p>Then verify:</p>
 <ol>
-<li>
-<p>Get allocator IP:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>tofu<span class="w"> </span>output<span class="w"> </span>ec2_public_ip
-</code></pre></div></p>
-</li>
-<li>
-<p>Access web interface: <code>http://&lt;ec2_ip&gt;:80</code></p>
-</li>
-<li>
-<p>Create client VMs via admin interface</p>
-</li>
-<li>
-<p>Monitor VM creation and status</p>
-</li>
+<li>Open the allocator admin page (the CLI prints the URL; the template flow
+   shows the allocator IP in the GitHub Actions logs)</li>
+<li>Create client VMs via the admin interface</li>
+<li>Monitor VM creation and status</li>
 </ol>
 <h2 id="advanced-customization">Advanced Customization<a class="headerlink" href="#advanced-customization" title="Permanent link">&para;</a></h2>
 <h3 id="custom-ami">Custom AMI<a class="headerlink" href="#custom-ami" title="Permanent link">&para;</a></h3>
 <p>For faster VM startup, create a custom AMI with your software pre-installed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Launch base instance</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>run-instances<span class="w"> </span>--image-id<span class="w"> </span>ami-067cc81f948e50e06<span class="w"> </span>...
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># SSH in and install your software</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>ssh<span class="w"> </span>-i<span class="w"> </span>key.pem<span class="w"> </span>ubuntu@&lt;instance-ip&gt;
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># ... install your software</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># Create AMI</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-image<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">  </span>--instance-id<span class="w"> </span>i-xxxxx<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">  </span>--name<span class="w"> </span><span class="s2">"your-software-ami"</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">  </span>--description<span class="w"> </span><span class="s2">"Custom AMI with your software"</span>
-<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
-<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="c1"># Use in config.yaml</span>
-<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>machine:
-<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">  </span>ami_id:<span class="w"> </span><span class="s2">"ami-your-custom-ami"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Launch base instance</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>aws<span class="w"> </span>ec2<span class="w"> </span>run-instances<span class="w"> </span>--image-id<span class="w"> </span>ami-0601752c11b394251<span class="w"> </span>...
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># SSH in and install your software</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>ssh<span class="w"> </span>-i<span class="w"> </span>key.pem<span class="w"> </span>ubuntu@&lt;instance-ip&gt;
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># ... install your software</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># Create AMI</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>aws<span class="w"> </span>ec2<span class="w"> </span>create-image<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span>--instance-id<span class="w"> </span>i-xxxxx<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">  </span>--name<span class="w"> </span><span class="s2">"your-software-ami"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">  </span>--description<span class="w"> </span><span class="s2">"Custom AMI with your software"</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="c1"># Use in config.yaml</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>machine:
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">  </span>ami_id:<span class="w"> </span><span class="s2">"ami-your-custom-ami"</span>
 </code></pre></div>
 <p>Benefits:
 - Faster VM startup
@@ -5460,138 +5361,138 @@
 <h3 id="environment-specific-configurations">Environment-Specific Configurations<a class="headerlink" href="#environment-specific-configurations" title="Permanent link">&para;</a></h3>
 <p>Create separate configs for different workloads:</p>
 <p><strong><code>conf/config-cpu.yaml</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"c5.2xlarge"</span><span class="w">  </span><span class="c1"># CPU-optimized</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image-cpu:latest"</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-cpu"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"c5.2xlarge"</span><span class="w">  </span><span class="c1"># CPU-optimized</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image-cpu:latest"</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-cpu"</span>
 </code></pre></div></p>
 <p><strong><code>conf/config-gpu.yaml</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"p3.2xlarge"</span><span class="w">  </span><span class="c1"># GPU-optimized</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image-gpu:latest"</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-gpu"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"p3.2xlarge"</span><span class="w">  </span><span class="c1"># GPU-optimized</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/your-research-image-gpu:latest"</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"your-software-gpu"</span>
 </code></pre></div></p>
 <p>Use with:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>python<span class="w"> </span>main.py<span class="w"> </span>--config-name<span class="o">=</span>config-gpu
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python<span class="w"> </span>main.py<span class="w"> </span>--config-name<span class="o">=</span>config-gpu
 </code></pre></div></p>
 <h3 id="multi-software-support">Multi-Software Support<a class="headerlink" href="#multi-software-support" title="Permanent link">&para;</a></h3>
 <p>Support multiple research software packages in one deployment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Use software identifier to select behavior</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"multi"</span><span class="w">  </span><span class="c1"># Or pass dynamically</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1"># Client code checks software identifier:</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># if config.client.software == "sleap":</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="c1">#     run_sleap()</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># elif config.client.software == "your_tool":</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="c1">#     run_your_tool()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Use software identifier to select behavior</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"multi"</span><span class="w">  </span><span class="c1"># Or pass dynamically</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Client code checks software identifier:</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># if config.client.software == "sleap":</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1">#     run_sleap()</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="c1"># elif config.client.software == "your_tool":</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1">#     run_your_tool()</span>
 </code></pre></div>
 <h3 id="private-docker-registries">Private Docker Registries<a class="headerlink" href="#private-docker-registries" title="Permanent link">&para;</a></h3>
-<p>Use private registries (Docker Hub, ECR):</p>
-<ol>
-<li>Store registry credentials in AWS Secrets Manager</li>
-<li>Update user data script to authenticate:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>aws<span class="w"> </span>ecr<span class="w"> </span>get-login-password<span class="w"> </span>--region<span class="w"> </span>us-west-2<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>docker<span class="w"> </span>login<span class="w"> </span>--username<span class="w"> </span>AWS<span class="w"> </span>--password-stdin<span class="w"> </span>&lt;account&gt;.dkr.ecr.us-west-2.amazonaws.com
-</code></pre></div></li>
-<li>Reference private image:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"&lt;account&gt;.dkr.ecr.us-west-2.amazonaws.com/your-image:latest"</span>
-</code></pre></div></li>
-</ol>
+<p>Private registries are <strong>not supported out of the box</strong>. The client VM's
+startup script runs an unauthenticated <code>docker pull</code>, and that script ships
+inside the allocator package — it is not user-editable in either deployment
+path. A private image fails at pull time.</p>
+<p>Your options:</p>
+<ul>
+<li><strong>Make the image public</strong> (e.g., a public ghcr.io package) — recommended</li>
+<li><strong>Bake registry credentials into a custom AMI</strong>: pre-configure <code>docker login</code>
+  or a credential helper (such as the ECR credential helper) on the AMI, then
+  set <code>machine.ami_id</code> to it (see <a href="#custom-ami">Custom AMI</a>)</li>
+</ul>
 <h3 id="custom-health-checks">Custom Health Checks<a class="headerlink" href="#custom-health-checks" title="Permanent link">&para;</a></h3>
 <p>Implement software-specific health monitoring:</p>
 <p><strong><code>your_health_check.py</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_health</span><span class="p">():</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="sd">"""Check if your software is healthy."""</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="c1"># Example: Check GPU availability</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>        <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>        <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>    <span class="k">except</span><span class="p">:</span>
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>
-<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>    <span class="c1"># Example: Check disk space</span>
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
-<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">free</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">disk_usage</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>    <span class="k">if</span> <span class="n">free</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">3</span><span class="p">:</span>  <span class="c1"># Less than 10GB</span>
-<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a>
-<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>    <span class="k">return</span> <span class="kc">True</span>
-<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a>
-<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="k">def</span><span class="w"> </span><span class="nf">report_to_allocator</span><span class="p">(</span><span class="n">status</span><span class="p">):</span>
-<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="w">    </span><span class="sd">"""Report status to allocator."""</span>
-<a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a>    <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-<a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a>        <span class="sa">f</span><span class="s2">"http://</span><span class="si">{</span><span class="n">ALLOCATOR_HOST</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">ALLOCATOR_PORT</span><span class="si">}</span><span class="s2">/health"</span><span class="p">,</span>
-<a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a>        <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"healthy"</span> <span class="k">if</span> <span class="n">status</span> <span class="k">else</span> <span class="s2">"unhealthy"</span><span class="p">}</span>
-<a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a>    <span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">check_health</span><span class="p">():</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="sd">"""Check if your software is healthy."""</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="c1"># Example: Check GPU availability</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>        <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>        <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="k">except</span><span class="p">:</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    <span class="c1"># Example: Check disk space</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">free</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">disk_usage</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    <span class="k">if</span> <span class="n">free</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">3</span><span class="p">:</span>  <span class="c1"># Less than 10GB</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>    <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="k">def</span><span class="w"> </span><span class="nf">report_to_allocator</span><span class="p">(</span><span class="n">status</span><span class="p">):</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="w">    </span><span class="sd">"""Report status to allocator."""</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>    <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>        <span class="sa">f</span><span class="s2">"http://</span><span class="si">{</span><span class="n">ALLOCATOR_HOST</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">ALLOCATOR_PORT</span><span class="si">}</span><span class="s2">/health"</span><span class="p">,</span>
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>        <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"healthy"</span> <span class="k">if</span> <span class="n">status</span> <span class="k">else</span> <span class="s2">"unhealthy"</span><span class="p">}</span>
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>    <span class="p">)</span>
 </code></pre></div></p>
 <h2 id="example-adapting-for-pytorch-training">Example: Adapting for PyTorch Training<a class="headerlink" href="#example-adapting-for-pytorch-training" title="Permanent link">&para;</a></h2>
 <p>Complete example for a PyTorch training workflow.</p>
 <h3 id="dockerfile">Dockerfile<a class="headerlink" href="#dockerfile" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c"># Install Python and dependencies</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span>python3.9<span class="w"> </span>git<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="c"># Install uv</span>
-<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>ghcr.io/astral-sh/uv:latest<span class="w"> </span>/uv<span class="w"> </span>/uvx<span class="w"> </span>/usr/local/bin/
-<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>
-<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="c"># Install PyTorch</span>
-<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">    </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
-<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>
-<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="c"># Install your training code dependencies</span>
-<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="k">COPY</span><span class="w"> </span>requirements.txt<span class="w"> </span>/app/
-<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>-r<span class="w"> </span>/app/requirements.txt
-<a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>
-<a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="c"># Copy training scripts</span>
-<a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a><span class="k">COPY</span><span class="w"> </span>train.py<span class="w"> </span>/app/
-<a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="k">COPY</span><span class="w"> </span>utils/<span class="w"> </span>/app/utils/
-<a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a>
-<a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span>
-<a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">"python3"</span><span class="p">,</span><span class="w"> </span><span class="s2">"train.py"</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">FROM</span><span class="w"> </span><span class="s">nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c"># Install Python and dependencies</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span>python3<span class="w"> </span>git<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/var/lib/apt/lists/*
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="c"># Install uv</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>ghcr.io/astral-sh/uv:latest<span class="w"> </span>/uv<span class="w"> </span>/uvx<span class="w"> </span>/usr/local/bin/
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="c"># Install PyTorch</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>torchaudio<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu128
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="c"># Install your training code dependencies</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="k">COPY</span><span class="w"> </span>requirements.txt<span class="w"> </span>/app/
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="k">RUN</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--system<span class="w"> </span>-r<span class="w"> </span>/app/requirements.txt
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>
+<a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="c"># Copy training scripts</span>
+<a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="k">COPY</span><span class="w"> </span>train.py<span class="w"> </span>/app/
+<a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="k">COPY</span><span class="w"> </span>utils/<span class="w"> </span>/app/utils/
+<a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a>
+<a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span>
+<a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">"python3"</span><span class="p">,</span><span class="w"> </span><span class="s2">"train.py"</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">machine</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g5.2xlarge"</span><span class="w">  </span><span class="c1"># A10G GPU</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/pytorch-training:latest"</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="s">"https://github.com/your-org/training-data.git"</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"pytorch-training"</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-067cc81f948e50e06"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">machine</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">machine_type</span><span class="p">:</span><span class="w"> </span><span class="s">"g5.2xlarge"</span><span class="w">  </span><span class="c1"># A10G GPU</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/your-org/pytorch-training:latest"</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="s">"https://github.com/your-org/training-data.git"</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="nt">software</span><span class="p">:</span><span class="w"> </span><span class="s">"pytorch-training"</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">  </span><span class="nt">ami_id</span><span class="p">:</span><span class="w"> </span><span class="s">"ami-0601752c11b394251"</span>
 </code></pre></div>
 <h3 id="training-script">Training Script<a class="headerlink" href="#training-script" title="Permanent link">&para;</a></h3>
 <p><strong><code>train.py</code></strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="c1"># Check GPU</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>        <span class="nb">print</span><span class="p">(</span><span class="s2">"ERROR: No GPU available"</span><span class="p">)</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Using GPU: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>
-<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>    <span class="c1"># Your training code here</span>
-<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">YourModel</span><span class="p">()</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
-<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
-<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>
-<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>    <span class="c1"># Training loop</span>
-<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
-<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>        <span class="n">train_epoch</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
-<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2"> complete"</span><span class="p">)</span>
-<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>
-<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
-<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>    <span class="n">main</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="c1"># Check GPU</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        <span class="nb">print</span><span class="p">(</span><span class="s2">"ERROR: No GPU available"</span><span class="p">)</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Using GPU: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>    <span class="c1"># Your training code here</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">YourModel</span><span class="p">()</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>    <span class="c1"># Training loop</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>        <span class="n">train_epoch</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2"> complete"</span><span class="p">)</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>    <span class="n">main</span><span class="p">()</span>
 </code></pre></div></p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="image-wont-start">Image Won't Start<a class="headerlink" href="#image-wont-start" title="Permanent link">&para;</a></h3>
 <p><strong>Check</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>docker<span class="w"> </span>logs<span class="w"> </span>&lt;container&gt;
 </code></pre></div></p>
 <p><strong>Common issues</strong>:
 - Missing dependencies
