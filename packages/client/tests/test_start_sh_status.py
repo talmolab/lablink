@@ -163,3 +163,18 @@ def test_overlay_report_retries(script_text):
     report = _line_of(script_text, "/api/overlay-hostname")
     window = "\n".join(script_text.splitlines()[report - 6 : report + 12])
     assert "--retry" in window
+
+
+def test_clone_skips_the_literal_string_none(script_text):
+    """Allocators predating the tfvars fix (providers/aws.py) f-string a
+    Python None into the literal string "None", shipping
+    TUTORIAL_REPO_TO_CLONE="None" -- non-empty, so an -n-only gate ran
+    `git clone None` and logged its failure on every boot. The guard makes
+    new client images immune regardless of the allocator's version."""
+    gate = next(
+        ln
+        for ln in script_text.splitlines()
+        if "TUTORIAL_REPO_TO_CLONE" in ln and "if " in ln
+    )
+    assert '[ -n "$TUTORIAL_REPO_TO_CLONE" ]' in gate
+    assert '[ "$TUTORIAL_REPO_TO_CLONE" != "None" ]' in gate
