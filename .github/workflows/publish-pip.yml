@@ -28,6 +28,14 @@ permissions:
   contents: read
   id-token: write
 
+# A GitHub Release fires both a tag-push run and a release run for the same
+# version. Serialize them (ref_name is the tag for both) so the loser's
+# already-on-PyPI check sees the winner's upload and skips instead of dying
+# with 400 "File already exists".
+concurrency:
+  group: publish-pip-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
