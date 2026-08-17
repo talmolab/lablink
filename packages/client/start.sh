@@ -437,6 +437,21 @@ chmod +x /home/client/.vnc/xstartup
 # a non-tty container, select-de.sh has no stdin and aborts the launch.
 touch /home/client/.vnc/.de-was-selected
 
+# Pre-create the X11 and ICE socket directories. This container runs as the
+# non-root `client` user, so when Xvnc and libICE start they cannot create
+# these themselves and X.Org's trans_mkdir logs, at boot on every VM:
+#   [kasmvnc]  _XSERVTransmkdir: ERROR: euid != 0,directory /tmp/.X11-unix ...
+#   [xstartup] _IceTransmkdir: ERROR: euid != 0,directory /tmp/.ICE-unix ...
+# It is benign -- Xvnc serves over the websocket port and local X clients
+# reach DISPLAY :1 over TCP -- but the lines carry the literal word ERROR,
+# so an errors-only log view shows nothing else on a healthy VM. Creating
+# the dirs root:root with the sticky bit (the standard /tmp/.X11-unix state)
+# makes trans_mkdir accept them silently. sudo is available to this user
+# (see the tailscaled launch above). Also lets the X1-socket wait below
+# succeed instead of spinning for its full timeout.
+sudo mkdir -p /tmp/.X11-unix /tmp/.ICE-unix
+sudo chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
+
 # Inert, retained pending a separate cleanup. kasmvnc.yaml is read only by
 # the kasmvncserver Perl wrapper, which we bypass to exec Xvnc directly
 # (see the launch comment below) -- Xkasmvnc never opens the file. So these
