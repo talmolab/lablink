@@ -4992,8 +4992,11 @@
 <h2 id="advanced">Advanced<a class="headerlink" href="#advanced" title="Permanent link">&para;</a></h2>
 <details class="note">
 <summary>Can I use RDS instead of PostgreSQL in Docker?</summary>
-<p>Yes, for production. See <a href="../database/#migrating-to-rds-production">Database → Migrating to RDS</a>.</p>
-<p>Benefits: automated backups, high availability, managed updates.</p>
+<p>No. PostgreSQL runs inside the allocator container with a fixed identity
+(database <code>lablink_db</code>, user <code>lablink</code>, <code>localhost:5432</code>) — only the
+password is configurable. The database is created fresh with each
+deployment and torn down with it, so an external managed database has
+nothing to persist.</p>
 </details>
 <details class="note">
 <summary>Can I use LabLink with multiple AWS accounts?</summary>
