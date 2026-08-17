@@ -90,6 +90,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-ubuntu \
     fonts-dejavu \
     fonts-liberation \
+    # Classic X bitmap fonts (misc-fixed). xterm's default font lives here;
+    # without it the xterm pin logs "cannot load font -misc-fixed-..." at boot.
+    xfonts-base \
     fontconfig \
     # Desktop file-to-application routing (xdg-open, xdg-mime)
     xdg-utils \

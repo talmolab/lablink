@@ -357,7 +357,9 @@ fi
 # in parallel (see lablink#376). Retry re-runs the WHOLE script, so it
 # must be safe to run more than once (e.g. `uv tool install` already is).
 if [ -f "/docker_scripts/custom-startup.sh" ] && [ -s "/docker_scripts/custom-startup.sh" ]; then
-  sudo chmod +x /docker_scripts/custom-startup.sh
+  # No chmod +x: the script is only ever invoked via `bash .../custom-startup.sh`
+  # below, and the mount is read-only, so a chmod just logs
+  # "chmod: ... Read-only file system" on every boot.
 
   MAX_ATTEMPTS="${STARTUP_MAX_ATTEMPTS:-1}"
   [ "$MAX_ATTEMPTS" -lt 1 ] 2>/dev/null && MAX_ATTEMPTS=1
@@ -428,6 +430,11 @@ mkdir -p /home/client/.vnc
   echo '#!/bin/sh'
   echo 'unset SESSION_MANAGER'
   echo 'unset DBUS_SESSION_BUS_ADDRESS'
+  # No accessibility bus exists in this container, so every GTK app the
+  # session spawns logs "dbind-WARNING **: AT-SPI: Error retrieving
+  # accessibility bus address" -- a dozen-plus lines per boot. NO_AT_BRIDGE=1
+  # tells GTK not to look for one.
+  echo 'export NO_AT_BRIDGE=1'
   echo 'exec dbus-launch --exit-with-session xfce4-session'
 } > /home/client/.vnc/xstartup
 chmod +x /home/client/.vnc/xstartup
@@ -703,8 +710,9 @@ fi
 CONTAINER_END_TIME=$(date +%s)
 CONTAINER_DURATION=$((CONTAINER_END_TIME - CONTAINER_START_TIME))
 
-# Send container startup completion to allocator
-curl -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
+# Send container startup completion to allocator. -sS: without it curl dumps
+# its progress table ("% Total  % Received ...") into the boot log.
+curl -sS -X POST "$ALLOCATOR_URL/api/vm-metrics/$VM_NAME" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $CLIENT_SECRET" \
   -d "{
