@@ -203,7 +203,12 @@ class AWSProvider:
             f.write(f'allocator_url = "{spec["allocator_url"]}"\n')
             f.write(f'machine_type = "{spec["machine_type"]}"\n')
             f.write(f'image_name = "{spec["image_name"]}"\n')
-            f.write(f'repository = "{spec["repository"]}"\n')
+            # cfg.machine.repository is Optional and defaults to None; an
+            # f-string over Python None writes the literal string "None",
+            # which reaches client start.sh as TUTORIAL_REPO_TO_CLONE="None"
+            # and makes every VM boot attempt `git clone None` (and log its
+            # failure). Empty string is the "no repo" value start.sh skips.
+            f.write(f'repository = "{spec["repository"] or ""}"\n')
             f.write(f'client_ami_id = "{spec["client_ami_id"]}"\n')
             f.write(f'subject_software = "{spec["subject_software"]}"\n')
             f.write(f'resource_prefix = "{spec["resource_prefix"]}"\n')
