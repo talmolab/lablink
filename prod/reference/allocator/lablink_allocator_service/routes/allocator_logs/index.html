@@ -3482,6 +3482,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../utils/log_filter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    log_filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../utils/log_tail/" class="md-nav__link">
         
   
@@ -4662,8 +4690,7 @@ container, and is deliberately out of scope.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/routes/allocator_logs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-26">26</a></span>
 <span class="normal"><a href="#__codelineno-0-27">27</a></span>
 <span class="normal"><a href="#__codelineno-0-28">28</a></span>
 <span class="normal"><a href="#__codelineno-0-29">29</a></span>
@@ -4679,24 +4706,37 @@ container, and is deliberately out of scope.</p>
 <span class="normal"><a href="#__codelineno-0-39">39</a></span>
 <span class="normal"><a href="#__codelineno-0-40">40</a></span>
 <span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_api</span><span class="p">():</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">    </span><span class="sd">"""Return a redacted tail of the allocator's own log file.</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    Mirrors /api/vm-logs/&lt;hostname&gt;'s response keys so the shared logs</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    template's JavaScript works unchanged. cloud_init_logs is always None:</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    the allocator's cloud-init output lives on the EC2 host, outside this</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    container, and is deliberately out of scope.</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    """</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">logs</span> <span class="o">=</span> <span class="n">read_allocator_log</span><span class="p">()</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="p">{</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="s2">"cloud_init_logs"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>            <span class="s2">"docker_logs"</span><span class="p">:</span> <span class="n">logs</span><span class="p">,</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>            <span class="s2">"error"</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">logs</span> <span class="k">else</span> <span class="n">_MISSING_LOG_MSG</span><span class="p">,</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="p">}</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#__codelineno-0-49">49</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_api</span><span class="p">():</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="w">    </span><span class="sd">"""Return a redacted tail of the allocator's own log file.</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    Mirrors /api/vm-logs/&lt;hostname&gt;'s response keys so the shared logs</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    template's JavaScript works unchanged. cloud_init_logs is always None:</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    the allocator's cloud-init output lives on the EC2 host, outside this</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    container, and is deliberately out of scope.</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    """</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">logs</span> <span class="o">=</span> <span class="n">read_allocator_log</span><span class="p">()</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="c1"># Capture missing-ness *before* filtering: a log with no error lines</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># filters down to "", which is falsy, and would otherwise be reported</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="c1"># as a missing log file.</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="n">logs</span> <span class="ow">is</span> <span class="kc">None</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"errors_only"</span><span class="p">,</span> <span class="s2">"false"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"true"</span><span class="p">:</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="n">logs</span> <span class="o">=</span> <span class="n">filter_errors</span><span class="p">(</span><span class="n">logs</span><span class="p">)</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="p">{</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>            <span class="s2">"cloud_init_logs"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="s2">"docker_logs"</span><span class="p">:</span> <span class="n">logs</span><span class="p">,</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="s2">"error"</span><span class="p">:</span> <span class="n">_MISSING_LOG_MSG</span> <span class="k">if</span> <span class="n">missing</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="p">}</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4719,31 +4759,31 @@ container, and is deliberately out of scope.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/allocator/src/lablink_allocator_service/routes/allocator_logs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-52">52</a></span>
 <span class="normal"><a href="#__codelineno-0-53">53</a></span>
 <span class="normal"><a href="#__codelineno-0-54">54</a></span>
 <span class="normal"><a href="#__codelineno-0-55">55</a></span>
 <span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_page</span><span class="p">():</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="w">    </span><span class="sd">"""Render the shared logs page pointed at this blueprint's API."""</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="s2">"instance-logs.html"</span><span class="p">,</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>        <span class="n">log_title</span><span class="o">=</span><span class="s2">"Allocator Logs"</span><span class="p">,</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="n">log_endpoint</span><span class="o">=</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="n">download_slug</span><span class="o">=</span><span class="s2">"allocator"</span><span class="p">,</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="n">show_cloud_init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="c1"># Reached via same-tab navigation from /admin, so window.close() is a no-op.</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>        <span class="n">show_close</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="nd">@bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">"/admin/allocator-logs"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">"GET"</span><span class="p">])</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="nd">@auth</span><span class="o">.</span><span class="n">login_required</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="k">def</span><span class="w"> </span><span class="nf">allocator_logs_page</span><span class="p">():</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="w">    </span><span class="sd">"""Render the shared logs page pointed at this blueprint's API."""</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="s2">"instance-logs.html"</span><span class="p">,</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="n">log_title</span><span class="o">=</span><span class="s2">"Allocator Logs"</span><span class="p">,</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">log_endpoint</span><span class="o">=</span><span class="s2">"/api/allocator-logs"</span><span class="p">,</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="n">download_slug</span><span class="o">=</span><span class="s2">"allocator"</span><span class="p">,</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="n">show_cloud_init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="c1"># Reached via same-tab navigation from /admin, so window.close() is a no-op.</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">show_close</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

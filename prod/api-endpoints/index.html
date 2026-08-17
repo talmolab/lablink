@@ -3844,6 +3844,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/allocator/lablink_allocator_service/utils/log_filter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    log_filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/allocator/lablink_allocator_service/utils/log_tail/" class="md-nav__link">
         
   
@@ -5674,17 +5702,32 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <p><strong>Authentication:</strong> HTTP Basic Auth</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
-<li><code>hostname</code> (string, required): The hostname of the VM.
-  <strong>Request Body:</strong> None</li>
+<li><code>hostname</code> (string, required): The hostname of the VM.</li>
 </ul>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>errors_only</code> (boolean, optional, default <code>false</code>): When <code>true</code>, both
+  <code>cloud_init_logs</code> and <code>docker_logs</code> are reduced to their error lines —
+  lines carrying an uppercase level token (<code>ERROR</code>, <code>CRITICAL</code>, <code>FATAL</code>, plus
+  cloudflared's <code>ERR</code>/<code>FTL</code> and postgres' <code>PANIC</code>), together with any
+  traceback that follows them. Matching is case-sensitive so the client
+  startup script's <code>--retry-all-errors</code> and <code>status=error</code> lines are not
+  treated as errors, and a short denylist suppresses client reporting-path
+  failures that do not affect the VM's usability (GPU-health and
+  in-use-status report failures, and session-metrics push failures). A stream
+  with no error lines becomes <code>""</code>, not <code>null</code>.</li>
+</ul>
+<p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
 <li><strong>Code:</strong> <code>200 OK</code></li>
 <li><strong>Content:</strong>
   <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="p">{</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"lablink-vm-prod-1"</span><span class="p">,</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">"logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n..."</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="p">}</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">"cloud_init_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n..."</span><span class="p">,</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="nt">"docker_logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[start] ALLOCATOR_HOST: ...\n..."</span><span class="p">,</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span><span class="nt">"logs"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Starting cloud-init...\n...\n[start] ALLOCATOR_HOST: ...\n..."</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="p">}</span>
 </code></pre></div></li>
 </ul>
 <p><strong>Error Response:</strong></p>
@@ -5698,6 +5741,13 @@ agent (see <a href="#request-a-vm"><code>/api/request_vm</code></a> and
 <p><strong>Description:</strong> Returns a redacted tail (last 2000 lines) of the allocator's own container output, read from the file <code>start.sh</code> writes at <code>/var/log/lablink/allocator.log</code>. Backs the <code>/admin/allocator-logs</code> page. Values of <code>PASSWORD</code>/<code>TOKEN</code>/<code>SECRET</code>/<code>KEY</code> assignments are masked before the response leaves the process.</p>
 <p><strong>Authentication:</strong> Admin HTTP Basic</p>
 <p><strong>URL Parameters:</strong> None</p>
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li><code>errors_only</code> (boolean, optional, default <code>false</code>): As on
+  <code>GET /api/vm-logs/&lt;hostname&gt;</code> — reduces <code>docker_logs</code> to its error lines.
+  <code>error</code> still reports only a genuinely missing log file; a log with no
+  error lines returns <code>docker_logs: ""</code> with <code>error: null</code>.</li>
+</ul>
 <p><strong>Request Body:</strong> None</p>
 <p><strong>Success Response:</strong></p>
 <ul>
