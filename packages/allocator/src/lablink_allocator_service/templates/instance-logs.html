@@ -400,7 +400,6 @@
             // context, and a silently-filtered file is data loss.
             let cloudInit = null;
             let docker = null;
-            let note = "";
             let fetched = false;
             try {
                 const res = await fetch(logEndpoint, { credentials : 'include' });
@@ -414,15 +413,8 @@
                 console.error("Error fetching full logs for download:", err);
             }
             if (!fetched) {
-                // Fetch failed — fall back to what is on screen, and say so
-                // in the file rather than passing it off as the full log.
-                note = "=== NOTE: could not fetch the full log; " +
-                       "this is the view as displayed ===\n\n";
-                docker = document.getElementById("dockerLogBox").textContent;
-                if (hasCloudInit) {
-                    cloudInit =
-                        document.getElementById("cloudInitLogBox").textContent;
-                }
+                alert("Could not fetch the full log; try again.");
+                return;
             }
             let logs;
             if (hasCloudInit) {
@@ -431,7 +423,7 @@
             } else {
                 logs = "=== Docker Logs ===\n" + (docker || "");
             }
-            const blob = new Blob([note + logs], { type: 'text/plain' });
+            const blob = new Blob([logs], { type: 'text/plain' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;

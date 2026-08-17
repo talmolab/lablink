@@ -6,7 +6,7 @@ import pytest
 
 from lablink_allocator_service.utils.log_filter import (
     BENIGN_CLIENT_PATTERNS,
-    BENIGN_ERROR_PATTERNS,
+    BENIGN_NOISE_PATTERNS,
     filter_errors,
     is_error_line,
 )
@@ -61,7 +61,9 @@ def test_drops_every_benign_retry_error():
     )
 
 
-@pytest.mark.parametrize("pattern", BENIGN_ERROR_PATTERNS)
+@pytest.mark.parametrize(
+    "pattern", BENIGN_CLIENT_PATTERNS + BENIGN_NOISE_PATTERNS
+)
 def test_every_benign_pattern_is_suppressed(pattern):
     """Covers a newly added pattern automatically, unlike a count check."""
     assert filter_errors(f"12:00 ERROR svc: {pattern} tail") == ""

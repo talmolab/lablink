@@ -13,7 +13,7 @@ recall-first rule; what keeps it honest is being case-sensitive, plus a
 short denylist. The denylist has two halves: BENIGN_CLIENT_PATTERNS (our
 own retry-exhausted reporting lines) and BENIGN_NOISE_PATTERNS (the literal
 word `ERROR` printed by third-party desktop-stack programs, e.g. the X11
-`euid != 0` socket-dir notice). See _ERROR_RE and BENIGN_ERROR_PATTERNS.
+`euid != 0` socket-dir notice). See _ERROR_RE and the two tuples below.
 
 Flask-free on purpose, like log_tail.py next door: the rule is the part
 worth testing, and keeping it out of the route modules lets it test
@@ -82,12 +82,6 @@ BENIGN_NOISE_PATTERNS: tuple[str, ...] = (
     "ERROR: euid != 0",  # _XSERVTransmkdir / _IceTransmkdir socket-dir notice
 )
 
-# is_error_line() and the suppression test check the union; only
-# BENIGN_CLIENT_PATTERNS is drift-checked against the client source.
-BENIGN_ERROR_PATTERNS: tuple[str, ...] = (
-    BENIGN_CLIENT_PATTERNS + BENIGN_NOISE_PATTERNS
-)
-
 
 def _body(line: str) -> str:
     """Return *line* with any timestamp / source-tag prefix removed."""
@@ -96,8 +90,8 @@ def _body(line: str) -> str:
 
 def _tag(line: str) -> str | None:
     """Return *line*'s `[tag]` source prefix, or None if it carries none."""
-    match = _PREFIX_RE.match(line)
-    return match.group("tag") if match else None
+    # Every group in _PREFIX_RE is optional, so match() never returns None.
+    return _PREFIX_RE.match(line).group("tag")
 
 
 def _traceback_indices(lines: list[str], start: int) -> list[int]:
@@ -175,7 +169,8 @@ def is_error_line(line: str) -> bool:
     """True if *line* carries an uppercase error level and is not benign."""
     if not _ERROR_RE.search(line):
         return False
-    return not any(p in line for p in BENIGN_ERROR_PATTERNS)
+    benign = BENIGN_CLIENT_PATTERNS + BENIGN_NOISE_PATTERNS
+    return not any(p in line for p in benign)
 
 
 def filter_errors(text: str | None) -> str | None:
