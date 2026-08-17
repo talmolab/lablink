@@ -5,27 +5,17 @@ from unittest.mock import patch
 from lablink_allocator_service.db.vms import VmDatabase
 
 
-class _Cfg:
-    """Stand-in for cfg.db — only the attributes make_pool reads."""
-
-    dbname = "testdb"
-    user = "testuser"
-    password = "testpass"
-    host = "localhost"
-    port = 5432
-
-
 def test_make_pool_passes_connection_params():
     with patch("psycopg2.pool.ThreadedConnectionPool") as mock_pool:
         from lablink_allocator_service.db.pool import make_pool
 
-        make_pool(_Cfg(), pool_min_size=2, pool_max_size=10)
+        make_pool("testpass", pool_min_size=2, pool_max_size=10)
 
     mock_pool.assert_called_once_with(
         minconn=2,
         maxconn=10,
-        dbname="testdb",
-        user="testuser",
+        dbname="lablink_db",
+        user="lablink",
         password="testpass",
         host="localhost",
         port=5432,
@@ -36,14 +26,14 @@ def test_make_pool_rejects_min_below_one():
     from lablink_allocator_service.db.pool import make_pool
 
     with pytest.raises(ValueError, match="Invalid pool sizes"):
-        make_pool(_Cfg(), pool_min_size=0, pool_max_size=10)
+        make_pool("testpass", pool_min_size=0, pool_max_size=10)
 
 
 def test_make_pool_rejects_max_below_min():
     from lablink_allocator_service.db.pool import make_pool
 
     with pytest.raises(ValueError, match="Invalid pool sizes"):
-        make_pool(_Cfg(), pool_min_size=5, pool_max_size=2)
+        make_pool("testpass", pool_min_size=5, pool_max_size=2)
 
 
 def test_validate_pool_sizes_accepts_valid_sizes():

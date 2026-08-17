@@ -1,13 +1,16 @@
+from lablink_allocator_service.conf.structured_config import (
+    DB_NAME,
+    DB_USER,
+    VM_TABLE_NAME,
+)
 from lablink_allocator_service.get_config import get_config
 
 
 def build_init_sql() -> str:
     """Build the PostgreSQL initialization SQL script as a string."""
     config = get_config()
-    DB_NAME = config.db.dbname
-    DB_USER = config.db.user
     DB_PASSWORD = config.db.password
-    VM_TABLE = config.db.table_name
+    VM_TABLE = VM_TABLE_NAME
     # MESSAGE_CHANNEL was the CRD notify channel; no longer needed.
 
     return f"""

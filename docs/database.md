@@ -30,8 +30,7 @@ The schema is created once, at container start, by `generate-init-sql` writing
 ### `vms` Table
 
 The main table. One row per client machine, whether it was provisioned by OpenTofu
-or registered itself as a BYO box. The table name is configurable via
-`db.table_name` (default `vm_table`); this page calls it `vms`.
+or registered itself as a BYO box. The table name is fixed: `vms`.
 
 It carries five groups of columns:
 
@@ -198,15 +197,13 @@ sudo docker exec -it $CONTAINER_ID psql -U lablink -d lablink_db
 
 ### Connection Parameters
 
-From config (`lablink-infrastructure/config/config.yaml`):
+The database identity is fixed — `lablink_db`, user `lablink`, on
+`localhost:5432` inside the allocator container. Only the password comes
+from config (`lablink-infrastructure/config/config.yaml`):
 
 ```yaml
 db:
-  dbname: "lablink_db"
-  user: "lablink"
   password: "lablink" # Change in production!
-  host: "localhost"
-  port: 5432
 ```
 
 ### From Python (Inside Container)
@@ -473,77 +470,6 @@ WHERE datname = 'lablink_db'
   AND state_change < NOW() - INTERVAL '10 minutes';
 ```
 
-## Migrating to RDS (Production)
-
-For production, consider Amazon RDS for managed PostgreSQL.
-
-### Benefits
-
-- Automated backups
-- Multi-AZ high availability
-- Automatic failover
-- Automated patching
-- Monitoring and metrics
-- Point-in-time recovery
-
-### Setup RDS Instance
-
-```hcl
-# terraform/rds.tf
-
-resource "aws_db_instance" "lablink" {
-  identifier        = "lablink-db-${var.environment}"
-  engine            = "postgres"
-  engine_version    = "13.7"
-  instance_class    = "db.t3.micro"
-  allocated_storage = 20
-
-  db_name  = "lablink_db"
-  username = "lablink"
-  password = var.db_password  # From Secrets Manager
-
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  db_subnet_group_name   = aws_db_subnet_group.lablink.name
-
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
-
-  storage_encrypted      = true
-  skip_final_snapshot   = false
-  final_snapshot_identifier = "lablink-final-${var.environment}"
-
-  tags = {
-    Name = "lablink-db-${var.environment}"
-  }
-}
-
-output "rds_endpoint" {
-  value = aws_db_instance.lablink.endpoint
-}
-```
-
-### Update Application Configuration
-
-```yaml
-db:
-  dbname: "lablink_db"
-  user: "lablink"
-  password: "${DB_PASSWORD}" # From Secrets Manager
-  host: "lablink-db-prod.xxxxx.us-west-2.rds.amazonaws.com"
-  port: 5432
-```
-
-### Migrate Data
-
-```bash
-# Dump from container database
-sudo docker exec <container-id> pg_dump -U lablink lablink_db > dump.sql
-
-# Restore to RDS
-psql -h lablink-db-prod.xxxxx.us-west-2.rds.amazonaws.com -U lablink -d lablink_db < dump.sql
-```
-
 ## Troubleshooting
 
 ### PostgreSQL Won't Start
@@ -664,7 +590,6 @@ pg_isready -U lablink
 3. **Restrict pg_hba.conf**: Limit to specific IPs/VPCs
 4. **Regular backups**: Automate daily backups
 5. **Monitor access logs**: Review connection attempts
-6. **Use RDS for production**: Better security and management
 
 ## Performance Tuning
 

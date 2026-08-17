@@ -13,12 +13,7 @@ def omega_config():
     return OmegaConf.create(
         {
             "db": {
-                "dbname": "test_db",
-                "user": "test_user",
                 "password": "test_password",
-                "host": "localhost",
-                "port": 5432,
-                "table_name": "test_table",
             },
             "machine": {
                 "machine_type": "g4dn.xlarge",
@@ -186,12 +181,7 @@ def valid_config_dict():
         "environment": "prod",
         "provider": "aws",
         "db": {
-            "dbname": "lablink_db",
-            "user": "lablink",
             "password": "test_password",
-            "host": "localhost",
-            "port": 5432,
-            "table_name": "vms",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
@@ -238,12 +228,7 @@ def invalid_config_dict():
         "deployment_name": "test-lablink",
         "environment": "prod",
         "db": {
-            "dbname": "lablink_db",
-            "user": "lablink",
             "password": "test_password",
-            "host": "localhost",
-            "port": 5432,
-            "table_name": "vms",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
@@ -271,12 +256,7 @@ def config_with_unknown_top_level_key():
         "deployment_name": "test-lablink",
         "environment": "prod",
         "db": {
-            "dbname": "lablink_db",
-            "user": "lablink",
             "password": "test_password",
-            "host": "localhost",
-            "port": 5432,
-            "table_name": "vms",
         },
         "machine": {
             "machine_type": "g4dn.xlarge",
@@ -305,12 +285,7 @@ def config_with_unknown_nested_key():
         "deployment_name": "test-lablink",
         "environment": "prod",
         "db": {
-            "dbname": "lablink_db",
-            "user": "lablink",
             "password": "test_password",
-            "host": "localhost",
-            "port": 5432,
-            "table_name": "vms",
             # This nested key does NOT exist in DatabaseConfig schema
             "unknown_field": "this_should_fail",
         },

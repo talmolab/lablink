@@ -12,6 +12,13 @@ import os
 import psycopg2
 import psycopg2.pool
 
+from lablink_allocator_service.conf.structured_config import (
+    DB_HOST,
+    DB_NAME,
+    DB_PORT,
+    DB_USER,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,14 +115,16 @@ def validate_pool_sizes(pool_min_size: int, pool_max_size: int) -> None:
         )
 
 
-def make_pool(cfg_db, *, pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZE):
-    """Build a ThreadedConnectionPool from a `cfg.db`-shaped object.
+def make_pool(password, *, pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZE):
+    """Build a ThreadedConnectionPool for the fixed allocator database.
 
-    For callers that need ONLY a pool and no persistence class — e.g. the
-    APScheduler job in scheduler.py, which shares one pool across several
-    handles. The pool is built with THIS module's psycopg2 binding; a caller
-    that needs the binding to be its own (see validate_pool_sizes) should
-    construct the pool itself rather than calling this.
+    Only the password varies per deployment; every other connection
+    parameter is a DB_* constant. For callers that need ONLY a pool and no
+    persistence class — e.g. the APScheduler job in scheduler.py, which
+    shares one pool across several handles. The pool is built with THIS
+    module's psycopg2 binding; a caller that needs the binding to be its
+    own (see validate_pool_sizes) should construct the pool itself rather
+    than calling this.
 
     Raises:
         ValueError: If pool sizing is invalid.
@@ -124,9 +133,9 @@ def make_pool(cfg_db, *, pool_min_size=POOL_MIN_SIZE, pool_max_size=POOL_MAX_SIZ
     return psycopg2.pool.ThreadedConnectionPool(
         minconn=pool_min_size,
         maxconn=pool_max_size,
-        dbname=cfg_db.dbname,
-        user=cfg_db.user,
-        password=cfg_db.password,
-        host=cfg_db.host,
-        port=cfg_db.port,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=password,
+        host=DB_HOST,
+        port=DB_PORT,
     )

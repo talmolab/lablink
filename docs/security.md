@@ -654,16 +654,6 @@ resource "aws_instance" "lablink_allocator" {
 }
 ```
 
-#### Database
-
-For RDS (if using external database):
-```hcl
-resource "aws_db_instance" "lablink" {
-  storage_encrypted = true
-  kms_key_id        = aws_kms_key.lablink.arn
-}
-```
-
 ### Encryption in Transit
 
 #### HTTPS for Allocator

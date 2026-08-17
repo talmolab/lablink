@@ -283,12 +283,7 @@ def test_parse_rrule_to_cron_daily(scheduler_service):
 def _make_mock_config(provider_name="aws"):
     """Helper: build a mock config object matching what get_config() returns."""
     mock_config = MagicMock()
-    mock_config.db.dbname = "testdb"
-    mock_config.db.user = "testuser"
     mock_config.db.password = "testpass"
-    mock_config.db.host = "localhost"
-    mock_config.db.port = 5432
-    mock_config.db.table_name = "vms"
     mock_config.provider = provider_name
     mock_config.app.region = "us-east-1"
     return mock_config

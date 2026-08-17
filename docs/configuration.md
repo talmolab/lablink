@@ -53,12 +53,7 @@ LabLink uses [Hydra](https://hydra.cc/) for configuration management, which prov
 
 ```yaml
 db:
-  dbname: "lablink_db"
-  user: "lablink"
   password: "PLACEHOLDER_DB_PASSWORD"  # Injected from GitHub secret at deploy time
-  host: "localhost"
-  port: 5432
-  table_name: "vms"
 
 machine:
   machine_type: "g4dn.xlarge"
@@ -115,16 +110,13 @@ client:
 
 ### Database Options (`db`)
 
-Configuration for the PostgreSQL database.
+Configuration for the PostgreSQL database. PostgreSQL runs inside the
+allocator container with a fixed identity (database `lablink_db`, user
+`lablink`, `localhost:5432`) — only the password is configurable.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `dbname` | string | `lablink_db` | Database name |
-| `user` | string | `lablink` | Database username |
 | `password` | string | `lablink` | Database password (override with `PLACEHOLDER_DB_PASSWORD` or GitHub secret) |
-| `host` | string | `localhost` | Database host |
-| `port` | int | `5432` | PostgreSQL port |
-| `table_name` | string | `vm_table` | VM table name |
 
 !!! warning "Production Security"
     Configure `DB_PASSWORD` secret for GitHub Actions deployments, or manually replace the placeholder. See [Security](security.md#database-password).
@@ -648,19 +640,6 @@ Use with Hydra:
 python main.py --config-name=config-gpu
 ```
 
-### Custom Database
-
-Use external PostgreSQL (RDS):
-
-```yaml
-db:
-  dbname: "lablink_production"
-  user: "lablink_admin"
-  password: "${DB_PASSWORD}"
-  host: "lablink-db.cluster-xxxxx.us-west-2.rds.amazonaws.com"
-  port: 5432
-```
-
 ## Configuration Best Practices
 
 1. **Never commit secrets**: Use environment variables or AWS Secrets Manager
@@ -711,12 +690,7 @@ Access the allocator via public IP address over HTTP. No domain or SSL required.
 # Access allocator via public IP address over HTTP
 
 db:
-  dbname: "lablink_db"
-  user: "lablink"
   password: "PLACEHOLDER_DB_PASSWORD"
-  host: "localhost"
-  port: 5432
-  table_name: "vms"
 
 machine:
   machine_type: "g4dn.xlarge"
@@ -777,12 +751,7 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     # LabLink Configuration: Route53 + Let's Encrypt (OpenTofu-managed DNS)
 
     db:
-      dbname: "lablink_db"
-      user: "lablink"
       password: "PLACEHOLDER_DB_PASSWORD"
-      host: "localhost"
-      port: 5432
-      table_name: "vms"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -839,12 +808,7 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     # LabLink Configuration: Route53 + Let's Encrypt (Manual DNS)
 
     db:
-      dbname: "lablink_db"
-      user: "lablink"
       password: "PLACEHOLDER_DB_PASSWORD"
-      host: "localhost"
-      port: 5432
-      table_name: "vms"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -901,12 +865,7 @@ Use Caddy as a reverse proxy with automatic SSL. Three options depending on your
     # LabLink Configuration: CloudFlare DNS + SSL
 
     db:
-      dbname: "lablink_db"
-      user: "lablink"
       password: "PLACEHOLDER_DB_PASSWORD"
-      host: "localhost"
-      port: 5432
-      table_name: "vms"
 
     machine:
       machine_type: "g4dn.xlarge"
@@ -964,12 +923,7 @@ Use AWS Application Load Balancer with ACM-managed SSL certificates. Enterprise-
 # LabLink Configuration: Route53 + ACM (AWS Certificate Manager)
 
 db:
-  dbname: "lablink_db"
-  user: "lablink"
   password: "PLACEHOLDER_DB_PASSWORD"
-  host: "localhost"
-  port: 5432
-  table_name: "vms"
 
 machine:
   machine_type: "g4dn.xlarge"

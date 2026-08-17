@@ -34,27 +34,29 @@ def is_unresolved_secret(value: str) -> bool:
     return value == MISSING_SECRET or value.startswith(PLACEHOLDER_SECRET_PREFIX)
 
 
+# Fixed database identity. Postgres runs inside the allocator container
+# (start.sh boots it locally and already hardcodes the user and dbname in
+# its pg_isready wait), so none of these are deployment-configurable.
+DB_NAME = "lablink_db"
+DB_USER = "lablink"
+DB_HOST = "localhost"
+DB_PORT = 5432
+VM_TABLE_NAME = "vms"
+
+
 @dataclass
 class DatabaseConfig:
     """Configuration for the database used in the LabLink Allocator Service.
-    This class defines the connection parameters for the database, including
-    the name, user, password, host, port, and table name.
+
+    Only the password is deployment-configurable; the database name, user,
+    host, port, and VM table name are fixed (see the DB_* / VM_TABLE_NAME
+    constants above).
 
     Attributes:
-        dbname (str): The name of the database.
-        user (str): The username for the database.
         password (str): The password for the database.
-        host (str): The host where the database is located.
-        port (int): The port on which the database is running.
-        table_name (str): The name of the table to store VM information.
     """
 
-    dbname: str = field(default="lablink_db")
-    user: str = field(default="lablink")
     password: str = field(default="lablink")
-    host: str = field(default="localhost")
-    port: int = field(default=5432)
-    table_name: str = field(default="vm_table")
 
 
 @dataclass
